@@ -1,52 +1,58 @@
 
+help:
+	@echo all:
+	@echo clean:
+	@echo cleanupdist:
+	@echo cleanuptest:
+	@echo cleanuptmp:
+	@echo distrib:
+	@echo release:
+	@echo check:
+
 CO = co
 COFLAGS = -M
 
-RELEASE_DATE = 2001/06/01
+RELEASE_DATE = 2002/06/01
 
 ifdef LTOPDIR
 
-L2DIR := $(LTOPDIR)/latex2
-
+L2DIR := $(LTOPDIR)/latex2e
 SCRIPTDIR := $(L2DIR)/scripts
-SCRIPTRCS := $(LTOPDIR)/support/RCS
-
-DISTDIR := $(L2DIR)/distrib/l3in2e
-SRCDIR := $(L2DIR)/source/l3in2e
-RCSDIR := $(SRCDIR)/RCS
-export TTMPDIR := $(L2DIR)/tmp/latex2e
-TEXDIR := $(L2DIR)/texinputs/latex2e
-LATEXDIR := $(L2DIR)/source/latex2e
-TESTDIR := $(L2DIR)/test/l3in2e
-LTESTDIR := $(L2DIR)/test/latex2e
-LUDISTDIR := $(L2DIR)/distrib/latex2e/unpacked
 
 else
 
 SMAINDIR = ..
-
-SCRIPTDIR := $(shell cd $(SMAINDIR)/../scripts ; pwd)
-SCRIPTRCS := $(SMAINDIR)/../../support/RCS
-
-DISTDIR := $(SMAINDIR)/../distrib/l3in2e
-SRCDIR := $(SMAINDIR)/../source/l3in2e
-RCSDIR := $(SRCDIR)/RCS
-export TTMPDIR := $(SMAINDIR)/../tmp/l3in2e
-TEXDIR := $(SMAINDIR)/../texinputs/latex2e
-LATEXDIR := $(SMAINDIR)/../source/latex2e
-TESTDIR := $(SMAINDIR)/../test/l3in2e
-LTESTDIR := $(SMAINDIR)/../test/latex2e
-LUDISTDIR := $(SMAINDIR)/../distrib/latex2e/unpacked
+L2DIR := $(SMAINDIR)/..
+LTOPDIR := $(shell cd $(SMAINDIR)/../.. ; pwd)
+SCRIPTDIR := $(shell test -d $(L2DIR)/scripts || mkdir -p $(L2DIR)/scripts ; cd $(L2DIR)/scripts ; pwd)
 
 endif
+
+DISTDIR := $(L2DIR)/distrib/l3in2e
+SRCDIR := $(L2DIR)/latex2e
+L3DIR := $(SRCDIR)/l3in2e
+SUPPORTDIR := $(SRCDIR)/support
+export TTMPDIR := $(L2DIR)/tmp/l3in2e
+TESTDIR := $(L2DIR)/test/l3in2e
+LTESTDIR := $(L2DIR)/test/latex2e
+TEXDIR := $(L2DIR)/texinputs/latex2e
+LATEXDIR := $(L2DIR)/base
+LUDISTDIR := $(L2DIR)/distrib/latex2e/unpacked
 
 FORMAT := $(LTESTDIR)/latex.fmt
 FORMAT_AUTOLOAD := $(LTESTDIR)/latexa.fmt
 
 commav = ,v
 
-export TEXINPUTS:=.:$(DISTDIR):$(LUDISTDIR):$(LTESTDIR):$(TEXDIR)
-export INDEXSTYLE:=.:$(DISTDIR):$(LUDISTDIR):$(TEXDIR)
+export TEXINPUTS:=.:\
+  $(shell test -d $(DISTDIR) || mkdir -p $(DISTDIR) ; echo $(DISTDIR)):\
+  $(shell test -d $(LUDISTDIR) || mkdir -p $(LUDISTDIR) ; echo $(LUDISTDIR)):\
+  $(shell test -d $(LTESTDIR) || mkdir -p $(LTESTDIR); echo $(LTESTDIR)):\
+  $(shell test -d $(TEXDIR) || mkdir -p $(TEXDIR) ; echo $(TEXDIR))//
+export INDEXSTYLE:=.:\
+  $(shell test -d $(DISTDIR) || mkdir -p $(DISTDIR) ; echo $(DISTDIR)):\
+  $(shell test -d $(LUDISTDIR) || mkdir -p $(LUDISTDIR) ; echo $(LUDISTDIR)):\
+  $(shell test -d $(TEXDIR) || mkdir -p $(TEXDIR) ; cd $(TEXDIR) ; pwd)
 
 
 STATE = Exp
@@ -77,11 +83,9 @@ SCRIPTS = \
 # default pattern rules for scripts
 #
 
-$(SCRIPTDIR)/%:	$(SCRIPTRCS)/%$(commav)
-	rm -f $@
-	$(CO) $(COFLAGS) $< $@
+$(SCRIPTDIR)/%:	$(SUPPORTDIR)/%
+	cp $< $@
 	chmod +x $@
-
 
 scripts:	$(foreach file,$(SCRIPTS),$(SCRIPTDIR)/$(file))
 
@@ -141,14 +145,21 @@ DF = $(foreach file,$(SRC),$(DISTDIR)/$(file))
 #	  two digit sequence number
 #	  a/b/l/p/r/s for main document style/class
 
-BUGCHECK = $(subst .tlg$(commav),,$(notdir $(wildcard $(RCSDIR)/tlb*.tlg$(commav))))
+BUGCHECK = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/tlb*.tlg)))
 
 CFS = $(foreach file,$(BUGCHECK),$(file).lvt)
 CLS = $(foreach file,$(BUGCHECK),$(TLG_PREFIX)$(file).tlg)
 
+REQUIRED_DIRS := $(TTMPDIR) $(DISTDIR) $(LUDISTDIR) $(TESTDIR) $(LTESTDIR) $(TEXDIR)
 
-$(TTMPDIR)/%:	$(RCSDIR)/%$(commav)
-	@$(CO) $(COFLAGS) -r`rlog -s$(STATE) $< |grep "^revision"|sed -e "s/revision //" -e "s/ *locked by:.*$$//"|sort -t . +0nr -1 +1nr -2 +2nr -3 +3nr -4 |head -1` $< $@
+dirs:	$(REQUIRED_DIRS)
+
+$(REQUIRED_DIRS):
+	mkdir -p $@
+
+
+$(TTMPDIR)/%:	$(L3DIR)/%
+	@cp -p $< $@
 
 #
 # default pattern rules for test files in test directory
@@ -170,8 +181,8 @@ $(TESTDIR)/%:	$(DISTDIR)/%
 	rm -f $@
 	ln -s $< $@
 
-$(TESTDIR)/%:	$(RCSDIR)/%$(commav)
-	@$(CO) $(COFLAGS) -r`rlog -s$(STATE) $< |grep "^revision"|sed -e "s/revision //" -e "s/ *locked by:.*$$//"|sort -t . +0nr -1 +1nr -2 +2nr -3 +3nr -4 |head -1` $< $@
+#$(TESTDIR)/%:	$(RCSDIR)/%$(commav)
+#	@$(CO) $(COFLAGS) -r`rlog -s$(STATE) $< |grep "^revision"|sed -e "s/revision //" -e "s/ *locked by:.*$$//"|sort -t . +0nr -1 +1nr -2 +2nr -3 +3nr -4 |head -1` $< $@
 
 #
 # default pattern rule for distribution files
@@ -195,7 +206,7 @@ $(DISTDIR)/l3.ins:	$(TTMPDIR)/l3.ins
 
 all:	distrib styles
 
-clean:	cleanupsrc cleanupdist cleanuptmp
+clean:	cleanupdist cleanuptest cleanuptmp
 
 cleanuptmp:
 	rm -f $(TTMPDIR)/*
@@ -206,19 +217,17 @@ cleanuptest:
 cleanupdist:
 	rm -f $(DISTDIR)/*
 
-cleanupsrc:
-	rm -f *tmp* *.log DEFAULT.* *~ *.orig *.rej *.diff *.sty
-	 $(SCRIPTDIR)/cleartexdir
-	rcsclean *
-
 #
 # texinputs files
 #
 
-texinputs:
-	cd $(TEXDIR); $(MAKE) tools
+texinputs:	$(TEXDIR)/Makefile
+	cd $(TEXDIR); $(MAKE)
 
-distrib:	$(DF)
+$(TEXDIR)/Makefile:	$(SUPPORTDIR)/Makefile.texinputs
+	cp -p $< $@
+
+distrib:	dirs scripts $(DF)
 	-perl  $(SCRIPTDIR)/find-long-lines -l 80 $(DISTDIR)/*
 
 
@@ -242,17 +251,17 @@ drivers:	$(foreach file,$(DRIVERS),$(TESTDIR)/$(file))
 
 rundrivers:	$(foreach file,$(DRIVERS),$(TESTDIR)/$(file))
 	cd $(TESTDIR) ; \
-	for f in $^ ; do run-tex $(LTESTDIR)/latex $$f || break ; done
+	for f in $^ ; do $(SCRIPTDIR)/run-tex $(LTESTDIR)/latex $$f || break ; done
 
 run-one-driver:	$(TESTDIR)/$(DRIVER_TO_CHECK).dtx
-	cd $(TESTDIR) ; run-tex $(LTESTDIR)/latex $<
+	cd $(TESTDIR) ; $(SCRIPTDIR)/run-tex $(LTESTDIR)/latex $<
 
 checkdrivers:	$(foreach file,$(DRIVERS),$(TESTDIR)/$(file))
 	FAILED_DRIVERS="" ; \
 	cd $(TESTDIR) ; \
 	for f in $^ ; \
 	do \
-	  run-tex $(LTESTDIR)/latex $$f scrollmode || FAILED_DRIVERS="$$FAILED_DRIVERS $$f" ; \
+	  $(SCRIPTDIR)/run-tex $(LTESTDIR)/latex $$f scrollmode || FAILED_DRIVERS="$$FAILED_DRIVERS $$f" ; \
 	done ; \
 	echo ; \
 	echo List of drivers that could not be run successfully: ; \
