@@ -13,7 +13,7 @@
 %<driver>\ProvidesFile{xparse.drv}
 % \fi
 %         \ProvidesFile{xparse.dtx}
-          [1999/07/27 v0.13 generic document command parser]
+          [1999/09/03 v0.14 generic document command parser]
 %
 % \iffalse
 %<*driver>
@@ -32,12 +32,13 @@
 %         has version number \fileversion, last
 %         revised \filedate.}}
 % \author{FMi, CAR, DPC}
-% \date{\filedate}
+% \date{\copyright~\filedate}
 %  \maketitle
 %
 % \begin{abstract}
 % The interfaces described in this document are not meant to be final
-% but only as a basis for discussion
+% but only as a basis for discussion. Building productive applications
+% using the current code is discouraged.
 % \end{abstract}
 %
 % \section{Interface}
@@ -74,6 +75,10 @@
 % |\NoValue|) into optional ones by supplying a default on the
 % document command level.
 %
+% We also have |C{x-default}{y-default}| to allow for optional
+% coordinate pairs which is, for example, needed to provide something
+% like the picture environment in current \LaTeX.
+%
 % \subsection{Parsing results}
 %
 % To normalise the result of parsing the input according to an
@@ -86,13 +91,18 @@
 %   i.e., will normally be the identity;
 % \item[o] will return the parsed argument surrounded by a brace pair
 %   if present. Otherwise it will return the token |\NoValue|;
-% \item[O] will return the parsed argument surrounded by a brace pair
+% \item[O\textbraceleft default\textbraceright] will return the parsed
+%    argument surrounded by a brace pair
 %   if present. Otherwise it will return the |{default}| as specified above.
 % \item[s] will return either the token |\BooleanTrue| or
 %   |\BooleanFalse| depending on whether or not a star was parsed.
 % \item[c] will parse the syntax |(|\meta{x}|,|\meta{y}|)|, i.e., a
 %   coordinate pair and will return the values for the x- and
-%   y-coordinate as two arguments in braces
+%   y-coordinate as two arguments in braces.
+% \item[C\textbraceleft x-default\textbraceright\textbraceleft
+%    y-default\textbraceright] behaves like |c|, i.e., parses a
+%   coordinate pair if present. If the coordinate pair is missing it
+%   returns the default values instead.
 % \end{description}
 % For example, given the spec |soomO{default}| the input |*[Foo]{Bar}| would be
 % parsed as |\BooleanTrue{Foo}\NoValue{Bar}{default}|. In other words
@@ -723,7 +733,13 @@
 %    supporting O with default for optional arg and c for coordinates
 %    --- prove of concept only}
 %
-% Only changed and new commands are listed.
+%   Only changed and new commands are listed.
+%
+%
+%    The complexity of the |\@ddc| rewrite suggests that there might
+%    be better ways to do it, but for a proto-type solution this is
+%    fine enough.
+%
 %    \begin{macrocode}
 \def\@ddc#1{
   \ifx #1X
@@ -769,6 +785,21 @@
           \@temptokena\expandafter{
           \the\expandafter\@temptokena
               \expandafter##\the\@tempcnta}
+%    \end{macrocode}
+%    Optional coordinates are kind of a cross between |O| and |c|,
+%    i.e., we need to parse two arguments thus updating the
+%    |\@temp...| as in |c| and we also have to grap the default
+%    argument thus changing |\next@ddc| as in the |O| case except that
+%    we grap 2 such defaults.
+%    \begin{macrocode}
+        \else
+          \ifx #1C
+            \advance\@tempcnta\@ne
+            \@temptokena\expandafter{
+            \the\expandafter\@temptokena
+                \expandafter##\the\@tempcnta}
+            \let\next@ddc\grab@double@default
+          \fi
         \fi
       \fi
     \fi
@@ -787,6 +818,13 @@
   \let\next@ddc\@ddc
   \@ddc
 }
+\def\grab@double@default #1#2{
+      \toks@\expandafter{%
+         \the\toks@
+         {#1}{#2}}
+  \let\next@ddc\@ddc
+  \@ddc
+}
 \long\def\@ddc@O#1#2\toks@{
    \@ifnextchar[
      {\@ddc@o@{#2}}
@@ -794,19 +832,45 @@
 %    \end{macrocode}
 %
 %    Parsing the coordinates should most likely get some extra syntax
-%    checking, eg to allow \verb*=\foo{1} (1,2)= the code simply drops
-%    everything until it sees a |(| which is a bit bold\ldots
-%    \begin{macrocode}
-\long\def\@ddc@c#1\toks@#2(#3,#4){
- \addto@hook\toks@{{#3}{#4}} #1\toks@}
-%    \end{macrocode}
+%    checking, eg to allow \verb*=\foo{1} (1,2)= the code below simply
+%    drops everything until it sees a |(| which is a bit bold\ldots
+%\begin{verbatim}
+%\long\def\@ddc@c#1\toks@#2(#3,#4){
+% \addto@hook\toks@{{#3}{#4}} #1\toks@}
+%\end{verbatim}
 %    So here is an alternative: this accepts spaces but will crash on
-%    anything else with an error message.
+%    anything else with an error message (clearly not good enough either).
+%\begin{verbatim}
+%\long\def\@ddc@c#1\toks@#2{\@dc@c@#1\toks@#2}
+%\long\def\@ddc@c@#1\toks@(#2,#3){
+% \addto@hook\toks@{{#2}{#3}} #1\toks@}
+%\end{verbatim}
+%
+%    On the other hand, why not look for the `(' and signal an error
+%    if not found.
 %    \begin{macrocode}
-\long\def\@ddc@c#1\toks@#2{\@dc@c@#1\toks@#2}
-\long\def\@ddc@c@#1\toks@(#2,#3){
- \addto@hook\toks@{{#2}{#3}} #1\toks@}
+\long\def\@ddc@c#1\toks@{
+   \@ifnextchar (
+     {\@ddc@c@ #1}
+     {\PackageError{xparse}{Missing~ coordinate~ argument}
+        {A~ value~ of~ (0,0)~ is~ assumed}
+      \addto@hook\toks@{00} #1\toks@}
+     }
+\long\def\@ddc@c@#1(#2,#3){
+  \addto@hook\toks@{{#2}{#3}} #1\toks@}
 %    \end{macrocode}
+%
+%    This way we can also directly implement the optional arg case in
+%    a natural way.
+%    \begin{macrocode}
+\long\def\@ddc@C#1#2#3\toks@{
+   \@ifnextchar (
+     {\@ddc@c@ #3}
+     {\addto@hook\toks@{{#1}{#2}} #3\toks@}}
+%    \end{macrocode}
+%
+%
+%
 %
 % Normally we don't pick up trailing m-args but if we do we grab them
 % all at once.
@@ -818,7 +882,6 @@
           \csname @ddc@x\the\@temptokenb\endcsname
 }}
 %    \end{macrocode}
-%
 %
 %    Instead of |\@ddc@m| we use |\@ddc@xm| as with the implementation
 %    below we might have a need for |\@ddc@x| (that is no m's pending)
@@ -908,8 +971,8 @@
 %    \begin{macrocode}
    \@namedef{end #1}{#4}
 %   \expandafter\let\csname end #1\endcsname\@parsed@endenv
-%   \long\expandafter\def\csname end \string\\#1\expandafter\endcsname\the\@temptokena
-%     {#4}
+%   \long\expandafter\def\csname end \string\\#1\expandafter\endcsname
+%   \the\@temptokena{#4}
 }
 %    \end{macrocode}
 %    And those are no longer necessary:
@@ -938,8 +1001,8 @@
     #3}
   \let\perhaps@grab@ms\relax
   \expandafter\let\csname end #1\endcsname\@parsed@endenv
-  \long\expandafter\def\csname end \string\\#1\expandafter\endcsname\the\@temptokena
-     {#4}
+  \long\expandafter\def\csname end \string\\#1\expandafter\endcsname
+     \the\@temptokena {#4}
 }
 %    \end{macrocode}
 %    Same as in David's again except that we have the added group now.
@@ -959,7 +1022,8 @@
 % \subsection{A Quark-like datatype}
 %
 % If it turns out that the only quark thingie is going to be
-% |\NoValue| then this can be streamlined for speed!
+% |\NoValue| then this can be streamlined for speed (and it looks
+% like this is the case)!
 %
 % \begin{macro}{\IfSomethingTF}
 % \begin{macro}{\IfSomethingT}
@@ -967,8 +1031,10 @@
 % Setting up the stage \ldots
 %    \begin{macrocode}
 \def\IfSomethingTF#1{\def\something@in{#1} \If@SomethingTF}
-\def\IfSomethingT#1#2#3{\def\something@in{#1} \If@SomethingTF{#2}{#3}\@empty}
-\def\IfSomethingF#1#2#3{\def\something@in{#1} \If@SomethingTF{#2}\@empty{#3}}
+\def\IfSomethingT#1#2#3{\def\something@in{#1}
+                        \If@SomethingTF{#2}{#3}\@empty}
+\def\IfSomethingF#1#2#3{\def\something@in{#1}
+                        \If@SomethingTF{#2}\@empty{#3}}
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -999,10 +1065,11 @@
 %
 % \begin{macro}{\@secondofthree}
 % \begin{macro}{\@thirdofthree}
-% Some helpers missing in \LaTeX{}:
+% Some helpers missing in \LaTeX{}; the others are |\long| so we make
+% those long as well:
 %    \begin{macrocode}
-\def\@secondofthree#1#2#3{#2}
-\def\@thirdofthree #1#2#3{#3}
+\long\def\@secondofthree#1#2#3{#2}
+\long\def\@thirdofthree #1#2#3{#3}
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
