@@ -13,12 +13,13 @@
 %<driver>\ProvidesFile{xparse.drv}
 % \fi
 %         \ProvidesFile{xparse.dtx}
-          [1999/05/22 v0.07 generic document command parser]
+          [1999/07/16 v0.09 generic document command parser]
 %
 % \iffalse
 %<*driver>
  \documentclass{ltxdoc}
  \usepackage{textcomp}
+% \usepackage{ldcdoc}
  \begin{document}
  \DocInput{xparse.dtx}
  \end{document}
@@ -55,9 +56,18 @@
 % braces), |o| an optional argument (surrounded by backets if
 % present), and |s| represents a star (which might be present or
 % not).\footnote{Other argument types such as \texttt{c} for picture
-% coordinates could be integrated in principle.} Thus the argument
+% coordinates could be integrated in principle --- the last prototype
+% now contains support for\texttt{c}.} Thus the argument
 % spec for headings as implemented by |\@startsection| in standard
 % \LaTeX{} would be represented by the three letters |som|.
+%
+% With the new proof of concept implementation there is also
+% |O{default}| which acts like |o| which also scans for an optional
+% argument but allows to specify a default value if the optional
+% argument is not present. I.e., it can be used to turn mandatory
+% arguments of a template (that is those that do not check for
+% |\NoValue|) into optional ones by supplying a default on the
+% document command level.
 %
 % \subsection{Parsing results}
 %
@@ -70,12 +80,14 @@
 % \item[m] will return the parsed argument surrounded by a brace pair,
 %   i.e., will normally be the identity;
 % \item[o] will return the parsed argument surrounded by a brace pair
-%   if present. Otherwise it will return the token |\NoString|;
-% \item[s] will return either the token |\BooleanTrue| or
-%   |\BooleanFalse| depending on whether or not a star was parsed.
+%   if present. Otherwise it will return the token |\NoValue|;
+% \item[O] will return the parsed argument surrounded by a brace pair
+%   if present. Otherwise it will return the |{default}| as specified above.
+% \item[s] will return either the token |*| or
+%   |\NoValue| depending on whether or not a star was parsed.
 % \end{description}
-% For example, given the spec |soomo| the input |*[Foo]{Bar}| would be
-% parsed as |\BooleanTrue{Foo}\NoString{Bar}\NoString|. In other words
+% For example, given the spec |soomO{default}| the input |*[Foo]{Bar}| would be
+% parsed as |*{Foo}\NoValue{Bar}{default}|. In other words
 % there will be always exactly the same number of brace groups or
 % tokens as the number of letters in the argument spec.
 %
@@ -103,18 +115,18 @@
 % result of the parsing, e.g.,
 %\begin{verbatim}
 %  \DeclareDocumentCommand{\chapter}{som}
-%    { \IfBooleanTF {#1}
-%        { \typesetstarchapter   {#3} }
+%    { \IfNoValueTF {#1}
 %        { \typesetnormalchapter {#2}{#3} }
+%        { \typesetstarchapter   {#3} }
 %    }
 %\end{verbatim}
 % would be a way to define a |\chapter| command which would
 % essentially behave like the current \LaTeX{} command (except that it
 % would accept an optional argument even when a |*| was parsed). The
 % |\typesetnormalchapter| could test its first argument for being
-% |\NoString| to see if an optional argument was present.
+% |\NoValue| to see if an optional argument was present.
 %
-% Of course something like the |\IfBooleanTF| test could also be
+% Of course something like the |\IfNoValueTF| test could also be
 % placed inside a function that would process all three arguments, thus
 % using the templates and their instances as provided by the
 % \texttt{template} package such a declaration would probably look
@@ -131,7 +143,7 @@
 % define |\chapter| like this:
 %\begin{verbatim}
 %  \DeclareDocumentCommand{\chapter}{m}
-%    { \UseInstance {head} {A-head-main} \BooleanFalse \NoString {#1} }
+%    { \UseInstance {head} {A-head-main} \NoValue \NoValue {#1} }
 %\end{verbatim}
 % while a class that would allow for an additional optional argument
 % (for whatever reason) could define it like that:
@@ -150,52 +162,37 @@
 % first being the environment name (without a backslash), the second
 % again the argument-spec, and the third and forth are the actions
 % taken at start end end of the environment. The parsed arguments are
-% available to both the start and the finish as |#1|, |#2|, etc.
+% available to both the start and the finish as |#1|, |#2|,
+% etc.\footnote{It is wishful thinking that there args are available
+% to the end of the environment. In the current implementation this
+% was buggy and has been taken out again below.}
 %
-% \subsubsection{A boolean data type}
-%
-% \DescribeMacro\BooleanTrue
-% \DescribeMacro\BooleanFalse
-% The parsing result for a star is presented as the token
-% |\BooleanTrue| or |\BooleanFalse| respectively. 
-%
-% \DescribeMacro\IfBooleanTF
-% \DescribeMacro\IfBooleanT
-% \DescribeMacro\IfBooleanF
-% To test for these values the macro |\IfBooleanTF| can be used. It
-% expects as its first argument either |\BooleanTrue| or
-% |\BooleanFalse| and executes its second or third argument depending
-% on this value. |\IfBooleanT| and |\IfBooleanF| are obvious
-% shortcuts. 
-%
-% It is worth thinking about whether or not this type is needed at all
-% or if it would be enough to only use |\IfSomethingTF|!
 %
 % \subsubsection{Comparing tokens in a quarky way}
 %
-% Something like |\NoString| would perhaps be best implemented as a
+% Something like |\NoValue| would perhaps be best implemented as a
 % ltx3 quark, i.e. a token which expands to itself as this is
 % can be easily tested even if hidden inside a macro. The unfortunate
 % sideeffect however is that it will result in a tight loop if it ever
 % gets executed by mistake.
 %
-% \DescribeMacro\NoString
-% For this reason |\NoString| is defined to expand to the string
-% |-NoString-| which would get typeset if ever executed thus clearly
+% \DescribeMacro\NoValue
+% For this reason |\NoValue| is defined to expand to the string
+% |-NoValue-| which would get typeset if ever executed thus clearly
 % indicating the type of error the writer made.
 %
 % However this makes testing for this token slightly complicated as in
 % that case the test
 %\begin{verbatim}
 %   \def\seen{#1}
-%   \def\containsNoString{\NoString}
-%   \ifx\seen\containsNoString
+%   \def\containsNoValue{\NoValue}
+%   \ifx\seen\containsNoValue
 %\end{verbatim}
-% will be true if |#1| was |\NoString| but false if if |#1| itself
-% contains a macro which contains |\NoString|; a case that happens
+% will be true if |#1| was |\NoValue| but false if if |#1| itself
+% contains a macro which contains |\NoValue|; a case that happens
 % unfortunately very often in pratice.  Using unguarded |\edef| to
 % define |\seen| is out of question as |#1| typically is either
-% |\NoString| or arbitrary user input (which is likely to die horribly
+% |\NoValue| or arbitrary user input (which is likely to die horribly
 % even in a |\protected@edef|.
 %
 % \DescribeMacro\IfSomethingTF 
@@ -211,21 +208,77 @@
 % executed. However if the token-list created this way differs from
 % |#2| the macro recurses using this token-list in place of |#2|.
 %
-% \DescribeMacro\IfNoStringTF 
-% \DescribeMacro\IfNoStringT
-% \DescribeMacro\IfNoStringF
-% \DescribeMacro\IfStringTF 
-% \DescribeMacro\IfStringT 
-% \DescribeMacro\IfStringF 
-% The test |\IfNoStringTF| is imlpemented as an application of
+% \DescribeMacro\IfNoValueTF 
+% \DescribeMacro\IfNoValueT
+% \DescribeMacro\IfNoValueF
+% \DescribeMacro\IfValueTF 
+% \DescribeMacro\IfValueT 
+% \DescribeMacro\IfValueF 
+% The test |\IfNoValueTF| is imlpemented as an application of
 % |\IfSomethingTF|, i.e.,
 %\begin{verbatim}
-%   \def\IfNoStringTF{\IfSomethingTF\NoString}
+%   \def\IfNoValueTF{\IfSomethingTF\NoValue}
 %\end{verbatim}
 % where the three arguments (test token, true and false case) are
 % picked up by |\IfSomethingTF|. Similar tests for other quark-like
-% tokens could be defined similarly. |\IfStringTF| is the same test
+% tokens could be defined similarly. |\IfValueTF| is the same test
 % with the true/false case exchanged.
+%
+%
+% \subsection{Some comments on the need for the \texttt{O} specifier}
+%
+% With |\newcommand| there is the possibility of specifiying a default
+% for an optional argument which is stored away in a more or less
+% efficient manner. For example below is the old definition of
+% |\linebreak| as can be found in the \LaTeX2e kernel:
+%\begin{verbatim}
+%\def\linebreak{\@testopt{\@no@lnbk-}4}
+%\def\@no@lnbk #1[#2]{%
+%  \ifvmode
+%    \@nolnerr
+%  \else
+%    \@tempskipa\lastskip
+%    \unskip
+%    \penalty #1\@getpen{#2}%
+%    \ifdim\@tempskipa>\z@
+%      \hskip\@tempskipa
+%      \ignorespaces
+%    \fi
+%  \fi}
+%\end{verbatim}
+% Ignoring for the moment that the above is slightly optimised an
+% expansion of this code under |\tracingall| will result in about 90
+% lines of tracing output.
+% If we reimplement this using |\DeclarDocumentCommand\linebreak{o}|
+% we have to use |\IfNoValueTF| to find out if an argument was present
+% which (because of the somewhat slow expansion of |\IfSomethingTF|)
+% results in about twice as much of tracing lines. In contrast using
+% |O{4}| as below we end up with 110 lines, which seems roughly the
+% price we have to pay for the extra generality available (though this
+% could perhaps even be reduced by a better implementation of the
+% parsing machine as originally done by David, before i talked him
+% into adding support for arguments in the end code of an environment).
+%
+%\begin{verbatim}
+%\DeclareDocumentCommand\linebreak { O{4} }
+% {
+%  \ifvmode
+%    \@nolnerr
+%  \else
+%    \@tempskipa\lastskip
+%    \unskip
+%%    \IfNoValueTF{#1}
+%%       {\break}
+%%       {\penalty -\@getpen{#1}}
+%    \penalty -\@getpen{#1}
+%    \ifdim\@tempskipa>\z@
+%      \hskip\@tempskipa
+%      \ignorespaces
+%    \fi
+%  \fi
+% }
+%\end{verbatim}
+%
 %
 % \StopEventually{}
 % \CheckSum{0}
@@ -241,6 +294,7 @@
 %    \end{macrocode}
 %
 %
+
 % \subsection{The Mittelbach/Rowley prove-of-concept
 %             implementation for the parsing}
 %
@@ -348,8 +402,8 @@
 %    \begin{macrocode}
 \def \parse@s #1 #2 {
   \@ifstar
-      { \parse@args #1 \parse@args { #2 \BooleanTrue } }
-      { \parse@args #1 \parse@args { #2 \BooleanFalse } }
+      { \parse@args #1 \parse@args { #2 * } }
+      { \parse@args #1 \parse@args { #2 \NoValue } }
 }
 %    \end{macrocode}
 %
@@ -376,7 +430,7 @@
 \def \parse@o #1 #2 {
   \@ifnextchar [
       { \parse@o@ {#1}{#2} }
-      { \parse@args #1 \parse@args { #2 \NoString } }
+      { \parse@args #1 \parse@args { #2 \NoValue } }
 }
 %    \end{macrocode}
 %
@@ -392,11 +446,9 @@
 % \subsection{The Carlisle implementation for the parsing}
 %
 % Not implemented in this version is |\DeclareDocumentEnvironment|
-% (excerise for the reader).
-%
-% exercise now completed by dpc.
-% (required re-implementing argument grabbers to grab to a toks
-% register rather that into a brace group in the input stream.)
+% (excerise for the reader).\footnote{Exercise now completed by dpc :-)
+%    (required re-implementing argument grabbers to grab to a toks
+%     register rather that into a brace group in the input stream.) }
 %
 % seemed to need two tokse registers.
 %    \begin{macrocode}
@@ -592,8 +644,8 @@
 % (boolean) argument to list of arguments inside the register.
 %    \begin{macrocode}
   \@ifstar
-    {\addto@hook\toks@\BooleanTrue #1\toks@}
-    {\addto@hook\toks@\BooleanFalse #1\toks@}}
+    {\addto@hook\toks@ * #1\toks@}
+    {\addto@hook\toks@\NoValue #1\toks@}}
 %    \end{macrocode}
 %
 %
@@ -618,12 +670,12 @@
 %    \end{macrocode}
 %
 % put back the rest of the argument grabbers, but copy
-% argument (now with |{}| or |\NoString| to list of arguments
+% argument (now with |{}| or |\NoValue| to list of arguments
 %  inside toks register.
 %    \begin{macrocode}
    \@ifnextchar[
      {\@ddc@o@{#1}}
-     {\addto@hook\toks@\NoString #1\toks@}}
+     {\addto@hook\toks@\NoValue #1\toks@}}
 %    \end{macrocode}
 %
 %
@@ -635,42 +687,122 @@
 %
 %
 %
-% \subsection{A Boolean datatype}
 %
-% \begin{macro}{\BooleanFalse}
-% \begin{macro}{\BooleanTrue}
-%    \begin{macrocode}
-\def\BooleanFalse{TF}
-\def\BooleanTrue{TT}
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
+% \subsection{A Mittelbach update to the Carlisle implementation
+%    supporting O with default for optional arg and c for coordinates
+%    --- prove of concept only}
 %
-% \begin{macro}{\IfBooleanTF}
-% \begin{macro}{\IfBooleanT}
-% \begin{macro}{\IfBooleanF}
+% Only changed and new commands are listed.
 %    \begin{macrocode}
-\def\IfBooleanTF #1 {
-   \if#1
-       \expandafter\@firstoftwo
-   \else
-       \expandafter\@secondoftwo
-   \fi
+\def\@ddc#1{
+  \ifx #1X
+  \else
+    \ifx #1m
+      \@temptokenb\expandafter{%
+      \the\@temptokenb
+      \@ddc@m}
+    \else
+      \toks@\expandafter{%
+         \the\expandafter\toks@
+         \the\expandafter\@temptokenb
+         \csname @ddc@#1\endcsname}
+      \@temptokenb{}
+%    \end{macrocode}
+%    In case of |O| we have to grab the default next.
+%    \begin{macrocode}
+      \ifx #1O
+         \let\next@ddc\grab@default
+      \else
+        \ifx #1c
+%    \end{macrocode}
+%    In case of |c| we are going to parse two not one argument so we
+%    have to update |\@tempcnta| and |\@temptokena| twice (second time
+%    is done below.
+%    \begin{macrocode}
+          \advance\@tempcnta\@ne
+          \@temptokena\expandafter{
+          \the\expandafter\@temptokena
+              \expandafter##\the\@tempcnta}
+        \fi
+      \fi
+    \fi
+    \advance\@tempcnta\@ne
+    \@temptokena\expandafter{
+      \the\expandafter\@temptokena\expandafter##\the\@tempcnta}
+    \expandafter
+    \next@ddc
+  \fi
 }
-\def\IfBooleanT #1 #2 { 
-   \IfBooleanTF {#1} {#2} \@empty
+\let\next@ddc\@ddc
+\def\grab@default #1{
+      \toks@\expandafter{%
+         \the\toks@
+         {#1}}
+  \let\next@ddc\@ddc
+  \@ddc
 }
-\def\IfBooleanF #1 { 
-   \IfBooleanTF {#1} \@empty
+\long\def\@ddc@O#1#2\toks@{
+   \@ifnextchar[
+     {\@ddc@o@{#2}}
+     {\addto@hook\toks@{{#1}} #2\toks@}}
+%    \end{macrocode}
+%
+%    Parsing the coordinates should most likely get some extra syntax
+%    checking, eg to allow \verb*=\foo{1} (1,2)= the code simply drops
+%    everything until it sees a |(| which is a bit bold\ldots
+%    \begin{macrocode}
+\long\def\@ddc@c#1\toks@#2(#3,#4){
+ \addto@hook\toks@{{#3}{#4}} #1\toks@}
+%    \end{macrocode}
+%
+%
+%    Fixing |\DeclareDocumentEnvironment| to not choke on the spec
+%    |m|. Interestingly enough |mm| does work with the old
+%    implementation: it simply grabs |\@checkend{name}| whereas the
+%    first only grabs |\@checkend| leaving |{name}| around for
+%    typesetting :-)
+%
+%    If we don't make the arguments available in the end code we
+%    should most likely revert to David's original code which worked
+%    without assigning everything to toks registers (or at least check
+%    what is faster!)
+%    \begin{macrocode}
+\long\def\DeclareDocumentEnvironment#1#2#3#4{
+  \expandafter\DeclareDocumentCommand\csname #1\endcsname{#2}{
+%    \end{macrocode}
+%     After |\DeclareDocumentCommand| has parsed the arguments the
+%     parsing result is available in |\@toks| except that trailing
+%     |m|'s are picked up directly and their values are therefore not
+%     part of this token register. So either we have to slow down
+%     everything by individually parsing those as well or this bright
+%     idea is not working. For the moment i disabled it again!
+%    \begin{macrocode}
+%    \xparsed@args\toks@
+    #3}
+%    \end{macrocode}
+%    In that case the following can be simplified as well:
+%    \begin{macrocode}
+   \@namedef{end #1}{#4}
+%   \expandafter\let\csname end #1\endcsname\@parsed@endenv
+%   \long\expandafter\def\csname end \string\\#1\expandafter\endcsname\the\@temptokena
+%     {#4}
 }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
+%    And those are no longer necessary:
+%    \begin{macrocode}
+\let\@parsed@endenv\undefined
+\let\@parsed@endenv@\undefined
+%    \end{macrocode}
+%
+%
+%
+%
 %
 %
 % \subsection{A Quark-like datatype}
 %
+% If it turns out that the only quark thingie is going to be
+% |\NoValue| then this can be streamlined for speed!
 %
 % \begin{macro}{\IfSomethingTF}
 % \begin{macro}{\IfSomethingT}
@@ -719,41 +851,41 @@
 % \end{macro}
 %
 %
-% \subsection{Testing for \texttt{\textbackslash NoString}}
+% \subsection{Testing for \texttt{\textbackslash NoValue}}
 %
 %
-% \begin{macro}{\NoString}
+% \begin{macro}{\NoValue}
 %    \begin{macrocode}
-\def\NoString{-NoString-}
+\def\NoValue{-NoValue-}
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\NoStringInIt}
+% \begin{macro}{\NoValueInIt}
 %    might be handy sometimes\ldots
 %    \begin{macrocode}
-\def\NoStringInIt{\NoString}
+\def\NoValueInIt{\NoValue}
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\IfNoStringTF}
-% \begin{macro}{\IfNoStringT}
-% \begin{macro}{\IfNoStringF}
+% \begin{macro}{\IfNoValueTF}
+% \begin{macro}{\IfNoValueT}
+% \begin{macro}{\IfNoValueF}
 %    \begin{macrocode}
-\def\IfNoStringTF{\IfSomethingTF\NoString}
-\def\IfNoStringT {\IfSomethingT \NoString}
-\def\IfNoStringF {\IfSomethingF \NoString}
+\def\IfNoValueTF{\IfSomethingTF\NoValue}
+\def\IfNoValueT {\IfSomethingT \NoValue}
+\def\IfNoValueF {\IfSomethingF \NoValue}
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\IfStringTF}
-% \begin{macro}{\IfStringT}
-% \begin{macro}{\IfStringF}
+% \begin{macro}{\IfValueTF}
+% \begin{macro}{\IfValueT}
+% \begin{macro}{\IfValueF}
 %    \begin{macrocode}
-\def\IfStringTF #1 #2 #3 { \IfNoStringTF {#1} {#3} {#2} }
-\let \IfStringT \IfNoStringF
-\let \IfStringF \IfNoStringT
+\def\IfValueTF #1 #2 #3 { \IfNoValueTF {#1} {#3} {#2} }
+\let \IfValueT \IfNoValueF
+\let \IfValueF \IfNoValueT
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -768,3 +900,4 @@
 % \Finale
 %
 \endinput
+
