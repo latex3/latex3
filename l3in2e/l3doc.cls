@@ -37,7 +37,7 @@
 %<*class>
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{l3doc}
-         [2005/03/10 v0.0d class for documenting experimental stuff]
+         [2005/03/10 v0.0e class for documenting experimental stuff]
 %
 \NeedsTeXFormat{LaTeX2e}
 %</class>
@@ -90,7 +90,7 @@
   The \LaTeX3 Project\thanks{%
   Frank Mittelbach, Denys Duchier, Chris Rowley,
   Rainer Sch\"opf, Johannes Braams, Michael Downes,
-  David Carlisle, Alan Jeffrey, Morton H\o{}gholm, Thomas Lotze,
+  David Carlisle, Alan Jeffrey, Morten H\o gholm, Thomas Lotze,
   Javier Bezos}}
 
 %% You do not want to look at the mess below this line.
