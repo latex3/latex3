@@ -15,7 +15,7 @@
 %<driver>\ProvidesFile{xparse.drv}
 % \fi
 %         \ProvidesFile{xparse.dtx}
-          [1999/09/10 v0.17 generic document command parser]
+          [2000/01/29 v0.20 generic document command parser]
 %
 % \iffalse
 %<*driver>
@@ -28,7 +28,7 @@
 %</driver>
 % \fi
 %
-% \CheckSum{667}
+% \CheckSum{706}
 %
 % \GetFileInfo{xparse.dtx}
 %
@@ -485,6 +485,72 @@
 % \end{macro}
 %
 %
+% \subsection{Open issues}
+%
+% In this section unresolved issues or ideas to think about and
+% perhaps implement are collected. There is no particular order to
+% them.
+%
+% \begin{itemize}
+% \item
+%   It was suggested to provide a generalised version of the `s' spec
+%   to allow parsing for single symbols other than a star. Possible
+%   interface could be |S{|\meta{symbol}|}|, e.g. |S{+}| to parse for
+%   a plus sign returning |\BooleanTrue| if found and |\BooleanFalse|
+%   otherwise.
+%
+%   Implementation would be straight forward.
+%
+% \item
+%   Furthermore it was suggested to provide a generic extension
+%   interface, comparable to |\newcolumntype| in the \texttt{array}
+%   package. It is not clear whether or not such a feature could be
+%   easily added.
+%
+% \item
+%   Support for parsing verbatim type of arguments was considered (and
+%   actually implemented at one stage. E.g.,
+%   |g{|\meta{prepare-parsing}|}| where |g| first run
+%   \meta{prepare-parsing} (which might involve |catcode|
+%   changes)\footnote{urg horror!}, then look at the next token: if
+%   that would be a |{| it would scan a brace delimited argument
+%   (reverting catcodes of |{| and |}| if needed) otherwise would scan
+%   for an argument delimited by that token so that something like
+%   |\verb+%\+| would scan |%\| as its argument assuming that the
+%   \meta{prepare-parsing} turned |%| and |\| into non-letters.
+%
+%   All kind of nasty problems lurking especially no proper error
+%   checks possible and of course as we all know such commands would
+%   then not work inside arguments of other commands.
+% 
+%   Also no way to make the parsing smart by not accepting newlines as
+%   part of the code (|\verb| does this right now and this is really
+%   helpful as it catches runaways nicely).
+%
+% \item
+%   Do arguments accept |\par| (ie are they |\long| in \TeX{}speak) or
+%   should this be configurable (by having a prefix like |P| denoting
+%   an argument that potenially accepts more than a single paragraph?
+%   Or is it enough to make this a feature of the whole command rather
+%   than an individual argument?
+%
+%   Right now this is not implemented but probably something like this
+%   needs to be implemented.
+%
+% \item
+%   There is the open issue of passing the arguments for an
+%   environment not only to the begin code but also to the end
+%   code. The current implementation provides for both but it is
+%   questionable if this feature is really beneficial compared to the
+%   overhead it produces.
+%
+% \item
+%   Setting up the boolean and the quark-like data type doesn't belong
+%   into this package since it is internal programming and needs to be
+%   implemented at the template level.
+%
+% \end{itemize}
+%
 % \StopEventually{}
 %
 % \section{Implementation}
@@ -892,10 +958,20 @@
 % Put back the rest of the argument grabbers, but copy
 % argument (now with |{}| or |\NoValue| to list of arguments
 %  inside toks register.
+%
+% Before calling |\@ifnextchar| we start a special group that ensures
+% that scanning ahead doesn't trigger anything nasty in |\halign|s
+% (see pr3040 in the \LaTeX{} bug db).\footnote{However this is most
+% certainly not the right approach: a) we would probably need that
+% everywhere (right now it is only implemented for o and O) so perhaps
+% the whole thing would need to go into \texttt{\textbackslash
+% @ifnextchar} to save space and b) it might be better to get rid of
+% \& having catcode 4 and instead make it catcode 13.}
 %    \begin{macrocode}
+   {\ifnum`}=0\fi
    \@ifnextchar[
-     {\@ddc@o@{#1}}
-     {\addto@hook\toks@\NoValue #1\toks@}}
+     {\ifnum`{=\z@\fi}\@ddc@o@{#1}}
+     {\ifnum`{=\z@\fi}\addto@hook\toks@\NoValue #1\toks@}}
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1000,9 +1076,10 @@
 %    parsed) after it.
 %    \begin{macrocode}
 \long\def\@ddc@O#1#2\toks@{
+   {\ifnum`}=0\fi
    \@ifnextchar[
-     {\@ddc@o@{#2}}
-     {\addto@hook\toks@{{#1}} #2\toks@}}
+     {\ifnum`{=\z@\fi}\@ddc@o@{#2}}
+     {\ifnum`{=\z@\fi}\addto@hook\toks@{{#1}} #2\toks@}}
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1327,6 +1404,77 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+%
+%
+% 
+% \subsection{A different interface (for class design?)}
+%
+% Combining signature and top-level definition of a command |\foo| as
+% in 
+%\begin{verbatim}
+%\DeclareDocumentCommand \foo { m c m }
+%{ \typeout{1:#1}
+%  \typeout{2:#2}
+%  \typeout{3:#3}
+%}
+%\end{verbatim}
+% is fine in certain cases, e.g., if the user wants to declare a few
+% commands this way in the preamble of a document. However in a class
+% file it probably better to completely separate signature (i.e.,
+% argument \#1 and \#2) from top-level implementation (i.e., argument
+% \#3).
+%
+% 
+%\begin{verbatim}
+%\DeclareDocumentCommandInterface \foo {bar} { m c m }
+%\end{verbatim}
+% The above now declare only the signature of the command |\foo| and
+% states that the implementation is to be found under the label |bar|.
+%
+% A bunch of such statements would then for the first time clearly
+% define a document class (i.e., what a document class instance need
+% to define to be complient)
+%
+% An instance would then consist of a lot of declarations of the type
+%\begin{verbatim}
+%\DeclareDocumentCommandImplementation {bar} {3}
+%{ \typeout{1:#1}
+%  \typeout{2:#2}
+%  \typeout{3:#3}
+%}
+%\end{verbatim}
+% i.e., defining how to format things being referenced as part of the
+% signature.
+%
+%    \begin{macrocode}
+\long\def\DeclareDocumentCommandInterface #1 #2 #3{
+   \@tempcnta\z@
+   \toks@{}
+   \@temptokena\toks@
+   \@temptokenb\toks@
+   \@ddc#3X
+   \edef#1{
+    \noexpand\@ddc@
+    {\the\toks@}
+    \expandafter\noexpand\csname impl-#2\endcsname
+    \noexpand#1
+    }
+%    \end{macrocode}
+%    If only the signature is defined but no implementation we typeset
+%    the implementation label in angle brackets and give a warning.
+%    Probably should by default give an error with a switch to turn it
+%    into a warning if desired.
+%    \begin{macrocode}
+   \long\expandafter\def\csname impl-#2\expandafter\endcsname
+          \the\@temptokena
+          {$\langle$\textit{#2}$\rangle$
+           \PackageWarning{xparse}{No~ implementation~
+              for~ `#2'\MessageBreak defined}}
+}
+
+\long\def\DeclareDocumentCommandImplementation #1 #2 #3{
+   \expandafter\renewcommand\csname impl-#1\endcsname[#2]{#3}}
+%    \end{macrocode}
 %
 %
 %    \begin{macrocode}
