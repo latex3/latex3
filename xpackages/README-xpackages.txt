@@ -1,3 +1,5 @@
+$Id$
+
 Some notes on the experimental packages in this directory
 =========================================================
 
@@ -5,9 +7,11 @@ Some notes on the experimental packages in this directory
 The packages in this directory are proto-type implementations of new
 concepts for a LaTeX Designer Interface, see also
 
-   http://www.latex-project.org/talks/tug99.pdf
+   http://www.latex-project.org/papers/tug99.pdf
 and
-   http://www.latex-project.org/talks/xo-pfloat.pdf
+   http://www.latex-project.org/papers/xo-pfloat.pdf
+and
+   http://www.latex-project.org/papers/template-notes.pdf
 
 
 These concepts, as well as their implementation, are under discussion
@@ -50,7 +54,7 @@ old and the new stuff will be able to live happily together.
 
 happy experimenting
 
-Frank Mittelbach              July 2001
+Frank Mittelbach 
 
 
 
@@ -134,20 +138,29 @@ xinitials
 	Needs files from xbase and galley.
 
 
-xtheorem
---------
-
-	Contributed package implementing theorems using the template
-	mechanism.
-
-	Needs files from xbase. 
-
-
 xcontents
 ---------
 
 	An extended datastructure and interface for table of contents
 	data.
+
+xtheorem
+--------
+
+	Contributed package by Achim Blumensath implementing theorems
+	using the template mechanism.
+
+	Needs files from xbase. 
+
+
+xhead
+-----
+
+	Contributed package by Peter Wilson implementing page-styles
+	using the template mechanism.
+
+	Needs files from xbase. 
+
 
 
 
