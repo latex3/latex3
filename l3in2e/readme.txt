@@ -49,7 +49,7 @@ additions, etc. should be addressed to the list LATEX-L.
 
 You can subscribe to this list by sending mail to
 
-  listserv@vm.uni-heidelberg.de
+  listserv@urz.uni-heidelberg.de
 
 with the body containing
 
