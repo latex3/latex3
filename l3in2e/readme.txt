@@ -3,7 +3,7 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   1998/04/20
+   2005/03/12
 
 
 OVERVIEW
@@ -21,14 +21,15 @@ discussion and comment.
 
 Currently all the code is distributed in a format suitable for running
 as LaTeX2e packages.  Further documentation may be produced by processing
-the .dtx files with LaTeX2e.  The packages may be installed by processing
-l3.ins with plain TeX or LaTeX.
+either the individual .dtx files, or the file source3.tex with
+LaTeX2e.  The packages may be installed by processing l3.ins with 
+plain TeX or LaTeX.
 
-This code has be developed over time and has been used in previous
+This code has been developed over time and has been used in previous
 versions for prototype implementations, experiments, etc. Its internal
 documentation (in the .dtx files) reflects the age of parts of it; it
 often contains personal comments and it sometimes refers to parts that
-not at present distributed.  We kindly ask you to overlook its
+are  at present not distributed.  We kindly ask you to overlook its
 deficiencies and inaccuracies --- if we had tried to clean this up it
 would never have surfaced and, for the purpose of discussions and
 comments, we hope its present form is adequate.
@@ -63,6 +64,7 @@ THE GUILTY PERSONS
 
    Frank Mittelbach, Denys Duchier, Johannes Braams, Michael Downes,
    David Carlisle, Alan Jeffrey, Chris Rowley, Rainer Schoepf 
+   Javier BEzos, Morten Hoegholm, Thomas Lotze
 
 
 DISCUSSION
@@ -123,6 +125,11 @@ l3chk
 Functions that check definitions.
 (Comparable to LaTeX2's \newcommand/\renewcommand.)
 
+l3toks
+======
+
+TeX's token registers.  (Can be compiled with checking enabled)
+
 l3tlp
 =====
 
@@ -150,6 +157,11 @@ l3seq
 
 A module implementing the basic list and stack datatypes.
 
+l3clist
+=======
+
+A module implementing the handling of comma separated lists
+
 l3prop
 ======
 
@@ -162,21 +174,35 @@ Integer and fake integer registers. With eTeX/Omega becoming more and
 more accessible this module is, at least in parts only of historical
 significance.  (Can be compiled with checking enabled)
 
-l3toks
+l3num
+=====
+
+Storing numers as token-lists in macros
+
+l3skip
 ======
 
-TeX's token registers.  (Can be compiled with checking enabled)
-
-l3io
-====
-
-Low-level input and ouput.
+Dealing woth length registers
 
 l3precom
 =========
 
 Low-level pointer-related code, with further checking and tracing.
 
+l3io
+====
+
+Low-level input and ouput.
+
+l3prg
+=====
+
+Experimental control structures
+
+l3box
+=====
+
+Low level box handling code
 
 =====================================================================
 
