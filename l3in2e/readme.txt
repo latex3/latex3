@@ -62,6 +62,7 @@ l3tlp
 
 Token List Pointers. A basic LaTeX3 datatype for storing token lists.
 (These are essentially macros with no arguments.)
+(Package can be compiled with checking enabled.)
 
 l3expan
 =======
@@ -93,7 +94,7 @@ l3int
 
 Integer and fake integer registers. With eTeX becoming more and more
 accessible this module is, at least in parts only of historical
-significance.
+significance.  (Can be compiled with checking enabled)
 
 
 ====================================================================
