@@ -94,7 +94,6 @@ DTX = \
 	l3io.dtx \
 	l3names.dtx \
 	l3precom.dtx \
-	l3precomp.dtx \
 	l3prop.dtx \
 	l3quark.dtx \
 	l3seq.dtx \
@@ -112,8 +111,7 @@ TEST = \
 README = readme.txt
 
 DOCS = \
-	cl32eproc.tex \
-	l32eproc.tex
+	expl3.tex
 
 CLS = \
 	l3doc.lcs
