@@ -28,9 +28,9 @@ To run the test file do:
 
 You need the packages
 
- template.sty	(module template)
- xparse.sty	(module xparse)
- ldcsetup.sty	(module xparse)
+ template.sty	(module xbase)
+ xparse.sty	(module xbase)
+ ldcsetup.sty	(module xbase)
 
 to run the example file.
 
