@@ -6,6 +6,10 @@
 
    1998/04/12
 
+
+OVERVIEW
+--------
+
 The packages in this directory implement a possible language for `low
 level' programming in TeX. The syntax conventions described here are NOT
 intended either for use in documents or for use in describing design
@@ -30,6 +34,38 @@ inaccuracies --- if we had tried to clean this up it would never have
 surfaced and, for the purpose of discussions and comments, we hope its
 present form is adequate enough.
 
+
+DISCUSSION
+----------
+
+Discussions about the approach, suggestions for improvements, changes,
+additions, etc. should be addressed to the list LATEX-L. 
+
+You can subscribe to this list by sending mail to
+
+  listserv@vm.uni-heidelberg.de
+
+with the body containing
+
+  subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
+
+
+BUGS
+----
+
+If you find a real bug that makes a package stop working you can
+report it via the standard latexbug.tex mechanism of the LaTeX
+distribution (see bugs.txt there) using the category "l3exp". 
+However please do *not* use this method for suggestions / comments /
+improvements / etc. For this the list LATEX-L should be used instead.
+
+Also please don't expect these package to work with *any* code that
+floats around in the LaTeX2e world. :-)
+
+
+
+MANIFEST
+--------
 
 The following packages are in this release:
 
