@@ -7,7 +7,7 @@
 %<driver>\ProvidesFile{template.drv}
 % \fi
 %         \ProvidesFile{template.dtx}
-          [1999/05/19 v0.08 template parsing (DPC) + fmi bits 7/24]
+          [1999/08/23 v0.09 template parsing (DPC,FMi)]
 %
 % \iffalse
 %<*driver>
@@ -244,6 +244,59 @@
 %
 % How should this behave for Collection instances? Do we need a
 % special check for  those or a default action?
+%
+%
+%
+% \subsection{Multi-valued parameters}
+%
+% [docu taken from trial implementation in xlists.dtx, FMi]
+%
+%  The following code implements for registers (ie L,l,C,c keys) and
+%  for names (ie n key) a multi-selection mechanism of the following
+%  form:
+% \begin{verbatim}
+%    key    = \MultiSelection \@listdepth {
+%                   \DelayEvaluation {2.5em},
+%                   20pt + 34pt } 
+%                  { \DelayEvaluation {1em} },
+% \end{verbatim}
+%
+% where the first argument to |\MultiSelection| is a counter, the
+% second argument is a comma separated list of values denoting the
+% values for the cases 1, 2,\ldots, and the third argument contains
+% the value for all other cases.
+%
+% The values are evaluated at declaration time in case of registers
+% and therefore can contain calc expressions as well as
+% |\DelayEvaluation|.
+%
+% Due to the implementation the case list is not allowed to have a
+% trailing comma! And of course no checks are made whatsoever :-(
+%
+% A probably much nicer syntax would be something like this:
+% \begin{verbatim}
+%    key    = \MultiSelection {
+%                selector = \@listdepth,
+%                1        = \DelayEvaluation {2.5em},
+%                2        = 20pt + 34pt,
+%                else     = \DelayEvaluation {1em} 
+%              },
+% \end{verbatim}
+%
+% but i found that too difficult to implement right now.
+%
+% I think it should also be considered if this kind of thing should be
+% a generally available feature on all key types especially on the
+% f\meta{number} ones.
+%
+% Anyway it is what i need for lists right now and as such it is
+% sufficient.
+%
+%
+%
+%
+%
+%
 %
 %
 %
@@ -656,7 +709,7 @@
   \ifx#2f
      \TP@f@shift{#1}#3\@@
   \else\ifx#2n
-     \TP@testopt{#1}{\TPkeycommand{#1}0}#3\@@
+     \TP@testopt{#1}{\TPnamecommand{#1}}#3\@@
   \else\ifx#2l
      \TP@testopt{#1}{\TP@register\setlength{#1}}#3\@@
   \else\ifx#2L
@@ -807,7 +860,7 @@
 % This command \emph{fully evaluates} the argument at declare time,
 % and assigns the value to the register. It also passes an assignment
 % of the register to the final value into the parameter list for the
-% template
+% template.
 %
 % If the value is a call to |\DelayEvaluation|, don't evaluate it now,
 % just pass the whole assignment to the template.
@@ -817,14 +870,59 @@
       \expandafter\ifx\@car##1\@nil\DelayEvaluation
         \addto@hook\TP@toks{#1#3{##1}}
        \else
-      #1#3{##1}
-      \expandafter\addto@hook\expandafter\TP@toks\expandafter{
-                   \expandafter
-                        #3
-                        \expandafter=
-                        \the#3\relax}
-       \fi}}
 %    \end{macrocode}
+%
+%
+% check for |\MultiSelection| creeping up and if so add something like
+%
+% \begin{verbatim}
+%  \setlength\register{\ifcase\selector \or value1 \or value2
+%                       ... \else valueotherwise \fi}
+% \end{verbatim}
+% to |\TP@toks|.
+%
+%    \begin{macrocode}
+  \expandafter\ifx\@car##1..\@nil\MultiSelection
+       \begingroup
+        \TP@multi#1#3##1
+       \endgroup
+%    \end{macrocode}
+%
+%
+% there are probably better ways to do this :-)
+%
+%    \begin{macrocode}
+       \expandafter\in@\expandafter\DelayEvaluation
+                       \expandafter{\the\TP@multi@toks}
+       \ifin@
+         \addto@hook:No\TP@toks
+              {\expandafter#1\expandafter#3\expandafter{\the\TP@multi@toks}}
+       \else
+         \addto@hook:No\TP@toks
+           {\expandafter  #3
+            \expandafter= \the\TP@multi@toks\relax}
+       \fi
+%    \end{macrocode}
+%
+%
+% otherwise do as before
+%
+%    \begin{macrocode}
+  \else
+      \addto@hook:No\TP@toks
+         {\expandafter  #3
+          \expandafter= \the#3\relax}
+       \fi\fi}}
+%    \end{macrocode}
+%
+%
+%
+%    \begin{macrocode}
+\def\addto@hook:No#1#2 {
+      \expandafter\addto@hook\expandafter#1\expandafter{#2}}
+%    \end{macrocode}
+%
+%
 %
 %    \begin{macrocode}
 \let\DelayEvaluation\@firstofone
@@ -887,6 +985,54 @@
 % \end{macro}
 %
 %
+% Here is the extended version that tries to deal with
+% |\MultiSelection|.
+%
+% In case of `n' keys there is no evaluation at declaration time so it
+% is not sensible to look for |\DelayEvaluation|. For this reason as
+% well as for the fact that |\TP@multi| above assumes that it deals
+% with registers that can be accessed via |\the| we have to use a
+% different command to handle the |\MultiSelection| args but
+% it is essentially doing the same.
+%
+%    \begin{macrocode}
+\def\TPnamecommand#1#2{
+  \TP@define@key{#1}{
+  \expandafter\ifx\@car##1..\@nil\MultiSelection
+       \begingroup
+        \TP@multi@name##1
+       \endgroup
+       \addto@hook:No\TP@toks
+            {\expandafter\def\expandafter#2\expandafter{\the\TP@multi@toks}}
+  \else
+        \def#2{##1}                      % setting it?
+        \addto@hook\TP@toks{\def#2{##1}}
+  \fi
+      }
+    }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%\catcode`\:=12\relax
+\def\TP@multi@name #1#2#3#4{
+   \global\TP@multi@toks{\ifcase #2}
+   \@for\next:=\@empty #3\do{
+   \TP@do@multi\next
+}
+   \global\addto@hook\TP@multi@toks{\else #4\fi}
+  }
+%\catcode`\:=11\relax
+%    \end{macrocode}
+%
+%
+%
+%
+%
+%
+%
+%
+%
+%
 % \begin{macro}{\DeclareInstance}
 % |{type}{instname}{templatename}{keyval}|
 %    \begin{macrocode}
@@ -946,6 +1092,8 @@
 % \end{macro}
 %
 % \begin{macro}{\ShowTemplate}
+% Some extension to |\ShowTemplate| so that we also get to see the
+% restrictions if any
 %    \begin{macrocode}
 \def\ShowTemplate#1#2{
    \typeout{*******~ Template:~ #1/#2~ *******}
@@ -954,6 +1102,11 @@
    \typeout{*}
    \typeout{\string\TPD>/#1/#2=
       \expandafter\meaning\csname TPD>/#1/#2\endcsname}
+   \typeout{*}
+   \typeout{*~ Restrictions:}
+   \typeout{*}
+   \typeout{\string\TPR>/#1/#2=
+      \expandafter\meaning\csname TPR>/#1/#2\endcsname}
    \typeout{*}
    \typeout{*~ Body:}
    \typeout{*}
@@ -973,19 +1126,117 @@
 %    \begin{macrocode}
 \def\TP@fakeregister#1#2#3#4{
   \TP@define@key{#3}{
-      \expandafter\ifx\@car##1\@nil\DelayEvaluation
+      \expandafter\ifx\@car##1..\@nil\DelayEvaluation
+%    \end{macrocode}
+%    In thew v0.08 version of \texttt{template.dtx} a
+%    |\DelayEvaluation| for a faked register would simply be equiv to
+%    a |\def| (code is below commented out). The negative side effect
+%    of this is that something like |=L| used with |\DelayEvaluation|
+%    would not allow for calc syntax since it would end up as
+%    |\def|\allowbreak|\foo|\allowbreak|{a+b}|. The code below changes
+%    this to first assign to a scratch register (at runtime) and then
+%    do an |\edef|. Could be coded differently to save space (at cost
+%    of time)
+%    \begin{macrocode}
+%        \addto@hook\TP@toks{\def#4{##1}}
         \addto@hook\TP@toks{#1#2{##1}\edef#4{\the#2}}
        \else
+%    \end{macrocode}
+%
+%
+%    Otherwise same game for fake registers except that instead of
+%    passing the register to |\TP@multi| we pass a temp fake one and
+%    doing a def instead of using |\setlength| or |\setcounter|
+%
+%    and i haven't done the |\DelayEvaluation| bit for that case! as
+%    i'm not sure what the best approach is for those
+%    things\footnote{we might disallow it for that case in general ---
+%    not a nice rule but an explainable one}
+%
+%    \begin{macrocode}
+  \expandafter\ifx\@car##1..\@nil\MultiSelection
+       \begingroup
+        \TP@multi#1#2##1
+       \endgroup
+       \addto@hook:No\TP@toks
+            {\expandafter\def\expandafter#4\expandafter{\the\TP@multi@toks}}
+  \else
       #1#2{##1}
-      \expandafter\addto@hook\expandafter\TP@toks\expandafter{
-                   \expandafter
+      \addto@hook:No\TP@toks
+                  {\expandafter
                         \def
                    \expandafter
                          #4
                    \expandafter
                         {\the#2}}
-       \fi}}
+       \fi\fi}}
 %    \end{macrocode}
+%
+%    \begin{macrocode}
+\newtoks\TP@multi@toks
+%    \end{macrocode}
+%
+% |\TP@multi| \marg{operation} \marg{register} |\MultiSelection|
+% \marg{selector} \marg{case-list} \marg{else-case}
+%
+% This command builds up the |\ifcase| code from the three arguments
+% of |\MultiSelection| and stores it in |\TP@multi@toks|. This code is
+% supposed to be run in a group so a) we don't have to initialise
+% |\TP@multi@toks| and b) all changes to the used registers not
+% affecting the outside.
+%
+% Warning: this code uses |\@for| which will not work if put into files where
+% ``:'' was made a letter!
+%
+%    \begin{macrocode}
+%\catcode`\:=12\relax
+\def\TP@multi #1#2#3#4#5#6{
+   \global\TP@multi@toks{\ifcase #4}
+   \@for\next:=\@empty #5\do{
+     \expandafter \expandafter\expandafter\ifx\expandafter
+                  \@car\next..\@nil\DelayEvaluation
+       \TP@do@multi\next
+     \else
+       #1#2{\next}
+       \TP@do@multi{\the#2}
+     \fi
+   }
+   \global\addto@hook\TP@multi@toks{\else #6\fi}
+  }
+%\catcode`\:=11\relax
+%    \end{macrocode}
+%
+%
+% Since we intend to add |\or| to |\TP@multi@toks| within the |\@for|
+% loop we have to hide it carefully or else we will get some unmatched
+% conditionals.
+%
+%    \begin{macrocode}
+\def\TP@do@multi#1{
+     \global\expandafter\addto@hook\expandafter\TP@multi@toks
+                 \expandafter{\expandafter\or #1 }
+}
+%    \end{macrocode}
+%
+% Since i like to set things like |item-label-text| using this
+% mechanism i need to handle the `n' key specially.
+%
+% Actually i could have probably extended |\TPkeycommand| thus making
+% this generally available to all f\meta{number} keys but was too lazy
+% (or too stupid) to get it right first time so settled for the simple
+% solution. 
+%
+% So |\TP@do| now calls |\TPnamecommand| for the `n' key. looks like
+% this thus be fixed some time soon
+%
+%
+%
+%
+%
+%
+%
+%
+%
 %
 %    \begin{macrocode}
 \newlength\fake@length
