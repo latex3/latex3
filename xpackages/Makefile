@@ -1,0 +1,27 @@
+
+all:	xbase.tgz xfrontm.tgz xfrontm-pict.tgz
+
+clean:
+	rm -f *.tgz
+	rm -f *~
+
+
+xbase.tgz: xbase
+	tar cvzf xbase.tgz xbase/ldcsetup.dtx \
+			   xbase/template.dtx \
+			   xbase/xbase.ins \
+			   xbase/xparse.dtx \
+			   xbase/xtools.dtx
+
+xfrontm.tgz: xfrontm
+	tar cvzf xfrontm.tgz xfrontm/xfm-test.tex \
+			     xfrontm/xfm-test-cls.dtx \
+			     xfrontm/xfm.dtx \
+			     xfrontm/xfmgalley.dtx \
+			     xfrontm/xfrontm.ins
+
+
+xfrontm-pict.tgz: xfrontm
+	tar cvzf xfrontm-pict.tgz xfrontm/*.ps
+
+
