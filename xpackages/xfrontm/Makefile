@@ -13,3 +13,5 @@ clean:
 	rm -f template.sty ldcsetup.sty xparse.sty
 	rm -f *.dvi *.aux *.log *.toc *~
 
+test:
+	latex xfm-test
