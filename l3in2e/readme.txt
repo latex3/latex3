@@ -4,7 +4,7 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   1998/04/12
+   1998/04/17
 
 
 OVERVIEW
@@ -131,6 +131,11 @@ l3int
 Integer and fake integer registers. With eTeX becoming more and more
 accessible this module is, at least in parts only of historical
 significance.  (Can be compiled with checking enabled)
+
+l3toks
+======
+
+TeX's token registers.  (Can be compiled with checking enabled)
 
 
 ====================================================================
