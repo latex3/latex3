@@ -1,6 +1,16 @@
 % \iffalse
+%
+% Not cleaned up:
+%
+% \string
+% \long
+% \@typeset@protect
+% \@tempcnta
+% \@ifnextchar
+% \begingroup \endgroup
 %%
 %% (C) Copyright 1999 Frank Mittelbach, Chris Rowley, David Carlisle
+%% (C) Copyright 2004 Frank Mittelbach
 %% All rights reserved.
 %%
 %% Not for general distribution. In its present form it is not allowed
@@ -15,7 +25,7 @@
 %<driver>\ProvidesFile{xparse.drv}
 % \fi
 %         \ProvidesFile{xparse.dtx}
-          [2000/01/29 v0.20 generic document command parser]
+          [2004/09/18 v0.3 generic document command parser]
 %
 % \iffalse
 %<*driver>
@@ -23,12 +33,14 @@
  \usepackage{textcomp}
 % \usepackage{ldcdoc}
  \begin{document}
+ \catcode`\_=11
+ \catcode`\:=11
  \DocInput{xparse.dtx}
  \end{document}
 %</driver>
 % \fi
 %
-% \CheckSum{724}
+% \CheckSum{0}
 %
 % \GetFileInfo{xparse.dtx}
 %
@@ -563,11 +575,808 @@
 % within the body of this package.
 %    \begin{macrocode}
 %<*package>
+% -----START-------
 \RequirePackage{ldcsetup}
-\IgnoreWhiteSpace
+\RequirePackage{l3tlp,l3toks}
+\InternalSyntaxOn
 %    \end{macrocode}
 %
 %
+%
+% \subsection{The Carlisle implementation for the parsing}
+%
+% Not implemented in this version is |\DeclareDocumentEnvironment|
+% (exercise for the reader).\footnote{Exercise now completed by DPC :-)
+%    (required re-implementing argument grabbers to grab to a toks
+%     register rather that into a brace group in the input stream.) }
+%
+% Seemed to need a few toks registers.
+%    \begin{macrocode}
+\toks_new:N \l_parsers_toks
+\toks_new:N \l_arg_spec_toks
+\toks_new:N \l_margs_parsers_toks
+%    \end{macrocode}
+%
+%
+% \begin{macro}{\DeclareDocumentCommand}
+%  Args: |#1| csname,
+% |#2| soom argument spec,
+% |#3| code
+%
+% In |#2| currently supported types are:
+%     s star,
+%     o \oarg{optional},
+%     m \marg{mandatory}.\footnote{More added in reimplementation below.}
+%
+% |#3| is just grabbed so as to not get a space in the argument spec
+%    for definition.
+%
+%    \begin{macrocode}
+\def_long:Npn \DeclareDocumentCommand #1 #2 #3{
+%    \end{macrocode}
+%
+% Needed to count no of arguments
+%    \begin{macrocode}
+   \@tempcnta\z@
+%    \end{macrocode}
+%
+% Builds up list of argument parsers |\xparse_s:w \xparse_xm:w| etc
+%    \begin{macrocode}
+   \toks_clear:N \l_parsers_toks
+%    \end{macrocode}
+%
+% Builds up |#1#2#3#4| argument spec
+%    \begin{macrocode}
+   \toks_clear:N \l_arg_spec_toks
+%    \end{macrocode}
+%
+% Builds up list of m-arguments
+% occurred since start or since argument of another type.
+%    \begin{macrocode}
+   \toks_clear:N \l_margs_parsers_toks
+%    \end{macrocode}
+%
+% Start parsing argument spec
+%    \begin{macrocode}
+   \xparse_parse_sig:n #2 X
+%    \end{macrocode}
+%
+% Define top level command, this just has the wrapper command
+% |\xparse_eval_protect:nNN| then the argument grabbers from
+% |\l_parsers_toks| then the original
+% command name (in case we need to |\protect|) then the internal
+% command with the code.
+%    \begin{macrocode}
+   \def:Npx #1 {
+     \exp_not:N \xparse_eval_protect:nNN
+       {\toks_use:N\l_parsers_toks}
+       \exp_not:c {\string#1}
+       \exp_not:N  #1
+    }
+%    \end{macrocode}
+% The |\long| below could be |\relax| if wanted to have a star-non-long
+% form of this, cf |\newcommand*|. The argument preamble for
+% |\def_long:Npn| comes from |\l_arg_spec_toks|.
+%    \begin{macrocode}
+   \exp_after:NN \def_long:Npn 
+          \cs:w \string#1\exp_after:NN \cs_end:
+          \toks_use:N\l_arg_spec_toks{#3}}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\xparse_eval_protect:nNN}
+%
+% Arguments: |#1| set of argument grabbers,
+% |#2| internal command,
+% |#3| top level command for |\protect|ing.
+%
+%    \begin{macrocode}
+\def\xparse_eval_protect:nNN#1#2#3{
+  \if_meaning:NN \protect \@typeset@protect
+    \exp_after:NN \use:n
+  \else:
+    \protect #3 
+    \exp_after:NN \use_none:n
+  \fi:
+%    \end{macrocode}
+%
+% The command+arguments so far are kept in a token register until
+% the last moment for ease of processing. So need to  initialise
+% that and use it at the end.
+%    \begin{macrocode}
+  {\toks_set:Nn \l_parsers_toks {#2} 
+   #1\toks_use:N\l_parsers_toks}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\xparse_parse_sig:n}
+% Argument: |#1| one of s o m (or X denoting end of parsing).
+%    \begin{macrocode}
+%<*obsolete>
+\def\xparse_parse_sig:n#1{
+  \if_meaning:NN #1 X
+%    \end{macrocode}
+% fini
+%    \begin{macrocode}
+  \else:
+  \if_meaning:NN #1 m
+%    \end{macrocode}
+%    If doing an m, just stick another |m| in a temporary list that is
+%    eventually turned into a collective argument parser.
+%    \begin{macrocode}
+   \toks_put_right:Nn \l_margs_parsers_toks m
+  \else:
+%    \end{macrocode}
+%
+% Otherwise for o and s
+% in |\l_parsers_toks| first add any `m' argument parsers saved up
+% then add |\xparse_o:w| or |\xparse_s:w|.
+%    \begin{macrocode}
+  \toks_set:No \l_parsers_toks {%
+     \the \exp_after:NN \l_parsers_toks
+     \cs:w xparse_ 
+           \toks_use:N\l_margs_parsers_toks
+           :w
+           \exp_after:NN \cs_end:
+     \cs:w xparse_#1:w \cs_end:}
+%    \end{macrocode}
+%
+% Clear list of m's:
+%    \begin{macrocode}
+   \toks_clear:N \l_margs_parsers_toks
+  \fi:
+%    \end{macrocode}
+%
+% Add one to argument count.
+%    \begin{macrocode}
+  \advance\@tempcnta\@ne
+%    \end{macrocode}
+%
+% Internally all arguments are non delimited args, so add
+% |#|\meta{n} to the list in |\l_arg_spec_toks|
+%    \begin{macrocode}
+  \toks_set:No \l_arg_spec_toks {
+     \the \exp_after:NN \l_arg_spec_toks\exp_after:NN ##\the\@tempcnta}
+%    \end{macrocode}
+%
+% Loop:
+%    \begin{macrocode}
+  \exp_after:NN 
+  \xparse_parse_sig:n
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+  \fi:}
+%</obsolete>
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\xparse_s:w}
+% Argument: |#1| any remaining argument grabbers (+ |\toks_use:N|)
+%    \begin{macrocode}
+\def_long:Npn \xparse_s:w #1 \l_parsers_toks{
+%    \end{macrocode}
+%
+% put back the rest of the argument grabbers, but add new
+% (boolean) argument to list of arguments inside the register.
+%    \begin{macrocode}
+  \@ifstar
+    {\toks_put_right:Nn \l_parsers_toks \BooleanTrue 
+     #1\l_parsers_toks}
+    {\toks_put_right:Nn \l_parsers_toks \BooleanFalse 
+     #1\l_parsers_toks}}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\xparse_o:w}
+% Argument: |#1| any remaining argument grabbers (+ |\toks_use:N|).
+%    \begin{macrocode}
+\def_long:Npn \xparse_o:w #1\l_parsers_toks{
+%    \end{macrocode}
+%
+% Put back the rest of the argument grabbers, but copy
+% argument (now with |{}| or |\NoValue| to list of arguments
+%  inside toks register.
+%
+% Before calling |\@ifnextchar| we start a special group that ensures
+% that scanning ahead doesn't trigger anything nasty in |\halign|s
+% (see pr3040 in the \LaTeX{} bug db).\footnote{However this is most
+% certainly not the right approach: a) we would probably need that
+% everywhere (right now it is only implemented for o and O) so perhaps
+% the whole thing would need to go into \texttt{\textbackslash
+% @ifnextchar} to save space and b) it might be better to get rid of
+% \& having catcode 4 and instead make it catcode 13.}
+%    \begin{macrocode}
+   {\ifnum`}=0\fi
+   \@ifnextchar[
+     {\ifnum`{=\z@\fi}\xparse_o_help:nw{#1}}
+     {\ifnum`{=\z@\fi}
+      \toks_put_right:Nn \l_parsers_toks \NoValue 
+      #1\l_parsers_toks}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_o_help:nw}
+%    Helper to remove [].
+%    \begin{macrocode}
+\def_long:Npn\xparse_o_help:nw#1[#2]{
+  \toks_put_right:Nn \l_parsers_toks {{#2}} 
+  #1\l_parsers_toks}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+% \subsection{A Mittelbach update to the Carlisle implementation
+%    supporting O with default for optional arg and c for coordinates
+%    --- prove of concept only}
+%
+%   Only changed and new commands are listed.
+%
+%
+% \begin{macro}{\xparse_parse_sig:n}
+%    The big switch that builds up the parser for the document command.
+%
+%    The complexity of the |\xparse_parse_sig:n| rewrite suggests that
+%    there might 
+%    be better ways to do it, but for a proto-type solution this is
+%    fine enough.
+%
+%    \begin{macrocode}
+\def\xparse_parse_sig:n#1{
+  \if_meaning:NN #1 X
+%    \end{macrocode}
+%    Normally we do nothing at this point and don't pick up the
+%    trailing mandatory args into |\l_parsers_toks| but if we want to reuse the
+%    argument list in an end environment we have to so at this point.
+%    \begin{macrocode}
+  \else:
+    \if_meaning:NN #1 m
+%    \end{macrocode}
+%    Just record how many m's seen so far
+%    \begin{macrocode}
+      \toks_put_right:Nn \l_margs_parsers_toks m
+    \else:
+%    \end{macrocode}
+%    If anything other than an |m| is scanned we add to |\l_parsers_toks| and
+%    argument grabber that gets all |m|'s in one go rather than argument
+%    grabbers that pick up each |m| at a time. Right now this
+%    unnecessarily adds |\xparse_x:w| if no |m|'s have been
+%    seen.\footnote{fix, see also below}
+%    \begin{macrocode}
+     \toks_set:No \l_parsers_toks {%
+        \the \exp_after:NN \l_parsers_toks
+        \cs:w xparse_x
+              \toks_use:N\l_margs_parsers_toks
+              :w
+              \exp_after:NN \cs_end:
+         \cs:w xparse_#1:w \cs_end: }
+      \toks_clear:N \l_margs_parsers_toks
+%    \end{macrocode}
+%    In case of |O| and |C| we have to grab the default next.
+%    \begin{macrocode}
+      \if_meaning:NN #1 O
+         \let:NN \xparse_next_sig_or_default:n \xparse_grab_default:n
+      \else:
+         \if_meaning:NN #1 C
+           \let:NN \xparse_next_sig_or_default:n \xparse_grab_default:n
+         \fi:
+      \fi:
+    \fi:
+    \advance\@tempcnta\@ne
+    \toks_set:No \l_arg_spec_toks {
+      \the \exp_after:NN \l_arg_spec_toks \exp_after:NN ##\the\@tempcnta}
+    \exp_after:NN 
+    \xparse_next_sig_or_default:n
+  \fi:
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_next_sig_or_default:n}
+%    By default the loop in the |\xparse_parse_sig:n| code above calls itself
+%    recursively until the whole spec is processed.
+%    \begin{macrocode}
+\let:NN \xparse_next_sig_or_default:n\xparse_parse_sig:n
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_grab_default:n}
+%    However if we've seen an |O| we need to grab the default value first.
+%    \begin{macrocode}
+\def_long:Npn \xparse_grab_default:n #1{
+  \toks_put_right:Nn \l_parsers_toks {#1}
+  \let:NN  \xparse_next_sig_or_default:n \xparse_parse_sig:n
+  \xparse_parse_sig:n
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\xparse_O:w}
+%    This command expects the default value (to use if no |[| is
+%    parsed) after it.
+%    \begin{macrocode}
+\def_long:Npn \xparse_O:w #1#2\l_parsers_toks{
+   {\ifnum`}=0\fi
+   \@ifnextchar[
+     {\ifnum`{=\z@\fi}
+      \xparse_o_help:nw {#2} }
+     {\ifnum`{=\z@\fi}
+      \toks_put_right:Nn \l_parsers_toks{{#1}} 
+      #2\l_parsers_toks}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_c:w}
+%    We look for the `(' and signal an error
+%    if not found. By using |\@ifnextchar| this also takes care of any
+%    space tokens in front ot the the parentheses.
+%    \begin{macrocode}
+\def_long:Npn \xparse_c:w #1 \l_parsers_toks {
+   \@ifnextchar (
+     {\xparse_c_help:nw #1}
+     {\PackageError{xparse}{Missing~ coordinate~ argument}
+        {A~ value~ of~ (0,0)~ is~ assumed}
+      \toks_put_right:Nn\l_parsers_toks{{00}} 
+      #1\l_parsers_toks}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_c_help:nw}
+%    Helper for |\xparse_c:w| and |\xparse_C:w| below to parse a |(x,y)| if we
+%    know it is there.
+%    \begin{macrocode}
+\def_long:Npn \xparse_c_help:nw #1 (#2,#3) {
+  \toks_put_right:Nn\l_parsers_toks{{{#2}{#3}}}
+  #1\l_parsers_toks}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_C:w}
+%    This way we can also directly implement the optional argument case in
+%    a natural way.
+%    \begin{macrocode}
+\def_long:Npn \xparse_C:w #1#2\l_parsers_toks{
+   \@ifnextchar (
+     {\xparse_c_help:nw #2}
+     {\toks_put_right:Nn\l_parsers_toks{{#1}} 
+      #2\l_parsers_toks}}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+%
+% \begin{macro}{\xparse_xm:w}
+%    Instead of |\xparse_m:w| we use |\xparse_xm:w| as with the implementation
+%    below we might have a need for |\xparse_x:w| (that is no m's pending)
+%    and this would result in a name clash. A potentially better
+%    implementation (cause faster) would be not to use |\l_margs_parsers_toks|
+%    above to record the number of m's seen but a counter register and
+%    generate grabber function names containing the number in their
+%    name. This way one could better single out the empty case which
+%    currently will always result and a |\xparse_x:w| grabber doing
+%    nothing.
+%    \begin{macrocode}
+\def_long:Npn \xparse_xm:w #1 \l_parsers_toks#2{
+ \toks_put_right:Nn \l_parsers_toks{{#2}}
+ #1\l_parsers_toks}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_xmm:w}
+% \begin{macro}{\xparse_xmmm:w}
+% \begin{macro}{\xparse_xmmm...:w}
+% Arguments: |#1| any remaining argument grabbers (+ |\toks_use:N|),
+% |#2#3| argument to be grabbed; and so on. There can be at most 8
+% such mandatory arguments in the variations defined below.
+%    \begin{macrocode}
+\def_long:Npn\xparse_xmm:w#1\l_parsers_toks#2#3{
+%    \end{macrocode}
+% Put back the rest of the argument grabbers, but copy
+%  argument to list of arguments inside the toks register.
+% Any `m' at the end will be discarded and the internal
+% command will pick up its own arguments.
+%    \begin{macrocode}
+ \toks_put_right:Nn\l_parsers_toks{{#2}{#3}} #1\l_parsers_toks}
+%    \end{macrocode}
+%
+% And here are the cases for 3 to eight upcoming mandatory args:
+%    \begin{macrocode}
+\def_long:Npn\xparse_xmmm:w#1\l_parsers_toks#2#3#4{
+ \toks_put_right:Nn\l_parsers_toks{{#2}{#3}{#4}} 
+ #1\l_parsers_toks}
+\def_long:Npn\xparse_xmmmm:w#1\l_parsers_toks#2#3#4#5{
+ \toks_put_right:Nn\l_parsers_toks{{#2}{#3}{#4}{#5}}
+ #1\l_parsers_toks}
+\def_long:Npn\xparse_xmmmmm:w#1\l_parsers_toks#2#3#4#5#6{
+ \toks_put_right:Nn\l_parsers_toks{{#2}{#3}{#4}{#5}{#6}}
+ #1\l_parsers_toks}
+\def_long:Npn\xparse_xmmmmmm:w#1\l_parsers_toks#2#3#4#5#6#7{
+ \toks_put_right:Nn\l_parsers_toks{{#2}{#3}{#4}{#5}{#6}{#7}}
+ #1\l_parsers_toks}
+\def_long:Npn\xparse_xmmmmmmm:w#1\l_parsers_toks#2#3#4#5#6#7#8{
+ \toks_put_right:Nn\l_parsers_toks{{#2}{#3}{#4}{#5}{#6}{#7}{#8}}
+ #1\l_parsers_toks}
+\def_long:Npn\xparse_xmmmmmmmm:w#1\l_parsers_toks#2#3#4#5#6#7#8#9{
+ \toks_put_right:Nn\l_parsers_toks{{#2}{#3}{#4}{#5}{#6}{#7}{#8}{#9}}
+ #1\l_parsers_toks}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%
+%
+% \begin{macro}{\DeclareDocumentEnvironment}
+%    Fixing |\DeclareDocumentEnvironment| to not choke on the spec
+%    |m|. Interestingly enough |mm| does work with the old
+%    implementation: it simply grabs |\@checkend{name}| whereas the
+%    first only grabs |\@checkend| leaving |{name}| around for
+%    typesetting :-)
+%
+%    If we don't make the arguments available in the end code we
+%    should most likely revert to David's original code which worked
+%    without assigning everything to toks registers (or at least check
+%    what is faster!)
+%    \begin{macrocode}
+\def_long:Npn\DeclareDocumentEnvironment#1#2#3#4{
+  \exp_after:NN \DeclareDocumentCommand \cs:w #1\cs_end: {#2}{
+%    \end{macrocode}
+%     After |\DeclareDocumentCommand| has parsed the arguments the
+%     parsing result is available in |\l_parsers_toks| except that trailing
+%     |m|'s are picked up directly and their values are therefore not
+%     part of this token register. So either we have to slow down
+%     everything by individually parsing those as well or this bright
+%     idea is not working. For the moment i disabled it again!
+%    \begin{macrocode}
+    #3}
+%    \end{macrocode}
+%    In that case the following can be simplified as well:
+%    \begin{macrocode}
+   \def_long:Npc {end #1}{#4}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% 
+% \subsection{A different interface (for class design?)}
+%
+% Combining signature and top-level definition of a command |\foo| as
+% in 
+%\begin{verbatim}
+%\DeclareDocumentCommand \foo { m c m }
+%{ \typeout{1:#1}
+%  \typeout{2:#2}
+%  \typeout{3:#3}
+%}
+%\end{verbatim}
+% is fine in certain cases, e.g., if the user wants to declare a few
+% commands this way in the preamble of a document. However in a class
+% file it probably better to completely separate signature (i.e.,
+% argument \#1 and \#2) from top-level implementation (i.e., argument
+% \#3).
+%
+% 
+%\begin{verbatim}
+%\DeclareDocumentCommandInterface \foo {bar} { m c m }
+%\end{verbatim}
+% The above now declare only the signature of the command |\foo| and
+% states that the implementation is to be found under the label |bar|.
+%
+% A bunch of such statements would then for the first time clearly
+% define a document class (i.e., what a document class instance need
+% to define to be complient)
+%
+% An instance would then consist of a lot of declarations of the type
+%\begin{verbatim}
+%\DeclareDocumentCommandImplementation {bar} {3}
+%{ \typeout{1:#1}
+%  \typeout{2:#2}
+%  \typeout{3:#3}
+%}
+%\end{verbatim}
+% i.e., defining how to format things being referenced as part of the
+% signature.
+%
+%
+%
+% \begin{macro}{\DeclareDocumentEnvironment}
+%    \begin{macrocode}
+\def_long:Npn\DeclareDocumentCommandInterface #1 #2 #3{
+   \@tempcnta\z@
+   \toks_clear:N \l_parsers_toks
+   \toks_clear:N \l_arg_spec_toks
+   \toks_clear:N \l_margs_parsers_toks
+   \xparse_parse_sig:n #3 X
+   \def:Npx #1 {
+    \exp_not:N  \xparse_eval_protect:nNN
+       {\toks_use:N \l_parsers_toks}
+       \exp_not:c {impl-#2}
+       \exp_not:N #1
+    }
+%    \end{macrocode}
+%    If only the signature is defined but no implementation we typeset
+%    the implementation label in angle brackets and give a warning.
+%    Probably should by default give an error with a switch to turn it
+%    into a warning if desired.
+%    \begin{macrocode}
+   \exp_after:NN \def_long:Npn \cs:w impl-#2\exp_after:NN \cs_end:
+          \toks_use:N \l_arg_spec_toks
+          {$\langle$\textit{#2}$\rangle$
+           \PackageWarning{xparse}{No~ implementation~
+              for~ `#2'\MessageBreak defined}}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+% \begin{macro}{\DeclareDocumentEnvironment}
+%    \begin{macrocode}
+\def_long:Npn \DeclareDocumentCommandImplementation #1 #2 #3{
+   \exp_after:NN \renewcommand \cs:w impl-#1\cs_end: [#2]{#3}}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \subsection{A Quark-like datatype}
+%
+% If it turns out that the only quark thingie is going to be
+% |\NoValue| then this can be streamlined for speed (and it looks
+% like this is the case)!
+%
+% \begin{macro}{\IfSomethingTF}
+% \begin{macro}{\IfSomethingT}
+% \begin{macro}{\IfSomethingF}
+% Setting up the stage \ldots
+%    \begin{macrocode}
+\def\IfSomethingTF#1{\def\something@in{#1} \If@SomethingTF}
+\def\IfSomethingT#1#2#3{\def\something@in{#1}
+                        \If@SomethingTF{#2}{#3}\@empty}
+\def\IfSomethingF#1#2#3{\def\something@in{#1}
+                        \If@SomethingTF{#2}\@empty{#3}}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\If@SomethingTF}
+% \ldots and then for the recursive part:
+%    \begin{macrocode}
+\def\If@SomethingTF#1{
+   \def\something@tmp{#1}
+   \ifx\something@tmp\something@in
+%fini true
+     \exp_after:NN \@secondofthree
+   \else
+       \exp_after:NN \def\exp_after:NN \something@tmpb\exp_after:NN {#1}
+       \ifx\something@tmp\something@tmpb
+%fini false
+         \exp_after:NN \exp_after:NN \exp_after:NN \@thirdofthree
+       \else
+%try again expanded
+         \exp_after:NN \exp_after:NN \exp_after:NN \@firstofone
+       \fi
+   \fi
+   {\exp_after:NN \If@SomethingTF\exp_after:NN {#1}}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@secondofthree}
+% \begin{macro}{\@thirdofthree}
+% Some helpers missing in \LaTeX{}; the others are |\long| so we make
+% those long as well:
+%    \begin{macrocode}
+\def_long:Npn\@secondofthree#1#2#3{#2}
+\def_long:Npn\@thirdofthree #1#2#3{#3}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%
+% \subsection{Testing for \texttt{\textbackslash NoValue}}
+%
+%
+% \begin{macro}{\NoValue}
+%    \begin{macrocode}
+\def\NoValue{-NoValue-}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\NoValueInIt}
+%    might be handy sometimes\ldots
+%    \begin{macrocode}
+\def\NoValueInIt{\NoValue}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\IfNoValueTF}
+% \begin{macro}{\IfNoValueT}
+% \begin{macro}{\IfNoValueF}
+%    \begin{macrocode}
+\def\IfNoValueTF{\IfSomethingTF\NoValue}
+\def\IfNoValueT {\IfSomethingT \NoValue}
+\def\IfNoValueF {\IfSomethingF \NoValue}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\IfValueTF}
+% \begin{macro}{\IfValueT}
+% \begin{macro}{\IfValueF}
+%    \begin{macrocode}
+\def\IfValueTF #1 #2 #3 { \IfNoValueTF {#1} {#3} {#2} }
+\let:NN  \IfValueT \IfNoValueF
+\let:NN  \IfValueF \IfNoValueT
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{A Boolean datatype}
+%
+% \begin{macro}{\BooleanFalse}
+% \begin{macro}{\BooleanTrue}
+%    \begin{macrocode}
+\def\BooleanFalse{TF}
+\def\BooleanTrue{TT}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\IfBooleanTF}
+% \begin{macro}{\IfBooleanT}
+% \begin{macro}{\IfBooleanF}
+%    \begin{macrocode}
+\def\IfBooleanTF #1 {
+   \if#1
+       \exp_after:NN \@firstoftwo
+   \else
+       \exp_after:NN \@secondoftwo
+   \fi
+}
+\def\IfBooleanT #1 #2 { 
+   \IfBooleanTF {#1} {#2} \@empty
+}
+\def\IfBooleanF #1 { 
+   \IfBooleanTF {#1} \@empty
+}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%
+%
+%    \begin{macrocode}
+%</package>
+%<*obsolete>
+%    \end{macrocode}
+%
+% \begin{macro}{\xparse_m:w}
+% Arguments: |#1| any remaining argument grabbers (+ |\toks_use:N|),
+% |#2| argument to be grabbed.
+%    \begin{macrocode}
+\def_long:Npn\xparse_m:w#1\l_parsers_toks#2{
+%    \end{macrocode}
+% put back the rest of the argument grabbers, but copy
+%  argument to list of arguments inside the toks register.
+% Any `m' at the end will be discarded and the internal
+% command will pick up its own arguments.
+%    \begin{macrocode}
+ \toks_put_right:Nn\l_parsers_toks{{#2}} 
+ #1 \l_parsers_toks}
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</obsolete>
+
+
+%<*perhaps>
+\toks_new:N \xparsed@args
+%    \end{macrocode}
+%
+% \begin{macro}{\xparse_xmmmmmmmmm:w}
+% If we grab arguments even if they are all mandatory we might have
+% even 9 such arguments, thus we also need:
+%    \begin{macrocode}
+\def_long:Npn\xparse_xmmmmmmmmm:w\toks_use:N\l_parsers_toks#1#2#3#4#5#6#7#8#9{
+ \toks_put_right:Nn \l_parsers_toks
+     {{#1}{#2}{#3}{#4}{#5}{#6}{#7}{#8}{#9}}\toks_use:N\l_parsers_toks}
+%    \end{macrocode}
+% And in that case we also need to provide |\xparse_x:w| as that name will
+% be executed if there are no trailing mandatory arguments.
+%    \begin{macrocode}
+\let:NN \xparse_x:w\relax
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\DeclareDocumentEnvironment}
+% The implementation here could save a csname or two per environment
+% if |\begin| and especially |\end| were modified but that not done here
+% so each end code responsible for getting its own arguments.
+%
+% Arguments: |#1| env name,
+% |#2| soom spec,
+% |#3| begin code,
+% |#4| end code.
+%
+%    \begin{macrocode}
+\def_long:Npn \DeclareDocumentEnvironment #1#2#3#4 {
+  \exp_after:NN \DeclareDocumentCommand \cs:w #1 \cs_end: {#2}{
+    \xparsed@args\l_parsers_toks
+    #3}
+  \let:cN {end #1} \@parsed@endenv
+  \exp_after:NN \def_long:Npn \cs:w end \string\\#1 \exp_after:NN \cd_end:
+    \toks_use:N\l_arg_spec_toks {#4}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@parsed@endenv}
+% All end codes are let to this. (Could be merged into |\end|.)
+%    \begin{macrocode}
+\def\@parsed@endenv{
+  \exp_after:NN \@parsed@endenv@\toks_use:N\xparsed@args}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@parsed@endenv@}
+% Helper that just replaces the internal name of the begin code
+% with that of the end code.
+%    \begin{macrocode}
+\def\@parsed@endenv@#1{ \use:c{end\string#1} }
+%    \end{macrocode}
+% \end{macro}
+%
+%    The above does the fixing by not providing the arguments to the
+%    end command. The alternative is to do full parsing and could
+%    perhaps look more or less like this:
+%    \begin{macrocode}
+\def_long:Npn\DeclareDocumentEnvironment#1#2#3#4{
+  \let:NN \perhaps@grab@ms\grab@ms
+  \exp_after:NN \DeclareDocumentCommand \cs:w #1 \cs_end: {#2}{
+%    \end{macrocode}
+%    I think we need as a safety measure add a group here or else the
+%    code will fail over if people use it without |\begin|\ldots
+%    |\end|.
+%    Or not? I don't really like it but then i don't want to maintain
+%    a private stack here.
+%    \begin{macrocode}
+    \begingroup
+    \xparsed@args\l_parsers_toks
+    #3}
+  \let:NN \perhaps@grab@ms\relax
+  \let:cN {end #1} \@parsed@endenv
+  \exp_after:NN \def_long:Npn \cs:w end \string\\#1 \exp_after:NN \cs_end:
+     \toks_use:N \l_arg_spec_toks {#4}
+}
+%    \end{macrocode}
+%    Same as in David's again except that we have the added group now.
+%    \begin{macrocode}
+\def:Npn \@parsed@endenv{
+  \exp_after:NN \@parsed@endenv@\the\xparsed@args\endgroup}
+\def:Npn \@parsed@endenv@#1{ \use:c {end\string#1} }
+%    \end{macrocode}
+% However the above will fail with |\begin{macro}| code of the
+% \texttt{doc} package as this code cancels the outer group so it is
+% dangerous and for the moment i have not activated it.
+%
+%    \begin{macrocode}
+%</perhaps>
+%    \end{macrocode}
+
 
 % \subsection{The Mittelbach/Rowley prove-of-concept
 %             implementation for the parsing}
@@ -715,771 +1524,6 @@
 %</obsolete>
 %    \end{macrocode}
 % \end{macro}
-%
-%
-% \subsection{The Carlisle implementation for the parsing}
-%
-% Not implemented in this version is |\DeclareDocumentEnvironment|
-% (exercise for the reader).\footnote{Exercise now completed by DPC :-)
-%    (required re-implementing argument grabbers to grab to a toks
-%     register rather that into a brace group in the input stream.) }
-%
-% Seemed to need two toks registers.
-%    \begin{macrocode}
-\newtoks\@temptokenb
-%    \end{macrocode}
-%
-%    \begin{macrocode}
-\newtoks\xparsed@args
-%    \end{macrocode}
-%
-%
-% \begin{macro}{\DeclareDocumentCommand}
-%  Args: |#1| csname,
-% |#2| soom argument spec,
-% |#3| code
-%
-% In |#2| currently supported types are:
-%     s star,
-%     o \oarg{optional},
-%     m \marg{mandatory}.\footnote{More added in reimplementation below.}
-%
-% |#3| is just grabbed so as to not get a space in the argument spec
-%    for definition.
-%
-%    \begin{macrocode}
-\long\def\DeclareDocumentCommand #1 #2 #3{
-%    \end{macrocode}
-%
-% Needed to count no of arguments
-%    \begin{macrocode}
-   \@tempcnta\z@
-%    \end{macrocode}
-%
-% Builds up list of argument parsers |\@ddc@s\@ddc@m| etc
-%    \begin{macrocode}
-   \toks@{}
-%    \end{macrocode}
-%
-% Builds up |#1#2#3#4| argument spec
-%    \begin{macrocode}
-   \@temptokena\toks@
-%    \end{macrocode}
-%
-% Builds up list of m-argument parsers |\@ddc@m\@ddc@m| 
-% occurred since start or since argument of another type.
-%    \begin{macrocode}
-   \@temptokenb\toks@
-%    \end{macrocode}
-%
-% Start parsing argument spec
-%    \begin{macrocode}
-   \@ddc#2X
-%    \end{macrocode}
-%
-% Define top level command, this just has the wrapper command
-% |\@ddc@| then the argument grabbers from |\toks@| then the original
-% command name (in case we need to |\protect|) then the internal
-% command with the code.
-% The |\long| below could be |\relax| if wanted to have a star-non-long
-% form of this, cf |\newcommand*|. The argument preamble for
-% |\def| comes from |\@temptokena|.
-%    \begin{macrocode}
-   \edef#1{
-    \noexpand\@ddc@
-    {\the\toks@}
-    \expandafter\noexpand\csname\string#1\endcsname
-    \noexpand#1
-    }
-   \long\expandafter\def\csname\string#1\expandafter\endcsname
-          \the\@temptokena{#3}}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\DeclareDocumentEnvironment}
-% The implementation here could save a csname or two per environment
-% if |\begin| and especially |\end| were modified but that not done here
-% so each end code responsible for getting its own arguments.
-%
-% Arguments: |#1| env name,
-% |#2| soom spec,
-% |#3| begin code,
-% |#4| end code.
-%
-%    \begin{macrocode}
-\long\def\DeclareDocumentEnvironment#1#2#3#4{
-  \expandafter\DeclareDocumentCommand\csname #1\endcsname{#2}{
-    \xparsed@args\toks@
-    #3}
-   \expandafter\let\csname end #1\endcsname\@parsed@endenv
-  \long\expandafter\def\csname end \string\\#1\expandafter\endcsname
-    \the\@temptokena {#4}}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@parsed@endenv}
-% All end codes are let to this. (Could be merged into |\end|.)
-%    \begin{macrocode}
-\def\@parsed@endenv{
-  \expandafter\@parsed@endenv@\the\xparsed@args}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@parsed@endenv@}
-% Helper that just replaces the internal name of the begin code
-% with that of the end code.
-%    \begin{macrocode}
-\def\@parsed@endenv@#1{
-  \csname end\string#1\endcsname}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\@ddc@}
-%
-% Arguments: |#1| set of argument grabbers,
-% |#2| internal command,
-% |#3| top level command for |\protect|ing.
-%
-%    \begin{macrocode}
-\def\@ddc@#1#2#3{
-  \ifx\protect\@typeset@protect
-    \expandafter\@firstofone
-  \else
-    \protect#3\expandafter\@gobble
-  \fi
-%    \end{macrocode}
-%
-% The command+arguments so far are kept in a token register until
-% the last moment for ease of processing. So need to  initialise
-% that and use it at the end.
-%    \begin{macrocode}
-  {\toks@{#2} #1\the\toks@}}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\@ddc}
-% Argument: |#1| one of s o m (or X denoting end of parsing).
-%    \begin{macrocode}
-\def\@ddc#1{
-  \ifx #1X
-%    \end{macrocode}
-% fini
-%    \begin{macrocode}
-  \else
-  \ifx #1m
-%    \end{macrocode}
-%    If doing an m, just stick another |\@ddc@m| in a temporary list.
-%    \begin{macrocode}
-%  \@temptokenb\expandafter{%
-%     \the\@temptokenb
-%     \@ddc@m}
-   \addto@hook\@temptokenb m
-  \else
-%    \end{macrocode}
-%
-% Otherwise for o and s
-% in |\toks@| first add any `m' argument parsers saved up
-% then add |\@ddc@o| or |\@ddc@s|.
-%    \begin{macrocode}
-  \toks@\expandafter{%
-     \the\expandafter\toks@
-     \csname @ddc@\the\@temptokenb\expandafter\endcsname
-     \csname @ddc@#1\endcsname}
-%    \end{macrocode}
-%
-% Clear list of m's:
-%    \begin{macrocode}
-   \@temptokenb{}
-  \fi
-%    \end{macrocode}
-%
-% Add one to argument count.
-%    \begin{macrocode}
-  \advance\@tempcnta\@ne
-%    \end{macrocode}
-%
-% Internally all arguments are non delimited args, so add
-% |#|\meta{n} to the list in |\@temptokena|
-%    \begin{macrocode}
-  \@temptokena\expandafter{
-     \the\expandafter\@temptokena\expandafter##\the\@tempcnta}
-%    \end{macrocode}
-%
-% Loop:
-%    \begin{macrocode}
-  \expandafter
-  \@ddc
-%    \end{macrocode}
-%
-%    \begin{macrocode}
-  \fi}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\@ddc@s}
-% Argument: |#1| any remaining argument grabbers (+ |\the|)
-%    \begin{macrocode}
-\long\def\@ddc@s#1\toks@{
-%    \end{macrocode}
-%
-% put back the rest of the argument grabbers, but add new
-% (boolean) argument to list of arguments inside the register.
-%    \begin{macrocode}
-  \@ifstar
-    {\addto@hook\toks@\BooleanTrue #1\toks@}
-    {\addto@hook\toks@\BooleanFalse #1\toks@}}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@ddc@m}
-% Arguments: |#1| any remaining argument grabbers (+ |\the|),
-% |#2| argument to be grabbed.
-%    \begin{macrocode}
-\long\def\@ddc@m#1\toks@#2{
-%    \end{macrocode}
-% put back the rest of the argument grabbers, but copy
-%  argument to list of arguments inside the toks register.
-% Any `m' at the end will be discarded and the internal
-% command will pick up its own arguments.
-%    \begin{macrocode}
- \addto@hook\toks@{{#2}} #1\toks@}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@ddc@o}
-% Argument: |#1| any remaining argument grabbers (+ |\the|).
-%    \begin{macrocode}
-\long\def\@ddc@o#1\toks@{
-%    \end{macrocode}
-%
-% Put back the rest of the argument grabbers, but copy
-% argument (now with |{}| or |\NoValue| to list of arguments
-%  inside toks register.
-%
-% Before calling |\@ifnextchar| we start a special group that ensures
-% that scanning ahead doesn't trigger anything nasty in |\halign|s
-% (see pr3040 in the \LaTeX{} bug db).\footnote{However this is most
-% certainly not the right approach: a) we would probably need that
-% everywhere (right now it is only implemented for o and O) so perhaps
-% the whole thing would need to go into \texttt{\textbackslash
-% @ifnextchar} to save space and b) it might be better to get rid of
-% \& having catcode 4 and instead make it catcode 13.}
-%    \begin{macrocode}
-   {\ifnum`}=0\fi
-   \@ifnextchar[
-     {\ifnum`{=\z@\fi}\@ddc@o@{#1}}
-     {\ifnum`{=\z@\fi}\addto@hook\toks@\NoValue #1\toks@}}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@ddc@o@}
-%    Helper to remove [].
-%    \begin{macrocode}
-\long\def\@ddc@o@#1[#2]{
-  \addto@hook\toks@{{#2}} #1\toks@}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-% \subsection{A Mittelbach update to the Carlisle implementation
-%    supporting O with default for optional arg and c for coordinates
-%    --- prove of concept only}
-%
-%   Only changed and new commands are listed.
-%
-%
-% \begin{macro}{\@ddc}
-%    The big switch that builds up the parser for the document command.
-%
-%    The complexity of the |\@ddc| rewrite suggests that there might
-%    be better ways to do it, but for a proto-type solution this is
-%    fine enough.
-%
-%    \begin{macrocode}
-\def\@ddc#1{
-  \ifx #1X
-%    \end{macrocode}
-%    Normally we do nothing at this point and don't pick up the
-%    trailing mandatory args into |\toks@| but if we want to reuse the
-%    argument list in an end environment we have to so |\perhaps@grab@ms|
-%    is normally |\relax| but might be |\grab@ms| instead.
-%    \begin{macrocode}
-    \perhaps@grab@ms
-  \else
-    \ifx #1m
-%    \end{macrocode}
-%    Just record how many m's seen so far
-%    \begin{macrocode}
-      \addto@hook\@temptokenb m
-    \else
-%    \end{macrocode}
-%    If anything other than an m is scanned we add to |\toks@| and
-%    argument grabber that gets all m's in one go rather than argument
-%    grabbers that pick up each m at a time. Right now this
-%    unnecessarily adds |\@ddc@x| if no m's have been
-%    seen.\footnote{fix, see also below}
-%    \begin{macrocode}
-      \toks@\expandafter{%
-         \the\expandafter\toks@
-         \csname @ddc@x\the\@temptokenb\expandafter\endcsname
-         \csname @ddc@#1\endcsname}
-      \@temptokenb{}
-%    \end{macrocode}
-%    In case of |O| and |C| we have to grab the default next.
-%    \begin{macrocode}
-      \ifx #1O
-         \let\next@ddc\grab@default
-      \else
-         \ifx #1C
-           \let\next@ddc\grab@default
-         \fi
-      \fi
-    \fi
-    \advance\@tempcnta\@ne
-    \@temptokena\expandafter{
-      \the\expandafter\@temptokena\expandafter##\the\@tempcnta}
-    \expandafter
-    \next@ddc
-  \fi
-}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\next@ddc}
-%    By default the loop in the |\@ddc| code above calls itself
-%    recursively until the whole spec is processed.
-%    \begin{macrocode}
-\let\next@ddc\@ddc
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\grab@default}
-%    However if we've seen an |O| we need to grab the default value first.
-%    \begin{macrocode}
-\def\grab@default #1{
-      \toks@\expandafter{%
-         \the\toks@
-         {#1}}
-  \let\next@ddc\@ddc
-  \@ddc
-}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\@ddc@O}
-%    This command expects the default value (to use if no |[| is
-%    parsed) after it.
-%    \begin{macrocode}
-\long\def\@ddc@O#1#2\toks@{
-   {\ifnum`}=0\fi
-   \@ifnextchar[
-     {\ifnum`{=\z@\fi}\@ddc@o@{#2}}
-     {\ifnum`{=\z@\fi}\addto@hook\toks@{{#1}} #2\toks@}}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@ddc@}
-%    We look for the `(' and signal an error
-%    if not found. By using |\@ifnextchar| this also takes care of any
-%    space tokens in front ot the the parentheses.
-%    \begin{macrocode}
-\long\def\@ddc@c#1\toks@{
-   \@ifnextchar (
-     {\@ddc@c@ #1}
-     {\PackageError{xparse}{Missing~ coordinate~ argument}
-        {A~ value~ of~ (0,0)~ is~ assumed}
-      \addto@hook\toks@{{00}} #1\toks@}
-     }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@ddc@c@}
-%    Helper for |\@ddc@c| and |\@ddc@C| below to parse a |(x,y)| if we
-%    know it is there.
-%    \begin{macrocode}
-\long\def\@ddc@c@#1(#2,#3){
-  \addto@hook\toks@{{{#2}{#3}}} #1\toks@}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@ddc@C}
-%    This way we can also directly implement the optional argument case in
-%    a natural way.
-%    \begin{macrocode}
-\long\def\@ddc@C#1#2\toks@{
-   \@ifnextchar (
-     {\@ddc@c@ #2}
-     {\addto@hook\toks@{{#1}} #2\toks@}}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-% Normally we don't pick up trailing m-args but if we do we grab them
-% all at once.
-%    \begin{macrocode}
-\let\perhaps@grab@ms\relax
-\def\grab@ms {
-     \toks@\expandafter{
-        \the\expandafter\toks@
-          \csname @ddc@x\the\@temptokenb\endcsname
-}}
-%    \end{macrocode}
-%
-% \begin{macro}{\@ddc@xm}
-%    Instead of |\@ddc@m| we use |\@ddc@xm| as with the implementation
-%    below we might have a need for |\@ddc@x| (that is no m's pending)
-%    and this would result in a name clash. A potentially better
-%    implementation (cause faster) would be not to use |\@temptokenb|
-%    above to record the number of m's seen but a counter register and
-%    generate grabber function names containing the number in their
-%    name. This way one could better single out the empty case which
-%    currently will always result and a |\@ddc@x| grabber doing
-%    nothing.
-%    \begin{macrocode}
-\let\@ddc@m\undefined
-\long\def\@ddc@xm#1\toks@#2{
- \addto@hook\toks@{{#2}} #1\toks@}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@ddc@xmm}
-% \begin{macro}{\@ddc@xmmm}
-% \begin{macro}{\@ddc@xmmm...}
-% Arguments: |#1| any remaining argument grabbers (+ |\the|),
-% |#2#3| argument to be grabbed; and so on. There can be at most 8
-% such mandatory arguments in the variations defined below.
-%    \begin{macrocode}
-\long\def\@ddc@xmm#1\toks@#2#3{
-%    \end{macrocode}
-% Put back the rest of the argument grabbers, but copy
-%  argument to list of arguments inside the toks register.
-% Any `m' at the end will be discarded and the internal
-% command will pick up its own arguments.
-%    \begin{macrocode}
- \addto@hook\toks@{{#2}{#3}} #1\toks@}
-%    \end{macrocode}
-%
-% And here are the cases for 3 to eight upcoming mandatory args:
-%    \begin{macrocode}
-\long\def\@ddc@xmmm#1\toks@#2#3#4{
- \addto@hook\toks@{{#2}{#3}{#4}} #1\toks@}
-\long\def\@ddc@xmmmm#1\toks@#2#3#4#5{
- \addto@hook\toks@{{#2}{#3}{#4}{#5}} #1\toks@}
-\long\def\@ddc@xmmmmm#1\toks@#2#3#4#5#6{
- \addto@hook\toks@{{#2}{#3}{#4}{#5}{#6}} #1\toks@}
-\long\def\@ddc@xmmmmmm#1\toks@#2#3#4#5#6#7{
- \addto@hook\toks@{{#2}{#3}{#4}{#5}{#6}{#7}} #1\toks@}
-\long\def\@ddc@xmmmmmmm#1\toks@#2#3#4#5#6#7#8{
- \addto@hook\toks@{{#2}{#3}{#4}{#5}{#6}{#7}{#8}} #1\toks@}
-\long\def\@ddc@xmmmmmmmm#1\toks@#2#3#4#5#6#7#8#9{
- \addto@hook\toks@{{#2}{#3}{#4}{#5}{#6}{#7}{#8}{#9}} #1\toks@}
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-%
-% \begin{macro}{\@ddc@xmmmmmmmmm}
-% If we grab arguments even if they are all mandatory we might have
-% even 9 such arguments, thus we also need:
-%    \begin{macrocode}
-\long\def\@ddc@xmmmmmmmmm\the\toks@#1#2#3#4#5#6#7#8#9{
- \addto@hook\toks@{{#1}{#2}{#3}{#4}{#5}{#6}{#7}{#8}{#9}}\the\toks@}
-%    \end{macrocode}
-% And in that case we also need to provide |\@ddc@x| as that name will
-% be executed if there are no trailing mandatory arguments.
-%    \begin{macrocode}
-\let\@ddc@x\relax
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\DeclareDocumentEnvironment}
-%    Fixing |\DeclareDocumentEnvironment| to not choke on the spec
-%    |m|. Interestingly enough |mm| does work with the old
-%    implementation: it simply grabs |\@checkend{name}| whereas the
-%    first only grabs |\@checkend| leaving |{name}| around for
-%    typesetting :-)
-%
-%    If we don't make the arguments available in the end code we
-%    should most likely revert to David's original code which worked
-%    without assigning everything to toks registers (or at least check
-%    what is faster!)
-%    \begin{macrocode}
-\long\def\DeclareDocumentEnvironment#1#2#3#4{
-  \expandafter\DeclareDocumentCommand\csname #1\endcsname{#2}{
-%    \end{macrocode}
-%     After |\DeclareDocumentCommand| has parsed the arguments the
-%     parsing result is available in |\@toks| except that trailing
-%     |m|'s are picked up directly and their values are therefore not
-%     part of this token register. So either we have to slow down
-%     everything by individually parsing those as well or this bright
-%     idea is not working. For the moment i disabled it again!
-%    \begin{macrocode}
-%    \xparsed@args\toks@
-    #3}
-%    \end{macrocode}
-%    In that case the following can be simplified as well:
-%    \begin{macrocode}
-   \@namedef{end #1}{#4}
-%   \expandafter\let\csname end #1\endcsname\@parsed@endenv
-%   \long\expandafter\def\csname end \string\\#1\expandafter\endcsname
-%   \the\@temptokena{#4}
-}
-%    \end{macrocode}
-%    And those are no longer necessary:
-%    \begin{macrocode}
-\let\@parsed@endenv\undefined
-\let\@parsed@endenv@\undefined
-%    \end{macrocode}
-%
-%    The above does the fixing by not providing the arguments to the
-%    end command. The alternative is to do full parsing and could
-%    perhaps look more or less like this:
-%    \begin{macrocode}
-%<*perhaps>
-\long\def\DeclareDocumentEnvironment#1#2#3#4{
-  \let\perhaps@grab@ms\grab@ms
-  \expandafter\DeclareDocumentCommand\csname #1\endcsname{#2}{
-%    \end{macrocode}
-%    I think we need as a safety measure add a group here or else the
-%    code will fail over if people use it without |\begin|\ldots
-%    |\end|.
-%    Or not? I don't really like it but then i don't want to maintain
-%    a private stack here.
-%    \begin{macrocode}
-    \begingroup
-    \xparsed@args\toks@
-    #3}
-  \let\perhaps@grab@ms\relax
-  \expandafter\let\csname end #1\endcsname\@parsed@endenv
-  \long\expandafter\def\csname end \string\\#1\expandafter\endcsname
-     \the\@temptokena {#4}
-}
-%    \end{macrocode}
-%    Same as in David's again except that we have the added group now.
-%    \begin{macrocode}
-\def\@parsed@endenv{
-  \expandafter\@parsed@endenv@\the\xparsed@args\endgroup}
-\def\@parsed@endenv@#1{
-  \csname end\string#1\endcsname}
-%</perhaps>
-%    \end{macrocode}
-% However the above will fail with |\begin{macro}| code of the
-% \texttt{doc} package as this code cancels the outer group so it is
-% dangerous and for the moment i have not activated it.
-%
-% \end{macro}
-%
-% \subsection{A Quark-like datatype}
-%
-% If it turns out that the only quark thingie is going to be
-% |\NoValue| then this can be streamlined for speed (and it looks
-% like this is the case)!
-%
-% \begin{macro}{\IfSomethingTF}
-% \begin{macro}{\IfSomethingT}
-% \begin{macro}{\IfSomethingF}
-% Setting up the stage \ldots
-%    \begin{macrocode}
-\def\IfSomethingTF#1{\def\something@in{#1} \If@SomethingTF}
-\def\IfSomethingT#1#2#3{\def\something@in{#1}
-                        \If@SomethingTF{#2}{#3}\@empty}
-\def\IfSomethingF#1#2#3{\def\something@in{#1}
-                        \If@SomethingTF{#2}\@empty{#3}}
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\If@SomethingTF}
-% \ldots and then for the recursive part:
-%    \begin{macrocode}
-\def\If@SomethingTF#1{
-   \def\something@tmp{#1}
-   \ifx\something@tmp\something@in
-%fini true
-     \expandafter\@secondofthree
-   \else
-       \expandafter\def\expandafter\something@tmpb\expandafter{#1}
-       \ifx\something@tmp\something@tmpb
-%fini false
-         \expandafter\expandafter\expandafter\@thirdofthree
-       \else
-%try again expanded
-         \expandafter\expandafter\expandafter\@firstofone
-       \fi
-   \fi
-   {\expandafter\If@SomethingTF\expandafter{#1}}
-}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@secondofthree}
-% \begin{macro}{\@thirdofthree}
-% Some helpers missing in \LaTeX{}; the others are |\long| so we make
-% those long as well:
-%    \begin{macrocode}
-\long\def\@secondofthree#1#2#3{#2}
-\long\def\@thirdofthree #1#2#3{#3}
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-%
-% \subsection{Testing for \texttt{\textbackslash NoValue}}
-%
-%
-% \begin{macro}{\NoValue}
-%    \begin{macrocode}
-\def\NoValue{-NoValue-}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\NoValueInIt}
-%    might be handy sometimes\ldots
-%    \begin{macrocode}
-\def\NoValueInIt{\NoValue}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\IfNoValueTF}
-% \begin{macro}{\IfNoValueT}
-% \begin{macro}{\IfNoValueF}
-%    \begin{macrocode}
-\def\IfNoValueTF{\IfSomethingTF\NoValue}
-\def\IfNoValueT {\IfSomethingT \NoValue}
-\def\IfNoValueF {\IfSomethingF \NoValue}
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\IfValueTF}
-% \begin{macro}{\IfValueT}
-% \begin{macro}{\IfValueF}
-%    \begin{macrocode}
-\def\IfValueTF #1 #2 #3 { \IfNoValueTF {#1} {#3} {#2} }
-\let \IfValueT \IfNoValueF
-\let \IfValueF \IfNoValueT
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \subsection{A Boolean datatype}
-%
-% \begin{macro}{\BooleanFalse}
-% \begin{macro}{\BooleanTrue}
-%    \begin{macrocode}
-\def\BooleanFalse{TF}
-\def\BooleanTrue{TT}
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\IfBooleanTF}
-% \begin{macro}{\IfBooleanT}
-% \begin{macro}{\IfBooleanF}
-%    \begin{macrocode}
-\def\IfBooleanTF #1 {
-   \if#1
-       \expandafter\@firstoftwo
-   \else
-       \expandafter\@secondoftwo
-   \fi
-}
-\def\IfBooleanT #1 #2 { 
-   \IfBooleanTF {#1} {#2} \@empty
-}
-\def\IfBooleanF #1 { 
-   \IfBooleanTF {#1} \@empty
-}
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-%
-% 
-% \subsection{A different interface (for class design?)}
-%
-% Combining signature and top-level definition of a command |\foo| as
-% in 
-%\begin{verbatim}
-%\DeclareDocumentCommand \foo { m c m }
-%{ \typeout{1:#1}
-%  \typeout{2:#2}
-%  \typeout{3:#3}
-%}
-%\end{verbatim}
-% is fine in certain cases, e.g., if the user wants to declare a few
-% commands this way in the preamble of a document. However in a class
-% file it probably better to completely separate signature (i.e.,
-% argument \#1 and \#2) from top-level implementation (i.e., argument
-% \#3).
-%
-% 
-%\begin{verbatim}
-%\DeclareDocumentCommandInterface \foo {bar} { m c m }
-%\end{verbatim}
-% The above now declare only the signature of the command |\foo| and
-% states that the implementation is to be found under the label |bar|.
-%
-% A bunch of such statements would then for the first time clearly
-% define a document class (i.e., what a document class instance need
-% to define to be complient)
-%
-% An instance would then consist of a lot of declarations of the type
-%\begin{verbatim}
-%\DeclareDocumentCommandImplementation {bar} {3}
-%{ \typeout{1:#1}
-%  \typeout{2:#2}
-%  \typeout{3:#3}
-%}
-%\end{verbatim}
-% i.e., defining how to format things being referenced as part of the
-% signature.
-%
-%    \begin{macrocode}
-\long\def\DeclareDocumentCommandInterface #1 #2 #3{
-   \@tempcnta\z@
-   \toks@{}
-   \@temptokena\toks@
-   \@temptokenb\toks@
-   \@ddc#3X
-   \edef#1{
-    \noexpand\@ddc@
-    {\the\toks@}
-    \expandafter\noexpand\csname impl-#2\endcsname
-    \noexpand#1
-    }
-%    \end{macrocode}
-%    If only the signature is defined but no implementation we typeset
-%    the implementation label in angle brackets and give a warning.
-%    Probably should by default give an error with a switch to turn it
-%    into a warning if desired.
-%    \begin{macrocode}
-   \long\expandafter\def\csname impl-#2\expandafter\endcsname
-          \the\@temptokena
-          {$\langle$\textit{#2}$\rangle$
-           \PackageWarning{xparse}{No~ implementation~
-              for~ `#2'\MessageBreak defined}}
-}
-
-\long\def\DeclareDocumentCommandImplementation #1 #2 #3{
-   \expandafter\renewcommand\csname impl-#1\endcsname[#2]{#3}}
-%    \end{macrocode}
-%
-%
-%    \begin{macrocode}
-%</package>
-%    \end{macrocode}
 %
 %
 % \Finale
