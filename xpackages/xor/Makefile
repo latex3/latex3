@@ -15,3 +15,7 @@ clean:
 
 test:
 	latex xo-pfloat
+
+testb:
+	latex xo-balance
+
