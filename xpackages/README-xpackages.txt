@@ -1,5 +1,24 @@
 $Id$
 
+
+Test versions for LaTeX2e stuff
+===============================
+
+I'm going to misuse that directory and particular this readme file to
+put some packages on the web that are intended (after suitable further
+testing comments and updates) to be included in the next 2e release.
+
+Right now these are:
+
+ - utf8ienc.dtx		support for utf8 via inputenc
+ - inpmath.dtx		support for inputenc chars in math 
+
+frank 2003/05/26
+
+
+
+
+
 Some notes on the experimental packages in this directory
 =========================================================
 
