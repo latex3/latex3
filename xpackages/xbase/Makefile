@@ -1,5 +1,11 @@
 
-all:	unpack
+all:	getl3 unpack
+
+# a very temporary goal
+
+getl3:
+	(cd ../../../latex2e/l3in2e ; latex l3.ins )
+	cp ../../../latex2e/l3in2e/*.sty .
 
 unpack:
 	latex xbase.ins
