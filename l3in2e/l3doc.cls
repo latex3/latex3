@@ -10,7 +10,9 @@
 \LoadClass{article}
 \RequirePackage{doc}
 
-\RequirePackage[T1]{fontenc}
+% taken out for the moment as my laptop doesn't have a full set of
+% type 1 fonts installed right now --- fmi
+%\RequirePackage[T1]{fontenc}
 
 %% The Guilty Parties
 \def\Team{%
