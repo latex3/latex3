@@ -1,6 +1,29 @@
 $Id$
 
 
+Package reimplementation
+========================
+
+I'm currently reorganizing all code to finally fully use the expl3
+syntax. However, pace is slow and depends on my interest in one or the
+other package ... as a result xbase as the core is done to a large
+extent and i'm currently (end of 2004) focus on xor ie the new output
+routine.
+
+Unfortunately, this unification also means that expl3 is changing by
+a) adding functionality that wasn't put on the web before and b) by
+fixing some of the mistake in naming conventions in there.
+
+So all in all the stuff is somewhat in a flux and what needs what
+(below) is most likely not accurate (eg expl3 is going to be required
+soon)
+
+Frank Mittelbach  2004/11/21
+
+
+
+
+
 Test versions for LaTeX2e stuff
 ===============================
 
@@ -10,7 +33,6 @@ testing comments and updates) to be included in the next 2e release.
 
 Right now these are:
 
- - utf8ienc.dtx		support for utf8 via inputenc
  - inpmath.dtx		support for inputenc chars in math 
 
 frank 2003/05/26
@@ -49,31 +71,6 @@ These packages are experimental which means that their interfaces
 and implementation might change drastically (see below). It is
 therefore not sensible to use them in production environments unless
 you are prepared to update your environment once in a while.
-
-
-
-Package reimplementation
-========================
-
-I'm currently reorganizing some of the code and so right now the
-stuff is somewhat in a flux. The main problem is that the core is now
-starting to use _: syntax as introduced some time ago on CTAN.
-
-The most noticable conflict crated by this is the LaTeX command \@for
-(and friends) having a syntax like
-
- \@for\@tempa := #1\do
-
-which dies when : has changed catcode.
-
-To avoid this problem, old packages start their code with
-\IgnoreWhiteSpace while the updated ones start with \InternalSyntaxOn
-(which temorarily sets _ and : to catcode 11) This way (I hope:-) the
-old and the new stuff will be able to live happily together.
-
-happy experimenting
-
-Frank Mittelbach 
 
 
 
