@@ -14,7 +14,7 @@ clean:
 	rm -f *.dvi *.aux *.log *.toc *~
 
 test:
-	latex xo-pfloat
+	elatex xo-pfloat
 
 testb:
 	elatex xo-balance
