@@ -1,5 +1,42 @@
+% \iffalse
+%% File xo-README.txt
+%% (C) Copyright 2000-2004 Frank Mittelbach, LaTeX3 Project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3a of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the ``xor bundle'' (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/cgi-bin/cvsweb.cgi/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %% 
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX Project Team.
+%%
+%% -----------------------------------------------------------------------
+%%
 %
-% $Id$
+% $Id%
+%
+% \fi
 %
 %
 
@@ -30,6 +67,19 @@ Frank
 August 2000
 
 
+Right now, most of the stuff is being rewritten to
+
+ a) use expl3 syntax
+ b) getting extended to support balancing etc
+
+so any snapshot might be quite unstable (eg including debugging code
+etc)
+
+As a result the installation notices below are only approx
+
+Frank 
+
+Nov 2004
 
 
 
@@ -43,6 +93,8 @@ This set of packages builds on the basic packages
  xparse.sty
 
 so you need to pick those up from the project web site as well.
+
+It also now needs expl3.
 
 To unpack the distribution use one of the three distributed .ins
 files:
