@@ -13,4 +13,4 @@ clean:
 	rm -f *.dvi *.aux *.log *.toc *.idx *~
 
 test:
-	latex xlang-test
+	elatex xlang-test
