@@ -4,7 +4,7 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   1997/08/04
+   1998/04/12
 
 The packages in this directory implement a possible language for `low
 level' programming in TeX. The syntax conventions described here are NOT
@@ -21,6 +21,14 @@ as LaTeX2e packages, Further documentation may be produced by processing
 the `dtx' file with LaTeX2e. The packages may be installed by processing
 l3.ins with plain TeX or LaTeX.
 
+This code has be developed over time and has been used in previous
+version for prototype implementations, experiments, etc. Its internal
+documentation (in the .dtx files) reflect the age of parts of it; it
+often contains personal comments, sometimes refers to parts not being
+distributed.  We kindly ask you to overlook its deficiencies and
+inaccuracies --- if we had tried to clean this up it would never have
+surfaced and, for the purpose of discussions and comments, we hope its
+present form is adequate enough.
 
 
 The following packages are in this release:
@@ -80,6 +88,12 @@ l3prop
 
 Property lists are the datatype for handling key/value assignments.
 
+l3int
+=====
+
+Integer and fake integer registers. With eTeX becoming more and more
+accessible this module is, at least in parts only of historical
+significance.
 
 
 ====================================================================
