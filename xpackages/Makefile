@@ -1,5 +1,5 @@
 
-all:	xbase.tgz xfrontm.tgz xfrontm-pict.tgz
+all:	xbase.tgz xfrontm.tgz xfrontm-pics.tgz
 
 clean:
 	rm -f *.tgz
@@ -18,10 +18,11 @@ xfrontm.tgz: xfrontm
 			     xfrontm/xfm-test-cls.dtx \
 			     xfrontm/xfm.dtx \
 			     xfrontm/xfmgalley.dtx \
-			     xfrontm/xfrontm.ins
+			     xfrontm/xfrontm.ins \
+			     xfrontm/README-xfrontm.txt
 
 
-xfrontm-pict.tgz: xfrontm
-	tar cvzf xfrontm-pict.tgz xfrontm/*.ps
+xfrontm-pics.tgz: xfrontm
+	tar cvzf xfrontm-pics.tgz xfrontm/*.ps
 
 
