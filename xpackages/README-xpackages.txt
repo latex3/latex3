@@ -134,6 +134,14 @@ xtheorem
 	Needs files from xbase. 
 
 
+xcontents
+---------
+
+	An extended datastructure and interface for table of contents
+	data.
+
+
+
 
 
 Removed packages:
