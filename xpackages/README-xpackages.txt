@@ -92,10 +92,46 @@ xfootnote
 ---------
 
 	Some experiments to produce a footnote interface.
+	Needs files from xbase. 
 
 	One of the early tries to use the template interface (1999).
 	Hopefully interesting in its own right but needs integration
 	with xor.
+
+
+galley
+------
+
+	First prototype of a new galley mechanism. The xhj package
+	therein is the higher-level interface. An application of this
+	is the xinitials package below.
+
+	Needs files from xbase. 
+
+	This implementation is not really stable yet and for this
+	reason a simpler version of xhj was written for xfrontm above
+	(under the name of xfmgalley.dtx) both with the same
+	interfaces. However, galley here has low-level feature not
+	available in this simple rewrite, ie couldn't do the initial
+	handling.
+
+
+xinitials
+---------
+
+	Implements customisable Initials as an application of the
+	galley mechanism above.
+
+	Needs files from xbase and galley.
+
+
+xtheorem
+--------
+
+	Contributed package implementing theorems using the template
+	mechanism.
+
+	Needs files from xbase. 
 
 
 
