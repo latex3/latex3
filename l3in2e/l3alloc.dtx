@@ -32,18 +32,12 @@
 %%
 %% -----------------------------------------------------------------------
 %
-%<initex>\tex_def:D\next{\CodeStop\xnext}
-%<initex>\tex_def:D\xnext#1~#2.dtx,v~#3~#4~#5~#6~#7$#8{%^^A }$
-%<initex>  \tex_immediate:D\tex_write:D-1{#2;~v#3,~#4;~#8}%
-%<initex>  \CodeStart
-%<initex>  }
 %<*!initex>
-%\fi
-\def\next#1: #2.dtx,v #3 #4 #5 #6 #7$#8{%^^A emacs is confused by this}$
+% \fi
+\def\next#1: #2.dtx,v #3 #4 #5 #6 #7$#8{%^^A }$
   \def\fileversion{#3}%
   \def\filedate{#4}%
 %\iffalse
-%</!initex>
 %<*dtx>
 %\fi
      \ProvidesFile{#2.dtx}[#4 v#3 #8]%
@@ -51,14 +45,14 @@
 %</dtx>
 %<package> \ProvidesPackage{#2}[#4 v#3 #8]%
 %<driver>  \ProvidesFile{#2.drv}[#4 v#3 #8]%
-%<*!initex>
-%\fi
+% \fi
 }
 %\iffalse
 %</!initex>
 %\fi
 \next$Id$
        {L3 Experimental register allocation}%
+%
 % \iffalse
 %<*driver>
 \documentclass{l3doc}
@@ -69,44 +63,216 @@
 %</driver>
 % \fi
 %
+%
 % \title{The \textsf{l3alloc} package\thanks{This file
 %         has version number \fileversion, last
 %         revised \filedate.}\\
-% Basic Definitions}
+% Allocating registers and the like}
 % \author{\Team}
 % \date{\filedate}
 % \maketitle
 %
-% \section{Allocating registers}
+%
+%    Missing macros from other modules:
+%    \begin{macrocode}
+\def_new:Npn \exp_args:Ncx {\::c\::x\:::}
+\def_new:Npn \exp_args:NcNc {\::c\::N\::c\:::}
+\def_new:Npn \seq_if_in:cxTF {\exp_args:Ncx \seq_if_in:NnTF}
+\def_new:Npn \num_compare:cNcTF { \exp_args:NcNc\num_compare:nNnTF }
+\def_new:Npn \cs_use:c #1 { \cs:w#1\cs_end: }
+%    \end{macrocode}
+%
+% \section{Allocating registers and the like}
+%
+%    This module provides the basic mechanism for allocating \TeX's
+%    registers. While designing this we have to take into account the
+%    following characteristics:
+%    \begin{itemize}
+%    \item |\box255| is reserved for use in the output routine, so it
+%      should not be allocated otherwise.
+%    \item \TeX\ can load up 256 hyphenation patterns (registers
+%      |\tex_language:D| 0-255),
+%    \item \TeX\ can load no more than 16 math families,
+%    \item \TeX\ supports no more than 16 io-streams for reading
+%      (|\tex_read:D|) and 16 io-streams for writing (|\tex_write:D|),
+%    \item \TeX\ supports no more than 256 inserts, Omega supports more.
+%    \item The other registers (|\tex_count:D|, |\tex_dimen:D|,
+%      |\tex_skip:D|, |\tex_muskip:D|, |\tex_box:D|, and |\tex_toks:D|
+%      range from 0 to 32768, but registers numbered above 255 are
+%      accessed somewhat less efficient.
+%    \item Registers could be allocated both globally and locally; the
+%      use of regsiters could also be globaly or locally. Here we
+%      provide support for globally allocated registers for both
+%      gloabl and local use and for locally allocated registers for
+%      local use only.
+%    \end{itemize}
+%    We also need to allow for some bookkeeping: we need to know which
+%    register was allocated last and which registers can not be
+%    allocated by the standard mechanisms.
 %
 % \subsection{Functions}
 %
-% \StopEventually{}
+%  \begin{function}{\alloc_setup_type:n}
+%    \begin{syntax}
+%      "\alloc_setup_type:n" <type> <g_start_num> <l_start_num>
+%    \end{syntax}
+%    Sets up the storage needed for the administration of registers of
+%    type <type>.\\
+%    <type> should be a token list in braces, it can be one of
+%    "int", "dimen", "skip", "muskip", "box", "toks", "ior", "iow",
+%    "pattern", or "ins".\\
+%    <g_start_num> is the number of the first not allocated global
+%    register, it will be incremented by 1 when the allocation is done.
+%    <l_start_num> is the number of the first not allocated local
+%    register, it will be decremented by 1 when the allocation is done.
+%  \end{function}
 %
-% \subsection{The Implementation}
-
+%  \begin{function}{\alloc_reg}
+%    \begin{syntax}
+%    "\alloc_reg" <g-l> <type> <alloc_cmd> <cs>
+%    \end{syntax}
+%    Performs the allocation of a register of type <type> to copntrol
+%    sequence <cs>, using the command <alloc_cmd>. The "g" or "l"
+%    indicaties whether the allocation should be global or local.
+%    This macro is the basic building block for the definition of the
+%    "\"<type>"_new:N" commands
+%  \end{function}
 %
-%    We start by ensuring that the required packages are loaded.
+%  \subsection{Implementation}
+%
+%    We start by ensuring that the required packages are loaded when
+%    this file is loaded as a package on top of \LaTeXe.
 %
 %    \begin{macrocode}
-%<package>\RequirePackage{l3names}\par
+%<package>\RequirePackage{l3names,l3num,l3seq}\par
 %    \end{macrocode}
 %
-% 
+%
 %    \begin{macrocode}
 %<*initex|package>
 %    \end{macrocode}
 %
+%  \begin{macro}{\alloc_setup_type:n}
+%    For each type of register we need to `counters' that hold the
+%    last allocated global or local register. We also need a sequence
+%    to store the `excpetions'.
 %    \begin{macrocode}
-%</initex|package>
+\def_new:Npn \alloc_setup_type:n #1 #2 #3{
+  \num_new:c  {g_ #1 _allocation_num}
+  \num_new:c  {l_ #1 _allocation_num}
+  \seq_new:c  {g_ #1 _allocation_seq}
+  \num_set:cn {g_ #1 _allocation_num}{#2}
+  \num_set:cn {l_ #1 _allocation_num}{#3}
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%  \begin{macro}{\alloc_next_g}
+%  \begin{macro}{\alloc_next_l}
+%    These routines find the next free register. For globally allocated
+%    registers we first increment the counter that keeps track of them. 
+%    \begin{macrocode}
+\def_new:Npn \alloc_next_g #1 {
+  \num_gincr:c {g_ #1 _allocation_num}
+%    \end{macrocode}
+%    Then we need to check whether we have run out of registers.
+%    \begin{macrocode}
+  \num_compare:cNcTF  {g_ #1 _allocation_num} = {l_ #1 _allocation_num}
+    {\io_put_term:x{We~ ran~ out~ of~ registers~ of~ type~ g_#1!}}
+    {
+%    \end{macrocode}
+%    We also need to check wether the value of the counter already
+%    occurs in the list of already allocated registers.
+%    \begin{macrocode}
+      \seq_if_in:cxTF {g_ #1 _allocation_seq}
+                      {\num_use:c{g_ #1 _allocation_num}}
+        {\io_put_term:x{\num_use:c{g_ #1 _allocation_num}~Already~ allocated!}
+%    \end{macrocode}
+%    If it does, we find the next value.
+%    \begin{macrocode}
+          \alloc_next_g {#1} }
+        {\io_put_term:x{\num_use:c{g_ #1 _allocation_num}~Free!}}
+        }
+%    \end{macrocode}
+%    By now the |.._allocation_num| counter will contain the number of
+%    the register we will assign a control seuence for.
+%    \begin{macrocode}
+  }
+%    \end{macrocode}
+%    For the locally allocated registers we have a similar function.
+%    \begin{macrocode}
+\def_new:Npn \alloc_next_l #1 {
+  \num_gdecr:c {l_ #1 _allocation_num}
+  \num_compare:cNcTF  {g_ #1 _allocation_num} = {l_ #1 _allocation_num}
+    {\io_put_term:x{We~ ran~ out~ of~ registers~ of~ type~ l_#1!}}
+    {
+      \seq_if_in:cxTF {g_ #1 _allocation_seq}
+                      {\num_use:c{l_ #1 _allocation_num}}
+        {\io_put_term:x{\num_use:c{l_ #1 _allocation_num}~Already~ allocated!}
+          \alloc_next_l {#1} }
+        {\io_put_term:x{\num_use:c{l_ #1 _allocation_num}~Free!}}
+      }
+  }
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%
+%  \begin{macro}{\alloc_reg}
+%    This internal macro performs the actual allocation. It's first
+%    argument is either 'g' for a globally allocated register or `l'
+%    for a locally allocated register. The second argument is the
+%    type of register to allocate, the third argument is the command
+%    to use and the fourth argument is the control sequence that is to
+%    be defined to point to the register.
+%    \begin{macrocode}
+\def_new:Npn \alloc_reg #1 #2 #3 #4{
+%    \end{macrocode}
+%    It first checks that the control sequence that is to denote the
+%    register does not already exist.
+%    \begin{macrocode}
+  \chk_new_cs:N #4
+%    \end{macrocode}
+%    Next, it decides whether a prefix is needed for the allocation
+%    command; 
+%    \begin{macrocode}
+  \if:w#1g
+    \let:NwN\tmp:w=\pref_global:D
+  \else:
+    \let:NwN\tmp:w=\scan_stop:
+  \fi:
+%    \end{macrocode}
+%    And finally the actual allocation takes place.
+%    \begin{macrocode}
+  \tmp:w #3 #4 \num_use:c{#1_ #2 _allocation_num}
+  %%\cs_record_meaning:N#1
+%    \end{macrocode}
+%    All that's left to do is write a message in the log file.
+%    \begin{macrocode}
+  \io_put_log:x{
+    \token_to_string:N#4=#2~register~\num_use:c{#1_ #2 _allocation_num}}
+%    \end{macrocode}
+%    Finally, it calls |\alloc_next_<g/l>| to find the next free register
+%    number.
+%    \begin{macrocode}
+  \cs_use:c{alloc_next_#1} {#2}
+ }
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%    \begin{macrocode}
 %<*showmemory>
 \showMemUsage
 %</showmemory>
+%</initex|package>
 %    \end{macrocode}
 %
 % \endinput
 %
 %  $Log$
+%  Revision 1.2  2005/04/05 22:12:44  braams
+%  First, working, version of the regsiter allocation support
+%
 %  Revision 1.1  2005/03/16 22:50:02  braams
 %  Initial register allocation module
 %
