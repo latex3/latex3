@@ -82,6 +82,15 @@ xfrontm
 
 	Most of that is converted to new syntax already.
 
+
+xfontm-pics
+-----------
+
+	A few postscript files used in one of the examples in
+	xfrontm. As they are somewhat big and one doesn't need them
+	really, they are in a separate package.
+
+
 xor
 ---
 	The new output routine  (proto-type version)
