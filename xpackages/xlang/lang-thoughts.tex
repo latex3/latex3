@@ -1,0 +1,203 @@
+% $Id$
+
+\documentclass{ltxdoc}
+
+\title{Thoughts on language issues}
+\author{Frank Mittelbach}
+\date{2004/08/16}
+
+\let\m\meta
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+
+\section{Short-refs}
+\subsection{Expansion}
+
+Depending on the situation short-refs need to be handled in a
+different manner. There are at least the following cases:
+\begin{description}
+\item[straight typesetting]
+  short-refs are evaluated and executed
+\item[moving arg]
+  short-refs should be evaluated down to LICR objects which in turn
+  should normally be not executed while moving. This means that
+  |\protected@edef| (which is usually invoked in such places) should
+  \emph{not} stop evaluation. 
+\item[syntax]
+  short-ref chars in labels or as part of an env name (e.g., the |*|)
+  should not be evaluated at all, or rather should evaluate to
+  themselves. This could perhaps be implemented by turning on a very
+  special short-ref map (though that would definitely not be a
+  expandable operation).
+\end{description}
+
+Not sure right now, but it might be that situations like the above can
+only be resolved by requiring an extension to \TeX{} that allows to
+``set'' flags in an expandable way. I.e., to allow for changing the
+interpretation of active chars inside |\csname| regardless of whether
+or not that |\csname| is executed inside |\protected@edef| or when
+doing straight typesetting.
+
+Or ask the question differently: can we determine (in an expandable
+way) that we are inside the expansion of |\csname|? I honestly doubt
+that right now, but even if we could it might be much more econommical
+to add such expanable flags to e\TeX{} even if that means we have to
+do that ourselves first.
+
+
+\subsection{Alternative ideas/comments}
+
+The reason for wanting the short-refs to expand to LICRs is that we
+know that LICR objects provide a stable base that works in all
+circumstances and that we do want to capture the short-ref definition
+at the time the short-ref is encountered, i.e., its meaning should not
+change just because the material is moved elsewhere for final
+typesetting (in contrast to the internal definition of, say, LICRs
+where the definition (speak implementation) might change from place to
+place.
+
+Another reason is |\MakeUppercase| and |\MakeLowercase|. Both work by
+expanding via |\protected@edef| and any short-ref that expands to an
+LICR should be treated properly by them. If short-refs would be robust
+in the sense that they don't evaluate within |\protected@edef| this
+would require that
+\begin{itemize}
+\item part of the unexpanded short-ref string is subject to
+  upper/lower casing, e.g. |"a| turns to |"A|, and that such pairs
+  have appropriate definitions
+\item and that short-ref strings that are unaffected by this, e.g.,
+  |=>|, are genuinely not subject to upper/lowercasing casing.
+\end{itemize}
+One potential alternative is that all short-ref starting chars expand
+to a sequence like |\sref aA|\m{orig-char-catcode-12} which would
+allow to determine upper/lowe casing but make the assembly of
+short-ref defs more than painful \ldots\ so probably not that great an
+idea.
+
+
+\section{Hyphenation}
+
+The |\language| primitive in \TeX{} is a misnomer as it doesn't select
+the ``language'' but instead only selects the hyphenation patterns
+associated with a particular language \emph{and} a particular font
+encoding, i.e., the hyphenation patterns are based on glyph positions
+of a certain encoding and do not necessarily produce the right results
+if used with a different encoding.
+
+This means that in theory (if not in practice) there has to be a
+hyphenation trie (denoted by a |\language| in \TeX{} terms) for every
+combination of ``language'' and ``font encoding''.
+
+As it is not economical to have hyphenation patterns for a certain
+langauge in specified in every font encoding we need to store such
+pattern in an abstract way so that they are translated to glyph
+positions when they are processed as arguments of the |\pattern|
+command of ini\TeX{}. This way, the same external pattern set can be
+used to generate distinct hyphenation tries for different font
+encodings provided that the font encodings hold roughly the same
+glyphs. To be more precise: if two different font encodings contain
+all the glyphs for a certain language as individual slots then
+hyphenation with one hyphenation trie and one font encoding with
+produce the same results as hyphenation with the other trie and the
+other font encoding.
+
+However, if some of the characters in the language do not have glyph
+representations in a certain font encoding the patterns are only
+partially applicable:
+\begin{itemize}
+\item For one, patterns containing such characters cannot be processed
+  by the |\pattern| primitive, so they either need to be identified
+  during hyphenation trie generation and thrown away (which would be
+  economical since they will never show up during hyphenation in that
+  font encoding anyway) or alternatively one could perhaps map such
+  characters to a slot that is otherwise not used (in the font
+  encoding, or at least not used as a char playing a role in
+  hyphenation). The latter may be simpler to implement but would
+  unnecessarily enlarge the hyphenation trie with entries that will
+  never appear in real life.
+\item In a situation like the above (whichever implementation is
+  chosen) it is not clear how good the resulting hyphenation trie will
+  work in practice. Especially if many characters are unavailable due
+  to the above it might be the case that one needs specially prepared
+  hyphenation sets to achieve even halfway decent hyphenation---or it
+  might be the case that this is in vain in such case anyway \ldots\
+  probably only experiments will tell.
+\end{itemize}
+
+
+
+\subsection{Lower case codes for hyphenation}
+
+e\TeX{} repairs one of the defects of \TeX{} by storing |\lccode|
+information for hyphenation purposes together with the hyphenation
+patterns tries for the current |\language|. This means that it is
+allowable to have different uppercase/lowercase tables for different
+font encodings and still being able to use them within a single
+paragraph (provided that when switching the font encoding one also
+switches the |\language|, i.e., the current hyphenation trie to
+correspond to the current ``language'' and the current font encoding).
+
+With standard \TeX{} this was not possible as the lower case table
+used was the one current at the end of the paragraph so it was used
+for all hyphenation tries inside this paragraph.
+
+What are the consequences for the upper/lower casing of text? If we
+look at the primitives |\uppercase| and |\lowercase| then this means
+that when switching font encodings we would need to change the
+upper/lower case tables each time a new font encoding is selected
+since otherwise those primitives would apply the wrong table. This is
+rather awkward and requires a lot of changes each time. It also shows
+that the e\TeX{} decision to decouple those table and use a single one
+for main text but seperate lowecase (only!) ones for hyphenation was
+probably incorrect. Instead it would be better to store both upper and
+lower case tables with the font encodings and to allow to retrieve
+them (either manually via a command or automatically when the
+|\language| changes) as appropriate.
+
+Fortunately, for \LaTeX{}'s |\MakeUppercase| and |\MakeLowercase| this
+issue goes away automatically, as those commands act on the LICRs of
+\LaTeX{} and automatically upper/lower case properly as they simply
+turn |\"a| into |\"A| etc. (Remember that LICRs are only using 7-bit
+ascii as representation and therefore all accented chars are
+represented as command sequences where the upper/lower case tables
+work only on certain parts of the representation.
+
+As a side remark: the cryillic languages use single commands for all
+their LICRs currently which means that |\MakeUppercase| and
+|\MakeLowercase| have to manually map these LICRs rather than to rely
+on upper/lower casing parts of the presentation. It might be worth
+investigating if a different LICR setup can be found that uses
+commands with arguments to avoid this manual mapping. It may be that
+for cyrillic  languages this is not a realistic goal but for other
+languages (and their encodings), e.g., Greek, it might be worth
+considering hen designing a |T7| encoding.
+
+
+\section{Input encoding}
+
+I'm not quite sure why the original implementation makes the input
+encoding something that changes with the ``language''. In general this
+is most certainly not correct althougth there may be some reasons to
+support that feature for some languages that need heavy
+transliterations. Don't know but probably something to go.
+
+
+\section{Coding conventions}
+
+My current feeling is that it would be beneficial if we do return to
+coding conventions of l3exp, that is definitely seperating argument
+notations with a colon (e.g., |\foo:nn|) and perhaps also using the
+underscore for module separation, (e.g., |\foo_bar:nn|).
+
+This needs some decision soon, as conerting back and forth is a pain
+in the a\ldots
+
+\end{document}
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: ""
+%%% End: 
