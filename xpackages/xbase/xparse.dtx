@@ -13,7 +13,7 @@
 %<driver>\ProvidesFile{xparse.drv}
 % \fi
 %         \ProvidesFile{xparse.dtx}
-          [1999/07/16 v0.09 generic document command parser]
+          [1999/07/23 v0.12 generic document command parser]
 %
 % \iffalse
 %<*driver>
@@ -34,7 +34,12 @@
 % \author{FMi, CAR, DPC}
 % \date{\filedate}
 %  \maketitle
-% 
+%
+% \begin{abstract}
+% The interfaces described in this document are not meant to be final
+% but only as a basis for discussion
+% \end{abstract}
+%
 % \section{Interface}
 %
 % This package implements high-level interface commands for class file
@@ -83,11 +88,11 @@
 %   if present. Otherwise it will return the token |\NoValue|;
 % \item[O] will return the parsed argument surrounded by a brace pair
 %   if present. Otherwise it will return the |{default}| as specified above.
-% \item[s] will return either the token |*| or
-%   |\NoValue| depending on whether or not a star was parsed.
+% \item[s] will return either the token |\BooleanTrue| or
+%   |\BooleanFalse| depending on whether or not a star was parsed.
 % \end{description}
 % For example, given the spec |soomO{default}| the input |*[Foo]{Bar}| would be
-% parsed as |*{Foo}\NoValue{Bar}{default}|. In other words
+% parsed as |\BooleanTrue{Foo}\NoValue{Bar}{default}|. In other words
 % there will be always exactly the same number of brace groups or
 % tokens as the number of letters in the argument spec.
 %
@@ -115,7 +120,7 @@
 % result of the parsing, e.g.,
 %\begin{verbatim}
 %  \DeclareDocumentCommand{\chapter}{som}
-%    { \IfNoValueTF {#1}
+%    { \IfBooleanTF {#1}
 %        { \typesetnormalchapter {#2}{#3} }
 %        { \typesetstarchapter   {#3} }
 %    }
@@ -143,7 +148,7 @@
 % define |\chapter| like this:
 %\begin{verbatim}
 %  \DeclareDocumentCommand{\chapter}{m}
-%    { \UseInstance {head} {A-head-main} \NoValue \NoValue {#1} }
+%    { \UseInstance {head} {A-head-main} \BooleanFalse \NoValue {#1} }
 %\end{verbatim}
 % while a class that would allow for an additional optional argument
 % (for whatever reason) could define it like that:
@@ -279,6 +284,29 @@
 % }
 %\end{verbatim}
 %
+% \subsubsection{A boolean data type}
+%
+% \DescribeMacro\BooleanTrue
+% \DescribeMacro\BooleanFalse
+% The parsing result for a star etc is presented as the token
+% |\BooleanTrue| or |\BooleanFalse| respectively!
+%
+% \DescribeMacro\IfBooleanTF
+% \DescribeMacro\IfBooleanT
+% \DescribeMacro\IfBooleanF
+% To test for these values the macro |\IfBooleanTF| can be used. It
+% expects as its first argument either |\BooleanTrue| or
+% |\BooleanFalse| and executes its second or third argument depending
+% on this value. |\IfBooleanT| and |\IfBooleanF| are obvious
+% shortcuts. 
+%
+% At one point in time i thought that one can represent everything
+% using |\NoValue|, eg for the star case either return |*| or
+% |\NoValue|. However, this slows down processing of commands like
+% |\\*| considerably since they would then have to use the slow
+% |\IfSomethingTF| internally instead of a fast twoway switch. So now
+% this data type is back in.
+%
 %
 % \StopEventually{}
 % \CheckSum{0}
@@ -402,8 +430,8 @@
 %    \begin{macrocode}
 \def \parse@s #1 #2 {
   \@ifstar
-      { \parse@args #1 \parse@args { #2 * } }
-      { \parse@args #1 \parse@args { #2 \NoValue } }
+      { \parse@args #1 \parse@args { #2 \BooleanTrue } }
+      { \parse@args #1 \parse@args { #2 \BooleanFalse } }
 }
 %    \end{macrocode}
 %
@@ -586,12 +614,12 @@
   \else
   \ifx #1m
 %    \end{macrocode}
-%
+%    If doing an m, just stick another |\@ddc@m| in a temporary list.
 %    \begin{macrocode}
-% If doing an m, just stick another |\@ddc@m| in a temporary list.
-  \@temptokenb\expandafter{%
-     \the\@temptokenb
-     \@ddc@m}
+%  \@temptokenb\expandafter{%
+%     \the\@temptokenb
+%     \@ddc@m}
+   \addto@hook\@temptokenb m
   \else
 %    \end{macrocode}
 %
@@ -601,7 +629,7 @@
 %    \begin{macrocode}
   \toks@\expandafter{%
      \the\expandafter\toks@
-     \the\expandafter\@temptokenb
+     \csname @ddc@\the\@temptokenb\expandafter\endcsname
      \csname @ddc@#1\endcsname}
 %    \end{macrocode}
 %
@@ -644,8 +672,8 @@
 % (boolean) argument to list of arguments inside the register.
 %    \begin{macrocode}
   \@ifstar
-    {\addto@hook\toks@ * #1\toks@}
-    {\addto@hook\toks@\NoValue #1\toks@}}
+    {\addto@hook\toks@\BooleanTrue #1\toks@}
+    {\addto@hook\toks@\BooleanFalse #1\toks@}}
 %    \end{macrocode}
 %
 %
@@ -663,7 +691,7 @@
  \addto@hook\toks@{{#2}} #1\toks@}
 %    \end{macrocode}
 %
-% |\@ddc@m|\\
+% |\@ddc@o|\\
 % |#1| any remaining argument grabbers (+ |\the|)
 %    \begin{macrocode}
 \long\def\@ddc@o#1\toks@{
@@ -696,15 +724,30 @@
 %    \begin{macrocode}
 \def\@ddc#1{
   \ifx #1X
+%    \end{macrocode}
+%    Normally we do nothing at this point and don't pick up the
+%    trailing mandatory args into |\toks@| but if we want to reuse the
+%    arg list in an end environment we have to so |\perhaps@grab@ms|
+%    is normally |\relax| but might be |\grab@ms| instead.
+%    \begin{macrocode}
+    \perhaps@grab@ms
   \else
     \ifx #1m
-      \@temptokenb\expandafter{%
-      \the\@temptokenb
-      \@ddc@m}
+%    \end{macrocode}
+%    Just record how many m's seen so far
+%    \begin{macrocode}
+      \addto@hook\@temptokenb m
     \else
+%    \end{macrocode}
+%    If anything other than an m is scanned we add to |\toks@| and
+%    argument grabber that gets all m's in one go rather than argument
+%    grabbers that pick up each m at a time. Right now this
+%    unnecessarily adds |\@ddc@x| if no m's have been
+%    seen.\footnote{fix, see also below}
+%    \begin{macrocode}
       \toks@\expandafter{%
          \the\expandafter\toks@
-         \the\expandafter\@temptokenb
+         \csname @ddc@x\the\@temptokenb\expandafter\endcsname
          \csname @ddc@#1\endcsname}
       \@temptokenb{}
 %    \end{macrocode}
@@ -754,6 +797,84 @@
 \long\def\@ddc@c#1\toks@#2(#3,#4){
  \addto@hook\toks@{{#3}{#4}} #1\toks@}
 %    \end{macrocode}
+%    So here is an alternative: this accepts spaces but will crash on
+%    anything else with an error message.
+%    \begin{macrocode}
+\long\def\@ddc@c#1\toks@#2{\@dc@c@#1\toks@#2}
+\long\def\@ddc@c@#1\toks@(#2,#3){
+ \addto@hook\toks@{{#2}{#3}} #1\toks@}
+%    \end{macrocode}
+%
+% Normally we don't pick up trailing m-args but if we do we grab them
+% all at once.
+%    \begin{macrocode}
+\let\perhaps@grab@ms\relax
+\def\grab@ms {
+     \toks@\expandafter{
+        \the\expandafter\toks@
+          \csname @ddc@x\the\@temptokenb\endcsname
+}}
+%    \end{macrocode}
+%
+%
+%    Instead of |\@ddc@m| we use |\@ddc@xm| as with the implementation
+%    below we might have a need for |\@ddc@x| (that is no m's pending)
+%    and this would result in a name clash. A potentially better
+%    implementation (cause faster) would be not to use |\@temptokenb|
+%    above to record the number of m's seen but a counter register and
+%    generate grabber function names containing the number in their
+%    name. This way one could better single out the empty case which
+%    currently will always result and a |\@ddc@x| grabber doing
+%    nothing.
+%    \begin{macrocode}
+\let\@ddc@m\undefined
+\long\def\@ddc@xm#1\toks@#2{
+ \addto@hook\toks@{{#2}} #1\toks@}
+%    \end{macrocode}
+%
+%
+% |\@ddc@xmm|\\
+% |#1| any remaining argument grabbers (+ |\the|)
+% |#2#3| argument to be grabbed; and so on. There can be at most 8
+% such mandatory arguments otherwise
+%    \begin{macrocode}
+\long\def\@ddc@xmm#1\toks@#2#3{
+%    \end{macrocode}
+% put back the rest of the argument grabbers, but copy
+%  argument to list of arguments inside the toks register.
+% Any `m' at the end will be discarded and the internal
+% command will pick up its own arguments.
+%    \begin{macrocode}
+ \addto@hook\toks@{{#2}{#3}} #1\toks@}
+%    \end{macrocode}
+%
+% And here are the cases for 3 to eight upcoming mandatory args:
+%    \begin{macrocode}
+\long\def\@ddc@xmmm#1\toks@#2#3#4{
+ \addto@hook\toks@{{#2}{#3}{#4}} #1\toks@}
+\long\def\@ddc@xmmmm#1\toks@#2#3#4#5{
+ \addto@hook\toks@{{#2}{#3}{#4}{#5}} #1\toks@}
+\long\def\@ddc@xmmmmm#1\toks@#2#3#4#5#6{
+ \addto@hook\toks@{{#2}{#3}{#4}{#5}{#6}} #1\toks@}
+\long\def\@ddc@xmmmmmm#1\toks@#2#3#4#5#6#7{
+ \addto@hook\toks@{{#2}{#3}{#4}{#5}{#6}{#7}} #1\toks@}
+\long\def\@ddc@xmmmmmmm#1\toks@#2#3#4#5#6#7#8{
+ \addto@hook\toks@{{#2}{#3}{#4}{#5}{#6}{#7}{#8}} #1\toks@}
+\long\def\@ddc@xmmmmmmmm#1\toks@#2#3#4#5#6#7#8#9{
+ \addto@hook\toks@{{#2}{#3}{#4}{#5}{#6}{#7}{#8}{#9}} #1\toks@}
+%    \end{macrocode}
+%
+% If we grab arguments even if they are all mandatory we might have
+% even 9 such arguments, thus we also need:
+%    \begin{macrocode}
+\long\def\@ddc@xmmmmmmmmm\the\toks@#1#2#3#4#5#6#7#8#9{
+ \addto@hook\toks@{{#1}{#2}{#3}{#4}{#5}{#6}{#7}{#8}{#9}}\the\toks@}
+%    \end{macrocode}
+% And in that case we also need to provide |\@ddc@x| as that name will
+% be executed if there are no trailing mandatory arguments.
+%    \begin{macrocode}
+\let\@ddc@x\relax
+%    \end{macrocode}
 %
 %
 %    Fixing |\DeclareDocumentEnvironment| to not choke on the spec
@@ -794,8 +915,36 @@
 \let\@parsed@endenv@\undefined
 %    \end{macrocode}
 %
-%
-%
+%    The above does the fixing by not providing the arguments to the
+%    end command. The alternative is to do full parsing and could
+%    perhaps look more or less like this:
+%    \begin{macrocode}
+\long\def\DeclareDocumentEnvironment#1#2#3#4{
+  \let\perhaps@grap@ms\grab@ms
+  \expandafter\DeclareDocumentCommand\csname #1\endcsname{#2}{
+%    \end{macrocode}
+%    I think we need as a safety measure add a group here or else the
+%    code will fail over if people use it without |\begin|\ldots
+%    |\end|.
+%    Or not? I don't really like it but then i don't want to maintain
+%    a private stack here.
+%    \begin{macrocode}
+    \begingroup
+    \xparsed@args\toks@
+    #3}
+  \let\perhaps@grap@ms\relax
+  \expandafter\let\csname end #1\endcsname\@parsed@endenv
+  \long\expandafter\def\csname end \string\\#1\expandafter\endcsname\the\@temptokena
+     {#4}
+}
+%    \end{macrocode}
+%    Same as in David's again except that we have the added group now.
+%    \begin{macrocode}
+\def\@parsed@endenv{
+  \expandafter\@parsed@endenv@\the\xparsed@args\endgroup}
+\def\@parsed@endenv@#1{
+  \csname end\string#1\endcsname}
+%    \end{macrocode}
 %
 %
 %
@@ -886,6 +1035,39 @@
 \def\IfValueTF #1 #2 #3 { \IfNoValueTF {#1} {#3} {#2} }
 \let \IfValueT \IfNoValueF
 \let \IfValueF \IfNoValueT
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{A Boolean datatype}
+%
+% \begin{macro}{\BooleanFalse}
+% \begin{macro}{\BooleanTrue}
+%    \begin{macrocode}
+\def\BooleanFalse{TF}
+\def\BooleanTrue{TT}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\IfBooleanTF}
+% \begin{macro}{\IfBooleanT}
+% \begin{macro}{\IfBooleanF}
+%    \begin{macrocode}
+\def\IfBooleanTF #1 {
+   \if#1
+       \expandafter\@firstoftwo
+   \else
+       \expandafter\@secondoftwo
+   \fi
+}
+\def\IfBooleanT #1 #2 { 
+   \IfBooleanTF {#1} {#2} \@empty
+}
+\def\IfBooleanF #1 { 
+   \IfBooleanTF {#1} \@empty
+}
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
