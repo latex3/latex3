@@ -113,8 +113,8 @@ README = readme.txt
 DOCS = \
 	expl3.tex
 
-CLS = \
-	l3doc.lcs
+CLASS = \
+	l3doc.cls
 
 CHANGELOGS = \
 	ChangeLog.dpc \
@@ -123,7 +123,7 @@ CHANGELOGS = \
 	ChangeLog.rms
 
 
-FILES = $(DTX) $(INS) $(TEST) $(README) $(DOCS)
+FILES = $(DTX) $(INS) $(TEST) $(README) $(DOCS) $(CLASS)
 
 # driver files
 
