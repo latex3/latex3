@@ -61,6 +61,7 @@ SCRIPTS = \
 	cleartex \
 	cleartexdir \
 	copywithheader \
+	echo_answer \
 	find-long-lines \
 	generate-ltvers \
 	generatefromwith \
@@ -237,7 +238,7 @@ release:
 
 styles:	distrib
 	cd $(TEXDIR) ; \
-	echo_answer -n 50 y | latex l3.ins ; rm l3.log
+	perl $(SCRIPTDIR)/echo_answer -n 50 y | latex l3.ins ; rm l3.log
 
 
 drivers:	$(foreach file,$(DRIVERS),$(TESTDIR)/$(file))
