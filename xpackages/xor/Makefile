@@ -6,7 +6,7 @@ xbase:
 	cp ../xbase/*.sty .
 
 unpack:
-	latex xoprogress.ins
+	latex xotrace.ins
 
 clean:
 	rm -f *.sty
