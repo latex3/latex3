@@ -42,8 +42,20 @@ FORMAT_AUTOLOAD := $(LTESTDIR)/latexa.fmt
 
 commav = ,v
 
-export TEXINPUTS:=.:$(shell test -d $(DISTDIR) || mkdir -p $(DISTDIR) ; echo $(DISTDIR)):$(shell test -d $(LUDISTDIR) || mkdir -p $(LUDISTDIR) ; echo $(LUDISTDIR)):$(shell test -d $(LTESTDIR) || mkdir -p $(LTESTDIR); echo $(LTESTDIR)):\$(shell test -d $(TEXDIR) || mkdir -p $(TEXDIR) ; echo $(TEXDIR))//
-export INDEXSTYLE:=.:$(shell test -d $(DISTDIR) || mkdir -p $(DISTDIR) ; echo $(DISTDIR)):$(shell test -d $(LUDISTDIR) || mkdir -p $(LUDISTDIR) ; echo $(LUDISTDIR)):$(shell test -d $(TEXDIR) || mkdir -p $(TEXDIR) ; cd $(TEXDIR) ; pwd)
+ifdef COMSPEC
+
+DELIM := ;
+LN_S := cp -p
+
+else
+
+DELIM := :
+LN_S := ln -s
+
+endif
+
+export TEXINPUTS:=.$(DELIM)$(shell test -d $(DISTDIR) || mkdir -p $(DISTDIR) ; echo $(DISTDIR))$(DELIM)$(shell test -d $(LUDISTDIR) || mkdir -p $(LUDISTDIR) ; echo $(LUDISTDIR))$(DELIM)$(shell test -d $(LTESTDIR) || mkdir -p $(LTESTDIR); echo $(LTESTDIR))$(DELIM)\$(shell test -d $(TEXDIR) || mkdir -p $(TEXDIR) ; echo $(TEXDIR))//
+export INDEXSTYLE:=.$(DELIM)$(shell test -d $(DISTDIR) || mkdir -p $(DISTDIR) ; echo $(DISTDIR))$(DELIM)$(shell test -d $(LUDISTDIR) || mkdir -p $(LUDISTDIR) ; echo $(LUDISTDIR))$(DELIM)$(shell test -d $(TEXDIR) || mkdir -p $(TEXDIR) ; cd $(TEXDIR) ; pwd)
 
 
 STATE = Exp
@@ -165,13 +177,13 @@ export BEFORE_SED_SCRIPTS=-e /^(auto\(err\|fss1\|out1\|pict\|tabg\)\.sty/,/^)/d
 
 $(TESTDIR)/$(TLG_PREFIX)%:   $(TESTDIR)/%
 	rm -f $@
-	ln -s $(<F) $@
+	$(LN_S) $(<F) $@
 
 endif
 
 $(TESTDIR)/%:	$(DISTDIR)/%
 	rm -f $@
-	ln -s $< $@
+	$(LN_S) $< $@
 
 
 #
