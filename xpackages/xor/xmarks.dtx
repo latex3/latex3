@@ -1,0 +1,959 @@
+% \iffalse
+%%
+%% (C) Copyright 1999 Frank Mittelbach
+%% All rights reserved.
+%%
+%% Not for general distribution. In its present form it is not allowed
+%% to put this package onto CD or an archive without consulting the
+%% the authors.
+%% 
+%    \begin{macrocode}
+\def\next#1: #2.dtx,v #3 #4 #5 #6 #7$#8{
+%<*dtx>
+  \ProvidesFile{#2.dtx}
+%</dtx>
+%<package>\ProvidesPackage{#2}
+%<driver>\ProvidesFile{#2.drv}
+  [#4 #3 #8 (#6)]}
+\next$Id$
+       {multiple marks}
+%    \end{macrocode}
+%
+%<*driver>
+ \documentclass{ltxdoc}
+%
+ \begin{document}
+ \DocInput{xmarks.dtx}
+ \end{document}
+%</driver>
+%
+% \fi
+%
+%
+% \GetFileInfo{xmarks.dtx}
+%
+% \title{The \textsf{xmarks} package\thanks{This file
+%         has version number \fileversion, last
+%         revised \filedate.}}
+% \author{FMi}
+% \date{\filedate}
+%
+%  \maketitle
+%
+% \tableofcontents
+%
+%
+%
+% \section{Mark algorithm}
+%
+% To allow for completely independent marks we use the following
+% procedure:
+% \begin{itemize}
+% \item
+%   For every mark of type \meta{type} we have a queue that holds every mark
+% info found in memory. Every info is associated with a unique number,
+% i.e., we simply count them. The queue always holds at least one item
+% which is the previous mark info, i.e., the last mark for that type on
+% the previous page.
+%
+% \item
+%   We use \TeX's internal mark mechanism only to record the associated
+% numbers for marks for every type on the current page.
+%
+% \item
+%  For every \meta{type} we record the info-number that belongs to the last
+% mark of the previous page.
+%
+% \item
+%  By looking at \TeX's internal |\botmark| we can determine the
+% info-number of the last mark for every \meta{type} that is on the current
+% page.
+%
+% \item
+%   The difference between this number and the info-number from the last
+% page gives us the number of marks for every \meta{type} on the current page.
+%
+% \item
+%   That way we are able to decide how to extract items from the queue so
+% that first, last, and previous mark for every type can be accessed.
+%  \begin{itemize}
+%  \item
+%    If the difference is zero, no new marks have been added on the
+% current page, therefore the only item on the corresponding mark type
+% queue holds the info that should be previous, first, and last mark of
+% this type for the current page.
+%  \item
+%    If the difference is one, then the first item in the queue represents
+% the info that should become the previous mark (it will be popped off)
+% and the second item (which will be kept, since it will become the
+% previous mark for the next page) should become first and last mark for
+% the current page.
+%  \item
+%    Otherwise we had at least two marks for this type on the current page.
+% Therefore, the first item in the queue will become previous mark (popped
+% off), the second will become first mark (popped off), then we pop off
+% all but the last item in the queue, which will become last mark, by only
+% looking at it.
+%  \end{itemize}
+%  In other words every queue should hold only one item after this part of
+% the algorithm has acted.
+% After this is done we save the info-numbers given by |\botmark|
+% as the info-numbers of the last page, so that they are available next time.
+%
+% \item
+%   Putting a mark into the galley therefore means to put its info to the
+% right of the corresponding queue, increment the current info-number for
+% \meta{type} by one and putting a \TeX{} mark into the galley holding the
+% current info-numbers for all \meta{types}.
+%
+%  \end{itemize}
+%
+%
+% \subsection{Restrictions}
+%
+% One restriction in using this algorithm without further refinements
+% is that for every \meta{type} there will be an upper limit of marks allowed
+% within one document. This upper limit is given by |\maxdimen| which is
+% probably high enough to ignore it, but it could be improved by resetting
+% the info numbers whenever all marks have found their way onto the
+% current page.
+%
+% Another restriction is that one better not changes from linearily
+% processing the data for the main galley, or, if one modifies that
+% processing one needs to carefully adjust the data structures for the
+% marks as well. The problem being that the individual marks within a
+% preprocessed galley will stay there forever (and thus can be parsed
+% several times), the external data structures, e.g., the plists and
+% the sequences however need manual corrections in that case.
+%
+% \subsection{Implementation}
+%
+% The original implementation was done on a portable PC in a train
+% sometime in 1992/93 and is just a straight implementation of the
+% above algorithm using plists to hold the current and the last
+% info-numbers. The whole stuff could be done much better by analysing
+% the algorithm combining common parts (a lot of thing have be done
+% twice, etc.) and recoding the rest in a better way.
+%
+% The implementation below is more or less a straight adaption
+% of that code, so it still needs a rewrite one day. It is based on
+% modules implementing ``queues'', ``property lists'', and ``quarks''
+% most of which have been published as experimental code with a
+% slightly different surface syntax, i.e., as \texttt{l3seq.sty},
+% \texttt{l3prop.sty}, and \texttt{l3quark.sty}.
+%
+% New stuff:
+%    \begin{macrocode}
+\RequirePackage{ldcsetup}
+\IgnoreWhiteSpace
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\long\def\@firstofthree#1#2#3{#1}
+\long\def\@secondofthree#1#2#3{#2}
+\long\def\@thirdofthree#1#2#3{#3}
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\def \tlp@to@str@N {\expandafter \tlp@to@str@aux \meaning}
+\def \tlp@to@str@aux #1>{}
+\def \tlp@to@str@c #1 {\expandafter \tlp@to@str@N \csname#1\endcsname}
+%    \end{macrocode}
+%
+%
+%
+%
+%
+% \subsection{Commands for manipulating queues}
+%
+% \begin{macro}{\trace@queue}
+% \begin{macro}{\trace@queue@internal}
+% \begin{macro}{\tracingqueues}
+%    \begin{macrocode}
+%<*trace>
+\def\trace@queue#1{\ifnum \tracingqueues > \z@
+      \typeout{Queues:~ #1~ \on@line}\fi}
+\def\trace@queue@internal#1{\ifnum\tracingqueues>\@ne
+      \typeout{Queues:~ #1~ \on@line}\fi}
+\newcount\tracingqueues
+%</trace>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\queue@new@c}
+%    \begin{macrocode}
+\def\queue@new@c#1{\@namedef{#1}{}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\queue@gadd@Nn}
+%    \begin{macrocode}
+\def\queue@gadd@Nn#1#2{\expandafter\gdef\expandafter#1\expandafter
+    {#1\queue@elt#2\queue@eelt}
+%<*trace>
+  \trace@queue@internal{add~ `#2'~ to~ queue~ \string#1}
+%</trace>
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\queue@gadd@cn}
+%    \begin{macrocode}
+\def\queue@gadd@cn#1{\expandafter\queue@gadd@Nn\csname#1\endcsname}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\queue@top@NN}
+%    \begin{macrocode}
+\def\queue@top@NN#1#2{
+  \queue@empty@err@N#1
+  \expandafter\queue@top@split@w#1\q@stop{\def#2}
+%<*trace>
+  \trace@queue@internal{top~ of~ queue~\string#1:~`\tlp@to@str@N#2'}
+%</trace>
+}
+% \end{macro}
+%
+% \begin{macro}{\queue@top@split@w}
+\def\queue@top@split@w\queue@elt#1\queue@eelt#2\q@stop#3{#3{#1}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\queue@top@cN}
+%    \begin{macrocode}
+\def\queue@top@cN#1{\expandafter\queue@top@NN\csname#1\endcsname}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+% \begin{macro}{\queue@pop@aux@nnNN}
+% \begin{macro}{\queue@pop@aux@w}
+%    \begin{macrocode}
+\def \queue@pop@aux@nnNN #1#2#3{
+  \queue@empty@err@N #3
+  \expandafter\queue@pop@aux@w #3\q@stop #1#2#3}
+\def \queue@pop@aux@w \queue@elt#1\queue@eelt
+                #2\q@stop #3#4#5#6{#3#5{#2}#4#6{#1}}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%
+% \begin{macro}{\queue@gpop@NN}
+%    \begin{macrocode}
+\def \queue@gpop@NN #1#2{\queue@pop@aux@nnNN \gdef \def #1 #2
+%<*trace>
+  \trace@queue@internal{pop~ of~ queue~\string#1:~`\tlp@to@str@N #2'}
+%</trace>
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\queue@gpop@cN}
+%    \begin{macrocode}
+\def \queue@gpop@cN #1{\expandafter\queue@gpop@NN\csname#1\endcsname}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\queue@empty@err@N}
+%    \begin{macrocode}
+\def\queue@empty@err@N #1{\ifx#1\@empty \ERROR \fi}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+%
+%
+%
+%
+%
+%
+% \subsection {Quarks}
+%
+% A quark is a control sequence that expands into itself@ |\def|
+% |\foo{\foo}|.  Quarks provide a cheap way of generating distinct
+% constants.  Also, they permit the following ingenious trick: when
+% you pick up a token in a temporary, and you want to know whether you
+% have picked up a particular quark, all you have to do is compare the
+% temporary to the quark using |\ifx|.
+%
+% \begin{macro}{\quark@new@N}
+%    Allocate a new quark.
+%    \begin{macrocode}
+\def \quark@new@N #1{\def #1{#1}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\q@stop}
+% \begin{macro}{\q@no@value}
+% \begin{macro}{\q@nil}
+%    |\q@stop| is often used as a marker in parameter text,
+%    |\q@no@value| is the canonical missing value, and |\q@nil|
+%    represents a nil pointer in some data structures.
+%    \begin{macrocode}
+\quark@new@N \q@stop
+\quark@new@N \q@no@value
+\quark@new@N \q@nil
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\q@error}
+% \begin{macro}{\q@mark}
+%    We need two additional quarks.  |\q@error| delimits the end of
+%    the computation for purposes of error recovery.  |\q@mark| is
+%    used in parameter text when we need a scanning boundary that is
+%    distinct from |\q@stop|.
+%    \begin{macrocode}
+\quark@new@N\q@error
+\quark@new@N\q@mark
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%
+% \begin{macro}{\quark@if@no@value@NTF}
+% \begin{macro}{\quark@if@no@value@NF}
+% \begin{macro}{\quark@if@no@value@nTF}
+% \begin{macro}{\quark@if@no@value@nT}
+% \begin{macro}{\quark@if@no@value@nF}
+%    Here we test if we found a special quark as the first argument.
+%    The argument might contain an arbitrary list of tokens, therefore
+%    we have to wrap it up in a token list pointer.
+%    \begin{macrocode}
+\def \quark@if@no@value@NTF #1{
+%    \end{macrocode}
+%    We better start with |\q@no@value| as the first argument since
+%    the whole thing may otherwise loop if |#1| is wrongly given
+%    a string like |aabc| instead of a single token.\footnote{It may
+%    still loop in special circumstances however!}
+%    \begin{macrocode}
+     \ifx\q@no@value#1
+          \expandafter\@firstoftwo
+     \else \expandafter\@secondoftwo \fi}
+%    \end{macrocode}
+%    It would be possible to speed up the following commands by
+%    providing individual implementations similar to the one above.
+%    Should perhaps be done if they are used often!
+%    \begin{macrocode}
+\def \quark@if@no@value@NF #1{\quark@if@no@value@NTF {#1}\@empty}
+\def \quark@if@no@value@nTF #1{\gdef \@gtempa {#1}
+    \quark@if@no@value@NTF\@gtempa}
+\def \quark@if@no@value@nF #1{\quark@if@no@value@nTF {#1}\@empty}
+\def \quark@if@no@value@nT #1#2{\quark@if@no@value@nTF {#1}
+        {#2}\@empty}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\quark@if@nil@NTF}
+%    A function to check for the presence of |\q@nil|.
+%    \begin{macrocode}
+\def\quark@if@nil@NTF#1{
+  \ifx#1\q@nil
+    \expandafter\@firstoftwo
+  \else
+    \expandafter\@secondoftwo\fi}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+%
+% \subsection{Commands for manipulating property lists}
+%
+%
+% \begin{macro}{\prop@new@N}    
+%    \begin{macrocode}
+\def \prop@new@N #1{\def #1{}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\prop@put@NNn}    
+% \begin{macro}{\prop@gput@NNn}    
+% \begin{macro}{\prop@gput@NNo}    
+% \begin{macro}{\prop@gput@cco}    
+% \begin{macro}{\prop@gput@ccn}    
+%    \begin{macrocode}
+\long\def \prop@put@NNn #1#2{\prop@split@aux@NNn
+                             #1#2{\prop@put@aux@w {\def #1}#2}}
+\long\def \prop@gput@NNn #1#2{\prop@split@aux@NNn
+                                #1#2{\prop@put@aux@w {\gdef #1}#2}}
+%  missing commands for galley stuff...
+\def \prop@gput@NNo #1#2#3{
+  \expandafter\prop@gput@NNn \expandafter #1 \expandafter 
+                          #2 \expandafter { #3 } }
+\def \prop@gput@cco #1#2#3{
+  \expandafter\prop@gput@NNn \csname #1\expandafter\endcsname
+                             \csname #2\expandafter\endcsname
+                             \expandafter { #3 } }
+\def \prop@gput@ccn #1#2{
+  \expandafter\prop@gput@NNn \csname #1\expandafter\endcsname
+                             \csname #2\endcsname
+                              }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%
+% \begin{macro}{\prop@put@aux@w}    
+%    \begin{macrocode}
+\long\def \prop@put@aux@w #1#2#3#4#5#6{
+  \quark@if@no@value@nTF {#4}
+    {#1{#2{#6}#3}}
+    {\def\tmp@w ##1#2\q@no@value {#1{#3#2{#6}##1}}
+     \tmp@w #5}}
+%    \end{macrocode}
+% \end{macro}
+%    
+% \begin{macro}{\prop@split@aux@NNn}    
+%    \begin{macrocode}
+\long\def \prop@split@aux@NNn #1#2#3{
+  \def\tmp@w ##1#2##2##3\q@stop {#3{##1}{##2}{##3}}
+%                                       ^   ^ needed!
+  \expandafter\tmp@w #1#2\q@no@value \q@stop}
+%    \end{macrocode}
+% \end{macro}
+%    
+%
+% \begin{macro}{\prop@get@NNN}    
+%    \begin{macrocode}
+\long\def \prop@get@NNN #1#2{\prop@split@aux@NNn
+                                    #1#2\prop@get@aux@w}
+%    \end{macrocode}
+% \end{macro}
+%    
+%
+% \begin{macro}{\prop@get@aux@w}    
+%    \begin{macrocode}
+\long\def \prop@get@aux@w #1#2#3#4{\def#4{#2}}
+%    \end{macrocode}
+% \end{macro}
+%    
+%
+% \begin{macro}{\prop@map@funct@Nn}    
+%    \begin{macrocode}
+\let \prop@map@funct@Nn \@gobbletwo
+%    \end{macrocode}
+% \end{macro}
+%    
+%
+% \begin{macro}{\prop@map@NN}    
+%    \begin{macrocode}
+\def \prop@map@NN #1#2{
+  \let \prop@map@funct@Nn #2
+  \expandafter\prop@map@aux@w #1\q@stop \q@stop}
+%    \end{macrocode}
+% \end{macro}
+%    
+%
+% \begin{macro}{\prop@map@aux@w}    
+%    \begin{macrocode}
+\def \prop@map@aux@w #1#2{
+  \ifx #1\q@stop \else
+    \prop@map@funct@Nn #1{#2}
+    \expandafter\prop@map@aux@w
+  \fi}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\prop@map@cN}    
+%    \begin{macrocode}
+\def \prop@map@cN #1{
+  \expandafter \prop@map@NN \csname #1\endcsname }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+%
+%
+%
+%
+% \subsection{Commands for manipulating marks}
+%
+%
+%
+%  \begin{macro}{\trace@mark}
+%  \begin{macro}{\trace@mark@internal}
+%  \begin{macro}{\tracingmarks}
+%    Tracing is done when |\tracingmarks| is positive.
+%    \begin{macrocode}
+%<*trace>
+\def\trace@mark#1{\ifnum \tracingmarks > \z@
+      \typeout{Marks:~ #1~ \on@line}\fi}
+\def\trace@mark@internal#1{\ifnum\tracingmarks>\@ne
+      \typeout{Marks:~ #1}\fi}
+\newcount\tracingmarks
+%</trace>
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%
+%  \begin{macro}{\mark@new}
+%    Defines a new mark label and retrieval token list pointer.
+%    \begin{macrocode}
+\def\mark@new#1{
+%<*trace>
+   \trace@mark
+       {new~mark:~\string#1}
+%</trace>
+%    \end{macrocode}
+%    We make sure that the argument is still free and allocate the
+%    corresponding queue. To avoid problems with the use of such tlp's
+%    when they are used before the first |\mark@update@structure| we initialize
+%    them in a way that |\mark@previous| and the like will accept them even
+%    then.
+%    \begin{macrocode}
+   \newcommand* #1 {{}{}{}}
+   \queue@new@c{\string#1@seq}
+%    \end{macrocode}
+%    The last info-number for this type will be set to |1| This value
+%    is actually arbitrary and we could use |-\maxdimen+1| to get the
+%    range doubled.
+%    \begin{macrocode}
+   \prop@gput@NNn\mark@last@plist#1{1}
+%    \end{macrocode}
+%    More important is that the starting value for the current
+%    info-number is one less then the one used above.
+%    \begin{macrocode}
+   \prop@gput@NNn\mark@curr@plist#1{0}
+%    \end{macrocode}
+%    We now put the very first mark of this type in. This mark will be
+%    empty. This will initialize the queue (now holding the empty previous
+%    mark) increment the current info number, so that last and current are
+%    now equal and also puts a \TeX{} mark into the galley will the
+%    additional type present.
+%    \begin{macrocode}
+   \mark@put@Nn#1{}%
+%    \end{macrocode}
+%    \begin{macrocode}
+   \expandafter\g@addto@macro\expandafter\mark@save@state\expandafter{%
+      \expandafter\global\expandafter\let
+                 \csname saved\string#1@seq\expandafter\endcsname
+                 \csname\string#1@seq\endcsname}
+   \expandafter\g@addto@macro\expandafter\mark@restore@state@internal\expandafter{%
+      \expandafter\global\expandafter\let
+                 \csname\string#1@seq\expandafter\endcsname
+                 \csname saved\string#1@seq\endcsname}
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%
+%  \begin{macro}{\mark@save@state}
+%  \begin{macro}{\mark@restore@state@internal}
+%    Save and restore the current state of the mark data
+%    structure. The commands will be extended by |\mark@new|. They are
+%    needed if part of the main galley is being reused or several
+%    times parsed.
+%    \begin{macrocode}
+\def\mark@save@state{%
+      \global\let\saved@mark@curr@plist\mark@curr@plist
+      \global\let\saved@mark@last@plist\mark@last@plist}
+\def\mark@restore@state@internal{%
+      \global\let\mark@curr@plist\saved@mark@curr@plist
+      \global\let\mark@last@plist\saved@mark@last@plist}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%
+%  \begin{macro}{\mark@restore@state}
+%    |\mark@restore@state| will restore the state of the mark
+%    mechanism to the one saved by |\mark@save@state|. It has to be
+%    called inside an output routine and as it needs an output routine
+%    of its own to restore the |\mark| status of the bottom mark (so
+%    that \TeX{} correctly updates the mark registers in case it
+%    doesn't find a mark in box 255) it has an argument which is
+%    executed inside that output routine to regain control.
+%
+%    The code in the argument has to set |\output| to a new output
+%    routine! If not you are in trouble.
+%
+%    \begin{macrocode}
+\def\mark@restore@state#1{%
+%<*trace>
+  \@tracepush{mark@restore@state}
+%</trace>
+%    \end{macrocode}
+%    We first restore the external data structures by calling
+%    |\mark@restore@sate@internal|. Then we have to ensure that \TeX's
+%    idea of what the current |\botmark| is, corresponds to what it
+%    was when we saved the state. Back then it was the contents of
+%    |\mark@last@plist| so we are now adding an empty box and then
+%    mark with is contents
+%    onto the MVL followed by a penalty that ensures we trigger the
+%    output routine and then specify a tiny little output routine
+%    whose sole purpose is to get that mark processed.
+%    \begin{macrocode}
+      \mark@restore@state@internal
+      \hbox{}%
+%    \end{macrocode}
+%    We have to protect |\mark@last@plist| from expanding too far
+%    inside the |\mark| so we first put it into a token register
+%    before applying |\mark|.
+%    \begin{macrocode}
+      \@temptokena\expandafter{\mark@last@plist}%
+%<*trace>
+      \trace@mark@internal{restoring~ botmark~ \the\@temptokena}%
+%</trace>
+      \mark
+         {\the\@temptokena}
+      \penalty-20203\relax
+%    \end{macrocode}
+%    We are not setting |\vsize| assuming its positive. So the moment
+%    we return from the current output routine (we are hopefully in
+%    right now) we should very very soon find the above penalty and
+%    then trigger the output routine we are about to define now.
+%
+%    In that output routine we have a quick test for the
+%    |\outputpenalty| just to ensure that we really grabbed what we
+%    are supposed to grab. Then we throw away the contents of box 255
+%    since all we wanted todo is to get |\botmark| set back to the
+%    value of our mark above. Finally we execute whatever got passed
+%    along as argument one to regain control. Since current |\output|
+%    has a rather funny definition the code in that argument better
+%    change that back to something that does a little bit more
+%    typesetting.
+%    \begin{macrocode}
+      \global\output{%
+%<*trace>
+  \@tracepush{mark@restore@state@or}
+%</trace>
+         \ifnum-20203=\outputpenalty\else \ERROR \fi
+         \global\setbox\@cclv\box\voidb@x
+         #1%
+%<*trace>
+  \@tracepop{mark@restore@state@or}
+%</trace>
+        }%
+%<*trace>
+  \@tracepop{mark@restore@state}
+%</trace>
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%  \begin{macro}{\mark@put@Nn}
+%    To put a mark into the current horizontal or vertical \TeX{} list
+%    we first update |\mark@curr@plist| and then put its value into the
+%    mark without any further expansion. (The code could be
+%    optimized!)
+%    \begin{macrocode}
+%<-trace>\def\mark@put@Nn#1{%    % wtest hack }
+%<*trace>
+\def\mark@put@Nn#1#2{
+   \def\l@tmpa@tlp{#2}
+   \trace@mark
+       {set~\string#1~<-~\tlp@to@str@N\l@tmpa@tlp}
+%</trace>
+%    \end{macrocode}
+%    First we have to update the current info number for this type. The
+%    code is a bit complicated because we have to get the number from the
+%    the plist update it and then put it back. If we  would keep the numbers
+%    differently this could be improved, probably at the cost of more macro
+%    names.
+%    \begin{macrocode}
+   \@temptokena\expandafter{\mark@curr@plist}
+   \prop@get@NNN\mark@curr@plist#1\@tempa
+%<*debug>
+   \ifx\q@no@value\@tempa
+      \ERROR
+   \fi
+%</debug>
+   \@tempcnta\@tempa
+   \advance\@tempcnta\@ne
+   \expandafter
+   \prop@gput@NNn\expandafter\mark@curr@plist\expandafter#1\expandafter
+                 {\the\@tempcnta}
+%    \end{macrocode}
+%    Now we want to put this plist into a \TeX{} mark. We need a
+%    one-level expansion, otherwise our pkeys would expand which would
+%    produce chaos. So we save it in a toks register.
+%    \begin{macrocode}
+   \@temptokena\expandafter{\mark@curr@plist}
+   \mark
+       {\the\@temptokena}
+%    \end{macrocode}
+%   Finally we shouldn't forget to put the info at the right of the
+%   corresponding queue.
+%   Without tracing we can omit the second argument to
+%   this function.
+%    \begin{macrocode}
+%<*trace>
+   \queue@gadd@cn{\string#1@seq}{#2}
+%</trace>
+%<-trace>   \queue@gadd@cn{\string#1@seq}%
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%
+%
+%  \begin{macro}{\mark@put@Nnn}
+%    \begin{macrocode}
+\def\mark@put@Nnn#1#2#3{
+   \mark@put@Nn#1{#2#3}}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%
+%
+%  \begin{macro}{\mark@update@structure}
+%    This function is for use in output routines to initialize the marks
+%    at the beginning. It is only useful after \TeX{} internally has
+%    updated |\botmark|.
+%    \begin{macrocode}
+\def\mark@update@structure{
+%    \end{macrocode}
+%    We map a function over all keys in |\mark@last@plist|, in other
+%    words over all types of marks. This routine will set the marks for
+%    all types. Finally we set the plist |\mark@last@plist| to the
+%    plist that was stored in |\botmark|, i.e., to the
+%    info-numbers from this page.
+%    \begin{macrocode}
+  \prop@map@NN\mark@last@plist\mark@retrieve@single@Nn
+  \expandafter\gdef\expandafter\mark@last@plist\expandafter{\botmark}
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%
+%  \begin{macro}{\mark@retrieve@single@Nn}
+%    This function will be mapped over the plist containing the info-numbers
+%    from the last page. This means that |#1| will be the key (which is
+%    simply our type token list pointer and |#2| is the value, i.e. the
+%    info-number from the last page for this type.
+%    \begin{macrocode}
+\def\mark@retrieve@single@Nn#1#2{
+%<*trace>
+   \trace@mark@internal
+       {queue~for~\string#1~ before:~`\tlp@to@str@c{\string#1@seq}'}
+%</trace>
+%    \end{macrocode}
+%    We retrieve the info number for this type from |\botmark|
+%    and store the difference in |\@tempcnta|.
+%    \begin{macrocode}
+   \@temptokena\expandafter{\botmark}%
+%<*trace>
+   \trace@mark@internal{picking~ up~ from~ output~ \the\@temptokena}%
+%</trace>
+   \prop@get@NNN\botmark#1\@tempa
+%<*debug>
+   \ifx\q@no@value\@tempa
+      \ERROR
+   \fi
+%</debug>
+   \@tempcnta\@tempa
+   \advance\@tempcnta-#2\relax
+%<*trace>
+   \trace@mark@internal
+       {found~\the\@tempcnta\space entries~ for~ \string#1~
+        (new~\@tempa;~old~#2)}
+%</trace>
+%    \end{macrocode}
+%    Then we decide what to do depending on its value.
+%    We use |\@tempa|, |\@tempb|, and |\@tempc| to
+%    temporarily hold the previous, first and last mark for this type.
+%    \begin{macrocode}
+   \ifcase\@tempcnta
+%    \end{macrocode}
+%    If there haven't been any new marks we leave the queue alone,
+%    peeking only at its top element and using it for all three marks.
+%    \begin{macrocode}
+     \queue@top@cN{\string#1@seq}\@tempa
+     \let\@tempb\@tempa
+     \let\@tempc\@tempa
+   \or
+%    \end{macrocode}
+%    When there was one mark of this type, we pop one item for the
+%    previous mark of this type, and use the remaining item for first
+%    and last mark.
+%    \begin{macrocode}
+     \queue@gpop@cN{\string#1@seq}\@tempa
+     \queue@top@cN{\string#1@seq}\@tempb
+     \let\@tempc\@tempb
+   \else
+%    \end{macrocode}
+%    If we had more than one mark for this type we pop one mark for the
+%    previous mark of this type, then pop another mark for the first
+%    mark of this type, then pop all but the last item and use the last
+%    item as the last mark of this type, keeping it as before on the
+%    queue.
+%    \begin{macrocode}
+     \queue@gpop@cN{\string#1@seq}\@tempa
+     \queue@top@cN{\string#1@seq}\@tempb
+     \@whilenum \@tempcnta>\@ne\do
+        {\advance\@tempcnta\m@ne
+         \queue@gpop@cN{\string#1@seq}
+            \@tempc
+        }
+     \queue@top@cN{\string#1@seq}\@tempc
+   \fi
+%    \end{macrocode}
+%    After this process all values for previous, first and last mark for
+%    this type are found so that we can store them in the tlp
+%    representing this type for further processing.
+%    \begin{macrocode}
+   \@temptokena\expandafter{\@tempa}
+   \@temptokenb\expandafter{\@tempb}
+   \@temptokenc\expandafter{\@tempc}
+   \edef#1{{\the\@temptokena}{\the\@temptokenb}{\the\@temptokenc}}
+%<*trace>
+   \trace@mark
+       {in~output:~\string#1~->~\tlp@to@str@N#1}
+%    \end{macrocode}
+%    At this point the queue should show only one item.
+%    \begin{macrocode}
+   \trace@mark@internal
+       {queue~ for~\string#1~after:~`\tlp@to@str@c{\string#1@seq}'}
+%</trace>
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%  \begin{macro}{\@temptokenb}
+%  \begin{macro}{\@temptokenc}
+%    \begin{macrocode}
+\newtoks\@temptokenb
+\newtoks\@temptokenc
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%
+%
+%  \begin{macro}{\mark@curr@plist}
+%  \begin{macro}{\mark@last@plist}
+%    Here are the allocations for the two plists used.
+%    \begin{macrocode}
+\prop@new@N\mark@curr@plist
+\prop@new@N\mark@last@plist
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%
+%
+%
+%
+%
+%
+%  \begin{macro}{\mark@get@first@N}
+%  \begin{macro}{\mark@get@last@N}
+%  \begin{macro}{\mark@get@previous@N}
+%    To retrieve the first, last or previous page mark, we
+%    grap the appropriate value stored in the tlp. The marks are stored
+%    in the tlp in the order previous, first, last mark. These functions
+%    should be used only in output routines after |\mark@retrieve| has
+%    acted, otherwise their value will be wrong. They are all fully
+%    expandable.
+%
+%    Actually, they may bomb when tracing is included and we have
+%    material that doesn't work corretly within a write.
+%    \begin{macrocode}
+%<*trace>
+\def\mark@get@first@N#1{
+       \expandafter\@secondofthree#1
+       \trace@mark@internal{use~first~\string#1~=~
+            `\expandafter\@secondofthree#1'}
+}
+\def\mark@get@last@N#1{
+   \expandafter\@thirdofthree#1
+   \trace@mark@internal{use~ last~ \string#1~ =~
+       `\expandafter\@thirdofthree#1'}
+}
+\def\mark@get@previous@N#1{
+   \expandafter\@firstofthree#1
+   \trace@mark@internal{use~prev~\string#1~ =~
+       `\expandafter\@firstofthree#1'}
+}
+%</trace>
+%<-trace>\def\mark@get@first@N{%
+%<-trace>       \expandafter\@secondofthree}
+%<-trace>\def\mark@get@last@N{%
+%<-trace>       \expandafter\@thirdofthree}
+%<-trace>\def\mark@get@previous@N{%
+%<-trace>       \expandafter\@firstofthree}
+%    \end{macrocode}
+%    above version in trace case doesn't work alway!
+%    \begin{macrocode}
+\def\mark@get@first@N{%
+       \expandafter\@secondofthree}
+\def\mark@get@last@N{%
+       \expandafter\@thirdofthree}
+\def\mark@get@previous@N{%
+       \expandafter\@firstofthree}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%
+%
+% \begin{macro}{\DeclareMarkType}
+%    \begin{macrocode}
+\def\DeclareMarkType#1{
+  \expandafter\mark@new\csname mark@#1\endcsname}
+%    \end{macrocode}
+%  \end{macro}
+%
+% \begin{macro}{\PutMark}
+%    \begin{macrocode}
+\def\PutMark#1{
+   \@ifundefined{mark@#1}{\ERROR}{}
+   \expandafter\mark@put@Nn\csname mark@#1\endcsname}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+% \begin{macro}{\PreviousMark}
+%    \begin{macrocode}
+\def\PreviousMark#1{
+  \expandafter\mark@get@previous@N\csname mark@#1\endcsname}
+%    \end{macrocode}
+%  \end{macro}
+%
+% \begin{macro}{\FirstMark}
+%    \begin{macrocode}
+\def\FirstMark#1{
+  \expandafter\mark@get@first@N\csname mark@#1\endcsname}
+%    \end{macrocode}
+%  \end{macro}
+%
+% \begin{macro}{\LastMark}
+%    \begin{macrocode}
+\def\LastMark#1{
+  \expandafter\mark@get@last@N\csname mark@#1\endcsname}
+%    \end{macrocode}
+%  \end{macro}
+%
+% \Finale
+%
+\endinput
+%
+% $Log$
+% Revision 1.1  2001/07/26 19:55:12  latex3
+% original web distrib
+%
+% Revision 1.6  2000/06/13 20:47:23  latex3
+% docu update
+% inlined quarks code
+%
