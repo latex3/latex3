@@ -148,7 +148,7 @@ l3io
 
 Low-level input and ouput.
 
-l3precomp
+l3precom
 =========
 
 Low-level pointer-related code, with further checking and tracing.
