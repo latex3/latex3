@@ -87,10 +87,15 @@ xor
 	The new output routine  (proto-type version)
 	Needs files from xbase. 
 
-	Is still using the old internal syntax.
 
+xfootnote
+---------
 
+	Some experiments to produce a footnote interface.
 
+	One of the early tries to use the template interface (1999).
+	Hopefully interesting in its own right but needs integration
+	with xor.
 
 
 
