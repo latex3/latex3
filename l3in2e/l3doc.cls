@@ -1,7 +1,7 @@
 
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{l3doc}
-     [1997/08/04 v0.0b class for documenting experimental stuff]
+     [1998/04/12 v0.0c class for documenting experimental stuff]
 
 \DeclareOption*{\PassOptionstoClass{\CurrentOption}{article}}
 
@@ -9,6 +9,8 @@
 
 \LoadClass{article}
 \RequirePackage{doc}
+
+\RequirePackage[T1]{fontenc}
 
 %% The Guilty Parties
 \def\Team{%
