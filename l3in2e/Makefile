@@ -44,15 +44,8 @@ FORMAT_AUTOLOAD := $(LTESTDIR)/latexa.fmt
 
 commav = ,v
 
-export TEXINPUTS:=.:\
-  $(shell test -d $(DISTDIR) || mkdir -p $(DISTDIR) ; echo $(DISTDIR)):\
-  $(shell test -d $(LUDISTDIR) || mkdir -p $(LUDISTDIR) ; echo $(LUDISTDIR)):\
-  $(shell test -d $(LTESTDIR) || mkdir -p $(LTESTDIR); echo $(LTESTDIR)):\
-  $(shell test -d $(TEXDIR) || mkdir -p $(TEXDIR) ; echo $(TEXDIR))//
-export INDEXSTYLE:=.:\
-  $(shell test -d $(DISTDIR) || mkdir -p $(DISTDIR) ; echo $(DISTDIR)):\
-  $(shell test -d $(LUDISTDIR) || mkdir -p $(LUDISTDIR) ; echo $(LUDISTDIR)):\
-  $(shell test -d $(TEXDIR) || mkdir -p $(TEXDIR) ; cd $(TEXDIR) ; pwd)
+export TEXINPUTS:=.:$(shell test -d $(DISTDIR) || mkdir -p $(DISTDIR) ; echo $(DISTDIR)):$(shell test -d $(LUDISTDIR) || mkdir -p $(LUDISTDIR) ; echo $(LUDISTDIR)):$(shell test -d $(LTESTDIR) || mkdir -p $(LTESTDIR); echo $(LTESTDIR)):\$(shell test -d $(TEXDIR) || mkdir -p $(TEXDIR) ; echo $(TEXDIR))//
+export INDEXSTYLE:=.:$(shell test -d $(DISTDIR) || mkdir -p $(DISTDIR) ; echo $(DISTDIR)):$(shell test -d $(LUDISTDIR) || mkdir -p $(LUDISTDIR) ; echo $(LUDISTDIR)):$(shell test -d $(TEXDIR) || mkdir -p $(TEXDIR) ; cd $(TEXDIR) ; pwd)
 
 
 STATE = Exp
