@@ -15,7 +15,7 @@
 %<driver>\ProvidesFile{xparse.drv}
 % \fi
 %         \ProvidesFile{xparse.dtx}
-          [1999/09/03 v0.16 generic document command parser]
+          [1999/09/10 v0.17 generic document command parser]
 %
 % \iffalse
 %<*driver>
@@ -27,6 +27,8 @@
  \end{document}
 %</driver>
 % \fi
+%
+% \CheckSum{707}
 %
 % \GetFileInfo{xparse.dtx}
 %
@@ -77,7 +79,7 @@
 % |\NoValue|) into optional ones by supplying a default on the
 % document command level.
 %
-% We also have |C{x-default}{y-default}| to allow for optional
+% We also have |C{{x-default}{y-default}}| to allow for optional
 % coordinate pairs which is, for example, needed to provide something
 % like the picture environment in current \LaTeX.
 %
@@ -99,10 +101,10 @@
 % \item[s] will return either the token |\BooleanTrue| or
 %   |\BooleanFalse| depending on whether or not a star was parsed.
 % \item[c] will parse the syntax |(|\meta{x}|,|\meta{y}|)|, i.e., a
-%   coordinate pair and will return the values for the x- and
-%   y-coordinate as two arguments in braces.
-% \item[C\textbraceleft x-default\textbraceright\textbraceleft
-%    y-default\textbraceright] behaves like |c|, i.e., parses a
+%   coordinate pair and will return |{{|\meta{x}|}{|\meta{y}|}}| as
+%   the result. If no open parentheses is scanned an error is signalled.
+% \item[C\textbraceleft\textbraceleft x-default\textbraceright\textbraceleft
+%    y-default\textbraceright\textbraceright] behaves like |c|, i.e., parses a
 %   coordinate pair if present. If the coordinate pair is missing it
 %   returns the default values instead.
 % \end{description}
@@ -355,112 +357,141 @@
 % different values compared to case C above.
 % \end{itemize}
 %
-% To cater for this structure let's define first a command
-% |\ltx@makebox| that does all the work for both |\makebox| and
-% |\framebox| but has only mandatory arguments as follows:
-% \begin{itemize}
-% \item
-%   First argument is either |\NoValue| in which case we are making a
-%   box in text mode. Otherwise it contains x-units if we are making a
-%   picture mode box.
-%
-% \item
-%   Second argument is ignored if first argument contained
-%   |\NoValue|. Otherwise it has to contain the y-units.
-%
-% \item
-%   Interpretation of third argument depends what what we had in the
-%   first argument as well: if we got no x-units (ie |\NoValue| in
-%   first argument) the third argument (if not |\NoValue| too) is
-%   interpreted as the width to which the box should be typeset. If
-%   however we got x- and y-units the third argument is interpreted as
-%   a placement specifier for the text to be typeset, e.g., |l|, or
-%   |rt|, etc (with |\NoValue| being equivalent to the default
-%   |c|).\footnote{Variant interpretation of arguments is certainly
-%   not good style and also means complicated coding---it could be
-%   done differently.}
-%
-% \item
-%   Argument four has only a meaning if we are in the progress of
-%   making a text box (ie |\NoValue| in argument one). In that case it
-%   gives the text placement specifier.
-%
-% \item
-%   Argument five is the text to typeset.
-%
-% \item
-%   Argument six is either |\@firstofone| or |\fbox| to typeset a
-%   frame in the non-picture case.
-% \item
-%   Argument seven is either |\@firstofone| or |\frame| to typeset a
-%   frame in the picture case (where the frame width depends on other
-%   parameters).
-% \end{itemize}
-%
-% So here is the code:
+% To cater for this overloaded structure we can define |\makebox| to
+% be something like the following:
 %\begin{verbatim}
-%\def\ltx@makebox#1#2#3#4#5#6#7
-% {
-%  \IfNoValueTF{#1}     % do we have coordinates?
-%    {
-%     #6{               % make a frame perhaps
-%       \IfNoValueTF{#3}% do we have width info?
-%        {\mbox{#5}}    % no means simple box
-%        {              % yes means more complicated box
-%         \@begin@tempboxa\hbox{#5}
-%           \setlength\@tempdima{#3}%       support calc
-%           \hb@xt@\@tempdima{\csname bm@#4\endcsname}
-%         \@end@tempboxa
+%\DeclareDocumentCommand \makebox { C{\NoValue} o O{c} m}
+% { \IfNoValueTF{#1}
+%     { \ltx@maketextbox{#2}{#3}{#4} }
+%     { \ltx@makepicbox #1  {#2}{#4} } }
+%\end{verbatim}
+% In other words: if we do not see a coordinate pair first (i.e.,
+% first argument is |\NoValue| then we expect up to two optional
+% arguments (the width of the box or |\NoValue| if not given and the
+% placement specifier with a default of |c| if not given) and one
+% mandatory one which is the text. In that case we pass argument 2 to
+% 4 to an internal function |\ltx@maketextbox| which builds the text
+% box.
+%
+% Otherwise, if the first argument is a coordinate pair we parse an
+% optional argument denoting the placement specifier. Since
+% \texttt{xparse} doesn't support variant syntax we actually parse for
+% another optional argument (which has no meaning in that case and is
+% in fact ignored if present) followed by a mandatory one containing
+% the box text. In that case we pass the coordinate pair (|#1|), the
+% specifier (|#2|), and the text (|#4|) to the function
+% |\ltx@makepicbox| which builds the picture box. Note the special
+% handling of the coordinatesD: which are passed without surrounding
+% braces to |\ltx@makepicbox|: since the coordinate argument looks
+% like |{x-val}{y-val}| the receiving function |\ltx@makepicbox| gets
+% the |x-val| as argument one and the |y-val| as argument two.
+%
+% A definition for |\framebox| would look more or less identical
+% except that we would need to pass the arguments to slightly
+% different internal functions. The alternative is to give the
+% internal functions an extra argument that controls whether or not a
+% frame is bying built.
+%
+% \begin{macro}{\ltx@makepicbox}
+% So here is a possible implementation of |\ltx@makepicbox| that
+% builds a picture box with or without frame. It takes the following
+% mandatory arguments:
+% \begin{enumerate}
+% \item x-part of coordinate
+% \item y-part of coordinate
+% \item placement specifier, e.g., |lt| or |\NoValue|
+% \item text of box
+% \item the token |\frame| (if a frame should surround the box) or the
+% token |\@firstofone| --- not pretty i agree
+% \end{enumerate}
+%\begin{verbatim}
+%\def\ltx@makepicbox#1#2#3#4#5
+%  {
+%   #5{
+%     \vbox to#2\unitlength
+%      {\let\mb@b\vss \let\mb@l\hss\let\mb@r\hss
+%       \let\mb@t\vss
+%       \IfNoValueF{#3}
+%        {
+%         \@tfor\reserved@a :=#3\do{
+%           \if s\reserved@a
+%             \let\mb@l\relax\let\mb@r\relax
+%           \else
+%             \expandafter\let\csname mb@\reserved@a\endcsname\relax
+%           \fi}%
 %        }
-%     }
-%    }
-%    {                  % we do have coordinates!
-%     #7{               % make a frame perhaps
-%       \vbox to#2\unitlength
-%       {\let\mb@b\vss \let\mb@l\hss\let\mb@r\hss
-%        \let\mb@t\vss
-%        \IfNoValueF{#3}% do we have placement spec?
-%          {            % if so apply it
-%           \@tfor\reserved@a :=#3\do{
-%             \if s\reserved@a
-%               \let\mb@l\relax\let\mb@r\relax
-%             \else
-%               \expandafter\let\csname mb@\reserved@a\endcsname\relax
-%             \fi}%
-%          }
-%        \mb@t
-%        \hb@xt@ #1\unitlength{\mb@l #5\mb@r}
-%        \mb@b
-%        \kern\z@}
-%     }
-%    }
-% }
+%       \mb@t
+%       \hb@xt@ #1\unitlength{\mb@l #4\mb@r}
+%       \mb@b
+%       \kern\z@}
+%   }
+%  }
 %\end{verbatim}
+% \end{macro}
 %
-% Having provided this monster we can provide document level
-% definitions for |\makebox| and |\framebox| as
-% follows\footnote{People checking the above code carefully will
-% notice that the reimplementation in this way is not quite correct as
-% in case of a \texttt{\textbackslash framebox} with optional argument
-% denoting the width the actual width of the resulting box will be
-% bigger than specified since we simply wrap the thing into an
-% \texttt{\textbackslash fbox}.}:
+%
+%
+% \begin{macro}{\ltx@maketextbox}
+% For the text case the internal function could  take the following
+% mandatory arguments:
+% \begin{enumerate}
+% \item width of the box or |\NoValue| (denoting to build the box at
+% natural width)
+% \item placement specifier, e.g., |l|. (No test for |\NoValue| being undertaken)
+% \item text of box
+% \item the token |\fbox| (if a frame should surround the box) or the
+% token |\mbox|
+% \end{enumerate}
+% The actual code is taken straight from the current \LaTeX{} kernel
+% and looks kind of scary.
 %\begin{verbatim}
-%\DeclareDocumentCommand \makebox { C{\NoValue}{} o O{c} m}
+%\def\ltx@maketextbox#1#2#3#4
 % {
-%  \ltx@makebox {#1}{#2}{#3}{#4}{#5}\@firstofone\@firstofone
-% }
-%
-%\DeclareDocumentCommand \framebox { C{\NoValue}{} o O{c} m}
-% {
-%  \ltx@makebox {#1}{#2}{#3}{#4}{#5}\fbox\frame
+%  \IfNoValueTF{#1}
+%     {#4{#3}}
+%     {
+%      \leavevmode
+%      \@begin@tempboxa\hbox{#3}
+%       \setlength\@tempdima{#1}
+%       \ifx#4\fbox
+%         \setbox\@tempboxa\hb@xt@\@tempdima
+%              {\kern\fboxsep\csname bm@#2\endcsname\kern\fboxsep}
+%         \@frameb@x{\kern-\fboxrule}
+%       \else
+%         \hb@xt@\@tempdima{\csname bm@#2\endcsname}
+%       \fi
+%      \@end@tempboxa
+%     }
 % }
 %\end{verbatim}
+% \end{macro}
+%
+% \begin{macro}{\makebox}
+% \begin{macro}{\framebox}
+% Given the above internal functions the declarations of |\makebox|
+% and |\framebox| would then look like this:
+%\begin{verbatim}
+%\DeclareDocumentCommand \makebox { C{\NoValue} o O{c} m}
+% { \IfNoValueTF{#1}
+%     { \ltx@maketextbox{#2}{#3}{#4}\mbox }
+%     { \ltx@makepicbox #1  {#2}{#4}\@firstofone } }
+%
+%\DeclareDocumentCommand \framebox { C{\NoValue} o O{c} m}
+% { \IfNoValueTF{#1}
+%     { \ltx@maketextbox{#2}{#3}{#4}\fbox }
+%     { \ltx@makepicbox #1  {#2}{#4}\frame } }
+%\end{verbatim}
+% \end{macro}
+% \end{macro}
+%
 %
 % \StopEventually{}
-% \CheckSum{0}
 %
 % \section{Implementation}
+%
+% The implementation section currently contains several trial
+% implementations and updates. This final version will probably look
+% quite differently again.
 %
 % Set up certain defaults including to ignore white space
 % within the body of this package.
@@ -922,37 +953,14 @@
          \csname @ddc@#1\endcsname}
       \@temptokenb{}
 %    \end{macrocode}
-%    In case of |O| we have to grab the default next.
+%    In case of |O| and |C| we have to grab the default next.
 %    \begin{macrocode}
       \ifx #1O
          \let\next@ddc\grab@default
       \else
-        \ifx #1c
-%    \end{macrocode}
-%    In case of |c| we are going to parse two not one argument so we
-%    have to update |\@tempcnta| and |\@temptokena| twice (second time
-%    is done below.
-%    \begin{macrocode}
-          \advance\@tempcnta\@ne
-          \@temptokena\expandafter{
-          \the\expandafter\@temptokena
-              \expandafter##\the\@tempcnta}
-%    \end{macrocode}
-%    Optional coordinates are kind of a cross between |O| and |c|,
-%    i.e., we need to parse two arguments thus updating the
-%    |\@temp...| as in |c| and we also have to grab the default
-%    argument thus changing |\next@ddc| as in the |O| case except that
-%    we grab 2 such defaults.
-%    \begin{macrocode}
-        \else
-          \ifx #1C
-            \advance\@tempcnta\@ne
-            \@temptokena\expandafter{
-            \the\expandafter\@temptokena
-                \expandafter##\the\@tempcnta}
-            \let\next@ddc\grab@double@default
-          \fi
-        \fi
+         \ifx #1C
+           \let\next@ddc\grab@default
+         \fi
       \fi
     \fi
     \advance\@tempcnta\@ne
@@ -986,18 +994,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\grab@double@default}
-%    Ditto for the |C| case where we have to grab two default values.
-%    \begin{macrocode}
-\def\grab@double@default #1#2{
-      \toks@\expandafter{%
-         \the\toks@
-         {#1}{#2}}
-  \let\next@ddc\@ddc
-  \@ddc
-}
-%    \end{macrocode}
-% \end{macro}
 %
 % \begin{macro}{\@ddc@O}
 %    This command expects the default value (to use if no |[| is
@@ -1011,30 +1007,16 @@
 % \end{macro}
 %
 % \begin{macro}{\@ddc@}
-%    Parsing the coordinates should most likely get some extra syntax
-%    checking, e.g., to allow \verb*=\foo{1} (1,2)= the code below simply
-%    drops everything until it sees a |(| which is a bit bold\ldots
-%\begin{verbatim}
-%\long\def\@ddc@c#1\toks@#2(#3,#4){
-% \addto@hook\toks@{{#3}{#4}} #1\toks@}
-%\end{verbatim}
-%    So here is an alternative: this accepts spaces but will crash on
-%    anything else with an error message (clearly not good enough either).
-%\begin{verbatim}
-%\long\def\@ddc@c#1\toks@#2{\@dc@c@#1\toks@#2}
-%\long\def\@ddc@c@#1\toks@(#2,#3){
-% \addto@hook\toks@{{#2}{#3}} #1\toks@}
-%\end{verbatim}
-%
-%    On the other hand, why not look for the `(' and signal an error
-%    if not found.
+%    We look for the `(' and signal an error
+%    if not found. By using |\@ifnextchar| this also takes care of any
+%    space tokens in front ot the the parentheses.
 %    \begin{macrocode}
 \long\def\@ddc@c#1\toks@{
    \@ifnextchar (
      {\@ddc@c@ #1}
      {\PackageError{xparse}{Missing~ coordinate~ argument}
         {A~ value~ of~ (0,0)~ is~ assumed}
-      \addto@hook\toks@{00} #1\toks@}
+      \addto@hook\toks@{{00}} #1\toks@}
      }
 %    \end{macrocode}
 % \end{macro}
@@ -1044,7 +1026,7 @@
 %    know it is there.
 %    \begin{macrocode}
 \long\def\@ddc@c@#1(#2,#3){
-  \addto@hook\toks@{{#2}{#3}} #1\toks@}
+  \addto@hook\toks@{{{#2}{#3}}} #1\toks@}
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1052,10 +1034,10 @@
 %    This way we can also directly implement the optional argument case in
 %    a natural way.
 %    \begin{macrocode}
-\long\def\@ddc@C#1#2#3\toks@{
+\long\def\@ddc@C#1#2\toks@{
    \@ifnextchar (
-     {\@ddc@c@ #3}
-     {\addto@hook\toks@{{#1}{#2}} #3\toks@}}
+     {\@ddc@c@ #2}
+     {\addto@hook\toks@{{#1}} #2\toks@}}
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1355,4 +1337,3 @@
 % \Finale
 %
 \endinput
-
