@@ -1,44 +1,50 @@
 
-
    Experimental Packages Demonstrating
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   1998/04/17
+   1998/04/20
 
 
 OVERVIEW
 --------
 
 The packages in this directory implement a possible language for `low
-level' programming in TeX. The syntax conventions described here are NOT
+level' programming in TeX.  The syntax conventions described here are NOT
 intended either for use in documents or for use in describing design
 layouts in document class files.
 
 All aspects of these package are *experimental*. The names of the
-packages, and the names of any commands that they define, may change at
-any time.  They are being released in this form to allow public
+packages, and the names of any commands that they define, may change
+at any time.  They are being released in this form to allow public
 discussion and comment.
 
 Currently all the code is distributed in a format suitable for running
-as LaTeX2e packages, Further documentation may be produced by processing
-the `dtx' file with LaTeX2e. The packages may be installed by processing
+as LaTeX2e packages.  Further documentation may be produced by processing
+the .dtx files with LaTeX2e.  The packages may be installed by processing
 l3.ins with plain TeX or LaTeX.
 
 This code has be developed over time and has been used in previous
-version for prototype implementations, experiments, etc. Its internal
-documentation (in the .dtx files) reflect the age of parts of it; it
-often contains personal comments, sometimes refers to parts not being
-distributed.  We kindly ask you to overlook its deficiencies and
-inaccuracies --- if we had tried to clean this up it would never have
-surfaced and, for the purpose of discussions and comments, we hope its
-present form is adequate enough.
+versions for prototype implementations, experiments, etc. Its internal
+documentation (in the .dtx files) reflects the age of parts of it; it
+often contains personal comments and it sometimes refers to parts that
+not at present distributed.  We kindly ask you to overlook its
+deficiencies and inaccuracies --- if we had tried to clean this up it
+would never have surfaced and, for the purpose of discussions and
+comments, we hope its present form is adequate.
+
+
+THE GUILTY PERSONS
+------------------
+
+   Frank Mittelbach, Denys Duchier, Johannes Braams, Michael Downes,
+   David Carlisle, Alan Jeffrey, Chris Rowley, Rainer Schoepf 
 
 
 DISCUSSION
 ----------
 
-Discussions about the approach, suggestions for improvements, changes,
+Discussion concerning the approach, suggestions for improvements, changes,
 additions, etc. should be addressed to the list LATEX-L. 
 
 You can subscribe to this list by sending mail to
@@ -128,8 +134,8 @@ Property lists are the datatype for handling key/value assignments.
 l3int
 =====
 
-Integer and fake integer registers. With eTeX becoming more and more
-accessible this module is, at least in parts only of historical
+Integer and fake integer registers. With eTeX/Omega becoming more and
+more accessible this module is, at least in parts only of historical
 significance.  (Can be compiled with checking enabled)
 
 l3toks
@@ -137,8 +143,18 @@ l3toks
 
 TeX's token registers.  (Can be compiled with checking enabled)
 
+l3io
+====
 
-====================================================================
+Low-level input and ouput.
+
+l3precomp
+=========
+
+Low-level pointer-related code, with further checking and tracing.
+
+
+=====================================================================
 
 Install file
 =============
@@ -146,7 +162,8 @@ Install file
 l3.ins
 ======
 
-Process with plain TeX or LaTeX2e to generate the experimental packages.
+Process with plain TeX or LaTeX2e to generate the experimental
+packages.
 
 =====================================================================
 
@@ -160,15 +177,24 @@ test1.tex
 
 Test document showing the expansion module at work.
 
-
 test2.tex
 =========
 
-The same test as the file test1, but this time the l3names package
-is loaded with [removeoldnames]. This is useful for testing, but as it
-breaks all LaTeX2 code, it is not so useful for documents. (For example
-\begin{document} would generate an error.) In this mode \RequirePackage
-may be used to load further packages, as demonstrated in this file,
-but any other LaTeX2 command is likely to fail.
+The same test as the file test1, but this time the l3names package is
+loaded with [removeoldnames]. This is useful for testing, but as it
+breaks all LaTeX2 code, it is not so useful for documents.  (For
+example {document} would generate an error.)  In this mode
+\RequirePackage may be used to load further packages, as demonstrated
+in this file, but any other LaTeX2 command is likely to fail.
 
+test3.tex
+=========
+
+This tests the io and precomp modules.
+
+
+=====================================================================
+
+--- Copyright 1998
+    The LaTeX3 Project.  All rights reserved ---
 
