@@ -52,7 +52,7 @@
 
 \let\m\meta
 \newenvironment{texnote}%
-   {\endgraf\vspace{3mm}{\bf \TeX{}hackers~ note:}\small}
+   {\endgraf\vspace{3mm}{\bf \TeX{}hackers~note:}\small}
     {\vspace{3mm}}
 % stick the function names in a box.
 {\catcode`\|=\active\catcode`\<=\active
