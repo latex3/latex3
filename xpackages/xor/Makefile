@@ -17,5 +17,5 @@ test:
 	latex xo-pfloat
 
 testb:
-	latex xo-balance
+	elatex xo-balance
 
