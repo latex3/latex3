@@ -9,8 +9,6 @@ help:
 	@echo release:
 	@echo check:
 
-CO = co
-COFLAGS = -M
 
 RELEASE_DATE = 2002/06/01
 
@@ -175,8 +173,6 @@ $(TESTDIR)/%:	$(DISTDIR)/%
 	rm -f $@
 	ln -s $< $@
 
-#$(TESTDIR)/%:	$(RCSDIR)/%$(commav)
-#	@$(CO) $(COFLAGS) -r`rlog -s$(STATE) $< |grep "^revision"|sed -e "s/revision //" -e "s/ *locked by:.*$$//"|sort -t . +0nr -1 +1nr -2 +2nr -3 +3nr -4 |head -1` $< $@
 
 #
 # default pattern rule for distribution files
@@ -236,10 +232,13 @@ release:
 	$(MAKE) distrib STATE=Rel
 
 
-styles:	distrib
+styles:	distrib $(FORMAT)
 	cd $(TEXDIR) ; \
-	perl $(SCRIPTDIR)/echo_answer -n 50 y | latex l3.ins ; rm l3.log
+	perl $(SCRIPTDIR)/echo_answer -n 50 y | tex \&$(LTESTDIR)/latex l3.ins ; rm l3.log
 
+
+$(FORMAT):
+	cd $(LATEXDIR) ; make format
 
 drivers:	$(foreach file,$(DRIVERS),$(TESTDIR)/$(file))
 
