@@ -26,3 +26,8 @@ xfrontm-pics.tgz: xfrontm
 	tar cvzf xfrontm-pics.tgz xfrontm/*.ps
 
 
+xhead.tgz: xhead
+	tar cvzf xhead.tgz xhead/xhead.dtx \
+	                   xhead/xhead.ins \
+	                   xhead/tryxhead.tex
+
