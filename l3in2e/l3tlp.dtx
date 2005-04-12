@@ -56,7 +56,6 @@
 % \iffalse
 %<*driver>
 \documentclass{l3doc}
-
 \begin{document}
 \DocInput{l3tlp.dtx}
 \end{document}
@@ -143,6 +142,8 @@
 % \begin{function}{%
 %                  \tlp_clear_new:N |
 %                  \tlp_clear_new:c |
+%                  \tlp_gclear_new:N |
+%                  \tlp_gclear_new:c |
 % }
 % \begin{syntax}
 %   "\tlp_clear_new:N" <tlp>
@@ -167,12 +168,15 @@
 %   "\tlp_put_left:Nn" <tlp> "{" <token list> "}"
 % \end{syntax}
 % These functions will append <token list> to the left or right of
-% <tlp>. Assigment is done either locally or globally and <token
-% list> might be subject to expansion before assigment.
+% <tlp>. Assignment is done either locally or globally and <token
+% list> might be subject to expansion before assignment.
 % \end{function}
 %
 % \begin{function}{%
 %                  \tlp_set_eq:NN |
+%                  \tlp_set_eq:Nc |
+%                  \tlp_set_eq:cN |
+%                  \tlp_set_eq:cc |
 %                  \tlp_gset_eq:NN |
 %                  \tlp_gset_eq:Nc |
 %                  \tlp_gset_eq:cN |
@@ -263,11 +267,11 @@
 %
 % \subsubsection{Internal functions}
 %
-% \begin{function}{\tlp_put_left:aux}
+% \begin{function}{\tlp_put_left_aux:w}
 % Used by "\tlp_put_left:Nn" and its variants.
 % \end{function}
 %
-% \begin{function}{\tlp_to_str:aux}
+% \begin{function}{\tlp_to_str_aux:w}
 % Function used to implement "\tlp_to_str:N".
 % \end{function}
 %
@@ -279,6 +283,13 @@
 %    \begin{macrocode}
 %<package&!check>\RequirePackage{l3basics}\par
 %<package&check>\RequirePackage{l3chk}\par
+%    \end{macrocode}
+%  As this package relies heavily on a lot of the expansion tricks used
+%  in \textsf{l3expan} we make sure to load it automatically at the end
+%  when used as a package. Probably not needed but I'm just such a nice
+%  guy\dots
+%    \begin{macrocode}
+%<package>\AtEndOfPackage{\RequirePackage{l3expan}}\par
 %<*initex|package>
 %    \end{macrocode}
 %
@@ -287,43 +298,38 @@
 % the behavior vis \'a vis |\def:Npx| etc. \ldots{} is different.  (You
 % see this comes from Denys' implementation.)
 %
-% We don't implement a |\tlp_use:n| function. Execution is done by
-% calling the list.
 %
 %
 % \begin{macro}{\tlp_new:Nn}
 % \begin{macro}{\tlp_new:cn}
-% \begin{macro}{\tlp_clear:N}
-% \begin{macro}{\tlp_gclear:N}
 %    We provide one allocation function (which checks that the name is
 %    not used) and two clear functions that locally or globally clear
 %    the token list. The allocation function has two arguments to
 %    specify an initial value. This is the only way to give values to
 %    constants.
 %    \begin{macrocode}
-%<*check>
 \def_long_new:Npn \tlp_new:Nn #1#2{
   \chk_new_cs:N #1
-  \chk_var_or_const:N #1
 %    \end{macrocode}
-%    The next line contains the token list assignments without any
-%    checking for variable types etc.\ since we want to allow to
-%    update constants here.
+%  If checking we don't allow constants to be defined.
 %    \begin{macrocode}
-  \gdef_long:Npn #1{#2}}
+%<*check>
+  \chk_var_or_const:N #1
 %</check>
-%<-check> \def_long_new:Npn \tlp_new:Nn #1#2 {\chk_new_cs:N #1 \gdef_long:Npn #1{#2}}
-\def_new:Npn \tlp_new:cn #1 {\exp_after:NN \tlp_new:Nn \cs:w #1 \cs_end: }
-\def_new:Npn \tlp_clear:N #1{\tlp_set_eq:NN #1\c_empty_tlp}
-\def_new:Npn \tlp_gclear:N #1{\tlp_gset_eq:NN #1\c_empty_tlp}
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
+%    Otherwise any variable type is allowed.
+%    \begin{macrocode}
+  \gdef_long:Npn #1{#2}
+}
+\def_new:Npn \tlp_new:cn {\exp_args:Nc \tlp_new:Nn }
+%    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
+%
 % \begin{macro}{\tlp_use:N}
 % \begin{macro}{\tlp_use:c}
+% Perhaps this should just be enabled when checking?
 %    \begin{macrocode}
 \def_new:Npn \tlp_use:N #1 {
   \if_meaning:NN #1 \scan_stop:
@@ -331,7 +337,8 @@
 %  If \m{tlp} equals |\scan_stop:| it is probably stemming from a
 %  |\cs:w ... \cd_end:| that was created by mistake somewhere.
 %    \begin{macrocode}
-     \err_latex_bug:n {Token~list~pointer~ `\token_to_string:N #1'~ has~ an~ erroneous~ structure!}
+     \err_latex_bug:n {Token~list~pointer~ `\token_to_string:N #1'~
+                       has~ an~ erroneous~ structure!}
   \else:
     \exp_after:NN #1
   \fi:
@@ -341,14 +348,152 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\tlp_clear:c}
-% \begin{macro}{\tlp_gclear:c}
-%    We also define the variants that construct the token list name
-%    from a string.
+%
+% \begin{macro}{\tlp_set:Nn}
+% \begin{macro}{\tlp_set:No}
+% \begin{macro}{\tlp_set:Nf}
+% \begin{macro}{\tlp_set:Nx}
+% \begin{macro}{\tlp_set:cn}
+% \begin{macro}{\tlp_set:co}
+% \begin{macro}{\tlp_set:cx}
+% \begin{macro}{\tlp_gset:Nn}
+% \begin{macro}{\tlp_gset:No}
+% \begin{macro}{\tlp_gset:Nx}
+% \begin{macro}{\tlp_gset:cn}
+% \begin{macro}{\tlp_gset:cx}
+%    To set token lists to a specific value to type of functions are
+%    available: |\tlp_set_eq:NN| takes two token-lists as its
+%    arguments assign the first the contents of the second;
+%    |\tlp_set:Nn| has as its second argument a `real' list of tokens.
+%    One can view |\tlp_set_eq:NN| as a special form of |\tlp_set:No|.
+%    Both functions have global counterparts.
+%
+%    During development we check if the token list that is being
+%    assigned to exists. If not, a warning will be issued.
 %    \begin{macrocode}
+%<*check>
+\def_long_new:Npn \tlp_set:Nn #1#2{
+  \chk_exist_cs:N #1  \def_long:Npn #1{#2}
+%    \end{macrocode}
+%    We use |\chk_local_or_pref_global:N| after the assignment to
+%    allow constructs with |\pref_global_chk:|. But one should note
+%    that this is less efficient then using the real global variant
+%    since they are built-in.
+%    \begin{macrocode}
+  \chk_local_or_pref_global:N #1
+}
+\def_long_new:Npn \tlp_set:Nx #1#2{
+  \chk_exist_cs:N #1  \def_long:Npx #1{#2}  \chk_local:N #1
+}
+%    \end{macrocode}
+%  The the global versions.
+%    \begin{macrocode}
+\def_long_new:Npn \tlp_gset:Nn #1#2{
+  \chk_exist_cs:N #1  \gdef_long:Npn #1{#2}  \chk_global:N #1
+}
+\def_long_new:Npn \tlp_gset:Nx #1#2{
+  \chk_exist_cs:N #1  \gdef_long:Npx #1{#2}  \chk_global:N #1
+}
+%</check>
+%    \end{macrocode}
+%    For some functions like |\tlp_set:Nn| we need to define the
+%    `non-check' version with  arguments since we want to allow
+%    constructions like |\tlp_set:Nn\l_tmpa_tlp\foo| and so we can't
+%    use the primitive \TeX{} command.
+%    \begin{macrocode}
+%<*!check>
+\def_long_new:Npn\tlp_set:Nn#1#2{\def_long:Npn#1{#2}}
+\def_long_new:Npn\tlp_set:Nx#1#2{\def_long:Npx#1{#2}}
+\def_long_new:Npn\tlp_gset:Nn#1#2{\gdef_long:Npn#1{#2}}
+\def_long_new:Npn\tlp_gset:Nx#1#2{\gdef_long:Npx#1{#2}}
+%</!check>
+%    \end{macrocode}
+%  The remaining functions can just be defined with help from the
+%  expansion module.
+%    \begin{macrocode}
+\def_new:Npn \tlp_set:No {\exp_args:NNo \tlp_set:Nn}
+\def_new:Npn \tlp_set:Nf {\exp_args:NNf \tlp_set:Nn}
+\def_new:Npn \tlp_set:cn {\exp_args:Nc  \tlp_set:Nn}
+\def_new:Npn \tlp_set:co {\exp_args:Nco \tlp_set:Nn}
+\def_new:Npn \tlp_set:cx {\exp_args:Nc  \tlp_set:Nx}
+\def_new:Npn \tlp_gset:No {\exp_args:NNo \tlp_gset:Nn}
+\def_new:Npn \tlp_gset:cn {\exp_args:Nc \tlp_gset:Nn}
+\def_new:Npn \tlp_gset:cx {\exp_args:Nc \tlp_gset:Nx}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\tlp_set_eq:NN}
+% \begin{macro}{\tlp_set_eq:Nc}
+% \begin{macro}{\tlp_set_eq:cN}
+% \begin{macro}{\tlp_set_eq:cc}
+% \begin{macro}{\tlp_gset_eq:NN}
+% \begin{macro}{\tlp_gset_eq:Nc}
+% \begin{macro}{\tlp_gset_eq:cN}
+% \begin{macro}{\tlp_gset_eq:cc}
+%  For setting token list pointers equal to each other. First checking:
+%    \begin{macrocode}
+%<*check>
+\def_new:Npn \tlp_set_eq:NN #1#2{
+  \chk_exist_cs:N #1  \let:NN #1#2
+  \chk_local_or_pref_global:N #1  \chk_var_or_const:N #2
+}
+\def_new:Npn \tlp_gset_eq:NN #1#2{
+  \chk_exist_cs:N #1  \glet:NN #1#2
+  \chk_global:N #1  \chk_var_or_const:N #2
+}
+%</check>
+%    \end{macrocode}
+%  Non-checking versions are easy.
+%    \begin{macrocode}
+%<*!check>
+\let_new:NN \tlp_set_eq:NN \let:NN
+\let_new:NN \tlp_gset_eq:NN \glet:NN
+%</!check>
+%    \end{macrocode}
+%  The rest again with the expansion module.
+%    \begin{macrocode}
+\def_new:Npn \tlp_set_eq:Nc {\exp_args:NNc \tlp_set_eq:NN}
+\def_new:Npn \tlp_set_eq:cN {\exp_args:Nc  \tlp_set_eq:NN}
+\def_new:Npn \tlp_set_eq:cc {\exp_args:Ncc \tlp_set_eq:NN}
+\def_new:Npn \tlp_gset_eq:Nc {\exp_args:NNc \tlp_gset_eq:NN}
+\def_new:Npn \tlp_gset_eq:cN {\exp_args:Nc  \tlp_gset_eq:NN}
+\def_new:Npn \tlp_gset_eq:cc {\exp_args:Ncc \tlp_gset_eq:NN}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%
+%
+% \begin{macro}{\tlp_clear:N}
+% \begin{macro}{\tlp_clear:c}
+% \begin{macro}{\tlp_gclear:N}
+% \begin{macro}{\tlp_gclear:c}
+%    Clearing a token list pointer.
+%    \begin{macrocode}
+\def_new:Npn \tlp_clear:N #1{\tlp_set_eq:NN #1\c_empty_tlp}
 \def_new:Npn \tlp_clear:c {\exp_args:Nc \tlp_clear:N}
+\def_new:Npn \tlp_gclear:N #1{\tlp_gset_eq:NN #1\c_empty_tlp}
 \def_new:Npn \tlp_gclear:c {\exp_args:Nc \tlp_gclear:N}
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -359,12 +504,13 @@
 %    \begin{macrocode}
 %<*check>
 \def_new:Npn \tlp_clear_new:N #1{
-     \chk_var_or_const:N #1
-     \if:w \cs_exist_p:N #1
-       \tlp_clear:N #1
-     \else:
-       \tlp_new:Nn #1{}
-     \fi:}
+  \chk_var_or_const:N #1
+  \if:w \cs_exist_p:N #1
+    \tlp_clear:N #1
+  \else:
+    \tlp_new:Nn #1{}
+  \fi:
+}
 %</check>
 %<-check>\let_new:NN \tlp_clear_new:N \tlp_clear:N
 \def_new:Npn \tlp_clear_new:c {\exp_args:Nc \tlp_clear_new:N}
@@ -395,7 +541,7 @@
 % \begin{macro}{\tlp_put_left:No}
 % \begin{macro}{\tlp_gput_left:Nn}
 % \begin{macro}{\tlp_gput_left:No}
-% \begin{macro}{\tlp_put_left:aux}
+% \begin{macro}{\tlp_put_left_aux:w}
 %    We can add tokens to the left (either globally or locally).
 %    \begin{macrocode}
 \def_long_new:Npn \tlp_put_left:Nn #1{\exp_after:NN
@@ -403,22 +549,23 @@
 %    We need expanding over a brace to ensure that if |#1| contains
 %    just one token within braces the braces are preserved.
 %    \begin{macrocode}
-  \tlp_put_left:aux\exp_after:NN{#1}#1}
+  \tlp_put_left_aux:w \exp_after:NN{#1}#1}
 \def_new:Npn\tlp_put_left:No{\exp_args:NNo\tlp_put_left:Nn}
 \def_new:Npn \tlp_gput_left:Nn {
 %<*check>
    \pref_global_chk:
 %</check>
 %<-check> \pref_global:D
-   \tlp_put_left:Nn}
+   \tlp_put_left:Nn
+}
 \def_new:Npn\tlp_gput_left:No{\exp_args:NNo\tlp_gput_left:Nn}
-\def_long_new:Npn \tlp_put_left:aux #1#2#3{\def:Npn #2{#3#1}
+\def_long_new:Npn \tlp_put_left_aux:w #1#2#3{\tlp_set:Nn #2{#3#1}
 %    \end{macrocode}
 %    We check the type afterwards to avoid conflicts with the use of
 %    |\pref_global:D|.
 %    \begin{macrocode}
 %<*check>
-        \chk_local_or_pref_global:N #2
+  \chk_local_or_pref_global:N #2
 %</check>
 }
 %    \end{macrocode}
@@ -461,133 +608,6 @@
 % \end{macro}
 %
 %
-% \begin{macro}{\tlp_set:Nn}
-% \begin{macro}{\tlp_set:No}
-% \begin{macro}{\tlp_set:Nf}
-% \begin{macro}{\tlp_set:Nx}
-% \begin{macro}{\tlp_set:cn}
-% \begin{macro}{\tlp_set:co}
-% \begin{macro}{\tlp_set:cx}
-% \begin{macro}{\tlp_gset:Nn}
-% \begin{macro}{\tlp_gset:No}
-% \begin{macro}{\tlp_gset:Nx}
-% \begin{macro}{\tlp_gset:cn}
-% \begin{macro}{\tlp_gset:cx}
-% \begin{macro}{\tlp_set_eq:NN}
-% \begin{macro}{\tlp_gset_eq:NN}
-% \begin{macro}{\tlp_gset_eq:Nc}
-% \begin{macro}{\tlp_gset_eq:cN}
-% \begin{macro}{\tlp_gset_eq:cc}
-%    To set token lists to a specific value to type of functions are
-%    available: |\tlp_set_eq:NN| takes two token-lists as its
-%    arguments assign the first the contents of the second;
-%    |\tlp_set:Nn| has as its second argument a `real' list of tokens.
-%    One can view |\tlp_set_eq:NN| as a special form of |\tlp_set:No|
-%    (which is not implemented). Both functions have global
-%    counterparts.
-%
-%    During development we check if the token list that is being
-%    assigned to exists. If not, a warning will be issued.
-%    \begin{macrocode}
-%<*check>
-\def_long_new:Npn \tlp_set:Nn #1#2{
-       \chk_exist_cs:N #1
-       \def_long:Npn #1{#2}
-%    \end{macrocode}
-%    We use |\chk_local_or_pref_global:N| after the assignment to
-%    allow constructs with |\pref_global_chk:|. But one should note
-%    that this is less efficient then using the real global variant
-%    since they are builtin.
-%    \begin{macrocode}
-        \chk_local_or_pref_global:N #1}
-\def_new:Npn \tlp_set:No {\exp_args:NNo \tlp_set:Nn}
-\def_new:Npn \tlp_set:Nf {\exp_args:NNf \tlp_set:Nn}
-\def_long_new:Npn \tlp_set:Nx #1#2{
-        \chk_exist_cs:N #1
-        \def_long:Npx #1{#2}\chk_local:N #1}
-\def_new:Npn \tlp_set:cn{\exp_args:Nc\tlp_set:Nn}
-\def_new:Npn \tlp_set:co{\exp_args:Nco\tlp_set:Nn}
-\def_new:Npn \tlp_set:cx{\exp_args:Ncx\tlp_set:Nn}
-\def_long_new:Npn \tlp_gset:Nn #1#2{
-        \chk_exist_cs:N #1
-        \gdef_long:Npn #1{#2}\chk_global:N #1}
-\def_new:Npn \tlp_gset:No {
-        \exp_args:NNo \tlp_gset:Nn}
-\def_long_new:Npn \tlp_gset:Nx #1#2{
-        \chk_exist_cs:N #1
-        \gdef_long:Npx #1{#2}\chk_global:N #1}
-\def_long_new:Npn \tlp_gset:cn#1#2{
-        \chk_exist_cs:c {#1}
-        \gdef_long:cpn{#1}{#2}\chk_global:c {#1}}
-\def_long_new:Npn \tlp_gset:cx#1#2{
-        \chk_exist_cs:c {#1}
-        \gdef_long:cpx{#1}{#2}\chk_global:c {#1}}
-\def_new:Npn \tlp_set_eq:NN #1#2{
-        \chk_exist_cs:N #1
-        \let:NwN #1#2
-        \chk_local_or_pref_global:N #1\chk_var_or_const:N #2}
-\def_new:Npn \tlp_gset_eq:NN #1#2{
-        \chk_exist_cs:N #1
-        \glet:NN #1#2
-        \chk_global:N #1\chk_var_or_const:N #2}
-\def_new:Npn \tlp_gset_eq:Nc #1#2{
-        \chk_exist_cs:N #1
-        \glet:Nc #1{#2}
-        \chk_global:N #1\chk_var_or_const:c {#2}}
-\def_new:Npn \tlp_gset_eq:cN #1#2{
-        \chk_exist_cs:c {#1}
-        \glet:cN {#1}#2
-        \chk_global:c {#1}\chk_var_or_const:N #2}
-\def_new:Npn \tlp_gset_eq:cc #1#2{
-        \chk_exist_cs:c {#1}
-        \glet:cc {#1}{#2}
-        \chk_global:c {#1}\chk_var_or_const:c {#2}}
-%</check>
-%    \end{macrocode}
-%    For some functions like |\tlp_set:Nn| we need to define the
-%    `non-check' version with  arguments since we want to allow
-%    constructions like |\tlp_set:Nn\l_tmpa_tlp\foo| and so we can't
-%    use the primitive \TeX{} command.
-%    \begin{macrocode}
-%<-check> \def_long_new:Npn\tlp_set:Nn#1#2{\def_long:Npn#1{#2}}
-%<-check> \def_new:Npn \tlp_set:Nf {\exp_args:NNf \tlp_set:Nn}
-%<-check> \def_long_new:Npn\tlp_set:Nx#1#2{\def_long:Npx#1{#2}}
-%<-check> \def_long_new:Npn\tlp_gset:Nn#1#2{\gdef_long:Npn#1{#2}}
-%<-check> \def_long_new:Npn\tlp_gset:Nx#1#2{\gdef_long:Npx#1{#2}}
-%<-check> \def_long_new:Npn\tlp_gset:cn#1#2{\gdef_long:cpn{#1}{#2}}
-%<-check> \def_long_new:Npn\tlp_gset:cx#1#2{\gdef_long:cpx{#1}{#2}}
-%<-check> \def_new:Npn \tlp_set:cn{\exp_args:Nc\tlp_set:Nn}
-%<-check> \def_new:Npn \tlp_set:co{\exp_args:Nco\tlp_set:Nn}
-%<-check> \def_new:Npn \tlp_set:cx{\exp_args:Ncx\tlp_set:Nn}
-%<-check> \def_new:Npn \tlp_set:No {\exp_args:NNo \tlp_set:Nn}
-%<-check> \def_new:Npn \tlp_gset:No {\exp_args:NNo \tlp_gset:Nn}
-%<-check> \let_new:NN\tlp_set_eq:NN \let:NN
-%<-check> \let_new:NN\tlp_set_eq:Nc \let:Nc
-%<-check> \let_new:NN\tlp_set_eq:cN \let:cN
-%<-check> \let_new:NN\tlp_set_eq:cc \let:cc
-%<-check> \let_new:NN\tlp_gset_eq:NN \glet:NN
-%<-check> \let_new:NN\tlp_gset_eq:Nc \glet:Nc
-%<-check> \let_new:NN\tlp_gset_eq:cN \glet:cN
-%<-check> \let_new:NN\tlp_gset_eq:cc \glet:cc
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
 %
 % \begin{macro}{\tlp_gset:Nc}
 % \begin{macro}{\tlp_set:Nc}
@@ -601,10 +621,10 @@
 %    \begin{macrocode}
 \def_new:Npn \tlp_gset:Nc {
 %<*check>
-   \pref_global_chk:
+  \pref_global_chk:
 %</check>
 %<-check> \pref_global:D
-   \tlp_set:Nc}
+  \tlp_set:Nc}
 %    \end{macrocode}
 %    |\pref_global_chk:| will turn the variable check in |\tlp_set:No|
 %    into a  global check.
@@ -673,19 +693,19 @@
 % \begin{macro}{\tlp_if_eq:NNT}
 %    \begin{macrocode}
 \def_new:Npn \tlp_if_eq:NNTF #1#2{
- \if_meaning:NN #1 #2
+  \if_meaning:NN #1 #2
     \exp_after:NN \use_arg_i:nn
- \else:
+  \else:
     \exp_after:NN\use_arg_ii:nn
- \fi:
+  \fi:
 }
 \def_new:Npn \tlp_if_eq:cNTF {\exp_args:Nc\tlp_if_eq:NNTF}
 \def_new:Npn \tlp_if_eq:NNT #1#2{
- \if_meaning:NN #1 #2
+  \if_meaning:NN #1 #2
     \exp_after:NN \use_arg_i:n
- \else:
+  \else:
     \exp_after:NN \use_none:n
- \fi:
+  \fi:
 }
 %    \end{macrocode}
 % \end{macro}
@@ -701,7 +721,6 @@
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
-
 % \begin{macro}{\g_tmpa_tlp}
 % \begin{macro}{\g_tmpb_tlp}
 %    Global temporary token list pointers.
@@ -716,7 +735,6 @@
 % \end{macro}
 % \end{macro}
 %
-
 % \begin{macro}{\l_testa_tlp}
 % \begin{macro}{\l_testb_tlp}
 % \begin{macro}{\g_testa_tlp}
@@ -735,7 +753,6 @@
 % \end{macro}
 % \end{macro}
 %
-
 % \begin{macro}{\l_tmpa_tlp}
 % \begin{macro}{\l_tmpb_tlp}
 %    These are local temporary token list pointers.
@@ -746,16 +763,15 @@
 % \end{macro}
 % \end{macro}
 %
-%
 % \begin{macro}{\tlp_to_str:N}
 % \begin{macro}{\tlp_to_str:c}
-% \begin{macro}{\tlp_to_str:aux}
+% \begin{macro}{\tlp_to_str_aux:w}
 %    These functions return the replacement text of a token list as a
 %    string list with all characters catcoded to `other'.
 %    \begin{macrocode}
-\def_new:Npn \tlp_to_str:N {\exp_after:NN\tlp_to_str:aux
+\def_new:Npn \tlp_to_str:N {\exp_after:NN\tlp_to_str_aux:w
     \token_to_meaning:N}
-\def_new:Npn \tlp_to_str:aux #1>{}
+\def_new:Npn \tlp_to_str_aux:w #1>{}
 \def_new:Npn\tlp_to_str:c{\exp_args:Nc\tlp_to_str:N}
 %    \end{macrocode}
 % \end{macro}
@@ -774,6 +790,9 @@
 % \endinput
 %
 % $Log$
+% Revision 1.16  2005/04/12 12:10:28  morten
+% Rearranged and cleaned up code to avoid much doubling.
+%
 % Revision 1.15  2005/04/06 21:34:07  morten
 % Fixed all tlp_set:XX so that they're \long. Added \tlp_set:Nf
 %
