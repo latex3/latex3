@@ -57,7 +57,6 @@
 % \iffalse
 %<*driver>
 \documentclass{l3doc}
-
 \begin{document}
 \DocInput{l3clist.dtx}
 \end{document}
@@ -207,6 +206,7 @@
 %
 %
 % \begin{function}{%
+%                  \clist_concat:NNN |
 %                  \clist_gconcat:NNN |
 %                  \clist_gconcat:NNc |
 %                  \clist_gconcat:ccc |
@@ -214,10 +214,20 @@
 % \begin{syntax}
 %   "\clist_gconcat:NNN" <clist1> <clist2> <clist3>
 % \end{syntax}
-% Function that conatenates <clist2> and <clist3> and globally assigns the
+% Function that concatenates <clist2> and <clist3> and globally assigns the
 % result to <clist1>.
 % \end{function}
 %
+%
+% \begin{function}{%
+%                  \clist_remove_duplicates:N |
+%                  \clist_gremove_duplicates:N |
+% }
+% \begin{syntax}
+%   "\clist_gremove_duplicates:N" <clist>
+% \end{syntax}
+% Function that removes any duplicate entries in <clist>.
+% \end{function}
 %
 % \begin{function}{%
 %                  \clist_use:N |
@@ -375,9 +385,10 @@
 % \begin{function}{%
 %                  \clist_get_aux:w |
 %                  \clist_pop_aux:w |
-%                  \clist_put_aux:Nnn |
-%                  \clist_put_aux:w |
+%                  \clist_pop_auxi:w |
+%                  \clist_put_aux:NNnnNn |
 % }
+%  \begin{syntax}\end{syntax}
 % Functions used to implement put and get operations. They  are not for
 % meant for direct use.
 % \end{function}
@@ -393,6 +404,20 @@
 %  \begin{syntax}\end{syntax}
 %  Internal helper functions for the <clist> mapping functions.
 %  \end{function}
+%
+%
+%  \begin{function}{%
+%                   \clist_concat_aux:NNNN |
+%                   \clist_remove_duplicates_aux:NN |
+%                   \clist_remove_duplicates_aux:n |
+%                   \l_clist_remove_duplicates_clist |
+%  }
+%  \begin{syntax}\end{syntax}
+%  Functions that help concatenate <clist>s and remove duplicate
+%  elements from a <clist>.
+%  \end{function}
+%
+%
 %
 % \section{Comma list Stacks}
 %
@@ -452,10 +477,8 @@
 %    \begin{macrocode}
 %<*package>
 \NeedsTeXFormat{LaTeX2e}
-%<!check>\RequirePackage{l3toks}
-%<!check>\RequirePackage{l3quark}
+%<!check>\RequirePackage{l3prg}
 %<check>\RequirePackage{l3chk}
-%\RequirePackage{l3expan}
 %</package>
 %<*initex|package>
 %    \end{macrocode}
@@ -492,7 +515,7 @@
 %
 %
 % \begin{macro}{\clist_set_eq:NN}
-%    We can set one clist equal to another.
+%    We can set one \meta{clist} equal to another.
 %    \begin{macrocode}
 \let_new:NN \clist_set_eq:NN \let:NN
 %    \end{macrocode}
@@ -539,7 +562,7 @@
 \def_new:Npn \clist_if_empty:cTF {\exp_args:Nc\clist_if_empty:NTF}
 %    \end{macrocode}
 %    A variant of this, is only to do something if the comma-list is
-%    {\em not} empty.
+%    \emph{not} empty.
 %    \begin{macrocode}
 \def_new:Npn \clist_if_empty:NF #1{
   \if_meaning:NN#1\c_empty_tlp \exp_after:NN\use_none:n
@@ -564,6 +587,8 @@
 % \end{macro}
 %
 %  \begin{macro}{\clist_if_eq:NNTF}
+%  As comma lists are token list pointers internally this is just an
+%  alias.
 %    \begin{macrocode}
 \let_new:NN \clist_if_eq:NNTF \tlp_if_eq:NNTF
 %    \end{macrocode}
@@ -572,7 +597,7 @@
 % \begin{macro}{\clist_get:NN}
 % \begin{macro}{\clist_get:cN}
 %    |\clist_get:NN |\zz{comma-list}\zz{cmd} defines \zz{cmd} to be the
-%    left_most element of \zz{comma-list}.
+%    left-most element of \zz{comma-list}.
 %    \begin{macrocode}
 \def_new:Npn \clist_get:NN #1{
   \clist_if_empty_err:N #1
@@ -591,7 +616,7 @@
 % \begin{macro}{\clist_pop_aux:w}
 % \begin{macro}{\clist_pop_auxi:w}
 %    |\clist_pop_aux:nnNN| \zz{def$\sb1$} \zz{def$\sb2$} \zz{comma-list}
-%    \zz{cmd} assigns the left_most element of \zz{comma-list} to
+%    \zz{cmd} assigns the left-most element of \zz{comma-list} to
 %    \zz{cmd} using \zz{def$\sb2$}, and assigns the tail of
 %    \zz{comma-list} to \zz{comma-list} using \zz{def$\sb1$}.
 %    \begin{macrocode}
@@ -617,76 +642,70 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\clist_put_aux:Nnn}
-%    |\clist_put_aux:Nnn| \zz{comma-list} \zv{left} \zv{right} adds the
-%    elements specified by \zv{left} to the left of \zz{comma-list}, and
-%    those specified by \zv{right} to the right.
+% \begin{macro}{\clist_put_aux:NNnnNn}
+%    The generic put function.
 %    \begin{macrocode}
-%<package>\iffalse
-%<initex>\if_false:
-\def_new:Npn \clist_put_aux:Nnn #1{
-  \exp_after:NN\clist_put_aux:w #1\q_stop #1}
-\def_new:Npn \clist_put_aux:w #1\q_stop #2#3#4{\tlp_set:Nn #2{#3#1#4}}
+\def_new:Npn \clist_put_aux:NNnnNn #1#2#3#4#5#6{
+%    \end{macrocode}
+%    When adding we have to distinguish between an empty \meta{clist}
+%    and one that contains at least one item (otherwise we accumulate
+%    commas).
+%    \begin{macrocode}
+  \clist_if_empty:NTF#5 {#1 #5{#6}}
+%    \end{macrocode}
+%    MH says: Perhaps we should make sure that empty arguments don't
+%    get on the stack as that is probably a mistake. That's what I've
+%    implemented here. Okay so it means we can't use prefixes but
+%    that's life.
+%    \begin{macrocode}
+  { \tlist_if_empty:nF {#6}{ #2 #5{#3#6#4} } }
+}
 %    \end{macrocode}
 % \end{macro}
-%
 % \begin{macro}{\clist_put_left:Nn}
 % \begin{macro}{\clist_put_left:No}
 % \begin{macro}{\clist_put_left:Nx}
 % \begin{macro}{\clist_put_left:cn}
-%    Here are the usual operations for adding to the left and right.
+%    The operations for adding to the left.
 %    \begin{macrocode}
-\def_new:Npn \clist_put_left:Nn #1#2{
-%    \end{macrocode}
-%    We can't put in a |\use_noop:| instead of |{}| since this argument is
-%    passed literally (and we would end up with many |\use_noop:|s inside
-%    the comma-lists.
-%    \begin{macrocode}
-        \clist_put_aux:Nnn #1{\clist_elt:w #2\clist_elt_end:}{}}
-\def_new:Npn \clist_put_left:cn {\exp_args:Nc\clist_put_left:Nn}
+\def_new:Npn \clist_put_left:Nn {
+  \clist_put_aux:NNnnNn \tlp_set:Nn \tlp_put_left:Nn {} ,
+}
+\def_new:Npn \clist_put_left:cn {\exp_args:Nc \clist_put_left:Nn}
 \def_new:Npn \clist_put_left:No {\exp_args:NNo\clist_put_left:Nn}
 \def_new:Npn \clist_put_left:Nx {\exp_args:Nnx\clist_put_left:Nn}
-%<package>\fi
-%<initex>\fi:
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
-
-
+% \begin{macro}{\clist_gput_left:Nn}
+% Global versions.
+%    \begin{macrocode}
+\def_new:Npn \clist_gput_left:Nn {
+  \clist_put_aux:NNnnNn \tlp_gset:Nn \tlp_gput_left:Nn {} ,
+}
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\clist_put_right:Nn}
+% \begin{macro}{\clist_put_right:cn}
 % \begin{macro}{\clist_put_right:No}
 % \begin{macro}{\clist_put_right:Nx}
-%    When adding we have to distinguish between an empty clist and one
-%    that contains at least one item (otherwise we accumulate commas).
+%  Adding something to the right side is almost the same.
 %    \begin{macrocode}
-\def_new:Npn \clist_put_right:Nn #1#2{
-  \clist_if_empty:NTF#1
-  {\tlp_set:Nn#1{#2}}
-  {\tlp_put_right:Nn#1{,#2}}}
+\def_new:Npn \clist_put_right:Nn {
+  \clist_put_aux:NNnnNn \tlp_set:Nn \tlp_put_right:Nn , {}
+}
+\def_new:Npn \clist_put_right:cn {\exp_args:Nc \clist_put_right:Nn}
 \def_new:Npn \clist_put_right:No {\exp_args:Nno\clist_put_right:Nn}
 \def_new:Npn \clist_put_right:Nx {\exp_args:Nnx\clist_put_right:Nn}
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 % \end{macro}
-%
-% \begin{macro}{\clist_gput_left:Nn}
-%    \begin{macrocode}
-%<package>\iffalse
-%<initex>\if_false:
-\def_new:Npn \clist_gput_left:Nn {
-%<*check>
-   \pref_global_chk:
-%</check>
-%<_check> \pref_global:D
-   \clist_put_left:Nn}
-%<package>\fi
-%<initex>\fi:
-%    \end{macrocode}
 % \end{macro}
-
+%
 % \begin{macro}{\clist_gput_right:Nn}
 % \begin{macro}{\clist_gput_right:No}
 % \begin{macro}{\clist_gput_right:cn}
@@ -696,11 +715,8 @@
 %    An here the global variants.
 %    \begin{macrocode}
 \def_new:Npn \clist_gput_right:Nn {
-%<*check>
-   \pref_global_chk:
-%</check>
-%<_check> \pref_global:D
-   \clist_put_right:Nn}
+  \clist_put_aux:NNnnNn \tlp_set:Nn \tlp_put_right:Nn , {}
+}
 \def_new:Npn \clist_gput_right:No {\exp_args:NNo \clist_gput_right:Nn}
 \def_new:Npn \clist_gput_right:cn {\exp_args:Nc  \clist_gput_right:Nn}
 \def_new:Npn \clist_gput_right:co {\exp_args:Nco \clist_gput_right:Nn}
@@ -841,19 +857,19 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\clist_concat_aux:NNNN}
+% \begin{macro}{\clist_concat:NNN}
 % \begin{macro}{\clist_gconcat:NNN}
 % \begin{macro}{\clist_gconcat:NNc}
 % \begin{macro}{\clist_gconcat:ccc}
 %    |\clist_gconcat:NNN| \m{clist~1} \m{clist~2} \m{clist~3} will globally
 %    assign \m{clist~1} the concatenation of \m{clist~2} and
 %    \m{clist~3}.
-%
-%    This function needs to be reprogrammed using the proper methods (JB/MH)
 %    \begin{macrocode}
-\def_new:Npn \clist_gconcat:NNN #1#2#3{
-  \toks_set:Nn \l_tmpa_toks {#2}
-  \toks_set:Nn \l_tmpb_toks {#3}
-  \tlp_set:Nx #1 {
+\def_new:Npn \clist_concat_aux:NNNN #1#2#3#4{
+  \toks_set:No \l_tmpa_toks {#3}
+  \toks_set:No \l_tmpb_toks {#4}
+  #1 #2 {
     \toks_use:N \l_tmpa_toks
 %    \end{macrocode}
 %    Again the situation is a bit more complicated because of the use
@@ -861,9 +877,11 @@
 %    adding a comma.
 %    \begin{macrocode}
     \toks_if_empty:NF \l_tmpa_toks {\toks_if_empty:NF \l_tmpb_toks ,}
-    \toks_use:N \l_tmpa_toks
+    \toks_use:N \l_tmpb_toks
   }
 }
+\def_new:Npn \clist_concat:NNN {\clist_concat_aux:NNNN \tlp_set:Nx}
+\def_new:Npn \clist_gconcat:NNN {\clist_concat_aux:NNNN \tlp_gset:Nx}
 %    \end{macrocode}
 %  And the usual versions.
 %    \begin{macrocode}
@@ -873,6 +891,49 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%
+%  \begin{macro}{\clist_remove_duplicates_aux:NN}
+%  \begin{macro}{\clist_remove_duplicates_aux:n}
+%  \begin{macro}{\clist_remove_duplicates:N}
+%  \begin{macro}{\clist_gremove_duplicates:N}
+%  Removing duplicate entries in a \meta{clist} is fairly straight
+%  forward. We use a temporary variable and then go through the list
+%  from left to right. For each element check if the element is
+%  already present in the list.
+%    \begin{macrocode}
+\def:Npn \clist_remove_duplicates_aux:NN #1#2 {
+  \clist_clear:N \l_clist_remove_duplicates_clist
+  \clist_map_function:NN #2 \clist_remove_duplicates_aux:n
+  #1 #2 \l_clist_remove_duplicates_clist
+}
+\def:Npn \clist_remove_duplicates_aux:n #1 {
+  \clist_if_in:NnTF \l_clist_remove_duplicates_clist {#1} {}
+  {\clist_put_right:Nn \l_clist_remove_duplicates_clist {#1}}
+}
+%    \end{macrocode}
+%  The high level functions are just for telling if it should be a
+%  local or global setting.
+%    \begin{macrocode}
+\def_new:Npn \clist_remove_duplicates:N {
+  \clist_remove_duplicates_aux:NN \clist_set_eq:NN
+}
+\def_new:Npn \clist_gremove_duplicates:N {
+  \clist_remove_duplicates_aux:NN \clist_gset_eq:NN
+}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%
+%  \begin{macro}{\l_clist_remove_duplicates_clist}
+%    \begin{macrocode}
+\clist_new:N \l_clist_remove_duplicates_clist
+%    \end{macrocode}
+%  \end{macro}
 %
 % \begin{macro}{\clist_use:N}
 % \begin{macro}{\clist_use:c}
@@ -1004,6 +1065,10 @@
 % \endinput
 %
 %  $Log$
+%  Revision 1.11  2005/04/12 16:45:22  morten
+%  Enabled put operations. Added function that removes duplicate entries (mostly for
+%   use after concatenating to clists)
+%
 %  Revision 1.10  2005/04/12 13:22:13  morten
 %  Mostly cosmetic changes. \clist_gconcat:NNN reprogrammed using "proper" methods, \clist_put_right:Nn likewise.
 %
