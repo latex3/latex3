@@ -167,7 +167,8 @@
 % Get the date from ltvers.dtx
 \let\patchdate=\@empty
 \begingroup
-   \def\ProvidesFile#1\fmtversion#2{\date{#2}\endinput}
+   %%\def\ProvidesFile#1\fmtversion#2{\date{#2}\endinput}
+   \def\ProvidesFile#1[#2 #3]{\date{#2}\endinput}
    \input{l3vers.dtx}
 \global\let\X@date=\@date
 
