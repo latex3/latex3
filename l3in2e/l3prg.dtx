@@ -333,14 +333,36 @@
 %
 %  \begin{variable}{%
 %                   \c_space_char_token |
-%                   \c_left_brace_token |
-%                   \c_right_brace_token |
+%                   \c_backslash_char_token |
+%                   \c_group_begin_token |
+%                   \c_group_end_token |
 %  }
 %  \begin{syntax}
 %  \end{syntax}
-%  Some useful constants. The brace tokens have category codes~1 and~2
+%  Some useful constants. The group tokens have category codes~1 and~2
 %  respectively.
 %  \end{variable}
+%
+%  \begin{function}{%
+%                   \token_if_catcode_eq:NNTF |
+%  }
+%  \begin{syntax}
+%   "\token_if_catcode_eq:NNTF" <token1> <token2>"{"<true>"}""{"<false>"}"
+%  \end{syntax}
+%  Check if the category codes of two tokens are equal. If both tokens
+%  are control sequences the test will be true.
+%  \end{function}
+%
+%  \begin{function}{%
+%                   \token_if_macro:NTF |
+%  }
+%  \begin{syntax}
+%     "\token_if_macro:NTF" <token>"{"<true>"}""{"<false>"}"
+%  \end{syntax}
+%  A variation which determines if <token> is a macro or something
+%  else.
+%  \end{function}
+%
 %
 %  \begin{variable}{%
 %                   \l_peek_token |
@@ -365,7 +387,7 @@
 %  the input stream. "\peek_gafter:NN" does this globally to the token
 %  "\g_peek_token".
 %  \begin{texnote}
-%  This is the primitive \tn{afterassignment} turned into a function.
+%  This is the primitive \tn{futurelet} turned into a function.
 %  \end{texnote}
 %  \end{function}
 %
@@ -390,8 +412,8 @@
 %  in the input stream is equal to <token>. It uses <function> to make
 %  that decision. "\peek_remove_char_generic:NNTF" does the same thing
 %  but additionally removes <token> from the input stream if it is
-%  found. This does not work if <token> is either "\c_left_brace_token"
-%  or "\c_right_brace_token" which ought to be obvious to the
+%  found. This does not work if <token> is either "\c_group_begin_token"
+%  or "\c_group_end_token" which ought to be obvious to the
 %  programmer who should wish to do such a thing!
 %  \end{function}
 %
@@ -423,17 +445,6 @@
 %  space tokens they encounter.
 %  \end{function}
 %
-%
-%
-%  \begin{function}{%
-%                   \peek_macro_or_other:NTF |
-%  }
-%  \begin{syntax}
-%     "\peek_macro_or_other:NTF" <token>"{"<true>"}""{"<false>"}"
-%  \end{syntax}
-%  A variation which determines if <token> is a macro or something
-%  else.
-%  \end{function}
 %
 %
 %
@@ -585,7 +596,7 @@
 %    We start by ensuring that the required packages are loaded.
 %    \begin{macrocode}
 %<*initex|package>
-%<!initex>\RequirePackage{l3quark,l3toks}\par
+%<!initex>\RequirePackage{l3quark}\par
 %    \end{macrocode}
 %
 %
@@ -991,7 +1002,7 @@
 %  and now we check if is is a command or something else.
 %    \begin{macrocode}
 \def_new:Npn \tlist_if_eq_alt_aux:w #1 \q_nil {
-  \peek_macro_or_other:NTF \l_peek_token
+  \token_if_macro:NTF \l_peek_token
 %    \end{macrocode}
 %  If it was a command we force expansion before storing it in the
 %  token list pointer, otherwise we just store it unchanged.
@@ -1014,18 +1025,46 @@
 %    \end{macrocode}
 %  \end{macro}
 %  \begin{macro}{\c_space_char_token}
+%  \begin{macro}{\c_backslash_char_token}
 %  \begin{macro}{\c_group_begin_token}
 %  \begin{macro}{\c_group_end_token}
 %  We define these useful tokens. We have to do it by hand with the
 %  brace tokens for obvious reasons.
 %    \begin{macrocode}
 \token_new:Nn \c_space_char_token {~}
+\def_new:Npx \c_backslash_char_token {
+  \exp_after:NN \use_none:n \token_to_string:N\\
+}
 \let_new:NN \c_group_begin_token {
 \let_new:NN \c_group_end_token }
 %    \end{macrocode}
 %  \end{macro}
 %  \end{macro}
 %  \end{macro}
+%  \end{macro}
+%
+%  \begin{macro}{\token_if_catcode_eq:NNTF}
+%  Check if the tokens |#1| and |#2| have same category code.
+%    \begin{macrocode}
+\def_new:Npn \token_if_catcode_eq:NNTF #1#2 {
+  \tex_ifcat:D \exp_not:N #1 \exp_not:N #2
+    \exp_after:NN \use_arg_i:nn
+  \else:
+    \exp_after:NN \use_arg_ii:nn
+  \fi:
+}
+%    \end{macrocode}
+%  \end{macro}
+%  \begin{macro}{\token_if_macro:NTF}
+%  Check if the next token is a command or something other. We test
+%  against something we know is a command namely |\tex_ifcat:D| itself.
+%    \begin{macrocode}
+\def_new:Npn \token_if_macro:NTF {
+  \token_if_catcode_eq:NNTF \tex_ifcat:D
+}
+%    \end{macrocode}
+%  \end{macro}
+%
 %
 %  \begin{macro}{\l_peek_token}
 %  \begin{macro}{\g_peek_token}
@@ -1068,17 +1107,16 @@
 %
 %  The generic function will take four arguments: The token to search
 %  for, the function to run on it and the true/false cases.
-%
 %  The general algorithm is this:
 %  \begin{enumerate}
 %    \item
 %    Store the token to search for in |\l_peek_search_token|.
 %    \item
-%    Run the \meta{true} and \meta{false} cases through a token
-%    register before putting them into |\l_peek_true_tlp| and
-%    |\l_peek_false_tlp| respectively as this avoids doubling
-%    of hash marks where it's not needed. Also put in a special
-%    alignment safe group end.
+%    In order to avoid doubling of hash marks where it seems unnatural
+%    we put the \meta{true} and \meta{false} cases through an |x| type
+%    expansion but using |\exp_not:n| to avoid any expansion. This has
+%    the same effect as putting it through a \meta{toks} register but
+%    is faster. Also put in a special alignment safe group end.
 %    \item
 %    Put in an alignment safe group begin.
 %    \item
@@ -1107,10 +1145,8 @@
 %  Using |\let:NN| allows us to see a space token as well.
 %    \begin{macrocode}
   \let:NN \l_peek_search_token #1
-  \toks_set:Nn \l_tmpa_toks {\group_align_safe_end: #3}
-  \tlp_set:Nx \l_peek_true_tlp {\toks_use:N \l_tmpa_toks}
-  \toks_set:Nn \l_tmpa_toks {\group_align_safe_end: #4}
-  \tlp_set:Nx \l_peek_false_tlp {\toks_use:N \l_tmpa_toks}
+  \tlp_set:Nx \l_peek_true_tlp {\exp_not:n{\group_align_safe_end: #3}}
+  \tlp_set:Nx \l_peek_false_tlp {\exp_not:n{\group_align_safe_end: #4}}
   \group_align_safe_begin:
     \peek_after:NN #2
 }
@@ -1162,7 +1198,7 @@
 %  \begin{macro}{\peek_remove_char_generic:NNTF}
 %  Same as |\peek_char_generic:NNTF| only this also removes the
 %  searched token from the input stream if present. It can't be used
-%  for removing an implicit character.
+%  for removing an implicit begin or end group character.
 %    \begin{macrocode}
 \def_long_new:Npn \peek_remove_char_generic:NNTF #1#2#3{
   \peek_char_generic:NNTF #1#2 {\use_arg_i:nn{#3}}
@@ -1206,28 +1242,6 @@
 %  \end{macro}
 %  \end{macro}
 %
-%  \begin{macro}{\peek_if_catcode_eq:NNTF}
-%  Check if the tokens |#1| and |#2| have same category code.
-%    \begin{macrocode}
-\def_new:Npn \peek_if_catcode_eq:NNTF #1#2 {
-  \tex_ifcat:D \exp_not:N #1 \exp_not:N #2
-    \exp_after:NN \use_arg_i:nn
-  \else:
-    \exp_after:NN \use_arg_ii:nn
-  \fi:
-}
-%    \end{macrocode}
-%  \end{macro}
-%  \begin{macro}{\peek_macro_or_other:NTF}
-%  Check if the next token is a command or something other. We test
-%  against something we know is a command namely |\tex_ifcat:D| itself.
-%    \begin{macrocode}
-\def_new:Npn \peek_macro_or_other:NTF {
-  \peek_if_catcode_eq:NNTF \tex_ifcat:D
-}
-%    \end{macrocode}
-%  \end{macro}
-%
 %  Some evil \TeX{} hackers sometimes give other characters category
 %  codes 1 or 2 for which we need a more thorough test. The example
 %  below defines the function |\peek_char_catcode_tolerant:NTF| which
@@ -1246,7 +1260,7 @@
 %     \peek_char_generic:NNTF #1 \peek_catcode_tolerant_execute_branches:
 %  }
 %  \def_new:Npn \peek_catcode_tolerant_execute_branches: {
-%    \peek_macro_or_other:NTF \l_peek_token
+%    \token_if_macro:NTF \l_peek_token
 %    {
 %      \if_meaning:NN \l_peek_token \l_peek_search_token
 %        \exp_after:NN \l_peek_false_tlp
@@ -1255,7 +1269,7 @@
 %      \fi:
 %    }
 %    {
-%      \peek_if_catcode_eq:NNTF \l_peek_token \l_peek_search_token
+%      \token_if_catcode_eq:NNTF \l_peek_token \l_peek_search_token
 %        \l_peek_true_tlp \l_peek_false_tlp
 %    }
 %  }
@@ -1567,6 +1581,9 @@
 % \endinput
 %
 % $Log$
+% Revision 1.11  2005/04/25 15:01:59  morten
+% Fixed some names. Improved \peek_char_generic:NNTF to not use token registers.
+%
 % Revision 1.10  2005/04/23 14:36:12  morten
 % Changed \c_left|right_brace_token to \c_group_begin_token and
 % \c_group_end_token. Fixed definitions of \tlist_if_head_XXX functions.
