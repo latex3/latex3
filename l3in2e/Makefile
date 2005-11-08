@@ -246,7 +246,7 @@ release:
 
 styles:	distrib $(FORMAT)
 	cd $(TEXDIR) ; \
-	perl $(SCRIPTDIR)/echo_answer -n 50 y | tex \&$(LTESTDIR)/latex l3.ins ; rm l3.log
+	perl $(SCRIPTDIR)/echo_answer -n 50 y | etex -progname=latex -efmt=$(LTESTDIR)/latex l3.ins ; rm l3.log
 
 
 $(FORMAT):
