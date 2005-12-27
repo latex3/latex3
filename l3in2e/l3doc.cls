@@ -37,7 +37,7 @@
 %<*class>
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{l3doc}
-         [2005/03/10 v0.0e class for documenting experimental stuff]
+         [2005/12/25 v0.0f class for documenting experimental stuff]
 %
 \NeedsTeXFormat{LaTeX2e}
 %</class>
@@ -69,6 +69,9 @@
 %
 %    \begin{macrocode}
 \RequirePackage{doc}
+\renewcommand\MakePrivateLetters{\makeatletter
+  \catcode`\_=11\relax
+  \catcode`\:=11\relax}
 %    \end{macrocode}
 %
 % \section{Configuration}
@@ -150,9 +153,10 @@
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-\newcommand{\tn}[1]{{\tt\bslash #1}%
-   \index{ \actualchar\string\TeX{} and \string\LaTeX2.09 commands:\levelchar
-          #1\actualchar{\string\tt\string\bslash{}#1}}}
+\newcommand{\tn}[1]{{\ttfamily\bslash #1}%
+   \index{TeX and LaTeX2e commands\actualchar
+          \string\TeX{} and \string\LaTeXe{} commands:\levelchar
+          #1\actualchar{\string\ttfamily\string\bslash{}#1}}}
 
 % This command will be used to input the patch file
 % if that file exists.
@@ -196,33 +200,53 @@
   $\m@th\varepsilon$-\TeX}
 
 
+
+
 \def\vindex#1>#2\@nil{%
   \edef\temp{\foo#2<>\@nil}%
   \ifx\temp\space\else
   \expandafter\SpecialMainIndexB\expandafter{\temp}\fi}
 
-% Cant remember why I switched from \SpecialMainIndexB
-\gdef\SpecialMainIndexB#1{\index{\@gobble#1\space\actualchar{\string\verb+#1+}}}
-
 % remove <foo> from index (quick hack, could be better)
 \def\foo#1<#2>#3\@nil{%
  #1\ifx\foo#3\foo
    \else#2\expandafter\foo\fi#3\@nil}
-\def\foo#1<#2>#3\@nil{#1<#2>#3}
+%\def\foo#1<#2>#3\@nil{#1<#2>#3}
+\def\foo#1<#2>#3\@nil{#1}
+
+% Cant remember why I switched from \SpecialMainIndexB
+%%\gdef\SpecialMainIndexB#1{\index{\@gobble#1\space\actualchar{\string\verb+#1+}}}
+
+\gdef\SpecialMainIndexB#1{\index{\@gobble#1\actualchar\string\verb
+    \quotechar*\verbatimchar#1\verbatimchar\encapchar usage}}
+
+% A helper for later on.
+\def\q@nil{\q@nil}
+\long\def\tlist@if@blank@p@n #1{%
+  \expandafter\tlist@if@blank@p@aux@w\detokenize{#1}aa..\q@nil}
+\def\tlist@if@blank@p@aux@w #1#2a#3#4\q@nil{%
+  \ifx #3#400\else01\fi}
+
 
 \let\m\meta
 \newenvironment{texnote}%
-   {\endgraf\vspace{3mm}{\bf \TeX{}hackers~note:}\small}
+   {\endgraf\vspace{3mm}\textbf{\TeX{}hackers~note:}\small}
     {\vspace{3mm}}
 % stick the function names in a box.
 {\catcode`\|=\active\catcode`\<=\active
 
+
+ 
 % index fuction lists (could be better...)
-\gdef\funcindex#1 |{%
-  \def\yyy{#1}%
-  \ifx\yyy\empty\else
-    \expandafter\vindex\meaning\yyy\@nil
-    \expandafter\funcindex\fi}
+\gdef\funcindex#1|{%
+  \if\tlist@if@blank@p@n{#1}%
+    \expandafter\@firstoftwo
+  \else
+    \expandafter\@secondoftwo
+  \fi
+  {\@ifnextchar|{\@gobble}{}}% at the end, look for extra | and remove it
+  {\def\yyy{#1}\expandafter\vindex\meaning\yyy\@nil  \funcindex}%
+}
 
 \gdef\function{%
   \catcode`\<=\active\def<##1>{\meta{##1}}%
@@ -237,13 +261,13 @@
   \@function}
 \gdef\@function#1{%
   \ifx\@function#1\@function\else
-    \funcindex#1 | |%
+    \funcindex#1| |%
   \fi
-  \tt
+  \ttfamily
   \endgraf
   \noindent\hspace*{-2\parindent}%
   \tabular[b]%
-     {@{\vline\hskip\tabcolsep}l@{\hskip\tabcolsep\vline}}
+     {@{\vline\hskip\tabcolsep}l@{\hskip\tabcolsep\vline}}%
   \hline
   #1\crcr
   \hline
