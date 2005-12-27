@@ -3,7 +3,7 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   2005/03/12
+   2005/12/27
 
 
 OVERVIEW
@@ -64,7 +64,7 @@ THE GUILTY PERSONS
 
    Frank Mittelbach, Denys Duchier, Johannes Braams, Michael Downes,
    David Carlisle, Alan Jeffrey, Chris Rowley, Rainer Schoepf 
-   Javier BEzos, Morten Hoegholm, Thomas Lotze
+   Javier Bezos, Morten Hoegholm, Thomas Lotze
 
 
 DISCUSSION
@@ -125,6 +125,11 @@ l3chk
 Functions that check definitions.
 (Comparable to LaTeX2's \newcommand/\renewcommand.)
 
+l3alloc
+=======
+
+Generic functions for allocating registers.
+
 l3toks
 ======
 
@@ -134,8 +139,9 @@ l3tlp
 =====
 
 Token List Pointers. A basic LaTeX3 datatype for storing token lists.
-(These are essentially macros with no arguments.)
-(Package can be compiled with checking enabled.)
+(These are essentially macros with no arguments.) The module also
+provides functions for arbitrary token lists. (Package can be compiled
+with checking enabled.)
 
 l3expan
 =======
@@ -177,12 +183,12 @@ significance.  (Can be compiled with checking enabled)
 l3num
 =====
 
-Storing numers as token-lists in macros
+Storing numbers as token-lists in macros
 
 l3skip
 ======
 
-Dealing woth length registers
+Dealing with length registers
 
 l3precom
 =========
@@ -197,12 +203,22 @@ Low-level input and ouput.
 l3prg
 =====
 
-Experimental control structures
+Experimental control structures. This covers booleans and various
+other code.
 
 l3box
 =====
 
 Low level box handling code
+
+l3token
+=====
+
+Functions that investigate tokens and determine of which categories
+they are. For instance, is the token in question expandable or not? Is
+it a macro taking arguments?  Also functions for peeking ahead in the
+token stream.
+
 
 =====================================================================
 
