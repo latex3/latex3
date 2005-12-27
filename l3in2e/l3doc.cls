@@ -49,6 +49,7 @@
 %<*class>
 \DeclareOption{a5paper}{\@latexerr{Option not supported}%
    {}}
+\DeclareOption{full}{\AtBeginDocument{\input{l3full.cfg}}}
 %    \end{macrocode}
 %
 %    \begin{macrocode}
