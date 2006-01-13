@@ -95,21 +95,32 @@ scripts:	$(foreach file,$(SCRIPTS),$(SCRIPTDIR)/$(file))
 
 
 DTX = \
+	l3alloc.dtx \
 	l3basics.dtx \
+	l3box.dtx \
 	l3chk.dtx \
+	l3clist.dtx \
 	l3expan.dtx \
+	l3final.dtx \
 	l3int.dtx \
 	l3io.dtx \
 	l3names.dtx \
+	l3num.dtx \
 	l3precom.dtx \
+	l3prg.dtx \
 	l3prop.dtx \
 	l3quark.dtx \
 	l3seq.dtx \
+	l3skip.dtx \
 	l3tlp.dtx \
-	l3toks.dtx 
+	l3token.dtx \
+	l3toks.dtx \
+	l3vers.dtx
 
 
-INS = l3.ins
+INS = \
+	l3.ins \
+	l3format.ins
 
 TEST = \
 	test1.tex \
