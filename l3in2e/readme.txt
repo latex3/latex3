@@ -3,7 +3,7 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   2005/12/27
+   2006/01/13
 
 
 OVERVIEW
@@ -233,6 +233,45 @@ packages.
 
 =====================================================================
 
+Experimental LaTeX3 Format
+==========================
+
+l3vers.dtx
+==========
+
+This file contains the version information and other release related
+coding. 
+
+l3final.dtx
+===========
+
+This file is reserved for the last minute coding for producing a
+format (such as the dump instruction).
+
+source3.tex
+===========
+
+Run this file with pdfLaTeX in extended mode:
+pdflatex "*source3.tex" to produce the documentation.
+Doing this will produce three extra files (source3.ist, l3doc.cfg and
+l3full.cfg). The first of these is a style file for makeindex; the
+others or configuration files for the documentation class.
+If you want to full documentation including the code listings than
+rename l3full.cfg to l3doc.cfg and run LaTeX again.
+After that run makeindex to produce the index, like so:
+makeindex -s source3.ist source3
+and rerun LaTeX.
+
+l3format.ins
+============
+
+Process with plain TeX or LaTeX2e to generate the experimental
+format file lbase.ltx and its companion lbase.ini.
+The run pdfetex --ini "*lbase.ini" to produce the experimental
+format. 
+
+=====================================================================
+
 Test Files
 ==========
 
@@ -261,6 +300,6 @@ This tests the io and precomp modules.
 
 =====================================================================
 
---- Copyright 1998
+--- Copyright 1998 -- 2006
     The LaTeX3 Project.  All rights reserved ---
 
