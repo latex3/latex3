@@ -10,7 +10,7 @@ help:
 	@echo check:
 
 
-RELEASE_DATE = 2003/12/01
+RELEASE_DATE = 2005/12/01
 
 ifdef LTOPDIR
 
