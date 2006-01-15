@@ -116,7 +116,7 @@ DTX = \
 	l3token.dtx \
 	l3toks.dtx \
 	l3vers.dtx
-
+	l3xref.dtx
 
 INS = \
 	l3.ins \
