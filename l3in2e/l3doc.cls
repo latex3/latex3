@@ -1,8 +1,8 @@
 % \iffalse
-%% File: l3doc.dtx Copyright (C) 1990-2005 LaTeX3 project
+%% File: l3doc.dtx Copyright (C) 1990-2006 LaTeX3 project
 %%
 %% It may be distributed and/or modified under the conditions of the
-%% LaTeX Project Public License (LPPL), either version 1.3a of this
+%% LaTeX Project Public License (LPPL), either version 1.3b of this
 %% license or (at your option) any later version.  The latest version
 %% of this license is in the file
 %%
@@ -37,7 +37,7 @@
 %<*class>
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{l3doc}
-         [2005/12/25 v0.0f class for documenting experimental stuff]
+         [2006/01/15 v0.0g class for documenting experimental stuff]
 %
 \NeedsTeXFormat{LaTeX2e}
 %</class>
@@ -66,6 +66,14 @@
 %
 %    \begin{macrocode}
 \LoadClass{article}
+%    \end{macrocode}
+% We need eTeX. Otherwise stop processing now.
+%    \begin{macrocode}
+\@ifundefined{eTeXversion}{%
+  \ClassError{l3doc}{This document class requires eTeX extensions}%
+  {I'm going to stop now.}%
+  \endinput\stop
+}{}
 %    \end{macrocode}
 %
 %    \begin{macrocode}
@@ -158,7 +166,7 @@
    \index{TeX and LaTeX2e commands\actualchar
           \string\TeX{} and \string\LaTeXe{} commands:\levelchar
           #1\actualchar{\string\ttfamily\string\bslash{}#1}}}
-
+\DeclareRobustCommand\cs[1]{\texttt{\char`\\#1}}
 % This command will be used to input the patch file
 % if that file exists.
 \newcommand{\includeltpatch}{%
