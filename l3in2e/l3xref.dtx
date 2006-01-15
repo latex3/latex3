@@ -1,0 +1,359 @@
+% \iffalse
+%% File: l3xref.dtx Copyright (C) 2006 LaTeX3 project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3b of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the ``expl3 bundle'' (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/cgi-bin/cvsweb.cgi/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %%
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX Project Team.
+%%
+%% -----------------------------------------------------------------------
+%
+%<package>\RequirePackage{l3names}
+%<*dtx|testfile>
+%\fi
+\def\GetIdInfo$#1: #2.dtx,v #3 #4 #5 #6 #7$#8{%
+  \def\fileversion{#3}%
+  \def\filedate{#4}%
+%<dtx>  \ProvidesFile{#2.dtx}[#4 v#3 #8]%
+%<!dtx>  \ProvidesFile{\jobname.tex}[#4 v#3 #8]%
+}
+%\iffalse
+%</dtx|testfile>
+%\fi
+\GetIdInfo$Id$
+       {L3 Experimental cross referencing}
+%
+% \iffalse
+%<*driver>
+\documentclass{l3doc}
+
+\begin{document}
+\DocInput{l3xref.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{The \textsf{l3xref} package\thanks{This file
+%         has version number \fileversion, last
+%         revised \filedate.}\\
+% Cross references}
+% \author{\Team}
+% \date{\filedate}
+% \maketitle
+%
+%
+% \section{Cross references}
+%
+% \begin{function}{\xref_set_label:n}
+%   \begin{syntax}
+%     "\xref_set_label:n" "{"<name>"}"
+%   \end{syntax}
+%   Sets a label in the text. Note that this function does not do
+%   anything else than setting the correct labels. In particular, it
+%   does not try to fix any spacing around the write node; this is a
+%   task for the \textsf{galley2} module.
+% \end{function}
+%
+% \begin{function}{\xref_new:nn}
+%   \begin{syntax}
+%     "\xref_new:nn" "{"<type>"}" "{"<value>"}"
+%   \end{syntax}
+%   Defines a new cross reference type <type>. This defines the token
+%   list pointer |\l_xref_curr_|<type>|_tlp| with default value
+%   <value> which gets written fully expanded when |\xref_set_label:n|
+%   is called.
+% \end{function}
+%
+%
+% \begin{function}{\xref_deferred_new:nn}
+%   \begin{syntax}
+%     "\xref_deferred_new:nn" "{"<type>"}" "{"<value>"}"
+%   \end{syntax}
+%   Same as |\xref_new:n| except for this one, the value written
+%   happens when \TeX\ ships out the page. Page numbers use this one
+%   obviously.
+% \end{function}
+%
+% \begin{function}{\xref_getvalue:nn}
+%   \begin{syntax}
+%     "\xref_getvalue:nn" "{"<type>"}" "{"<name>"}"
+%   \end{syntax}
+%   Extracts the cross reference information of type <type> for the
+%   label <name>. This operation is expandable.
+% \end{function}
+%
+%
+% ^^A\StopEventually{}
+%
+% \section{Implementation}
+%
+%
+%    We start by ensuring that the required packages are loaded.
+%    \begin{macrocode}
+%<*package>
+\RequirePackage{l3quark}
+\RequirePackage{l3toks}
+\RequirePackage{l3io}
+\RequirePackage{l3prop}
+\RequirePackage{l3int}
+\RequirePackage{l3token}
+%</package>
+%<*initex|package>
+%    \end{macrocode}
+%
+%
+%
+% There are two kinds of information, namely information which is
+% \emph{immediate} like a section title and then there's \emph{deferred}
+% information like page numbers. Each reference type belong to one of
+% these categories, which we save internally as the property lists
+% |\g_xref_all_curr_immediate_fields_plist| and
+% |\g_xref_all_curr_deferred_fields_plist| and the reference type
+% \meta{xyz} exists as the key-info pair |\xref_|\meta{xyz}|_key|
+% |{\l_xref_curr_|\meta{xyz}|_tlp}| on one of these lists. This way each
+% new entry type is just added as another key-info pair. 
+%
+% When the cross references are generated at the beginning of the
+% document each will turn into a control sequence. Thus |\label{mylab}|
+% will internally refer to the property list |\g_xref_mylab_plist|.
+%
+% The extraction of values from this property list can be done in
+% several different ways but we want to keep the operation
+% expandable. Therefore we use a dedicated function for each type of
+% cross reference, which looks like this:
+% \begin{verbatim}
+% \xref_getvalue_xyz_aux:w -> #1 \xref_xyz_key #2#3\q_nil{#2}
+% \end{verbatim}
+% This will throw away all the bits we don't need. In case |page| is
+% the first on the |mylab| property list |#1| is empty, if it's the
+% last key-info pair |#3| is empty. The value of the field is put into
+% the argument of the command |\xref_format_|\meta{xyz}|:n|.
+%
+%  \begin{macro}{\g_xref_all_curr_immediate_fields_plist}
+%  \begin{macro}{\g_xref_all_curr_deferred_fields_plist}
+%    The two main property lists for storing information.They contain
+%    key-info pairs for all known types.
+%    \begin{macrocode}
+\prop_new:N \g_xref_all_curr_immediate_fields_plist
+\prop_new:N \g_xref_all_curr_deferred_fields_plist
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%
+%  \begin{macro}{\xref_new:nn}
+%  \begin{macro}{\xref_deferred_new:nn}
+%  \begin{macro}{\xref_new_aux:nnn}
+%  Setting up a new cross reference type is fairly straight forward
+%  when we follow the game plan mentioned earlier.
+%    \begin{macrocode}
+\def_new:Npn \xref_new:nn {\xref_new_aux:nnn{immediate}}
+\def_new:Npn \xref_deferred_new:nn {\xref_new_aux:nnn{deferred}}
+\def_new:Npn \xref_new_aux:nnn #1#2#3{
+%    \end{macrocode}
+%  First put the new type in the relevant property list.
+%    \begin{macrocode}
+  \prop_gput:ccx {g_xref_all_curr_ #1 _fields_plist}
+  { xref_ #2 _key }
+  { \exp_not:c {l_xref_curr_#2_tlp }}
+%    \end{macrocode}
+% Then define the key to be a protected macro.\footnote{We could also
+%   set it equal to \cs{scan_stop:} but this just feels ``cleaner''.}
+%    \begin{macrocode}
+  \def_protected:cpn { xref_#2_key }{}
+  \tlp_new:cn{l_xref_curr_#2_tlp}{#3}
+%    \end{macrocode}
+% Now for the function extracting the value of a reference. We could
+% do this with a simple |\prop_if_in| thing put since we want to do
+% things in an expandable way we make a separate grabber for each
+% type---this is also faster. The grabber function can be defined by
+% using an intricate construction of |\exp_after:NN| and other goodies
+% but I prefer readable code. The end result for the input |xyz| is
+% \begin{verbatim}
+% \def:Npn\xref_getvalue_xyz_aux:w #1\xref_xyz_key #2#3\q_nil{#2}
+% \end{verbatim}
+%    \begin{macrocode}
+  \toks_set:Nx \l_tmpa_toks {
+    \exp_not:n { \def:cpn {xref_getvalue_#2_aux:w} ##1 }
+    \exp_not:c { xref_#2_key }
+  }
+  \toks_use:N \l_tmpa_toks ##2 ##3\q_nil {##2}
+}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%
+%
+% \begin{macro}{\xref_getvalue:nn}
+%   Getting the correct value for a given label-type pair is a matter
+%   of connecting the correct grabber functions and property list.
+%    \begin{macrocode}
+\def_new:Npn \xref_getvalue:nn #1#2 {
+  \cs_if_really_free:cTF{g_xref_#2_plist}
+  {??}
+  {
+%    \end{macrocode}
+% This next expansion may look a little weird but it isn't if you
+% think about it!
+%    \begin{macrocode}
+    \exp_args:Ncc \exp_after:NN
+    {xref_getvalue_#1_aux:w}{g_xref_#2_plist}
+%    \end{macrocode}
+%  Better put in the stop marker.
+%    \begin{macrocode}
+    \q_nil
+  }
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%  \begin{macro}{\xref_define_label:nn}
+%  \begin{macro}{\xref_define_label_aux:nn}
+%    Define the property list for each label. We better do this in two
+%    steps because the special catcode regime is in effect and since
+%    some of the info fields are very likely to contain actual text,
+%    we better make sure spaces aren't ignored! As for the meaning of
+%    other characters then it is a possibility to also have a field
+%    containing catcode instructions which can then be activated with
+%    |\etex_scantokens:D|. 
+%    \begin{macrocode}
+\def_protected_new:Npn \xref_define_label:nn {
+  \group_begin:
+    \char_set_catcode:nn {`\ }\c_ten
+    \xref_define_label_aux:nn
+}
+%    \end{macrocode}
+% If the label is already taken we have a multiply defined label and
+% we should do something about it. For now we don't do anything
+% spectacular.
+%    \begin{macrocode}
+\def_new:Npn \xref_define_label_aux:nn #1#2 {
+    \cs_if_really_free:cF{g_xref_#1_plist}{\WARNING}
+    \gdef:cpn {g_xref_#1_plist}{#2}
+  \group_end:
+}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%
+%
+% \begin{macro}{\xref_set_label:n}
+%   Then the generic command for setting a label. We expand the
+%   immediate labels fully before calling the write function but make
+%   sure the deferred fields aren't expanded just yet.
+%    \begin{macrocode}
+\def:Npn \xref_set_label:n #1{
+  \exp_args:NNx
+  \iow_deferred_expanded:Nn \xref_write{
+    \xref_define_label:nn {#1}
+    {
+      \g_xref_all_curr_immediate_fields_plist
+      \exp_not:N \g_xref_all_curr_deferred_fields_plist
+    }
+  }
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+% \begin{macro}{\xref_write}
+%   A stream for writing cross references although they do not require
+%   to be in a separate file.
+%    \begin{macrocode}
+\iow_new:N \xref_write
+%    \end{macrocode}
+%  \end{macro}
+%
+%  That's it (for now).
+%    \begin{macrocode}
+%</initex|package>
+%<*showmemory>
+\showMemUsage
+%</showmemory>
+%    \end{macrocode}
+%
+%
+%    \begin{macrocode}
+%<*testfile>
+\documentclass{article}
+\usepackage{l3xref}
+\CodeStart
+\def:Npn \startrecording {\iow_open:Nn \xref_write {\jobname.xref}}
+\def:Npn \DefineCrossReferences {
+  \group_begin:
+    \NamesStart
+    \InputIfFileExists{\jobname.xref}{}{}
+  \group_end:
+}
+\AtBeginDocument{\DefineCrossReferences\startrecording}
+
+\xref_new:nn {name}{}
+\def:Npn \setname{\tlp_set:Nn\l_xref_curr_name_tlp}
+\def:Npn \getname{\xref_getvalue:nn{name}}
+
+\xref_deferred_new:nn {page}{\thepage}
+\def:Npn \getpage{\xref_getvalue:nn{page}}
+
+\xref_deferred_new:nn {valuepage}{\number\value{page}}
+\def:Npn \getvaluepage{\xref_getvalue:nn{valuepage}}
+
+\let:NN \setlabel \xref_set_label:n
+
+\CodeStop
+\begin{document}
+\pagenumbering{roman}
+
+Text\setname{This is a name}\setlabel{testlabel1}.  More
+text\setname{This is another name}\setlabel{testlabel2}. \clearpage
+
+Text\setname{This is a third name}\setlabel{testlabel3}. More
+text\setname{Hello World!}\setlabel{testlabel4}. \clearpage
+
+\pagenumbering{arabic}
+
+Text\setname{Name 5}\setlabel{testlabel5}. More text\setname{Name
+  6}\setlabel{testlabel6}. \clearpage
+
+Text\setname{Name 7}\setlabel{testlabel 7}. More text\setname{Name
+  8}\setlabel{testlabel8}. \clearpage
+
+Now let's extract some values. \getname{testlabel1} on page
+\getpage{testlabel1} with value \getvaluepage{testlabel1}.
+
+Now let's extract some values. \getname{testlabel 7} on page
+\getpage{testlabel 7} with value \getvaluepage{testlabel 7}.
+\end{document}
+%</testfile>
+%    \end{macrocode}
+%
+%
+% \endinput
+%
+% $Log$
+% Revision 1.1  2006/01/15 07:55:06  morten
+% New cross reference module including test file.
+%
+%
