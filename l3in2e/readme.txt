@@ -3,7 +3,7 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   2006/01/13
+   2006/01/15
 
 
 OVERVIEW
@@ -219,6 +219,12 @@ they are. For instance, is the token in question expandable or not? Is
 it a macro taking arguments?  Also functions for peeking ahead in the
 token stream.
 
+l3xref
+=====
+
+Module providing the low-level interface for cross references. This
+module also contains a test file which is generated along with the
+package.
 
 =====================================================================
 
@@ -258,6 +264,8 @@ l3full.cfg). The first of these is a style file for makeindex; the
 others or configuration files for the documentation class.
 If you want to full documentation including the code listings than
 rename l3full.cfg to l3doc.cfg and run LaTeX again.
+Alternatively, run (in extended mode)
+  pdflatex "\PassOptionsToClass{full}{l3doc}\input{source3}"
 After that run makeindex to produce the index, like so:
 makeindex -s source3.ist source3
 and rerun LaTeX.
