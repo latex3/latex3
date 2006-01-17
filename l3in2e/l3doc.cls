@@ -37,7 +37,7 @@
 %<*class>
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{l3doc}
-         [2006/01/15 v0.0g class for documenting experimental stuff]
+         [2006/01/17 v0.0h class for documenting experimental stuff]
 %
 \NeedsTeXFormat{LaTeX2e}
 %</class>
@@ -208,7 +208,7 @@
   \if b\expandafter\@car\f@series\@nil\boldmath\fi
   $\m@th\varepsilon$-\TeX}
 
-
+\providecommand*\file{\texttt}
 
 
 \def\vindex#1>#2\@nil{%
