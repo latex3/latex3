@@ -1129,13 +1129,13 @@
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-\RequirePackage{ldcsetup}
+\RequirePackage{ldcsetup,xparse}
 \RequirePackage{l3toks,l3tlp,l3skip,l3int,l3clist,l3token,l3stuff}
 %    \end{macrocode}
 %
 % Ignore white space in this package.
 %    \begin{macrocode}
-\InternalSyntaxOn
+\CodeStart
 %    \end{macrocode}
 %
 % Declare a private token register for building parameter lists.
@@ -1200,7 +1200,7 @@
 \def_new:Npn \UseTemplate#1#2#3{
   \TP_instdecl_generate_assignments:nn {#1/#2}{#3}
   \TP_push_assignments:
-  \use:c { TP>/#1/#2 }
+  \cs_use:c { TP>/#1/#2 }
 }
 %    \end{macrocode}
 % \end{macro}
@@ -1316,18 +1316,27 @@
 %    Parse the key declaration, and execute the list with a suitable
 %    definition of |\KV@elt|.
 %    \begin{macrocode}
-  \let:NN \KV@elt \TP_templdecl_process_KV:nn
-  \def:Npn \KV@default@elt##1{
+  \let:NN \KV_elt:nn \TP_templdecl_process_KV:nn
+  \def:Npn \KV_default_elt:n##1{
     \PackageError{template}{Missing~ =~ after~ ##1}\@ehd}
+  \let:NN\KV@elt\KV_elt:nn
+  \let:NN\KV@default@elt\KV_default_elt:n
   \tlp_set:Nn \l_TP_curr_name_tlp {#1/#2}
-  \l_TP_default_assignments_toks{}
+  \toks_clear:N\l_TP_default_assignments_toks
+%    \end{macrocode}
+% At this point there should be a test for which catcode regime we are
+% in. We just test if spaces are ignored.
+%    \begin{macrocode}
+  %\int_compare:nNnTF{\char_value_catcode:n{`\ }}=\c_nine
+  %\KV_parse_picky_no_space_removal_no_sanitize:n
+  %\KV_parse_picky_space_removal_no_sanitize:n
   \KV@parse{#4}
 %    \end{macrocode}
 %
 %    Define the defaults: the setting for |TPD>/\l_TP_curr_name_tlp| is a
 %    tricky since |\l_TP_default_assignments_toks| may contain |#|. We
-%    have to use a low-level |\edef| rather than
-%    |\tlp_set:co| since that will hide those during the assignment.
+%    have to use an |x| expansion rather than
+%    |o| since that will hide those during the assignment.
 %    \begin{macrocode}
   \tlp_set:cx { TPD>/\l_TP_curr_name_tlp }
               {\toks_use:N\l_TP_default_assignments_toks}
@@ -1337,7 +1346,7 @@
   \tlp_set_eq:cN {TPO>/\l_TP_curr_name_tlp}\l_TP_curr_name_tlp
 %    \end{macrocode}
 %
-%    Define the template (using |\newcommand| means that one can't
+%    Define the template (using |\def_new:Npn| means that one can't
 %    redefine a template easily).
 %    \begin{macrocode}
   \def_simple_command:Ncnn \def_new:Npn {TP>/\l_TP_curr_name_tlp}{#3}{#5}
@@ -1347,146 +1356,239 @@
 %
 % \begin{macro}{\TP_templdecl_process_KV:nn}
 %    The list of undefined keys and values is put in the list of the form\\
-%    |\KV@elt|\marg{key}\marg{val}%^^A
-%    |\KV@elt|\marg{key}\marg{val}\ldots\\
+%    |\KV_elt:nn|\marg{key1}\marg{val1}%^^A
+%    |\KV_elt:nn|\marg{key2}\marg{val2}\ldots\\
 %    So just need to give this macro a suitable definition. We just need
 %    to look at the first token of the value, to see what sort of key
 %    it is, so call a helper function to split that off.
 %    \begin{macrocode}
 \def_new:Npn \TP_templdecl_process_KV:nn#1#2{%
   \let:NN \TP_templdecl_add_global_or_nothing: \use_noop:
-  \TP_templdecl_parse_KV:nnw{#1}#2\TP_templdecl_parse_KV:nnw}
+  \bool_set_false:N\l_TP_global_assignment_bool
+  \tlp_set:Nn\l_TP_currkey_tlp{#1}
+  \TP_templdecl_parse_KV:N#2\q_stop}
 %    \end{macrocode}
 % \end{macro}
 %
-%
-%
-%
-%
-% \begin{macro}{\TP_templdecl_define_key:nn}
-%
-%    \begin{macrocode}
-\def_new:Npn \TP_templdecl_define_key:nn#1#2{%
-  \exp_after:NN
-  \def:Npn
-    \cs:w KV@\l_TP_curr_name_tlp @#1\exp_after:NN\cs_end:
-      \exp_after:NN ## \exp_after:NN 1
-      \exp_after:NN {
-        \exp_after:NN
-          \TP_templdecl_remove_from_default_assignments:N
-          \cs:w KV@\l_TP_curr_name_tlp @#1
-          \exp_after:NN \cs_end:
-           \TP_templdecl_add_global_or_nothing:
-          #2
-        }
-}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\TP_templdecl_parse_KV:nnw}
+% \begin{macro}{\TP_templdecl_parse_KV:N}
 %    Case switch on the possible key types.
 %    \begin{macrocode}
-\def_new:Npn \TP_templdecl_parse_KV:nnw#1#2#3\TP_templdecl_parse_KV:nnw{
+\def_new:Npn \TP_templdecl_parse_KV:N#1{
 %    \end{macrocode}
-%    In |#1| we have key, in |#2| the first character after the equal
-%    sign and in |#3| the remainder of the line. We now have to parse
-%    that remainder to find out if it contains a default value (in
-%    brackets) and then set up the key declaration needed to parse
-%    instance declarations. The method is similar in most cases: we
-%    call |\TP_parse_optional_key_default:nnw| which parses for the
-%    default and pass it already found  key name as first argument, what to do
-%    in the end as second argument, and the remainder delimited by
-%    |\q_stop| so that it becomes parseable.
+% In |#1| we have key, in |#2| the first character after the equal
+% sign and in |#3| the remainder of the line. We now have to parse
+% that remainder to find out if it contains a default value (in
+% brackets) and then set up the key declaration needed to parse
+% instance declarations. The method is similar in most cases: we call
+% |\TP_parse_optional_key_default:nw| which parses for the default
+% and pass it already found key name as first argument, what to do in
+% the end as second argument, and the remainder delimited by |\q_stop|
+% so that it becomes parseable.
 %
-%    Note that the code in the second argument to
-%    |\TP_parse_optional_key_default:nnw| normally calls on a
-%    macro with one more argument than actually provided: the reason
-%    being that the missing argument will be the remainder of the line
-%    (added by |\TP_parse_optional_key_default:nnw|
-%    after the default has be removed (if present)).
+% Note that the code in the second argument to
+% |\TP_parse_optional_key_default:nw| normally calls on a macro with
+% one more argument than actually provided: the reason being that the
+% missing argument will be the remainder of the line (added by
+% |\TP_parse_optional_key_default:nw| after the default has be
+% removed (if present)).
 %    \begin{macrocode}
-  \if_meaning:NN#2n
-     \TP_parse_optional_key_default:nnw{#1}
-         {\TP_templdecl_setup_n_key:nN{#1}}
-         #3\q_stop
-  \else:\if_meaning:NN#2l
-     \TP_parse_optional_key_default:nnw{#1}
-         {\TP_templdecl_setup_register_key:Nnn\setlength{#1}}
-         #3\q_stop
-  \else:\if_meaning:NN#2L
-     \TP_parse_optional_key_default:nnw{#1}
-         {\TP_templdecl_setup_fakeregister_key:NNnn\setlength\l_tmpa_skip{#1}}
-         #3\q_stop
-  \else:\if_meaning:NN#2c
-     \TP_parse_optional_key_default:nnw{#1}
-         {\TP_templdecl_setup_register_key:Nnn\SetInternalCounter{#1}}
-         #3\q_stop
-  \else:\if_meaning:NN#2C
-    \TP_parse_optional_key_default:nnw{#1}
-         {\TP_templdecl_setup_fakeregister_key:NNnn
-              \SetInternalCounter\l_tmpa_int{#1}}
-         #3\q_stop
-  \else:\if_meaning:NN#2b
-     \TP_parse_optional_key_default:nnw{#1}
-         {\TP_templdecl_setup_b_key:nn{#1}}
-         #3\q_stop
-  \else:\if_meaning:NN#2s
-     \TP_parse_optional_key_default:nnw{#1}
-         {\TP_templdecl_setup_s_key:nn{#1}}
-         #3\q_stop
-  \else:\if_meaning:NN#2g
-     \TP_parse_optional_key_default:nnw{#1}
-         {\TP_templdecl_setup_g_key:nn{#1}}
-         #3\q_stop
-  \else:\if_meaning:NN#2x
-     \TP_parse_optional_key_default:nnw{#1}
-         {\TP_templdecl_setup_x_key:nn{#1}}
-         #3\q_stop
+  \cs_if_free:cTF{TP_use_arg_type_#1:w}
+  {\PackageError{template}{Unknown~key~type~ (#1)~for~\l_TP_currkey_tlp}\@eha}
+  {\cs_use:c{TP_use_arg_type_#1:w}}
 %    \end{macrocode}
 %    The |f| and |i| keys are somewhat different since there we first
 %    have to parse for an additional argument (a digit in case of |f|
 %    or an template type name in case of |i|):
 %    \begin{macrocode}
-  \else:\if_meaning:NN#2f
-     \TP_templdecl_parse_f_arg:nw {#1} #3\q_stop
-  \else:\if_meaning:NN#2i
-     \TP_templdecl_parse_i_arg:nw {#1} #3\q_stop
 %    \end{macrocode}
 %    One more alternative: a |+| after the equal sign signals global
 %    so we change |\TP_templdecl_add_global_or_nothing| to append a
 %    |\pref_global:D| to the assignment toks and then reparse the rest.
 %    \begin{macrocode}
-  \else:\if_meaning:NN#2+
-     \def:Npn  \TP_templdecl_add_global_or_nothing:
-          {\toks_put_right:Nn \l_TP_KV_assignments_toks {\pref_global:D} }
-     \TP_templdecl_parse_KV:nnw{#1}#3\TP_templdecl_parse_KV:nnw
-  \else:
-      \PackageError{template}{Unknown~key~type~ (#2)~for~#1}\@eha
-  \fi: \fi: \fi: \fi: \fi: \fi: \fi: \fi: \fi: \fi: \fi: \fi:
+%     \def:Npn  \TP_templdecl_add_global_or_nothing:
+%          {\toks_put_right:Nn \l_TP_KV_assignments_toks {\pref_global:D} }
+%     \TP_templdecl_parse_KV:nw{#1}#3\TP_templdecl_parse_KV:nnw
 }
 %    \end{macrocode}
 % \end{macro}
 %
 %
+% \begin{macro}{\l_TP_global_assignment_bool}
+% For keeping track of the assignments.
+%    \begin{macrocode}
+\bool_new:N \l_TP_global_assignment_bool
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\TP_use_arg_type_+:w}
+%   The |+| do two things: Sets a boolean true to be used by the types
+%   that can't simply be prefixed with |\pref_global:D| and defines
+%   |\TP_templdecl_add_global_or_nothing:| to put the prefix onto the
+%   list. After that we simply call the big switch again.
+%    \begin{macrocode}
+\def_new:cpn{TP_use_arg_type_+:w} {
+  \bool_set_true:N\l_TP_global_assignment_bool
+  \def:Npn  \TP_templdecl_add_global_or_nothing:
+  {\toks_put_right:Nn \l_TP_KV_assignments_toks {\pref_global:D} }
+  \TP_templdecl_parse_KV:N
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\TP_use_arg_type_l:w}
+%   The |l| sets a length register. We disable the prefix and insert
+%   either |\gsetlength| or |\setlength| depending on whether a |+|
+%   was seen or not.
+%    \begin{macrocode}
+\def_new:Npn\TP_use_arg_type_l:w {
+  \TP_parse_optional_key_default:nw
+  {
+    \let:NN \TP_templdecl_add_global_or_nothing: \use_noop:
+    \bool_if:NTF \l_TP_global_assignment_bool
+    {\TP_templdecl_setup_register_key:Nn\gsetlength}
+    {\TP_templdecl_setup_register_key:Nn\setlength}
+  }
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\TP_use_arg_type_L:w}
+% The |L| sets a fake length register.
+%    \begin{macrocode}
+\def_new:Npn\TP_use_arg_type_L:w {
+  \TP_parse_optional_key_default:nw
+  {\TP_templdecl_setup_fakeregister_key:NNn\setlength\l_tmpa_skip}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\TP_use_arg_type_c:w}
+% The |c| sets a count register.
+%    \begin{macrocode}
+\def_new:Npn\TP_use_arg_type_c:w {
+  \TP_parse_optional_key_default:nw
+  {
+    \let:NN\TP_templdecl_add_global_or_nothing:\use_noop:
+    \bool_if:NTF \l_TP_global_assignment_bool
+    {\TP_templdecl_setup_register_key:Nn\GSetInternalCounter}
+    {\TP_templdecl_setup_register_key:Nn\SetInternalCounter}
+  }
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\TP_use_arg_type_C:w}
+% The |C| sets a fake count register.
+%    \begin{macrocode}
+\def_new:Npn\TP_use_arg_type_C:w {
+  \TP_parse_optional_key_default:nw
+  {\TP_templdecl_setup_fakeregister_key:NNn
+    \SetInternalCounter\l_tmpa_int}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\TP_use_arg_type_n:w}
+% The |n| sets a token list pointer.
+%    \begin{macrocode}
+\def_new:Npn\TP_use_arg_type_n:w {
+  \TP_parse_optional_key_default:nw
+  {\TP_templdecl_setup_n_key:N}        
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\TP_use_arg_type_f:w}
 % \begin{macro}{\TP_templdecl_parse_f_arg:nw}
+% The |f| defines a command with between 0 and 9 arguments.
+%    \begin{macrocode}
+\def_new:Npn\TP_use_arg_type_f:w #1#2{
+  %\TP_templdecl_parse_f_arg:nw {#1}
+  \TP_parse_optional_key_default:nw{\TP_templdecl_setup_f_key:nnN{#1}{#2}}
+}
+%    \end{macrocode}
 %    Helper for |\TP_templdecl_parse_KV:nnw|.
 %    \begin{macrocode}
 \def_new:Npn \TP_templdecl_parse_f_arg:nw#1#2{
 %    \end{macrocode}
 %    The third argument of |\TP_templdecl_setup_f_key:nnN|, i.e., the
 %    macro name, is the remaining data up to |\q_stop| which is picked up
-%    by |\TP_parse_optional_key_default:nnw|.
+%    by |\TP_parse_optional_key_default:nw|.
 %    \begin{macrocode}
-  \TP_parse_optional_key_default:nnw{#1}{\TP_templdecl_setup_f_key:nnN{#1}{#2}}}
+  \TP_parse_optional_key_default:nw{\TP_templdecl_setup_f_key:nnN{#1}{#2}}
+}
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+
 %
-% \begin{macro}{\TP_templdecl_parse_i_arg:nw}
-%    Helper for |\TP_templdecl_parse_KV:nnw|.
+% \begin{macro}{\TP_use_arg_type_b:w}
+% \begin{macro}{\TP_templdecl_setup_b_key:nn}
+%   The |b| uses access to the |\if_true:| and |\if_false:|
+%   primitives. Needed?
 %    \begin{macrocode}
-\def_new:Npn \TP_templdecl_parse_i_arg:nw#1#2{%
-  \TP_parse_optional_key_default:nnw{#1}{\TP_templdecl_setup_i_key:nnn{#1}{#2}}}
+\def_new:Npn\TP_use_arg_type_b:w {
+  \TP_parse_optional_key_default:nw
+  {\TP_templdecl_setup_b_key:n}
+}
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\def_new:Npn \TP_templdecl_setup_b_key:n#1{
+  \let:cN { if#1 } \if_true:
+  \TP_templdecl_define_key:n
+  { \TP_templdecl_eval_b_key_value:nn {#1}{##1} }
+}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\TP_templdecl_eval_b_key_value:nn}
+%    Modify so the boolean does not need to have been
+%    declared with |\newif|
+%    \begin{macrocode}
+\def_new:Npn \TP_templdecl_eval_b_key_value:nn#1#2{
+  \cs_free:cTF {if#2}
+    { \PackageError{template}{Bad~boolean~setting~#1=#2}\@eha }
+    { \tlp_set_eq:cc {if_#1:}{if_#2:}
+      \toks_put_right:Nf \l_TP_KV_assignments_toks
+         { \tlp_set_eq:cc {if_#1:}{if_#2:} }
+    }
+}
+%    \end{macrocode}
+%
+% \end{macro}
+%
+% \begin{macro}{\TP_use_arg_type_s:w}
+% \begin{macro}{\TP_templdecl_setup_s_key:n}
+% The |s| chooses between true and false.
+%    \begin{macrocode}
+\def_new:Npn\TP_use_arg_type_s:w {
+  \TP_parse_optional_key_default:nw
+  {\TP_templdecl_setup_s_key:n}
+}
+%    \end{macrocode}
+%    \begin{macrocode}
+\def_new:Npn \TP_templdecl_setup_s_key:n #1 {
+  \TP_templdecl_define_key:n
+    { \TP_templdecl_eval_s_key_value:nnn{##1}#1 }
+}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%
+%
+%
+%
+%
+%
+% \begin{macro}{\TP_use_arg_type_i:w}
+% The |i| expects an instance.
+%    \begin{macrocode}
+\def_new:Npn\TP_use_arg_type_i:w #1#2{
+  \TP_parse_optional_key_default:nw{\TP_templdecl_setup_i_key:nnn{#1}{#2}}
+}
 %    \end{macrocode}
 %
 %      declaration |hd =i{head} \fooo| \\
@@ -1499,18 +1601,21 @@
 % \end{macro}
 %
 % \begin{macro}{\TP_templdecl_setup_i_key:nnn}
+% MH change: do either local or global.
 %    \begin{macrocode}
-\def_new:Npn \TP_templdecl_setup_i_key:nnn#1#2#3{
-  \TP_templdecl_define_key:nn
-       { #1 }
-       { \TP_templdecl_eval_i_key_value:nnn #3 {#2}{##1} }
+\def_new:Npn \TP_templdecl_setup_i_key:nnn#1#2{
+  \TP_templdecl_define_key:n
+  {
+    \TP_templdecl_eval_i_key_value:Nnn #2 {#1}{##1} 
+  }
 }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\TP_templdecl_eval_i_key_value:nnn}
+% \begin{macro}{\TP_templdecl_eval_i_key_value:Nnn}
+% MH change: Add extra argument for local or global.
 %    \begin{macrocode}
-\def_new:Npn \TP_templdecl_eval_i_key_value:nnn #1#2#3 {
+\def_new:Npn \TP_templdecl_eval_i_key_value:Nnn #1#2#3 {
   \tlist_if_head_eq_meaning:nNTF {#3.}\UseTemplate
   {
     \io_put_term:x{\token_to_string:N\UseTemplate\space seen}
@@ -1548,23 +1653,114 @@
 %
 %
 %
-% \begin{macro}{\TP_parse_optional_key_default:nnw}
+%
+%
+%
+% \begin{macro}{\TP_use_arg_type_x:w}
+% \begin{macro}{\TP_templdecl_setup_x_key:nn}
+% The |x| runs internal code.
 %    \begin{macrocode}
-\def_new:Npn \TP_parse_optional_key_default:nnw#1#2{
-  \peek_meaning_ignore_spaces:NTF[%]
+\def_new:Npn\TP_use_arg_type_x:w {
+  \TP_parse_optional_key_default:nw
+  {\TP_templdecl_setup_x_key:n}
+}
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\def_new:Npn \TP_templdecl_setup_x_key:n#1{
+  \TP_templdecl_define_key:n
+  { \toks_put_right:Nn\l_TP_KV_assignments_toks{#1} }
+}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%
+%
+%
+%
+% \begin{macro}{\TP_use_arg_type_g:w}
+% \begin{macro}{\TP_templdecl_setup_g_key:nn}
+% The |g| runs any code.
+%    \begin{macrocode}
+\def_new:Npn\TP_use_arg_type_g:w {
+  \TP_parse_optional_key_default:nw
+  {\TP_templdecl_setup_g_key:n}
+}
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\def_new:Npn \TP_templdecl_setup_g_key:n #1 {
+  \TP_templdecl_define_key:n{#1}}
+%    \end{macrocode}
+%
+% \end{macro}
+% \end{macro}
+%
+%
+%
+%
+% \begin{macro}{\TP_templdecl_define_key:n}
+% Here we define the key in the current template.
+%    \begin{macrocode}
+\def_new:Npn \TP_templdecl_define_key:n#1{
+  \exp_after:NN
+  \def:Npn  \cs:w
+    KV@\l_TP_curr_name_tlp @\l_TP_currkey_tlp
+    \exp_after:NN\cs_end:
+    \exp_after:NN##\exp_after:NN1\exp_after:NN{
+      \exp_after:NN\TP_templdecl_remove_from_default_assignments:N
+       \cs:w KV@\l_TP_curr_name_tlp @\l_TP_currkey_tlp
+      \exp_after:NN \cs_end:
+       \TP_templdecl_add_global_or_nothing:
+      #1
+    }
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+%
+%
+%
+%
+%
+%
+%
+% \begin{macro}{\TP_parse_optional_key_default:nw}
+%   Look for default value. The |t| argument type here is one we
+%   define for template so we can change it easily. Currently I just
+%   set it to be a regular optional argument in brackets. |#1| is what
+%   we are carrying over, |#2| the optional argument.
+%    \begin{macrocode}
+\def_long:Npn \TP_ignore_leading_space_in_arg_ii:nn#1#2{
+  \exp_args:Nf\TP_ignore_leading_space_in_arg_ii_aux:nn
+  {\exp_not:N #2}{#1}
+}
+\def_long:Npn \TP_ignore_leading_space_in_arg_ii_aux:nn#1#2{#2{#1}}
+
+
+\DeclareArgumentType t[{meaning}{}{\NoValue}{#1[#2]}{#2}
+\DeclareDocumentCommand\TP_parse_optional_key_default:nw{mt}{
+  \IfNoValueTF{#2}
+    {\TP_templdecl_finish_key_setup:nw{#1}}
     {\TP_templdecl_finish_key_setup_with_default:nnw{#1}{#2}}
-    {\TP_templdecl_finish_key_setup:nw{#2}}}
+}
+%\show\TP_parse_optional_key_default:nw
+%\exp_args:Nc\show{\string\TP_parse_optional_key_default:nw}
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\TP_templdecl_finish_key_setup:nw}
 %    After having parsed the line and not found any default value it
-%    remainsto actually define the key forthe instance parsing by
+%    remains to actually define the key for the instance parsing by
 %    executing the setup code (in |#1|) giving it |#2| (i.e., the
-%    remainder of the line) asan argument.
+%    remainder of the line) as an argument.
 %    \begin{macrocode}
 \def_new:Npn \TP_templdecl_finish_key_setup:nw#1#2\q_stop{
-  #1 {#2}
+  \TP_ignore_leading_space_in_arg_ii:nn{#1}{#2}
+  %%%#1{#2}
 }
 %    \end{macrocode}
 % \end{macro}
@@ -1572,39 +1768,40 @@
 % \begin{macro}{\TP_templdecl_finish_key_setup_with_default:nnw}
 %    If there is a default the situation is more complicated since we
 %    not only have to set up the key for the instance but also have to
-%    addthe default value to |\l_TP_default_assignments_toks| in an
+%    add the default value to |\l_TP_default_assignments_toks| in an
 %    appropriate way.
 %
 %    First set up the the key itself:
 %    \begin{macrocode}
-\def_new:Npn \TP_templdecl_finish_key_setup_with_default:nnw#1#2[#3]#4\q_stop{
-  #2 {#4}
+\def_new:Npn \TP_templdecl_finish_key_setup_with_default:nnw#1#2#3\q_stop{
+  \TP_ignore_leading_space_in_arg_ii:nn{#1}{#3}
+  %%%  #1 {#3}
 %    \end{macrocode}
-%    Now we run the new key code (which is stored in |\KV@...|
-%    hopefully) and  give it the default found. By doing this in a
-%    group and by locally emptying |\l_TP_KV_assignments_toks| we will
-%    get the resulting assignment code into that register.
+% Now we run the new key code (which is stored in |\KV@...| hopefully)
+% and give it the default found. By doing this in a group and by
+% locally emptying |\l_TP_KV_assignments_toks| we will get the
+% resulting assignment code into that register.
 %
-%    (We set |\TP_templdecl_remove_from_default_assignments:N| to
-%    |\use_none:n| since this is a temporary operation and we don't want
-%    to change the default really.)
+% (We set |\TP_templdecl_remove_from_default_assignments:N| to
+% |\use_none:n| since this is a temporary operation and we don't want
+% to change the default really.)
 %    \begin{macrocode}
   \group_begin:
     \toks_clear:N \l_TP_KV_assignments_toks
     \let:NN \TP_templdecl_remove_from_default_assignments:N \use_none:n
-    \cs:w KV@\l_TP_curr_name_tlp @#1\cs_end:{#3}
+    \cs_use:c{KV@\l_TP_curr_name_tlp @\l_TP_currkey_tlp}{#2}
 %    \end{macrocode}
-%    And now for a final trick: before closing the group again and
-%    losing our local changes we run |\exp_after:NN| several times to
-%    get the value of |\l_TP_KV_assignments_toks| into
-%    |\l_TP_default_assignments_toks| outside that group!
+% And now for a final trick: before closing the group again and losing
+% our local changes we run |\exp_after:NN| several times to get the
+% value of |\l_TP_KV_assignments_toks| into
+% |\l_TP_default_assignments_toks| outside that group!
 %    \begin{macrocode}
   \exp_after:NN
   \group_end:
   \exp_after:NN
   \l_TP_default_assignments_toks
   \exp_after:NN
-    { \cs:w KV@\l_TP_curr_name_tlp @#1 \exp_after:NN \cs_end:
+    { \cs:w KV@\l_TP_curr_name_tlp @\l_TP_currkey_tlp \exp_after:NN \cs_end:
   \exp_after:NN
       { \toks_use:N \exp_after:NN \l_TP_KV_assignments_toks
   \exp_after:NN
@@ -1615,61 +1812,8 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\TP_templdecl_setup_x_key:nn}
-%    \begin{macrocode}
-\def_new:Npn \TP_templdecl_setup_x_key:nn#1#2{
-  \TP_templdecl_define_key:nn
-        { #1 }
-        { \toks_put_right:Nn\l_TP_KV_assignments_toks{#2} }
-}
-%    \end{macrocode}
-% \end{macro}
+
 %
-% \begin{macro}{\TP_templdecl_setup_g_key:nn}
-%    \begin{macrocode}
-\def_new:Npn \TP_templdecl_setup_g_key:nn #1#2 {
-  \TP_templdecl_define_key:nn{#1}{#2}}
-%    \end{macrocode}
-%
-% \end{macro}
-%
-% \begin{macro}{\TP_templdecl_setup_b_key:nn}
-%    \begin{macrocode}
-\def_new:Npn \TP_templdecl_setup_b_key:nn#1#2{
-  \let:cN { if#2 } \iftrue
-  \TP_templdecl_define_key:nn
-      { #1 }
-      { \TP_templdecl_eval_b_key_value:nn {#2}{##1} }
-}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\TP_templdecl_eval_b_key_value:nn}
-%    Modify so the boolean does not need to have been
-%    declared with |\newif|
-%    \begin{macrocode}
-\def_new:Npn \TP_templdecl_eval_b_key_value:nn#1#2{
-  \exp_after:NN
-  \cs_free:cTF {if#2}
-    { \PackageError{template}{Bad~boolean~setting~#1=#2}\@eha }
-    { \tlp_set_eq:cc {if#1}{if#2}
-      \toks_put_right:Nd \l_TP_KV_assignments_toks
-         { \tlp_set_eq:cc {if#1}{if#2} }
-    }
-}
-%    \end{macrocode}
-%
-% \end{macro}
-%
-% \begin{macro}{\TP_templdecl_setup_s_key:nn}
-%    \begin{macrocode}
-\def_new:Npn \TP_templdecl_setup_s_key:nn #1#2 {
-  \TP_templdecl_define_key:nn
-    { #1 }
-    { \TP_templdecl_eval_s_key_value:nnn{##1}#2 }
-}
-%    \end{macrocode}
-% \end{macro}
 %
 % \begin{macro}{\c_TP_true_tlp}
 %    \begin{macrocode}
@@ -1707,11 +1851,11 @@
 % just pass the whole assignment to the template.
 %
 %    \begin{macrocode}
-\def_new:Npn \TP_templdecl_setup_register_key:Nnn #1#2#3{
-  \TP_templdecl_define_key:nn{#2}{
+\def_new:Npn \TP_templdecl_setup_register_key:Nn #1#2{
+  \TP_templdecl_define_key:n{
     \tlist_if_head_eq_meaning:nNTF{##1}\DelayEvaluation
     {
-      \toks_put_right:Nn \l_TP_KV_assignments_toks {#1#3{##1}}
+      \toks_put_right:Nn \l_TP_KV_assignments_toks {#1#2{##1}}
     }
 %    \end{macrocode}
 %
@@ -1729,7 +1873,7 @@
       \tlist_if_head_eq_meaning:nNTF{##1..}\MultiSelection
       {
         \group_begin:
-          \TP_multiselection_add:nnnnnn #1#3##1
+          \TP_multiselection_add:nnnnnn #1#2##1
         \group_end:
 %    \end{macrocode}
 %
@@ -1737,22 +1881,21 @@
 % there are probably better ways to do this (:-)
 %
 %    \begin{macrocode}
-        \exp_after:NN\in@
-        \exp_after:NN\DelayEvaluation
-        \exp_after:NN{\toks_use:N\g_TP_multiselection_toks}
-        \ifin@
+        \tlist_if_in:onTF{\toks_use:N\g_TP_multiselection_toks}\DelayEvaluation
+        {
           \toks_put_right:No\l_TP_KV_assignments_toks
           {
-            \exp_after:NN#1\exp_after:NN#3\exp_after:NN
+            \exp_after:NN#1\exp_after:NN#2\exp_after:NN
             {\toks_use:N\g_TP_multiselection_toks}
           }
-        \else:
+        }
+        {
           \toks_put_right:No\l_TP_KV_assignments_toks
           {
-            \exp_after:NN  #3
+            \exp_after:NN  #2
             \exp_after:NN= \toks_use:N\g_TP_multiselection_toks\scan_stop:
           }
-        \fi:
+        }
 %    \end{macrocode}
 %
 %
@@ -1761,10 +1904,13 @@
 %    \begin{macrocode}
       }
       {
-        #1#3{##1}
+        \errmessage{HERE!}
+\traceon
+        #1#2{##1}
         \toks_put_right:No\l_TP_KV_assignments_toks
-          {\exp_after:NN  #3
-            \exp_after:NN= \toks_use:N#3\scan_stop:}
+          {\exp_after:NN  #2
+            \exp_after:NN= \toks_use:N#2\scan_stop:}
+\traceoff
       }
     }
   }
@@ -1778,9 +1924,16 @@
 %
 %
 % \begin{macro}{\DelayEvaluation}
+% \begin{macro}{\MultiSelection}
+%   Since we are testing explicitly for |\DelayEvaluation| and
+%   |\MultiSelection| a few places we better give them unique
+%   meanings!
 %    \begin{macrocode}
-\let:NN \DelayEvaluation \use_arg_i:n
+%%\let:NN \DelayEvaluation \use_arg_i:n
+\DeclareDocumentCommand\DelayEvaluation{m}{#1}
+\DeclareDocumentCommand\MultiSelection{m}{#1}
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\TP_templdecl_remove_from_default_assignments:N}
@@ -1790,29 +1943,29 @@
 %    \begin{macrocode}
 \def_new:Npn \TP_templdecl_remove_from_default_assignments:N#1{
   \def:Npn \tmp:w ##1#1##2##3#1##4\q_stop{
-    \l_TP_default_assignments_toks{##1##3}}
+    \l_TP_default_assignments_toks{##1##3}
+  }
   \exp_after:NN \tmp:w
      \toks_use:N\l_TP_default_assignments_toks #1\scan_stop:#1\q_stop}
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\TP_templdecl_setup_f_key:nnN}
+% \begin{macro}{\TP_templdecl_setup_f_key:nN}
 %       Same for macro names. Again usually called automatically when
 %       declaring a new template.\\
-% |#1|  the key.\\
-% |#2|   Determines how many arguments the function should have.\\
-% |#3| The macro to be defined.
+% |#1|   Determines how many arguments the function should have.\\
+% |#2| The macro to be defined.
 %
-%    If the `|##1|`, the value passed as the argument of the key |#1|
-%    to the macro |#3| is invoked starts with |\FunctionInstance|, then a
+%    If the `|##1|`, the value passed as the argument of the key
+%    to the macro |#2| is invoked starts with |\FunctionInstance|, then a
 %    special procedure is taken. Instead of defining a macro with the
 %    specified number of arguments, the paramater list of the nested
-%    function instance is parsed, and |#3| is defined to be a macro
+%    function instance is parsed, and |#2| is defined to be a macro
 %    expanding to that instance. In this case the specified template
 %    is responsible for picking up the requested number of
 %    arguments. (This is \emph{not} checked.)
 %    \begin{macrocode}
-\def_new:Npn \TP_templdecl_setup_f_key:nnN#1#2#3{
+\def_new:Npn \TP_templdecl_setup_f_key:nN#1#2{
 %    \end{macrocode}
 %
 % |##1| can either be arbitrary inline code, in which case it will be
@@ -1821,9 +1974,9 @@
 %
 %    define it locally here (why this, David???)
 %    \begin{macrocode}
-  \TP_templdecl_define_key:nn{ #1 }
-                             { \TP_templdecl_define_function:Nnn#2#3{##1} }
-    }
+  \TP_templdecl_define_key:n
+  { \TP_templdecl_define_function:Nnn#1#2{##1} }
+}
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1846,7 +1999,7 @@
 %
 %
 %
-% \begin{macro}{\TP_templdecl_setup_n_key:nN}
+% \begin{macro}{\TP_templdecl_setup_n_key:N}
 % Here is the extended version that tries to deal with
 % |\MultiSelection|.
 %
@@ -1859,22 +2012,22 @@
 % it is essentially doing the same.
 %
 %    \begin{macrocode}
-\def_new:Npn \TP_templdecl_setup_n_key:nN#1#2{
-  \TP_templdecl_define_key:nn{#1}{
+\def_new:Npn \TP_templdecl_setup_n_key:N#1{
+  \TP_templdecl_define_key:n{
     \tlist_if_head_eq_meaning:nNTF{##1..}\MultiSelection
     {
       \group_begin:
         \TP_templdecl_multiselection:nnnn ##1
       \group_end:
       \toks_put_right:No\l_TP_KV_assignments_toks
-        {\exp_after:NN \def:Npn \exp_after:NN #2 \exp_after:NN
+        {\exp_after:NN \def:Npn \exp_after:NN #1 \exp_after:NN
           { \toks_use:N \g_TP_multiselection_toks}
         }
     }
     {
-      \def:Npn #2{##1}                      % setting it?
+      \def:Npn #1{##1}                      % setting it?
       \toks_put_right:Nn \l_TP_KV_assignments_toks
-                          { \def:Npn #2{##1} }
+                          { \def:Npn #1{##1} }
     }
   }
 }
@@ -2006,11 +2159,11 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\TP_templdecl_setup_fakeregister_key:NNnn}
+% \begin{macro}{\TP_templdecl_setup_fakeregister_key:NNn}
 % |{setcomand}{privateregister}{key}{internalcode}|
 %    \begin{macrocode}
-\def_new:Npn \TP_templdecl_setup_fakeregister_key:NNnn#1#2#3#4{
-  \TP_templdecl_define_key:nn{#3}{
+\def_new:Npn \TP_templdecl_setup_fakeregister_key:NNn#1#2#3{
+  \TP_templdecl_define_key:n{
     \tlist_if_head_eq_meaning:nNTF{##1..}\DelayEvaluation
     {
 %    \end{macrocode}
@@ -2024,9 +2177,9 @@
 %    do an |\edef|. Could be coded differently to save space (at cost
 %    of time)
 %    \begin{macrocode}
-%       \toks_put_right:Nn \l_TP_KV_assignments_toks {\def:Npn #4{##1}}
+%       \toks_put_right:Nn \l_TP_KV_assignments_toks {\def:Npn #3{##1}}
       \toks_put_right:Nn \l_TP_KV_assignments_toks
-                         {#1#2{##1}\def:Npx #4{\toks_use:N#2}}
+                         {#1#2{##1}\def:Npx #3{\toks_use:N#2}}
     }
 %    \end{macrocode}
 %
@@ -2049,13 +2202,13 @@
           \TP_multiselection_add:nnnnnn#1#2##1
         \group_end:
         \toks_put_right:No\l_TP_KV_assignments_toks
-          {\exp_after:NN\def:Npn \exp_after:NN#4\exp_after:NN
+          {\exp_after:NN\def:Npn \exp_after:NN#3\exp_after:NN
           {\toks_use:N\g_TP_multiselection_toks}}
       }
       {
         #1#2{##1}
         \toks_put_right:No\l_TP_KV_assignments_toks
-                    {\exp_after:NN\def:Npn\exp_after:NN#4\exp_after:NN
+                    {\exp_after:NN\def:Npn\exp_after:NN#3\exp_after:NN
                           {\toks_use:N#2}}
       }
     }
@@ -2075,7 +2228,7 @@
 %  \marg{operation} \marg{register} |\MultiSelection|
 %  \marg{selector} \marg{case-list} \marg{else-case}
 %
-%    This command builds up the |\ifcase| code from the three arguments
+%    This command builds up the |\if_case:w| code from the three arguments
 %    of |\MultiSelection| and stores it in
 %    |\g_TP_multiselection_toks|. This code is supposed to be run in
 %    a group so a) we don't have to initialise
@@ -2084,7 +2237,7 @@
 %
 %    \begin{macrocode}
 \def_new:Npn \TP_multiselection_add:nnnnnn #1#2#3#4#5#6{
-  \toks_gset:Nn \g_TP_multiselection_toks {\tex_ifcase:D #4}
+  \toks_gset:Nn \g_TP_multiselection_toks {\if_case:w #4}
   \clist_map_inline:nn {#5}{
     \tlist_if_head_eq_meaning:nNTF{##1..}\DelayEvaluation
     {
