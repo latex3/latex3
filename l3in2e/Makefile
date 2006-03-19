@@ -104,6 +104,7 @@ DTX = \
 	l3final.dtx \
 	l3int.dtx \
 	l3io.dtx \
+	l3messages.dtx \
 	l3names.dtx \
 	l3num.dtx \
 	l3precom.dtx \
