@@ -3,7 +3,7 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   2006/01/15
+   2006/03/19
 
 
 OVERVIEW
@@ -225,6 +225,12 @@ l3xref
 Module providing the low-level interface for cross references. This
 module also contains a test file which is generated along with the
 package.
+
+l3messages
+=====
+
+Module providing a new mechanism to provide longer warning and error
+messages based on storing the messages in external files.
 
 =====================================================================
 
