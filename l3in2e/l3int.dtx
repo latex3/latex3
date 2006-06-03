@@ -387,6 +387,32 @@
 %  in the test.
 % \end{function}
 %
+
+% \subsection{Conversion}
+%
+% \begin{function}{%
+%                  \int_convert_from_base_ten:nn |
+% }
+% \begin{syntax}
+%   "\int_convert_from_base_ten:nn" "{"<number>"}""{"<base>"}"
+% \end{syntax}
+% Converts the base~10 number <number> into its equivalent
+% representation written in base~<base>. Expandable.
+% \end{function}
+%
+%
+% \begin{function}{%
+%                  \int_convert_to_base_ten:nn |
+% }
+% \begin{syntax}
+%   "\int_convert_to_base_ten:nn" "{"<number>"}""{"<base>"}"
+% \end{syntax}
+% Converts the base~<base> number <number> into its equivalent
+% representation written in base~10. <number> can consist of digits
+% and ascii letters. Expandable.
+% \end{function}
+%
+%
 % \StopEventually{}
 % \subsection{The Implementation}
 %
@@ -961,6 +987,208 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+%
+%
+% \subsubsection{Scanning and conversion}
+%
+%
+% Conversion between different numbering schemes requires meticulous
+% work. A number can be preceeded by any number of |+| and/or |-|. We
+% define a generic function which will return the sign and/or the
+% remainder.
+%
+% \begin{macro}{\int_get_sign_and_digits:n}
+% \begin{macro}{\int_get_sign:n}
+% \begin{macro}{\int_get_digits:n}
+% \begin{macro}{\int_get_sign_and_digits_aux:nNNN}
+% \begin{macro}{\int_get_sign_and_digits_aux:oNNN}
+% A number may be preceeded by any number of |+|s and |-|s. Start out
+% by assuming we have a positive number.
+%    \begin{macrocode}
+\def_new:Npn \int_get_sign_and_digits:n #1{
+  \int_get_sign_and_digits_aux:nNNN {#1} \c_true \c_true \c_true
+}
+\def_new:Npn \int_get_sign:n #1{
+  \int_get_sign_and_digits_aux:nNNN {#1} \c_true \c_true \c_false
+}
+\def_new:Npn \int_get_digits:n #1{
+  \int_get_sign_and_digits_aux:nNNN {#1} \c_true \c_false \c_true
+}
+%    \end{macrocode}
+% Now check the first character in the string. Only a |-| can change
+% if a number is positive or negative, hence we reverse the boolean
+% governing this. Then gobble the |-| and start over.
+%    \begin{macrocode}
+\def_new:Npn \int_get_sign_and_digits_aux:nNNN #1#2#3#4{
+  \tlist_if_head_eq_charcode:fNTF {#1} - 
+  {
+    \bool_if:NTF #2
+    { \int_get_sign_and_digits_aux:oNNN {\use_none:n #1} \c_false #3#4 }
+    { \int_get_sign_and_digits_aux:oNNN {\use_none:n #1} \c_true  #3#4 }
+  }
+%    \end{macrocode}
+% The other cases are much simpler since we either just have to gobble
+% the |+| or exit immediately and insert the correct sign.
+%    \begin{macrocode}
+  {
+    \tlist_if_head_eq_charcode:fNTF {#1} +
+    { \int_get_sign_and_digits_aux:oNNN {\use_none:n #1} #2#3#4}
+    {
+%    \end{macrocode}
+% The boolean |#3| is for printing the sign while |#4| is for printing
+% the digits.
+%    \begin{macrocode}
+      \bool_double_if:NNnnnn #3#4
+      { \bool_if:NF #2 - #1 }
+      { \bool_if:NF #2 -    }
+      { #1 }  {  }
+    }
+  }
+}
+\def_new:Npn \int_get_sign_and_digits_aux:oNNN{
+  \exp_args:No\int_get_sign_and_digits_aux:nNNN
+}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%
+% \begin{macro}{\int_convert_from_base_ten:nn}
+% \begin{macro}{\int_convert_from_base_ten_aux:nnn}
+% \begin{macro}{\int_convert_from_base_ten_aux:non}
+% \begin{macro}{\int_convert_from_base_ten_aux:fon}
+%   |#1| is the base 10 number to be converted to base |#2|. We split
+%   off the sign first, print if if there and then convert only the
+%   number. Since this is supposedly a base~10 number we can let \TeX\
+%   do the reading of |+| and |-|.
+%    \begin{macrocode}
+\def:Npn \int_convert_from_base_ten:nn#1#2{
+  \num_compare:nNnTF {#1}<\c_zero
+  {
+    - \int_convert_from_base_ten_aux:non {}
+    { \int_use:N \int_eval:n {-#1} } 
+  }
+  {
+    \int_convert_from_base_ten_aux:non {}
+    { \int_use:N \int_eval:n {#1} } 
+  }
+  {#2}
+}
+%    \end{macrocode}
+% The algorithm runs like this:
+% \begin{enumerate}
+% \item If the number \meta{num} is greater than \meta{base},
+%   calculate modulus of \meta{num} and \meta{base} and carry that
+%   over for next round. The remainder is calculated as a truncated
+%   division of \meta{num} and \meta{base}. Start over with these new
+%   values.
+% \item If \meta{num} is less than or equal to \meta{base} convert it
+%   to the correct symbol, print the previously calculated digits and
+%   exit.
+% \end{enumerate}
+% |#1| is the carried over result, |#2| the remainder and |#3| the
+% base number.
+%    \begin{macrocode}
+\def_new:Npn \int_convert_from_base_ten_aux:nnn#1#2#3{
+  \num_compare:nNnTF {#2}<{#3}
+  { \int_convert_number_to_letter:n{#2} #1 }
+  {
+    \int_convert_from_base_ten_aux:fon 
+    {
+      \int_convert_number_to_letter:n {\int_use:N\int_mod_raw:nn {#2}{#3}} 
+      #1
+    }
+    {\int_use:N \int_div_truncate_raw:nn{#2}{#3}}
+    {#3}
+  }
+}
+\def:Npn \int_convert_from_base_ten_aux:non{
+  \exp_args:Nno\int_convert_from_base_ten_aux:nnn
+}
+\def:Npn \int_convert_from_base_ten_aux:fon{
+  \exp_args:Nfo\int_convert_from_base_ten_aux:nnn
+}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \begin{macro}{\int_convert_number_to_letter:n}
+%   Turning a number for a different base into a letter or digit.
+%    \begin{macrocode}
+\def:Npn \int_convert_number_to_letter:n #1{ \if_case:w \int_eval:w
+  #1-10\scan_stop: \exp_after:NN A \or: \exp_after:NN B \or:
+  \exp_after:NN C \or: \exp_after:NN D \or: \exp_after:NN E \or:
+  \exp_after:NN F \or: \exp_after:NN G \or: \exp_after:NN H \or:
+  \exp_after:NN I \or: \exp_after:NN J \or: \exp_after:NN K \or:
+  \exp_after:NN L \or: \exp_after:NN M \or: \exp_after:NN N \or:
+  \exp_after:NN O \or: \exp_after:NN P \or: \exp_after:NN Q \or:
+  \exp_after:NN R \or: \exp_after:NN S \or: \exp_after:NN T \or:
+  \exp_after:NN U \or: \exp_after:NN V \or: \exp_after:NN W \or:
+  \exp_after:NN X \or: \exp_after:NN Y \or: \exp_after:NN Z \else:
+  \use_arg_i_after_fi:nw{ #1 }\fi: }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\int_convert_to_base_ten:nn}
+%   |#1| is the number, |#2| is its base. First we get the sign, then
+%   use only the digits/letters from it and pass that onto a new
+%   function.
+%    \begin{macrocode}
+\def:Npn \int_convert_to_base_ten:nn #1#2 {
+  \int_use:N\int_eval:n{
+    \int_get_sign:n{#1}
+    \exp_args:Nf\int_convert_to_base_ten_aux:nn {\int_get_digits:n{#1}}{#2}
+  }
+}
+%    \end{macrocode}
+% This is an intermediate function to get things started.
+%    \begin{macrocode}
+\def_new:Npn \int_convert_to_base_ten_aux:nn #1#2{
+  \int_convert_to_base_ten_auxi:nnN {0}{#2} #1 \q_nil
+}
+%    \end{macrocode}
+% Here we check each letter/digit and calculate the next number. |#1|
+% is the previously calculated result (to be multiplied by the base),
+% |#2| is the base and |#3| is the next letter/digit to be added.
+%    \begin{macrocode}
+\def_new:Npn \int_convert_to_base_ten_auxi:nnN#1#2#3{
+  \quark_if_nil:NTF #3
+  {#1}
+  {\exp_args:No\int_convert_to_base_ten_auxi:nnN
+    {\int_use:N \int_eval:n{ #1*#2+\int_convert_letter_to_number:N #3} }
+    {#2}
+  }
+}
+%    \end{macrocode}
+% This is for turning a letter or digit into a number. This function
+% also takes care of handling lowercase and uppercase letters. Hence
+% |a| is turned into |11| and so is |A|.
+%    \begin{macrocode}
+\def:Npn \int_convert_letter_to_number:N #1{
+  \int_compare:nNnTF{`#1}<{58}{#1}
+  {
+    \int_eval:n{ `#1 -
+      \if:w\int_compare_p:nNn{`#1}<{91}
+      55
+      \else:
+      87
+      \fi:
+    }
+  }
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+%
+%
+%
+%
 %    Show token usage:
 %    \begin{macrocode}
 %</initex|package>
@@ -973,6 +1201,9 @@
 % \endinput
 %
 % $Log$
+% Revision 1.26  2006/06/03 17:17:08  morten
+% Functions for converting between number bases
+%
 % Revision 1.25  2006/03/20 18:26:35  braams
 % Updated the copyright notice (2006) and demoted all implementation
 % sections to subsections and so on to clean up the toc for source3.tex
