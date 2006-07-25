@@ -93,7 +93,11 @@
 %   ignored so there it would be a waste of time to search for extra
 %   spaces since there would be none. At the document level however,
 %   spaces must be removed. The name for this is either
-%   |no_space_removal| or |space_removal|.
+%   |no_space_removal| or |space_removal|. Note that when
+%   |space_removal| is called you get an additional option where you
+%   can decide if one level of braces should be stripped from the key
+%   and/or value; see the description of the boolean
+%   |\l_KV_remove_one_level_of_braces_bool| for details.
 % \end{itemize}
 %
 % During the parsing process, keys or values are not expanded and no
@@ -106,6 +110,7 @@
 % \end{quote}
 % It is up to the programmer to provide a suitable definition of these
 % two functions before starting the parsing process.
+%
 %
 % \subsection{Functions}
 %
@@ -141,6 +146,23 @@
 %   As above but additionally also replaces top-level active |=| and
 %   |,| with harmless versions.
 % \end{function}
+%
+% \begin{variable}{
+%     \l_KV_remove_one_level_of_braces_bool  |
+% }
+%   \begin{syntax}
+%   \end{syntax}
+%   This boolean controls whether or not one level of braces is
+%   stripped from the key and value. The default value for this
+%   boolean is \meta{true} so that exactly one level of braces is
+%   stripped. For certain applications it is desirable to keep the
+%   braces in which case the programmer just has to set the boolean
+%   false temporarily. Setting this boolean has no effect when you
+%   call the |no_space_removal| functions since not stripping braces
+%   is a rare request and would clutter the otherwise elegant code of
+%   the |no_space_removal| functions for very little gain. If you need
+%   to preserve braces choose the slower |space_removal| functions.
+% \end{variable}
 %
 % \begin{function}{
 %     \KV_key_no_value_elt:n |
@@ -200,6 +222,14 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\l_KV_remove_one_level_of_braces_bool}
+% A boolean to control 
+%    \begin{macrocode}
+\bool_new:N \l_KV_remove_one_level_of_braces_bool
+\bool_set_true:N \l_KV_remove_one_level_of_braces_bool
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\KV_sanitize_outerlevel_active_equals:N}
 % \begin{macro}{\KV_sanitize_outerlevel_active_commas:N}
 %   Some functions for sanitizing top level equals and commas. Replace
@@ -230,7 +260,6 @@
 % \begin{macro}{\KV_remove_surrounding_spaces:nw}
 % \begin{macro}{\KV_remove_surrounding_spaces_auxi:w}
 % \begin{macro}{\KV_remove_surrounding_spaces_auxii:w}
-% \begin{macro}{\KV_add_element_helper:w}
 % \begin{macro}{\KV_set_key_element:w}
 % \begin{macro}{\KV_set_value_element:w}
 %   The macro |\KV_remove_surrounding_spaces:Nw| removes a possible
@@ -297,7 +326,6 @@
 % Here are some specialized versions of the above. They do exactly
 % what we want in one go.
 %    \begin{macrocode}
-\gdef_long:Npn \KV_add_element_helper:w#1\q_nil{{#1}}
 \gdef_long_new:Npn\KV_add_value_element:w\q_stop#1\q_nil{
   \toks_put_right:Nd\l_KV_parse_toks
   {
@@ -307,13 +335,24 @@
     \q_nil
   }
 }
-\gdef_long_new:Npn\KV_set_key_element:w#1\q_nil{
-  \toks_set:Nd\l_KV_currkey_toks
+\gdef_long:Npn\KV_set_key_element:w#1\q_nil{
+  \toks_set:Nx\l_KV_currkey_toks
   {
-    \exp_after:NN\KV_add_element_helper:w
-    \int_to_roman:w -`0
-    \KV_remove_surrounding_spaces_auxi:w \exp_not:N#1Q~Q
-    \q_nil
+    \exp_after:NN\int_to_roman:w \exp_after:NN-\exp_after:NN`\exp_after:NN0
+    \exp_after:NN\KV_remove_surrounding_spaces_auxi:w 
+    \exp_after:NN\exp_not:N\use_none:n #1Q~Q
+  }
+  \bool_if:NTF \l_KV_remove_one_level_of_braces_bool 
+  {
+    \toks_set:Nx \l_KV_currkey_toks{
+      {\exp_after:NN \KV_remove_one_level_of_braces:w
+      \toks_use:N \l_KV_currkey_toks \q_nil}
+    }
+  }
+  {
+    \toks_set:No\l_KV_currkey_toks{
+      \exp_after:NN{\toks_use:N\l_KV_currkey_toks} 
+    }
   }
 }
 \group_end:
@@ -323,25 +362,33 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
-% \end{macro}
 % 
+% \begin{macro}{\KV_add_element_helper:w}
+% \begin{macro}{\KV_remove_one_level_of_braces:w}
+%   A few helper functions for fixing braces around keys and values.
+%    \begin{macrocode}
+\def_long_new:Npn \KV_add_element_helper:w#1\q_nil{{#1}}
+\def_long_new:Npn \KV_remove_one_level_of_braces:w#1\q_nil{#1}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 %
 %
 % Parse a list of keyvals, put them into list form with entries like
 % |\KV_key_no_value_elt:n{key1}| and |\KV_key_value_elt:nn{key2}{val2}|.
 %
-% \begin{macro}{\KV_parse_sanitize_aux:Nn}
+% \begin{macro}{\KV_parse_sanitize_aux:n}
 %   The slow parsing algorithm sanitizes active commas and equal signs
 %   at the top level first. Then uses |#1| as inspector of each
 %   element in the comma list.
 %    \begin{macrocode}
-\def_long_new:Npn \KV_parse_sanitize_aux:Nn #1#2{
+\def_long_new:Npn \KV_parse_sanitize_aux:n #1{
   \group_begin:
   \toks_clear:N \l_KV_parse_toks
-  \tlp_set:Nx\l_KV_tmpa_tlp{\exp_not:n{#2}}
+  \tlp_set:Nx\l_KV_tmpa_tlp{\exp_not:n{#1}}
   \KV_sanitize_outerlevel_active_equals:N\l_KV_tmpa_tlp
   \KV_sanitize_outerlevel_active_commas:N\l_KV_tmpa_tlp
-  \exp_after:NN #1 \l_KV_tmpa_tlp,\q_nil,
+  \exp_after:NN \KV_parse_elt:w \exp_after:NN\q_no_value \l_KV_tmpa_tlp,\q_nil,
 %    \end{macrocode}
 % We evaluate the parsed keys and values outside the group so the
 % token register is restored to its previous value.
@@ -353,50 +400,43 @@
 % \end{macro}
 %
 %
-% \begin{macro}{\KV_parse_no_sanitize_aux:Nn}
+% \begin{macro}{\KV_parse_no_sanitize_aux:n}
 %   Like above but we don't waste time sanitizing. This is probably
 %   the one we will use for preamble parsing where catcodes of |=| and
 %   |,| are as expected!
 %    \begin{macrocode}
-\def_long_new:Npn \KV_parse_no_sanitize_aux:Nn #1#2{
+\def_long_new:Npn \KV_parse_no_sanitize_aux:n #1{
   \group_begin:
   \toks_clear:N \l_KV_parse_toks
-  #1 #2,\q_nil,
+  \KV_parse_elt:w \q_no_value #1,\q_nil,
   \exp_after:NN\group_end:
   \toks_use:N \l_KV_parse_toks
 }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\KV_parse_elt_safe:w}
-%   This version allows unmatched conditionals in the values. Needed?
-%   Note that this doesn't actually work yet because there is no
-%   |\quark_if_nil:nF| function\dots
-%    \begin{macrocode}
-\def_long_new:Npn \KV_parse_elt_safe:w #1,{
-  \quark_if_nil:nF{#1}{
-    \tlist_if_blank:nF{#1}{
-      \KV_split_key_value_current:w #1==\q_nil
-      \KV_parse_elt_safe:w
-    }
-  }
-}
-%    \end{macrocode}
-% \end{macro}
 %
 % \begin{macro}{\KV_parse_elt:w}
-%   This version doesn't allow unmatched conditionals in the values.
+%   This function will always have a |\q_no_value| stuffed in as the
+%   rightmost token in |#1|. In case there was a blank entry in the
+%   comma separated list we just run it again. The |\use_none:n| makes
+%   sure to gobble the quark |\q_no_value|. A similar test is made to
+%   check if we hit the end of the recursion.
 %    \begin{macrocode}
-\def_long_new:Npn \KV_parse_elt:w #1,{
-  \exp_after:NN\if_meaning:NN\exp_after:NN =\use_arg_i:n#1=
-    \exp_after:NN \KV_parse_elt:w
-  \else:
-    \if_meaning:NN\q_nil #1
-    \else:
+\def_long:Npn \KV_parse_elt:w #1,{
+  \tlist_if_blank:oTF{\use_none:n #1}
+  { \KV_parse_elt:w \q_no_value }
+  {
+    \quark_if_nil:oF {\use_arg_ii:nn #1 }
+%    \end{macrocode}
+% If we made it to here we can start parsing the key and value. When
+% done try, try again.
+%    \begin{macrocode}
+    {
       \KV_split_key_value_current:w #1==\q_nil
-      \exp_after:NN\exp_after:NN\exp_after:NN \KV_parse_elt:w
-    \fi:
-  \fi:
+      \KV_parse_elt:w \q_no_value
+    }
+  }
 }
 %    \end{macrocode}
 % \end{macro}
@@ -482,6 +522,7 @@
 % is empty or blank, all three quarks are gobbled. If |#1| consists of
 % exactly one token or brace group, only the latter quark is left.
 %    \begin{macrocode}
+\def_long_new:Npn \KV_val_preserve_braces:NnN #1#2#3{{#2}}
 \def_long_new:Npn\KV_split_key_value_space_removal_aux:w #1=={
   \tlp_set:Nx\l_KV_tmpa_tlp{\exp_not:o{\use_none:nnn#1\q_nil\q_nil}}
   \toks_put_right:No\l_KV_parse_toks{
@@ -505,9 +546,16 @@
 %    \begin{macrocode}
     \quark_if_nil:NTF\l_KV_tmpa_tlp
     {
-      \toks_put_right:No\l_KV_parse_toks{
-        \exp_after:NN{
-          \use_arg_ii:nnn #1\q_nil}
+      \bool_if:NTF \l_KV_remove_one_level_of_braces_bool
+      {
+        \toks_put_right:No\l_KV_parse_toks{
+          \exp_after:NN{\use_arg_ii:nnn #1\q_nil}
+        } 
+      }
+      {
+        \toks_put_right:No\l_KV_parse_toks{
+          \exp_after:NN{\KV_val_preserve_braces:NnN #1\q_nil}
+        }
       }
     }
 %    \end{macrocode}
@@ -527,16 +575,16 @@
 %   however fun they may be. Since there are no spaces, a set of
 %   braces around a value is automatically stripped by \TeX.
 %    \begin{macrocode}
-\def_long_new:Npn \KV_split_key_value_no_space_removal:w #1=#2=#3\q_nil{
-  \tlp_set:Nn\l_KV_tmpa_tlp{#3}
+\def_long_new:Npn \KV_split_key_value_no_space_removal:w #1#2=#3=#4\q_nil{
+  \tlp_set:Nn\l_KV_tmpa_tlp{#4}
   \tlp_if_empty:NTF \l_KV_tmpa_tlp
   {
-    \toks_put_right:Nn\l_KV_parse_toks{\KV_key_no_value_elt:n{#1}}
+    \toks_put_right:Nn\l_KV_parse_toks{\KV_key_no_value_elt:n{#2}}
   }
   {
     \tlp_if_eq:NNTF\c_KV_single_equal_sign_tlp\l_KV_tmpa_tlp
     {
-      \toks_put_right:Nn\l_KV_parse_toks{\KV_key_value_elt:nn{#1}{#2}}
+      \toks_put_right:Nn\l_KV_parse_toks{\KV_key_value_elt:nn{#2}{#3}}
     }
     {\ERROR}
   }
@@ -566,7 +614,7 @@
 %    \begin{macrocode}
 \def_new:Npn \KV_parse_no_space_removal_no_sanitize:n {
   \let:NN \KV_split_key_value_current:w \KV_split_key_value_no_space_removal:w
-  \KV_parse_no_sanitize_aux:Nn \KV_parse_elt:w
+  \KV_parse_no_sanitize_aux:n
 }
 %    \end{macrocode}
 % \end{macro}
@@ -578,14 +626,14 @@
 %    \begin{macrocode}
 \def_new:Npn \KV_parse_space_removal_sanitize:n {
   \let:NN \KV_split_key_value_current:w \KV_split_key_value_space_removal:w
-  \KV_parse_sanitize_aux:Nn \KV_parse_elt:w
+  \KV_parse_sanitize_aux:n
 }
 %    \end{macrocode}
 % For preamble use by the non-programmer this is probably best.
 %    \begin{macrocode}
 \def_new:Npn \KV_parse_space_removal_no_sanitize:n {
   \let:NN \KV_split_key_value_current:w \KV_split_key_value_space_removal:w
-  \KV_parse_no_sanitize_aux:Nn \KV_parse_elt:w
+  \KV_parse_no_sanitize_aux:n 
 }
 %    \end{macrocode}
 % \end{macro}
@@ -602,6 +650,10 @@
 % \endinput
 %
 %  $Log$
+%  Revision 1.2  2006/07/25 16:21:30  morten
+%  Allow values to contain unmatched conditionals such as `val
+%  \fi:'. Provide option to not strip any braces at all.
+%
 %  Revision 1.1  2006/01/27 10:14:24  morten
 %  Initial version of keyval parser
 %
