@@ -230,13 +230,12 @@
 % \subsection{Mapping functions}
 %
 %
-%  We provide three types of mapping functions, each with their own
-%  strengths. The "\clist_map_function:NN" is expandable
-%  whereas "\clist_map_inline:Nn" type uses "##1" as a placeholder for
-%  the current item in \m{clist}. This is the fastest of the three but
-%  cannot be nested so it's mostly useful when doing top-level mappings.
-%  Finally we have the "\clist_map_variable:NNn" type which uses a
-%  user-defined variable as placeholder and this makes it nestable.
+% We provide three types of mapping functions, each with their own
+% strengths. The "\clist_map_function:NN" is expandable whereas
+% "\clist_map_inline:Nn" type uses "##1" as a placeholder for the
+% current item in \m{clist}.  Finally we have the
+% "\clist_map_variable:NNn" type which uses a user-defined variable as
+% placeholder. Both the |_inline| and |_variable| versions are nestable.
 %
 %
 % \begin{function}{\clist_map_function:NN|
@@ -265,7 +264,7 @@
 % this argument)) to every item of <comma-list>.  <inline function> is not
 % executed within a sub-group so that side effects can be achieved locally.
 % The operation is not expandable which means that it can't be used
-% within write operations etc.
+% within write operations etc. These functions can be nested.
 % \end{function}
 %
 %
@@ -384,8 +383,7 @@
 %
 %  \begin{function}{%
 %                   \clist_map_function_aux:Nw |
-%                   \clist_map_inline_aux:w |
-%                   \clist_map_inline_function:n |
+%                   \clist_map_inline_aux:Nw |
 %                   \clist_map_variable_aux:Nnw |
 %  }
 %  \begin{syntax}\end{syntax}
@@ -741,9 +739,7 @@
 %  element "#2", which is surrounded by braces.
 %    \begin{macrocode}
 \def_new:Npn \clist_map_function_aux:Nw #1#2,{
-  \if_meaning:NN \q_nil #2
-    \expandafter \clist_map_break:w
-  \fi:
+  \quark_if_nil:nT{#2} \clist_map_break:w
   #1{#2}
   \clist_map_function_aux:Nw #1
 }
@@ -764,34 +760,46 @@
 % \begin{macro}{\clist_map_inline:Nn}
 % \begin{macro}{\clist_map_inline:cn}
 % \begin{macro}{\clist_map_inline:nn}
-% \begin{macro}{\clist_map_inline_aux:w}
-% The inline type is faster but not expandable.
+%   The inline type is faster but not expandable. In order to make it
+%   nestable, we use a counter to keep track of the nesting level so
+%   that all of the functions called have distict names. A simpler
+%   approach would of course be to use grouping and thus the save
+%   stack but then you lose the ability to do things locally.
 %    \begin{macrocode}
+\int_new:N \l_clist_inline_level_int
 \def_new:Npn \clist_map_inline:Nn #1#2{
   \clist_if_empty:NF #1
   {
-    \def:Npn \clist_map_inline_function:n ##1{#2}
-    \exp_after:NN \clist_map_inline_aux:w #1 , \q_nil , \q_stop 
+    \int_incr:N \l_clist_inline_level_int
+    \def:cpn {clist_map_inline_ \int_use:N \l_clist_inline_level_int :n} 
+    ##1{#2}
+%    \end{macrocode}
+% Recall that the |E| in |\exp_args:NcE| means `single token expanded
+% once and no braces added'. It is a lot more efficient to carry over
+% the special function rather than constructing the same csname over
+% and over again, so we just do it once. We reuse
+% |\clist_map_function_aux:Nw| for the actual loop.
+%    \begin{macrocode}
+    \exp_args:NcE \clist_map_function_aux:Nw 
+    {clist_map_inline_ \int_use:N \l_clist_inline_level_int :n}
+    #1 , \q_nil , \q_stop 
+    \int_decr:N \l_clist_inline_level_int
   }
 }
 \def_new:Npn \clist_map_inline:cn{\exp_args:Nc\clist_map_inline:Nn}
 \def_new:Npn \clist_map_inline:nn #1#2{
   \tlist_if_empty:nF {#1}
   {
-    \def:Npn \clist_map_inline_function:n ##1{#2}
-    \clist_map_inline_aux:w #1 , \q_nil , \q_stop 
+    \int_incr:N \l_clist_inline_level_int
+    \def:cpn {clist_map_inline_ \int_use:N \l_clist_inline_level_int :n} 
+    ##1{#2}
+    \exp_args:Nc \clist_map_function_aux:Nw 
+    {clist_map_inline_ \int_use:N \l_clist_inline_level_int :n} 
+    #1 , \q_nil , \q_stop 
+    \int_decr:N \l_clist_inline_level_int
   }
 }
-\def_new:Npn \clist_map_inline_aux:w #1,{
-  \if_meaning:NN \q_nil #1
-    \exp_after:NN \clist_map_break:w
-  \fi:
-  \clist_map_inline_function:n {#1}
-  \clist_map_inline_aux:w
-}
-\let_new:NN \clist_map_inline_function:n \use_none:n
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -823,11 +831,8 @@
 %    \begin{macrocode}
 \def_new:Npn \clist_map_variable_aux:Nnw #1#2#3,{
   \def:Npn #1{#3}
-  \if_meaning:NN \q_nil #1
-    \exp_after:NN \clist_map_break:w
-  \fi:
-  #2
-  \clist_map_variable_aux:Nnw #1{#2}
+  \quark_if_nil:NT #1 \clist_map_break:w
+  #2 \clist_map_variable_aux:Nnw #1{#2}
 }
 %    \end{macrocode}
 % \end{macro}
@@ -1040,6 +1045,9 @@
 % \endinput
 %
 %  $Log$
+%  Revision 1.16  2006/07/30 15:45:46  morten
+%  Made \clist_map_inline:Nn and variants nestable plus a little cleanup.
+%
 %  Revision 1.15  2006/03/20 18:26:34  braams
 %  Updated the copyright notice (2006) and demoted all implementation
 %  sections to subsections and so on to clean up the toc for source3.tex
