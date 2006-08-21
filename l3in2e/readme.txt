@@ -3,7 +3,7 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   2006/03/19
+   2006/08/15
 
 
 OVERVIEW
@@ -231,6 +231,17 @@ l3messages
 
 Module providing a new mechanism to provide longer warning and error
 messages based on storing the messages in external files.
+
+l3calc
+=====
+
+Module for using infix notation for the built-in register types
+(lengths and counters).
+
+l3keyval
+=====
+
+Module for extracting data from a key=val list for further processing.
 
 =====================================================================
 
