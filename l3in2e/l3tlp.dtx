@@ -156,13 +156,17 @@
 % \begin{function}{%
 %                  \tlp_put_left:Nn |
 %                  \tlp_put_left:No |
+%                  \tlp_put_left:Nx |
 %                  \tlp_gput_left:Nn |
 %                  \tlp_gput_left:No |
 %                  \tlp_gput_left:Nx |
 %                  \tlp_put_right:Nn |
+%                  \tlp_put_right:No |
+%                  \tlp_put_right:Nx |
 %                  \tlp_put_right:cc |
 %                  \tlp_gput_right:Nn |
 %                  \tlp_gput_right:No|
+%                  \tlp_gput_right:Nx|
 %                  \tlp_gput_right:cn|
 %                  \tlp_gput_right:co|
 % }
@@ -173,6 +177,21 @@
 % <tlp>. Assignment is done either locally or globally and <token
 % list> might be subject to expansion before assignment.
 % \end{function}
+%
+% A word of warning is appropriate here: Token list pointers are
+% implemented as macros and as such currently inherit some of the
+% peculiarities of how \TeX\ handles "#"s in the argument of
+% macros. In particular, the following actions are legal
+% \begin{verbatim}
+% \tlp_set:Nn \l_tmpa_tlp{##1}
+% \tlp_put_right:Nn \l_tmpa_tlp{##2}
+% \tlp_set:No \l_tmpb_tlp{\l_tmpa_tlp ##3}
+% \end{verbatim}
+% |x| type expansions where macros being expanded contain |#|s do not
+% work and will not work until there is an |\expanded| primitive in
+% the engine. If you want them to work you must double |#|s another
+% level.
+%
 %
 % \begin{function}{%
 %                  \tlp_set_eq:NN |
@@ -487,9 +506,6 @@
 % support arbitrary string comparison.
 % \end{variable}
 %
-% \begin{function}{\tlp_put_left_aux:w}
-% Used by "\tlp_put_left:Nn" and its variants.
-% \end{function}
 %
 % \begin{function}{\tlp_to_str_aux:w}
 % Function used to implement "\tlp_to_str:N".
@@ -916,36 +932,55 @@
 %
 % \begin{macro}{\tlp_put_left:Nn}
 % \begin{macro}{\tlp_put_left:No}
+% \begin{macro}{\tlp_put_left:Nx}
 % \begin{macro}{\tlp_gput_left:Nn}
 % \begin{macro}{\tlp_gput_left:No}
 % \begin{macro}{\tlp_gput_left:Nx}
-% \begin{macro}{\tlp_put_left_aux:w}
-%    We can add tokens to the left (either globally or locally).
+%   We can add tokens to the left (either globally or locally). It is
+%   not quite as easy as we would like because we have to ensure the
+%   assignments
+% \begin{verbatim}
+% \tlp_set:Nn \l_tmpa_tlp{##1abc##2def}
+% \tlp_set:Nn \l_tmpb_tlp{##1abc}
+% \tlp_put_right:Nn \l_tmpb_tlp {##2def}
+% \end{verbatim}
+%   cause |\l_tmpa_tlp| and |\l_tmpb_tlp| to be identical. The old
+%   code did not succeed in doing this (it gave an error) and so we
+%   use a different technique where the item(s) to be added are first
+%   stored in a temporary pointer and then added using an |x| type
+%   expansion combined with the appropriate level of
+%   non-expansion. Putting the tokens directly into one assignment
+%   does not work unless we want full expansion. Note (according to
+%   the warning earlier) \TeX\ does not allow us to treat |#|s the
+%   same in all cases. Tough.
 %    \begin{macrocode}
-\def_new:Npn \tlp_put_left:Nn #1{
-%    \end{macrocode}
-%    We need expanding over a brace to ensure that if |#1| contains
-%    just one token within braces the braces are preserved.
-%    \begin{macrocode}
-  \exp_args:No \tlp_put_left_aux:w {#1}#1}
-\def_new:Npn\tlp_put_left:No{\exp_args:NNo\tlp_put_left:Nn}
-\def_new:Npn \tlp_gput_left:Nn {
-%<*check>
-   \pref_global_chk:
-%</check>
-%<-check> \pref_global:D
-   \tlp_put_left:Nn
+\def_long_new:Npn \tlp_put_left:Nn #1#2{
+  \tlp_set:Nn \l_exp_tlp{#2}
+  \tlp_set:Nx #1{\exp_not:o{\l_exp_tlp}\exp_not:o{#1}}
+%<check> \chk_local_or_pref_global:N #1
 }
-\def_new:Npn\tlp_gput_left:No{\exp_args:NNo\tlp_gput_left:Nn}
-\def_new:Npn\tlp_gput_left:Nx{\exp_args:NNx\tlp_gput_left:Nn}
-\def_long_new:Npn \tlp_put_left_aux:w #1#2#3{\tlp_set:Nn #2{#3#1}
-%    \end{macrocode}
-%    We check the type afterwards to avoid conflicts with the use of
-%    |\pref_global:D|.
-%    \begin{macrocode}
-%<*check>
-  \chk_local_or_pref_global:N #2
-%</check>
+\def_long_new:Npn \tlp_put_left:No #1#2{
+  \tlp_set:Nn \l_exp_tlp{#2}
+  \tlp_set:Nx #1{\exp_not:d{\l_exp_tlp}\exp_not:o{#1}}
+%<check> \chk_local_or_pref_global:N #1
+}
+\def_long_new:Npn \tlp_put_left:Nx #1#2{
+  \tlp_set:Nx #1{#2\exp_not:o{#1}}
+%<check> \chk_local_or_pref_global:N #1
+}
+\def_long_new:Npn \tlp_gput_left:Nn #1#2{
+  \tlp_set:Nn \l_exp_tlp{#2}
+  \tlp_gset:Nx #1{\exp_not:o{\l_exp_tlp}\exp_not:o{#1}}
+%<check> \chk_local_or_pref_global:N #1
+}
+\def_long_new:Npn \tlp_gput_left:No #1#2{
+  \tlp_set:Nn \l_exp_tlp{#2}
+  \tlp_gset:Nx #1{\exp_not:d{\l_exp_tlp}\exp_not:o{#1}}
+%<check> \chk_local_or_pref_global:N #1
+}
+\def_long_new:Npn \tlp_gput_left:Nx #1#2{
+  \tlp_gset:Nx #1{#2\exp_not:o{#1}}
+%<check> \chk_local_or_pref_global:N #1
 }
 %    \end{macrocode}
 % \end{macro}
@@ -967,15 +1002,37 @@
 %    These are variants of the functions above, but for adding tokens
 %    to the right.
 %    \begin{macrocode}
-\def_long_new:Npn \tlp_put_right:Nn #1#2{\tlp_set:No #1{#1#2}}
-\def_long_new:Npn \tlp_gput_right:Nn #1#2{\tlp_gset:No #1{#1#2}}
-\def_new:Npn \tlp_gput_right:No {\exp_args:NNo \tlp_gput_right:Nn}
-\def_new:Npn \tlp_gput_right:Nx {\exp_args:NNx \tlp_gput_right:Nn}
+\def_long_new:Npn \tlp_put_right:Nn #1#2{
+  \tlp_set:Nn \l_exp_tlp{#2}
+  \tlp_set:Nx #1{\exp_not:o{#1}\exp_not:o{\l_exp_tlp}}
+%<check> \chk_local_or_pref_global:N #1
+}
+\def_long_new:Npn \tlp_gput_right:Nn #1#2{
+  \tlp_set:Nn \l_exp_tlp{#2}
+  \tlp_gset:Nx #1{\exp_not:o{#1}\exp_not:o{\l_exp_tlp}}
+%<check> \chk_local_or_pref_global:N #1
+}
+\def_long_new:Npn \tlp_put_right:No #1#2{
+  \tlp_set:Nn \l_exp_tlp{#2}
+  \tlp_set:Nx #1{\exp_not:o{#1}\exp_not:d{\l_exp_tlp}}
+%<check> \chk_local_or_pref_global:N #1
+}
+\def_long_new:Npn \tlp_gput_right:No #1#2{
+  \tlp_set:Nn \l_exp_tlp{#2}
+  \tlp_set:Nx #1{\exp_not:o{#1}\exp_not:d{\l_exp_tlp}}
+%<check> \chk_local_or_pref_global:N #1
+}
+\def_long:Npn \tlp_put_right:Nx #1#2{
+  \tlp_set:Nx #1{\exp_not:o{#1}#2}
+%<check> \chk_local_or_pref_global:N #1
+}
+\def_long:Npn \tlp_gput_right:Nx #1#2{
+  \tlp_set:Nx #1{\exp_not:o{#1}#2}
+%<check> \chk_local_or_pref_global:N #1
+}
 \def_new:Npn \tlp_gput_right:cn {\exp_args:Nc \tlp_gput_right:Nn}
-\def_new:Npn \tlp_gput_right:co {\exp_args:Nco \tlp_gput_right:Nn}
+\def_new:Npn \tlp_gput_right:co {\exp_args:Nc \tlp_gput_right:No}
 \def_new:Npn \tlp_put_right:cc {\exp_args:Ncc \tlp_put_right:Nn}
-\def_new:Npn \tlp_put_right:No {\exp_args:NNo \tlp_put_right:Nn}
-\def_new:Npn \tlp_put_right:Nx {\exp_args:Nnx \tlp_put_right:Nn}
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -1507,7 +1564,7 @@
 \def_new:Npn \tlp_if_in:cnTF {\exp_args:Nc\tlp_if_in:NnTF}
 \def_long:Npn \tlp_if_in:NnT #1#2{
   \def_long:Npn\tmp:w ##1 #2 ##2\q_stop{
-    \quark_if_no_value:nFT{##2}
+    \quark_if_no_value:nF{##2}
   }
   \exp_after:NN \tmp:w #1 #2 \q_no_value \q_stop
 }
