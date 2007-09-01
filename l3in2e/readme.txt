@@ -3,7 +3,7 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   2006/08/15
+   2007/09/01
 
 
 OVERVIEW
@@ -20,10 +20,11 @@ at any time.  They are being released in this form to allow public
 discussion and comment.
 
 Currently all the code is distributed in a format suitable for running
-as LaTeX2e packages.  Further documentation may be produced by processing
-either the individual .dtx files, or the file source3.tex with
-LaTeX2e.  The packages may be installed by processing l3.ins with 
-plain TeX or LaTeX.
+as LaTeX2e packages.  Further documentation may be produced by
+processing either the individual .dtx files, or the file source3.tex
+with LaTeX2e.  The packages may be installed by processing l3.ins with
+plain TeX or LaTeX.  In order to produce the documentation, you must
+have generated the package files.
 
 This code has been developed over time and has been used in previous
 versions for prototype implementations, experiments, etc. Its internal
