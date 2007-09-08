@@ -53,7 +53,7 @@
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-\DeclareOption*{\PassOptionstoClass{\CurrentOption}{article}}
+\DeclareOption*{\PassOptionsToClass{\CurrentOption}{article}}
 %    \end{macrocode}
 %
 % \section{Option Processing}
