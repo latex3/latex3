@@ -37,7 +37,7 @@
 %<*class>
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{l3doc}
-         [2006/01/17 v0.0h class for documenting experimental stuff]
+         [2007/09/08 v0.0j class for documenting experimental stuff]
 %
 \NeedsTeXFormat{LaTeX2e}
 %</class>
