@@ -340,6 +340,7 @@
   \box_new:c {g_xor_col_#1_box}
   \box_new:c {g_xor_col_#1_balance_box}
   \dim_new:c {g_xor_ht_col_#1_dim}
+  \dim_new:c {g_xor_best_ht_col_#1_dim}        % not really the best solution
   \dim_new:c {g_xor_bottom_ht_col_#1_dim}
   \dim_new:c {g_xor_balance_ht_col_#1_dim}
 }
@@ -430,7 +431,7 @@
 %    \begin{macrocode}
   \g_xor_best_trial_col_hts_tlp
 %<*trace>
-  \tr@ce{g_xor_best_trial_col_hts_tlp~ =~ \meaning\g_xor_best_trial_col_hts_tlp}
+  \tr@ce{Use~ g_xor_best_trial_col_hts_tlp~ =~ \tlp_to_str:N \g_xor_best_trial_col_hts_tlp}
   \@tracepop{xor_cols_setup:}
 %</trace>
 }
@@ -2229,13 +2230,23 @@
 %</trace>
     }
     {
-%<*trace>
-     \tr@ce{BALANCE:~ delta~ =~ \dim_use:N \g_xor_balance_delta_dim }
-%</trace>
-     \dim_gsub:Nn \vsize \g_xor_balance_delta_dim
+%    \end{macrocode}
+%    Calculate the real reduction to use in the current column (depends on the
+%    bottom float situation) and substract it from |\vsize|
+%    \begin{macrocode}
+     \xor_calculate_delta_to_use:N \l_tmpa_dim
+     \dim_gsub:Nn \vsize \l_tmpa_dim
     }
 %<*trace>
   \tr@ce{vsize~ setup~ =~ \dim_use:N \vsize }
+%</trace>
+
+%    \end{macrocode}
+%    tmp\footnote{fix implement differently}
+%    \begin{macrocode}
+  \dim_compare:nNnF \vsize > \baselineskip
+    { \ignorethiscolumn }
+%<*trace>
   \@tracepop{xor_OR_trial_grab_next_col_setup:}
 %</trace>
 }
@@ -2245,6 +2256,58 @@
 %
 %
 %
+% \begin{macro}{\ignorethiscolumn}
+%    \begin{macrocode}
+\def_new:Npn \ignorethiscolumn {\typeout{if~ we~ reach~ this~ the~ algorithm~
+    should~ change~ behavior~ ...one~ day}} 
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+%
+% \begin{macro}{\xor_calculate_delta_to_use:N}
+%    The |\g_xor_balance_delta_dim| value during balancing is a nominal
+%    one. It is only used on a column if the column doesn't have any bottom
+%    floats. If it does then the actual value used is the difference between
+%    |\g_xor_balance_delta_dim| and the amount taken up by the bottom floats in
+%    that column or zero if that difference is negative.
+%
+%    This is calculated in the following macro and the result is returned in
+%    the local variable specified in its argument. This can then be further
+%    used to reduce the |\vsize| for cutting etc.
+%    \begin{macrocode}
+\def_new:Npn \xor_calculate_delta_to_use:N #1 {
+
+%<*trace>
+     \tr@ce{BALANCE:~ delta~ =~ \dim_use:N \g_xor_balance_delta_dim }
+%</trace>
+     \dim_set:Nn #1 \g_xor_balance_delta_dim
+     \dim_sub:Nn #1
+                 { \dim_use:c {g_xor_bottom_ht_col_
+                                \int_use:N\g_xor_curr_col_int
+                              _dim} }
+     \dim_compare:nNnTF  #1 > \c_zero_dim
+        { 
+%<*trace>
+          \tr@ce{BALANCE:~ reduction~ used~ on~ col~
+                 \int_use:N\g_xor_curr_col_int\space =~ \dim_use:N #1 }
+%</trace>
+        }
+        {
+%<*trace>
+          \tr@ce{BALANCE:~ no~ reduction~ used~ on~ col~
+                 \int_use:N\g_xor_curr_col_int\space =~ 
+                 \dim_use:N #1 \space !>~ 0pt}
+%</trace>
+          \dim_zero:N #1
+        }
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+
 %
 %
 % \begin{macro}{\xor_OR_grab_some_cols:nnnnn}
@@ -2820,23 +2883,37 @@
 %    met (this is, for example, used to check if there are both bottom
 %    floats and footnotes). If the constraints are not met don't
 %    bother to check the callout/float constraints.
+%
+%    Especially while doing balancing and not having reached the final
+%    balanced solution,
+%    no tests should be made since they would fail the 
+%    trial!\footnote{this now disables the checks even on last run! fix!}
 %    \begin{macrocode}
-  \bool_if:NF \g_xor_trial_failed_bool
-  {
-    \bool_if:NT \g_xor_trial_with_floats_bool
-       \xor_check_float_constraints:
-  }
-  \bool_if:NF \g_xor_trial_failed_bool
-  {
+
+  \bool_if:NTF \g_xor_balance_point_expected_bool
+   {
+%<*trace>
+  \tr@ce{BALANCE:~ skipping~ tests~ while~ balancing}
+%</trace>
+   }
+   {
+    \bool_if:NF \g_xor_trial_failed_bool
+     {
+      \bool_if:NT \g_xor_trial_with_floats_bool
+	 \xor_check_float_constraints:
+     }
+    \bool_if:NF \g_xor_trial_failed_bool
+     {
 %    \end{macrocode}
 %     For each float sequence class, call |\check@callout@constraints|
 %    this will be set via a call to a pagesetup template to do an
 %    appropriate check on the float placement relative to float
 %    call-out.
 %    \begin{macrocode}
-    \bool_if:NT \g_xor_trial_with_floats_bool
-    { \seq_map:NN \g_xor_float_classes_seq  \check@callout@constraints }
-  }
+      \bool_if:NT \g_xor_trial_with_floats_bool
+       { \seq_map:NN \g_xor_float_classes_seq  \check@callout@constraints }
+     }
+   }
 %    \end{macrocode}
 %
 %    Throw the text away (it will be reset later if this trial is
@@ -2945,6 +3022,16 @@
   {
 %<*trace>
     \tr@ce{fail:~true}
+%</trace>
+%    \end{macrocode}
+%    If we have been doing balancing the status needs to be brought back to
+%    \begin{macrocode}
+%    initial state. Probably should be done elsewhere instead.\footnote{check/fix}
+    \dim_gzero:N \g_xor_balance_delta_dim
+    \bool_gset_false:N \g_xor_balance_point_expected_bool
+    \bool_gset_false:N \g_xor_balance_finish_bool
+%<*trace>
+    \tr@ce{BALANCE:~ g_xor_balance_point_expected_bool~ <-~ false}
 %</trace>
 %    \end{macrocode}
 %    If the trial has failed we have to distinguish two cases:
@@ -3323,7 +3410,7 @@
                   \g_xor_saved_trial_col_hts_tlp
 
 %<*trace>
-  \tr@ce{new~ best~ trial:~ \meaning\g_xor_best_trial_col_hts_tlp}
+  \tr@ce{new~ best~ trial:~ \tlp_to_str:N \g_xor_best_trial_col_hts_tlp}
 %</trace>
 %    \end{macrocode}
 %
@@ -3485,6 +3572,16 @@
 %<*trace>
   \@tracepush{xor_OR_best_cols_setup:}
 %</trace>
+%<*trace>
+    \tr@ce{XX~initial:~
+           \tlp_to_str:N \g_xor_best_trial_col_hts_tlp}
+%</trace>
+  \g_xor_best_trial_col_hts_tlp
+  \xor_forall_columns:n {
+      \dim_gset:cc {g_xor_best_ht_col_ \int_use:N \g_xor_curr_col_int _dim}
+                   {g_xor_ht_col_ \int_use:N \g_xor_curr_col_int _dim}
+     }
+
   \int_gzero:N \g_xor_curr_col_int
   \num_gzero:N \g_xor_trial_flush_seen_num
   \num_gzero:N \g_xor_trial_here_seen_num
@@ -3702,8 +3799,8 @@
       }
       {
 %<*trace>
-       \tr@ce{Setting~ up~ column~ heights:}
-        \cs_show:N \g_xor_balance_trial_col_hts_tlp
+       \tr@ce{Setting~ up~ column~ heights:~
+        \tlp_to_str:N \g_xor_balance_trial_col_hts_tlp}
 %</trace>
         \g_xor_balance_trial_col_hts_tlp
       }
