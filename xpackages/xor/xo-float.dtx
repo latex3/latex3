@@ -550,6 +550,9 @@
 %
 % \subsection{Float Placement Control Files}
 %
+% Code in this section is pretty old and so far only with minimal conversion
+% to expl3 syntax. Most of it needs a complete rewrite at a later stage.
+%
 % \begin{macro}{\xor_perhaps_write_placements_to_fpl_file:}
 %    |\xor_perhaps_write_placements_to_fpl_file:| writes all float
 %    placements (except for ``here'' floats) into the |fpl| in case we
@@ -625,18 +628,22 @@
   \newread\fpc@file
   \openin\fpc@file\jobname.fpc\scan_stop:
   \ifeof\fpc@file
-    \PackageWarningNoLine{xo}
+    \PackageWarningNoLine{xor}
         {No~\jobname.fpc:~using~automatic~float~placement}
   \else:
-    \let:NN \get@fpc@page@data\xor_get_fpc_line_and_recurse:
-    \get@fpc@page@data
-    \let:NN \xor_try_float_pages: \do_nothing:
+    \let:NN \xor_maybe_get_fpc_page_data: \xor_get_fpc_line_and_recurse:
+    \xor_maybe_get_fpc_page_data:
+
+% fix next line
+
+    \glet:NN \xor_try_float_pages: \do_nothing:
+
 %    \end{macrocode}
 %    Next line should go once we implement moving floats in and out of
 %    ``here'' as then we need to read the file at a different
 %    place!\footnote{Reimplement!}
 %    \begin{macrocode}
-    \let:NN \xor_trial_place_float_loop: \xor_fpc_place_float_loop:
+    \glet:NN \xor_trial_place_float_loop: \xor_fpc_place_float_loop:
   \fi:
 }
 %    \end{macrocode}
@@ -644,31 +651,42 @@
 %
 %
 % \begin{macro}{\xor_fpc_place_float_loop:}
-%    Version of |\xor_try_float_pages:| to use with float placement control file.
-%    Should be moved to xo-or once it works.
+%    Version of |\xor_trial_place_float_loop:| to use with float placement
+%    control file.  Should be moved to xo-or once it works.
 %    \begin{macrocode}
 \def_new:Npn \xor_fpc_place_float_loop:{
 %<*trace>
   \trace_push:n{xor_fpc_place_float_loop:}
 %</trace>
 %    \end{macrocode}
-%    Don't think the the next line has any meaning, so
-%    removed.
-%    Old command only did set up |\g_xor_best_trial_col_hts_tlp|, which
-%    is later on set to relax anyway.\footnote{Correct to remove?}
+%
 %    \begin{macrocode}
-%  \initialize@best@trial
-  \get@fpc@page@data
-%%% this part of the code must be broken !!!
-  \tlp_gclear:N \g_xor_best_trial_col_hts_tlp
+   \xor_get_fpc_line_and_recurse:
+%    \end{macrocode}
+%    Adding the floats changes the column heights but the values in
+%    |\g_xor_best_trial_col_hts_tlp| are not updated by this process so when
+%    finally typesetting the pages we would retrieve the wrong values. So we
+%    either have to update this tlp or (what is currently done) clear it
+%    totally. The latter is probably okay as wehaven't done trials and we are
+%    not backing up so \ldots{} cross fingers and \ldots
+%
+%    Eventually this need to change once we allow partially set up fpc
+%    files.\footnote{Check/fix!}
+%    \begin{macrocode}
+   \tlp_gclear:N \g_xor_best_trial_col_hts_tlp
 %    \end{macrocode}
 %
 %    Do we have to set |\if_xor_trial_with_floats:|?\footnote{Check!}
 %    \begin{macrocode}
-  \xmark_OR_restore_state:n{
-    \vbox_unpack:N \g_xor_hold_page_box
+  \xmark_OR_restore_state:nn 
+    {
+%<*trace>
+     \trace:n{copying~ g_xor_hold_page_box~ onto~ MVL}
+%</trace>
+     \vbox_unpack:N \g_xor_hold_page_box
+     \xor_add_badly_guarded_penalty:N \c_xor_output_collect_penalty
+    }
     \xor_OR_best_cols_setup:
-   }
 %<*trace>
   \trace_pop:n{xor_fpc_place_float_loop:}
 %</trace>
@@ -686,10 +704,10 @@
 % \end{macro}
 %
 %
-% \begin{macro}{\get@fpc@page@data}
+% \begin{macro}{\xor_maybe_get_fpc_page_data:}
 %
 %    \begin{macrocode}
-\let\get@fpc@page@data\do_nothing:
+\let_new:NN \xor_maybe_get_fpc_page_data: \do_nothing:
 %    \end{macrocode}
 % \end{macro}
 %
@@ -703,27 +721,34 @@
 %<*trace>
 \trace_push:n{xor_get_fpc_line_and_recurse:}
 %</trace>
-  \let:NN \@nextfpc \do_nothing:
+  \let:NN \xor_fpc_next_task: \do_nothing:
   \int_compare:nNnTF \g_xor_next_fpc_page_num > \g_xor_page_absolute_num
   {
 %<*trace>
-    \trace:n{No~ float~ control~ on~ page:~ \num_use:N \g_xor_page_absolute_num}
+    \trace:n{FPC:~No~ float~ control~ on~ page:~ \num_use:N \g_xor_page_absolute_num}
 %</trace>
   }
   {
     \tex_ifeof:D\fpc@file
 %<*trace>
-      \trace:n{fpc~ file~ended}
+      \trace:n{FPC:~ fpc~ file~ended}
 %</trace>
       \num_gset:Nn \g_xor_next_fpc_page_num \c_max_int
+
+      \glet:NN \xor_trial_place_float_loop: \xor_trial_place_float_loop_std:
+      \glet:NN \xor_try_float_pages:        \xor_try_float_pages_std:
+
     \else:
       \group_begin:
         \tex_endlinechar:D `\ %
         \tex_catcode:D`\ 10\scan_stop:
         \pref_global:D\read\fpc@file~to~\g_tmpa_tlp
       \group_end:
-      \let:NN \@nextfpc\get@fpc@page@data
-      \tlp_if_eq:NNF \g_tmpa_tlp\c_empty_tlp
+      \let:NN \xor_fpc_next_task:\xor_maybe_get_fpc_page_data:
+%<*trace>
+    \trace:n{FPC:~ fpc~ line~ read:~ \g_tmpa_tlp}
+%</trace>
+      \tlp_if_eq:NNF \g_tmpa_tlp \c_empty_tlp
       {
         \exp_after:NN \xor_parse_fpc_line:w \g_tmpa_tlp \scan_stop:
       }
@@ -732,7 +757,7 @@
 %<*trace>
   \trace_pop:n{xor_get_fpc_line_and_recurse:}
 %</trace>
-  \@nextfpc
+  \xor_fpc_next_task:
 }
 %    \end{macrocode}
 % \end{macro}
@@ -747,38 +772,33 @@
 \def_new:Npn \xor_parse_fpc_line:w #1#2~#3~#4 \scan_stop:{
   \if_meaning:NN P#1
 %<*trace>
-    \trace:n{Next~page~control:~#3}
+    \trace:n{FPC:~ Next~page~control:~#3}
 %</trace>
     \num_gset:Nn \g_xor_next_fpc_page_num {#3}
-    \let:NN \@nextfpc \do_nothing:
+    \let:NN \xor_fpc_next_task: \do_nothing:
   \else:
     \if_meaning:NN A#1
 %<*trace>
-      \trace:n{Area:~#3}
+      \trace:n{FPC:~ Area:~#3}
 %</trace>
       \xor_this_area_setup:o{#3}
-      \let:NN \@nextfpc\get@fpc@page@data
+      \let:NN \xor_fpc_next_task:\xor_maybe_get_fpc_page_data:
     \else:
       \if_meaning:NN F#1
-        \if_meaning:NN \g_xor_this_area_name_tlp\fpc@here
+        \if_meaning:NN \g_xor_this_area_name_tlp\c_fpc_here_area_name_tlp
 %    \end{macrocode}
 %    Should allow moving floats into and out of here status means
 %    reading before the collecton OR, not after.\footnote{FIX, update,
 %    extend --- whatever you want to call it.}
 %    \begin{macrocode}
 %<*trace>
-          \trace:n{here~float}
+          \trace:n{FPC:~ here~float}
 %</trace>
         \else:
 %<*trace>
-          \trace:n{not~here~float}
+          \trace:n{FPC:~ not~here~float}
 %</trace>
-          \group_begin:
-            \count@#3\relax
-            \glet:NN \this@float@box \scan_stop:
-            \seq_map:NN\g_xor_floats_active_seq
-                      \extract@float@by@number
-          \group_end:
+          \xor_fpc_find_and_remove_float_from_active:n {#3}
 %    \end{macrocode}
 %    If a float number is specified and there is not a float of that
 %    number in the active list, something has gone wrong, either we
@@ -789,25 +809,29 @@
 %    handled other than by |\ERROR|. If the float is found, assign it
 %    to the current area (as set by an Area: line in the fpc file.
 %    \begin{macrocode}
-          \if_meaning:NN \this@float@box \scan_stop:
+          \tlp_if_eq:NNTF
+             \g_xor_floats_active_seq \g_xor_floats_active_new_seq
+           {
 %<*trace>
-            \trace:n{Float:~#3~not~found}
+            \trace:n{FPC:~ Float:~#3~not~found}
 %</trace>
             \def:Npx \fpc@list{\fpc@list#3,\g_xor_this_area_name_tlp\scan_stop:}
             \cs_show:N \fpc@list
-          \else:
+           }
+           {
 %<*trace>
-            \trace:n{Float:~#3~is~\this@float@box}
+            \trace:n{FPC:~ Float:~#3~is~\g_xor_this_float_box_tlp}
 %</trace>
+            \seq_gset_eq:NN \g_xor_floats_active_seq \g_xor_floats_active_new_seq
 %    \end{macrocode}
 %    Before we add the float, let's do some sanity checks. We allow to
 %    place a float into an area which is bigger than the float (spans
 %    more columns) but we complain if the area is smaller.
 %    \begin{macrocode}
             \int_compare:nNnT \g_xor_this_area_span_tlp <
-                  \g_xor_this_span_num_tlp
-            {
-              \PackageError{xo}
+                              \g_xor_this_span_num_tlp
+              {
+               \PackageError{xo}
                 {Float~ bigger~ than~ target~ area}
                 {Float~\g_xor_this_flseq_num\space spans ~
                   \g_xor_this_span_num_tlp\space columns,~
@@ -816,7 +840,7 @@
                   columns.\MessageBreak
                   Correct~ the~ data~ in~ file~ \jobname.fpc!
                 }
-            }
+              }
 %    \end{macrocode}
 %    We also check if the target area is allowed on the current page
 %    (it could be the case that the page setup for that page doesn't
@@ -839,7 +863,7 @@
 %    \end{macrocode}
 %    If we can't put it into the requested area we have to put it
 %    somewhere else. Otherwise a lot of code might break. So we simply
-%    chose the first area in |\used@area|\footnote{Need a solution if
+%    chose the first area in |\g_xor_areas_used_clist|\footnote{Need a solution if
 %    the page doesn't allow ``any'' floats! FIX!}
 %    \begin{macrocode}
               \clist_if_empty:NTF \g_xor_areas_used_clist    % we have a problem
@@ -862,20 +886,23 @@
 %    there is already a float present even if we add the first float
 %    to an area.
 %    \begin{macrocode}
-            \seq_gput_right:No
-                \g_xor_floats_free_seq \this@float@box
-            \seq_gput_right:co
-                {g_xor_area_ \g_xor_this_area_name_tlp _float_seq}
-                \this@float@box
-          \fi:
+%% big ?
+%%            \seq_gput_right:No
+%%                \g_xor_floats_free_seq \g_xor_this_float_box_tlp
+
+%            \seq_gput_right:co
+%                {g_xor_area_ \g_xor_this_area_name_tlp _float_seq}
+%                \g_xor_this_float_box_tlp
+\xor_update_float_placement_data:
+          }
         \fi:
 %    \end{macrocode}
 %
 %    Loop to next line.
 %    \begin{macrocode}
-        \let:NN \@nextfpc\get@fpc@page@data
+        \let:NN \xor_fpc_next_task: \xor_maybe_get_fpc_page_data:
 %    \end{macrocode}
-% end of case on type of fpc line.
+%    end of case on type of fpc line.
 %    \begin{macrocode}
       \fi:
     \fi:
@@ -885,12 +912,32 @@
 % \end{macro}
 %
 %
+\def_new:Npn \xor_fpc_find_and_remove_float_from_active:n #1 {
+   \group_begin:
+    \seq_gclear:N \g_xor_floats_active_new_seq
+
+    \glet:NN \g_xor_this_float_box_tlp \scan_stop:
+ 
+    \seq_map_inline:Nn \g_xor_floats_active_seq
+	 {
+	  \int_compare:nNnTF
+	     {\exp_after:NN\get@float@number\tex_the:D\toks ##1} = {#1}
+             {
+              \tlp_gset:Nn \g_xor_curr_float_box_tlp ##1
+              \xor_extract_this_float_values:N ##1
+             }
+             { \seq_gput_right:Nn \g_xor_floats_active_new_seq ##1 }
+         }
+   \group_end:
+}
+\seq_new:N \g_xor_floats_active_new_seq
+
 %
 %
-% \begin{macro}{\fpc@here}
+% \begin{macro}{\c_fpc_here_area_name_tlp}
 %
 %    \begin{macrocode}
-\def\fpc@here{hhh}
+\tlp_new:Nn\c_fpc_here_area_name_tlp{hhh}
 %    \end{macrocode}
 % \end{macro}
 
@@ -903,174 +950,73 @@
 %
 %
 % \begin{macro}{\get@float@number}
-% could be known as |\@seventhofseven|.
+% 
 %    \begin{macrocode}
 \def_new:Npn \get@float@number#1#2#3#4#5#6#7{#7}
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\extract@float@by@number}
-% Find the float box that has the float with sequence number |\count@|.
+%
+%
+
+%  \begin{macro}{\enddocument}
+%    If we are setting floats via FPC files then it might happen that we
+%    delete a float from the file by mistake rather than moving it. In that
+%    case it will remain on the active list and never gets typeset unless
+%    later in the document norming float placement trials are resumed.
+%
+%    To account for this situation (at least initially) we check that this
+%    sequence is empty when we are ready to finally end the document. We don't
+%    make it an error right now but probably it has to be one day.
+%
 %    \begin{macrocode}
-\def_new:Npn \extract@float@by@number#1{
-  \int_compare:nNnT {\exp_after:NN\get@float@number\tex_the:D\toks#1}=\count@
-%%% why local???? FIX
-    \def \g_xor_curr_float_box_tlp {#1}
-    \xor_extract_this_float_values:N #1
-  \fi}
+\def\enddocument{%
+   \let\AtEndDocument\@firstofone
+   \@enddocumenthook
+   \@checkend{document}%
+   \clearpage
+
+    \seq_if_empty:NF \g_xor_floats_active_seq
+       {
+        \typeout{Warning:~ the~ following~ float(s)~ have~ not~
+                 been~ typeset:}
+        \seq_map_inline:Nn \g_xor_floats_active_seq
+           { \typeout{\@spaces ##1} }
+       }
+
+   \begingroup
+     \if@filesw
+       \immediate\closeout\@mainaux
+       \let\@setckpt\@gobbletwo
+       \let\@newl@bel\@testdef
+       \@tempswafalse
+       \makeatletter \input\jobname.aux
+     \fi
+     \@dofilelist
+     \ifdim \font@submax >\fontsubfuzz\relax
+       \@font@warning{Size substitutions with differences\MessageBreak
+                  up to \font@submax\space have occurred.\@gobbletwo}%
+     \fi
+     \@defaultsubs
+     \@refundefined
+     \if@filesw
+       \ifx \@multiplelabels \relax
+         \if@tempswa
+           \@latex@warning@no@line{Label(s)~ may~ have~ changed.~
+               Rerun~ to~ get~ cross-references~ right}%
+         \fi
+       \else
+         \@multiplelabels
+       \fi
+     \fi
+   \endgroup
+   \deadcycles\z@\@@end}
 %    \end{macrocode}
-% \end{macro}
-%
-%
-%
+%  \end{macro}
+
+
 %
 %
 % \endinput
 \endinput
-%
-% $Log$
-% Revision 1.17  2005/12/23 13:59:14  morten
-% Minor fix to make index work
-%
-% Revision 1.16  2005/03/01 22:52:45  morten
-% Small updates, more expl3 conversion
-%
-% Revision 1.14  2004/12/06 23:01:23  mittelba
-% fix for here float not aligning to grid
-%
-% Revision 1.13  2004/12/05 22:20:58  mittelba
-% fixing \SPANCNT to have 1 instead of <empty> as default
-% adding missing gloabl to inline box assignment
-%
-% Revision 1.12  2004/12/04 22:54:08  mittelba
-% starting to define a box module ... unfinished and names not yet right!
-%
-% Revision 1.11  2004/11/28 18:00:25  mittelba
-% added Björn's suggestions as comment
-%
-% Revision 1.10  2004/11/13 10:04:06  mittelba
-% new license (LPPL)
-%
-% Revision 1.9  2004/10/31 21:49:04  mittelba
-% *** empty log message ***
-%
-% Revision 1.8  2004/10/30 21:04:02  mittelba
-% make docu run
-%
-% Revision 1.7  2004/10/30 18:45:50  mittelba
-% further cleanup using expl3 concepts
-% first attempt at balancing (unfinished)
-%
-% Revision 1.6  2004/10/12 21:40:32  mittelba
-% updates up to p29
-%
-% Revision 1.5  2004/10/03 22:44:02  mittelba
-% more updates ... still not getting closer ...
-%
-% Revision 1.4  2004/10/03 15:35:49  mittelba
-% more cleanup ... tedious ...
-%
-% Revision 1.3  2004/10/01 21:46:30  mittelba
-% many further updates, still a lot to do
-%
-% Revision 1.2  2004/09/27 20:06:03  mittelba
-% in the middle of normalizing to expl3 syntax
-%
-% Revision 1.1  2001/07/26 19:55:12  latex3
-% original web distrib
-%
-% Revision 1.32  2000/08/11 07:14:11  latex3
-% added header
-%
-% Revision 1.31  2000/08/11 06:48:24  latex3
-% untabify
-%
-% Revision 1.30  2000/08/11 06:44:00  latex3
-% fix typo in initialization
-%
-% Revision 1.29  2000/08/04 10:17:28  latex3
-% separate out initialization of here float
-%
-% Revision 1.28  2000/07/19 17:14:01  latex3
-% deduce \g_xor_this_class_tlp from \g_xor_this_type_tlp instead of storing it on a per
-% float basis
-%
-% Revision 1.27  2000/07/19 15:53:46  latex3
-% introduced float sequence classes
-% cleaned up parts of the code
-% added further documentation
-%
-% Revision 1.26  2000/07/10 18:47:12  latex3
-% macro name renaming
-%
-% Revision 1.25  2000/06/29 17:16:30  latex3
-% introduced \xor_this_area_setup:o
-%
-% Revision 1.24  2000/06/26 15:00:59  latex3
-% docu update
-%
-% Revision 1.23  2000/06/22 20:07:00  latex3
-% renamed some macros to get them more uniform
-%
-% Revision 1.22  2000/06/22 10:55:59  latex3
-% Includeed part of David's code (formerly in xo-dpc.sty) for writing
-% and reading fpl/fpc files. Not done is moving floats in and out of hhh
-%
-% Revision 1.21  2000/06/16 11:20:50  latex3
-% rename \construct@and@test@col@height to \construct@and@test@col@ht
-% rename \construct@and@test@col@heights to \construct@and@test@col@hts
-% rename \cl@height1 to \@col@ht@1 (etc)
-%
-% Revision 1.20  2000/06/15 15:24:25  latex3
-% implemented new semantics for area names
-%
-% Revision 1.19  2000/06/13 21:18:02  latex3
-% add some trace guards
-%
-% Revision 1.18  2000/05/03 18:55:34  latex3
-% pass \theCNT instead of \value{CNT} in the float data structure (we
-% might need both one day)
-%
-% Revision 1.17  2000/04/21 19:11:39  latex3
-% updated here float interface (needs fixing)
-%
-% Revision 1.16  2000/04/08 10:49:39  latex3
-% first draft support for here floats
-%
-% Revision 1.15  2000/03/24 15:34:27  latex3
-% version that starts supporting spans (still a hack yet)
-%
-% Revision 1.14  2000/03/22 15:30:28  latex3
-% some normalisations of names
-% started on spans (tmp version)
-%
-% Revision 1.13  2000/03/16 10:28:29  latex3
-% partial and full flush working for the first time
-%
-% Revision 1.12  2000/03/05 19:40:07  latex3
-% support multiple columns (6 max right now)
-% moved some float init code into page setup
-%
-% Revision 1.11  2000/02/26 18:22:59  david
-% interface to x-alloc and make changes due to
-% deferred float pre-allocation
-%
-% Revision 1.10  2000/02/21 01:45:23  david
-% documentation improvements
-%
-% Revision 1.9  2000/02/20 00:05:08  david
-% use galley, don't discard it (get more pages that way)
-%
-% Revision 1.8  2000/02/19 23:16:19  david
-% Use \construct@and@test@col@height before destroying
-% \g_xor_this_captioned_float_box, not after...
-%
-% Revision 1.7  2000/02/19 18:55:44  david
-% reading fpc files
-%
-% Revision 1.6  2000/02/17 22:47:07  david
-% *** empty log message ***
-%
-% Revision 1.5.1.1  2000/02/16  10:39:42  latex3
-% 3cols support added
 %
