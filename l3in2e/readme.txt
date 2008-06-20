@@ -3,7 +3,14 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   2007/09/01
+   2008/06/20
+
+
+WHERE TO GET IT
+---------------
+
+The current version of these packages can be obtained by following the
+instructions at <http://www.latex-project.org/code.html>.
 
 
 OVERVIEW
@@ -14,7 +21,7 @@ level' programming in TeX.  The syntax conventions described here are NOT
 intended either for use in documents or for use in describing design
 layouts in document class files.
 
-All aspects of these package are *experimental*. The names of the
+All aspects of these packages are *experimental*. The names of the
 packages, and the names of any commands that they define, may change
 at any time.  They are being released in this form to allow public
 discussion and comment.
@@ -34,30 +41,6 @@ are  at present not distributed.  We kindly ask you to overlook its
 deficiencies and inaccuracies --- if we had tried to clean this up it
 would never have surfaced and, for the purpose of discussions and
 comments, we hope its present form is adequate.
-
-
-NOTE (docstrip version)
------------------------
-  
-If   latex l3.ins
-produces the `docstrip interactive mode' prompt:
-
-  * First type the extension of your input file(s):  *
-  \infileext=
-
-Then your version of docstrip is too old.
-Quit (eg by hitting `enter' to all questions) and get a newer
-docstrip.tex. It must be at least version 2.4.
-
-A suitable docstrip.tex may be found from `CTAN' archives such as
-ftp.dante.de   tex-archive/macros/latex/unpacked/docstrip.tex
-
-Docstrip is part of the base LaTeX distribution, so if you have
-an old docstrip then your LaTeX is out of date and you may consider
-getting the whole of that directory and re-installing LaTeX.
-However you need to fetch only the file docstrip.tex to unpack
-this expl3 distribution with your existing format.
-
 
 
 THE GUILTY PERSONS
@@ -87,10 +70,11 @@ BUGS
 ----
 
 If you find a real bug that makes a package stop working you can
-report it via the standard latexbug.tex mechanism of the LaTeX
-distribution (see bugs.txt there) using the category "l3exp". 
-However please do *not* use this method for suggestions / comments /
-improvements / etc. For this the list LATEX-L should be used instead.
+report it via the standard LaTeX bug reporting mechanism of the LaTeX
+distribution (see bugs.txt there) using the category "Experimental
+LaTeX kernel".  However please do *not* use this method for
+suggestions / comments / improvements / etc. For this the list LATEX-L
+should be used instead.
 
 Also please don't expect these package to work with *any* code that
 floats around in the LaTeX2e world. :-)
@@ -326,6 +310,6 @@ This tests the io and precomp modules.
 
 =====================================================================
 
---- Copyright 1998 -- 2006
+--- Copyright 1998 -- 2008
     The LaTeX3 Project.  All rights reserved ---
 
