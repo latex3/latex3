@@ -1,5 +1,5 @@
 % \iffalse
-%% File: l3doc.dtx Copyright (C) 1990-2006 LaTeX3 project
+%% File: l3doc.dtx Copyright (C) 1990-2008 LaTeX3 project
 %%
 %% It may be distributed and/or modified under the conditions of the
 %% LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -37,7 +37,7 @@
 %<*class>
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{l3doc}
-         [2007/09/08 v0.0j class for documenting experimental stuff]
+         [2008/08/01 v0.0k class for documenting experimental stuff]
 %
 \NeedsTeXFormat{LaTeX2e}
 %</class>
@@ -179,13 +179,13 @@
   \IndexInput{l3patch.ltx}}
 
 % Get the date from ltvers.dtx
-\let\patchdate=\@empty
+\def\patchdate{0}
 \begingroup
    %%\def\ProvidesFile#1\fmtversion#2{\date{#2}\endinput}
    \def\ProvidesFile#1[#2#3]{\date{#2}\endinput}
    \input{l3vers.dtx}
-\global\let\X@date=\@date
-
+   \xdef\@date{\@date}
+   \global\let\X@date=\@date
 % Add the patch version if available.
    \long\def\Xdef#1#2#3\def#4#5{%
     \xdef\X@date{#2}%
@@ -201,7 +201,7 @@
      \edef\@date{\@date\space Patch level \patchdate}
    \fi
 \else
-   \@warning{l3patch.ltx does not match l3tvers.dtx!}
+   \@warning{l3patch.ltx does not match l3vers.dtx!}
    \let\includeltpatch\relax
 \fi
 
