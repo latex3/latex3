@@ -3,7 +3,7 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   2008/06/20
+   2008/08/03
 
 
 WHERE TO GET IT
@@ -301,6 +301,9 @@ breaks all LaTeX2 code, it is not so useful for documents.  (For
 example {document} would generate an error.)  In this mode
 \RequirePackage may be used to load further packages, as demonstrated
 in this file, but any other LaTeX2 command is likely to fail.
+
+The option removeoldnames has been disabled temporarily and so this
+test file is of limited use.
 
 test3.tex
 =========
