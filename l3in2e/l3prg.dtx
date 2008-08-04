@@ -364,6 +364,38 @@
 %  \end{quote}
 %  ultimately returns \m{true}.
 %  \end{function}
+%
+%  \subsubsection{Case switch}
+%
+%
+%  \begin{function}{
+%                   \prg_case:nnn |
+%
+%  }
+%  \begin{syntax}
+%    "\prg_case:nnn" "{"<integer expr>"}" "{" 
+%    "  {"\m{integer expr$\sb 1$}"}""{"\m{code$\sb 1$}"}""{"\m{integer expr$\sb 2$}"}""{"\m{code$\sb 2$}"}"\\
+%    "    ...""{"\m{integer expr$\sb n$}"}""{"\m{code$\sb n$}"}"\\
+%    "}" "{"\m{else case}"}" 
+%  \end{syntax}
+%  This function evaluates the first \meta{integer expr} and then compares it
+%  to the values found in the list. Thus the expression
+% \begin{verbatim}
+% \prg_case:nnn{2*5}{
+%   {5}{Small}  {4+6}{Medium}  {-2*10}{Negative}
+% }{Other}
+% \end{verbatim}
+%  evaluates first the term to look for and then tries to find this
+%  value in the list of values. If the value is found, the code on its
+%  right is executed after removing the remainder of the list. If the
+%  value is not found, the \meta{else case} is executed. The example
+%  above will return ``Medium''.
+%
+% The function is expandable and is written in such a way that
+% \texttt{f} style expansion can take place cleanly, i.e., no tokens
+% from within the function are left over.
+%  \end{function}
+%
 % 
 %  \subsubsection{Generic loops}
 %
@@ -701,25 +733,26 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\l_prg_inline_level_int}
+% \begin{macro}{\g_prg_inline_level_int}
 % \begin{macro}{\prg_stepwise_inline:nnnn}
 % \begin{macro}{\prg_stepwise_inline_decr:nnnn}
 % \begin{macro}{\prg_stepwise_inline_incr:nnnn}
 %   This function uses the same approach as for instance
 %   |\clist_map_inline:Nn| to allow arbitrary nesting. First construct
 %   the special function and then call an auxiliary one which just
-%   carries the newly constructed csname.
+%   carries the newly constructed csname. Must make assignments global
+%   when we maintain our own stack.
 %    \begin{macrocode}
-\int_new:N\l_prg_inline_level_int
+\int_new:N\g_prg_inline_level_int
 \def_long_new:NNn\prg_stepwise_inline:nnnn 4{
-  \int_incr:N \l_prg_inline_level_int
-  \def:cpn{prg_stepwise_inline_\int_use:N\l_prg_inline_level_int :n}##1{#4}
+  \int_gincr:N \g_prg_inline_level_int
+  \gdef:cpn{prg_stepwise_inline_\int_use:N\g_prg_inline_level_int :n}##1{#4}
   \num_compare:nNnTF {#2}<\c_zero
   {\exp_args:Nco \prg_stepwise_inline_decr:Nnnn }
   {\exp_args:Nco \prg_stepwise_inline_incr:Nnnn }
-  {prg_stepwise_inline_\int_use:N\l_prg_inline_level_int :n} 
+  {prg_stepwise_inline_\int_use:N\g_prg_inline_level_int :n} 
   {\int_use:N\int_eval:n{#1}} {#2} {#3}
-  \int_decr:N \l_prg_inline_level_int
+  \int_gdecr:N \g_prg_inline_level_int
 }
 \def_long_new:NNn \prg_stepwise_inline_incr:Nnnn 4{
   \num_compare:nNnF {#2}>{#4}
@@ -1091,6 +1124,55 @@
 %    \end{macrocode}
 %  \end{macro}
 %
+% \subsubsection{Case switch}
+%
+% \begin{macro}{\prg_case:nnn}
+% \begin{macro}{\prg_case_aux:nnn}
+%   This case switch is in reality quite simple. It takes three arguments:
+%   \begin{enumerate}
+%   \item An integer expression you wish to find.
+%   \item A list of pairs of "{"\meta{integer
+%   expr}"}""{"\meta{code}"}". The list can be as long as is desired
+%   and \meta{integer expr} can be negative.
+%   \item The code to be executed if the value wasn't found.
+%   \end{enumerate}
+%   We don't need the else case here yet, so leave it dangling in the
+%   input stream. 
+%    \begin{macrocode}
+\def_long:Npn \prg_case:nnn #1 #2 {
+%    \end{macrocode}
+% We will be parsing on |#1| for each step so we might as well
+% evaluate it first in case it is complicated. 
+%    \begin{macrocode}
+  \exp_args:No \prg_case_aux:nnn {\num_value:w \int_eval:n{#1}} #2
+%    \end{macrocode}
+% The \texttt{?} below is just so there are enough arguments when we
+% reach the end. And it made you look.~\texttt{;-)}
+%    \begin{macrocode}
+  \q_recursion_tail ? \q_recursion_stop 
+}
+\def_long_new:Npn \prg_case_aux:nnn #1#2#3{
+%    \end{macrocode}
+% If we reach the end, return the else case. We just remove braces.
+%    \begin{macrocode}
+  \quark_if_recursion_tail_stop_do:nn{#2}{\use_arg_i:n}
+%    \end{macrocode}
+% Otherwise we compare (which evaluates |#2| for us)
+%    \begin{macrocode}
+  \num_compare:nNnTF{#1}={#2}
+%    \end{macrocode}
+% If true, we want to remove the remainder of the list, the else case
+% and then execute the code specified.  Why not use |#3\use_none:n|?
+% Because if we are doing |f| style expansion, we will get
+% leftovers. If the test was false, we try the next pair, carrying the
+% |#1|.
+%    \begin{macrocode}
+  { \use_arg_i_delimit_by_q_recursion_stop:nw {\use_arg_i:nn{#3}} }
+  { \prg_case_aux:nnn {#1}}
+}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 %
 % \subsubsection{Sorting}
 %
