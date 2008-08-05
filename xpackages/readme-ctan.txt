@@ -9,8 +9,12 @@
 WHERE TO GET IT
 ---------------
 
-The current version of these packages can be obtained by following the
-instructions at <http://www.latex-project.org/code.html>.
+The files in this distribution represent a snapshot of selected files
+from the Subversion (SVN) repository of the LaTeX3 Project.
+
+To obtain current versions of the files, visit
+<http://www.latex-project.org/code.html> which contains further
+instructions.
 
 OVERVIEW
 --------
