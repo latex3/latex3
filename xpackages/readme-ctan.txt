@@ -3,7 +3,7 @@
    Possible LaTeX3 High-Level Concepts
    ====================================
 
-   2008/08/03
+   2008/08/05
 
 
 WHERE TO GET IT
@@ -15,10 +15,21 @@ instructions at <http://www.latex-project.org/code.html>.
 OVERVIEW
 --------
 
-Currently included in the CTAN release is the following bundle:
-  xbase
-  
-It requires expl3 to be installed.
+The `xpackages' term is a designation used for proto-type
+implementations of new concepts for a LaTeX Designer Interface. Some
+work as standalone packages providing new functionality, such as the
+packages in xbase; others go deeper and redefine LaTeX internals in
+order to provide newer and better methods for managing certain
+constructs.
+
+All xpackages require expl3 and, in addition to this, many require
+functionality provided by the packages within the xbase bundle.
+
+Currently included in the CTAN release of xpackages are the following
+bundles:
+    xbase
+    xtheorem
+
 
 
 xbase
@@ -43,6 +54,18 @@ Files included:
   source: xbase.ins, xparse.dtx, template.dtx, ldcsetup.dtx
   test:   template-test.tex, template-test2.tex, tprestrict-test.tex,
           xparse-test.tex
+
+
+xtheorem
+--------
+
+The xtheorem package is a prototype reimplementation of the AMS-LaTeX
+theorem environments using the template mechanism. It was originally
+developed by Achim Blumensath.
+
+Files included:
+  source: xtheorem.dtx, xtheorem.ins
+  test:	  xtheorem-test.tex
 
 
 
