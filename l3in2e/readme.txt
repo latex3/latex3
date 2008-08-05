@@ -3,44 +3,39 @@
    A Possible LaTeX3 Programming Convention
    ========================================
 
-   2008/08/03
+   2008/08/05
 
 
 WHERE TO GET IT
 ---------------
 
-The current version of these packages can be obtained by following the
-instructions at <http://www.latex-project.org/code.html>.
+The files in this distribution represent a snapshot of selected files
+from the Subversion (SVN) repository of the LaTeX3 Project.
 
+To obtain current versions of the files, visit
+<http://www.latex-project.org/code.html> which contains further
+instructions.
 
 OVERVIEW
 --------
 
-The packages in this directory implement a possible language for `low
-level' programming in TeX.  The syntax conventions described here are NOT
-intended either for use in documents or for use in describing design
-layouts in document class files.
+The files of the expl3 bundle provide a low-level API for TeX
+programmers with special syntax conventions, completely separating it
+from document level syntax. Hence, the commands provided are not
+intended for use at the document level nor for use in describing
+design layouts in document class files.
 
-All aspects of these packages are *experimental*. The names of the
-packages, and the names of any commands that they define, may change
-at any time.  They are being released in this form to allow public
-discussion and comment.
+This API provides the foundation on which the LaTeX3 kernel and other
+advanced extensions are built. Special care has been taken so that
+they can be used within a LaTeX2e context as regular packages.
 
-Currently all the code is distributed in a format suitable for running
-as LaTeX2e packages.  Further documentation may be produced by
-processing either the individual .dtx files, or the file source3.tex
-with LaTeX2e.  The packages may be installed by processing l3.ins with
-plain TeX or LaTeX.  In order to produce the documentation, you must
-have generated the package files.
-
-This code has been developed over time and has been used in previous
-versions for prototype implementations, experiments, etc. Its internal
-documentation (in the .dtx files) reflects the age of parts of it; it
-often contains personal comments and it sometimes refers to parts that
-are  at present not distributed.  We kindly ask you to overlook its
-deficiencies and inaccuracies --- if we had tried to clean this up it
-would never have surfaced and, for the purpose of discussions and
-comments, we hope its present form is adequate.
+While the existing code is approaching a stable state, we cannot
+guarantee that names of packages or commands they define will not
+change. This is also related to the history of the code: It has been
+developed over time and has been used in previous versions for
+prototypes implementations, experiments, etc. It may therefore
+occasionally contain references to parts that are at present not
+distributed.
 
 
 THE GUILTY PERSONS
@@ -98,6 +93,8 @@ original TeX primitive names (\hbox, \def, ...) are made *undefined* and
 so free to be defined for other purposes if needed. Of course this
 breaks almost all existing LaTeX2 code, but it may be used for testing
 purposes, see test2.tex.
+
+The option removeoldnames has been disabled temporarily.
 
 l3basics
 ========
