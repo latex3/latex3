@@ -2,7 +2,7 @@
    Possible LaTeX3 High-Level Concepts
    ====================================
 
-   2008/08/03
+   2008/08/05
 
 
 WHERE TO GET IT
@@ -26,7 +26,6 @@ xhead
 xinitials
 xlang
 xor
-xtheorem
 
 All of these require expl3 and, in most cases, xbase to be installed.
 
