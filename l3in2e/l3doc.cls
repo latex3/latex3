@@ -104,7 +104,7 @@
   Frank Mittelbach, Denys Duchier, Chris Rowley,
   Rainer Sch\"opf, Johannes Braams, Michael Downes,
   David Carlisle, Alan Jeffrey, Morten H\o gholm, Thomas Lotze,
-  Javier Bezos}}
+  Javier Bezos, Will Robertson}}
 
 %% You do not want to look at the mess below this line.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
