@@ -38,17 +38,12 @@
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{l3doc}
          [2008/08/01 v0.0k class for documenting experimental stuff]
-%
-\NeedsTeXFormat{LaTeX2e}
-%</class>
 %    \end{macrocode}
 %
 % \section{Options}                       
 %
 %    \begin{macrocode}
-%<*class>
-\DeclareOption{a5paper}{\@latexerr{Option not supported}%
-   {}}
+\DeclareOption{a5paper}{\@latexerr{Option not supported}{}}
 \DeclareOption{full}{\AtBeginDocument{\input{l3full.cfg}}}
 %    \end{macrocode}
 %
@@ -62,7 +57,7 @@
 \ProcessOptions
 %    \end{macrocode}
 %
-% \section{Loading article and doc}
+% \section{Class and package loading}
 %
 %    \begin{macrocode}
 \LoadClass{article}
@@ -78,11 +73,10 @@
 %
 %    \begin{macrocode}
 \RequirePackage{l3names,trace}
-\RequirePackage{color}
 
+\RequirePackage{color}
 \RequirePackage[T1]{fontenc}
 \RequirePackage{lmodern}
-
 \IfFileExists{hypdoc.sty}{%
   \RequirePackage{hypdoc}
   % hypdoc kills \function's sanitising of _, for some reason, 
@@ -106,23 +100,20 @@
                      *************************************}}
            {}
 %    \end{macrocode}
-%
-% taken out for the moment as my laptop doesn't have a full set of
-% type 1 fonts installed right now --- fmi
-%\RequirePackage[T1]{fontenc}
-
-%% The Guilty Parties
+% The Guilty Parties
+%    \begin{macrocode}
 \def\Team{%
   The \LaTeX3 Project\thanks{%
   Frank Mittelbach, Denys Duchier, Chris Rowley,
   Rainer Sch\"opf, Johannes Braams, Michael Downes,
   David Carlisle, Alan Jeffrey, Morten H\o gholm, Thomas Lotze,
   Javier Bezos, Will Robertson}}
-
+%    \end{macrocode}
+%
 %% You do not want to look at the mess below this line.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
+%    \begin{macrocode}
 \catcode`\_=11
 \AtBeginDocument{\catcode`\_=11\relax}
 %    \end{macrocode}
@@ -156,6 +147,7 @@
 % \changes{v2.0c}{1994/03/15}{Set \cs{textwidth}.}
 %    \begin{macrocode}
 \setlength{\textwidth}{355pt}
+\addtolength{\textwidth}{30pt}
 %    \end{macrocode}
 %
 % Increase the marginpar width slightly, for long command names.
@@ -180,9 +172,13 @@
    \index{TeX and LaTeX2e commands\actualchar
           \string\TeX{} and \string\LaTeXe{} commands:\levelchar
           #1\actualchar{\string\ttfamily\string\bslash{}#1}}}
+%    \end{macrocode}
+%    \begin{macrocode}
 \DeclareRobustCommand\cs[1]{\texttt{\char`\\#1}}
+%    \end{macrocode}
 % This command will be used to input the patch file
 % if that file exists.
+%    \begin{macrocode}
 \newcommand{\includeltpatch}{%
   \def\currentfile{l3patch.ltx}
   \part{l3patch}
@@ -190,8 +186,9 @@
     \xdef\filekey{\filekey, \thepart={\ttfamily\currentfile}}}%
   Things we did wrong\ldots
   \IndexInput{l3patch.ltx}}
-
+%    \end{macrocode}
 % Get the date from ltvers.dtx
+%    \begin{macrocode}
 \def\patchdate{0}
 \begingroup
    %%\def\ProvidesFile#1\fmtversion#2{\date{#2}\endinput}
@@ -207,7 +204,8 @@
    \InputIfFileExists{l3patch.ltx}
     {\let\def\Xdef}{\global\let\includeltpatch\relax}
 \endgroup
-
+%    \end{macrocode}
+%    \begin{macrocode}
 \ifx\@date\X@date
    \def\Xpatch{0}
    \ifx\patchdate\Xpatch\else
@@ -217,48 +215,59 @@
    \@warning{l3patch.ltx does not match l3vers.dtx!}
    \let\includeltpatch\relax
 \fi
+%    \end{macrocode}
 
+%    \begin{macrocode}
 \providecommand*\eTeX{%
   \if b\expandafter\@car\f@series\@nil\boldmath\fi
   $\m@th\varepsilon$-\TeX}
+%    \end{macrocode}
 
+%    \begin{macrocode}
 \providecommand*\file{\texttt}
+%    \end{macrocode}
 
-
+%    \begin{macrocode}
 \def\vindex#1>#2\@nil{%
   \edef\temp{\foo#2<>\@nil}%
   \ifx\temp\space\else
   \expandafter\SpecialMainIndexB\expandafter{\temp}\fi}
-
+%    \end{macrocode}
 % remove <foo> from index (quick hack, could be better)
+%    \begin{macrocode}
 \def\foo#1<#2>#3\@nil{%
  #1\ifx\foo#3\foo
    \else#2\expandafter\foo\fi#3\@nil}
 %\def\foo#1<#2>#3\@nil{#1<#2>#3}
 \def\foo#1<#2>#3\@nil{#1}
-
-% Cant remember why I switched from \SpecialMainIndexB
-%%\gdef\SpecialMainIndexB#1{\index{\@gobble#1\space\actualchar{\string\verb+#1+}}}
-
+%    \end{macrocode}
+% Cant remember why I switched from |\SpecialMainIndexB|
+%    \begin{macrocode}
+%\gdef\SpecialMainIndexB#1{\index{\@gobble#1\space\actualchar{\string\verb+#1+}}}
 \gdef\SpecialMainIndexB#1{\index{\@gobble#1\actualchar\string\verb
     \quotechar*\verbatimchar#1\verbatimchar\encapchar usage}}
-
+%    \end{macrocode}
 % A helper for later on.
+%    \begin{macrocode}
 \def\q@nil{\q@nil}
 \long\def\tlist@if@blank@p@n #1{%
   \expandafter\tlist@if@blank@p@aux@w\detokenize{#1}aa..\q@nil}
 \def\tlist@if@blank@p@aux@w #1#2a#3#4\q@nil{%
   \ifx #3#400\else01\fi}
-
-
+%    \end{macrocode}
+%    \begin{macrocode}
 \let\m\meta
 \newenvironment{texnote}%
    {\endgraf\vspace{3mm}\textbf{\TeX{}hackers~note:}\small}
     {\vspace{3mm}}
-% stick the function names in a box.
-{\catcode`\|=\active\catcode`\<=\active
- 
+%    \end{macrocode}    
+% stick the function names in a box. Use an active =|= as delimiter and allow |<...>| to be used as markup for |\meta{...}|
+%    \begin{macrocode}
+\begingroup
+\catcode`\|=\active\catcode`\<=\active
+%    \end{macrocode}
 % index fuction lists (could be better...)
+%    \begin{macrocode}
 \gdef\funcindex#1|{%
   \if\tlist@if@blank@p@n{#1}%
     \expandafter\@firstoftwo
@@ -268,7 +277,9 @@
   {\@ifnextchar|{\@gobble}{}}% at the end, look for extra | and remove it
   {\def\yyy{#1}\expandafter\vindex\meaning\yyy\@nil  \funcindex}%
 }
+%    \end{macrocode}
 
+%    \begin{macrocode}
 \gdef\function{%
   \catcode`\<=\active\def<##1>{\meta{##1}}%
   \bigskip
@@ -295,15 +306,17 @@
   \hline
   \noalign{\kern-2pt}%
   \endtabular
-  \egroup}}
+  \egroup}
+\global\let\variable\function
+%    \end{macrocode}
 
-\let\variable\function
-
+% Will: I wanted to colourise the macros shown in |{function}| blocks;
+% this is the ugly code that does that.
+%    \begin{macrocode}
 \gdef\showexplmacros#1|{%
   \showexplmacro#1::\@nil
   \@ifnextchar\@nil{\@gobble}{\showexplmacros}%
 }
-
 \gdef\showexplmacro#1:#2:#3\@nil{%
   \gdef\newmacroname{#1}%
   \gdef\macrosuffix{#2}%
@@ -323,33 +336,38 @@
     \fi
   \fi
 }
-
+%    \end{macrocode}
+%
+% End the scope of having active =|= and =<=.
+%    \begin{macrocode}
+\endgroup
+%    \end{macrocode}
+%
 % syntax for functions
+%    \begin{macrocode}
 \def\syntax{%
-  \@syntax}
-
-\def\@syntax{%
- \minipage[b]{.7\textwidth}%
+  \minipage[b]{.7\textwidth}%
   \def\meta@font@select{\rmfamily\itshape} % (Will: I HATE italic cmtt!)
   \small\ttfamily\raggedright
   \obeyspaces\obeylines}
-\def\endsyntax{\endminipage\hfil\break\global\@ignoretrue}
-
+\def\endsyntax{%
+  \endminipage\hfil\break\global\@ignoretrue}
+%    \end{macrocode}
 
 %The toks file uses these, Icould not see the original definition...
+%    \begin{macrocode}
 \let\zz\m
 \let\zv\m
+%    \end{macrocode}
 
-\setcounter{StandardModuleDepth}{1}
-\addtolength{\textwidth}{30pt}
-
+%    \begin{macrocode}
 \let\@@oldlist\list
 \def\list#1#2{\@@oldlist{#1}{#2\listparindent\z@}}
-
 \setlength{\parindent}{0pt}
 \setlength{\itemindent}{0pt}
 \setlength{\parskip}{\medskipamount}
- 
+%    \end{macrocode}
+% 
 % \section{DocInclude}
 %
 %    \begin{macrocode}
