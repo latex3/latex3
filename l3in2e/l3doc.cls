@@ -78,7 +78,17 @@
 %
 %    \begin{macrocode}
 \RequirePackage{l3names,trace}
-\RequirePackage{doc}
+\RequirePackage{color}
+
+\IfFileExists{hypdoc.sty}{%
+  \RequirePackage{hypdoc}
+  % hypdoc kills \function's sanitising of _, for some reason, 
+  % so we load underscore (for now) to work around this:
+  \RequirePackage{underscore}
+}{%
+  \RequirePackage{doc}
+}
+
 \renewcommand\MakePrivateLetters{\makeatletter
   \catcode`\_=11\relax
   \catcode`\:=11\relax}
@@ -244,8 +254,6 @@
     {\vspace{3mm}}
 % stick the function names in a box.
 {\catcode`\|=\active\catcode`\<=\active
-
-
  
 % index fuction lists (could be better...)
 \gdef\funcindex#1|{%
@@ -263,11 +271,10 @@
   \bigskip
   \bgroup
   \@makeother\\
-  \@makeother\_
   \catcode`\ =9
   \catcode`\^^M=9
   \catcode`\^^I=9
-  \catcode`\|=\active\def|{\\}%
+  \catcode`\|=\active
   \@function}
 \gdef\@function#1{%
   \ifx\@function#1\@function\else
@@ -275,21 +282,46 @@
   \fi
   \ttfamily
   \endgraf
+  \def\nextnewline{\gdef\nextnewline{\\}}
+  \global\let\macroname\@empty
   \noindent\hspace*{-2\parindent}%
   \tabular[b]%
      {@{\vline\hskip\tabcolsep}l@{\hskip\tabcolsep\vline}}%
   \hline
-  #1\crcr
+  \showexplmacros#1|\@nil\crcr
   \hline
   \noalign{\kern-2pt}%
   \endtabular
   \egroup}}
 
-
 \let\variable\function
+
+\gdef\showexplmacros#1|{%
+  \showexplmacro#1::\@nil
+  \@ifnextchar\@nil{\@gobble}{\showexplmacros}%
+}
+
+\gdef\showexplmacro#1:#2:#3\@nil{%
+  \gdef\newmacroname{#1}%
+  \gdef\macrosuffix{#2}%
+  \ifx\newmacroname\@empty\else
+    \nextnewline
+    \ifx\newmacroname\macroname
+      \color[gray]{0.5}%
+    \else
+      \global\let\macroname\newmacroname
+      \color{black}%
+    \fi
+    \detokenize{#1}\unskip
+    \ifx\macrosuffix\@empty\else
+      \color{black}:#2%
+    \fi
+  \fi
+}
 
 % syntax for functions
 \def\syntax{%
+  \def\meta@font@select{\rmfamily\itshape} % (Will: I HATE italic cmtt!)
   \@syntax}
 
 \def\@syntax{%
@@ -413,3 +445,4 @@
 %    \end{macrocode}
 % \Finale
 %
+
