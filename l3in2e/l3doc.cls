@@ -80,6 +80,9 @@
 \RequirePackage{l3names,trace}
 \RequirePackage{color}
 
+\RequirePackage[T1]{fontenc}
+\RequirePackage{lmodern}
+
 \IfFileExists{hypdoc.sty}{%
   \RequirePackage{hypdoc}
   % hypdoc kills \function's sanitising of _, for some reason, 
@@ -313,7 +316,9 @@
       \color{black}%
     \fi
     \detokenize{#1}\unskip
-    \ifx\macrosuffix\@empty\else
+    \ifx\macrosuffix\@empty
+      #3% in case we gobbled a : we wanted
+    \else
       \color{black}:#2%
     \fi
   \fi
@@ -321,11 +326,11 @@
 
 % syntax for functions
 \def\syntax{%
-  \def\meta@font@select{\rmfamily\itshape} % (Will: I HATE italic cmtt!)
   \@syntax}
 
 \def\@syntax{%
  \minipage[b]{.7\textwidth}%
+  \def\meta@font@select{\rmfamily\itshape} % (Will: I HATE italic cmtt!)
   \small\ttfamily\raggedright
   \obeyspaces\obeylines}
 \def\endsyntax{\endminipage\hfil\break\global\@ignoretrue}
