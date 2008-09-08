@@ -77,14 +77,11 @@
 \RequirePackage{color}
 \RequirePackage[T1]{fontenc}
 \RequirePackage{lmodern}
-\IfFileExists{hypdoc.sty}{%
-  \RequirePackage{hypdoc}
-  % hypdoc kills \function's sanitising of _, for some reason, 
-  % so we load underscore (for now) to work around this:
-  \RequirePackage{underscore}
-}{%
-  \RequirePackage{doc}
-}
+
+\RequirePackage{hypdoc}
+% hypdoc kills \function's sanitising of _, for some reason, 
+% so we load underscore (for now) to work around this:
+\RequirePackage{underscore}
 
 \renewcommand\MakePrivateLetters{\makeatletter
   \catcode`\_=11\relax
@@ -241,12 +238,25 @@
 %\def\foo#1<#2>#3\@nil{#1<#2>#3}
 \def\foo#1<#2>#3\@nil{#1}
 %    \end{macrocode}
-% Cant remember why I switched from |\SpecialMainIndexB|
+% \begin{macro}{\SpecialMainIndexB}
+% Heiko's replacement to play nicely with |hypdoc|:
 %    \begin{macrocode}
-%\gdef\SpecialMainIndexB#1{\index{\@gobble#1\space\actualchar{\string\verb+#1+}}}
-\gdef\SpecialMainIndexB#1{\index{\@gobble#1\actualchar\string\verb
-    \quotechar*\verbatimchar#1\verbatimchar\encapchar usage}}
+\def\SpecialMainIndexB#1{%
+  \index{%
+    \@gobble#1%
+    \actualchar
+    \string\verb\quotechar*\verbatimchar#1\verbatimchar
+    \encapchar
+    hdpgindex{\thepage}{usage}%
+  }%
+}
+\def\hdpgindex#1#2#3{%
+  \csname\ifx\\#2\\relax\else#2\fi\endcsname{%
+    \hyperlink{page.#1}{#3}%
+  }%
+}
 %    \end{macrocode}
+% \end{macro}
 % A helper for later on.
 %    \begin{macrocode}
 \def\q@nil{\q@nil}
@@ -309,7 +319,6 @@
   \egroup}
 \global\let\variable\function
 %    \end{macrocode}
-
 % Will: I wanted to colourise the macros shown in |{function}| blocks;
 % this is the ugly code that does that.
 %    \begin{macrocode}
