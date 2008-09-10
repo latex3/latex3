@@ -288,7 +288,9 @@
   {\def\yyy{#1}\expandafter\vindex\meaning\yyy\@nil  \funcindex}%
 }
 %    \end{macrocode}
-
+%    \begin{macrocode}
+\gdef\Arg#1{\texttt{\{}\,\meta{#1}\,\texttt{\}}}
+%    \end{macrocode}
 %    \begin{macrocode}
 \gdef\function{%
   \catcode`\<=\active\def<##1>{\meta{##1}}%
