@@ -73,7 +73,7 @@
 %
 %    \begin{macrocode}
 \RequirePackage{l3names,trace}
-
+\RequirePackage{fixltx2e}
 \RequirePackage{color}
 \RequirePackage[T1]{fontenc}
 \RequirePackage{lmodern}
@@ -83,7 +83,8 @@
 % so we load underscore (for now) to work around this:
 \RequirePackage{underscore}
 
-\renewcommand\MakePrivateLetters{\makeatletter
+\renewcommand\MakePrivateLetters{%
+  \makeatletter
   \catcode`\_=11\relax
   \catcode`\:=11\relax}
 %    \end{macrocode}
@@ -312,9 +313,10 @@
   \global\let\macroname\@empty
   \noindent\hspace*{-2\parindent}%
   \tabular[b]%
-     {@{\vline\hskip\tabcolsep}l@{\hskip\tabcolsep\vline}}%
+     {@{\vline\hskip\tabcolsep}l@{}c@{\hskip\tabcolsep\vline}}%
   \hline
-  \showexplmacros#1|\@nil\crcr
+  \showexplmacros#1|\@nil
+  \crcr
   \hline
   \noalign{\kern-2pt}%
   \endtabular
@@ -331,7 +333,12 @@
 \gdef\showexplmacro#1:#2:#3\@nil{%
   \gdef\newmacroname{#1}%
   \gdef\macrosuffix{#2}%
-  \ifx\newmacroname\@empty\else
+  \parse@meta#2/\@nil
+  \ifx\newmacroname\@empty
+    \expandafter\@gobble
+  \else
+    \expandafter\@firstofone
+  \fi{%
     \nextnewline
     \ifx\newmacroname\macroname
       \color[gray]{0.5}%
@@ -343,10 +350,20 @@
     \ifx\macrosuffix\@empty
       #3% in case we gobbled a : we wanted
     \else
-      \color{black}:#2%
+      \color{black}:\before@slash\unskip
     \fi
-  \fi
+    &%
+    \def\@tempa{{(EXP)}}%
+    \expandafter\expandafter\expandafter\in@\expandafter\@tempa\after@slash
+    \ifin@
+      \hspace{\tabcolsep}$\star$%
+    \else
+    \fi}
 }
+\gdef\parse@meta#1/#2\@nil{%
+  \gdef\before@slash{#1}%
+  \gdef\after@slash{{#2}}}
+
 %    \end{macrocode}
 %
 % End the scope of having active =|= and =<=.
