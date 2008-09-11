@@ -298,6 +298,7 @@
   \bigskip
   \bgroup
   \@makeother\\
+  \catcode`\~=10
   \catcode`\ =9
   \catcode`\^^M=9
   \catcode`\^^I=9
