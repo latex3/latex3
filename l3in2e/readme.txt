@@ -43,7 +43,7 @@ THE GUILTY PERSONS
 
    Frank Mittelbach, Denys Duchier, Johannes Braams, Michael Downes,
    David Carlisle, Alan Jeffrey, Chris Rowley, Rainer Schoepf 
-   Javier Bezos, Morten Hoegholm, Thomas Lotze
+   Javier Bezos, Morten Hoegholm, Thomas Lotze, Will Robertson
 
 
 DISCUSSION
