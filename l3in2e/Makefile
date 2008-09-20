@@ -1,13 +1,9 @@
 
 help:
-	@echo all:
-	@echo clean:
-	@echo cleanupdist:
-	@echo cleanuptest:
-	@echo cleanuptmp:
-	@echo distrib:
-	@echo release:
-	@echo check:
+	@echo make clean                        - clean out test dirs 
+	@echo make check                        - set up and run all tests
+	@echo make checklvt F=<base-test-name>  - run <base-test-name>.lvt
+	@echo make savelvt F=<base-test-name>   - save <base-test-name>.tlg as new certified test
 
 
 #### FIX next one
@@ -89,18 +85,12 @@ scripts:	$(foreach file,$(SCRIPTS),$(SCRIPTDIR)/$(file))
 # gloals
 ############
 
-.PHONY:	clean cleanupdist cleanuptest cleanuptmp bootstrap checkonly scripts
+.PHONY:	clean cleanuptest bootstrap check checklvt savetlg scripts
 
-clean:	cleanupdist cleanuptest cleanuptmp
-
-cleanuptmp:
-	rm -f $(TTMPDIR)/*
+clean:	cleanuptest 
 
 cleanuptest:
 	rm -f $(TESTDIR)/*
-
-cleanupdist:
-	rm -f $(DISTDIR)/*
 
 
 bootstrap:	
@@ -129,7 +119,7 @@ unpack:	$(foreach file,$(MODULES) $(INSTALLS),$(TESTDIR)/$(file))
 	done
  
 
-checkonly:	bootstrap scripts texinputs unpack \
+check:	bootstrap scripts texinputs unpack \
                 $(foreach file,$(CFS) $(CLS) $(CFextra),$(TESTDIR)/$(file)) \
                 $(TESTDIR)/regression-test.tex $(TESTDIR)/ascii.tcx
 	cd $(TESTDIR) ; \
@@ -147,7 +137,17 @@ checkonly:	bootstrap scripts texinputs unpack \
 	echo
 
 
-
+checklvt:	$(TESTDIR)/$(F).lvt 
+	cd $(TESTDIR) ; \
+	rm -f *tmp* *.log *.diff *.gls *.ind ; \
+	$(SCRIPTDIR)/checktlg latex $(F).lvt $(TESTDIR)/ascii.tcx ; \
+	echo ; \
+	echo List of diffs produced during check: ; \
+	echo ==================================== ; \
+	echo ; \
+	ls -al `pwd`/$(F).*.diff ; \
+	echo ; \
+	echo
 
 savetlg:	$(TESTDIR)/$(F).tmp.tlg
 	@cp -fp $< $(TESTFILEDIR)/$(F).tlg
