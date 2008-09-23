@@ -359,7 +359,7 @@
     \ifin@
       \hspace{\tabcolsep}$\star$%
     \else
-    \fi}
+    \fi}%
 }
 \gdef\parse@meta#1/#2\@nil{%
   \gdef\before@slash{#1}%
