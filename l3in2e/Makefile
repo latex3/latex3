@@ -1,16 +1,18 @@
 
 help:
-	@echo make clean                        - clean out test dirs 
-	@echo make check                        - set up and run all tests
-	@echo make checklvt F=<base-test-name>  - run <base-test-name>.lvt
-	@echo make savelvt F=<base-test-name>   - save <base-test-name>.tlg as new certified test
+	@echo ""
+	@echo "  make clean                        - clean out test dirs"
+	@echo "  make check                        - set up and run all tests"
+	@echo "  make checklvt F=<base-test-name>  - run <base-test-name>.lvt only (no set up done)"
+	@echo "  make savelvt F=<base-test-name>   - save <base-test-name>.tlg as new certified test"
+	@echo "  make help                         - show this help text"
+	@echo ""
 
-
-#### FIX next one
-
-
+#### FIX next one (should use envrionment is provided)
 
 L3TESTDIR := /tmp/l3test
+
+
 
 
 TESTDIR := $(shell test -d $(L3TESTDIR)/test/l3in2e || mkdir -p $(L3TESTDIR)/test/l3in2e ; cd $(L3TESTDIR)/test/l3in2e ; pwd)
