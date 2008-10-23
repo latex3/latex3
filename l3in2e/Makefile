@@ -4,7 +4,7 @@ help:
 	@echo "  make clean                        - clean out test dirs"
 	@echo "  make check                        - set up and run all tests"
 	@echo "  make checklvt F=<base-test-name>  - run <base-test-name>.lvt only (no set up done)"
-	@echo "  make savelvt F=<base-test-name>   - save <base-test-name>.tlg as new certified test"
+	@echo "  make savetlg F=<base-test-name>   - save <base-test-name>.tlg as new certified test"
 	@echo "  make help                         - show this help text"
 	@echo ""
 
