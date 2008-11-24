@@ -204,9 +204,7 @@
   \obeyspaces\obeylines}
 \def\endsyntax{%
   \endminipage\hfil\break\global\@ignoretrue}
-\let\old@macro\macro
-\let\old@endmacro\endmacro
-\renewenvironment{macro}[1]{%
+\newenvironment{macros}[1]{%
   \let\doc@beginmacros\@empty
   \let\doc@endmacros\@empty
   \@for\@ii:=\@empty#1\do{%
@@ -217,8 +215,8 @@
   \doc@endmacros
 }
 \newcommand\macros@addto[1]{%
-  \g@addto@macro\doc@beginmacros{\begin{old@macro}{#1}}%
-  \g@addto@macro\doc@endmacros{\end{old@macro}}%
+  \g@addto@macro\doc@beginmacros{\begin{macro}{#1}}%
+  \g@addto@macro\doc@endmacros{\end{macro}}%
 }
 \newcommand{\includeltpatch}{%
   \def\currentfile{l3patch.ltx}
