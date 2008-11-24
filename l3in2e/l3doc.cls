@@ -74,7 +74,7 @@
 \DeclareOption{full}{\AtBeginDocument{\input{l3full.cfg}}}
 \DeclareOption*{\PassOptionsToClass{\CurrentOption}{article}}
 \ProcessOptions
-\LoadClass{article}
+\LoadClass{ltxdoc}
 \RequirePackage{color,fixltx2e,trace}
 \RequirePackage[T1]{fontenc}
 \RequirePackage{lmodern}
@@ -90,7 +90,7 @@
   \catcode`\_=11\relax
   \catcode`\:=11\relax}
 \CodelineNumbered
-\DisableCrossrefs
+\EnableCrossrefs
 \setcounter{StandardModuleDepth}{1}
 \setlength\textwidth{385pt}
 \addtolength\marginparwidth{30pt}
@@ -108,31 +108,25 @@
    \index{TeX and LaTeX2e commands\actualchar
           \string\TeX{} and \string\LaTeXe{} commands:\levelchar
           #1\actualchar{\string\ttfamily\string\bslash{}#1}}}
-\DeclareRobustCommand\cs[1]{\texttt{\char`\\#1}}
 \providecommand*\eTeX{%
   \if b\expandafter\@car\f@series\@nil\boldmath\fi
   $\m@th\varepsilon$-\TeX}
 \let\m\meta
-\newenvironment{texnote}%
-   {\endgraf\vspace{3mm}\textbf{\TeX{}hackers~note:}\small}
-    {\vspace{3mm}}
-\begingroup
-\catcode`\|=\active\catcode`\<=\active
-\ExplSyntaxOn
-\gdef:Npn \funcindex #1| {
-  \tlist_if_blank:nTF{#1}{
-    % at the end, look for extra | and remove it
-    \@ifnextchar|{\@gobble}{}
-  }{
-    \def\yyy{#1}\expandafter\vindex\meaning\yyy\@nil  \funcindex
-  }
+\newcommand\Arg[1]{\texttt{\{}\,\meta{#1}\,\texttt{\}}}
+\newenvironment{texnote}{%
+  \endgraf
+  \vspace{3mm}%
+  \small\textbf{\TeX{}hackers~note:}%
+}{%
+  \vspace{3mm}%
 }
-\ExplSyntaxOff
-\gdef\Arg#1{\texttt{\{}\,\meta{#1}\,\texttt{\}}}
+\begingroup
+\catcode`\|=\active
+\catcode`\<=\active
 \gdef\function{%
   \catcode`\<=\active\def<##1>{\meta{##1}}%
   \bigskip
-  \bgroup
+  \begingroup
   \@makeother\\
   \catcode`\~=10
   \catcode`\ =9
@@ -144,20 +138,33 @@
   \ifx\@function#1\@function\else
     \funcindex#1| |%
   \fi
-  \ttfamily
-  \endgraf
   \def\nextnewline{\gdef\nextnewline{\\}}
   \global\let\macroname\@empty
+  \endgraf
+  \ttfamily
   \noindent\hspace*{-2\parindent}%
-  \tabular[b]%
-     {@{\vline\hskip\tabcolsep}l@{}c@{\hskip\tabcolsep\vline}}%
-  \hline
-  \showexplmacros#1|\@nil
-  \crcr
-  \hline
-  \noalign{\kern-2pt}%
+  \tabular[b]{ @{\vline\hskip\tabcolsep}
+               l @{} c
+               @{\hskip\tabcolsep\vline} }%
+    \hline
+    \showexplmacros#1|\@nil
+    \crcr
+    \hline
+    \noalign{\kern-2pt}%
   \endtabular
-  \egroup}
+  \endgroup
+}
+\ExplSyntaxOn
+\gdef:Npn \funcindex #1| {
+  \tlist_if_blank:nTF {#1} {
+    \@ifnextchar|{\@gobble}{}
+  }{
+    \def\yyy{#1}
+    \expandafter\vindex\meaning\yyy\@nil
+    \funcindex
+  }
+}
+\ExplSyntaxOff
 \global\let\variable\function
 \gdef\showexplmacros#1|{%
   \showexplmacro#1::\@nil
@@ -193,17 +200,23 @@
     \else
     \fi}%
 }
-\gdef\parse@meta#1/#2\@nil{%
+\endgroup
+\def\parse@meta#1/#2\@nil{%
   \gdef\before@slash{#1}%
   \gdef\after@slash{{#2}}}
-\endgroup
-\def\syntax{%
+\newenvironment{syntax}{%
   \minipage[b]{.7\textwidth}%
-  \def\meta@font@select{\rmfamily\itshape} % (Will: I HATE italic cmtt!)
-  \small\ttfamily\raggedright
-  \obeyspaces\obeylines}
-\def\endsyntax{%
-  \endminipage\hfil\break\global\@ignoretrue}
+    \def\meta@font@select{\rmfamily\itshape} % (Will: I HATE italic cmtt!)
+    \small
+    \ttfamily
+    \raggedright
+    \obeyspaces
+    \obeylines
+}{%
+  \endminipage
+  \hfil\break
+  \global\@ignoretrue
+}
 \newenvironment{macros}[1]{%
   \let\doc@beginmacros\@empty
   \let\doc@endmacros\@empty
@@ -217,6 +230,28 @@
 \newcommand\macros@addto[1]{%
   \g@addto@macro\doc@beginmacros{\begin{macro}{#1}}%
   \g@addto@macro\doc@endmacros{\end{macro}}%
+}
+\def\vindex#1>#2\@nil{%
+  \edef\temp{\foo#2<>\@nil}%
+  \ifx\temp\space\else
+  \expandafter\SpecialMainIndexB\expandafter{\temp}\fi}
+\def\foo#1<#2>#3\@nil{%
+ #1\ifx\foo#3\foo
+   \else#2\expandafter\foo\fi#3\@nil}
+\def\foo#1<#2>#3\@nil{#1}
+\def\SpecialMainIndexB#1{%
+  \index{%
+    \@gobble#1%
+    \actualchar
+    \string\verb\quotechar*\verbatimchar#1\verbatimchar
+    \encapchar
+    hdpgindex{\thepage}{usage}%
+  }%
+}
+\def\hdpgindex#1#2#3{%
+  \csname\ifx\\#2\\relax\else#2\fi\endcsname{%
+    \hyperlink{page.#1}{#3}%
+  }%
 }
 \newcommand{\includeltpatch}{%
   \def\currentfile{l3patch.ltx}
@@ -248,86 +283,6 @@
    \@warning{l3patch.ltx does not match l3vers.dtx!}
    \let\includeltpatch\relax
 \fi
-\def\vindex#1>#2\@nil{%
-  \edef\temp{\foo#2<>\@nil}%
-  \ifx\temp\space\else
-  \expandafter\SpecialMainIndexB\expandafter{\temp}\fi}
-\def\foo#1<#2>#3\@nil{%
- #1\ifx\foo#3\foo
-   \else#2\expandafter\foo\fi#3\@nil}
-\def\foo#1<#2>#3\@nil{#1}
-\def\SpecialMainIndexB#1{%
-  \index{%
-    \@gobble#1%
-    \actualchar
-    \string\verb\quotechar*\verbatimchar#1\verbatimchar
-    \encapchar
-    hdpgindex{\thepage}{usage}%
-  }%
-}
-\def\hdpgindex#1#2#3{%
-  \csname\ifx\\#2\\relax\else#2\fi\endcsname{%
-    \hyperlink{page.#1}{#3}%
-  }%
-}
-\@addtoreset{CodelineNo}{part}
-\def\partname{File}
-\newcommand*{\DocInclude}[1]{%
-  \relax
-  \clearpage
-  \docincludeaux
-  \IfFileExists{#1.fdd}{\def\currentfile{#1.fdd}}{\def\currentfile{#1.dtx}}%
-  \ifnum\@auxout=\@partaux
-    \@latexerr{\string\include\space cannot be nested}\@eha
-  \else \@docinclude#1 \fi}
-\def\@docinclude#1 {\clearpage
-\if@filesw \immediate\write\@mainaux{\string\@input{#1.aux}}\fi
-\@tempswatrue\if@partsw \@tempswafalse\edef\@tempb{#1}\@for
-\@tempa:=\@partlist\do{\ifx\@tempa\@tempb\@tempswatrue\fi}\fi
-\if@tempswa \let\@auxout\@partaux \if@filesw
-\immediate\openout\@partaux #1.aux
-\immediate\write\@partaux{\relax}\fi
-\let\@ltxdoc@PrintIndex\PrintIndex
-\let\PrintIndex\relax
-\let\@ltxdoc@PrintChanges\PrintChanges
-\let\PrintChanges\relax
-\let\@ltxdoc@theglossary\theglossary
-\let\@ltxdoc@endtheglossary\endtheglossary
-\part{\currentfile}%
-  {\let\ttfamily\relax
-  \xdef\filekey{\filekey, \thepart={\ttfamily\currentfile}}}%
-\DocInput{\currentfile}%
-\let\PrintIndex\@ltxdoc@PrintIndex
-\let\PrintChanges\@ltxdoc@PrintChanges
-\let\theglossary\@ltxdoc@theglossary
-\let\endtheglossary\@ltxdoc@endtheglossary
-\clearpage
-\@writeckpt{#1}\if@filesw \immediate\closeout\@partaux \fi
-\else\@nameuse{cp@#1}\fi\let\@auxout\@mainaux}
-\gdef\codeline@wrindex#1{\if@filesw
-        \immediate\write\@indexfile
-            {\string\indexentry{#1}%
-            {\filesep\number\c@CodelineNo}}\fi}%
-\let\filesep\@empty
-\def\docincludeaux{%
-  \def\thepart{\aalph{part}}\def\filesep{\thepart-}%
-  \let\filekey\@gobble
-  \g@addto@macro\index@prologue{%
-    \gdef\@oddfoot{\parbox{\textwidth}{\strut\footnotesize
-       \raggedright{\bfseries File Key:} \filekey}}%
-    \let\@evenfoot\@oddfoot}%
-  \global\let\docincludeaux\relax
- \gdef\@oddfoot{%
-   \expandafter\ifx\csname ver@\currentfile\endcsname\relax
-    File \thepart: {\ttfamily\currentfile} %
-   \else
-    \GetFileInfo{\currentfile}%
-    File \thepart: {\ttfamily\filename} %
-    Date: \filedate\ %
-    Version \fileversion
-    \fi
-    \hfill\thepage}%
- \let\@evenfoot\@oddfoot}%
 %% 
 %%
 %% End of file `l3doc.cls'.
