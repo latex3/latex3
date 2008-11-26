@@ -75,7 +75,7 @@
 \DeclareOption*{\PassOptionsToClass{\CurrentOption}{article}}
 \ProcessOptions
 \LoadClass{ltxdoc}
-\RequirePackage{color,fixltx2e,trace}
+\RequirePackage{color,fixltx2e,trace,url}
 \RequirePackage[T1]{fontenc}
 \RequirePackage{lmodern}
 \RequirePackage{hypdoc}
@@ -92,26 +92,29 @@
 \CodelineNumbered
 \EnableCrossrefs
 \setcounter{StandardModuleDepth}{1}
-\setlength\textwidth{385pt}
-\addtolength\marginparwidth{30pt}
-\addtolength\oddsidemargin{20pt}
-\addtolength\evensidemargin{20pt}
+\setlength   \textwidth      { 385pt }
+\addtolength \marginparwidth {  30pt }
+\addtolength \oddsidemargin  {  20pt }
+\addtolength \evensidemargin {  20pt }
 \let\@@oldlist\list
 \def\list#1#2{\@@oldlist{#1}{#2\listparindent\z@}}
-\setlength{\parindent}{0pt}
-\setlength{\itemindent}{0pt}
-\setlength{\parskip}{\medskipamount}
+\setlength \parindent  { 0pt }
+\setlength \itemindent { 0pt }
+\setlength \parskip    { \medskipamount }
 \AtBeginDocument{%
-  \MakeShortVerb\"
-  \MakeShortVerb\|}
-\newcommand{\tn}[1]{{\ttfamily\bslash #1}%
-   \index{TeX and LaTeX2e commands\actualchar
+  \MakeShortVerb\"%
+  \MakeShortVerb\|%
+}
+\newcommand\tn[1]{%
+  \texttt{\bslash #1}%
+  \index{TeX and LaTeX2e commands\actualchar
           \string\TeX{} and \string\LaTeXe{} commands:\levelchar
           #1\actualchar{\string\ttfamily\string\bslash{}#1}}}
 \providecommand*\eTeX{%
   \if b\expandafter\@car\f@series\@nil\boldmath\fi
   $\m@th\varepsilon$-\TeX}
 \let\m\meta
+\let\file\url
 \newcommand\Arg[1]{\texttt{\{}\,\meta{#1}\,\texttt{\}}}
 \newenvironment{texnote}{%
   \endgraf
@@ -134,6 +137,7 @@
   \catcode`\^^I=9
   \catcode`\|=\active
   \@function}
+\global\let\variable\function
 \gdef\@function#1{%
   \ifx\@function#1\@function\else
     \funcindex#1| |%
@@ -165,7 +169,6 @@
   }
 }
 \ExplSyntaxOff
-\global\let\variable\function
 \gdef\showexplmacros#1|{%
   \showexplmacro#1::\@nil
   \@ifnextchar\@nil{\@gobble}{\showexplmacros}%
