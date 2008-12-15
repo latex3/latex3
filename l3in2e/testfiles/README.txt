@@ -46,3 +46,51 @@ test suite results until they're ready (at which stage you create the .tlg
 file as described above and the test is now included when the test suite 
 is run).
 
+
+
+# Coverage of the test suite
+
+This is the list of relevant expl3 modules 
+starred as having partial or completed testfiles.
+
+     l3basics
+     l3box
+     l3calc
+     l3chk
+     l3clist
+  *  l3expan
+  *  l3int
+     l3io
+     l3keyval
+     l3names
+  *  l3num
+  *  l3prg
+     l3prop
+  *  l3quark
+     l3seq
+  *  l3skip
+  *  l3tlp
+     l3token
+  *  l3toks
+     l3xref
+
+These modules either do not require a testsuite 
+or their status is tentative
+
+     l3alloc
+     l3doc
+     l3final
+     l3messages
+     l3precom
+     l3vers
+
+
+
+# Todo
+
+Some of the older test files begin with \usepackage{expl3} instead of 
+loading only the module they're trying to test. (E.g., m3tlp00x.lvt)
+
+These need to be replaced with their specific module so that we can test
+module loading dependencies.
+
