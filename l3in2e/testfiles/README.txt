@@ -67,7 +67,7 @@ starred as having partial or completed testfiles.
   *  l3prg
      l3prop
   *  l3quark
-     l3seq
+  *  l3seq
   *  l3skip
   *  l3tlp
      l3token
@@ -93,4 +93,17 @@ loading only the module they're trying to test. (E.g., m3tlp00x.lvt)
 
 These need to be replaced with their specific module so that we can test
 module loading dependencies.
+
+
+# Notes
+
+Not every possible combination of argument specs are generally tested. This is
+sometimes unfortunate because mistakes do happen. E.g.,
+  \def_new:Npn \seq_map_variable:cNn { \exp_args:Nc \seq_map_variable:Nn }
+
+However, my feeling is that little things like this will be discovered quickly
+and trivially fixed. So while all functions are tested in their base forms,
+this won't guarantee later on that small errors don't creep in every now and
+then. If this seriously becomes a problem, then we can start putting *every*
+function variant into the test suite, at only a small cost to our sanity.
 
