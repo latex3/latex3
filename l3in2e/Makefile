@@ -130,26 +130,32 @@ check:	bootstrap scripts texinputs unpack \
 	do \
 	  $(SCRIPTDIR)/checktlg latex $$i $(TESTDIR)/ascii.tcx ; \
 	done ; \
-	echo ; \
-	echo List of diffs produced during check: ; \
-	echo ==================================== ; \
-	echo ; \
-	ls -al `pwd`/*.diff ; \
-	echo ; \
-	echo
+	if [ `ls | grep *.diff | wc -l` = 0 ] ; then \
+	  echo ; \
+	  echo All tests passed successfully. ; \
+	  echo ; \
+	else \
+	  echo ; \
+	  echo List of diffs produced during check: ; \
+	  echo ==================================== ; \
+	  echo ; \
+	  ls -al `pwd`/*.diff ; \
+	  echo ; \
+	fi ;
 
 
 checklvt:	$(TESTDIR)/$(F).lvt 
 	cd $(TESTDIR) ; \
 	rm -f *tmp* *.log *.diff *.gls *.ind ; \
 	$(SCRIPTDIR)/checktlg latex $(F).lvt $(TESTDIR)/ascii.tcx ; \
-	echo ; \
-	echo List of diffs produced during check: ; \
-	echo ==================================== ; \
-	echo ; \
-	ls -al `pwd`/$(F).*.diff ; \
-	echo ; \
-	echo
+	if [ `ls | grep *.diff | wc -l` -ne 0 ] ; then \
+	  echo ; \
+	  echo diff produced during check: ; \
+	  echo ==================================== ; \
+	  echo ; \
+	  ls -al `pwd`/$(F).*.diff ; \
+	  echo ; \
+	fi ;
 
 savetlg:	$(TESTDIR)/$(F).tmp.tlg
 	@cp -fp $< $(TESTFILEDIR)/$(F).tlg
