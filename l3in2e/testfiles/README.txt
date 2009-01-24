@@ -57,7 +57,7 @@ starred as having partial or completed testfiles.
      l3box
      l3calc
      l3chk
-     l3clist
+  *  l3clist
   *  l3expan
   *  l3int
      l3io
@@ -65,7 +65,7 @@ starred as having partial or completed testfiles.
      l3names
   *  l3num
   *  l3prg
-     l3prop
+  *  l3prop
   *  l3quark
   *  l3seq
   *  l3skip
