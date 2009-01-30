@@ -1,14 +1,16 @@
 
 help:
 	@echo ""
-	@echo "  make clean                        - clean out test dirs"
-	@echo "  make check                        - set up and run all tests"
-	@echo "  make checklvt F=<base-test-name>  - run <base-test-name>.lvt only (no set up done)"
-	@echo "  make savetlg F=<base-test-name>   - save <base-test-name>.tlg as new certified test"
-	@echo "  make help                         - show this help text"
+	@echo "  make clean              - clean out test dirs"
+	@echo "  make check              - set up and run all tests"
+	@echo "  make checklvt F=<name>  - run <name>.lvt only (no set up done)"
+	@echo "  make savetlg F=<name>   - save <name>.tlg as new certified test"
+	@echo "  make alldoc             - typeset all documentation"
+	@echo "  make doc F=<name>       - typeset <name>.dtx"
+	@echo "  make help               - show this help text"
 	@echo ""
 
-#### FIX next one (should use envrionment is provided)
+#### FIX next one (should use environment is provided)
 
 L3TESTDIR := /tmp/l3test
 
@@ -160,8 +162,45 @@ checklvt:	$(TESTDIR)/$(F).lvt
 savetlg:	$(TESTDIR)/$(F).tmp.tlg
 	@cp -fp $< $(TESTFILEDIR)/$(F).tlg
 
+doc:
+	echo ; \
+	echo "Typesetting $(F).dtx" ; \
+	tex l3doc.dtx &> /dev/null ; \
+	pdflatex $(F).dtx ; \
+	if [ $$? = 0 ] ; then \
+	  echo ; \
+	  echo "Re-typesetting $(F).dtx for cross-references" ; \
+	  pdflatex -interaction=batchmode $(F).dtx &> /dev/null ; \
+	  echo "Done." ; \
+	else \
+	  echo ; \
+	  echo "! $(F).dtx compilation failed." ; \
+	fi
 
 
+alldoc:	
+	ALLPASSED=0 ; \
+	tex l3doc.dtx &> /dev/null ; \
+	for i in  $(MODULES) ; do \
+	  echo "Typesetting $$i" ; \
+	  pdflatex -interaction=batchmode $$i &> /dev/null ; \
+	  if [ $$? = 0 ] ; then \
+	    pdflatex -interaction=batchmode $$i &> /dev/null ; \
+	  else \
+	    ALLPASSED=1 ; \
+	    echo "! $$i compilation failed." ; \
+	  fi \
+	done ; \
+	if [ $ALLPASSED = 0 ] ; then \
+	  echo ; \
+	  echo "Typesetting source3.tex" ; \
+	  pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
+	  if [ $$? = 0 ] ; then \
+	    pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
+	  else \
+	    echo "! source3.tex compilation failed." ; \
+	  fi \
+	fi
 
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
