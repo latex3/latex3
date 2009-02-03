@@ -5,8 +5,10 @@ help:
 	@echo "  make check              - set up and run all tests"
 	@echo "  make checklvt F=<name>  - run <name>.lvt only (no set up done)"
 	@echo "  make savetlg F=<name>   - save <name>.tlg as new certified test"
-	@echo "  make alldoc             - typeset all documentation"
 	@echo "  make doc F=<name>       - typeset <name>.dtx"
+	@echo "  make checkdoc           - typeset all expl3 modules once"
+	@echo "  make sourcedoc          - typeset source3.tex"
+	@echo "  make alldoc             - typeset all documentation"
 	@echo "  make help               - show this help text"
 	@echo ""
 
@@ -168,10 +170,8 @@ doc:
 	tex l3doc.dtx &> /dev/null ; \
 	pdflatex $(F).dtx ; \
 	if [ $$? = 0 ] ; then \
-	  echo ; \
-	  echo "Re-typesetting $(F).dtx for cross-references" ; \
-	  echo ; \
-	  pdflatex $(F).dtx &> $(L3TESTDIR)/doclog.txt ; \
+	  echo "\nRe-typesetting $(F).dtx for cross-references" ; \
+	  pdflatex -interaction=nonstopmode $(F).dtx &> $(L3TESTDIR)/doclog.txt ; \
 	  if [ `grep 'defined but not documented' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
 	    echo '! Warning: some functions defined but not documented' ; \
 	  fi ; \
@@ -181,8 +181,26 @@ doc:
 	else \
 	  echo ; \
 	  echo "!! $(F).dtx compilation failed." ; \
-	fi
+	fi ; \
+	rm l3doc.cls ;
 
+checkdoc:	
+	tex l3doc.dtx &> /dev/null ; \
+	for i in  $(MODULES) ; do \
+	  echo "Typesetting $$i" ; \
+	  pdflatex -interaction=nonstopmode $$i &> $(L3TESTDIR)/doclog.txt ; \
+	  if [ $$? = 0 ] ; then \
+	    if [ `grep 'defined but not documented' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
+	      echo '! Warning: some functions defined but not documented' ; \
+	    fi ; \
+	    if [ `grep 'documented but not defined' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
+	      echo '! Warning: some functions documented but not defined' ; \
+	    fi ; \
+	  else \
+	    echo "!! $$i compilation failed." ; \
+	  fi \
+	done ; \
+	rm l3doc.cls ;
 
 alldoc:	
 	ALLPASSED=0 ; \
@@ -191,13 +209,7 @@ alldoc:
 	  echo "Typesetting $$i" ; \
 	  pdflatex -interaction=batchmode $$i &> /dev/null ; \
 	  if [ $$? = 0 ] ; then \
-	    pdflatex -interaction=nonstopmode $$i &> $(L3TESTDIR)/doclog.txt ; \
-	    if [ `grep 'defined but not documented' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
-	      echo '! Warning: some functions defined but not documented' ; \
-	    fi ; \
-	    if [ `grep 'documented but not defined' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
-	      echo '! Warning: some functions documented but not defined' ; \
-	    fi ; \
+	    pdflatex -interaction=batchmode $$i &> /dev/null ; \
 	  else \
 	    ALLPASSED=1 ; \
 	    echo "!! $$i compilation failed." ; \
@@ -205,31 +217,29 @@ alldoc:
 	done ; \
 	if [ $$ALLPASSED = 0 ] ; then \
 	  echo ; \
-	  echo "Typesetting source3.tex" ; \
-	  rm  -f source3.gls source3.ind source3.toc ; \
-	  pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
-	  if [ $$? = 0 ] ; then \
-	    makeindex -s source3.ist source3.idx ; \
-	    makeindex -s gglo.ist -o source3.gls source3.glo ; \
-	    pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
-	  else \
-	    echo "!! source3.tex compilation failed." ; \
-	  fi \
-	fi
+	  make sourcedoc ; \
+	fi ; \
+	rm l3doc.cls ;
 
 sourcedoc:	
-	ALLPASSED=0 ; \
 	tex l3doc.dtx &> /dev/null ; \
 	echo "Typesetting source3.tex" ; \
 	rm  -f source3.gls source3.ind source3.toc ; \
 	pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
 	if [ $$? = 0 ] ; then \
-	  makeindex -s source3.ist source3.idx ; \
-	  makeindex -s gglo.ist -o source3.gls source3.glo ; \
+	  echo "Re-typesetting for index generation" ; \
+	  makeindex -s source3.ist source3.idx &> /dev/null ; \
+	  makeindex -s gglo.ist -o source3.gls source3.glo &> /dev/null ; \
+	  echo "\includeonly{}" > l3doc.cfg ; \
+	  pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
+	  echo "Re-typesetting to resolve cross-references" ; \
+	  rm l3doc.cfg ; \
+	  makeindex -s source3.ist source3.idx &> /dev/null ; \
+	  makeindex -s gglo.ist -o source3.gls source3.glo &> /dev/null ; \
 	  pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
 	else \
 	  echo "!! source3.tex compilation failed." ; \
-	fi \
+	fi 
 
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
