@@ -63,6 +63,15 @@ INSTALLS = \
 	l3format.ins \
 	l3.ins 
 
+AUXFILES = \
+	.aux \
+	.gls \
+	.hd  \
+	.ind \
+	.ist \
+	.log \
+	.out \
+	.toc
 
 #
 # scripts used in this make
@@ -154,7 +163,7 @@ checklvt:	$(TESTDIR)/$(F).lvt
 	$(SCRIPTDIR)/checktlg latex $(F).lvt $(TESTDIR)/ascii.tcx ; \
 	if [ `ls | grep *.diff | wc -l` -ne 0 ] ; then \
 	  echo ; \
-	  echo diff produced during check: ; \
+	  echo List of diffs produced during check: ; \
 	  echo ==================================== ; \
 	  echo ; \
 	  ls -al `pwd`/$(F).*.diff ; \
@@ -172,6 +181,8 @@ doc:
 	if [ $$? = 0 ] ; then \
 	  echo "\nRe-typesetting $(F).dtx for cross-references" ; \
 	  pdflatex -interaction=nonstopmode $(F).dtx &> $(L3TESTDIR)/doclog.txt ; \
+	  makeindex -s l3doc.ist -o $(F).ind $(F).idx ; \
+	  pdflatex -interaction=nonstopmode $(F).dtx &> $(L3TESTDIR)/doclog.txt ; \
 	  if [ `grep 'defined but not documented' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
 	    echo '! Warning: some functions defined but not documented' ; \
 	  fi ; \
@@ -179,12 +190,12 @@ doc:
 	    echo '! Warning: some functions documented but not defined' ; \
 	  fi ; \
 	else \
-	  echo ; \
-	  echo "!! $(F).dtx compilation failed." ; \
+	  echo "\n!! $(F).dtx compilation failed." ; \
 	fi ; \
-	rm l3doc.cls ;
+	rm l3doc.cls l3doc.ist ;
 
 checkdoc:	
+	echo ; \
 	tex l3doc.dtx &> /dev/null ; \
 	for i in  $(MODULES) ; do \
 	  echo "Typesetting $$i" ; \
@@ -200,13 +211,16 @@ checkdoc:
 	    echo "!! $$i compilation failed." ; \
 	  fi \
 	done ; \
-	rm l3doc.cls ;
+	rm l3doc.cls l3doc.ist ;
 
 alldoc:	
+	echo ; \
 	ALLPASSED=0 ; \
 	tex l3doc.dtx &> /dev/null ; \
 	for i in  $(MODULES) ; do \
 	  echo "Typesetting $$i" ; \
+	  pdflatex -interaction=batchmode $$i &> /dev/null ; \
+	  makeindex -s l3doc.ist -o $$i.ind $$i.idx ; \
 	  pdflatex -interaction=batchmode $$i &> /dev/null ; \
 	  if [ $$? = 0 ] ; then \
 	    pdflatex -interaction=batchmode $$i &> /dev/null ; \
@@ -219,27 +233,27 @@ alldoc:
 	  echo ; \
 	  make sourcedoc ; \
 	fi ; \
-	rm l3doc.cls ;
+	rm l3doc.cls l3doc.ist ;
 
 sourcedoc:	
 	tex l3doc.dtx &> /dev/null ; \
-	echo "Typesetting source3.tex" ; \
-	rm  -f source3.gls source3.ind source3.toc ; \
+	echo "\nTypesetting source3.tex" ; \
+	rm  -f source3.gls source3.ind source3.toc source3.out \
+	       source3.aux source3.hd source3.ist source3.log; \
 	pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
 	if [ $$? = 0 ] ; then \
 	  echo "Re-typesetting for index generation" ; \
-	  makeindex -s source3.ist source3.idx &> /dev/null ; \
-	  makeindex -s gglo.ist -o source3.gls source3.glo &> /dev/null ; \
-	  echo "\includeonly{}" > l3doc.cfg ; \
+	  makeindex -s l3doc.ist -o source3.ind source3.idx &> /dev/null ; \
 	  pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
 	  echo "Re-typesetting to resolve cross-references" ; \
-	  rm l3doc.cfg ; \
-	  makeindex -s source3.ist source3.idx &> /dev/null ; \
-	  makeindex -s gglo.ist -o source3.gls source3.glo &> /dev/null ; \
 	  pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
+	  rm  -f source3.gls source3.ind source3.toc source3.out \
+	       source3.aux source3.hd source3.ist source3.log; \
 	else \
 	  echo "!! source3.tex compilation failed." ; \
-	fi 
+	fi ; \
+	rm l3doc.cls l3doc.ist ;
+
 
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
