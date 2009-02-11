@@ -65,8 +65,11 @@ INSTALLS = \
 
 AUXFILES = \
 	.aux \
+	.glo \
 	.gls \
 	.hd  \
+	.idx \
+	.ilg \
 	.ind \
 	.ist \
 	.log \
@@ -177,11 +180,11 @@ doc:
 	echo ; \
 	echo "Typesetting $(F).dtx" ; \
 	tex l3doc.dtx &> /dev/null ; \
-	pdflatex $(F).dtx ; \
+	pdflatex -draftmode $(F).dtx ; \
 	if [ $$? = 0 ] ; then \
-	  echo "\nRe-typesetting $(F).dtx for cross-references" ; \
-	  pdflatex -interaction=nonstopmode $(F).dtx &> $(L3TESTDIR)/doclog.txt ; \
+	  pdflatex -interaction=nonstopmode -draftmode $(F).dtx &> /dev/null ; \
 	  makeindex -s l3doc.ist -o $(F).ind $(F).idx ; \
+	  echo "\nRe-typesetting $(F).dtx for cross-references" ; \
 	  pdflatex -interaction=nonstopmode $(F).dtx &> $(L3TESTDIR)/doclog.txt ; \
 	  if [ `grep 'defined but not documented' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
 	    echo '! Warning: some functions defined but not documented' ; \
@@ -192,14 +195,16 @@ doc:
 	else \
 	  echo "\n!! $(F).dtx compilation failed." ; \
 	fi ; \
+	for j in $(AUXFILES) ; do rm -f $(F)$$j ; done ; \
 	rm l3doc.cls l3doc.ist ;
 
 checkdoc:	
 	echo ; \
 	tex l3doc.dtx &> /dev/null ; \
 	for i in  $(MODULES) ; do \
+	  MODNAME=`basename $$i .dtx` ; \
 	  echo "Typesetting $$i" ; \
-	  pdflatex -interaction=nonstopmode $$i &> $(L3TESTDIR)/doclog.txt ; \
+	  pdflatex -interaction=nonstopmode -draftmode $$i &> $(L3TESTDIR)/doclog.txt ; \
 	  if [ $$? = 0 ] ; then \
 	    if [ `grep 'defined but not documented' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
 	      echo '! Warning: some functions defined but not documented' ; \
@@ -209,7 +214,8 @@ checkdoc:
 	    fi ; \
 	  else \
 	    echo "!! $$i compilation failed." ; \
-	  fi \
+	  fi ; \
+	  for j in $(AUXFILES) ; do rm -f $$MODNAME$$j ; done ; \
 	done ; \
 	rm l3doc.cls l3doc.ist ;
 
@@ -218,33 +224,35 @@ alldoc:
 	ALLPASSED=0 ; \
 	tex l3doc.dtx &> /dev/null ; \
 	for i in  $(MODULES) ; do \
+	  MODNAME=`basename $$i .dtx` ; \
 	  echo "Typesetting $$i" ; \
-	  pdflatex -interaction=batchmode $$i &> /dev/null ; \
-	  makeindex -s l3doc.ist -o $$i.ind $$i.idx ; \
-	  pdflatex -interaction=batchmode $$i &> /dev/null ; \
+	  pdflatex -interaction=batchmode -draftmode $$i &> /dev/null ; \
 	  if [ $$? = 0 ] ; then \
+	    makeindex -s l3doc.ist -o $$MODNAME.ind $$MODNAME.idx &> /dev/null ; \
+	    pdflatex -interaction=batchmode -draftmode $$i &> /dev/null ; \
 	    pdflatex -interaction=batchmode $$i &> /dev/null ; \
 	  else \
 	    ALLPASSED=1 ; \
 	    echo "!! $$i compilation failed." ; \
-	  fi \
+	  fi ; \
+	  for j in $(AUXFILES) ; do rm -f $$MODNAME$$j ; done ; \
 	done ; \
+	rm l3doc.cls l3doc.ist ; \
 	if [ $$ALLPASSED = 0 ] ; then \
 	  echo ; \
 	  make sourcedoc ; \
 	fi ; \
-	rm l3doc.cls l3doc.ist ;
 
 sourcedoc:	
 	tex l3doc.dtx &> /dev/null ; \
 	echo "\nTypesetting source3.tex" ; \
 	rm  -f source3.gls source3.ind source3.toc source3.out \
 	       source3.aux source3.hd source3.ist source3.log; \
-	pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
+	pdflatex -interaction=batchmode -draftmode source3.tex &> /dev/null ; \
 	if [ $$? = 0 ] ; then \
 	  echo "Re-typesetting for index generation" ; \
 	  makeindex -s l3doc.ist -o source3.ind source3.idx &> /dev/null ; \
-	  pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
+	  pdflatex -interaction=batchmode -draftmode source3.tex &> /dev/null ; \
 	  echo "Re-typesetting to resolve cross-references" ; \
 	  pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
 	  rm  -f source3.gls source3.ind source3.toc source3.out \
