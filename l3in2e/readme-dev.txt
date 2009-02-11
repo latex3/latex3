@@ -13,11 +13,13 @@ contributing to it.
 First, some signposts:
 Email discussion list     <http://news.gmane.org/gmane.comp.tex.latex.latex3>
 SVN repository     <http://www.latex-project.org/svnroot/experimental/trunk/>
-SVN repository RRS feed                       <http://tinyurl.com/latex3-svn>
-SVN repository email commit log                                      < TODO >
+SVN repository RRS feed          <http://www.latex-project.org/latex3svn.rss>
 
-For more information, please look in the README and in 
-the documentation expl3.pdf.
+Those interested in receiving emails containing the diff
+of every commit to the repository should ask on LaTeX-L.
+
+For more information, please look in the official README 
+and in the documentation expl3.pdf.
 
 
 INSTALLATION
@@ -84,10 +86,10 @@ is defined in the module is also documented.
 
 Note that it only check what we *claim* we are defining
 in the documentation; it does not literally check in 
-the code. Still, it's quite handy.
+the code. It will also check that the module's documentation 
+still compiles without errors.
 
 
-
---- Copyright 1998 -- 2008
+--- Copyright 1998 -- 2009
     The LaTeX3 Project.  All rights reserved ---
 
