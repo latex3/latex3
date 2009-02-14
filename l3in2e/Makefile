@@ -146,7 +146,7 @@ check:	bootstrap scripts texinputs unpack \
 	do \
 	  $(SCRIPTDIR)/checktlg latex $$i $(TESTDIR)/ascii.tcx ; \
 	done ; \
-	if [ `ls | grep *.diff | wc -l` = 0 ] ; then \
+	if [ `ls | grep '.diff' | wc -l` = 0 ] ; then \
 	  echo ; \
 	  echo All tests passed successfully. ; \
 	  echo ; \
