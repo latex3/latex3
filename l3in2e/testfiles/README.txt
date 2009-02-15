@@ -63,7 +63,7 @@ starred as having partial or completed testfiles.
   *  l3expan
   *  l3int
      l3io
-     l3keyval
+  *  l3keyval
   *  l3num
   *  l3prg
   *  l3prop
