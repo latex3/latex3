@@ -155,7 +155,7 @@ check:	bootstrap scripts texinputs unpack \
 	  echo List of diffs produced during check: ; \
 	  echo ==================================== ; \
 	  echo ; \
-	  ls -al `pwd`/*.diff ; \
+	  ls -1 `pwd`/*.diff ; \
 	  echo ; \
 	fi ;
 
@@ -169,7 +169,7 @@ checklvt:	$(TESTDIR)/$(F).lvt
 	  echo List of diffs produced during check: ; \
 	  echo ==================================== ; \
 	  echo ; \
-	  ls -al `pwd`/$(F).*.diff ; \
+	  ls -1 `pwd`/$(F).*.diff ; \
 	  echo ; \
 	fi ;
 
