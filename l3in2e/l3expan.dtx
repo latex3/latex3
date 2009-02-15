@@ -108,6 +108,14 @@
 % such definition to later releases of the kernel will not make such
 % style files obsolete.
 %
+% The |V| type returns the value of a register, which can be one of
+% |tlp|, |num|, |int|, |skip|, |dim| or |toks|. The |v| type is the
+% same except it first creates a control sequence out of its argument
+% before returning the value. This recent addition to the argument
+% specifiers may shake things up a bit as most places where |o| is
+% used will be replaced by |V|. The documentation you are currently
+% reading will therefore require a fair bit of re-writing.
+%
 % The |f| type is so special that it deserves an example.
 % Let's pretend we want to set "\aaa" equal to the control sequence
 % stemming from turning "b \l_tmpa_tlp b" into a control
@@ -212,16 +220,23 @@
 % function created from <cs1>.
 % \end{function}
 %
-% \begin{function}{ \exp_args:NC / (EXP) }
+% \begin{function}{ \exp_args:NV / (EXP) }
 % \begin{syntax}
-%   " \exp_args:Nc" <funct> <arg1> <arg2> "..."
+%   " \exp_args:NV" <funct> <register>
 % \end{syntax}
-% The first argument of <funct> (i.e., <arg1>) is expanded until only
-% characters remain. (An internal error occurs if something else is the
-% result of this expansion.) Then the result is turned into a control
-% sequence which is then expanded once more. The result of this is then
-% passed to <funct> as the first argument. <funct> may have more than
-% one argument---all others are passed unchanged.
+% The first argument of <funct> (i.e., <register>) is expanded to its
+% value. By value we mean a number stored in an |int| or |num|
+% register, the length value of a |dim|, |skip| or |muskip| register, the
+% contents of a |toks| register or the unexpanded contents of a |tlp|
+% register. The value is passed onto <funct> in braces.
+% \end{function}
+%
+% \begin{function}{ \exp_args:Nv / (EXP) }
+% \begin{syntax}
+%   " \exp_args:Nv" <funct> \Arg{register}
+% \end{syntax}
+% Like the |V| type except the register is given by a list of
+% characters from which a control sequence name is generated.
 % \end{function}
 %
 % \begin{function}{ \exp_args:Nx }
@@ -235,7 +250,7 @@
 % As mentioned before, this type of function is relatively slow.
 % \end{function}
 %
-% \begin{function}{ \exp_args:Nf }
+% \begin{function}{ \exp_args:Nf / (EXP) }
 % \begin{syntax}
 %   " \exp_args:Nf" <funct> <arg1> <arg2> "..."
 % \end{syntax}
@@ -274,7 +289,7 @@
 % \begin{function}{%
 %                  \exp_args:NNo / (EXP) |
 %                  \exp_args:NNc / (EXP) |
-%                  \exp_args:NNC / (EXP) |
+%                  \exp_args:NNv / (EXP) |
 %                  \exp_args:NNE / (EXP) |
 %                  \exp_args:NNd / (EXP) |
 %                  \exp_args:NNf / (EXP) |
@@ -361,16 +376,27 @@
 % \end{texnote}
 % \end{function}
 %
-%
 % \begin{function}{\exp_not:o |
 %                  \exp_not:d |
-%                  \exp_not:f}
+%                  \exp_not:f }
 % \begin{syntax}
 %   "\exp_not:o" \Arg{token list}
 % \end{syntax}
 % Same as "\exp_not:n" except <token list> is expanded once for the
 % "o" type and twice for the "d" type and the result of this expansion
-% is then prohibited from being expanded further.
+% is then prohibited from being expanded further. 
+% \end{function}
+%
+% \begin{function}{\exp_not:V |
+%                  \exp_not:v }
+% \begin{syntax}
+%   "\exp_not:V" <register>
+%   "\exp_not:v" \Arg{token list}
+% \end{syntax}
+% The value of <register> is retrieved and then passed on to
+% "\exp_not:n" which will prohibit further expansion. The |v| type
+% first creates a control sequence from <token list> but is otherwise
+% identical to |V|.
 % \end{function}
 % 
 % \begin{function}{\exp_not:E}
@@ -458,12 +484,39 @@
 % to perform the expansions. All macros are |long| as this turned out
 % to be desirable since the tokens undergoing expansion may be
 % arbitrary user input.
+%
+% An argument manipulator |\::|\meta{Z} always has signature |#1\:::#2#3|
+% where |#1| holds the remaining argument manipulations to be performed,
+% |\:::| serves as an end marker for the list of manipulations, |#2|
+% is the carried over result of the previous expansion steps and |#3| is
+% the argument about to be processed.
+%
 %  \begin{macro}{\exp_arg_next:nnn}
-%    This is basically the same function as |\Dexp_arg_next:nnn|. (Will: huh?)
+%  \begin{macro}{\exp_arg_next_nobrace:nnn}
+%    |#1| is the result of an expansion step, |#2| is the remaining
+%    argument manipulations and |#3| is the current result of the
+%    expansion chain.  This auxilliary function moves |#1| back after
+%    |#3| in the input stream and checks if any expansion is left to
+%    be done by calling |#2|. In by far the most cases we will require
+%    to add a set of braces to the result of an argument manipulation
+%    so it is more effective to do it directly here. Actually, so far
+%    only the |c| of the final argument manipulation variants does not
+%    require a set of braces.
 %    \begin{macrocode}
 \def_long_new:Npn\exp_arg_next:nnn#1#2#3{
+  #2\:::{#3{#1}}
+}
+\def_long_new:Npn\exp_arg_next_nobrace:nnn#1#2#3{
   #2\:::{#3#1}
 }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%  \begin{macro}{\:::}
+%    The end marker is just another name for the identity function.
+%    \begin{macrocode}
+\def_long_new:Npn\:::#1{#1}
 %    \end{macrocode}
 % \end{macro}
 %
@@ -480,7 +533,6 @@
 %  \begin{macro}{\::N}
 %    This function is used to skip an argument that consists of a
 %    single token and doesn't need to be expanded.
-%^^A was \let_new:NN\::N\::n (changed to match \;N above.
 %    \begin{macrocode}
 \def_long_new:Npn\::N#1\:::#2#3{
   #1\:::{#2#3}
@@ -493,7 +545,7 @@
 %    as control sequence without expansion.
 %    \begin{macrocode}
 \def_long_new:Npn\::c#1\:::#2#3{
-  \exp_after:NN\exp_arg_next:nnn\cs:w #3\cs_end:{#1}{#2}
+  \exp_after:NN\exp_arg_next_nobrace:nnn\cs:w #3\cs_end:{#1}{#2}
 }
 %    \end{macrocode}
 % \end{macro}
@@ -502,7 +554,7 @@
 %    This function is used to expand an argument once.
 %    \begin{macrocode}
 \def_long_new:Npn\::o#1\:::#2#3{
-  \exp_after:NN\exp_arg_next:nnn\exp_after:NN{\exp_after:NN{#3}}{#1}{#2}
+  \exp_after:NN\exp_arg_next:nnn\exp_after:NN{#3}{#1}{#2}
 }
 %    \end{macrocode}
 % \end{macro}
@@ -511,7 +563,7 @@
 %  \begin{macro}{\::f}
 %  \begin{macro}{\exp_stop_f:}
 %    This function is used to expand a token list until the first
-%    unexpandable token is found. The underlying "\int_to_roman:w -`0"
+%    unexpandable token is found. The underlying "\tex_romannumeral:D -`0"
 %    expands everything in its way to find something terminating the
 %    number and thereby expands the function in front of it. This
 %    scanning procedure is terminated once the expansion hits
@@ -522,14 +574,14 @@
 %    once \TeX{} had fully expanded "\let:Nc \aaa {b \l_tmpa_tlp b}"
 %    into "\let:NwN \aaa = \blurb" which then turned out to contain
 %    the non-expandable token "\let:NwN".  Since the expansion of
-%    "\int_to_roman:w -`0" is \m{null}, we wind up with a fully
+%    "\tex_romannumeral:D -`0" is \m{null}, we wind up with a fully
 %    expanded list, only \TeX{} has not tried to execute any of the
 %    non-expandable tokens. This is what differentiates this function
 %    from the "x" argument type.
 %    \begin{macrocode}
 \def_long_new:Npn\::f#1\:::#2#3{
   \exp_after:NN\exp_arg_next:nnn
-  \exp_after:NN{\exp_after:NN{\int_to_roman:w -`0 #3}}
+  \exp_after:NN{\tex_romannumeral:D -`0 #3}
   {#1}{#2}
 }
 \def_new:Npn \exp_stop_f: {~}
@@ -545,7 +597,7 @@
 \cs_if_free:NTF\exp_arg:x{
   \def_long_new:Npn\::x#1\:::#2#3{
     % \tlp_set:Nx\l_exp_tlp{{{#3}}}
-    \def:Npx \l_exp_tlp{{{#3}}}
+    \def:Npx \l_exp_tlp{{#3}}
     \exp_after:NN\exp_arg_next:nnn\l_exp_tlp{#1}{#2}}
 }
 {
@@ -557,37 +609,84 @@
 %    \end{macrocode}
 % \end{macro}
 %
-%  \begin{macro}{\:::}
-%    Just another name for the identity function.
-%    \begin{macrocode}
-\def_long_new:Npn\:::#1{#1}
-%    \end{macrocode}
-% \end{macro}
 %
-%  \begin{macro}{\::C}
-%    This function creates a control sequence out of |#3| and expands
-%    that once before passing it on to |\exp_arg_next:nnn|.
+%  \begin{macro}{\::v}
+%  \begin{macro}{\::V}
+%    These functions return the value of a register, i.e., one of
+%    |tlp|, |num|, |int|, |skip|, |dim| and |muskip|. The |V| version
+%    expects a single token whereas |v| like |c| creates a csname from
+%    its argument given in braces and then evaluates it as if it was a
+%    |V|. The sequence |\tex_romannumeral:D -`0| sets off an |f| type
+%    expansion. The argument is returned in braces.
 %    \begin{macrocode}
-\def_long_new:Npn\::C#1\:::#2#3{
-  \exp_after:NN\exp_C_aux:nnn\cs:w #3\cs_end:{#1}{#2}}
-%    \end{macrocode}
-% \end{macro}
-%
-%  \begin{macro}{\exp_C_aux:nnn}
-%    A helper function for |\::C| wich expands its argument before
-%    passing it on to |\exp_arg_next:nnn|.
-%    \begin{macrocode}
-\def_long_new:Npn\exp_C_aux:nnn #1{
-  \exp_after:NN
-  \exp_arg_next:nnn
-  \exp_after:NN
-     {
-  \exp_after:NN
-      {#1}
-     }
+\def_long_new:Npn \::V#1\:::#2#3{
+  \exp_after:NN\exp_arg_next:nnn
+  \exp_after:NN{
+    \tex_romannumeral:D -`0 
+    \exp_eval_register:N #3
+  }
+  {#1}{#2}
+}
+\def_long_new:Npn \::v#1\:::#2#3{
+  \exp_after:NN\exp_arg_next:nnn
+  \exp_after:NN{
+    \tex_romannumeral:D -`0 
+    \exp_eval_register:c {#3}
+  }
+  {#1}{#2}
 }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+%  \begin{macro}{\exp_eval_register:N}
+%  \begin{macro}{\exp_eval_register:c}
+%  \begin{macro}{\exp_eval_register_aux:w}
+%    This function evaluates a register. Now a register might exist as
+%    one of two things: A parameter-less non-long, non-protected macro
+%    or a built-in \TeX\ register such as |\count|. For the \TeX\
+%    registers we have to utilize a |\tex_the:D| whereas for the
+%    macros we merely have to expand them once. The trick is to find
+%    out when to use |\tex_the:D| and when not to. What we do here is
+%    to take a look at the meaning of the register in question. A
+%    macro register will have meaning |macro:->foo bar| whereas a
+%    \TeX\ register will have meaning |\count240|. If the seventh
+%    token of the meaning is a dash, then we can be fairly sure it was
+%    a parameter-less macro.\footnote{It could also be a macro with
+%    delimited arguments where the first token it expects to see is a
+%    dash but checking for this unlikely case is not worth the
+%    trouble.} The auxilliary macro therefore simply checks the
+%    seventh token and then has to execute a |\tex_the:D| if it was
+%    not a |-| and expand the macro once if it was.
+%    \begin{macrocode}
+\def:Npn \exp_eval_register:N #1{
+  \exp_after:NN \exp_eval_register_aux:w \token_to_meaning:N #1xxxxxx
+  \q_nil
+%    \end{macrocode}
+% The next bit requires some explanation. The function must be
+% initiated by the sequence |\tex_romannumeral:D -`0| and we want to 
+% terminate this expansion chain by inserting an |\exp_stop:f|
+% token. However, we have to expand the register |#1| before we do
+% that. If it is a \TeX\ register, we need to execute the sequence
+% |\exp_after:NN\exp_stop_f:\tex_the:D #1| and if it is a macro we
+% need to execute |\exp_after:NN\exp_stop_f: #1|. We therefore issue
+% the longer of the two sequences and if the register is a macro, we
+% remove the |\tex_the:D|.
+%    \begin{macrocode}
+  \exp_after:NN \exp_stop_f: \tex_the:D #1
+}
+\def:Npn \exp_eval_register_aux:w #1#2#3#4#5#6#7#8\q_nil{
+ \if:w -#7  \exp_after:NN \use_i_ii:nnn \fi:
+}
+\def_long:Npn \use_i_ii:nnn #1#2#3{#1#2}
+\def:Npn \exp_eval_register:c #1{
+  \exp_after:NN\exp_eval_register:N\cs:w #1\cs_end:
+}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%
 %
 %  Here are some that might not stay but let's see.
 %  \begin{macro}{\::E}
@@ -597,7 +696,7 @@
 %    generic wrapper for |\exp_after:NN|.
 %    \begin{macrocode}
 \def_long_new:Npn\::E#1\:::#2#3{
-  \exp_after:NN\exp_arg_next:nnn \exp_after:NN{#3}{#1}{#2}
+  \exp_after:NN\exp_arg_next_nobrace:nnn \exp_after:NN{#3}{#1}{#2}
 }
 %    \end{macrocode}
 % \end{macro}
@@ -606,19 +705,18 @@
 %    Same as |\::E| really but conceptually they are different.
 %    \begin{macrocode}
 \def_long_new:Npn\::e#1\:::#2#3{
-  \exp_after:NN\exp_arg_next:nnn \exp_after:NN{#3}{#1}{#2}
+  \exp_after:NN\exp_arg_next_nobrace:nnn \exp_after:NN{#3}{#1}{#2}
 }
 %    \end{macrocode}
 % \end{macro}
 %
 %  \begin{macro}{\::d}
 %    This function is used to expand an argument twice. Mostly useful
-%    for |toks| type things.
+%    for |toks| type things. This is likely to vanish with |V| around.
 %    \begin{macrocode}
 \def_long_new:Npn\::d#1\:::#2#3{
   \exp_after:NN\exp_after:NN\exp_after:NN\exp_arg_next:nnn
-  \exp_after:NN\exp_after:NN\exp_after:NN{
-  \exp_after:NN\exp_after:NN\exp_after:NN{#3}}{#1}{#2}
+  \exp_after:NN\exp_after:NN\exp_after:NN{#3}{#1}{#2}
 }
 %    \end{macrocode}
 % \end{macro}
@@ -638,7 +736,11 @@
 %    \end{macrocode}
 % \end{macro}
 %
-%  \begin{macro}{\exp_args:NC}
+%  \begin{macro}{\exp_args:NV}
+%  \begin{macro}{\exp_args:NNV}
+%  \begin{macro}{\exp_args:NVV}
+%  \begin{macro}{\exp_args:Nv}
+%  \begin{macro}{\exp_args:NNv}
 %  \begin{macro}{\exp_args:Ncx}
 %  \begin{macro}{\exp_args:Ncco}
 %  \begin{macro}{\exp_args:Nccx}
@@ -662,7 +764,6 @@
 %  \begin{macro}{\exp_args:Nx}
 %  \begin{macro}{\exp_args:Nxx}
 %  \begin{macro}{\exp_args:Nxx}
-%  \begin{macro}{\exp_args:NNC}
 %  \begin{macro}{\exp_args:Nnnc}
 %  \begin{macro}{\exp_args:NNnx}
 %  \begin{macro}{\exp_args:NNoo}
@@ -683,8 +784,11 @@
 %\def:Npn \exp_args:Nco {\::c\::o\:::}
 %\def:Npn \exp_args:No {\::o\:::}
 
-\def:Npn \exp_args:NC {\::C\:::}
-\def:Npn \exp_args:NNC {\::N\::C\:::}
+\def:Npn \exp_args:Nv {\::v\:::}
+\def:Npn \exp_args:NNv {\::N\::v\:::}
+\def:Npn \exp_args:NV {\::V\:::}
+\def:Npn \exp_args:NNV {\::N\::V\:::}
+\def:Npn \exp_args:NVV {\::V\::V\:::}
 \def:Npn \exp_args:NNf {\::N\::f\:::}
 \def:Npn \exp_args:NNno {\::N\::n\::o\:::}
 \def:Npn \exp_args:NNnx {\::N\::n\::x\:::}  % new
@@ -744,6 +848,9 @@
 %  \end{macro}
 %  \end{macro}
 %  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
 %
 %
 % \subsubsection{Preventing expansion}
@@ -752,15 +859,25 @@
 %  \begin{macro}{\exp_not:o}
 %  \begin{macro}{\exp_not:d}
 %  \begin{macro}{\exp_not:f}
+%  \begin{macro}{\exp_not:v}
+%  \begin{macro}{\exp_not:V}
 %    \begin{macrocode}
 \def_long_new:Npn\exp_not:o#1{\exp_not:n\exp_after:NN{#1}}
 \def_long_new:Npn\exp_not:d#1{
   \exp_not:n\exp_after:NN\exp_after:NN\exp_after:NN{#1}
 }
 \def_long_new:Npn\exp_not:f#1{
-  \exp_not:n\exp_after:NN{\int_to_roman:w -`0 #1}
+  \exp_not:n\exp_after:NN{\tex_romannumeral:D -`0 #1}
+}
+\def_long_new:Npn\exp_not:v#1{
+  \exp_not:n\exp_after:NN{\tex_romannumeral:D -`0 \exp_eval_register:c {#1}}
+}
+\def_long_new:Npn\exp_not:V#1{
+  \exp_not:n\exp_after:NN{\tex_romannumeral:D -`0 \exp_eval_register:N #1}
 }
 %    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
 %  \end{macro}
 %  \end{macro}
 %  \end{macro}
