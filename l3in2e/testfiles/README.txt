@@ -30,10 +30,13 @@ fixed.
 
    * Look at the diff produced for your test file or the output 
      of the compilation process
+     
+   * The validation of a single test file can be executed with
+       `make checklvt F=m3quark001`
 
    * If you are satisfied that the output is as it should be,
-     "freeze" the results by creating the .tlg file. You can do 
-     this by running  
+     "freeze" the results by creating the complete .tlg file. 
+     You can do this with  
        `make savetlg F=m3quark001`
 
    * Don't forget to add both the .lvt and .tlg files to the SVN 
@@ -56,13 +59,11 @@ starred as having partial or completed testfiles.
      l3basics
      l3box
      l3calc
-     l3chk
   *  l3clist
   *  l3expan
   *  l3int
      l3io
      l3keyval
-     l3names
   *  l3num
   *  l3prg
   *  l3prop
@@ -70,17 +71,19 @@ starred as having partial or completed testfiles.
   *  l3seq
   *  l3skip
   *  l3tlp
-     l3token
+  *  l3token
   *  l3toks
      l3xref
 
 These modules either do not require a testsuite 
-or their status is tentative
+or their status is tentative.
 
      l3alloc
+     l3chk
      l3doc
      l3final
      l3messages
+     l3names
      l3precom
      l3vers
 
@@ -95,7 +98,7 @@ These need to be replaced with their specific module so that we can test
 module loading dependencies.
 
 
-# Notes
+# Function variants
 
 Not every possible combination of argument specs are generally tested. This is
 sometimes unfortunate because mistakes do happen. E.g.,
@@ -106,4 +109,14 @@ and trivially fixed. So while all functions are tested in their base forms,
 this won't guarantee later on that small errors don't creep in every now and
 then. If this seriously becomes a problem, then we can start putting *every*
 function variant into the test suite, at only a small cost to our sanity.
+
+
+# Help from l3doc
+
+We now have code in l3doc to report both the documented and defined macros
+in the source for each module. After the module has been fixed to remove
+inconsistencies, the full list of commands can now be used in a test file to 
+ensure, for a snapshot in time for each module, that no functions have been
+removed accidentally.
+
 
