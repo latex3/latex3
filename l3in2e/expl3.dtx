@@ -365,7 +365,7 @@
 % \item[toks] token register;
 % \item[box] box register;
 % \item[skip] `rubber' lengths;
-% \item[dimen] `rigid' lengths;
+% \item[dim] `rigid' lengths;
 % \item[num] A `fake' integer type using only macros. Useful for
 % setting up allocation routines;
 % \item[seq] `sequence': a data-type used to implement lists 
@@ -475,51 +475,90 @@
 % \section{Expansion control}
 % \label{sec:exp}
 %
-% Within code it is often necessary to expand or partially expand
-% arguments before passing it on to some function. For example, if the
-% token list pointer "\l_tmpa_tlp" contains the current file
-% that should be pushed onto some stack, we can not write
+% Let's take a look at some typical operations one might want to
+% perform. Suppose we maintain a stack of open files and we use the
+% stack |\g_io_file_name_seq| to keep track of them (|io| is the
+% input-output file module). The basic operation
+% here is to push a name onto this stack which could be done by the
+% operation 
 % \begin{quote}
 %   "\seq_gpush:Nn"                           \\
-%   "   \g_file_name_stack"                   \\
-%   "   \l_tmpa_tlp"
+%   "   \g_io_file_name_seq"                   \\
+%   "   {#1}"
 % \end{quote}
-% since this would put the token "\l_tmpa_tlp" and not its
-% contents on the stack. Instead a suitable number of "\exp_after:NN"
-% would be necessary (together with extra braces) to change the order of
-% execution, i.e.
+% where |#1| is the filename. In other words, this operation would
+% push the file name as is. 
+%
+% However, we might face a situation where
+% the filename is stored in a register of some sort, say
+% |\l_io_curr_file_tlp|. In this case we want to retrieve the value of
+% the register. If we simply use
+% \begin{quote}
+%   "\seq_gpush:Nn"                           \\
+%   "   \g_io_file_name_seq"                   \\
+%   "   \l_io_curr_file_tlp "
+% \end{quote}
+% we will not get the value of the register pushed onto the stack,
+% only the register name itself. Instead a suitable number of
+% "\exp_after:NN" would be necessary (together with extra braces) to
+% change the order of execution, i.e.
 % \begin{quote}
 %   "\exp_after:NN"                              \\
 %   "   \seq_gpush:Nn"                           \\
 %   "\exp_after:NN"                              \\
-%   "      \g_file_name_stack"                   \\
+%   "      \g_io_file_name_seq"                   \\
 %   "\exp_after:NN"                              \\
-%   "      {\l_tmpa_tlp}"
+%   "      {\l_io_curr_file_tlp}"
 % \end{quote}
 %
-% The above example is probably the simplest case but is already shows
-% how the code changes to something difficult to understand. Therefore
-% \LaTeX3 provides the programmer with a general scheme that keeps the
-% code compact and easy to understand.
+% The above example is probably the simplest case but already shows
+% how the code changes to something difficult to
+% understand. Furthermore there is an assumption in this: That the
+% storage bin reveals its contents after exactly one
+% expansion. Relying on this means that you cannot do proper checking
+% plus you have to know exactly how a storage bin acts in order to get
+% the correct number of expansions.  Therefore \LaTeX3 provides the
+% programmer with a general scheme that keeps the code compact and
+% easy to understand.
+%
 % To denote that some argument to a function needs special treatment one
 % just uses different letters in the argument part of the function to
 % mark the desired behavior. In the above example one would write
 % \begin{quote}
-%   "\seq_gpush:No"                           \\
-%   "   \g_file_name_stack"                   \\
-%   "   \l_tmpa_tlp"
+%   "\seq_gpush:NV"                           \\
+%   "   \g_io_file_name_seq "                   \\
+%   "   \l_io_curr_file_tlp "
 % \end{quote}
-% to achieve the desired effect. Here the "o" stands for expand this
-% (the second) argument once before passing it to the base function.
+% to achieve the desired effect. Here the "V" is for ``retrieve the
+% value of the register'' (the second argument) before passing it to
+% the base function.
+%
 %
 % The following letters can be used to denote special treatment of
 % arguments before passing it to the base function:
 % \begin{description}
-% \item[o]  One-level-expanded token or braced token list.\\  
-%   This means that the argument is expanded one level, as by
-%   |\expandafter|, and the expansion is passed to the function as a braced
-%   token list.  Note that if the original argument is a braced
-%   token list then only the first token in that list is expanded.
+% \item[c] Character string used as a command name.\\ The argument (a
+%   token or braced token list) must, when fully expanded, produce a
+%   sequence of characters which is then used to construct a command
+%   name (via~|\csname|, |\endcsname|). This command name is the
+%   single token that is passed to the function as the argument. Hence
+%   \begin{quote}
+%   "\seq_gpush:cV {g_file_name_stack} \l_tmpa_tlp"
+%   \end{quote}
+%   is equivalent to 
+%   \begin{quote}
+%   "\seq_gpush:NV \g_file_name_stack \l_tmpa_tlp".
+%   \end{quote}
+%
+% \item[V]  Value of a register.\\
+%   This means that the register in question is returned, be it an
+%   integer, a length type register, a macro storage register or
+%   similar. The value is returned to the function as a braced token list.
+%
+% \item[v] Value of a register, constructed from a character string
+%   used as a command name.\\
+%   This is a combination of |c| and |V| which first constructs a
+%   control sequence from the argument and then returns the value.
 %
 % \item[x]  Fully-expanded token or braced token list.\\
 %   This means that the argument is expanded as in the replacement
@@ -527,45 +566,22 @@
 %   a braced token list. This means that expansion takes place until
 %   only unexpandable tokens are left.
 %
-% \item[c] Character string used as a command name.\\ The argument (a
-%   token or braced token list) must, when fully expanded, produce a
-%   sequence of characters which is then used to construct a command
-%   name (via~|\csname|, |\endcsname|). This command name is the
-%   single token that is passed to the function as the argument. Hence
-%   \begin{quote}
-%   "\seq_gpush:co {g_file_name_stack} \l_tmpa_tlp"
-%   \end{quote}
-%   is equivalent to 
-%   \begin{quote}
-%   "\seq_gpush:No \g_file_name_stack \l_tmpa_tlp".
-%   \end{quote}
+% \item[o]  One-level-expanded token or braced token list.\\  
+%   This means that the argument is expanded one level, as by
+%   |\expandafter|, and the expansion is passed to the function as a braced
+%   token list.  Note that if the original argument is a braced
+%   token list then only the first token in that list is expanded.
 %
 %  \item[f] Almost the same as the |x| type except here the token list
 %  is expanded fully until the first unexpandable token is found and
 %  the rest is left unchanged. Note that if this function finds a
 %  space at the beginning of the argument it will gobble it and not
 %  expand the next argument.
-%
-%  \item[O]  One-level-expanded single token (unbraced).\\
-%    As for~|o|, the one-level expansion is passed (as a
-%    braced token list) to the function.
-%
-% \item[C] Character string used as a command name
-%   then one-level expanded.\\
-%   The form of the argument is exactly as for~|c|, but the resulting
-%   token is then expanded one level (as for~|O|), and the expansion
-%   is passed to the function as a braced token list. In other words
-% \begin{quote}
-%   "\seq_gpush:NC"
-%   "   \g_file_name_stack"                   
-%   "   {l_tmpa_tlp}"
-% \end{quote}
-% has the same effect as the example above.
 % \end{description}
 %
 % \subsection{Possible additions}
 %
-% % Here are three new expansion types that may be useful but I'm not
+% Here are three new expansion types that may be useful but I'm not
 % sure yet. Only time will tell\dots{} Proper documentation of these
 % functions is postponed until later.
 % \begin{description}
@@ -622,11 +638,12 @@
 % Using the conventions and functionality outlined here, the task would
 % be achieved with code such as this:
 % \begin{verbatim}
-%   \glet:oc \g_reserved_a_tlp
+%   \glet:Vc \g_reserved_a_tlp
 %              \l_current_font_shape_tlp
 % \end{verbatim}
-% The command |\glet:oc| is a global~|\let| that expands its
-% first argument once, and generates a command name out of its second
+% The command |\glet:Vc| is a global~|\let| that returns the value of
+% the register given as its
+% first argument, and generates a command name out of its second
 % argument, before making the definition. This produces code that
 % is far more readable and more likely to be correct first time.
 % 
@@ -650,11 +667,11 @@
 % Again we can improve enormously on the code.  First we shall rename
 % the function~|\in@| according to our conventions.  A function such as
 % this but taking two normal `\texttt{n}' arguments might reasonably be
-% named |\seq_test_in:nn|; thus the variant function we need will be
+% named |\seq_test_in:Nn|; thus the variant function we need will be
 % defined with the appropriate argument types and its name will be
-% |\seq_test_in:co|.  Now this code fragment will be simply:
+% |\seq_test_in:cV|.  Now this code fragment will be simply:
 % \begin{verbatim}
-%   \seq_test_in:co {sym#3} \l_group_seq
+%   \seq_test_in:cV {sym#3} \l_group_seq
 % \end{verbatim}
 % Note that, in addition to the lack of |\expandafter|, the space after
 % the~|}| will be silently ignored since all white space is ignored in
@@ -767,9 +784,9 @@
 % 
 % A typical use of it would be:
 % \begin{verbatim}
-%   \toks_gset \g_xxx_toks {<some value>}
+%   \toks_gset:Nn \g_xxx_toks {<some value>}
 % \end{verbatim}
-% In the normal definition, |\toks_gset| can be simply~|\let|
+% In the normal definition, |\toks_gset:Nn| can be simply~|\let|
 % to~|\global| because the primitive \TeX{} token register does not
 % require any explicit assignment function:
 % this is done by the |%<*!check>| code above.
