@@ -115,10 +115,20 @@ function variant into the test suite, at only a small cost to our sanity.
 
 # Help from l3doc
 
-We now have code in l3doc to report both the documented and defined macros
-in the source for each module. After the module has been fixed to remove
-inconsistencies, the full list of commands can now be used in a test file to 
-ensure, for a snapshot in time for each module, that no functions have been
-removed accidentally.
+We now have code in l3doc to report both the documented and defined macros in
+the source for each module. Modules with inconsistent documentation are:
 
+   l3basics
+   l3box
+   l3calc
+   l3expan
+   l3io
+   l3messages
+   l3names
+   l3skip
+   l3tlp
 
+Whittling down this list as fast as possible. After the module has been fixed
+to remove inconsistencies, the full list of commands can now be used in a test
+file to ensure, for a snapshot in time for each module, that no functions have
+been removed accidentally.
