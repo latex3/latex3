@@ -71,7 +71,7 @@ Second star = All functions & variants checked for existence
      * *     l3prop   
      * *     l3quark  
      * *     l3seq    
-             l3skip   
+       *     l3skip   
              l3tlp    
      * *     l3token  
      * *     l3toks   
@@ -125,7 +125,6 @@ the source for each module. Modules with inconsistent documentation are:
    l3io
    l3messages
    l3names
-   l3skip
    l3tlp
 
 Whittling down this list as fast as possible. After the module has been fixed
