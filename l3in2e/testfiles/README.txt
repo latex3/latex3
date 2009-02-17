@@ -55,25 +55,27 @@ is run).
 
 This is the list of relevant expl3 modules 
 starred as having partial or completed testfiles.
+First star  = All major functions tested
+Second star = All functions & variants checked for existence
 
-     l3basics
-     l3box
-     l3calc
-  *  l3clist
-  *  l3expan
-  *  l3int
-     l3io
-  *  l3keyval
-  *  l3num
-  *  l3prg
-  *  l3prop
-  *  l3quark
-  *  l3seq
-  *  l3skip
-  *  l3tlp
-  *  l3token
-  *  l3toks
-     l3xref
+             l3basics 
+             l3box    
+             l3calc   
+     * *     l3clist  
+             l3expan  
+     * *     l3int    
+             l3io     
+     * *     l3keyval 
+             l3num    
+     * *     l3prg    
+     * *     l3prop   
+     * *     l3quark  
+     * *     l3seq    
+             l3skip   
+             l3tlp    
+     * *     l3token  
+     * *     l3toks   
+             l3xref   
 
 These modules either do not require a testsuite 
 or their status is tentative.
