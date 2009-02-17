@@ -310,6 +310,6 @@ This tests the io and precomp modules.
 
 =====================================================================
 
---- Copyright 1998 -- 2008
+--- Copyright 1998 -- 2009
     The LaTeX3 Project.  All rights reserved ---
 
