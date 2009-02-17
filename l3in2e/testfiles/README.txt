@@ -118,7 +118,6 @@ function variant into the test suite, at only a small cost to our sanity.
 We now have code in l3doc to report both the documented and defined macros in
 the source for each module. Modules with inconsistent documentation are:
 
-   l3basics
    l3box
    l3calc
    l3expan
