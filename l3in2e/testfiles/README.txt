@@ -59,7 +59,7 @@ First star  = All major functions tested
 Second star = All functions & variants checked for existence
 
              l3basics 
-             l3box    
+       *     l3box    
              l3calc   
      * *     l3clist  
              l3expan  
@@ -72,7 +72,7 @@ Second star = All functions & variants checked for existence
      * *     l3quark  
      * *     l3seq    
        *     l3skip   
-             l3tlp    
+       *     l3tlp    
      * *     l3token  
      * *     l3toks   
        *     l3xref   
@@ -116,14 +116,11 @@ function variant into the test suite, at only a small cost to our sanity.
 # Help from l3doc
 
 We now have code in l3doc to report both the documented and defined macros in
-the source for each module. Modules with inconsistent documentation are:
+the source for each module.
 
-   l3calc
-   l3io
-   l3messages
-   l3names
+After the module has been fixed to remove inconsistencies, the full list of
+commands can now be used in a test file to ensure, for a snapshot in time for
+each module, that no functions have been removed accidentally.
 
-Whittling down this list as fast as possible. After the module has been fixed
-to remove inconsistencies, the full list of commands can now be used in a test
-file to ensure, for a snapshot in time for each module, that no functions have
-been removed accidentally.
+Note that this is of absolutely no use whatsoever when we add new functions
+to a module and forget to add them to the test suite.
