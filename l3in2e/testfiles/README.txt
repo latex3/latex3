@@ -118,13 +118,10 @@ function variant into the test suite, at only a small cost to our sanity.
 We now have code in l3doc to report both the documented and defined macros in
 the source for each module. Modules with inconsistent documentation are:
 
-   l3box
    l3calc
-   l3expan
    l3io
    l3messages
    l3names
-   l3tlp
 
 Whittling down this list as fast as possible. After the module has been fixed
 to remove inconsistencies, the full list of commands can now be used in a test
