@@ -64,7 +64,7 @@ Second star = All functions & variants checked for existence
      * *     l3clist  
        *     l3expan  
        *     l3int    
-             l3io     
+       *     l3io     
      * *     l3keyval 
        *     l3num    
      * *     l3prg    
