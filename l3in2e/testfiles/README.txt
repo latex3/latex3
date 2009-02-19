@@ -62,7 +62,7 @@ Second star = All functions & variants checked for existence
        *     l3box    
              l3calc   
      * *     l3clist  
-             l3expan  
+       *     l3expan  
        *     l3int    
              l3io     
      * *     l3keyval 
@@ -81,7 +81,7 @@ These modules either do not require a testsuite
 or their status is tentative.
 
      l3alloc
-     l3chk
+     l3chk        (see note below)
      l3doc
      l3final
      l3messages
@@ -89,7 +89,14 @@ or their status is tentative.
      l3precom
      l3vers
 
+The reason that I've put l3chk in this list is that, as far as I know,
+no-one's actually testing the code against it at the moment (the idea being
+that we're able to conditionally extract `checking' versions of the modules
+that are slower but much more strict).
 
+As soon as we start using it (however that happens to be) we'll create test
+suite for it. (In fact, we'll probably need an entire *branch* of the test
+suite for it with all the changes in the other modules this will imply.)
 
 # Todo
 
