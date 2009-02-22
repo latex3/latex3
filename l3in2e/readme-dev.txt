@@ -27,41 +27,41 @@ INSTALLATION
 
 When you pull down the SVN repository, you'll generally
 want two things: the actual packages files so you can
-use the expl3 bundle, and the documentation.
+use the `expl3` bundle, and the documentation.
 
 
 ## Package files
 
-We don't have an automatic way to do this yet, sorry.
-Run `tex l3.ins` to generate the .sty files for the expl3
-modules. Then move them somewhere that TeX will find them.
+Install `expl3` in your local texmf directory with
+
+   make localinstall
+
+The installation directory is detected automatically,
+and in a normal TeXLive distribution will be used
+in preference to any existing `expl3` code directory.
 
 
 ## Documentation
 
-This is handled most easily by the makefile. For an
-individual module, you can run
+For an individual module, generate the documentation with
 
     make doc F=<module>
     
-For example
+For example, `make doc F=l3quark`. This will produce 
+`l3quark.pdf`, which includes the documentation for that 
+module and its implementation source code.
 
-    make doc F=l3quark
-  
-This will produce l3quark.pdf, including the documentation
-for that module and its implementation source code.
-
-To generate the complete documentation, source3.pdf,
-run
+To generate the complete reference documentation for
+the `expl3` bundle, source3.pdf:
 
     make sourcedoc
   
 Note that source3.pdf does not include the modules'
-implementation source code; therefore, source3.pdf is a
+implementation source code; therefore, `source3.pdf` is a
 rough subset (plus index) of the complete set of typeset 
 module PDFs.
 
-To generate source3.pdf and each module documentation, run
+To generate `source3.pdf` and each module documentation, run
 
     make alldoc
 
@@ -71,6 +71,7 @@ HACKING
 
 There are two main things you need to know when making
 changes to the expl3 bundle.
+
 1. We have a regression test suite
 2. Don't break it
 
@@ -82,7 +83,8 @@ And if you ever change anything, run that again.
 All working? Great!
 
 You can find more information about the test suite in
-  l3in2e/testfiles/README.txt
+  
+    l3in2e/testfiles/README.txt
 
 On a less critical level, we also have a method to check
 that our documentation is somewhat self-consistent. Run

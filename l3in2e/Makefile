@@ -280,6 +280,23 @@ sourcedoc:
 	rm l3doc.cls l3doc.ist ;
 
 
+localinstall:
+	LTEXMF=`kpsewhich --var-value=TEXMFHOME`/tex/latex/ltx3; \
+	echo "\nInstallation directory: \n   $$LTEXMF" ; \
+	mkdir -p $$LTEXMF/l3in2e/ ; \
+	mkdir -p $$LTEXMF/validate/ ; \
+	echo "\nDeleting any old files: \n" ; \
+	rm -fv $$LTEXMF/l3in2e/* ; \
+	rm -fv $$LTEXMF/validate/* ; \
+	echo "\nExtracting and installing: \n" ; \
+	tex l3.ins &> /dev/null ; \
+	rm l3.log l3xref-test.tex ; \
+	tex l3doc.dtx &> /dev/null ; \
+	ls *.sty | xargs -I {} mv -v ./{} $$LTEXMF/l3in2e/{} ; \
+	ls *.cls | xargs -I {} mv -v ./{} $$LTEXMF/l3in2e/{} ; \
+	cp -v l3vers.dtx $$LTEXMF/l3in2e/ ; \
+	cp -v ../validate/regression-test.tex $$LTEXMF/validate/ ;
+
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 	@cp -fp $< $@
