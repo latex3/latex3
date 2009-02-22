@@ -135,6 +135,13 @@ unpack:	$(foreach file,$(MODULES) $(INSTALLS),$(TESTDIR)/$(file))
 	do \
 	  latex $$i ; \
 	done
+
+unpacksilent:	$(foreach file,$(MODULES) $(INSTALLS),$(TESTDIR)/$(file))
+	cd $(TESTDIR) ; \
+	for i in  $(INSTALLS); \
+	do \
+	  latex $$i &> /dev/null ; \
+	done
  
 
 check:	bootstrap scripts texinputs unpack \
@@ -160,17 +167,15 @@ check:	bootstrap scripts texinputs unpack \
 	fi ;
 
 
-checklvt:	$(TESTDIR)/$(F).lvt 
+checklvt:	$(TESTDIR)/$(F).lvt scripts unpacksilent \
+                $(foreach file,$(CFS) $(CLS) $(CFextra),$(TESTDIR)/$(file)) \
+                $(TESTDIR)/regression-test.tex $(TESTDIR)/ascii.tcx
 	cd $(TESTDIR) ; \
 	rm -f *tmp* *.log *.diff *.gls *.ind ; \
 	$(SCRIPTDIR)/checktlg latex $(F).lvt $(TESTDIR)/ascii.tcx ; \
 	if [ `ls | grep *.diff | wc -l` -ne 0 ] ; then \
-	  echo ; \
-	  echo List of diffs produced during check: ; \
-	  echo ==================================== ; \
-	  echo ; \
+	  echo '\n* Diff between the expected and actual results: *' ; \
 	  ls -1 `pwd`/$(F).*.diff ; \
-	  echo ; \
 	fi ;
 
 savetlg:	$(TESTDIR)/$(F).tmp.tlg
