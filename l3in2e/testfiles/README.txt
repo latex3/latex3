@@ -73,6 +73,7 @@ These are the `expl3` modules with _complete_ test files:
  -  `l3tlp`    
  -  `l3token`  
  -  `l3toks`   
+ -  `l3xref`   
 
 These modules have _incomplete_ test files:
 
@@ -85,7 +86,6 @@ These modules are lacking test files:
  -  `l3box`    
  -  `l3calc`   
  -  `l3io`     
- -  `l3xref`   
 
 ## Function listings
 
