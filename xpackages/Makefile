@@ -31,3 +31,47 @@ xhead.tgz: xhead
 	                   xhead/xhead.ins \
 	                   xhead/tryxhead.tex
 
+
+localinstall:
+	LTEXMF=`kpsewhich --var-value=TEXMFHOME`/tex/latex/ltx3     ; \
+	echo "\nInstallation directory: \n   $$LTEXMF"              ; \
+	mkdir -p $$LTEXMF/xpackages/                                ; \
+	echo "\nDeleting any old files: \n"                         ; \
+	rm -fv $$LTEXMF/xpackages/*                                 ; \
+	echo "\nExtracting and installing: \n"                      ; \
+	cd galley/                                                  ; \
+	make unpack                                                 ; \
+	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
+	make clean                                                  ; \
+	cd ../xbase/                                                ; \
+	make unpack                                                 ; \
+	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
+	make clean                                                  ; \
+	cd ../xfootnote/                                            ; \
+	make unpack                                                 ; \
+	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
+	make clean                                                  ; \
+	cd ../xfrontm/                                              ; \
+	make unpack                                                 ; \
+	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
+	make clean                                                  ; \
+	cd ../xhead/                                                ; \
+	make unpack                                                 ; \
+	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
+	make clean                                                  ; \
+	cd ../xinitials/                                            ; \
+	make unpack                                                 ; \
+	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
+	make clean                                                  ; \
+	cd ../xlang/                                                ; \
+	make unpack                                                 ; \
+	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
+	make clean                                                  ; \
+	cd ../xor/                                                  ; \
+	make unpack                                                 ; \
+	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
+	make clean                                                  ; \
+	cd ../xtheorem/                                             ; \
+	make unpack                                                 ; \
+	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
+	make clean                                                  ; \
