@@ -70,6 +70,7 @@ These are the `expl3` modules with _complete_ test files:
  -  `l3prop`   
  -  `l3quark`  
  -  `l3seq`    
+ -  `l3skip`   
  -  `l3tlp`    
  -  `l3token`  
  -  `l3toks`   
@@ -78,7 +79,6 @@ These are the `expl3` modules with _complete_ test files:
 These modules have _incomplete_ test files:
 
  -  `l3expan`  
- -  `l3skip`   
 
 These modules are lacking test files:
 
