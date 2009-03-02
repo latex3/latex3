@@ -16,7 +16,7 @@ SVN repository     <http://www.latex-project.org/svnroot/experimental/trunk/>
 SVN repository RRS feed          <http://www.latex-project.org/latex3svn.rss>
 
 Those interested in receiving emails containing the diff
-of every commit to the repository should ask on LaTeX-L.
+of every commit to the repository should ask on the discussion list.
 
 For more information, please look in the official README 
 and in the documentation expl3.pdf.
@@ -29,6 +29,17 @@ When you pull down the SVN repository, you'll generally
 want two things: the actual packages files so you can
 use the `expl3` bundle, and the documentation.
 
+## Obtaining the code in the SVN repository
+
+Execute something like this:
+
+    mkdir l3svn
+    svn checkout http://www.latex-project.org/svnroot/experimental/trunk/ l3svn
+
+This will give you both the xpackages and the expl3 bundle 
+contained within the `l3in2e/` directory, plus a few extras. 
+This readme only concerns the expl3 bundle.
+
 
 ## Package files
 
@@ -39,6 +50,8 @@ Install `expl3` in your local texmf directory with
 The installation directory is detected automatically,
 and in a normal TeXLive distribution will be used
 in preference to any existing `expl3` code directory.
+(I.e., after the above command your regular documents
+will use the new versions of the modules.)
 
 
 ## Documentation
@@ -57,11 +70,12 @@ the `expl3` bundle, source3.pdf:
     make sourcedoc
   
 Note that source3.pdf does not include the modules'
-implementation source code; therefore, `source3.pdf` is a
+implementation source code; therefore, source3.pdf is a
 rough subset (plus index) of the complete set of typeset 
 module PDFs.
 
-To generate `source3.pdf` and each module documentation, run
+To generate `source3.pdf` and the documentation for 
+each module, run
 
     make alldoc
 
@@ -79,8 +93,9 @@ To make sure things are working, run
 
     make check
     
-And if you ever change anything, run that again. 
-All working? Great!
+If you change something, run that again. All working? Great!
+Please send your diffs to the discussion list and we can talk
+about adding your code.
 
 You can find more information about the test suite in
   
@@ -94,7 +109,7 @@ that our documentation is somewhat self-consistent. Run
 and each module will be compiled and verified that what
 is defined in the module is also documented.
 
-Note that it only check what we *claim* we are defining
+Note that it only checks what we *claim* we are defining
 in the documentation; it does not literally check the code. 
 It will also check that each module's documentation 
 still compiles without errors.
