@@ -4,18 +4,26 @@ all:	getl3 unpack
 # a very temporary goal
 
 getl3:
-	(cd ../../../latex2e/l3in2e ; latex l3.ins )
-	cp ../../../latex2e/l3in2e/*.sty .
+	(cd ../../l3in2e ; latex l3.ins )
+	mv ../../l3in2e/*.sty .
 
 unpack:
 	latex xbase.ins
 
 clean:
-	rm -f template.sty ldcsetup.sty xparse.sty xtools.sty
-	rm -f *.dvi *.aux *.log *.toc *~
+	rm -f *.sty *.dvi *.aux *.log *.toc *~
+	rm -f l3in2e.err
 
 docu:
 	latex template.dtx
 	latex xparse.dtx
 
+
+test:
+	latex template-test
+	latex template-test2
+	latex tprestrict-test
+	latex xparse-test
+
+check:	getl3 unpack test clean
 

@@ -3,14 +3,16 @@ all:	xbase unpack
 
 xbase:
 	(cd ../xbase; latex xbase.ins)
-	cp ../xbase/*.sty .
+	mv ../xbase/*.sty .
 
 unpack:
 	latex xlang.ins
 
 clean:
-	rm -f template.sty ldcsetup.sty xparse.sty xtools.sty
-	rm -f *.dvi *.aux *.log *.toc *.idx *~
+	rm -f *.sty *.dvi *.aux *.log *.toc *.idx *~
+	rm -f german.xld
 
 test:
-	elatex xlang-test
+	latex xlang-test
+
+check: xbase unpack test clean

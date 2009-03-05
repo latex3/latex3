@@ -5,6 +5,19 @@ clean:
 	rm -f *.tgz
 	rm -f *~
 
+check:
+	# make check-pkg X=galley
+	# make check-pkg X=xbase
+	make check-pkg X=xfootnote
+	# make check-pkg X=xfrontm
+	make check-pkg X=xhead
+	make check-pkg X=xinitials
+	# make check-pkg X=xlang
+	# make check-pkg X=xor
+	make check-pkg X=xtheorem
+
+check-pkg: $(X)/
+	cd $(X) ; make check
 
 xbase.tgz: xbase
 	tar cvzf xbase.tgz xbase/ldcsetup.dtx \
@@ -31,6 +44,12 @@ xhead.tgz: xhead
 	                   xhead/xhead.ins \
 	                   xhead/tryxhead.tex
 
+install-pkg:	$(X)/
+	LTEXMF=`kpsewhich --var-value=TEXMFHOME`/tex/latex/ltx3     ; \
+	cd $(X)     ; \
+	make unpack ; \
+	ls *.sty | xargs -I {} cp -v {} $$LTEXMF/xpackages/{}       ; \
+	make clean ; \
 
 localinstall:
 	LTEXMF=`kpsewhich --var-value=TEXMFHOME`/tex/latex/ltx3     ; \
@@ -39,39 +58,13 @@ localinstall:
 	echo "\nDeleting any old files: \n"                         ; \
 	rm -fv $$LTEXMF/xpackages/*                                 ; \
 	echo "\nExtracting and installing: \n"                      ; \
-	cd galley/                                                  ; \
-	make unpack                                                 ; \
-	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
-	make clean                                                  ; \
-	cd ../xbase/                                                ; \
-	make unpack                                                 ; \
-	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
-	make clean                                                  ; \
-	cd ../xfootnote/                                            ; \
-	make unpack                                                 ; \
-	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
-	make clean                                                  ; \
-	cd ../xfrontm/                                              ; \
-	make unpack                                                 ; \
-	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
-	make clean                                                  ; \
-	cd ../xhead/                                                ; \
-	make unpack                                                 ; \
-	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
-	make clean                                                  ; \
-	cd ../xinitials/                                            ; \
-	make unpack                                                 ; \
-	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
-	make clean                                                  ; \
-	cd ../xlang/                                                ; \
-	make unpack                                                 ; \
-	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
-	make clean                                                  ; \
-	cd ../xor/                                                  ; \
-	make unpack                                                 ; \
-	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
-	make clean                                                  ; \
-	cd ../xtheorem/                                             ; \
-	make unpack                                                 ; \
-	ls *.sty | xargs -I {} cp -v ./{} $$LTEXMF/xpackages/{}     ; \
-	make clean                                                  ; \
+	make install-pkg X=galley
+	make install-pkg X=xbase
+	make install-pkg X=xcontents
+	make install-pkg X=xfootnote
+	make install-pkg X=xfrontm
+	make install-pkg X=xhead
+	make install-pkg X=xinitials
+	make install-pkg X=xlang
+	make install-pkg X=xor
+	make install-pkg X=xtheorem

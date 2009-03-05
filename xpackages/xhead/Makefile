@@ -6,13 +6,13 @@ xbase:
 	mv ../xbase/*.sty .
 
 unpack:
-	latex galley2.ins
+	latex xhead.ins
 
 clean:
 	rm -f *.sty *.sig *.dvi *.aux *.log *.toc *~
 	rm -f l3in2e.err
 
 test:
-	latex xhj-test
+	latex tryxhead
 
-check:	xbase unpack test clean
+check: xbase unpack test clean
