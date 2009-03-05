@@ -6,7 +6,7 @@ clean:
 	rm -f *~
 
 check:
-	# make check-pkg X=galley
+	make check-pkg X=galley
 	# make check-pkg X=xbase
 	make check-pkg X=xfootnote
 	# make check-pkg X=xfrontm
