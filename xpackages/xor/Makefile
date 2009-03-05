@@ -3,19 +3,21 @@ all:	xbase unpack
 
 xbase:
 	(cd ../xbase; latex xbase.ins)
-	cp ../xbase/*.sty .
+	mv ../xbase/*.sty .
 
 unpack:
 	latex xotrace.ins
 
 clean:
-	rm -f *.sty
-	rm -f template.sty ldcsetup.sty xparse.sty xtools.sty
-	rm -f *.dvi *.aux *.log *.toc *~
+	mv template-doc.sty template-doc.keep
+	rm -f *.sty *.dvi *.aux *.log *.out *.toc *~
+	rm -f l3in2e.err
+	mv template-doc.keep template-doc.sty
 
 test:
-	elatex xo-pfloat
+	latex xo-pfloat
 
 testb:
-	elatex xo-balance
+	latex xo-balance
 
+check:	xbase unpack test testb clean

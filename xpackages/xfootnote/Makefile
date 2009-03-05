@@ -3,15 +3,16 @@ all:	xbase unpack
 
 xbase:
 	(cd ../xbase; latex xbase.ins)
-	cp ../xbase/*.sty .
+	mv ../xbase/*.sty .
 
 unpack:
 	latex xfootnote.ins
 
 clean:
-	rm -f xfootnote.sty 
-	rm -f template.sty ldcsetup.sty xparse.sty xtools.sty
-	rm -f *.dvi *.aux *.log *.toc *~
+	rm -f *.sty *.dvi *.aux *.log *.toc *~
+	rm -f l3in2e.err
 
 test:
 	latex xfootnote-test
+
+check: xbase unpack test clean

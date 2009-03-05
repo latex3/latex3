@@ -6,13 +6,9 @@ xbase:
 	mv ../xbase/*.sty .
 
 unpack:
-	latex xfrontm.ins
+	latex xcontents.ins
 
 clean:
-	rm -f xfmgalley-sample.tex xfm-*.cls
 	rm -f *.sty *.dvi *.aux *.log *.toc *~
-
-test:
-	latex xfm-test
-
-check: xbase unpack test clean
+	rm -f xcontents.sig
+	rm -f l3in2e.err
