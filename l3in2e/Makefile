@@ -2,14 +2,20 @@
 help:
 	@echo ""
 	@echo "  make clean              - clean out test dirs"
+	@echo ""
 	@echo "  make check              - set up and run all tests"
-	@echo "  make checklvt F=<name>  - run <name>.lvt only (no set up done)"
-	@echo "  make savetlg F=<name>   - save <name>.tlg as new certified test"
+	@echo "  make checklvt F=<name>  - run <name>.lvt only"
+	@echo "  make savetlg  F=<name>  - save <name>.tlg as new certified test"
+	@echo ""
+	@echo "  make checkcmd F=<name>  - check all functions are defined in module"
+	@echo "  make checkcmds          - check all functions are defined in all modules"
+	@echo ""
 	@echo "  make doc F=<name>       - typeset <name>.dtx"
 	@echo "  make checkdoc           - typeset all expl3 modules once"
 	@echo "  make sourcedoc          - typeset source3.tex"
 	@echo "  make alldoc             - typeset all documentation"
-	@echo "  make help               - show this help text"
+	@echo ""
+	@echo "  make /OR/ make help     - show this help text"
 	@echo ""
 
 #### FIX next one (should use environment is provided)
@@ -57,7 +63,32 @@ MODULES = \
 	l3token.dtx \
 	l3toks.dtx \
 	l3vers.dtx \
-	l3xref.dtx 
+	l3xref.dtx
+
+CHKMODULES = \
+	expl3 \
+	l3basics \
+	l3box \
+	l3calc \
+	l3chk \
+	l3clist \
+	l3expan \
+	l3int \
+	l3io \
+	l3keyval \
+	l3messages \
+	l3names \
+	l3num \
+	l3precom \
+	l3prg \
+	l3prop \
+	l3quark \
+	l3seq \
+	l3skip \
+	l3tlp \
+	l3token \
+	l3toks \
+	l3xref
 
 INSTALLS = \
 	l3format.ins \
@@ -181,11 +212,38 @@ checklvt:	$(TESTDIR)/$(F).lvt scripts unpacksilent \
 savetlg:	$(TESTDIR)/$(F).tmp.tlg
 	@cp -fp $< $(TESTFILEDIR)/$(F).tlg
 
-doc:
+
+
+checkcmd:  unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex
+	echo "Checking definitions of functions in $(F)" ; \
+	cd $(TESTDIR) ; \
+	latex -interaction=batchmode $(F).dtx &> /dev/null ; \
+	latex -draftmode -interaction=nonstopmode \
+	  "\def\PKG{$(F)}\input commands-check" &> $(L3TESTDIR)/cmdlog.txt ; \
+	if [ $$? -ne 0 ] ; then \
+	  echo "Missing definitions:" ; \
+	  cat $(L3TESTDIR)/cmdlog.txt | grep '!> ' ; \
+	fi ; \
+
+checkcmds: unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex	
+	cd $(TESTDIR) ; \
+	for i in  $(CHKMODULES) ; do \
+	  latex -interaction=batchmode $$i.dtx &> /dev/null ; \
+	  latex -draftmode -interaction=nonstopmode \
+	    "\def\PKG{$$i}\input commands-check" &> $(L3TESTDIR)/cmdlog.txt ; \
+	  if [ $$? -ne 0 ] ; then \
+	    echo "\n$$i missing definition(s):" ; \
+	    cat $(L3TESTDIR)/cmdlog.txt | grep '!> ' ; \
+	    echo "" ; \
+	  else \
+	    echo "$$i checked." ; \
+	  fi ; \
+	done ; \
+
+doc: l3doc.cls
 	echo ; \
 	FAIL=0 ; \
 	echo "Typesetting $(F).dtx" ; \
-	tex l3doc.dtx &> /dev/null ; \
 	pdflatex -draftmode $(F).dtx ; \
 	if [ $$? = 0 ] ; then \
 	  pdflatex -interaction=nonstopmode -draftmode $(F).dtx &> /dev/null ; \
@@ -208,9 +266,8 @@ doc:
 	for j in $(AUXFILES) ; do rm -f $(F)$$j ; done ; \
 	rm l3doc.cls l3doc.ist ;
 
-checkdoc:	
+checkdoc: l3doc.cls
 	echo ; \
-	tex l3doc.dtx &> /dev/null ; \
 	for i in  $(MODULES) ; do \
 	  MODNAME=`basename $$i .dtx` ; \
 	  echo "Typesetting $$i" ; \
@@ -229,10 +286,9 @@ checkdoc:
 	done ; \
 	rm l3doc.cls l3doc.ist ;
 
-alldoc:	
+alldoc: l3doc.cls
 	echo ; \
 	ALLPASSED=0 ; \
-	tex l3doc.dtx &> /dev/null ; \
 	for i in  $(MODULES) ; do \
 	  FAIL=0 ; \
 	  MODNAME=`basename $$i .dtx` ; \
@@ -258,15 +314,14 @@ alldoc:
 	  make sourcedoc ; \
 	fi ; \
 
-sourcedoc:	
+sourcedoc: l3doc.cls
 	FAIL=0 ; \
-	tex l3doc.dtx &> /dev/null ; \
 	echo "\nTypesetting source3.tex" ; \
 	pdflatex -interaction=batchmode -draftmode source3.tex &> /dev/null ; \
 	if [ $$? = 0 ] ; then \
 	  echo "Re-typesetting for index generation" ; \
 	  makeindex -s l3doc.ist -o source3.ind source3.idx &> /dev/null ; \
-	  pdflatex -interaction=batchmode -draftmode source3.tex &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode -draftmode source3.tex &> /dev/null ; \
 	  echo "Re-typesetting to resolve cross-references" ; \
 	  pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
 	  if [ $$? -ne 0 ] ; then FAIL=1 ; fi ; \
@@ -290,7 +345,7 @@ localinstall:
 	rm -fv $$LTEXMF/validate/* ; \
 	echo "\nExtracting and installing: \n" ; \
 	tex l3.ins &> /dev/null ; \
-	rm l3.log l3xref-test.tex ; \
+	rm l3.log ; \
 	tex l3doc.dtx &> /dev/null ; \
 	ls *.sty | xargs -I {} mv -v ./{} $$LTEXMF/l3in2e/{} ; \
 	ls *.cls | xargs -I {} mv -v ./{} $$LTEXMF/l3in2e/{} ; \
@@ -299,6 +354,9 @@ localinstall:
 
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
+	@cp -fp $< $@
+
+$(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
 	@cp -fp $< $@
 
 
@@ -319,8 +377,6 @@ $(TESTDIR)/%.dtx:	$(SOURCEDIR)/%.dtx
 $(TESTDIR)/%.ins:	$(SOURCEDIR)/%.ins
 	@cp -fp $< $@
 
-
-
 ################################
 # rules for support files
 ################################
@@ -328,3 +384,7 @@ $(TESTDIR)/%.ins:	$(SOURCEDIR)/%.ins
 $(TESTDIR)/ascii.tcx:		$(SUPPORTDIR)/ascii.tcx
 	@cp -fp $< $@
 
+####
+
+$(TESTDIR)/l3doc.cls: $(TESTDIR)/l3doc.dtx
+	cd $(TESTDIR); tex l3doc.dtx &> /dev/null
