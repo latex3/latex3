@@ -388,3 +388,7 @@ $(TESTDIR)/ascii.tcx:		$(SUPPORTDIR)/ascii.tcx
 
 $(TESTDIR)/l3doc.cls: $(TESTDIR)/l3doc.dtx
 	cd $(TESTDIR); tex l3doc.dtx &> /dev/null
+
+
+l3doc.cls: $(TESTDIR)/l3doc.dtx
+	tex l3doc.dtx &> /dev/null
