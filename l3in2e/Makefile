@@ -7,23 +7,26 @@ help:
 	@echo "  make checklvt F=<name>  - run <name>.lvt only"
 	@echo "  make savetlg  F=<name>  - save <name>.tlg as new certified test"
 	@echo ""
-	@echo "  make checkcmd F=<name>  - check all functions are defined in module"
+	@echo "  make checkdoc           - check all modules compile correctly"
+	@echo "  make checkcmd F=<name>  - check all functions are defined in one module"
 	@echo "  make checkcmds          - check all functions are defined in all modules"
 	@echo ""
 	@echo "  make doc F=<name>       - typeset <name>.dtx"
-	@echo "  make checkdoc           - typeset all expl3 modules once"
 	@echo "  make sourcedoc          - typeset source3.tex"
 	@echo "  make alldoc             - typeset all documentation"
+	@echo ""
+	@echo "  make localinstall       - install the .sty files in your home texmf tree"
 	@echo ""
 	@echo "  make /OR/ make help     - show this help text"
 	@echo ""
 
-#### FIX next one (should use environment is provided)
 
+################################
+# PATHS
+################################
+
+# FIX next one (should use environment is provided)
 L3TESTDIR := /tmp/l3test
-
-
-
 
 TESTDIR := $(shell test -d $(L3TESTDIR)/test/l3in2e || mkdir -p $(L3TESTDIR)/test/l3in2e ; cd $(L3TESTDIR)/test/l3in2e ; pwd)
 
@@ -37,6 +40,12 @@ TESTFILEDIR := $(SOURCEDIR)/testfiles
 SUPPORTDIR  := $(BASEDIR)/support
 
 
+################################
+# VARIABLES
+################################
+
+
+# All modules:
 MODULES = \
 	expl3.dtx \
 	l3alloc.dtx \
@@ -65,88 +74,27 @@ MODULES = \
 	l3vers.dtx \
 	l3xref.dtx
 
+# Modules to check in the `checkcmds` target:
 CHKMODULES = \
-	expl3 \
-	l3basics \
-	l3box \
-	l3calc \
-	l3chk \
-	l3clist \
-	l3expan \
-	l3int \
-	l3io \
-	l3keyval \
-	l3messages \
-	l3names \
-	l3num \
-	l3precom \
-	l3prg \
-	l3prop \
-	l3quark \
-	l3seq \
-	l3skip \
-	l3tlp \
-	l3token \
-	l3toks \
-	l3xref
+	expl3 l3basics l3box l3calc l3chk l3clist l3expan l3int l3io \
+	l3keyval l3messages l3names l3num l3precom l3prg l3prop l3quark \
+	l3seq l3skip l3tlp l3token l3toks l3xref
 
+# Docstrip install files:
 INSTALLS = \
 	l3format.ins \
 	l3.ins 
 
+# Auxiliary files to clean up after typesetting:
 AUXFILES = \
-	.aux \
-	.glo \
-	.gls \
-	.hd  \
-	.idx \
-	.ilg \
-	.ind \
-	.ist \
-	.log \
-	.out \
-	.toc
+	.aux .glo .gls .hd .idx .ilg .ind .ist .log .out .toc
 
-#
-# scripts used in this make
-#
 
+# Scripts used in the regression tests:
 SCRIPTS = \
 	checktlg \
 	log2tlg \
 	maketlg
-
-
-#
-# default pattern rules for scripts
-#
-
-$(SCRIPTDIR)/%:	$(SUPPORTDIR)/%
-	cp $< $@
-	chmod +x $@
-
-
-scripts:	$(foreach file,$(SCRIPTS),$(SCRIPTDIR)/$(file))
-
-
-
-############
-# gloals
-############
-
-.PHONY:	clean cleanuptest bootstrap check checklvt savetlg scripts
-
-clean:	cleanuptest 
-
-cleanuptest:
-	rm -f $(TESTDIR)/*
-
-
-bootstrap:	
-	@echo "dummy right now"
-
-texinputs:
-	@echo "dummy right now"
 
 
 COMPATCHECK =
@@ -159,6 +107,39 @@ BUGCHECK = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/tlb*.tlg)))
 CFS = $(foreach file,$(COMPATCHECK) $(MODULECHECK) $(BUGCHECK),$(file).lvt)
 CLS = $(foreach file,$(COMPATCHECK) $(MODULECHECK) $(BUGCHECK),$(file).tlg)
 
+
+
+################################
+# default pattern rules for scripts
+################################
+
+$(SCRIPTDIR)/%:	$(SUPPORTDIR)/%
+	cp $< $@
+	chmod +x $@
+
+
+scripts:	$(foreach file,$(SCRIPTS),$(SCRIPTDIR)/$(file))
+
+################################
+# basic rules for setting things up
+################################
+
+.PHONY:	clean cleanuptest bootstrap \
+	check checklvt checkdoc checkcmd checkcmds \
+	savetlg scripts \
+	doc sourcedoc alldoc \
+	localinstall
+
+clean:	cleanuptest 
+
+cleanuptest:
+	rm -f $(TESTDIR)/*
+
+bootstrap:	
+	@echo "dummy right now"
+
+texinputs:
+	@echo "dummy right now"
 
 unpack:	$(foreach file,$(MODULES) $(INSTALLS),$(TESTDIR)/$(file))
 	cd $(TESTDIR) ; \
@@ -173,7 +154,11 @@ unpacksilent:	$(foreach file,$(MODULES) $(INSTALLS),$(TESTDIR)/$(file))
 	do \
 	  latex $$i &> /dev/null ; \
 	done
- 
+
+
+################################
+# unit tests
+################################
 
 check:	bootstrap scripts texinputs unpack \
                 $(foreach file,$(CFS) $(CLS) $(CFextra),$(TESTDIR)/$(file)) \
@@ -213,6 +198,15 @@ savetlg:	$(TESTDIR)/$(F).tmp.tlg
 	@cp -fp $< $(TESTFILEDIR)/$(F).tlg
 
 
+################################
+# checking that all functions are defined
+################################
+
+$(TESTDIR)/l3doc.cls: $(TESTDIR)/l3doc.dtx
+	cd $(TESTDIR); tex l3doc.dtx &> /dev/null
+
+$(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
+	@cp -fp $< $@
 
 checkcmd:  unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex
 	echo "Checking definitions of functions in $(F)" ; \
@@ -225,7 +219,7 @@ checkcmd:  unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex
 	  cat $(L3TESTDIR)/cmdlog.txt | grep '!> ' ; \
 	fi ; \
 
-checkcmds: unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex	
+checkcmds: unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex
 	cd $(TESTDIR) ; \
 	for i in  $(CHKMODULES) ; do \
 	  latex -interaction=batchmode $$i.dtx &> /dev/null ; \
@@ -239,6 +233,37 @@ checkcmds: unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex
 	    echo "$$i checked." ; \
 	  fi ; \
 	done ; \
+
+################################
+# checking the documentation compiles
+################################
+
+l3doc.cls: $(TESTDIR)/l3doc.dtx
+	tex l3doc.dtx &> /dev/null
+
+checkdoc: l3doc.cls
+	echo ; \
+	for i in  $(MODULES) ; do \
+	  MODNAME=`basename $$i .dtx` ; \
+	  echo "Typesetting $$i" ; \
+	  pdflatex -interaction=nonstopmode -draftmode $$i &> $(L3TESTDIR)/doclog.txt ; \
+	  if [ $$? = 0 ] ; then \
+	    if [ `grep 'defined but not documented' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
+	      echo '! Warning: some functions defined but not documented' ; \
+	    fi ; \
+	    if [ `grep 'documented but not defined' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
+	      echo '! Warning: some functions documented but not defined' ; \
+	    fi ; \
+	  else \
+	    echo "\n!! $$i compilation failed.\n" ; \
+	  fi ; \
+	  for j in $(AUXFILES) ; do rm -f $$MODNAME$$j ; done ; \
+	done ; \
+	rm l3doc.cls l3doc.ist ;
+
+################################
+# typesetting the docs
+################################
 
 doc: l3doc.cls
 	echo ; \
@@ -264,26 +289,6 @@ doc: l3doc.cls
 	  echo "\n!! $(F).dtx compilation failed." ; \
 	fi ; \
 	for j in $(AUXFILES) ; do rm -f $(F)$$j ; done ; \
-	rm l3doc.cls l3doc.ist ;
-
-checkdoc: l3doc.cls
-	echo ; \
-	for i in  $(MODULES) ; do \
-	  MODNAME=`basename $$i .dtx` ; \
-	  echo "Typesetting $$i" ; \
-	  pdflatex -interaction=nonstopmode -draftmode $$i &> $(L3TESTDIR)/doclog.txt ; \
-	  if [ $$? = 0 ] ; then \
-	    if [ `grep 'defined but not documented' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
-	      echo '! Warning: some functions defined but not documented' ; \
-	    fi ; \
-	    if [ `grep 'documented but not defined' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
-	      echo '! Warning: some functions documented but not defined' ; \
-	    fi ; \
-	  else \
-	    echo "\n!! $$i compilation failed.\n" ; \
-	  fi ; \
-	  for j in $(AUXFILES) ; do rm -f $$MODNAME$$j ; done ; \
-	done ; \
 	rm l3doc.cls l3doc.ist ;
 
 alldoc: l3doc.cls
@@ -312,7 +317,7 @@ alldoc: l3doc.cls
 	if [ $$ALLPASSED = 0 ] ; then \
 	  echo ; \
 	  make sourcedoc ; \
-	fi ; \
+	fi ;
 
 sourcedoc: l3doc.cls
 	FAIL=0 ; \
@@ -334,6 +339,9 @@ sourcedoc: l3doc.cls
 	for j in $(AUXFILES) ; do rm -f source3$$j ; done ; \
 	rm l3doc.cls l3doc.ist ;
 
+################################
+# installing the files locally
+################################
 
 localinstall:
 	LTEXMF=`kpsewhich --var-value=TEXMFHOME`/tex/latex/ltx3; \
@@ -353,11 +361,6 @@ localinstall:
 	cp -v ../validate/regression-test.tex $$LTEXMF/validate/ ;
 
 
-$(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
-	@cp -fp $< $@
-
-$(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
-	@cp -fp $< $@
 
 
 ################################
@@ -370,7 +373,6 @@ $(TESTDIR)/%.lvt:	$(TESTFILEDIR)/%.lvt
 $(TESTDIR)/%.tlg:	$(TESTFILEDIR)/%.tlg
 	@cp -fp $< $@
 
-
 $(TESTDIR)/%.dtx:	$(SOURCEDIR)/%.dtx
 	@cp -fp $< $@
 
@@ -378,17 +380,16 @@ $(TESTDIR)/%.ins:	$(SOURCEDIR)/%.ins
 	@cp -fp $< $@
 
 ################################
-# rules for support files
+# rules for files needed for checking
 ################################
 
 $(TESTDIR)/ascii.tcx:		$(SUPPORTDIR)/ascii.tcx
 	@cp -fp $< $@
 
-####
-
-$(TESTDIR)/l3doc.cls: $(TESTDIR)/l3doc.dtx
-	cd $(TESTDIR); tex l3doc.dtx &> /dev/null
+$(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
+	@cp -fp $< $@
 
 
-l3doc.cls: $(TESTDIR)/l3doc.dtx
-	tex l3doc.dtx &> /dev/null
+
+
+
