@@ -358,7 +358,8 @@ localinstall:
 	ls *.sty | xargs -I {} mv -v ./{} $$LTEXMF/l3in2e/{} ; \
 	ls *.cls | xargs -I {} mv -v ./{} $$LTEXMF/l3in2e/{} ; \
 	cp -v l3vers.dtx $$LTEXMF/l3in2e/ ; \
-	cp -v ../validate/regression-test.tex $$LTEXMF/validate/ ;
+	cp -v ../validate/regression-test.tex $$LTEXMF/validate/ ; \
+	cp -v ../validate/commands-check.tex $$LTEXMF/validate/ ;
 
 
 
