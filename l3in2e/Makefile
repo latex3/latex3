@@ -76,7 +76,7 @@ MODULES = \
 
 # Modules to check in the `checkcmds` target:
 CHKMODULES = \
-	expl3 l3basics l3box l3calc l3chk l3clist l3expan l3int l3io \
+	expl3 l3basics l3box l3calc l3clist l3expan l3int l3io \
 	l3keyval l3messages l3names l3num l3precom l3prg l3prop l3quark \
 	l3seq l3skip l3tlp l3token l3toks l3xref
 
@@ -213,7 +213,7 @@ checkcmd:  unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex
 	cd $(TESTDIR) ; \
 	latex -interaction=batchmode $(F).dtx &> /dev/null ; \
 	latex -draftmode -interaction=nonstopmode \
-	  "\def\PKG{$(F)}\input commands-check" &> $(L3TESTDIR)/cmdlog.txt ; \
+	  "\def\CMDS{$(F).cmds}\input commands-check" &> $(L3TESTDIR)/cmdlog.txt ; \
 	if [ $$? -ne 0 ] ; then \
 	  echo "Missing definitions:" ; \
 	  cat $(L3TESTDIR)/cmdlog.txt | grep '!> ' ; \
@@ -224,7 +224,8 @@ checkcmds: unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex
 	for i in  $(CHKMODULES) ; do \
 	  latex -interaction=batchmode $$i.dtx &> /dev/null ; \
 	  latex -draftmode -interaction=nonstopmode \
-	    "\def\PKG{$$i}\input commands-check" &> $(L3TESTDIR)/cmdlog.txt ; \
+	    "\def\CMDS{$$i.cmds}\input commands-check" \
+	      &> $(L3TESTDIR)/cmdlog.txt ; \
 	  if [ $$? -ne 0 ] ; then \
 	    echo "\n$$i missing definition(s):" ; \
 	    cat $(L3TESTDIR)/cmdlog.txt | grep '!> ' ; \
