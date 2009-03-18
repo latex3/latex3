@@ -212,7 +212,7 @@ checkcmd:  unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex
 	echo "Checking definitions of functions in $(F)" ; \
 	cd $(TESTDIR) ; \
 	latex -interaction=batchmode $(F).dtx &> /dev/null ; \
-	latex -draftmode -interaction=nonstopmode \
+	latex -interaction=nonstopmode \
 	  "\def\CMDS{$(F).cmds}\input commands-check" &> $(L3TESTDIR)/cmdlog.txt ; \
 	if [ $$? -ne 0 ] ; then \
 	  echo "Missing definitions:" ; \
@@ -223,7 +223,7 @@ checkcmds: unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex
 	cd $(TESTDIR) ; \
 	for i in  $(CHKMODULES) ; do \
 	  latex -interaction=batchmode $$i.dtx &> /dev/null ; \
-	  latex -draftmode -interaction=nonstopmode \
+	  latex -interaction=nonstopmode \
 	    "\def\CMDS{$$i.cmds}\input commands-check" \
 	      &> $(L3TESTDIR)/cmdlog.txt ; \
 	  if [ $$? -ne 0 ] ; then \
