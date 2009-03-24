@@ -1,9 +1,13 @@
 
-all:	xbase unpack
+all:	xbase getl3 unpack
 
 xbase:
 	(cd ../xbase; latex xbase.ins)
 	mv ../xbase/*.sty .
+
+getl3:
+	(cd ../../l3in2e ; latex l3.ins )
+	mv ../../l3in2e/*.sty .
 
 unpack:
 	latex galley2.ins
@@ -15,4 +19,4 @@ clean:
 test:
 	latex xhj-test
 
-check:	xbase unpack test clean
+check:	xbase getl3 unpack test clean
