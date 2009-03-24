@@ -38,4 +38,4 @@ clean:
 test:
 	latex xlang-test
 
-check: xbase unpack test clean
+check: xbase getl3 xor unpack test clean
