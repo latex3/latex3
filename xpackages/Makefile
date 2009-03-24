@@ -13,7 +13,7 @@ check:
 	make check-pkg X=xhead
 	make check-pkg X=xinitials
 	# make check-pkg X=xlang
-	# make check-pkg X=xor
+	make check-pkg X=xor
 	make check-pkg X=xtheorem
 
 check-pkg: $(X)/
