@@ -284,6 +284,35 @@
 % \end{texnote}
 % \end{function}
 %
+%
+% \begin{function}{ \tlist_rescan:nn }
+% \begin{syntax}
+% "\tlist_rescan:nn" <catcode setup> <tlist>
+% \end{syntax}
+% Returns the result of re-tokenising <tlist> with the catcode setup
+% (and whatever other redefinitions) specified. This is useful because
+% the catcodes of characters are `frozen' when first tokenised; this allows
+% their meaning to be changed even after they've been read as an argument.
+% Also see "\tlp_set_rescan:Nnn" below.
+% \begin{texnote}
+%   This is a wrapper around \eTeX's "\scantokens".
+% \end{texnote}
+% \end{function}
+%
+% \begin{function}{ \tlp_set_rescan:Nnn | \tlp_gset_rescan:Nnn |
+%                   \tlp_set_rescan:Nnx | \tlp_gset_rescan:Nnx }
+% \begin{syntax}
+% "\tlp_set_rescan:nn" <tlp> <catcode setup> <tlist>
+% \end{syntax}
+% Sets <tlp> to the result of re-tokenising <tlist> with the catcode setup
+% (and whatever other redefinitions) specified.
+% \begin{texnote}
+%   This is a wrapper around \eTeX's "\scantokens".
+% \end{texnote}
+% \end{function}
+%
+%
+%
 % \subsection{Predicates and conditionals}
 %
 % \begin{function}{\tlp_if_empty_p:N / (EXP) |
@@ -1166,6 +1195,153 @@
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
+%
+%
+% \begin{macro}{\tlp_set_rescan:Nnn, \tlp_gset_rescan:Nnn}
+% These functions store the \marg{tlist} in \meta{tlp} after
+% redefining catcodes, etc., in argument "#2".
+% \begin{arguments}
+% \item \meta{tlp}
+% \item \marg{catcode setup, etc.}
+% \item \marg{tlist}
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new:Npn \tlp_set_rescan:Nnn  { \tlp_set_rescan_aux:NNnn \tlp_set:Nn  }
+\cs_new:Npn \tlp_gset_rescan:Nnn { \tlp_set_rescan_aux:NNnn \tlp_gset:Nn }
+%    \end{macrocode}
+%
+% \begin{macro}[aux]{\tlp_set_rescan_aux:NNnn}
+% This macro uses a trick to extract an unexpanded token list after it's
+% rescanned with "\etex_scantokens:D". This technique was first used (as far as I
+% know) by Heiko Oberdiek in his \pkg{catchfile} package, albeit for real
+% files rather than the `fake' "\scantokens" one.
+%
+% The basic problem arises because "\etex_scantokens:D" emulates a file read, which
+% inserts an EOF marker into the expansion; the simplistic\\
+% "\exp_args:NNo \cs_set:Npn \tmp:w { \etex_scantokens:D {some text} }"\\
+% unfortunately doesn't work, calling the error:\\
+% "! File ended while scanning definition of \tmp:w."\\
+% (Lua\TeX\ works around this
+% problem with its "\scantextokens" primitive.)
+%
+% Usually, we'd define "\etex_everyeof:D" to be "\exp_not:N" to gobble the EOF
+% marker, but since we're not expanding the token list, it gets left in there
+% and we have the same basic problem.
+%
+% Instead, we define "\etex_everyeof:D" to contain a marker that's impossible
+% to occur within the scanned text; that is, the same char twice with
+% different catcodes. (For some reason, we \emph{don't} need to insert
+% a "\exp_not:N" token after it to prevent the EOF marker to expand. Anyone
+% know why?)
+%
+% A helper function is can be used to save the token list delimited by the
+% special marker, keeping the catcode redefinitions hidden away in a group.
+%
+% \begin{macro}[aux]{\c_two_ats_with_two_catcodes_tlp}
+% A tlp with two "@" characters with two different catcodes.
+% Used as a special marker for delimited text.
+%    \begin{macrocode}
+\group_begin:
+  \char_set_lccode:nn {`\A} {`\@}
+  \char_set_lccode:nn {`\B} {`\@}
+  \char_make_math_subscript:N \A
+  \char_make_math_shift:N \B
+\tlist_to_lowercase:n{
+  \group_end:
+  \tlp_new:Nn \c_two_ats_with_two_catcodes_tlp {AB}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{arguments}
+% \item "\tlp_set" function
+% \item \meta{tlp}
+% \item \marg{catcode setup, etc.}
+% \item \marg{tlist}
+% \end{arguments}
+% Note that if you change "\etex_everyeof:D" in "#3"
+% then you'd better do it correctly!
+%    \begin{macrocode}
+\cs_new:Nn \tlp_set_rescan_aux:NNnn {
+  \group_begin:
+    \toks_set:No \etex_everyeof:D { \c_two_ats_with_two_catcodes_tlp }
+    \tex_endlinechar:D = -1 \scan_stop:
+    #3
+    \exp_after:NN \tlp_rescan_aux:w \etex_scantokens:D {#4}
+    \exp_args:NNNo
+  \group_end:
+  #1 #2 { \l_tmpa_tlp }
+}
+%    \end{macrocode}
+%
+% \begin{macro}[aux]{\tlp_rescan_aux:w}
+%    \begin{macrocode}
+\exp_after:NN \cs_set:Npn
+\exp_after:NN \tlp_rescan_aux:w
+\exp_after:NN #
+\exp_after:NN 1 \c_two_ats_with_two_catcodes_tlp {
+  \tlp_set:Nn \l_tmpa_tlp {#1}
+}
+%    \end{macrocode}
+%
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\tlp_set_rescan:Nnx,\tlp_gset_rescan:Nnx}
+% These functions store the full expansion of \marg{tlist} in \meta{tlp} after
+% redefining catcodes, etc., in argument "#2".
+% \begin{arguments}
+% \item \meta{tlp}
+% \item \marg{catcode setup, etc.}
+% \item \marg{tlist}
+% \end{arguments}
+% The expanded versions are much simpler because the "\etex_scantokens:D"
+% can occur within the expansion.
+%    \begin{macrocode}
+\cs_new:Nn \tlp_set_rescan:Nnx {
+  \group_begin:
+    \etex_everyeof:D { \exp_not:N }
+    \tex_endlinechar:D = -1 \scan_stop:
+    #2
+    \tlp_set:Nx \l_tmpa_tlp { \etex_scantokens:D {#3} }
+    \exp_args:NNNo
+  \group_end:
+  \tlp_set:Nn #1 { \l_tmpa_tlp }
+}
+%    \end{macrocode}
+% Globally is easier again:
+%    \begin{macrocode}
+\cs_new:Nn \tlp_gset_rescan:Nnx {
+  \group_begin:
+    \etex_everyeof:D { \exp_not:N }
+    \tex_endlinechar:D = -1 \scan_stop:
+    #2
+    \tlp_gset:Nx #1 { \etex_scantokens:D {#3} }
+  \group_end:
+}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\tlist_rescan:nn}
+% The inline wrapper for "\etex_scantokens:D".
+% \begin{arguments}
+% \item Catcode changes (etc.)
+% \item Token list to re-tokenise
+% \end{arguments}
+%    \begin{macrocode}
+\cs_new:Nn \tlist_rescan:nn {
+  \group_begin:
+    \etex_everyeof:D { \exp_not:N }
+    \tex_endlinechar:D = -1 \scan_stop:
+    #1
+    \toks_set:Nx \l_tmpa_toks { \etex_scantokens:D {#2} }
+  \exp_args:NV \group_end: \l_tmpa_toks
+}
+%    \end{macrocode}
+% \end{macro}
+%
 %
 % \subsubsection{Variables and constants}
 %
