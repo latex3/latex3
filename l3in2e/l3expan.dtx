@@ -116,14 +116,14 @@
 % \begin{function}{\cs_generate_variant:Nn|\cs_generate_variants:Nn}
 % \begin{syntax}
 % "\cs_generate_variant:Nn" <function> <variant argument>
-% "\cs_generate_variant:Nn " "\foo:Nn" "{cn}"
-% "\cs_generate_variants:Nn" "\foo:Nn" "{cn,Nx,cx}"
+% "\cs_generate_variant:Nn " "\foo:Nn" "{c}"
+% "\cs_generate_variants:Nn" "\foo:Nn" "{c,Nx,cx}"
 % \end{syntax}
 % These two functions simplify the task of defining
 % variantions on a base function with differing expansion control.
 % The first is equivalent to writing
 % \begin{verbatim}
-%   \cs_set:Npn \foo:cn { \exp_args:Nc \foo:Nn }
+%   \cs_set_nopar:Npn \foo:cn { \exp_args:Nc \foo:Nn }
 % \end{verbatim}
 % The comma-separated version requires the \pkg{clist} module to be
 % loaded before it will work.
@@ -969,32 +969,68 @@
 %
 %
 % \begin{macro}{\cs_generate_variant:Nn}
+% \begin{macro}[aux]{\cs_generate_variant_aux:nnNn}
+% \begin{macro}[aux]{\cs_generate_variant_aux:N}
 % \begin{arguments}
 % \item Base form of a function; e.g., "\foo_bar:Nn"
 % \item Variant argument specifier; e.g., "{cx}"
 % \end{arguments}
+% Split up the original base function to grab its name and signature
+% consisting of $k$ letters. Then construct a new function name using
+% the original base name, the variant signature consisting of $l$
+% letters and the last $k-l$ letters of the base signature. For
+% example, for a base function "\foo_bar:NNn" which needs a "cc"
+% variant form, we want the new signature to be "ccn". 
 %    \begin{macrocode}
 \cs_new:Npn \cs_generate_variant:Nn #1#2 {
   \chk_if_exist_cs:N #1
-  \cs_if_free:cTF { \cs_get_function_name:N #1 :#2 }
-    {
-%    \end{macrocode}
-%    We use "new" to log the new veriant definition if we make one.
-%    \begin{macrocode}
-      \cs_new:cpx { \cs_get_function_name:N #1 :#2 }
-         {
-           \exp_not:o { \cs:w exp_args:N #2 \cs_end: }
-           \exp_not:N #1
-         }
-    }
-    {   \io_put_log:x{ Variant~ 
-          \token_to_str:c { \cs_get_function_name:N #1 :#2 }~
-           already~ defined;~ not~ changing~ it~on~
-                line~\tex_the:D \tex_inputlineno:D }
-    }
+  \cs_split_function:NN #1 \cs_generate_variant_aux:nnNn {#2}  
   \cs_generate_internal_variant:n {#2}
 }
 %    \end{macrocode}
+% The real work happens here. The splitting results in three
+% arguments: 1: base name, 2: base signature, 3: boolean for whether
+% there was a colon in the name. To construct the new csname and the
+% "\exp_args:Ncc" form, we also need the variant signature. Currently,
+% we just discard the boolean.  In our example, we wanted to discard
+% the first two letters of the base signature because the variant form
+% started with "cc". This is the same as putting first "cc" in the
+% signature and then "\use_none:nn" followed by the base signature
+% "NNn". We therefore call a small loop that outputs an "n" for each
+% letter in the variant signature and use this to call the correct
+% "\use_none:" variant.
+%    \begin{macrocode}
+\cs_set:Npn \cs_generate_variant_aux:nnNn #1#2#3#4{
+  \cs_if_free:cTF {
+    #1:#4\use:c {use_none:\cs_generate_variant_aux:N #4 ?}#2
+  } 
+  {
+    \cs_set_nopar:cpx { 
+      #1:#4 \use:c{use_none:\cs_generate_variant_aux:N #4 ?}#2
+    }
+    {
+      \exp_not:c { exp_args:N #4} \exp_not:c {#1:#2}
+    }
+  }
+  {
+    \io_put_log:x{ 
+      Variant~\token_to_str:c { 
+        #1:#4\use:c {use_none:\cs_generate_variant_aux:N #4 ?}#2
+      }~already~defined;~ not~ changing~ it~on~line~
+      \tex_the:D \tex_inputlineno:D
+    }
+  }
+}
+%    \end{macrocode}
+% The small loop for defining the required number of "n"s. Break when
+% seeing a "?".
+%    \begin{macrocode}
+\cs_set:Npn \cs_generate_variant_aux:N #1{
+  \if:w #1? \exp_after:wN\use_none:nn \fi: n \cs_generate_variant_aux:N
+}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 %
@@ -1024,9 +1060,9 @@
 \cs_new:Npn \cs_generate_internal_variant_aux:n #1 {
   \exp_not:c{::#1}
   \if_meaning:w #1 :
-  \else:
-    \exp_after:wN \cs_generate_internal_variant_aux:n
+    \exp_after:wN \use_none:n
   \fi:
+  \cs_generate_internal_variant_aux:n
 }
 %    \end{macrocode}
 %  \end{macro}
