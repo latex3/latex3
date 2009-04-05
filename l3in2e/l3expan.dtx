@@ -108,28 +108,33 @@
 % such definition to later releases of the kernel will not make such
 % style files obsolete.
 %
-% The steps above may be automated by using the two functions
-% "\cs_generate_variant:Nn" and "\cs_generate_variants:Nn", described next.
+% The steps above may be automated by using the function
+% "\cs_generate_variant:Nn", described next.
 %
 % \subsubsection{Methods for defining variants}
 %
-% \begin{function}{\cs_generate_variant:Nn|\cs_generate_variants:Nn}
+% \begin{function}{\cs_generate_variant:Nn}
 % \begin{syntax}
 % "\cs_generate_variant:Nn" <function> <variant argument>
 % "\cs_generate_variant:Nn " "\foo:Nn" "{c}"
-% "\cs_generate_variants:Nn" "\foo:Nn" "{c,Nx,cx}"
+% "\cs_generate_variant:Nn" "\foo:Nn" "{c,Nx,cx}"
 % \end{syntax}
-% These two functions simplify the task of defining
-% variantions on a base function with differing expansion control.
-% The first is equivalent to writing
+% This function greatly simplify the task of defining
+% variantions on a base function with differing expansion control.  
+% The first example is equivalent to writing
 % \begin{verbatim}
 %   \cs_set_nopar:Npn \foo:cn { \exp_args:Nc \foo:Nn }
 % \end{verbatim}
-% The comma-separated version requires the \pkg{clist} module to be
-% loaded before it will work.
+% If used with a comma-separated list of variants, it does so for each
+% variant form, i.e., the second example is equivalent to
+% \begin{verbatim}
+%   \cs_set_nopar:Npn \foo:cn { \exp_args:Nc \foo:Nn }
+%   \cs_set_nopar:Npn \foo:Nx { \exp_args:NNx \foo:Nn }
+%   \cs_set_nopar:Npn \foo:cx { \exp_args:Ncx \foo:Nn }
+% \end{verbatim}
 % \end{function}
 %
-% \paragraph{Internal functions}
+% \paragraph{Internal functions} \mbox{}
 %
 % \begin{function}{\cs_generate_internal_variant:n}
 % \begin{syntax}
@@ -970,65 +975,91 @@
 %
 % \begin{macro}{\cs_generate_variant:Nn}
 % \begin{macro}[aux]{\cs_generate_variant_aux:nnNn}
+% \begin{macro}[aux]{\cs_generate_variant_aux:nnw}
 % \begin{macro}[aux]{\cs_generate_variant_aux:N}
 % \begin{arguments}
 % \item Base form of a function; e.g., "\foo_bar:Nn"
-% \item Variant argument specifier; e.g., "{cx}"
+% \item Variant argument specifiers; e.g., "{cx,c,cN}"
 % \end{arguments}
 % Split up the original base function to grab its name and signature
-% consisting of $k$ letters. Then construct a new function name using
-% the original base name, the variant signature consisting of $l$
-% letters and the last $k-l$ letters of the base signature. For
-% example, for a base function "\foo_bar:NNn" which needs a "cc"
-% variant form, we want the new signature to be "ccn". 
+% consisting of $k$ letters. Then we wish to iterate through the list
+% of variant argument specifiers, and for each one construct a new
+% function name using the original base name, the variant signature
+% consisting of $l$ letters and the last $k-l$ letters of the base
+% signature. For example, for a base function "\foo_bar:NNn" which
+% needs a "cc" variant form, we want the new signature to be "ccn".
 %    \begin{macrocode}
-\cs_new:Npn \cs_generate_variant:Nn #1#2 {
+\cs_new:Npn \cs_generate_variant:Nn #1 {
   \chk_if_exist_cs:N #1
-  \cs_split_function:NN #1 \cs_generate_variant_aux:nnNn {#2}  
-  \cs_generate_internal_variant:n {#2}
+  \cs_split_function:NN #1 \cs_generate_variant_aux:nnNn
 }
 %    \end{macrocode}
-% The real work happens here. The splitting results in three
-% arguments: 1: base name, 2: base signature, 3: boolean for whether
-% there was a colon in the name. To construct the new csname and the
-% "\exp_args:Ncc" form, we also need the variant signature. Currently,
-% we just discard the boolean.  In our example, we wanted to discard
-% the first two letters of the base signature because the variant form
-% started with "cc". This is the same as putting first "cc" in the
-% signature and then "\use_none:nn" followed by the base signature
-% "NNn". We therefore call a small loop that outputs an "n" for each
-% letter in the variant signature and use this to call the correct
-% "\use_none:" variant.
+% We discard the boolean and then set off a loop through the desired
+% variant forms.
 %    \begin{macrocode}
 \cs_set:Npn \cs_generate_variant_aux:nnNn #1#2#3#4{
+  \cs_generate_variant_aux:nnw {#1}{#2} #4,?,\q_recursion_stop
+}
+%    \end{macrocode}
+% Next is the real work to be done. We now have 1: base name, 2: base
+% signature, 3: beginning of variant signature. To construct the new
+% csname and the "\exp_args:Ncc" form, we need the variant signature.
+% In our example, we wanted to discard the first two letters of the
+% base signature because the variant form started with "cc". This is
+% the same as putting first "cc" in the signature and then
+% "\use_none:nn" followed by the base signature "NNn". We therefore
+% call a small loop that outputs an "n" for each letter in the variant
+% signature and use this to call the correct "\use_none:" variant.
+% Firstly though, we check whether to terminate the loop.
+%    \begin{macrocode}
+\cs_set:Npn \cs_generate_variant_aux:nnw #1 #2 #3, {
+  \if:w ? #3
+    \exp_after:wN \use_none_delimit_by_q_recursion_stop:w 
+  \fi:
+%    \end{macrocode}
+% Then check if the variant form has already been defined.
+%    \begin{macrocode}
   \cs_if_free:cTF {
-    #1:#4\use:c {use_none:\cs_generate_variant_aux:N #4 ?}#2
+    #1:#3\use:c {use_none:\cs_generate_variant_aux:N #3 ?}#2
   } 
   {
+%    \end{macrocode}
+% If not, then define it and then additionally check if
+% the |\exp_args:N| form needed is defined.
+%    \begin{macrocode}
     \cs_set_nopar:cpx { 
-      #1:#4 \use:c{use_none:\cs_generate_variant_aux:N #4 ?}#2
+      #1:#3 \use:c{use_none:\cs_generate_variant_aux:N #3 ?}#2
     }
     {
-      \exp_not:c { exp_args:N #4} \exp_not:c {#1:#2}
+      \exp_not:c { exp_args:N #3} \exp_not:c {#1:#2}
     }
+    \cs_generate_internal_variant:n {#3}
   }
+%    \end{macrocode}
+% Otherwise tell that it was already defined.
+%    \begin{macrocode}
   {
     \io_put_log:x{ 
       Variant~\token_to_str:c { 
-        #1:#4\use:c {use_none:\cs_generate_variant_aux:N #4 ?}#2
+        #1:#3\use:c {use_none:\cs_generate_variant_aux:N #3 ?}#2
       }~already~defined;~ not~ changing~ it~on~line~
       \tex_the:D \tex_inputlineno:D
     }
   }
+%    \end{macrocode}
+% Recurse.
+%    \begin{macrocode}
+  \cs_generate_variant_aux:nnw{#1}{#2}
 }
 %    \end{macrocode}
 % The small loop for defining the required number of "n"s. Break when
 % seeing a "?".
 %    \begin{macrocode}
 \cs_set:Npn \cs_generate_variant_aux:N #1{
-  \if:w #1? \exp_after:wN\use_none:nn \fi: n \cs_generate_variant_aux:N
+  \if:w ?#1 \exp_after:wN\use_none:nn \fi: n \cs_generate_variant_aux:N
 }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -1069,26 +1100,10 @@
 %
 %
 % \begin{macro}{\cs_generate_variants:Nn}
-% \begin{macro}[aux]{\cs_generate_variants:Nn}
-% Wrapper of "\cs_generate_variant:Nn" to accept "clist" input.
-% To avoid dependency problems with "l3clist" the looping function is
-% defined by hand.
-% \begin{arguments}
-% \item Base form of a function; e.g., "\foo_bar:Nn"
-% \item Comma-separated list of argument specifiers; e.g., "{Nx,nn,cx}"
-% \end{arguments}
+% Temporary alias.
 %    \begin{macrocode}
-\cs_set:Npn \cs_generate_variants:Nn #1#2 {
-  \cs_generate_variants_loop:nw {#1} #2,?,
-}
-\cs_set:Npn \cs_generate_variants_loop:nw #1 #2, {
-  \if:w ? #2 \else
-    \cs_generate_variant:Nn #1 {#2}
-    \use_i_after_fi:nw { \cs_generate_variants_loop:nw {#1} }
-  \fi:
-}
+\cs_set_eq:NN \cs_generate_variants:Nn\cs_generate_variant:Nn
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 %
