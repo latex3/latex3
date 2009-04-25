@@ -6,18 +6,20 @@ clean:
 	rm -f *~
 
 check:
-	make check-pkg X=galley
-	# make check-pkg X=xbase
-	make check-pkg X=xfootnote
-	make check-pkg X=xfrontm
-	make check-pkg X=xhead
-	make check-pkg X=xinitials
-	# make check-pkg X=xlang
-	make check-pkg X=xor
-	make check-pkg X=xtheorem
+	make check-galley
+	# make check-xbase
+	make check-xfootnote
+	make check-xfrontm
+	make check-xhead
+	make check-xinitials
+	# make check-xlang
+	make check-xor
+	make check-xtheorem
 
-check-pkg: $(X)/
-	cd $(X) ; make check
+check-%:
+	echo '   '
+	cd $* ; make check
+	echo '$* check passed.\n' ; \
 
 xbase.tgz: xbase
 	tar cvzf xbase.tgz xbase/ldcsetup.dtx \
@@ -44,9 +46,9 @@ xhead.tgz: xhead
 	                   xhead/xhead.ins \
 	                   xhead/tryxhead.tex
 
-install-pkg:	$(X)/
+install-%:
 	LTEXMF=`kpsewhich --var-value=TEXMFHOME`/tex/latex/ltx3     ; \
-	cd $(X)     ; \
+	cd $*     ; \
 	make unpack ; \
 	ls *.sty | xargs -I {} cp -v {} $$LTEXMF/xpackages/{}       ; \
 	make clean ; \
@@ -58,13 +60,13 @@ localinstall:
 	echo "\nDeleting any old files: \n"                         ; \
 	rm -fv $$LTEXMF/xpackages/*                                 ; \
 	echo "\nExtracting and installing: \n"                      ; \
-	make install-pkg X=galley
-	make install-pkg X=xbase
-	make install-pkg X=xcontents
-	make install-pkg X=xfootnote
-	make install-pkg X=xfrontm
-	make install-pkg X=xhead
-	make install-pkg X=xinitials
-	make install-pkg X=xlang
-	make install-pkg X=xor
-	make install-pkg X=xtheorem
+	make install-galley
+	make install-xbase
+	make install-xcontents
+	make install-xfootnote
+	make install-xfrontm
+	make install-xhead
+	make install-xinitials
+	make install-xlang
+	make install-xor
+	make install-xtheorem
