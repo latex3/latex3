@@ -81,7 +81,7 @@ MODULES = \
 CHKMODULES = \
 	expl3 l3basics l3box l3calc l3clist l3expan l3int l3intexpr l3io \
 	l3keyval l3messages l3msg l3names l3num l3precom l3prg l3prop l3quark \
-	l3seq l3skip l3tlp l3tl l3token l3toks l3xref
+	l3seq l3skip l3tl l3token l3toks l3xref
 
 # Docstrip install files:
 INSTALLS = \
