@@ -71,7 +71,6 @@ MODULES = \
 	l3seq.dtx \
 	l3skip.dtx \
 	l3tl.dtx \
-	l3tlp.dtx \
 	l3token.dtx \
 	l3toks.dtx \
 	l3vers.dtx \

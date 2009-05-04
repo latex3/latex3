@@ -117,11 +117,11 @@ l3toks
 
 TeX's token registers.  (Can be compiled with checking enabled)
 
-l3tlp
+l3tl
 =====
 
-Token List Pointers. A basic LaTeX3 datatype for storing token lists.
-(These are essentially macros with no arguments.) The module also
+Token Lists and Token List variables, a basic LaTeX3 datatype for storing 
+token lists. (These are essentially macros with no arguments.) The module also
 provides functions for arbitrary token lists. (Package can be compiled
 with checking enabled.)
 
