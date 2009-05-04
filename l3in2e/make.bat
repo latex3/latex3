@@ -2,10 +2,12 @@
 rem This Windows batch file provides some basic make-like functionality
 rem for the expl3 bundle
 
-set EXPL3AUXFILES=aux cmds glo gls hd idx ilg ind ist log out toc
+set EXPL3AUXFILES=aux cmds dvi glo gls hd idx ilg ind ist log out toc
 set EXPL3NEXT=end
 
 if "%1" == "alldoc"    goto :alldoc
+if "%1" == "checkcmd"  goto :checkcmd
+if "%1" == "checkcmds" goto :checkcmds
 if "%1" == "checkdoc"  goto :checkdoc
 if "%1" == "clean"     goto :clean
 if "%1" == "doc"       goto :doc
@@ -26,12 +28,52 @@ goto :help
   for %%I in (*.dtx) do call temp %%~nI
   
   goto :sourcedoc-a
+  
+:checkcmd
+
+  if "%2" == "" goto :help
+  if not exist %2.dtx goto :no-file
+  
+  set EXPL3NEXT=checkcmd-a
+  goto :checkcmds-aux
+  
+:checkcmd-a
+  
+  call temp %2
+  
+  goto :end
+
+:checkcmds
+
+  set EXPL3NEXT=checkcmds-a
+ 
+  goto :checkcmds-aux
+
+:checkcmds-a
+
+  for %%I in (*.dtx) do call temp %%~nI
+  
+  goto :clean
+  
+:checkcmds-aux
+
+  tex -quiet l3doc.dtx
+
+  echo @echo off > temp.bat
+  echo echo. >> temp.bat
+  echo echo Checking %%1.dtx  >> temp.bat
+  echo latex -interaction=batchmode -quiet %%1.dtx >> temp.bat
+  echo latex -interaction=nonstopmode -quiet "\def\CMDS{%%1.cmds}\input commands-check" ^> cmds.log >> temp.bat
+  echo for /F "tokens=1*" %%%%I in (cmds.log) do if "%%%%I"=="!>" echo %%%%J >> temp.bat
+  echo :end >> temp.bat
+  
+  goto :%EXPL3NEXT%
     
 :checkdoc
   
   set EXPL3NEXT=checkdoc-a
  
-  goto :check-aux
+  goto :checkdoc-aux
   
 :checkdoc-a
   
@@ -39,7 +81,7 @@ goto :help
   
   goto :clean
   
-:check-aux
+:checkdoc-aux
 
   tex -quiet l3doc.dtx
 
@@ -88,15 +130,17 @@ goto :help
 :help
 
   echo.
-  echo make clean             - removes temporary files
+  echo make clean               - removes temporary files
   echo.
-  echo  make checkdoc         - check all modules compile correctly
+  echo  make checkdoc           - check all modules compile correctly
+  echo  make checkcmd ^<name^>    - check all functions are defined in one module
+  echo  make checkcmds          - check all functions are defined in all modules
   echo.
-  echo  make doc "name"       - typeset "name".dtx
-  echo  make sourcedoc        - typeset source3.tex
-  echo  make alldoc           - typeset all documentation
+  echo  make doc ^<name^>         - typeset ^<name^>.dtx
+  echo  make sourcedoc          - typeset source3.tex
+  echo  make alldoc             - typeset all documentation
   echo.
-  echo  make /OR/ make help   - show this help text
+  echo  make /OR/ make help     - show this help text
   echo.
   
   goto :end
