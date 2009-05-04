@@ -3,6 +3,7 @@ rem This Windows batch file provides some basic make-like functionality
 rem for the expl3 bundle
 
 set EXPL3AUXFILES=aux cmds dvi glo gls hd idx ilg ind ist log out toc
+set EXPL3CHECKMODULES=expl3 l3basics l3box l3calc l3clist l3expan l3int l3intexpr l3io l3keyval l3messages l3msg l3names l3num l3precom l3prg l3prop l3quark l3seq l3skip l3tl l3token l3toks l3xref 
 set EXPL3NEXT=end
 
 if "%1" == "alldoc"    goto :alldoc
@@ -51,12 +52,13 @@ goto :help
 
 :checkcmds-a
 
-  for %%I in (*.dtx) do call temp %%~nI
+  for %%I in (%EXPL3CHECKMODULES%) do call temp %%~nI
   
   goto :clean
   
 :checkcmds-aux
 
+  tex -quiet l3.ins
   tex -quiet l3doc.dtx
 
   echo @echo off > temp.bat
@@ -130,7 +132,7 @@ goto :help
 :help
 
   echo.
-  echo make clean               - removes temporary files
+  echo  make clean               - removes temporary files
   echo.
   echo  make checkdoc           - check all modules compile correctly
   echo  make checkcmd ^<name^>    - check all functions are defined in one module
@@ -140,7 +142,8 @@ goto :help
   echo  make sourcedoc          - typeset source3.tex
   echo  make alldoc             - typeset all documentation
   echo.
-  echo  make /OR/ make help     - show this help text
+  echo  make help               - show this help text
+  echo  make
   echo.
   
   goto :end
