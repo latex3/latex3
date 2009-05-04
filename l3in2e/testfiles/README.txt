@@ -66,7 +66,7 @@ These are the `expl3` modules with _complete_ test files:
  -  `l3quark`  
  -  `l3seq`    
  -  `l3skip`   
- -  `l3tlp`    
+ -  `l3tl`    
  -  `l3token`  
  -  `l3toks`   
  -  `l3xref`   
@@ -105,15 +105,6 @@ that are slower but much more strict).
 As soon as we start using it (however that happens to be) we'll create a test
 suite for it. (In fact, we'll probably need an entire *branch* of the test
 suite for it with all the changes in the other modules this will imply.)
-
-
-# Todo
-
-Some of the older test files begin with `\usepackage{expl3}` instead of 
-loading only the module they're trying to test. (E.g., `m3tlp001.lvt`.)
-
-These need to be replaced with their specific module so that we can test
-loading dependencies.
 
 
 # Function variants
