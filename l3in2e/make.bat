@@ -21,6 +21,7 @@ set VALIDATE=..\validate
   if "%1" == "check"     goto :check
   if "%1" == "clean"     goto :clean
   if "%1" == "doc"       goto :doc
+  if "%1" == "savetlg"   goto :savetlg
   if "%1" == "sourcedoc" goto :sourcedoc
 
   goto :help
@@ -106,47 +107,43 @@ set VALIDATE=..\validate
   tex -quiet l3.ins
   tex -quiet l3doc.dtx
 
-  echo @echo off > temp.bat
-  echo echo. >> temp.bat
-  echo echo Checking %%1.dtx  >> temp.bat
-  echo echo. >> temp.bat
+  echo @echo off                                    > temp.bat
+  echo echo.                                       >> temp.bat
+  echo echo Checking %%1.dtx                       >> temp.bat
+  echo echo.                                       >> temp.bat
   echo latex -interaction=batchmode -quiet %%1.dtx >> temp.bat
-  echo latex -interaction=nonstopmode -quiet "\def\CMDS{%%1.cmds}\input commands-check" ^> cmds.log >> temp.bat
-  echo for /F "tokens=1*" %%%%I in (cmds.log) do if "%%%%I"=="!>" echo %%%%J >> temp.bat
-  echo :end >> temp.bat
+  echo latex -interaction=nonstopmode "\def\CMDS{%%1.cmds}\input commands-check" ^> cmds.log >> temp.bat
+  echo for /F "tokens=1*" %%%%I in (cmds.log) do ( >> temp.bat
+  echo   if "%%%%I"=="!>" echo %%%%J               >> temp.bat
+  echo )                                           >> temp.bat
   
   goto :%NEXT%-return
     
 :checkdoc
-  
-  set NEXT=checkdoc
- 
-  goto :checkdoc-aux
-  
-:checkdoc-return
-  
-  for %%I in (*.dtx) do call temp %%~nI
-  
-  goto :clean-int
-  
-:checkdoc-aux
 
   tex -quiet l3.ins
   tex -quiet l3doc.dtx
-
-  echo @echo off > temp.bat
-  echo echo. >> temp.bat
-  echo echo Checking %%1.dtx  >> temp.bat
-  echo pdflatex -interaction=nonstopmode -draftmode -quiet %%1.dtx >> temp.bat
-  echo if not ERRORLEVEL 0 goto :error >> temp.bat
-  echo for /F "tokens=*" %%%%I in (%%1.log) do if "%%%%I"=="Functions documented but not defined:" echo ! Warning: some functions documented but not defined >> temp.bat
-  echo for /F "tokens=*" %%%%I in (%%1.log) do if "%%%%I"=="Functions defined but not documented:" echo ! Warning: some functions defined but not documented >> temp.bat
-  echo goto :end >> temp.bat
-  echo :error >> temp.bat
-  echo echo ! %%1.dtx compilation failed >> temp.bat
-  echo :end >> temp.bat
-        
-  goto :%NEXT%-return
+  
+  echo.
+  
+  for %%I in (*.dtx) do (
+    echo Checking %%I
+    pdflatex -interaction=nonstopmode -draftmode -quiet %%I
+    if  ERRORLEVEL 0 (
+      for /F "tokens=*" %%J in (%%~nI.log) do (
+        if "%%J"=="Functions documented but not defined:" (
+          echo ! Warning: some functions not defined
+        )
+        if "%%J"=="Functions defined but not documented:" (
+          echo ! Warning: some functions not documented
+        )
+      )
+    ) else (
+      echo ! %%1.dtx compilation failed
+    )
+  )
+  
+  goto :clean-int
   
 :checklvt
 
@@ -173,29 +170,30 @@ set VALIDATE=..\validate
   
 :checklvt-aux
  
+  set PERLNEXT=checklvt-aux
   if not defined PERL goto :perl
 
   tex -quiet l3.ins
   
-  echo @echo off                                                > temp.bat
-  echo echo Checking %%1.lvt                                   >> temp.bat
-  echo latex %%1.lvt ^> temp.log                               >> temp.bat
-  echo latex %%1.lvt ^> temp.log                               >> temp.bat
-  echo perl log2tlg %%1 ^< %%1.log ^> %%1.tmp.log              >> temp.bat
-  echo perl -n -e "/^\s*$/ || print" ^< %%1.tlg ^> %%1.mod.tlg >> temp.bat
-  echo fc  %%1.tmp.log %%1.mod.tlg ^> %%1.fc                   >> temp.bat
-  echo for /f "skip=1 tokens=1*" %%%%I in (%%1.fc) do (        >> temp.bat
-  echo   if "%%%%J" == "no differences encountered" (          >> temp.bat
-  echo     del %%1.fc                                          >> temp.bat
-  echo   )                                                     >> temp.bat
-  echo )                                                       >> temp.bat
-  echo if exist %%1.fc (                                       >> temp.bat
-  echo   echo.                                                 >> temp.bat
-  echo   echo *********************                            >> temp.bat
-  echo   echo * Check not passed! *                            >> temp.bat
-  echo   echo *********************                            >> temp.bat
-  echo   echo.                                                 >> temp.bat
-  echo )                                                       >> temp.bat
+  echo @echo off                                                  > temp.bat
+  echo echo Checking %%1.lvt                                     >> temp.bat
+  echo latex %%1.lvt ^> temp.log                                 >> temp.bat
+  echo latex %%1.lvt ^> temp.log                                 >> temp.bat
+  echo %perl% log2tlg %%1 ^< %%1.log ^> %%1.tmp.log              >> temp.bat
+  echo %perl% -n -e "/^\s*$/ || print" ^< %%1.tlg ^> %%1.mod.tlg >> temp.bat
+  echo fc  %%1.tmp.log %%1.mod.tlg ^> %%1.fc                     >> temp.bat
+  echo for /f "skip=1 tokens=1*" %%%%I in (%%1.fc) do (          >> temp.bat
+  echo   if "%%%%J" == "no differences encountered" (            >> temp.bat
+  echo     del %%1.fc                                            >> temp.bat
+  echo   )                                                       >> temp.bat
+  echo )                                                         >> temp.bat
+  echo if exist %%1.fc (                                         >> temp.bat
+  echo   echo.                                                   >> temp.bat
+  echo   echo *********************                              >> temp.bat
+  echo   echo * Check not passed! *                              >> temp.bat
+  echo   echo *********************                              >> temp.bat
+  echo   echo.                                                   >> temp.bat
+  echo )                                                         >> temp.bat
 
   goto :%NEXT%-return
   
@@ -246,7 +244,8 @@ set VALIDATE=..\validate
   echo  make clean              - clean out test dirs
   echo.
   echo  make check              - set up and run all tests
-  echo  make checklvt ^<name^>  - run ^<name^>.lvt only
+  echo  make checklvt ^<name^>    - run ^<name^>.lvt only
+  echo  make savetlg  ^<name^>    - save ^<name^>.ltg as a new certified test
   echo.
   echo  make checkdoc           - check all modules compile correctly
   echo  make checkcmd ^<name^>    - check all functions are defined in one module
@@ -300,20 +299,42 @@ set VALIDATE=..\validate
     set PATHCOPY=%%J;%%K
   )
   
-  if defined PERL goto :checklvt-aux
+  if defined PERL goto :%PERLNEXT%
 
   if not "%PATHCOPY%"==";" goto :perl-loop
   
   if exist %SYSTEMROOT%\Perl\bin\perl.exe set PERL=%SYSTEMROOT%\Perl\bin\perl
   if exist %ProgramFiles%\Perl\bin\perl.exe set PERL=%ProgramFiles%\Perl\bin\perl
   
-  if defined PERL goto :checklvt-aux
+  if defined PERL goto :%PERLNEXT%
   
   echo.
   echo   This procedure requires Perl, but it could not be found.
   echo.
   
   goto :end
+  
+:savetlg
+
+  if "%2" == "" goto :help
+  if not exist %TESTDIR%\%2.lvt goto :no-lvt
+
+  set PERLNEXT=savetlg
+  if not defined PERL goto :perl
+ 
+  copy %SCRIPTDIR%\log2tlg > temp.log
+  
+  copy %TESTDIR%\%2.lvt > temp.log
+
+  tex -quiet l3.ins
+  
+  echo Creating and copying %2.tlg
+  latex %2.lvt > temp.log 
+  latex %2.lvt > temp.log
+  %perl% log2tlg %2 < %2.log > %2.tlg
+  copy %2.tlg %TESTDIR%\%2.tlg
+  
+  goto :clean-int
   
 :sourcedoc
   
