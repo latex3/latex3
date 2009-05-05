@@ -57,9 +57,7 @@ set VALIDATE=..\validate
   if exist *.tlg del /q *.tlg
   copy /y %TESTDIR%\*.tlg > temp.log
   copy /y %TESTDIR%\*.lvt > temp.log
-    
-  copy /y %SCRIPTDIR%\log2tlg > temp.log
-  
+     
   for %%I in (*.tlg) do call temp %%~nI
   
   if exist *.fc (
@@ -163,8 +161,6 @@ set VALIDATE=..\validate
 
 :checklvt-return
  
-  copy /y %SCRIPTDIR%\log2tlg > temp.log
-  
   copy /y %TESTDIR%\%2.lvt > temp.log
   copy /y %TESTDIR%\%2.tlg > temp.log
   
@@ -200,6 +196,9 @@ set VALIDATE=..\validate
   echo   echo *********************                              >> temp.bat
   echo   echo.                                                   >> temp.bat
   echo )                                                         >> temp.bat
+  
+  copy /y %SCRIPTDIR%\log2tlg > temp.log
+  copy /y %VALIDATE%\regression-test.tex > temp.log
 
   goto :%NEXT%-return
   
@@ -218,6 +217,7 @@ set VALIDATE=..\validate
   
   if exist log2tlg del /q log2tlg
   if exist commands-check.tex del /q commands-check.tex
+  if exist regression-test.tex del /q regression-test.tex
   
   if exist temp.bat del /q temp.bat
     
@@ -273,7 +273,7 @@ set VALIDATE=..\validate
   echo.
   echo  make check              - set up and run all tests
   echo  make checklvt ^<name^>    - run ^<name^>.lvt only
-  echo  make savetlg  ^<name^>    - save ^<name^>.ltg as a new certified test
+  echo  make savetlg  ^<name^>    - save ^<name^>.tlg as a new certified test
   echo.
   echo  make checkdoc           - check all modules compile correctly
   echo  make checkcmd ^<name^>    - check all functions are defined in one module
