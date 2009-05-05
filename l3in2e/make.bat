@@ -13,16 +13,17 @@ set VALIDATE=..\validate
 
 :loop
 
-  if "%1" == "alldoc"    goto :alldoc
-  if "%1" == "checkcmd"  goto :checkcmd
-  if "%1" == "checkcmds" goto :checkcmds
-  if "%1" == "checkdoc"  goto :checkdoc
-  if "%1" == "checklvt"  goto :checklvt
-  if "%1" == "check"     goto :check
-  if "%1" == "clean"     goto :clean
-  if "%1" == "doc"       goto :doc
-  if "%1" == "savetlg"   goto :savetlg
-  if "%1" == "sourcedoc" goto :sourcedoc
+  if "%1" == "alldoc"       goto :alldoc
+  if "%1" == "checkcmd"     goto :checkcmd
+  if "%1" == "checkcmds"    goto :checkcmds
+  if "%1" == "checkdoc"     goto :checkdoc
+  if "%1" == "checklvt"     goto :checklvt
+  if "%1" == "check"        goto :check
+  if "%1" == "clean"        goto :clean
+  if "%1" == "doc"          goto :doc
+  if "%1" == "localinstall" goto :localinstall
+  if "%1" == "savetlg"      goto :savetlg
+  if "%1" == "sourcedoc"    goto :sourcedoc
 
   goto :help
 
@@ -131,10 +132,10 @@ set VALIDATE=..\validate
     pdflatex -interaction=nonstopmode -draftmode -quiet %%I
     if  ERRORLEVEL 0 (
       for /F "tokens=*" %%J in (%%~nI.log) do (
-        if "%%J"=="Functions documented but not defined:" (
+        if "%%J" == "Functions documented but not defined:" (
           echo ! Warning: some functions not defined
         )
-        if "%%J"=="Functions defined but not documented:" (
+        if "%%J" == "Functions defined but not documented:" (
           echo ! Warning: some functions not documented
         )
       )
@@ -255,10 +256,41 @@ set VALIDATE=..\validate
   echo  make sourcedoc          - typeset source3.tex
   echo  make alldoc             - typeset all documentation
   echo.
+  echo  make localinstall       - install the .sty files in your home texmf tree
+  echo.
   echo  make help               - show this help text
   echo  make
   
   goto :end
+  
+:localinstall
+
+  if not defined TEXMFHOME (
+    set TEXMFHOME=%USERPROFILE%\texmf
+    echo.
+    echo TEXMFHOME variable was not set:
+    echo using default value %USERPROFILE%\texmf
+  )
+  
+  SET LTEXMF=%TEXMFHOME%\tex\latex\ltx3
+  
+  echo.
+  echo Installing files
+  
+  if exist "%LTEXMF%\l3in2e\*.*" del /q "%LTEXMF%\l3in2e\*.*"
+  if exist "%LTEXMF%\validate\*.*" del /q "%LTEXMF%\validate*.*"
+  
+  tex -quiet l3.ins
+  tex -quiet l3doc.dtx
+  
+  xcopy *.sty "%LTEXMF%\l3in2e\*.*" > temp.log
+  copy *.cls "%LTEXMF%\l3in2e\*.*" > temp.log
+  copy l3vers.dtx "%LTEXMF%\l3in2e\*.*" > temp.log
+  
+  xcopy %VALIDATE%\regression-test.tex "%LTEXMF%\validate\*.*" > temp.log
+  copy %VALIDATE%\commands-check.tex "%LTEXMF%\validate\*.*" > temp.log
+  
+  goto :clean-int
   
 :no-dtx
   
@@ -290,7 +322,6 @@ set VALIDATE=..\validate
 :perl
 
   set PATHCOPY=%PATH%
-  set PERL=
   
 :perl-loop
   
@@ -334,17 +365,36 @@ set VALIDATE=..\validate
   %perl% log2tlg %2 < %2.log > %2.tlg
   copy %2.tlg %TESTDIR%\%2.tlg
   
+  shift 
+  
   goto :clean-int
   
 :sourcedoc
-  
-  set NEXT=sourcedoc
- 
-  goto :typeset-aux
 
-:sourcedoc-return
+  echo.
+  echo Typesetting source3.tex
   
-  call temp source3
+  tex -quiet l3.ins
+  tex -quiet l3doc.dtx
+
+  pdflatex -interaction=nonstopmode -draftmode -quiet source3
+  if ERRORLEVEL 0 ( 
+    echo Re-typesetting for index generation
+    makeindex -q -s l3doc.ist -o source3.ind source3.idx > temp.log
+    pdflatex -interaction=nonstopmode -quiet source3
+    echo Re-typesetting to resolve cross-references
+    pdflatex -interaction=nonstopmode -quiet source3
+    for /F "tokens=*" %%I in (source3.log) do (           
+      if "%%I" == "Functions documented but not defined:" (   
+        echo ! Warning: some functions not defined              
+      )                                  
+      if "%%I" == "Functions defined but not documented:" ( 
+        echo ! Warning: some functions not documented      
+      )                                                        
+    )
+  ) else (
+    echo ! source3.tex compilation failed  
+  )                                                           
   
   goto :clean-int
   
@@ -353,20 +403,25 @@ set VALIDATE=..\validate
   tex -quiet l3.ins
   tex -quiet l3doc.dtx
 
-  echo @echo off > temp.bat
-  echo echo. >> temp.bat
-  echo echo Typesetting %%1.dtx  >> temp.bat
+  echo @echo off                                                    > temp.bat
+  echo echo.                                                       >> temp.bat
+  echo echo Typesetting %%1.dtx                                    >> temp.bat
   echo pdflatex -interaction=nonstopmode -draftmode -quiet %%1.dtx >> temp.bat
-  echo if not ERRORLEVEL 0 goto :error >> temp.bat
-  echo makeindex -q -s l3doc.ist -o %%1.ind %%1.idx ^temp.log >> temp.bat
-  echo pdflatex -interaction=nonstopmode -quiet %%1.dtx >> temp.bat
-  echo pdflatex -interaction=nonstopmode -quiet %%1.dtx >> temp.bat
-  echo for /F "skip=2000 tokens=*" %%%%I in (%%1.log) do if "%%%%I"=="Functions documented but not defined:" echo ! Warning: some functions documented but not defined >> temp.bat
-  echo for /F "skip=2000 tokens=*" %%%%I in (%%1.log) do if "%%%%I"=="Functions defined but not documented:" echo ! Warning: some functions defined but not documented >> temp.bat
-  echo goto :end >> temp.bat
-  echo :error >> temp.bat
-  echo echo ! %%1.dtx compilation failed >> temp.bat
-  echo :end >> temp.bat
+  echo if ERRORLEVEL 0 (                                           >> temp.bat
+  echo   makeindex -q -s l3doc.ist -o %%1.ind %%1.idx ^> temp.log  >> temp.bat
+  echo   pdflatex -interaction=nonstopmode -quiet %%1.dtx          >> temp.bat
+  echo   pdflatex -interaction=nonstopmode -quiet %%1.dtx          >> temp.bat
+  echo   for /F "tokens=*" %%%%I in (%%1.log) do (                 >> temp.bat
+  echo     if "%%%%I" == "Functions documented but not defined:" ( >> temp.bat
+  echo       echo ! Warning: some functions not defined            >> temp.bat
+  echo     )                                                       >> temp.bat
+  echo     if "%%%%I" == "Functions defined but not documented:" ( >> temp.bat
+  echo       echo ! Warning: some functions not documented         >> temp.bat
+  echo     )                                                       >> temp.bat
+  echo   )                                                         >> temp.bat
+  echo ) else (                                                    >> temp.bat
+  echo   echo ! %%1.dtx compilation failed                         >> temp.bat
+  echo )                                                           >> temp.bat
         
   goto :%NEXT%-return
   
