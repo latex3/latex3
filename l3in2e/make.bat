@@ -278,7 +278,7 @@ set VALIDATE=..\validate
   echo Installing files
   
   if exist "%LTEXMF%\l3in2e\*.*" del /q "%LTEXMF%\l3in2e\*.*"
-  if exist "%LTEXMF%\validate\*.*" del /q "%LTEXMF%\validate*.*"
+  if exist "%LTEXMF%\validate\*.*" del /q "%LTEXMF%\validate\*.*"
   
   tex -quiet l3.ins
   tex -quiet l3doc.dtx
