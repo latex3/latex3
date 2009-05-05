@@ -4,7 +4,7 @@ rem for the expl3 bundle
 
 setlocal
 
-set AUXFILES=aux cmds dvi glo gls hd idx ilg ind ist log lvt out tlg toc 
+set AUXFILES=aux cmds dvi glo gls hd idx ilg ind ist log lvt out tlg toc xref
 set CHECKMODULES=expl3 l3basics l3box l3calc l3clist l3expan l3int l3intexpr l3io l3keyval l3messages l3msg l3names l3num l3precom l3prg l3prop l3quark l3seq l3skip l3tl l3token l3toks l3xref 
 set NEXT=end
 set SCRIPTDIR=..\support
@@ -17,7 +17,8 @@ set VALIDATE=..\validate
   if "%1" == "checkcmd"  goto :checkcmd
   if "%1" == "checkcmds" goto :checkcmds
   if "%1" == "checkdoc"  goto :checkdoc
-rem  if "%1" == "checklvt"  goto :checklvt
+  if "%1" == "checklvt"  goto :checklvt
+  if "%1" == "check"     goto :check
   if "%1" == "clean"     goto :clean
   if "%1" == "doc"       goto :doc
   if "%1" == "sourcedoc" goto :sourcedoc
@@ -38,6 +39,37 @@ rem  if "%1" == "checklvt"  goto :checklvt
   
   goto :sourcedoc
   
+:check
+
+  set NEXT=check
+  
+  goto :checklvt-aux
+
+:check-return
+ 
+  if exist *.tlg del /q *.tlg
+  copy %TESTDIR%\*.tlg > temp.log
+  copy %TESTDIR%\*.lvt > temp.log
+    
+  copy %SCRIPTDIR%\log2tlg > temp.log
+  
+  for %%I in (*.tlg) do call temp %%~nI
+  
+  if exist *.fc (
+    echo.
+    echo List of diffs produced during check:
+    echo ====================================
+    for %%I in (*.fc) do echo %%I
+    echo ====================================
+  ) else (
+    echo.
+    echo All tests passed successfully.
+  )
+  
+  shift
+
+  goto :clean-int
+  
 :checkcmd
 
   if "%2" == "" goto :help
@@ -49,7 +81,7 @@ rem  if "%1" == "checklvt"  goto :checklvt
   
 :checkcmd-return
 
-  copy %VALIDATE%\commands-check.tex
+  copy %VALIDATE%\commands-check.tex > temp.log
   
   call temp %2
   
@@ -118,37 +150,58 @@ rem  if "%1" == "checklvt"  goto :checklvt
   
 :checklvt
 
+  if "%2" == "" goto :help
+  if not exist %TESTDIR%\%2.lvt goto :no-lvt
+  if not exist %TESTDIR%\%2.tlg goto :no-tlg
+
   set NEXT=checklvt
   
   goto :checklvt-aux
 
 :checklvt-return
-
-  if "%2" == "" goto :help
-  if not exist %TESTDIR%\%2.lvt goto :no-lvt
+ 
+  copy %SCRIPTDIR%\log2tlg > temp.log
   
-  copy %SCRIPTDIR%\log2tlg
+  copy %TESTDIR%\%2.lvt > temp.log
+  copy %TESTDIR%\%2.tlg > temp.log
   
   call temp %2
   
   shift
 
-  goto :end
+  goto :clean-int
   
 :checklvt-aux
+ 
+  if not defined PERL goto :perl
 
   tex -quiet l3.ins
   
-  echo @echo off > temp.bat
-  echo copy %TESTDIR%\%%1.lvt >> temp.bat
-  echo if exist %%1.tlg copy %TESTDIR%\%%1.tlg >> temp.bat
-  echo latex -quiet %%1.lvt >> temp.bat
-  echo perl log2tlg %%1.log
+  echo @echo off                                                > temp.bat
+  echo echo Checking %%1.lvt                                   >> temp.bat
+  echo latex %%1.lvt ^> temp.log                               >> temp.bat
+  echo latex %%1.lvt ^> temp.log                               >> temp.bat
+  echo perl log2tlg %%1 ^< %%1.log ^> %%1.tmp.log              >> temp.bat
+  echo perl -n -e "/^\s*$/ || print" ^< %%1.tlg ^> %%1.mod.tlg >> temp.bat
+  echo fc  %%1.tmp.log %%1.mod.tlg ^> %%1.fc                   >> temp.bat
+  echo for /f "skip=1 tokens=1*" %%%%I in (%%1.fc) do (        >> temp.bat
+  echo   if "%%%%J" == "no differences encountered" (          >> temp.bat
+  echo     del %%1.fc                                          >> temp.bat
+  echo   )                                                     >> temp.bat
+  echo )                                                       >> temp.bat
+  echo if exist %%1.fc (                                       >> temp.bat
+  echo   echo.                                                 >> temp.bat
+  echo   echo *********************                            >> temp.bat
+  echo   echo * Check not passed! *                            >> temp.bat
+  echo   echo *********************                            >> temp.bat
+  echo   echo.                                                 >> temp.bat
+  echo )                                                       >> temp.bat
 
   goto :%NEXT%-return
   
 :clean
 
+  if exist *.fc  del /q *.fc
   if exist *.pdf del /q *.pdf
   if exist *.sty del /q *.sty
 
@@ -192,8 +245,9 @@ rem  if "%1" == "checklvt"  goto :checklvt
   echo.
   echo  make clean              - clean out test dirs
   echo.
-rem  echo  make checklvt ^<name^>  - run ^<name^>.lvt only
-rem  echo.
+  echo  make check              - set up and run all tests
+  echo  make checklvt ^<name^>  - run ^<name^>.lvt only
+  echo.
   echo  make checkdoc           - check all modules compile correctly
   echo  make checkcmd ^<name^>    - check all functions are defined in one module
   echo  make checkcmds          - check all functions are defined in all modules
@@ -225,6 +279,42 @@ rem  echo.
 
   goto :end
   
+:no-tlg
+  
+  echo.
+  echo No such file %2.tlg
+  echo.
+  echo Type "make help" for more help
+
+  goto :end
+  
+:perl
+
+  set PATHCOPY=%PATH%
+  set PERL=
+  
+:perl-loop
+  
+  for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
+    if exist %%I\perl.exe set PERL=perl
+    set PATHCOPY=%%J;%%K
+  )
+  
+  if defined PERL goto :checklvt-aux
+
+  if not "%PATHCOPY%"==";" goto :perl-loop
+  
+  if exist %SYSTEMROOT%\Perl\bin\perl.exe set PERL=%SYSTEMROOT%\Perl\bin\perl
+  if exist %ProgramFiles%\Perl\bin\perl.exe set PERL=%ProgramFiles%\Perl\bin\perl
+  
+  if defined PERL goto :checklvt-aux
+  
+  echo.
+  echo   This procedure requires Perl, but it could not be found.
+  echo.
+  
+  goto :end
+  
 :sourcedoc
   
   set NEXT=sourcedoc
@@ -247,7 +337,7 @@ rem  echo.
   echo echo Typesetting %%1.dtx  >> temp.bat
   echo pdflatex -interaction=nonstopmode -draftmode -quiet %%1.dtx >> temp.bat
   echo if not ERRORLEVEL 0 goto :error >> temp.bat
-  echo makeindex -q -s l3doc.ist -o %%1.ind %%1.idx >> temp.bat
+  echo makeindex -q -s l3doc.ist -o %%1.ind %%1.idx ^temp.log >> temp.bat
   echo pdflatex -interaction=nonstopmode -quiet %%1.dtx >> temp.bat
   echo pdflatex -interaction=nonstopmode -quiet %%1.dtx >> temp.bat
   echo for /F "skip=2000 tokens=*" %%%%I in (%%1.log) do if "%%%%I"=="Functions documented but not defined:" echo ! Warning: some functions documented but not defined >> temp.bat
