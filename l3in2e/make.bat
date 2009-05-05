@@ -1,11 +1,14 @@
 @echo off
-rem This Windows batch file provides some basic make-like functionality
-rem for the expl3 bundle
+rem This Windows batch file provides very similar functionality to the
+rem Makefile also available here. Some of the options provided here 
+rem require Perl (http://www.perl.org) or a zip program such as 7-Zip
+rem (http://www.7zip.org).
 
 setlocal
 
 set AUXFILES=aux cmds dvi glo gls hd idx ilg ind ist log lvt out tlg toc xref
 set CHECKMODULES=expl3 l3basics l3box l3calc l3clist l3expan l3int l3intexpr l3io l3keyval l3messages l3msg l3names l3num l3precom l3prg l3prop l3quark l3seq l3skip l3tl l3token l3toks l3xref 
+set CLEAN=fc pdf sty zip
 set NEXT=end
 set SCRIPTDIR=..\support
 set TESTDIR=testfiles
@@ -13,17 +16,19 @@ set VALIDATE=..\validate
 
 :loop
 
-  if "%1" == "alldoc"       goto :alldoc
-  if "%1" == "checkcmd"     goto :checkcmd
-  if "%1" == "checkcmds"    goto :checkcmds
-  if "%1" == "checkdoc"     goto :checkdoc
-  if "%1" == "checklvt"     goto :checklvt
-  if "%1" == "check"        goto :check
-  if "%1" == "clean"        goto :clean
-  if "%1" == "doc"          goto :doc
-  if "%1" == "localinstall" goto :localinstall
-  if "%1" == "savetlg"      goto :savetlg
-  if "%1" == "sourcedoc"    goto :sourcedoc
+  if /i "%1" == "alldoc"       goto :alldoc
+  if /i "%1" == "checkcmd"     goto :checkcmd
+  if /i "%1" == "checkcmds"    goto :checkcmds
+  if /i "%1" == "checkdoc"     goto :checkdoc
+  if /i "%1" == "checklvt"     goto :checklvt
+  if /i "%1" == "check"        goto :check
+  if /i "%1" == "clean"        goto :clean
+  if /i "%1" == "ctan"         goto :ctan
+  if /i "%1" == "doc"          goto :doc
+  if /i "%1" == "localinstall" goto :localinstall
+  if /i "%1" == "savetlg"      goto :savetlg
+  if /i "%1" == "sourcedoc"    goto :sourcedoc
+  if /i "%1" == "tds"          goto :tds
 
   goto :help
 
@@ -50,10 +55,10 @@ set VALIDATE=..\validate
 :check-return
  
   if exist *.tlg del /q *.tlg
-  copy %TESTDIR%\*.tlg > temp.log
-  copy %TESTDIR%\*.lvt > temp.log
+  copy /y %TESTDIR%\*.tlg > temp.log
+  copy /y %TESTDIR%\*.lvt > temp.log
     
-  copy %SCRIPTDIR%\log2tlg > temp.log
+  copy /y %SCRIPTDIR%\log2tlg > temp.log
   
   for %%I in (*.tlg) do call temp %%~nI
   
@@ -83,7 +88,7 @@ set VALIDATE=..\validate
   
 :checkcmd-return
 
-  copy %VALIDATE%\commands-check.tex > temp.log
+  copy /y %VALIDATE%\commands-check.tex > temp.log
   
   call temp %2
   
@@ -158,10 +163,10 @@ set VALIDATE=..\validate
 
 :checklvt-return
  
-  copy %SCRIPTDIR%\log2tlg > temp.log
+  copy /y %SCRIPTDIR%\log2tlg > temp.log
   
-  copy %TESTDIR%\%2.lvt > temp.log
-  copy %TESTDIR%\%2.tlg > temp.log
+  copy /y %TESTDIR%\%2.lvt > temp.log
+  copy /y %TESTDIR%\%2.tlg > temp.log
   
   call temp %2
   
@@ -200,9 +205,7 @@ set VALIDATE=..\validate
   
 :clean
 
-  if exist *.fc  del /q *.fc
-  if exist *.pdf del /q *.pdf
-  if exist *.sty del /q *.sty
+  for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
 
 :clean-int
 
@@ -222,6 +225,30 @@ set VALIDATE=..\validate
   echo All done
   
   goto :end
+  
+:ctan
+
+  set NEXT=ctan
+  if not defined ZIP goto :zip
+  
+  call make tds
+  
+  if exist temp\*.* del /q /s temp\*.* > temp.log
+  
+  xcopy /y *.dtx temp\expl3\ > temp.log
+  copy /y *.pdf temp\expl3\ > temp.log
+  copy /y *.txt temp\expl3\ > temp.log
+  copy /y l3.ins temp\expl3\ > temp.log
+  copy /y source3.tex temp\expl3\ > temp.log
+  copy /y expl3.tds.zip temp\ > temp.log
+  
+  cd temp
+  "%ZIP%" %ZIPFLAG% expl3.zip > temp.log
+  cd ..
+  copy temp\expl3.zip > temp.log
+  rmdir /q /s temp
+  
+  goto :clean-int
   
 :doc
   
@@ -258,6 +285,9 @@ set VALIDATE=..\validate
   echo.
   echo  make localinstall       - install the .sty files in your home texmf tree
   echo.
+  echo  make tds                - creates a TDS-ready zip of all packages
+  echo  make ctan               - create a zip file ready to go to CTAN
+  echo.
   echo  make help               - show this help text
   echo  make
   
@@ -272,23 +302,19 @@ set VALIDATE=..\validate
     echo using default value %USERPROFILE%\texmf
   )
   
-  SET LTEXMF=%TEXMFHOME%\tex\latex\ltx3
+  SET LTEXMF=%TEXMFHOME%\tex\latex\expl3
   
   echo.
   echo Installing files
   
-  if exist "%LTEXMF%\l3in2e\*.*" del /q "%LTEXMF%\l3in2e\*.*"
-  if exist "%LTEXMF%\validate\*.*" del /q "%LTEXMF%\validate\*.*"
+  if exist "%LTEXMF%\*.*" del /q "%LTEXMF%\*.*"
   
   tex -quiet l3.ins
   tex -quiet l3doc.dtx
   
-  xcopy *.sty "%LTEXMF%\l3in2e\*.*" > temp.log
-  copy *.cls "%LTEXMF%\l3in2e\*.*" > temp.log
-  copy l3vers.dtx "%LTEXMF%\l3in2e\*.*" > temp.log
-  
-  xcopy %VALIDATE%\regression-test.tex "%LTEXMF%\validate\*.*" > temp.log
-  copy %VALIDATE%\commands-check.tex "%LTEXMF%\validate\*.*" > temp.log
+  xcopy /y *.sty "%LTEXMF%\*.*" > temp.log
+  copy /y *.cls "%LTEXMF%\*.*" > temp.log
+  copy /y l3vers.dtx "%LTEXMF%\*.*" > temp.log
   
   goto :clean-int
   
@@ -353,17 +379,17 @@ set VALIDATE=..\validate
   set PERLNEXT=savetlg
   if not defined PERL goto :perl
  
-  copy %SCRIPTDIR%\log2tlg > temp.log
+  copy /y %SCRIPTDIR%\log2tlg > temp.log
   
-  copy %TESTDIR%\%2.lvt > temp.log
+  copy /y %TESTDIR%\%2.lvt > temp.log
 
   tex -quiet l3.ins
   
-  echo Creating and copying %2.tlg
+  echo Creating and copy /ying %2.tlg
   latex %2.lvt > temp.log 
   latex %2.lvt > temp.log
-  %perl% log2tlg %2 < %2.log > %2.tlg
-  copy %2.tlg %TESTDIR%\%2.tlg
+  %PERL% log2tlg %2 < %2.log > %2.tlg
+  copy /y %2.tlg %TESTDIR%\%2.tlg
   
   shift 
   
@@ -398,13 +424,51 @@ set VALIDATE=..\validate
   
   goto :clean-int
   
+:tds
+
+  set NEXT=tds
+  if not defined ZIP goto :zip
+
+  echo.
+  echo Creating working files
+
+  if exist tds\*.* del /q /s tds\*.* > temp.log
+  
+  tex -quiet l3.ins
+  tex -quiet l3doc.dtx
+  
+  xcopy /y *.sty tds\tex\latex\expl3\ > temp.log
+  copy /y *.cls tds\tex\latex\expl3\ > temp.log
+  copy /y l3vers.dtx tds\tex\latex\expl3\ > temp.log
+  
+  xcopy /y *.dtx tds\source\latex\expl3\ > temp.log
+  copy /y l3.ins tds\source\latex\expl3\ > temp.log
+  copy /y source3.tex tds\source\latex\expl3\ > temp.log
+  
+  echo.
+  echo Creating all documentation
+  echo.
+  
+  call make alldoc
+  
+  xcopy /y *.txt tds\doc\latex\expl3\ > temp.log
+  copy /y *.pdf tds\doc\latex\expl3\ > temp.log
+  
+  cd tds
+  "%ZIP%" %ZIPFLAG% expl3.tds.zip > temp.log
+  cd ..
+  copy /y tds\expl3.tds.zip > temp.log
+  
+  rmdir /q /s tds
+  
+  goto :clean-int
+  
 :typeset-aux
 
   tex -quiet l3.ins
   tex -quiet l3doc.dtx
 
   echo @echo off                                                    > temp.bat
-  echo echo.                                                       >> temp.bat
   echo echo Typesetting %%1.dtx                                    >> temp.bat
   echo pdflatex -interaction=nonstopmode -draftmode -quiet %%1.dtx >> temp.bat
   echo if ERRORLEVEL 0 (                                           >> temp.bat
@@ -424,6 +488,43 @@ set VALIDATE=..\validate
   echo )                                                           >> temp.bat
         
   goto :%NEXT%-return
+  
+:zip  
+
+  set PATHCOPY=%PATH%
+  
+:zip-loop
+  
+  for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
+    if exist %%I\7z.exe (
+      set ZIP=7z
+      set ZIPFLAG=a
+    )
+    set PATHCOPY=%%J;%%K
+  )
+  
+  if defined ZIP goto :%NEXT%
+
+  if not "%PATHCOPY%"==";" goto :zip-loop
+  
+  if exist %ProgramFiles%\7-zip\7z.exe (
+    set ZIP=%ProgramFiles%\7-zip\7z.exe
+    set ZIPFLAG=a
+  )
+  
+  if defined ZIP (
+    goto :%NEXT%
+  ) else (
+    echo.
+    echo This procedure requires a zip program,
+    echo but one could not be found.
+    echo
+    echo If you do have a command-line zip program installed,
+    echo set ZIP to the full executable path and ZIPFLAG to the
+    echo appropriate flag to create an archive.
+    echo.
+    goto :end
+  )
   
 :end
 
