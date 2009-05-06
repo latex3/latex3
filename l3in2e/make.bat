@@ -29,6 +29,7 @@ set VALIDATE=..\validate
   if /i "%1" == "savetlg"      goto :savetlg
   if /i "%1" == "sourcedoc"    goto :sourcedoc
   if /i "%1" == "tds"          goto :tds
+  if /i "%1" == "unpack"       goto :unpack
 
   goto :help
 
@@ -184,12 +185,15 @@ set VALIDATE=..\validate
   echo %perl% log2tlg %%1 ^< %%1.log ^> %%1.tmp.log              >> temp.bat
   echo %perl% -n -e "/^\s*$/ || print" ^< %%1.tlg ^> %%1.mod.tlg >> temp.bat
   echo fc  %%1.tmp.log %%1.mod.tlg ^> %%1.fc                     >> temp.bat
-  echo for /f "skip=1 tokens=1*" %%%%I in (%%1.fc) do (          >> temp.bat
-  echo   if "%%%%J" == "no differences encountered" (            >> temp.bat
-  echo     del %%1.fc                                            >> temp.bat
+  echo set FLAG=0                                                >> temp.bat
+  echo for /f "skip=1 tokens=1" %%%%I in (%%1.fc) do (           >> temp.bat
+  echo   if "%%%%I" == "FC:" (                                   >> temp.bat
+  echo   set /a FLAG=%%FLAG%% + 1                                >>temp.bat
   echo   )                                                       >> temp.bat
   echo )                                                         >> temp.bat
-  echo if exist %%1.fc (                                         >> temp.bat
+  echo if %%FLAG%%==1  (                                         >> temp.bat
+  echo   del /q %%1.fc                                           >> temp.bat
+  echo ) else (                                                  >> temp.bat
   echo   echo.                                                   >> temp.bat
   echo   echo *********************                              >> temp.bat
   echo   echo * Check not passed! *                              >> temp.bat
@@ -287,6 +291,8 @@ set VALIDATE=..\validate
   echo.
   echo  make tds                - creates a TDS-ready zip of all packages
   echo  make ctan               - create a zip file ready to go to CTAN
+  echo.
+  echo  make unpack             - extract all modules
   echo.
   echo  make help               - show this help text
   echo  make
@@ -488,6 +494,15 @@ set VALIDATE=..\validate
   echo )                                                           >> temp.bat
         
   goto :%NEXT%-return
+  
+:unpack
+
+  tex l3.ins > temp.log
+  tex l3doc.dtx > temp.log
+  
+  del /q *.log
+  
+  goto :end
   
 :zip  
 
