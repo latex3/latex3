@@ -44,7 +44,7 @@ framework provided by galley and xhj.
 
 Files included:
   source: galley2.dtx, xhj.dtx, xlists.dtx, galley2.ins
-  test:	  xhj-test.tex
+  test:   xhj-test.tex
 
 
 
@@ -68,7 +68,7 @@ footnote styles and layouts using templates.
 
 Files included:
   source: xfootnote.dtx, xfootnote.ins
-  test:	  xfootnote-test.tex
+  test:   xfootnote-test.tex
 
 xfrontm
 -------
@@ -76,19 +76,19 @@ xfrontm
 The xfrontm module is the first prototype implementation of the new
 front matter interface (xfm) for LaTeX2e*.
 
-xfm.dtx	         describes the frontmatter interface and its implementation.
+xfm.dtx          describes the frontmatter interface and its implementation.
 
 xfmgalley.dtx    describes the galley interface which can be used on its
                  own. (this is a cut down version of xhj and galley2 ---
-	         more stable less complex but not finished)
+                 more stable less complex but not finished)
 
 xfm-test-cls.dtx produces a pretty printing of the sample classes (but
                  not much docu)
 
 Files included:
   source: xfm.dtx, xfmgalley.dtx, xfm-test-cls.dtx, xfrontm.ins
-  test:	  xfm-test.tex, arno.ps, bernd.ps, burkhard.ps, christel.ps,
-	  frank.ps, gisela.ps, holger.ps
+  test:   xfm-test.tex, arno.ps, bernd.ps, burkhard.ps, christel.ps,
+          frank.ps, gisela.ps, holger.ps
 
 
 xhead
@@ -99,7 +99,7 @@ page styles using templates.
 
 Files included:
   source: xhead.dtx, xhead.ins
-  test:	  tryxhead.tex
+  test:   tryxhead.tex
 
 
 xinitials
@@ -110,7 +110,7 @@ characters.
 
 Files included:
   source: xinitials.dtx, xinitials.ins
-  test:	  xinitials-test.tex
+  test:   xinitials-test.tex
 
 Additional requirements: galley
 
@@ -126,7 +126,7 @@ theorem environments by Achim Blumensath.
 
 Files included:
   source: xtheorem.dtx, xtheorem.ins
-  test:	  xtheorem-test.tex
+  test:   xtheorem-test.tex
 
 
 

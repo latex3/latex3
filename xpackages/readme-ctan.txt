@@ -69,7 +69,7 @@ developed by Achim Blumensath.
 
 Files included:
   source: xtheorem.dtx, xtheorem.ins
-  test:	  xtheorem-test.tex
+  test:   xtheorem-test.tex
 
 
 
