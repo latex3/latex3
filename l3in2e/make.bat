@@ -415,10 +415,10 @@ set VALIDATE=..\validate
 
   pdflatex -interaction=nonstopmode -draftmode -quiet source3
   if ERRORLEVEL 0 ( 
-    echo Re-typesetting for index generation
+    echo   Re-typesetting for index generation
     makeindex -q -s l3doc.ist -o source3.ind source3.idx > temp.log
     pdflatex -interaction=nonstopmode -quiet source3
-    echo Re-typesetting to resolve cross-references
+    echo   Re-typesetting to resolve cross-references
     pdflatex -interaction=nonstopmode -quiet source3
     for /F "tokens=*" %%I in (source3.log) do (           
       if "%%I" == "Functions documented but not defined:" (   
@@ -455,11 +455,14 @@ set VALIDATE=..\validate
   copy /y l3.ins tds\source\latex\expl3\ > temp.log
   copy /y source3.tex tds\source\latex\expl3\ > temp.log
   
-  echo.
-  echo Creating all documentation
-  echo.
+  call make sourcedoc
   
-  call make alldoc
+  set NEXT=tds
+  goto :typeset-aux
+  
+:tds-return
+
+  call temp expl3
   
   xcopy /y *.txt tds\doc\latex\expl3\ > temp.log
   copy /y *.pdf tds\doc\latex\expl3\ > temp.log
@@ -551,6 +554,3 @@ set VALIDATE=..\validate
   if not "%2" == "" goto :loop
   
   endlocal
-  
-  echo.
-  echo All done
