@@ -2,7 +2,7 @@
 
 setlocal
 
-set AUXFILES=aux dvi log toc
+set AUXFILES=aux dvi log toc xld
 set CLEAN=pdf sty
 set EXPL3DIR=..\..\l3in2e
 set NEXT=end
@@ -67,11 +67,7 @@ set XOR3DIR=..\xor
 
 :clean
 
-  ren template-doc.sty template-doc.xxx > temp.log
-
   for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
-  
-  ren template-doc.xxx template-doc.sty > temp.log
 
 :clean-int
 
@@ -79,9 +75,6 @@ set XOR3DIR=..\xor
   
   if exist l3in2e.err del l3in2e.err
     
-  echo.
-  echo All done
-  
   goto :end
   
 :doc

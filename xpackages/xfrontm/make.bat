@@ -76,9 +76,6 @@ set XORDIR=..\xor
   
   if exist l3in2e.err del l3in2e.err
     
-  echo.
-  echo All done
-  
   goto :end
   
 :doc

@@ -64,9 +64,6 @@ set XBASEDIR=..\xbase
   
   if exist l3in2e.err del l3in2e.err
     
-  echo.
-  echo All done
-  
   goto :end
   
 :doc
@@ -130,7 +127,7 @@ set XBASEDIR=..\xbase
   echo Unpacking
 
   for %%I in (*.ins) do (
-    tex %%I.ins > temp.log
+    tex %%I > temp.log
   )
   
   del /q *.log

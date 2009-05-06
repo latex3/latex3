@@ -2,7 +2,7 @@
 
 setlocal
 
-set AUXFILES=aux dvi log toc
+set AUXFILES=aux dvi log sig toc
 set CLEAN=pdf sty
 set EXPL3DIR=..\..\l3in2e
 set NEXT=end
@@ -63,9 +63,6 @@ set XBASEDIR=..\xbase
   for %%I in (%AUXFILES%) do if exist *.%%I del /q *.%%I
   
   if exist l3in2e.err del l3in2e.err
-    
-  echo.
-  echo All done
   
   goto :end
   

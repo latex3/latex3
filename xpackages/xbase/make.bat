@@ -54,10 +54,7 @@ set NEXT=end
   for %%I in (%AUXFILES%) do if exist *.%%I del /q *.%%I
   
   if exist l3in2e.err del l3in2e.err
-    
-  echo.
-  echo All done
-  
+      
   goto :end
   
 :doc
