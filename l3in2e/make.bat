@@ -167,6 +167,11 @@ set VALIDATE=..\validate
   
   call temp %2
   
+  if not exist *.fc (
+    echo.
+    echo Test passed successfully.
+  )
+  
   shift
 
   goto :clean-int
@@ -178,20 +183,22 @@ set VALIDATE=..\validate
 
   tex -quiet l3.ins
   
+  echo Checking:
+  
   echo @echo off                                                  > temp.bat
-  echo echo Checking %%1.lvt                                     >> temp.bat
+  echo echo   %%1.lvt                                            >> temp.bat
   echo latex %%1.lvt ^> temp.log                                 >> temp.bat
   echo latex %%1.lvt ^> temp.log                                 >> temp.bat
   echo %perl% log2tlg %%1 ^< %%1.log ^> %%1.tmp.log              >> temp.bat
   echo %perl% -n -e "/^\s*$/ || print" ^< %%1.tlg ^> %%1.mod.tlg >> temp.bat
   echo fc  %%1.tmp.log %%1.mod.tlg ^> %%1.fc                     >> temp.bat
-  echo set FLAG=0                                                >> temp.bat
+  echo set FLAG=false                                            >> temp.bat
   echo for /f "skip=1 tokens=1" %%%%I in (%%1.fc) do (           >> temp.bat
   echo   if "%%%%I" == "FC:" (                                   >> temp.bat
-  echo   set /a FLAG=%%FLAG%% + 1                                >>temp.bat
+  echo   set FLAG=true                                           >> temp.bat
   echo   )                                                       >> temp.bat
   echo )                                                         >> temp.bat
-  echo if %%FLAG%%==1  (                                         >> temp.bat
+  echo if %%FLAG%%==true  (                                      >> temp.bat
   echo   del /q %%1.fc                                           >> temp.bat
   echo ) else (                                                  >> temp.bat
   echo   echo.                                                   >> temp.bat
@@ -225,9 +232,6 @@ set VALIDATE=..\validate
   
   if exist temp.bat del /q temp.bat
     
-  echo.
-  echo All done
-  
   goto :end
   
 :ctan
@@ -262,7 +266,7 @@ set VALIDATE=..\validate
   set NEXT=doc-a
   goto :typeset-aux
   
-:doc-a
+:doc-return
   
   call temp %2
   
@@ -547,3 +551,6 @@ set VALIDATE=..\validate
   if not "%2" == "" goto :loop
   
   endlocal
+  
+  echo.
+  echo All done
