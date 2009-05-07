@@ -80,8 +80,6 @@ set XORDIR=..\xor
   
 :doc
 
-  echo.
-  echo Typesetting
   for %%I in (*.dtx) do (
     echo   %%I
     pdflatex -interaction=nonstopmode -quiet %%I
@@ -112,14 +110,16 @@ set XORDIR=..\xor
   set NEXT=clean-int
 
 :test-int
-
-  echo.
-  echo Testing
-   
+  
+  echo   xfm-test userinput=1
   latex -interaction=batchmode -quiet "\def\userinput{1}\input{xfm-test.tex}"
+  echo   xfm-test userinput=2
   latex -interaction=batchmode -quiet "\def\userinput{2}\input{xfm-test.tex}"
+  rem echo   xfm-test userinput=3
   rem latex -interaction=batchmode -quiet "\def\userinput{3}\input{xfm-test.tex}" broken!
+  echo   xfm-test userinput=4
   latex -interaction=batchmode -quiet "\def\userinput{4}\input{xfm-test.tex}"
+  echo   xfm-test userinput=5
   latex -interaction=batchmode -quiet "\def\userinput{5}\input{xfm-test.tex}"
 
   goto :%NEXT%  
@@ -129,9 +129,6 @@ set XORDIR=..\xor
   set NEXT=end
 
 :unpack-int
-
-  echo.
-  echo Unpacking
 
   for %%I in (*.ins) do (
     tex %%I > temp.log

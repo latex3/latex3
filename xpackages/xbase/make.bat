@@ -59,8 +59,6 @@ set NEXT=end
   
 :doc
 
-  echo.
-  echo Typesetting
   for %%I in (*.dtx) do (
     echo   %%I
     pdflatex -interaction=nonstopmode -quiet %%I
@@ -92,8 +90,6 @@ set NEXT=end
 
 :test-int
 
-  echo.
-  echo Testing
   for %%I in (%TEST%) do (
     echo   %%I
     pdflatex -interaction=batchmode -quiet %%I
@@ -113,9 +109,6 @@ set NEXT=end
   set NEXT=end
 
 :unpack-int
-
-  echo.
-  echo Unpacking
 
   for %%I in (*.ins) do (
     tex %%I > temp.log

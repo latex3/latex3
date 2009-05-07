@@ -8,6 +8,7 @@ setlocal
 set CTAN=xbase
 set NEXT=end
 set ROOT=latex\xpackages
+set TEST=galley xbase xfootnote xfrontm xhead xinitials xor xtheorem
 set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor xtheorem
 
 :loop
@@ -22,8 +23,9 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
   
 :check
 
-  for %%I in (%XPACKAGES%) do (
+  for %%I in (%TEST%) do (
     cd %%I
+    echo Testing %%I
     call make check
     cd ..
   )
@@ -58,6 +60,7 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
   if exist temp\*.* del /q /s temp\*.* > temp.log
   
   for %%I in (%CTAN%) do (
+    echo Package %%I
     cd %%I
     call make unpack
     xcopy /y *.sty "..\tds\tex\%ROOT%\%%I\"  > temp.log
@@ -126,6 +129,7 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
   if exist "%LTEXMF%\*.*" del /q /s "%LTEXMF%\*.*"
   
   for %%I in (%XPACKAGES%) do (
+    echo Package %%I
     cd %%I
     echo   %%I
     call make unpack
@@ -150,6 +154,7 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
   if exist tds\*.* del /q /s tds\*.* > temp.log
   
   for %%I in (%CTAN%) do (
+    echo Package %%I
     cd %%I
     call make unpack
     xcopy /y *.sty "..\tds\tex\%ROOT%\%%I\"  > temp.log
