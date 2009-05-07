@@ -34,13 +34,15 @@ fixed.
      
    * The validation of a single test file can be executed with
 
-       `make checklvt F=m3quark001`
+       `make checklvt F=m3quark001` (Unix or MacOS X)
+       `make checklvt m3quark001`   (Windows)
 
    * If you are satisfied that the output of the test file
      is as it should be, "freeze" the results by creating 
      the complete `.tlg` file. You can do this with  
 
-       `make savetlg F=m3quark001`
+       `make savetlg F=m3quark001` (Unix or MacOS X) 
+       `make savetlg m3quark001`   (Windows)
 
    * Don't forget to add both the `.lvt` and `.tlg` files to 
      the SVN repository.
@@ -59,7 +61,8 @@ These are the `expl3` modules with _complete_ test files:
 
  -  `l3clist`  
  -  `l3int`    
- -  `l3keyval` 
+ -  `l3keyval`
+ -  `l3msg` 
  -  `l3num`    
  -  `l3prg`    
  -  `l3prop`   
@@ -112,7 +115,7 @@ suite for it with all the changes in the other modules this will imply.)
 Not every possible combination of argument specs are always tested. This is
 sometimes unfortunate because mistakes do happen. E.g.,  
 
-    \def_new:Npn \seq_map_variable:cNn { \exp_args:Nc \seq_map_variable:Nn }
+    \cs_new:Npn \seq_map_variable:cNn { \exp_args:Nc \seq_map_variable:Nn }
 
 Where possible, I should stop being lazy and literally test every defined
 variant.
