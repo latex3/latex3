@@ -186,7 +186,7 @@ set VALIDATE=..\validate
   echo Checking:
   
   echo @echo off                                                  > temp.bat
-  echo echo   %%1.lvt                                            >> temp.bat
+  echo echo   %%1                                                >> temp.bat
   echo latex %%1.lvt ^> temp.log                                 >> temp.bat
   echo latex %%1.lvt ^> temp.log                                 >> temp.bat
   echo %perl% log2tlg %%1 ^< %%1.log ^> %%1.tmp.log              >> temp.bat
