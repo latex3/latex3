@@ -390,16 +390,17 @@ set VALIDATE=..\validate
   if not defined PERL goto :perl
  
   copy /y %SCRIPTDIR%\log2tlg > temp.log
+  copy /y %VALIDATE%\regression-test.tex > temp.log
   
   copy /y %TESTDIR%\%2.lvt > temp.log
 
   tex -quiet l3.ins
   
-  echo Creating and copy /ying %2.tlg
+  echo Creating and copying %2.tlg
   latex %2.lvt > temp.log 
   latex %2.lvt > temp.log
   %PERL% log2tlg %2 < %2.log > %2.tlg
-  copy /y %2.tlg %TESTDIR%\%2.tlg
+  copy /y %2.tlg %TESTDIR%\%2.tlg > temp.log
   
   shift 
   
