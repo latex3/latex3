@@ -79,8 +79,6 @@ set XOR3DIR=..\xor
   
 :doc
 
-  echo.
-  echo Typesetting
   for %%I in (*.dtx) do (
     echo   %%I
     pdflatex -interaction=nonstopmode -quiet %%I
@@ -112,8 +110,6 @@ set XOR3DIR=..\xor
 
 :test-int
 
-  echo.
-  echo Testing
   for %%I in (%TEST%) do (
     echo   %%I
     pdflatex -interaction=batchmode -quiet %%I
@@ -133,9 +129,6 @@ set XOR3DIR=..\xor
   set NEXT=end
 
 :unpack-int
-
-  echo.
-  echo Unpacking
 
   for %%I in (*.ins) do (
     tex %%I > temp.log

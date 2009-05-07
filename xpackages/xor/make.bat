@@ -76,8 +76,6 @@ set XBASEDIR=..\xbase
   
 :doc
 
-  echo.
-  echo Typesetting
   for %%I in (*.dtx) do (
     echo   %%I
     pdflatex -interaction=nonstopmode -quiet %%I
@@ -109,8 +107,6 @@ set XBASEDIR=..\xbase
 
 :test-int
 
-  echo.
-  echo Testing
   for %%I in (%TEST%) do (
     echo   %%I
     latex -interaction=batchmode -quiet %%I
@@ -130,9 +126,6 @@ set XBASEDIR=..\xbase
   set NEXT=end
 
 :unpack-int
-
-  echo.
-  echo Unpacking
 
   for %%I in (*.ins) do (
     tex %%I > temp.log
