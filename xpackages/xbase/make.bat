@@ -121,6 +121,6 @@ set NEXT=end
 :end
 
   shift
-  if not "%2" == "" goto :loop
+  if not "%1" == "" goto :loop
   
   endlocal

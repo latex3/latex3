@@ -263,7 +263,7 @@ set VALIDATE=..\validate
   if "%2" == "" goto :help
   if not exist %2.dtx goto :no-dtx
   
-  set NEXT=doc-a
+  set NEXT=doc
   goto :typeset-aux
   
 :doc-return
@@ -552,6 +552,6 @@ set VALIDATE=..\validate
 :end
 
   shift
-  if not "%2" == "" goto :loop
+  if not "%1" == "" goto :loop
   
   endlocal
