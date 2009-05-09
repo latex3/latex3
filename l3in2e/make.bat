@@ -81,49 +81,63 @@ set VALIDATE=..\validate
   if "%2" == "" goto :help
   if not exist %2.dtx goto :no-dtx
   
-  set NEXT=checkcmd
-  
-  goto :checkcmds-aux
-  
-:checkcmd-return
-
   copy /y %VALIDATE%\commands-check.tex > temp.log
   
-  call temp %2
+  tex -quiet l3.ins
+  tex -quiet l3doc.dtx
+  
+  if exist missing.cmds.log del /q missing.cmds.log
+  
+  echo.                
+  latex -interaction=batchmode -quiet %2.dtx 
+  latex -interaction=batchmode "\def\CMDS{%2.cmds}\input commands-check" > cmds.log
+  for /F "tokens=1*" %%I in (cmds.log) do (
+    if "%%I"=="!>" copy /y cmds.log missing.cmds.log > temp.log
+  )
+  if exist missing.cmds.log (
+    echo Module %2 missing commands:
+    for /F "tokens=1*" %%I in (missing.cmds.log) do (
+      if "%%I"=="!>" echo   %%J 
+    )
+  ) else (
+    echo Module %2: check passed
+  )
   
   shift
   
   goto :clean-int
 
 :checkcmds
-
-  set NEXT=checkcmds
- 
-  goto :checkcmds-aux
-
-:checkcmds-return
-
-  for %%I in (%CHECKMODULES%) do call temp %%~nI
+  
+  copy /y %VALIDATE%\commands-check.tex > temp.log
+  
+  tex -quiet l3.ins
+  tex -quiet l3doc.dtx
+  
+  if exist cmds.log del /q cmds.log
+  if exist missing.cmds.log del /q missing.cmds.log
+  
+  echo.  
+  echo Checking
+  for %%I in (%CHECKMODULES%) do (  
+    echo   %%I  
+    latex -interaction=batchmode -quiet %%I.dtx 
+    latex -interaction=batchmode "\def\CMDS{%%I.cmds}\input commands-check" >> cmds.log         
+  )
+  for /F "tokens=1*" %%I in (cmds.log) do (
+    if "%%I"=="!>" copy /y cmds.log missing.cmds.log > temp.log
+  )
+  if exist missing.cmds.log (
+    echo Missing commands:
+    for /F "tokens=1*" %%I in (missing.cmds.log) do (
+      if "%%I"=="!>" echo   %%J 
+    )
+  ) else (
+    echo Check passed
+  )
   
   goto :clean-int
   
-:checkcmds-aux
-
-  tex -quiet l3.ins
-  tex -quiet l3doc.dtx
-
-  echo @echo off                                    > temp.bat
-  echo echo.                                       >> temp.bat
-  echo echo Checking %%1.dtx                       >> temp.bat
-  echo echo.                                       >> temp.bat
-  echo latex -interaction=batchmode -quiet %%1.dtx >> temp.bat
-  echo latex -interaction=nonstopmode "\def\CMDS{%%1.cmds}\input commands-check" ^> cmds.log >> temp.bat
-  echo for /F "tokens=1*" %%%%I in (cmds.log) do ( >> temp.bat
-  echo   if "%%%%I"=="!>" echo %%%%J               >> temp.bat
-  echo )                                           >> temp.bat
-  
-  goto :%NEXT%-return
-    
 :checkdoc
 
   tex -quiet l3.ins
