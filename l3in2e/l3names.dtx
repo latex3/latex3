@@ -258,7 +258,7 @@
 % Functions used to track the state of the catcode regime.
 % \end{function}
 %
-% \begin{function}{\@onefilewithoptions | \@popfilename}
+% \begin{function}{\@pushfilename | \@popfilename}
 % Re-definitions of \LaTeX's file-loading functions to support "\ExplSyntax".
 % \end{function}
 %
@@ -920,10 +920,9 @@
 %    be ignored inside \LaTeX3 code, the latter because endline is set
 %    to a space instead. When space characters are needed in \LaTeX3
 %    code the |~| character will be used for that purpose.
-%
 %    \begin{macrocode}
 \tex_def:D\ExplSyntaxOn{
-  \tex_def:D\ExplSyntaxStatus{00}
+  \tex_def:D\ExplSyntaxStatus{1}
   \tex_catcode:D  126=10 \tex_relax:D % tilde is a space char.
   \tex_catcode:D   32=9  \tex_relax:D % space is ignored
   \tex_catcode:D    9=9  \tex_relax:D % tab also ignored
@@ -931,11 +930,12 @@
   \tex_catcode:D   95=11 \tex_relax:D % underscore letter
   \tex_catcode:D   58=11 \tex_relax:D % colon letter
 }
+\tex_def:D\ExplSyntaxStatus{1}
 %    \end{macrocode}
 %
 %    \begin{macrocode}
 \tex_def:D\ExplSyntaxOff{
-  \tex_def:D\ExplSyntaxStatus{01}
+  \tex_def:D\ExplSyntaxStatus{0}
   \tex_catcode:D  126=13 \tex_relax:D 
   \tex_catcode:D   32=10 \tex_relax:D 
   \tex_catcode:D    9=10 \tex_relax:D 
@@ -1094,7 +1094,8 @@
 %
 % \begin{macro}{\ProvidesExplPackage}
 % \begin{macro}{\ProvidesExplClass}
-% First up is the identification. Rather trivial
+% First up is the identification. Rather trivial as we don't allow for
+% options just yet.
 %    \begin{macrocode}
 %<*package>
 \tex_def:D \ProvidesExplPackage#1#2#3#4{
@@ -1110,54 +1111,101 @@
 % \end{macro}
 %
 %
-% \begin{macro}[aux]{\org@onefilewithoptions}
-% \begin{macro}{\@onefilewithoptions}
+% \begin{macro}{\@pushfilename}
 % \begin{macro}{\@popfilename}
 %   The idea behind the code is to record whether or not the \LaTeX3
 %   syntax is on or off when about to load a file with class or
 %   package extension. This status stored in the parameter
 %   |\ExplSyntaxStatus| and set by |\ExplSyntaxOn| and
-%   |\ExplSyntaxOff| to |00| and |01| respectively is puched onto the
+%   |\ExplSyntaxOff| to |1| and |0| respectively is pushed onto the
 %   stack |\ExplSyntaxStack|. Then the catcodes are set back to
 %   normal, the file loaded with its options and finally the stack is
-%   popped again.
+%   popped again.  The whole thing is a bit problematical. So let's
+%   take a look at what the desired behavior is: A package or class
+%   which declares itself of Expl type by using |\ProvidesExplClass|
+%   or |\ProvidesExplPackage| should automatically ensure the correct
+%   catcode scheme as soon as the identification part is
+%   over. Similarly, a package or class which uses the traditional
+%   |\ProvidesClass| or |\ProvidesPackage| commands should go back to
+%   the traditional catcode scheme. An example:
+% \begin{verbatim}
+% \RequirePackage{l3names}
+% \ProvidesExplPackage{foobar}{2009/05/07}{0.1}{Foobar package}
+% \cs_new:Nn \foo_bar:nn {#1,#2}
+% ...
+% \RequirePackage{array}
+% ...
+% \cs_new:Nn \foo_bar:nnn {#3,#2,#1}
+% \end{verbatim}
+%   Inside the \pkg{array} package, everything should behave as normal
+%   under traditional \LaTeX\ but as soon as we are back at the top
+%   level, we should use the new catcode regime.
 %
-%   |\@popfilename| is appended with a preamble check. If the catcode
-%   of "@" is being reset it is a fair assumption that we are back in
-%   the usual preamble and so we switch off our syntax as well.
+%
+%   Whenever \LaTeX\ inputs a package file or similar, it calls upon
+%   |\@pushfilename| to push the name, the extension and the catcode
+%   of @ of the file it was currently processing onto a file name
+%   stack. Similarly, after inputting such a file, this file name
+%   stack is popped again and the catcode of @ is set to what it was
+%   before. If it is a package within package, @ maintains catcode 11
+%   whereas if it is package within document preamble @ is reset to
+%   what it was in the preamble (which is usually catcode 12). We wish
+%   to adopt a similar technique. Every time an Expl package or class
+%   is declared, they will issue an ExplSyntaxOn. Then whenever we are
+%   about to load another file, we will first push this status onto a
+%   stack and then turn it off again. Then when done loading a file,
+%   we pop the stack and if ExplSyntax was On right before, so should
+%   it be now. The only problem with this is that we cannot guarantee
+%   that we get to the file name stack very early on. Therefore, if
+%   the ExplSyntaxStack is empty when trying to pop it, we ensure to
+%   turn ExplSyntax off again.
+%
+%   |\@pushfilename| is prepended with a small function pushing the
+%   current ExplSyntaxStatus (true/false) onto a stack. Then
+%   ExplSyntax is switched off.
+%
+%   |\@popfilename| is appended with a function for popping the
+%   ExplSyntax stack. However, chances are we didn't get to hook into
+%   the file stack early enough so \LaTeX\ might try to pop the file
+%   name stack while the ExplSyntaxStack is empty. If the latter is
+%   empty, we just switch off ExplSyntax.
 %    \begin{macrocode}
-\tex_let:D \org@onefilewithoptions\@onefilewithoptions
-\tex_def:D \@onefilewithoptions#1[#2][#3]#4{
-  \tex_edef:D \ExplSyntaxStack{ \ExplSyntaxStatus \ExplSyntaxStack }
-  \ExplSyntaxOff
-  \org@onefilewithoptions{#1}[{#2}][{#3}]{#4}
-  \tex_expandafter:D\ExplSyntaxPopStack\ExplSyntaxStack\tex_relax:D
-}
-\g@addto@macro\@popfilename{%
-  \tex_ifnum:D\tex_the:D\tex_catcode:D`\@=12\tex_relax:D
+\tex_edef:D \@pushfilename{
+  \etex_unexpanded:D{
+    \tex_edef:D \ExplSyntaxStack{ \ExplSyntaxStatus \ExplSyntaxStack }
     \ExplSyntaxOff
-  \tex_fi:D
+  }
+  \etex_unexpanded:D\tex_expandafter:D{\@pushfilename }
+}
+\tex_edef:D \@popfilename{
+  \etex_unexpanded:D\tex_expandafter:D{\@popfilename 
+    \tex_if:D 2\ExplSyntaxStack 2
+      \ExplSyntaxOff
+    \tex_else:D
+      \tex_expandafter:D\ExplSyntaxPopStack\ExplSyntaxStack\q_nil
+    \tex_fi:D
+  }
 }
 %    \end{macrocode} 
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\ExplSyntaxPopStack}
 % \begin{macro}{\ExplSyntaxStack}
-%   Popping the stack is simple: Take the first two tokens which are
-%   either the sequence "00" or "01" and use them in an if test. The
-%   stack is initially empty.
+%   Popping the stack is simple: Take the first token which is either
+%   0 (false) or 1 (true) and test if it is odd. Save the rest. The
+%   stack is initially empty set to 0 signalling that before
+%   \pkg{l3names} was loaded, the ExplSyntax was off.
 %    \begin{macrocode}
-\tex_def:D\ExplSyntaxPopStack#1#2#3\tex_relax:D{
-  \tex_def:D\ExplSyntaxStack{#3}
-  \tex_if:D#1#2
+\tex_def:D\ExplSyntaxPopStack#1#2\q_nil{
+  \tex_def:D\ExplSyntaxStack{#2}
+  \tex_ifodd:D#1~
     \ExplSyntaxOn
   \tex_else:D
     \ExplSyntaxOff
   \tex_fi:D
 }
-\tex_def:D\ExplSyntaxStack{}
+\tex_def:D \ExplSyntaxStack{0}
 %    \end{macrocode} 
 % \end{macro}
 % \end{macro}
@@ -1186,7 +1234,6 @@
 %
 %    \begin{macrocode}
 \tex_ifx:D\name_undefine:N\@gobble
-  \AtEndOfPackage{\ExplSyntaxOff}
   \tex_def:D\name_pop_stack:w{}
 \tex_else:D
 %    \end{macrocode}
