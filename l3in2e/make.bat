@@ -22,6 +22,7 @@ set VALIDATE=..\validate
   if /i "%1" == "checkdoc"     goto :checkdoc
   if /i "%1" == "checklvt"     goto :checklvt
   if /i "%1" == "check"        goto :check
+  if /i "%1" == "checkxetex"   goto :check
   if /i "%1" == "clean"        goto :clean
   if /i "%1" == "ctan"         goto :ctan
   if /i "%1" == "doc"          goto :doc
@@ -50,6 +51,7 @@ set VALIDATE=..\validate
 :check
 
   set NEXT=check
+  set ENGINE=latex
   
   goto :checklvt-aux
 
@@ -171,6 +173,7 @@ set VALIDATE=..\validate
   if not exist %TESTDIR%\%2.tlg goto :no-tlg
 
   set NEXT=checklvt
+  set ENGINE=latex
   
   goto :checklvt-aux
 
@@ -201,8 +204,8 @@ set VALIDATE=..\validate
   
   echo @echo off                                                  > temp.bat
   echo echo   %%1                                                >> temp.bat
-  echo latex %%1.lvt ^> temp.log                                 >> temp.bat
-  echo latex %%1.lvt ^> temp.log                                 >> temp.bat
+  echo %%ENGINE%% %%1.lvt ^> temp.log                            >> temp.bat
+  echo %%ENGINE%% %%1.lvt ^> temp.log                            >> temp.bat
   echo %perl% log2tlg %%1 ^< %%1.log ^> %%1.tmp.log              >> temp.bat
   echo %perl% -n -e "/^\s*$/ || print" ^< %%1.tlg ^> %%1.mod.tlg >> temp.bat
   echo fc  %%1.tmp.log %%1.mod.tlg ^> %%1.fc                     >> temp.bat
@@ -226,6 +229,36 @@ set VALIDATE=..\validate
   copy /y %VALIDATE%\regression-test.tex > temp.log
 
   goto :%NEXT%-return
+  
+:checkxetex
+
+  set NEXT=checkxetex
+  set ENGINE=xelatex
+  
+  goto :checklvt-aux
+
+:checkxetex-return
+ 
+  if exist *.tlg del /q *.tlg
+  copy /y %TESTDIR%\*.tlg > temp.log
+  copy /y %TESTDIR%\*.lvt > temp.log
+     
+  for %%I in (*.tlg) do call temp %%~nI
+  
+  if exist *.fc (
+    echo.
+    echo List of diffs produced during check:
+    echo ====================================
+    for %%I in (*.fc) do echo %%I
+    echo ====================================
+  ) else (
+    echo.
+    echo All tests passed successfully.
+  )
+  
+  shift
+
+  goto :clean-int
   
 :clean
 
