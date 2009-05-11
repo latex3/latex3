@@ -20,9 +20,8 @@ set VALIDATE=..\validate
   if /i "%1" == "checkcmd"     goto :checkcmd
   if /i "%1" == "checkcmds"    goto :checkcmds
   if /i "%1" == "checkdoc"     goto :checkdoc
-  if /i "%1" == "checklvt"     goto :checklvt
+  if /i "%1" == "checklvt"     goto :checklvt  
   if /i "%1" == "check"        goto :check
-  if /i "%1" == "checkxetex"   goto :checkxetex
   if /i "%1" == "clean"        goto :clean
   if /i "%1" == "ctan"         goto :ctan
   if /i "%1" == "doc"          goto :doc
@@ -31,6 +30,8 @@ set VALIDATE=..\validate
   if /i "%1" == "sourcedoc"    goto :sourcedoc
   if /i "%1" == "tds"          goto :tds
   if /i "%1" == "unpack"       goto :unpack
+  if /i "%1" == "xecheck"      goto :xecheck
+  if /i "%1" == "xechecklvt"   goto :xechecklvt
 
   goto :help
 
@@ -230,13 +231,6 @@ set VALIDATE=..\validate
 
   goto :%NEXT%-return
   
-:checkxetex
-
-  set NEXT=check
-  set ENGINE=xelatex
-  
-  goto :checklvt-aux
-
 :clean
 
   for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
@@ -304,8 +298,9 @@ set VALIDATE=..\validate
   echo  make clean              - clean out test dirs
   echo.
   echo  make check              - set up and run all tests LaTeX
-  echo  make checkxetex         - set up and run all tests using XeLaTeX
-  echo  make checklvt ^<name^>    - run ^<name^>.lvt only
+  echo  make xecheck            - set up and run all tests using XeLaTeX
+  echo  make checklvt ^<name^>    - run ^<name^>.lvt only using LaTeX
+  echo  make xechecklvt ^<name^>  - run ^<name^>.lvt only using XeLaTeX
   echo  make savetlg  ^<name^>    - save ^<name^>.tlg as a new certified test
   echo.
   echo  make checkdoc           - check all modules compile correctly
@@ -536,6 +531,24 @@ set VALIDATE=..\validate
   del /q *.log
   
   goto :end
+  
+:xecheck
+
+  set NEXT=check
+  set ENGINE=xelatex
+  
+  goto :checklvt-aux
+  
+:xechecklvt
+
+  if "%2" == "" goto :help
+  if not exist %TESTDIR%\%2.lvt goto :no-lvt
+  if not exist %TESTDIR%\%2.tlg goto :no-tlg
+
+  set NEXT=checklvt
+  set ENGINE=xelatex
+  
+  goto :checklvt-aux
   
 :zip  
 
