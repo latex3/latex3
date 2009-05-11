@@ -209,7 +209,7 @@ set VALIDATE=..\validate
   echo %%ENGINE%% %%1.lvt ^> temp.log                            >> temp.bat
   echo %perl% log2tlg %%1 ^< %%1.log ^> %%1.tmp.log              >> temp.bat
   echo %perl% -n -e "/^\s*$/ || print" ^< %%1.tlg ^> %%1.mod.tlg >> temp.bat
-  echo fc  %%1.tmp.log %%1.mod.tlg ^> %%1.fc                     >> temp.bat
+  echo fc /n  %%1.tmp.log %%1.mod.tlg ^> %%1.fc                  >> temp.bat
   echo set FLAG=false                                            >> temp.bat
   echo for /f "skip=1 tokens=1" %%%%I in (%%1.fc) do (           >> temp.bat
   echo   if "%%%%I" == "FC:" (                                   >> temp.bat
