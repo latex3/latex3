@@ -22,7 +22,7 @@ set VALIDATE=..\validate
   if /i "%1" == "checkdoc"     goto :checkdoc
   if /i "%1" == "checklvt"     goto :checklvt
   if /i "%1" == "check"        goto :check
-  if /i "%1" == "checkxetex"   goto :check
+  if /i "%1" == "checkxetex"   goto :checkxetex
   if /i "%1" == "clean"        goto :clean
   if /i "%1" == "ctan"         goto :ctan
   if /i "%1" == "doc"          goto :doc
@@ -232,34 +232,11 @@ set VALIDATE=..\validate
   
 :checkxetex
 
-  set NEXT=checkxetex
+  set NEXT=check
   set ENGINE=xelatex
   
   goto :checklvt-aux
 
-:checkxetex-return
- 
-  if exist *.tlg del /q *.tlg
-  copy /y %TESTDIR%\*.tlg > temp.log
-  copy /y %TESTDIR%\*.lvt > temp.log
-     
-  for %%I in (*.tlg) do call temp %%~nI
-  
-  if exist *.fc (
-    echo.
-    echo List of diffs produced during check:
-    echo ====================================
-    for %%I in (*.fc) do echo %%I
-    echo ====================================
-  ) else (
-    echo.
-    echo All tests passed successfully.
-  )
-  
-  shift
-
-  goto :clean-int
-  
 :clean
 
   for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
@@ -326,7 +303,8 @@ set VALIDATE=..\validate
   echo.
   echo  make clean              - clean out test dirs
   echo.
-  echo  make check              - set up and run all tests
+  echo  make check              - set up and run all tests LaTeX
+  echo  make checkxetex         - set up and run all tests using XeLaTeX
   echo  make checklvt ^<name^>    - run ^<name^>.lvt only
   echo  make savetlg  ^<name^>    - save ^<name^>.tlg as a new certified test
   echo.
