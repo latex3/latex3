@@ -5,10 +5,11 @@ rem require a zip program such as 7-Zip (http://www.7zip.org).
 
 setlocal
 
-set CTAN=xbase
+set CTAN=xbase xtheorem
 set NEXT=end
 set ROOT=latex\xpackages
 set TEST=galley xbase xfootnote xfrontm xhead xinitials xor xtheorem
+set TXT=readme-ctan README-xpackages
 set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor xtheorem
 
 :loop
@@ -63,25 +64,29 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     echo Package %%I
     cd %%I
     call make unpack
-    xcopy /y *.sty "..\tds\tex\%ROOT%\%%I\"  > temp.log
-    xcopy /y *.sty "..\temp\xpackages\%%I\"  > temp.log
+    xcopy /y *.sty "..\tds\tex\%ROOT%\"  > temp.log
+    xcopy /y *.sty "..\temp\xpackages\"  > temp.log
     if exist *.cls (
-      copy /y *.cls "..\tds\tex\%ROOT%\%%I\" > temp.log
-      copy /y *.cls "..\temp\xpackages\%%I\" > temp.log
+      copy /y *.cls "..\tds\tex\%ROOT%\" > temp.log
+      copy /y *.cls "..\temp\xpackages\" > temp.log
     )
     call make doc
-    xcopy /y *.pdf "..\tds\doc\%ROOT%\%%I\"  > temp.log
-    copy /y *.pdf "..\temp\xpackages\%%I\"  > temp.log
-    xcopy /y *.dtx "..\tds\source\%ROOT%\%%I\"  > temp.log
-    copy /y *.dtx "..\temp\xpackages\%%I\"  > temp.log
-    copy /y *.ins "..\tds\source\%ROOT%\%%I\"  > temp.log
-    copy /y *.ins "..\temp\xpackages\%%I\"  > temp.log
+    xcopy /y *.pdf "..\tds\doc\%ROOT%\"  > temp.log
+    copy /y *.pdf "..\temp\xpackages\"  > temp.log
+    if exist *.tex copy /y *.tex "..\tds\doc\%ROOT%\" > temp.log
+    if exist *.tex copy /y *.tex "..\temp\xpackages\" > temp.log
+    xcopy /y *.dtx "..\tds\source\%ROOT%\"  > temp.log
+    copy /y *.dtx "..\temp\xpackages\"  > temp.log
+    copy /y *.ins "..\tds\source\%ROOT%\"  > temp.log
+    copy /y *.ins "..\temp\xpackages\"  > temp.log
     call make clean
     cd ..
   )
   
-  copy /y *.txt "tds\doc\%ROOT%\" > temp.log
-  copy /y *.txt "temp\xpackages\" > temp.log
+  for %%I in (%TXT%) do (
+    copy /y %%I.txt "tds\doc\%ROOT%\" > temp.log
+    copy /y %%I.txt "temp\xpackages\" > temp.log
+  )
   
   cd tds
   "%ZIP%" %ZIPFLAG% xpackages.tds.zip > temp.log
@@ -157,19 +162,22 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     echo Package %%I
     cd %%I
     call make unpack
-    xcopy /y *.sty "..\tds\tex\%ROOT%\%%I\"  > temp.log
+    xcopy /y *.sty "..\tds\tex\%ROOT%\"  > temp.log
     if exist *.cls (
-      copy /y *.cls "..\tds\tex\%ROOT%\%%I\" > temp.log
+      copy /y *.cls "..\tds\tex\%ROOT%\" > temp.log
     )
     call make doc
-    xcopy /y *.pdf "..\tds\doc\%ROOT%\%%I\"  > temp.log
-    xcopy /y *.dtx "..\tds\source\%ROOT%\%%I\"  > temp.log
-    copy /y *.ins "..\tds\source\%ROOT%\%%I\"  > temp.log
+    xcopy /y *.pdf "..\tds\doc\%ROOT%\"  > temp.log
+    if exist *.tex xcopy /y *.tex "..\tds\doc\%ROOT%\" > temp.log
+    xcopy /y *.dtx "..\tds\source\%ROOT%\"  > temp.log
+    copy /y *.ins "..\tds\source\%ROOT%\"  > temp.log
     call make clean
     cd ..
   )
   
-  copy /y *.txt "tds\doc\%ROOT%\" > temp.log
+  for %%I in (%TXT%) do (
+    copy /y %%I.txt "tds\doc\%ROOT%\" > temp.log
+  )
   
   cd tds
   "%ZIP%" %ZIPFLAG% xpackages.tds.zip > temp.log
