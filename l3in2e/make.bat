@@ -8,7 +8,7 @@ setlocal
 
 set AUXFILES=aux cmds dvi glo gls hd idx ilg ind ist log lvt out tlg toc xref
 set CHECKMODULES=expl3 l3basics l3box l3calc l3clist l3expan l3int l3intexpr l3io l3keyval l3messages l3msg l3names l3num l3precom l3prg l3prop l3quark l3seq l3skip l3tl l3token l3toks l3xref 
-set CLEAN=fc pdf sty zip
+set CLEAN=err fc fmt ltx pdf sty zip
 set NEXT=end
 set SCRIPTDIR=..\support
 set TESTDIR=testfiles
@@ -25,6 +25,7 @@ set VALIDATE=..\validate
   if /i "%1" == "clean"        goto :clean
   if /i "%1" == "ctan"         goto :ctan
   if /i "%1" == "doc"          goto :doc
+  if /i "%1" == "format"       goto :format
   if /i "%1" == "localinstall" goto :localinstall
   if /i "%1" == "savetlg"      goto :savetlg
   if /i "%1" == "sourcedoc"    goto :sourcedoc
@@ -292,6 +293,13 @@ set VALIDATE=..\validate
   
   goto :clean-int
   
+:format
+
+  tex l3format.ins > temp.log
+  pdftex -ini *lbase.ltx > temp.log
+  
+  goto :clean-int
+  
 :help
 
   echo.
@@ -317,6 +325,8 @@ set VALIDATE=..\validate
   echo  make ctan               - create a zip file ready to go to CTAN
   echo.
   echo  make unpack             - extract all modules
+  echo.
+  echo make format              - create lbase.ltx format file
   echo.
   echo  make help               - show this help text
   echo  make
