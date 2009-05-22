@@ -265,7 +265,7 @@ set VALIDATE=..\validate
   xcopy /y *.dtx temp\expl3\ > temp.log
   copy /y *.pdf temp\expl3\ > temp.log
   copy /y *.txt temp\expl3\ > temp.log
-  copy /y l3.ins temp\expl3\ > temp.log
+  copy /y *.ins temp\expl3\ > temp.log
   copy /y source3.tex temp\expl3\ > temp.log
   copy /y expl3.tds.zip temp\ > temp.log
   
@@ -483,7 +483,7 @@ set VALIDATE=..\validate
   copy /y l3vers.dtx tds\tex\latex\expl3\ > temp.log
   
   xcopy /y *.dtx tds\source\latex\expl3\ > temp.log
-  copy /y l3.ins tds\source\latex\expl3\ > temp.log
+  copy /y *.ins tds\source\latex\expl3\ > temp.log
   copy /y source3.tex tds\source\latex\expl3\ > temp.log
   
   call make sourcedoc
