@@ -7,8 +7,8 @@ rem (http://www.7zip.org).
 setlocal
 
 set AUXFILES=aux cmds dvi glo gls hd idx ilg ind ist log lvt out tlg toc xref
-set CHECKMODULES=expl3 l3basics l3box l3calc l3clist l3expan l3int l3intexpr l3io l3keyval l3messages l3msg l3names l3num l3precom l3prg l3prop l3quark l3seq l3skip l3tl l3token l3toks l3xref 
-set CLEAN=err fc fmt ltx pdf sty zip
+set CHECKMODULES=expl3 l3basics l3box l3calc l3clist l3expan l3int l3intexpr l3io l3keyval l3msg l3names l3num l3precom l3prg l3prop l3quark l3seq l3skip l3tl l3token l3toks l3xref 
+set CLEAN=fc fmt ltx pdf sty zip
 set NEXT=end
 set SCRIPTDIR=..\support
 set TESTDIR=testfiles
@@ -239,8 +239,6 @@ set VALIDATE=..\validate
 :clean-int
 
   for %%I in (%AUXFILES%) do if exist *.%%I del /q *.%%I
-  
-  if exist l3in2e.err del l3in2e.err
   
   if exist l3doc.cls del /q l3doc.cls 
   if exist l3doc.ist del /q l3doc.ist
