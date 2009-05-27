@@ -8,7 +8,7 @@ setlocal
 set CTAN=xbase xtheorem
 set NEXT=end
 set ROOT=latex\xpackages
-set TEST=galley xbase xfootnote xfrontm xhead xinitials xor xtheorem
+set TEST=galley xbase xfootnote xfrontm xhead xor xtheorem
 set TXT=readme-ctan README-xpackages
 set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor xtheorem
 
