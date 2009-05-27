@@ -444,13 +444,13 @@ set VALIDATE=..\validate
   tex -quiet l3.ins
   tex -quiet l3doc.dtx
 
-  pdflatex -interaction=nonstopmode -draftmode -quiet source3
+  pdflatex -interaction=nonstopmode -draftmode -quiet "\PassOptionsToClass{nocheck}{l3doc} \input source3"
   if ERRORLEVEL 0 ( 
     echo   Re-typesetting for index generation
     makeindex -q -s l3doc.ist -o source3.ind source3.idx > temp.log
-    pdflatex -interaction=nonstopmode -quiet source3
+    pdflatex -interaction=nonstopmode -quiet "\PassOptionsToClass{nocheck}{l3doc} \input source3"
     echo   Re-typesetting to resolve cross-references
-    pdflatex -interaction=nonstopmode -quiet source3
+    pdflatex -interaction=nonstopmode -quiet "\PassOptionsToClass{nocheck}{l3doc} \input source3"
     for /F "tokens=*" %%I in (source3.log) do (           
       if "%%I" == "Functions documented but not defined:" (   
         echo ! Warning: some functions not defined              
