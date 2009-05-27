@@ -11,7 +11,7 @@ check:
 	make check-xfootnote
 	make check-xfrontm
 	make check-xhead
-	make check-xinitials
+	# make check-xinitials
 	# make check-xlang
 	make check-xor
 	make check-xtheorem
