@@ -325,13 +325,13 @@ alldoc: l3doc.cls
 sourcedoc: l3doc.cls
 	FAIL=0 ; \
 	echo "\nTypesetting source3.tex" ; \
-	pdflatex -interaction=batchmode -draftmode source3.tex &> /dev/null ; \
+	pdflatex -interaction=batchmode -draftmode "\PassOptionsToClass{nocheck}{l3doc}\input source3.tex" &> /dev/null ; \
 	if [ $$? = 0 ] ; then \
 	  echo "Re-typesetting for index generation" ; \
 	  makeindex -s l3doc.ist -o source3.ind source3.idx &> /dev/null ; \
-	  pdflatex -interaction=nonstopmode -draftmode source3.tex &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc}\input source3.tex" &> /dev/null ; \
 	  echo "Re-typesetting to resolve cross-references" ; \
-	  pdflatex -interaction=batchmode source3.tex &> /dev/null ; \
+	  pdflatex -interaction=batchmode "\PassOptionsToClass{nocheck}{l3doc}\input source3.tex" &> /dev/null ; \
 	  if [ $$? -ne 0 ] ; then FAIL=1 ; fi ; \
 	else \
 	  FAIL=1 ; \
