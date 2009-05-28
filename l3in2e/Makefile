@@ -55,6 +55,7 @@ MODULES = \
 	l3chk.dtx \
 	l3clist.dtx \
 	l3expan.dtx \
+	l3file.dtx \
 	l3final.dtx \
 	l3int.dtx \
 	l3intexpr.dtx \
