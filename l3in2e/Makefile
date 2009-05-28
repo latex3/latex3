@@ -61,7 +61,6 @@ MODULES = \
 	l3intexpr.dtx \
 	l3io.dtx \
 	l3keyval.dtx \
-	l3messages.dtx \
 	l3msg.dtx \
 	l3names.dtx \
 	l3num.dtx \
@@ -80,7 +79,7 @@ MODULES = \
 # Modules to check in the `checkcmds` target:
 CHKMODULES = \
 	expl3 l3basics l3box l3calc l3clist l3expan l3int l3intexpr l3io \
-	l3keyval l3messages l3msg l3names l3num l3precom l3prg l3prop l3quark \
+	l3file l3keyval l3msg l3names l3num l3precom l3prg l3prop l3quark \
 	l3seq l3skip l3tl l3token l3toks l3xref
 
 # Docstrip install files:
@@ -136,7 +135,7 @@ scripts:	$(foreach file,$(SCRIPTS),$(SCRIPTDIR)/$(file))
 clean:	cleanuptest 
 
 cleanuptest:
-	rm -f $(TESTDIR)/*
+	rm -rf $(TESTDIR)/*
 
 bootstrap:	
 	@echo "dummy right now"
@@ -165,7 +164,8 @@ unpacksilent:	$(foreach file,$(MODULES) $(INSTALLS),$(TESTDIR)/$(file))
 
 check:	bootstrap scripts texinputs unpack \
                 $(foreach file,$(CFS) $(CLS) $(CFextra),$(TESTDIR)/$(file)) \
-                $(TESTDIR)/regression-test.tex $(TESTDIR)/ascii.tcx
+                $(TESTDIR)/regression-test.tex $(TESTDIR)/ascii.tcx \
+                $(TESTDIR)/testfiles/filetest.txt
 	cd $(TESTDIR) ; \
 	rm -f *tmp* *.log *.diff *.gls *.ind ; \
 	for i in  $(CFS); \
@@ -382,6 +382,10 @@ $(TESTDIR)/%.dtx:	$(SOURCEDIR)/%.dtx
 	@cp -fp $< $@
 
 $(TESTDIR)/%.ins:	$(SOURCEDIR)/%.ins
+	@cp -fp $< $@
+
+$(TESTDIR)/testfiles/filetest.txt: $(TESTFILEDIR)/filetest.txt
+	mkdir -p $(TESTDIR)/testfiles;
 	@cp -fp $< $@
 
 ################################
