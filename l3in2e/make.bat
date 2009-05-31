@@ -6,10 +6,11 @@ rem (http://www.7zip.org).
 
 setlocal
 
-set AUXFILES=aux cmds dvi glo gls hd idx ilg ind ist log lvt out tlg toc xref
-set CHECKMODULES=expl3 l3basics l3box l3calc l3clist l3expan l3int l3intexpr l3io l3keyval l3msg l3names l3num l3precom l3prg l3prop l3quark l3seq l3skip l3tl l3token l3toks l3xref 
-set CLEAN=fc fmt ltx pdf sty zip
+set AUXFILES=aux cmds glo gls hd idx ilg ind log lvt out toc tlg  xref
+set CLEAN=fc cls fmt gz ist ltx pdf sty zip
+set ENGINE=pdflatex
 set NEXT=end
+set PDF=expl3 source3
 set SCRIPTDIR=..\support
 set TESTDIR=testfiles
 set VALIDATE=..\validate
@@ -17,11 +18,11 @@ set VALIDATE=..\validate
 :loop
 
   if /i "%1" == "alldoc"       goto :alldoc
+  if /i "%1" == "check"        goto :check
   if /i "%1" == "checkcmd"     goto :checkcmd
   if /i "%1" == "checkcmds"    goto :checkcmds
   if /i "%1" == "checkdoc"     goto :checkdoc
-  if /i "%1" == "checklvt"     goto :checklvt  
-  if /i "%1" == "check"        goto :check
+  if /i "%1" == "checklvt"     goto :checklvt
   if /i "%1" == "clean"        goto :clean
   if /i "%1" == "ctan"         goto :ctan
   if /i "%1" == "doc"          goto :doc
@@ -35,49 +36,91 @@ set VALIDATE=..\validate
   if /i "%1" == "xechecklvt"   goto :xechecklvt
 
   goto :help
-
+  
 :alldoc
-  
-  set NEXT=alldoc
- 
-  goto :typeset-aux
 
-:alldoc-return
+  call make sourcedoc
 
-  echo Typesetting all dtx files: please be patient!
+  echo.
+  echo Typesetting
   
-  for %%I in (*.dtx) do call temp %%~nI
+  for %%I in (l3*.dtx) do (
+    echo   %%~nI
+    pdflatex -interaction=nonstopmode -draftmode -quiet %%~nI.dtx
+    if ERRORLEVEL 0 (
+      makeindex -q -s l3doc.ist -o %%I.ind %%~nI.idx > temp.log
+      pdflatex -interaction=nonstopmode -quiet %%~nI.dtx
+      pdflatex -interaction=nonstopmode -quiet %%~nI.dtx
+      for /F "tokens=*" %%J in (%%~nI.log) do (
+        if "%%J" == "Functions documented but not defined:" (
+        echo   ! Some functions not defined 
+        )
+        if "%%J" == "Functions defined but not documented:" (
+        echo   ! Some functions not documented 
+        )
+      )
+    ) else (
+      echo   ! %%~nI compilation failed
+    )
+  )
   
-  goto :sourcedoc
+  goto :end
   
 :check
 
-  set NEXT=check
-  set ENGINE=latex
-  
-  goto :checklvt-aux
+  set ENGINE=pdflatex
+    
+  call make unpack
 
-:check-return
- 
-  if exist *.tlg del /q *.tlg
-  copy /y %TESTDIR%\*.tlg > temp.log
-  copy /y %TESTDIR%\*.lvt > temp.log
-     
-  for %%I in (*.tlg) do call temp %%~nI
+:check-int
+
+  set NEXT=check-int
+  if not defined PERL goto :perl
   
-  if exist *.fc (
-    echo.
-    echo List of diffs produced during check:
-    echo ====================================
-    for %%I in (*.fc) do echo %%I
-    echo ====================================
-  ) else (
-    echo.
-    echo All tests passed successfully.
+  copy /y %SCRIPTDIR%\log2tlg > temp.log
+  copy /y %VALIDATE%\regression-test.tex > temp.log
+  
+  if exist *.fc  del /q *.fc
+  if exist *.lvt del /q *.lvt
+  if exist *.tlg del /q *.tlg
+  for %%I in (%TESTDIR%\*.tlg) do (
+    if exist %TESTDIR%\%%~nI.lvt (
+      copy /y %TESTDIR%\%%~nI.lvt > temp.log
+      copy /y %TESTDIR%\%%~nI.tlg > temp.log
+    )
   )
   
-  shift
-
+  echo.
+  echo Running checks on
+  
+  for %%I in (*.tlg) do (
+    echo   %%~nI
+    %ENGINE% %%~nI.lvt > temp.log
+    %ENGINE% %%~nI.lvt > temp.log
+    %PERL% log2tlg %%~nI < %%~nI.log > %%~nI.new.log 
+    del /q %%~nI.log > temp.log
+    ren %%~nI.new.log %%~nI.log > temp.log
+    fc /n  %%~nI.log %%~nI.tlg > %%~nI.fc
+  )
+  
+  for %%I in (*.fc) do (
+    for /f "skip=1 tokens=1" %%J in (%%~nI.fc) do (
+      if "%%J" == "FC:" (
+        del /q %%I
+      )
+    )
+  )
+  
+  echo.
+  if exist *.fc (
+    echo   Checks fails for
+    for %%I in (*.fc) do (
+      echo   - %%~nI
+    ) 
+  ) else (
+    echo   All checks passed
+  )
+  
   goto :clean-int
   
 :checkcmd
@@ -85,153 +128,137 @@ set VALIDATE=..\validate
   if "%2" == "" goto :help
   if not exist %2.dtx goto :no-dtx
   
+  call make unpack
+ 
   copy /y %VALIDATE%\commands-check.tex > temp.log
-  
-  tex -quiet l3.ins
-  tex -quiet l3doc.dtx
   
   if exist missing.cmds.log del /q missing.cmds.log
   
-  echo.                
-  latex -interaction=batchmode -quiet %2.dtx 
-  latex -interaction=batchmode "\def\CMDS{%2.cmds}\input commands-check" > cmds.log
+  echo.
+  echo Checking commands in %2
+  
+  pdflatex -interaction=batchmode -quiet %2.dtx 
+  pdflatex -interaction=batchmode "\def\CMDS{%2.cmds}\input commands-check" > cmds.log
   for /F "tokens=1*" %%I in (cmds.log) do (
     if "%%I"=="!>" copy /y cmds.log missing.cmds.log > temp.log
   )
   if exist missing.cmds.log (
-    echo Module %2 missing commands:
+    echo   Missing commands:
     for /F "tokens=1*" %%I in (missing.cmds.log) do (
-      if "%%I"=="!>" echo   %%J 
+      if "%%I"=="!>" echo   - %%J 
     )
   ) else (
-    echo Module %2: check passed
+    echo   Check passed
   )
   
   shift
   
   goto :clean-int
-
+  
 :checkcmds
   
+  call make unpack
+ 
   copy /y %VALIDATE%\commands-check.tex > temp.log
   
-  tex -quiet l3.ins
-  tex -quiet l3doc.dtx
+  echo.
+  echo Checking commands
   
-  if exist cmds.log del /q cmds.log
-  if exist missing.cmds.log del /q missing.cmds.log
-  
-  echo.  
-  echo Checking
-  for %%I in (%CHECKMODULES%) do (  
-    echo   %%I  
-    latex -interaction=batchmode -quiet %%I.dtx 
-    latex -interaction=batchmode "\def\CMDS{%%I.cmds}\input commands-check" >> cmds.log         
-  )
-  for /F "tokens=1*" %%I in (cmds.log) do (
-    if "%%I"=="!>" copy /y cmds.log missing.cmds.log > temp.log
-  )
-  if exist missing.cmds.log (
-    echo Missing commands:
-    for /F "tokens=1*" %%I in (missing.cmds.log) do (
-      if "%%I"=="!>" echo   %%J 
+  for %%I in (l3*.dtx) do (
+    echo   %%~nI
+    if exist missing.cmds.log del /q missing.cmds.log
+    pdflatex -interaction=batchmode -quiet %%I
+    pdflatex -interaction=batchmode "\def\CMDS{%%~nI.cmds}\input commands-check" > cmds.log
+    for /F "tokens=1*" %%J in (cmds.log) do (
+      if "%%J"=="!>" copy /y cmds.log missing.cmds.log > temp.log
     )
-  ) else (
-    echo Check passed
+    if exist missing.cmds.log (
+      echo     Missing commands:
+      for /F "tokens=1*" %%J in (missing.cmds.log) do (
+        if "%%J"=="!>" echo     - %%K
+      )
+    ) else (
+      echo     Check passed
+    )
   )
   
   goto :clean-int
   
 :checkdoc
 
-  tex -quiet l3.ins
-  tex -quiet l3doc.dtx
+  call make unpack
   
   echo.
-  
-  for %%I in (*.dtx) do (
-    echo Checking %%I
+  echo Checking documentation of functions
+
+  for %%I in (l3*.dtx) do (
+    echo   %%~nI
     pdflatex -interaction=nonstopmode -draftmode -quiet %%I
     if  ERRORLEVEL 0 (
       for /F "tokens=*" %%J in (%%~nI.log) do (
         if "%%J" == "Functions documented but not defined:" (
-          echo ! Warning: some functions not defined
+          echo     Some functions not defined
         )
         if "%%J" == "Functions defined but not documented:" (
-          echo ! Warning: some functions not documented
+          echo     Some functions not documented
         )
       )
     ) else (
-      echo ! %%1.dtx compilation failed
+      echo     Compilation failed
     )
-  )
-  
-  goto :clean-int
+  )  
+
+  goto :clean-int 
   
 :checklvt
 
+  set ENGINE=pdflatex
+    
+  call make unpack
+
+:checklvt-int
+
+  set NEXT=checklvt-int
+  if not defined PERL goto :perl
+  
   if "%2" == "" goto :help
   if not exist %TESTDIR%\%2.lvt goto :no-lvt
   if not exist %TESTDIR%\%2.tlg goto :no-tlg
-
-  set NEXT=checklvt
-  set ENGINE=latex
-  
-  goto :checklvt-aux
-
-:checklvt-return
- 
-  copy /y %TESTDIR%\%2.lvt > temp.log
-  copy /y %TESTDIR%\%2.tlg > temp.log
-  
-  call temp %2
-  
-  if not exist *.fc (
-    echo.
-    echo Test passed successfully.
-  )
-  
-  shift
-
-  goto :clean-int
-  
-:checklvt-aux
- 
-  set PERLNEXT=checklvt-aux
-  if not defined PERL goto :perl
-
-  tex -quiet l3.ins
-  
-  echo Checking:
-  
-  echo @echo off                                                  > temp.bat
-  echo echo   %%1                                                >> temp.bat
-  echo %%ENGINE%% %%1.lvt ^> temp.log                            >> temp.bat
-  echo %%ENGINE%% %%1.lvt ^> temp.log                            >> temp.bat
-  echo %perl% log2tlg %%1 ^< %%1.log ^> %%1.tmp.log              >> temp.bat
-  echo %perl% -n -e "/^\s*$/ || print" ^< %%1.tlg ^> %%1.mod.tlg >> temp.bat
-  echo fc /n  %%1.tmp.log %%1.mod.tlg ^> %%1.fc                  >> temp.bat
-  echo set FLAG=false                                            >> temp.bat
-  echo for /f "skip=1 tokens=1" %%%%I in (%%1.fc) do (           >> temp.bat
-  echo   if "%%%%I" == "FC:" (                                   >> temp.bat
-  echo   set FLAG=true                                           >> temp.bat
-  echo   )                                                       >> temp.bat
-  echo )                                                         >> temp.bat
-  echo if %%FLAG%%==true  (                                      >> temp.bat
-  echo   del /q %%1.fc                                           >> temp.bat
-  echo ) else (                                                  >> temp.bat
-  echo   echo.                                                   >> temp.bat
-  echo   echo *********************                              >> temp.bat
-  echo   echo * Check not passed! *                              >> temp.bat
-  echo   echo *********************                              >> temp.bat
-  echo   echo.                                                   >> temp.bat
-  echo )                                                         >> temp.bat
   
   copy /y %SCRIPTDIR%\log2tlg > temp.log
   copy /y %VALIDATE%\regression-test.tex > temp.log
-
-  goto :%NEXT%-return
   
+  copy /y %TESTDIR%\%2.lvt > temp.log
+  copy /y %TESTDIR%\%2.tlg > temp.log
+  
+  if exist %2.fc  del /q %2.fc
+  
+  echo.
+  echo Running checks on %2
+
+  %ENGINE% %2.lvt > temp.log
+  %ENGINE% %2.lvt > temp.log
+  %PERL% log2tlg %2 < %2.log > %2.new.log
+  del /q %2.log > temp.log 
+  ren %2.new.log %2.log > temp.log
+  fc /n  %2.log %2.tlg > %2.fc
+  
+  for /f "skip=1 tokens=1" %%I in (%2.fc) do (
+    if "%%I" == "FC:" (
+      del /q %2.fc
+    )
+  )
+  
+  if exist %2.fc (
+    echo   Checks fails
+  ) else (
+    echo   Check passed
+  )
+  
+  shift
+  
+  goto :clean-int 
+
 :clean
 
   for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
@@ -240,14 +267,9 @@ set VALIDATE=..\validate
 
   for %%I in (%AUXFILES%) do if exist *.%%I del /q *.%%I
   
-  if exist l3doc.cls del /q l3doc.cls 
-  if exist l3doc.ist del /q l3doc.ist
-  
   if exist log2tlg del /q log2tlg
   if exist commands-check.tex del /q commands-check.tex
   if exist regression-test.tex del /q regression-test.tex
-  
-  if exist temp.bat del /q temp.bat
     
   goto :end
   
@@ -258,11 +280,19 @@ set VALIDATE=..\validate
   
   call make tds
   
+  echo.
+  echo Making CTAN archive
+  
   if exist temp\*.* del /q /s temp\*.* > temp.log
   
   xcopy /y *.dtx temp\expl3\ > temp.log
-  copy /y *.pdf temp\expl3\ > temp.log
+  for %%I in (%PDF%) do (
+    copy /y %%I.pdf temp\expl3\ > temp.log
+  )
   copy /y *.txt temp\expl3\ > temp.log
+  pushd temp\expl3
+  ren README.txt README
+  popd
   copy /y *.ins temp\expl3\ > temp.log
   copy /y source3.tex temp\expl3\ > temp.log
   copy /y expl3.tds.zip temp\ > temp.log
@@ -276,58 +306,66 @@ set VALIDATE=..\validate
   goto :clean-int
   
 :doc
-  
+
   if "%2" == "" goto :help
   if not exist %2.dtx goto :no-dtx
-  
-  set NEXT=doc
-  goto :typeset-aux
-  
-:doc-return
-  
-  call temp %2
+
+  call make unpack
+
+  echo Typesetting %2
+  pdflatex -interaction=nonstopmode -draftmode -quiet %2.dtx
+  if ERRORLEVEL 0 (
+    makeindex -q -s l3doc.ist -o %2.ind %2.idx > temp.log
+    pdflatex -interaction=nonstopmode -quiet %2.dtx
+    pdflatex -interaction=nonstopmode -quiet %2.dtx
+    for /F "tokens=*" %%I in (%2.log) do (
+      if "%%I" == "Functions documented but not defined:" (
+      echo ! Some functions not defined 
+      )
+      if "%%I" == "Functions defined but not documented:" (
+      echo ! Some functions not documented 
+      )
+    )
+  ) else (
+    echo ! %2 compilation failed
+  )
   
   shift
   
   goto :clean-int
   
 :format
+  
+  call make unpack
+
+  echo. 
+  echo Making format
 
   tex l3format.ins > temp.log
   pdftex -ini *lbase.ltx > temp.log
   
-  goto :clean-int
+  goto :clean-int  
   
 :help
 
   echo.
-  echo  make clean              - clean out test dirs
-  echo.
-  echo  make check              - set up and run all tests LaTeX
-  echo  make xecheck            - set up and run all tests using XeLaTeX
-  echo  make checklvt ^<name^>    - run ^<name^>.lvt only using LaTeX
-  echo  make xechecklvt ^<name^>  - run ^<name^>.lvt only using XeLaTeX
-  echo  make savetlg  ^<name^>    - save ^<name^>.tlg as a new certified test
-  echo.
-  echo  make checkdoc           - check all modules compile correctly
-  echo  make checkcmd ^<name^>    - check all functions are defined in one module
-  echo  make checkcmds          - check all functions are defined in all modules
-  echo.
-  echo  make doc ^<name^>         - typeset ^<name^>.dtx
-  echo  make sourcedoc          - typeset source3.tex
-  echo  make alldoc             - typeset all documentation
-  echo.
-  echo  make localinstall       - install the .sty files in your home texmf tree
-  echo.
-  echo  make tds                - creates a TDS-ready zip of all packages
-  echo  make ctan               - create a zip file ready to go to CTAN
-  echo.
-  echo  make unpack             - extract all modules
-  echo.
-  echo make format              - create lbase.ltx format file
-  echo.
-  echo  make help               - show this help text
-  echo  make
+  echo  make alldoc            - typeset all documentation
+  echo  make check             - runs automated test suite using pdfLaTeX
+  echo  make checklvt ^<name^>   - runs automated test on ^<name^> using pdfLaTeX
+  echo  make checkcmd ^<name^>   - checks all functions are defined in ^<name^> 
+  echo  make checkcmds         - checks all functions are defined in all modules 
+  echo  make checkdoc          - checks all documentation compiles correctly
+  echo  make clean             - delete all generated files
+  echo  make ctan              - create an archive ready for CTAN
+  echo  make doc ^<name^>        - typesets ^<name^>.dtx
+  echo  make format            - create create lbase format file
+  echo  make localinstall      - extract packages
+  echo  make savetlg ^<name^>    - save test log for ^<name^>
+  echo  make sourcedoc         - typeset expl3 and source3
+  echo  make tds               - create a TDS-ready archive
+  echo  make unpack            - extract packages
+  echo  make xecheck           - runs automated test suite using XeLaTeX
+  echo  make xechecklvt ^<name^> - runs automated test for ^<name^> using XeLaTeX
   
   goto :end
   
@@ -340,20 +378,17 @@ set VALIDATE=..\validate
     echo using default value %USERPROFILE%\texmf
   )
   
-  SET LTEXMF=%TEXMFHOME%\tex\latex\expl3
+  SET LTEXMF=%TEXMFHOME%\tex\latex\keys3
+  
+  call make unpack
   
   echo.
   echo Installing files
   
   if exist "%LTEXMF%\*.*" del /q "%LTEXMF%\*.*"
-  
-  tex -quiet l3.ins
-  tex -quiet l3doc.dtx
-  
   xcopy /y *.sty "%LTEXMF%\*.*" > temp.log
-  copy /y *.cls "%LTEXMF%\*.*" > temp.log
+  copy /y l3doc.cls "%LTEXMF%\*.*" > temp.log
   copy /y l3vers.dtx "%LTEXMF%\*.*" > temp.log
-  
   xcopy /y l3doc.ist "%TEXMFHOME%\makeindex\expl3\*.*" > temp.log
   
   goto :clean-int
@@ -362,8 +397,8 @@ set VALIDATE=..\validate
   
   echo.
   echo No such file %2.dtx
-  echo.
-  echo Type "make help" for more help
+  
+  shift
 
   goto :end
   
@@ -371,8 +406,8 @@ set VALIDATE=..\validate
   
   echo.
   echo No such file %2.lvt
-  echo.
-  echo Type "make help" for more help
+  
+  shift
 
   goto :end
   
@@ -380,10 +415,36 @@ set VALIDATE=..\validate
   
   echo.
   echo No such file %2.tlg
-  echo.
-  echo Type "make help" for more help
+  
+  shift
 
   goto :end
+  
+:savetlg
+
+  if "%2" == "" goto :help
+  if not exist %TESTDIR%\%2.lvt goto :no-lvt
+
+  set NEXT=savetlg
+  if not defined PERL goto :perl
+  
+  call make unpack
+ 
+  copy /y %SCRIPTDIR%\log2tlg > temp.log
+  copy /y %VALIDATE%\regression-test.tex > temp.log
+  copy /y %TESTDIR%\%2.lvt > temp.log
+  
+  echo.
+  echo Creating and copying %2.tlg
+  
+  pdflatex %2.lvt > temp.log 
+  pdflatex %2.lvt > temp.log
+  %PERL% log2tlg %2 < %2.log > %2.tlg
+  copy /y %2.tlg %TESTDIR%\%2.tlg > temp.log
+  
+  shift 
+  
+  goto :clean-int
   
 :perl
 
@@ -396,54 +457,27 @@ set VALIDATE=..\validate
     set PATHCOPY=%%J;%%K
   )
   
-  if defined PERL goto :%PERLNEXT%
+  if defined PERL goto :%NEXT%
 
   if not "%PATHCOPY%"==";" goto :perl-loop
   
   if exist %SYSTEMROOT%\Perl\bin\perl.exe set PERL=%SYSTEMROOT%\Perl\bin\perl
   if exist %ProgramFiles%\Perl\bin\perl.exe set PERL=%ProgramFiles%\Perl\bin\perl
   
-  if defined PERL goto :%PERLNEXT%
+  if defined PERL goto :%NEXT%
   
   echo.
-  echo   This procedure requires Perl, but it could not be found.
-  echo.
+  echo  This procedure requires Perl, but it could not be found.
   
   goto :end
   
-:savetlg
-
-  if "%2" == "" goto :help
-  if not exist %TESTDIR%\%2.lvt goto :no-lvt
-
-  set PERLNEXT=savetlg
-  if not defined PERL goto :perl
- 
-  copy /y %SCRIPTDIR%\log2tlg > temp.log
-  copy /y %VALIDATE%\regression-test.tex > temp.log
-  
-  copy /y %TESTDIR%\%2.lvt > temp.log
-
-  tex -quiet l3.ins
-  
-  echo Creating and copying %2.tlg
-  latex %2.lvt > temp.log 
-  latex %2.lvt > temp.log
-  %PERL% log2tlg %2 < %2.log > %2.tlg
-  copy /y %2.tlg %TESTDIR%\%2.tlg > temp.log
-  
-  shift 
-  
-  goto :clean-int
-  
 :sourcedoc
 
-  echo.
-  echo Typesetting source3.tex
-  
-  tex -quiet l3.ins
-  tex -quiet l3doc.dtx
+  call make unpack
 
+  echo.
+  echo Typesetting source3
+  
   pdflatex -interaction=nonstopmode -draftmode -quiet "\PassOptionsToClass{nocheck}{l3doc} \input source3"
   if ERRORLEVEL 0 ( 
     echo   Re-typesetting for index generation
@@ -460,9 +494,21 @@ set VALIDATE=..\validate
       )                                                        
     )
   ) else (
-    echo ! source3.tex compilation failed  
-  )                                                           
+    echo ! source3 compilation failed  
+  )
   
+  echo.
+  echo Typesetting expl3
+  
+  pdflatex -interaction=nonstopmode -draftmode -quiet expl3.dtx
+  if ERRORLEVEL 0 (
+    makeindex -q -s l3doc.ist -o expl3.ind expl3.idx > temp.log
+    pdflatex -interaction=nonstopmode -quiet expl3.dtx
+    pdflatex -interaction=nonstopmode -quiet expl3.dtx
+  ) else (
+    echo ! expl3 compilation failed
+  )
+    
   goto :clean-int
   
 :tds
@@ -470,34 +516,31 @@ set VALIDATE=..\validate
   set NEXT=tds
   if not defined ZIP goto :zip
 
-  echo.
-  echo Creating working files
-
   if exist tds\*.* del /q /s tds\*.* > temp.log
   
-  tex -quiet l3.ins
-  tex -quiet l3doc.dtx
+  call make sourcedoc
+  
+  echo.
+  echo Making TDS structure 
   
   xcopy /y *.sty tds\tex\latex\expl3\ > temp.log
-  copy /y *.cls tds\tex\latex\expl3\ > temp.log
+  copy /y l3doc.cls tds\tex\latex\expl3\ > temp.log
   copy /y l3vers.dtx tds\tex\latex\expl3\ > temp.log
+  
+  xcopy /y l3doc.ist tds\makeindex\expl3\ > temp.log
   
   xcopy /y *.dtx tds\source\latex\expl3\ > temp.log
   copy /y *.ins tds\source\latex\expl3\ > temp.log
   copy /y source3.tex tds\source\latex\expl3\ > temp.log
   
-  call make sourcedoc
-  
-  set NEXT=tds
-  goto :typeset-aux
-  
-:tds-return
-
-  call temp expl3
-  
   xcopy /y *.txt tds\doc\latex\expl3\ > temp.log
-  copy /y *.pdf tds\doc\latex\expl3\ > temp.log
-  
+  pushd tds\doc\latex\expl3
+  ren README.txt README
+  popd
+  for %%I in (%PDF%) do (
+    copy /y %%I.pdf tds\doc\latex\expl3\ > temp.log
+  )
+ 
   cd tds
   "%ZIP%" %ZIPFLAG% expl3.tds.zip > temp.log
   cd ..
@@ -507,58 +550,32 @@ set VALIDATE=..\validate
   
   goto :clean-int
   
-:typeset-aux
+:xecheck
 
-  tex -quiet l3.ins
-  tex -quiet l3doc.dtx
+  set ENGINE=xelatex
 
-  echo @echo off                                                    > temp.bat
-  echo echo Typesetting %%1.dtx                                    >> temp.bat
-  echo pdflatex -interaction=nonstopmode -draftmode -quiet %%1.dtx >> temp.bat
-  echo if ERRORLEVEL 0 (                                           >> temp.bat
-  echo   makeindex -q -s l3doc.ist -o %%1.ind %%1.idx ^> temp.log  >> temp.bat
-  echo   pdflatex -interaction=nonstopmode -quiet %%1.dtx          >> temp.bat
-  echo   pdflatex -interaction=nonstopmode -quiet %%1.dtx          >> temp.bat
-  echo   for /F "tokens=*" %%%%I in (%%1.log) do (                 >> temp.bat
-  echo     if "%%%%I" == "Functions documented but not defined:" ( >> temp.bat
-  echo       echo ! Warning: some functions not defined            >> temp.bat
-  echo     )                                                       >> temp.bat
-  echo     if "%%%%I" == "Functions defined but not documented:" ( >> temp.bat
-  echo       echo ! Warning: some functions not documented         >> temp.bat
-  echo     )                                                       >> temp.bat
-  echo   )                                                         >> temp.bat
-  echo ) else (                                                    >> temp.bat
-  echo   echo ! %%1.dtx compilation failed                         >> temp.bat
-  echo )                                                           >> temp.bat
-        
-  goto :%NEXT%-return
+  call make unpack
+  
+  goto :check-int
+
+:xechecklvt
+
+  set ENGINE=xelatex
+
+  call make unpack
+  
+  goto :checklvt-int
   
 :unpack
-
-  tex l3.ins > temp.log
-  tex l3doc.dtx > temp.log
   
+  echo.
+  echo Unpacking files
+  
+  tex -quiet l3.ins
+  tex -quiet l3doc.dtx
   del /q *.log
   
   goto :end
-  
-:xecheck
-
-  set NEXT=check
-  set ENGINE=xelatex
-  
-  goto :checklvt-aux
-  
-:xechecklvt
-
-  if "%2" == "" goto :help
-  if not exist %TESTDIR%\%2.lvt goto :no-lvt
-  if not exist %TESTDIR%\%2.tlg goto :no-tlg
-
-  set NEXT=checklvt
-  set ENGINE=xelatex
-  
-  goto :checklvt-aux
   
 :zip  
 
