@@ -7,6 +7,7 @@ rem (http://www.7zip.org).
 setlocal
 
 set AUXFILES=aux cmds glo gls hd idx ilg ind log lvt out toc tlg  xref
+set CHECKCMDS=basics box calc clist doc expan file int intexpr io keyval msg names num precom prg prop quark seq skip tl token toks xref
 set CLEAN=fc cls fmt gz ist ltx pdf sty zip
 set ENGINE=pdflatex
 set NEXT=end
@@ -147,9 +148,7 @@ set VALIDATE=..\validate
     for /F "tokens=1*" %%I in (missing.cmds.log) do (
       if "%%I"=="!>" echo   - %%J 
     )
-  ) else (
-    echo   Check passed
-  )
+  ) 
   
   shift
   
@@ -164,11 +163,11 @@ set VALIDATE=..\validate
   echo.
   echo Checking commands
   
-  for %%I in (l3*.dtx) do (
-    echo   %%~nI
+  for %%I in (%CHECKCMDS%) do (
+    echo   l3%%~nI
     if exist missing.cmds.log del /q missing.cmds.log
-    pdflatex -interaction=batchmode -quiet %%I
-    pdflatex -interaction=batchmode "\def\CMDS{%%~nI.cmds}\input commands-check" > cmds.log
+    pdflatex -interaction=batchmode -quiet l3%%I.dtx
+    pdflatex -interaction=batchmode "\def\CMDS{l3%%I.cmds}\input commands-check" > cmds.log
     for /F "tokens=1*" %%J in (cmds.log) do (
       if "%%J"=="!>" copy /y cmds.log missing.cmds.log > temp.log
     )
@@ -177,8 +176,6 @@ set VALIDATE=..\validate
       for /F "tokens=1*" %%J in (missing.cmds.log) do (
         if "%%J"=="!>" echo     - %%K
       )
-    ) else (
-      echo     Check passed
     )
   )
   
