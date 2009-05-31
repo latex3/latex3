@@ -60,7 +60,8 @@ test suite is run).
 These are the `expl3` modules with _complete_ test files:
 
  -  `l3clist`  
- -  `l3int`    
+ -  `l3int`
+ -  `l3io`      
  -  `l3keyval`
  -  `l3msg` 
  -  `l3num`    
@@ -77,7 +78,6 @@ These are the `expl3` modules with _complete_ test files:
 This module has _incomplete_ test files:
 
  -  `l3expan` 
- -  `l3io`  
 
 These modules are lacking test files:
 
