@@ -354,6 +354,8 @@ set VALIDATE=..\validate
   copy /y *.cls "%LTEXMF%\*.*" > temp.log
   copy /y l3vers.dtx "%LTEXMF%\*.*" > temp.log
   
+  xcopy /y l3doc.ist "%TEXMFHOME%\makeindex\expl3\*.*" > temp.log
+  
   goto :clean-int
   
 :no-dtx
