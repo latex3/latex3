@@ -76,14 +76,14 @@ These are the `expl3` modules with _complete_ test files:
 
 This module has _incomplete_ test files:
 
- -  `l3expan`  
+ -  `l3expan` 
+ -  `l3io`  
 
 These modules are lacking test files:
 
  -  `l3basics` 
  -  `l3box`    
  -  `l3calc`   
- -  `l3io`     
 
 
 ## Modules without tests
@@ -95,7 +95,6 @@ or their status is tentative.
  -   `l3chk`        (see note below)
  -   `l3doc`
  -   `l3final`
- -   `l3messages`
  -   `l3names`
  -   `l3precom`
  -   `l3vers`
