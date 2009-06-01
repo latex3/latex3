@@ -122,6 +122,10 @@ set VALIDATE=..\validate
     echo   All checks passed
   )
   
+  for %%I in (*.tlg) do (
+    if exist %%~nI.pdf del /q %%~nI.pdf
+  )
+  
   goto :clean-int
   
 :checkcmd
@@ -251,6 +255,8 @@ set VALIDATE=..\validate
   ) else (
     echo   Check passed
   )
+  
+  if exist %2.pdf del /q %2.pdf
   
   shift
   
