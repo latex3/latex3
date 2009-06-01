@@ -308,8 +308,10 @@ set VALIDATE=..\validate
   if not exist %2.dtx goto :no-dtx
 
   call make unpack
-
+  
+  echo.
   echo Typesetting %2
+  
   pdflatex -interaction=nonstopmode -draftmode -quiet %2.dtx
   if ERRORLEVEL 0 (
     makeindex -q -s l3doc.ist -o %2.ind %2.idx > temp.log
