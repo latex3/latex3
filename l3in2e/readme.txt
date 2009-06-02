@@ -1,9 +1,8 @@
 
-   Experimental Packages Demonstrating
-   A Possible LaTeX3 Programming Convention
-   ========================================
+   An Experimental LaTeX3 Programming Convention
+   =============================================
 
-   2008/08/05
+   2009/06/02
 
 
 WHERE TO GET IT
@@ -29,13 +28,10 @@ This API provides the foundation on which the LaTeX3 kernel and other
 advanced extensions are built. Special care has been taken so that
 they can be used within a LaTeX2e context as regular packages.
 
-While the existing code is approaching a stable state, we cannot
-guarantee that names of packages or commands they define will not
-change. This is also related to the history of the code: It has been
-developed over time and has been used in previous versions for
-prototypes implementations, experiments, etc. It may therefore
-occasionally contain references to parts that are at present not
-distributed.
+While expl3 is still experimental, the bundle is now regarded as
+broadly stable. The syntax conventions and functions provided are now
+ready for wider use. There may still be changes to some functions, but
+these will be minor when compared to the scope of expl3.
 
 
 THE GUILTY PERSONS
@@ -43,7 +39,8 @@ THE GUILTY PERSONS
 
    Frank Mittelbach, Denys Duchier, Johannes Braams, Michael Downes,
    David Carlisle, Alan Jeffrey, Chris Rowley, Rainer Schoepf 
-   Javier Bezos, Morten Hoegholm, Thomas Lotze, Will Robertson
+   Javier Bezos, Morten Hoegholm, Thomas Lotze, Will Robertson,
+   Joseph Wright
 
 
 DISCUSSION
@@ -208,11 +205,10 @@ Module providing the low-level interface for cross references. This
 module also contains a test file which is generated along with the
 package.
 
-l3messages
+l3msg
 =====
 
-Module providing a new mechanism to provide longer warning and error
-messages based on storing the messages in external files.
+Module providing a new mechanism to provide user messages.
 
 l3calc
 =====
@@ -253,11 +249,21 @@ l3final.dtx
 This file is reserved for the last minute coding for producing a
 format (such as the dump instruction).
 
+l3format.ins
+============
+
+Process with plain TeX or LaTeX2e to generate the experimental
+format file lbase.ltx and its companion lbase.ini.
+The run pdfetex --ini "*lbase.ini" to produce the experimental
+format. 
+
+=====================================================================
+
 source3.tex
 ===========
 
-Run this file with pdfLaTeX in extended mode:
-pdflatex "*source3.tex" to produce the documentation.
+Run this file with pdfLaTeX:
+pdflatex source3 to produce the documentation.
 Doing this will produce three extra files (source3.ist, l3doc.cfg and
 l3full.cfg). The first of these is a style file for makeindex; the
 others or configuration files for the documentation class.
@@ -269,44 +275,12 @@ After that run makeindex to produce the index, like so:
 makeindex -s source3.ist source3
 and rerun LaTeX.
 
-l3format.ins
-============
-
-Process with plain TeX or LaTeX2e to generate the experimental
-format file lbase.ltx and its companion lbase.ini.
-The run pdfetex --ini "*lbase.ini" to produce the experimental
-format. 
-
-=====================================================================
-
-Test Files
-==========
-
-Two test files show the expansion module at work.
-
-test1.tex
+expl3.dtx
 =========
 
-Test document showing the expansion module at work.
-
-test2.tex
-=========
-
-The same test as the file test1, but this time the l3names package is
-loaded with [removeoldnames]. This is useful for testing, but as it
-breaks all LaTeX2 code, it is not so useful for documents.  (For
-example {document} would generate an error.)  In this mode
-\RequirePackage may be used to load further packages, as demonstrated
-in this file, but any other LaTeX2 command is likely to fail.
-
-The option removeoldnames has been disabled temporarily and so this
-test file is of limited use.
-
-test3.tex
-=========
-
-This tests the io and precomp modules.
-
+This provides a single "load point" for the entire expl3 bundle.
+Running pdflatex expl3.dtx will produce a general overview document
+explaining the basics of expl3 programming.
 
 =====================================================================
 
