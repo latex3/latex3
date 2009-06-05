@@ -157,15 +157,16 @@ unpacksilent:	$(foreach file,$(MODULES) $(INSTALLS),$(TESTDIR)/$(file))
 	  latex $$i &> /dev/null ; \
 	done
 
+testinstall:	bootstrap scripts texinputs unpack \
+                $(foreach file,$(CFS) $(CLS) $(CFextra),$(TESTDIR)/$(file)) \
+                $(TESTDIR)/regression-test.tex $(TESTDIR)/ascii.tcx \
+                $(TESTDIR)/testfiles/filetest.txt
 
 ################################
 # unit tests
 ################################
 
-check:	bootstrap scripts texinputs unpack \
-                $(foreach file,$(CFS) $(CLS) $(CFextra),$(TESTDIR)/$(file)) \
-                $(TESTDIR)/regression-test.tex $(TESTDIR)/ascii.tcx \
-                $(TESTDIR)/testfiles/filetest.txt
+check:	testinstall
 	cd $(TESTDIR) ; \
 	rm -f *tmp* *.log *.diff *.gls *.ind ; \
 	for i in  $(CFS); \
@@ -186,9 +187,7 @@ check:	bootstrap scripts texinputs unpack \
 	fi ;
 
 
-checklvt:	$(TESTDIR)/$(F).lvt scripts unpacksilent \
-                $(foreach file,$(CFS) $(CLS) $(CFextra),$(TESTDIR)/$(file)) \
-                $(TESTDIR)/regression-test.tex $(TESTDIR)/ascii.tcx
+checklvt:	testinstall
 	cd $(TESTDIR) ; \
 	rm -f *tmp* *.log *.diff *.gls *.ind ; \
 	$(SCRIPTDIR)/checktlg latex $(F).lvt $(TESTDIR)/ascii.tcx ; \
