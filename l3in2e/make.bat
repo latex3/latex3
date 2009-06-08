@@ -383,7 +383,7 @@ set VALIDATE=..\validate
     echo using default value %USERPROFILE%\texmf
   )
   
-  SET LTEXMF=%TEXMFHOME%\tex\latex\keys3
+  SET LTEXMF=%TEXMFHOME%\tex\latex\expl3
   
   call make unpack
   
