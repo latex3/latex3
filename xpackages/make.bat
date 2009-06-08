@@ -5,7 +5,7 @@ rem require a zip program such as 7-Zip (http://www.7zip.org).
 
 setlocal
 
-set CTAN=xbase xtheorem
+set CTAN=xbase
 set NEXT=end
 set ROOT=latex\xpackages
 set TEST=galley xbase xfootnote xfrontm xhead xor xtheorem
@@ -87,6 +87,12 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     copy /y %%I.txt "tds\doc\%ROOT%\" > temp.log
     copy /y %%I.txt "temp\xpackages\" > temp.log
   )
+  pushd tds\doc\%ROOT%\
+  ren README-ctan.txt README
+  popd
+  pushd temp\xpackages\
+  ren README-ctan.txt README
+  popd
   
   cd tds
   "%ZIP%" %ZIPFLAG% xpackages.tds.zip > temp.log
