@@ -3,7 +3,7 @@
    Possible LaTeX3 High-Level Concepts
    ====================================
 
-   2008/08/05
+   2009/06/09
 
 
 WHERE TO GET IT
@@ -32,9 +32,6 @@ functionality provided by the packages within the xbase bundle.
 Currently included in the CTAN release of xpackages are the following
 bundles:
     xbase
-    xtheorem
-
-
 
 xbase
 -----
@@ -58,18 +55,6 @@ Files included:
   source: xbase.ins, xparse.dtx, template.dtx, ldcsetup.dtx
   test:   template-test.tex, template-test2.tex, tprestrict-test.tex,
           xparse-test.tex
-
-
-xtheorem
---------
-
-The xtheorem package is a prototype reimplementation of the AMS-LaTeX
-theorem environments using the template mechanism. It was originally
-developed by Achim Blumensath.
-
-Files included:
-  source: xtheorem.dtx, xtheorem.ins
-  test:   xtheorem-test.tex
 
 
 
@@ -102,5 +87,5 @@ Also please don't expect these package to work with *any* code that
 floats around in the LaTeX2e world. :-)
 
 
---- Copyright 1998 -- 2008
+--- Copyright 1998 -- 2009
     The LaTeX3 Project.  All rights reserved ---
