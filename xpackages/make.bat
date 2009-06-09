@@ -65,10 +65,8 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     cd %%I
     call make unpack
     xcopy /y *.sty "..\tds\tex\%ROOT%\"  > temp.log
-    xcopy /y *.sty "..\temp\xpackages\"  > temp.log
     if exist *.cls (
       copy /y *.cls "..\tds\tex\%ROOT%\" > temp.log
-      copy /y *.cls "..\temp\xpackages\" > temp.log
     )
     call make doc
     xcopy /y *.pdf "..\tds\doc\%ROOT%\"  > temp.log
