@@ -73,12 +73,12 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     call make doc
     xcopy /y *.pdf "..\tds\doc\%ROOT%\"  > temp.log
     copy /y *.pdf "..\temp\xpackages\"  > temp.log
-    if exist *.tex copy /y *.tex "..\tds\doc\%ROOT%\" > temp.log
-    if exist *.tex copy /y *.tex "..\temp\xpackages\" > temp.log
     xcopy /y *.dtx "..\tds\source\%ROOT%\"  > temp.log
     copy /y *.dtx "..\temp\xpackages\"  > temp.log
     copy /y *.ins "..\tds\source\%ROOT%\"  > temp.log
     copy /y *.ins "..\temp\xpackages\"  > temp.log
+    if exist *.tex copy /y *.tex "..\tds\source\%ROOT%\" > temp.log
+    if exist *.tex copy /y *.tex "..\temp\xpackages\" > temp.log
     call make clean
     cd ..
   )
