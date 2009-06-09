@@ -468,6 +468,7 @@ set VALIDATE=..\validate
   
   if exist %SYSTEMROOT%\Perl\bin\perl.exe set PERL=%SYSTEMROOT%\Perl\bin\perl
   if exist %ProgramFiles%\Perl\bin\perl.exe set PERL=%ProgramFiles%\Perl\bin\perl
+  if exist %SYSTEMROOT%\strawberry\Perl\bin\perl.exe set PERL=%SYSTEMROOT%\strawberry\Perl\bin\perl
   
   if defined PERL goto :%NEXT%
   
