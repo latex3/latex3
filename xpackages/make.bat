@@ -9,16 +9,16 @@ set CTAN=xbase
 set NEXT=end
 set ROOT=latex\xpackages
 set TEST=galley xbase xfootnote xfrontm xhead xor xtheorem
-set TXT=readme-ctan README-xpackages
+set TXT=readme-ctan
 set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor xtheorem
 
 :loop
 
-  if /i "%1" == "check"        goto :check
-  if /i "%1" == "clean"        goto :clean
-  if /i "%1" == "ctan"         goto :ctan
-  if /i "%1" == "localinstall" goto :localinstall
-  if /i "%1" == "tds"          goto :tds
+  if /i [%1] == [check]        goto :check
+  if /i [%1] == [clean]        goto :clean
+  if /i [%1] == [ctan]         goto :ctan
+  if /i [%1] == [localinstall] goto :localinstall
+  if /i [%1] == [tds]          goto :tds
   
   goto :help
   
@@ -70,7 +70,7 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     )
     call make doc
     xcopy /y *.pdf "..\tds\doc\%ROOT%\"  > temp.log
-    copy /y *.pdf "..\temp\xpackages\"  > temp.log
+    xcopy /y *.pdf "..\temp\xpackages\"  > temp.log
     xcopy /y *.dtx "..\tds\source\%ROOT%\"  > temp.log
     copy /y *.dtx "..\temp\xpackages\"  > temp.log
     copy /y *.ins "..\tds\source\%ROOT%\"  > temp.log
@@ -232,7 +232,7 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
 :end
 
   shift
-  if not "%1" == "" goto :loop
+  if not [%1] == [] goto :loop
   
   endlocal
   
