@@ -6,7 +6,7 @@ rem (http://www.7zip.org).
 
 setlocal
 
-set AUXFILES=aux cmds glo gls hd idx ilg ind log lvt out toc tlg  xref
+set AUXFILES=aux cmds glo gls hd idx ilg ind log lvt out toc tlg xref
 set CHECKCMDS=basics box calc clist doc expan file int intexpr io keyval msg names num precom prg prop quark seq skip tl token toks xref
 set CLEAN=fc cls fmt gz ist ltx pdf sty zip
 set ENGINE=pdflatex
@@ -18,23 +18,23 @@ set VALIDATE=..\validate
 
 :loop
 
-  if /i "%1" == "alldoc"       goto :alldoc
-  if /i "%1" == "check"        goto :check
-  if /i "%1" == "checkcmd"     goto :checkcmd
-  if /i "%1" == "checkcmds"    goto :checkcmds
-  if /i "%1" == "checkdoc"     goto :checkdoc
-  if /i "%1" == "checklvt"     goto :checklvt
-  if /i "%1" == "clean"        goto :clean
-  if /i "%1" == "ctan"         goto :ctan
-  if /i "%1" == "doc"          goto :doc
-  if /i "%1" == "format"       goto :format
-  if /i "%1" == "localinstall" goto :localinstall
-  if /i "%1" == "savetlg"      goto :savetlg
-  if /i "%1" == "sourcedoc"    goto :sourcedoc
-  if /i "%1" == "tds"          goto :tds
-  if /i "%1" == "unpack"       goto :unpack
-  if /i "%1" == "xecheck"      goto :xecheck
-  if /i "%1" == "xechecklvt"   goto :xechecklvt
+  if /i [%1] == [alldoc]       goto :alldoc
+  if /i [%1] == [check]        goto :check
+  if /i [%1] == [checkcmd]     goto :checkcmd
+  if /i [%1] == [checkcmds]    goto :checkcmds
+  if /i [%1] == [checkdoc]     goto :checkdoc
+  if /i [%1] == [checklvt]     goto :checklvt
+  if /i [%1] == [clean]        goto :clean
+  if /i [%1] == [ctan]         goto :ctan
+  if /i [%1] == [doc]          goto :doc
+  if /i [%1] == [format]       goto :format
+  if /i [%1] == [localinstall] goto :localinstall
+  if /i [%1] == [savetlg]      goto :savetlg
+  if /i [%1] == [sourcedoc]    goto :sourcedoc
+  if /i [%1] == [tds]          goto :tds
+  if /i [%1] == [unpack]       goto :unpack
+  if /i [%1] == [xecheck]      goto :xecheck
+  if /i [%1] == [xechecklvt]   goto :xechecklvt
 
   goto :help
   
@@ -48,7 +48,7 @@ set VALIDATE=..\validate
   for %%I in (l3*.dtx) do (
     echo   %%~nI
     pdflatex -interaction=nonstopmode -draftmode -quiet %%~nI.dtx
-    if ERRORLEVEL 0 (
+    if not ERRORLEVEL 1 (
       makeindex -q -s l3doc.ist -o %%I.ind %%~nI.idx > temp.log
       pdflatex -interaction=nonstopmode -quiet %%~nI.dtx
       pdflatex -interaction=nonstopmode -quiet %%~nI.dtx
@@ -130,7 +130,7 @@ set VALIDATE=..\validate
   
 :checkcmd
 
-  if "%2" == "" goto :help
+  if [%2] == [] goto :help
   if not exist %2.dtx goto :no-dtx
   
   call make unpack
@@ -195,7 +195,7 @@ set VALIDATE=..\validate
   for %%I in (l3*.dtx) do (
     echo   %%~nI
     pdflatex -interaction=nonstopmode -draftmode -quiet %%I
-    if  ERRORLEVEL 0 (
+    if  not ERRORLEVEL 1 (
       for /F "tokens=*" %%J in (%%~nI.log) do (
         if "%%J" == "Functions documented but not defined:" (
           echo     Some functions not defined
@@ -222,7 +222,7 @@ set VALIDATE=..\validate
   set NEXT=checklvt-int
   if not defined PERL goto :perl
   
-  if "%2" == "" goto :help
+  if [%2] == [] goto :help
   if not exist %TESTDIR%\%2.lvt goto :no-lvt
   if not exist %TESTDIR%\%2.tlg goto :no-tlg
   
@@ -310,7 +310,7 @@ set VALIDATE=..\validate
   
 :doc
 
-  if "%2" == "" goto :help
+  if [%2] == [] goto :help
   if not exist %2.dtx goto :no-dtx
 
   call make unpack
@@ -319,7 +319,7 @@ set VALIDATE=..\validate
   echo Typesetting %2
   
   pdflatex -interaction=nonstopmode -draftmode -quiet %2.dtx
-  if ERRORLEVEL 0 (
+  if not ERRORLEVEL 1 (
     makeindex -q -s l3doc.ist -o %2.ind %2.idx > temp.log
     pdflatex -interaction=nonstopmode -quiet %2.dtx
     pdflatex -interaction=nonstopmode -quiet %2.dtx
@@ -427,7 +427,7 @@ set VALIDATE=..\validate
   
 :savetlg
 
-  if "%2" == "" goto :help
+  if [%2] == [] goto :help
   if not exist %TESTDIR%\%2.lvt goto :no-lvt
 
   set NEXT=savetlg
@@ -485,7 +485,7 @@ set VALIDATE=..\validate
   echo Typesetting source3
   
   pdflatex -interaction=nonstopmode -draftmode -quiet "\PassOptionsToClass{nocheck}{l3doc} \input source3"
-  if ERRORLEVEL 0 ( 
+  if not ERRORLEVEL 1 ( 
     echo   Re-typesetting for index generation
     makeindex -q -s l3doc.ist -o source3.ind source3.idx > temp.log
     pdflatex -interaction=nonstopmode -quiet "\PassOptionsToClass{nocheck}{l3doc} \input source3"
@@ -507,7 +507,7 @@ set VALIDATE=..\validate
   echo Typesetting expl3
   
   pdflatex -interaction=nonstopmode -draftmode -quiet expl3.dtx
-  if ERRORLEVEL 0 (
+  if not ERRORLEVEL 1 (
     makeindex -q -s l3doc.ist -o expl3.ind expl3.idx > temp.log
     pdflatex -interaction=nonstopmode -quiet expl3.dtx
     pdflatex -interaction=nonstopmode -quiet expl3.dtx
@@ -623,6 +623,6 @@ set VALIDATE=..\validate
 :end
 
   shift
-  if not "%1" == "" goto :loop
+  if not [%1] == [] goto :loop
   
   endlocal
