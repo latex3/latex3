@@ -7,7 +7,7 @@ rem (http://www.7zip.org).
 setlocal
 
 set AUXFILES=aux cmds glo gls hd idx ilg ind log lvt out toc tlg xref
-set CHECKCMDS=basics box calc clist doc expan file int intexpr io keyval msg names num precom prg prop quark seq skip tl token toks xref
+set CHECKCMDS=basics box calc clist doc expan file int intexpr io keys keyval msg names num precom prg prop quark seq skip tl token toks xref
 set CLEAN=fc cls fmt gz ist ltx pdf sty zip
 set ENGINE=pdflatex
 set NEXT=end

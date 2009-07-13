@@ -61,6 +61,7 @@ MODULES = \
 	l3intexpr.dtx \
 	l3io.dtx \
 	l3keyval.dtx \
+	l3keys.dtx \
 	l3msg.dtx \
 	l3names.dtx \
 	l3num.dtx \
@@ -79,8 +80,8 @@ MODULES = \
 # Modules to check in the `checkcmds` target:
 CHKMODULES = \
 	expl3 l3basics l3box l3calc l3clist l3expan l3int l3intexpr l3io \
-	l3file l3keyval l3msg l3names l3num l3precom l3prg l3prop l3quark \
-	l3seq l3skip l3tl l3token l3toks l3xref
+	l3file l3keyval l3keys l3msg l3names l3num l3precom l3prg l3prop \
+	l3quark l3seq l3skip l3tl l3token l3toks l3xref
 
 # Docstrip install files:
 INSTALLS = \
