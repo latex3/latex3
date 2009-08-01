@@ -47,11 +47,11 @@ set VALIDATE=..\validate
   
   for %%I in (l3*.dtx) do (
     echo   %%~nI
-    pdflatex -interaction=nonstopmode -draftmode -quiet %%~nI.dtx
+    pdflatex -interaction=nonstopmode -draftmode %%~nI.dtx > temp.log
     if not ERRORLEVEL 1 (
       makeindex -q -s l3doc.ist -o %%I.ind %%~nI.idx > temp.log
-      pdflatex -interaction=nonstopmode -quiet %%~nI.dtx
-      pdflatex -interaction=nonstopmode -quiet %%~nI.dtx
+      pdflatex -interaction=nonstopmode %%~nI.dtx > temp.log
+      pdflatex -interaction=nonstopmode %%~nI.dtx > temp.log
       for /F "tokens=*" %%J in (%%~nI.log) do (
         if "%%J" == "Functions documented but not defined:" (
         echo   ! Some functions not defined 
@@ -142,7 +142,7 @@ set VALIDATE=..\validate
   echo.
   echo Checking commands in %2
   
-  pdflatex -interaction=batchmode -quiet %2.dtx 
+  pdflatex -interaction=batchmode %2.dtx > temp.log
   pdflatex -interaction=batchmode "\def\CMDS{%2.cmds}\input commands-check" > cmds.log
   for /F "tokens=1*" %%I in (cmds.log) do (
     if "%%I"=="!>" copy /y cmds.log missing.cmds.log > temp.log
@@ -170,7 +170,7 @@ set VALIDATE=..\validate
   for %%I in (%CHECKCMDS%) do (
     echo   l3%%~nI
     if exist missing.cmds.log del /q missing.cmds.log
-    pdflatex -interaction=batchmode -quiet l3%%I.dtx
+    pdflatex -interaction=batchmode l3%%I.dtx > temp.log
     pdflatex -interaction=batchmode "\def\CMDS{l3%%I.cmds}\input commands-check" > cmds.log
     for /F "tokens=1*" %%J in (cmds.log) do (
       if "%%J"=="!>" copy /y cmds.log missing.cmds.log > temp.log
@@ -194,7 +194,7 @@ set VALIDATE=..\validate
 
   for %%I in (l3*.dtx) do (
     echo   %%~nI
-    pdflatex -interaction=nonstopmode -draftmode -quiet %%I
+    pdflatex -interaction=nonstopmode -draftmode %%I > temp.log
     if  not ERRORLEVEL 1 (
       for /F "tokens=*" %%J in (%%~nI.log) do (
         if "%%J" == "Functions documented but not defined:" (
@@ -318,11 +318,11 @@ set VALIDATE=..\validate
   echo.
   echo Typesetting %2
   
-  pdflatex -interaction=nonstopmode -draftmode -quiet %2.dtx
+  pdflatex -interaction=nonstopmode -draftmode %2.dtx > temp.log
   if not ERRORLEVEL 1 (
     makeindex -q -s l3doc.ist -o %2.ind %2.idx > temp.log
-    pdflatex -interaction=nonstopmode -quiet %2.dtx
-    pdflatex -interaction=nonstopmode -quiet %2.dtx
+    pdflatex -interaction=nonstopmode %2.dtx > temp.log
+    pdflatex -interaction=nonstopmode %2.dtx> temp.log
     for /F "tokens=*" %%I in (%2.log) do (
       if "%%I" == "Functions documented but not defined:" (
       echo ! Some functions not defined 
@@ -484,13 +484,13 @@ set VALIDATE=..\validate
   echo.
   echo Typesetting source3
   
-  pdflatex -interaction=nonstopmode -draftmode -quiet "\PassOptionsToClass{nocheck}{l3doc} \input source3"
+  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > temp.log
   if not ERRORLEVEL 1 ( 
     echo   Re-typesetting for index generation
     makeindex -q -s l3doc.ist -o source3.ind source3.idx > temp.log
-    pdflatex -interaction=nonstopmode -quiet "\PassOptionsToClass{nocheck}{l3doc} \input source3"
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > temp.log
     echo   Re-typesetting to resolve cross-references
-    pdflatex -interaction=nonstopmode -quiet "\PassOptionsToClass{nocheck}{l3doc} \input source3"
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > temp.log
     for /F "tokens=*" %%I in (source3.log) do (           
       if "%%I" == "Functions documented but not defined:" (   
         echo ! Warning: some functions not defined              
@@ -506,11 +506,11 @@ set VALIDATE=..\validate
   echo.
   echo Typesetting expl3
   
-  pdflatex -interaction=nonstopmode -draftmode -quiet expl3.dtx
+  pdflatex -interaction=nonstopmode -draftmode  expl3.dtx > temp.log
   if not ERRORLEVEL 1 (
     makeindex -q -s l3doc.ist -o expl3.ind expl3.idx > temp.log
-    pdflatex -interaction=nonstopmode -quiet expl3.dtx
-    pdflatex -interaction=nonstopmode -quiet expl3.dtx
+    pdflatex -interaction=nonstopmode expl3.dtx > temp.log
+    pdflatex -interaction=nonstopmode expl3.dtx> temp.log
   ) else (
     echo ! expl3 compilation failed
   )
@@ -577,8 +577,8 @@ set VALIDATE=..\validate
   echo.
   echo Unpacking files
   
-  tex -quiet l3.ins
-  tex -quiet l3doc.dtx
+  tex l3.ins > temp.log
+  tex l3doc.dtx > temp.log
   del /q *.log
   
   goto :end
