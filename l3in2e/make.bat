@@ -377,14 +377,10 @@ set VALIDATE=..\validate
 :localinstall
 
   if not defined TEXMFHOME (
-    if exist "%APPDATA%\MiKTeX\2.8" (
-      set TEXMFHOME=%APPDATA%\MiKTeX\2.8
-    ) else (
-      echo.
-      echo TEXMFHOME variable was not set:
-      echo using default value %USERPROFILE%\texmf
-      set TEXMFHOME=%USERPROFILE%\texmf
-    )
+    set TEXMFHOME=%USERPROFILE%\texmf
+    echo.
+    echo TEXMFHOME variable was not set:
+    echo using default value %USERPROFILE%\texmf
   )
   
   SET LTEXMF=%TEXMFHOME%\tex\latex\expl3
