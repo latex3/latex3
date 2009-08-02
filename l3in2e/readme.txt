@@ -2,7 +2,7 @@
    An Experimental LaTeX3 Programming Convention
    =============================================
 
-   2009/06/02
+   2009/08/02
 
 
 WHERE TO GET IT
@@ -46,8 +46,8 @@ THE GUILTY PERSONS
 DISCUSSION
 ----------
 
-Discussion concerning the approach, suggestions for improvements, changes,
-additions, etc. should be addressed to the list LATEX-L. 
+Discussion concerning the approach, suggestions for improvements, 
+changes, additions, etc. should be addressed to the list LATEX-L. 
 
 You can subscribe to this list by sending mail to
 
@@ -68,30 +68,17 @@ LaTeX kernel".  However please do *not* use this method for
 suggestions / comments / improvements / etc. For this the list LATEX-L
 should be used instead.
 
-Also please don't expect these package to work with *any* code that
-floats around in the LaTeX2e world. :-)
-
-
 
 MANIFEST
 --------
 
-The following packages are in this release:
-
+The following packages are in this release.
 
 l3names
 =======
 
-Documents the general naming scheme, and gives new names to all the TeX
-primitives.
-
-If this package is used with the option [removeoldnames] then the
-original TeX primitive names (\hbox, \def, ...) are made *undefined* and
-so free to be defined for other purposes if needed. Of course this
-breaks almost all existing LaTeX2 code, but it may be used for testing
-purposes, see test2.tex.
-
-The option removeoldnames has been disabled temporarily.
+Documents the general naming scheme, and gives new names to all of the 
+TeX primitives.
 
 l3basics
 ========
@@ -101,8 +88,8 @@ Some basic definitions that are used by the other packages.
 l3chk
 =====
 
-Functions that check definitions.
-(Comparable to LaTeX2's \newcommand/\renewcommand.)
+Functions that check definitions. (Comparable to LaTeX2's 
+\newcommand/\renewcommand.)
 
 l3alloc
 =======
@@ -112,23 +99,23 @@ Generic functions for allocating registers.
 l3toks
 ======
 
-TeX's token registers.  (Can be compiled with checking enabled)
+TeX's token registers.  (Can be compiled with checking enabled.)
 
 l3tl
 =====
 
-Token Lists and Token List variables, a basic LaTeX3 datatype for storing 
-token lists. (These are essentially macros with no arguments.) The module also
-provides functions for arbitrary token lists. (Package can be compiled
-with checking enabled.)
+Token Lists and Token List variables, a basic LaTeX3 datatype for 
+storing token lists. (These are essentially macros with no arguments.)
+The module also provides functions for arbitrary token lists. 
+(Package can be compiled with checking enabled.)
 
 l3expan
 =======
 
-The argument expansion module. One of the main features of the language
-proposed here is a systematic treatment of the handling of argument
-expansion. The basic functions for preprocessing command arguments are
-defined here.
+The argument expansion module. One of the main features of the 
+language proposed here is a systematic treatment of the handling of 
+argument expansion. The basic functions for preprocessing command 
+arguments are defined here.
 
 l3quark
 =======
@@ -221,6 +208,13 @@ l3keyval
 
 Module for extracting data from a key=val list for further processing.
 
+l3keys
+=====
+
+Module for defining keys at a higher level than l3keyval; intended as
+the main programmer's interface for creating keyval settings and 
+arguments.
+
 =====================================================================
 
 Install file
@@ -254,8 +248,11 @@ l3format.ins
 
 Process with plain TeX or LaTeX2e to generate the experimental
 format file lbase.ltx and its companion lbase.ini.
-The run pdfetex --ini "*lbase.ini" to produce the experimental
-format. 
+Then run
+
+  pdfetex --ini "*lbase.ini" 
+
+to produce the experimental format. 
 
 =====================================================================
 
@@ -263,16 +260,22 @@ source3.tex
 ===========
 
 Run this file with pdfLaTeX:
-pdflatex source3 to produce the documentation.
-Doing this will produce three extra files (source3.ist, l3doc.cfg and
-l3full.cfg). The first of these is a style file for makeindex; the
-others or configuration files for the documentation class.
-If you want to full documentation including the code listings than
-rename l3full.cfg to l3doc.cfg and run LaTeX again.
-Alternatively, run (in extended mode)
+
+  pdflatex source3 
+  
+to produce the documentation. Doing this will produce three extra 
+files (source3.ist, l3doc.cfg and l3full.cfg). The first of these is a
+style file for makeindex; the others or configuration files for the 
+documentation class. If you want to full documentation including the 
+code listings than rename l3full.cfg to l3doc.cfg and run LaTeX again.
+Alternatively, run (in extended mode):
+
   pdflatex "\PassOptionsToClass{full}{l3doc}\input{source3}"
+  
 After that run makeindex to produce the index, like so:
-makeindex -s source3.ist source3
+
+  makeindex -s source3.ist source3
+
 and rerun LaTeX.
 
 expl3.dtx
@@ -284,6 +287,5 @@ explaining the basics of expl3 programming.
 
 =====================================================================
 
---- Copyright 1998 -- 2009
-    The LaTeX3 Project.  All rights reserved ---
+--- Copyright 1998 -- 2009 The LaTeX3 Project. All rights reserved ---
 
