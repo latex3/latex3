@@ -82,9 +82,9 @@ set XORDIR=..\xor
 
   for %%I in (*.dtx) do (
     echo   %%I
-    pdflatex -interaction=nonstopmode -quiet %%I
+    pdflatex -interaction=nonstopmode %%I > temp.log
     if ERRORLEVEL 0 (
-      pdflatex -interaction=nonstopmode -quiet %%I
+      pdflatex -interaction=nonstopmode %%I > temp.log
     )
   )
 
@@ -112,15 +112,15 @@ set XORDIR=..\xor
 :test-int
   
   echo   xfm-test userinput=1
-  latex -interaction=batchmode -quiet "\def\userinput{1}\input{xfm-test.tex}"
+  latex -interaction=batchmode "\def\userinput{1}\input{xfm-test.tex}" > temp.log
   echo   xfm-test userinput=2
-  latex -interaction=batchmode -quiet "\def\userinput{2}\input{xfm-test.tex}"
+  latex -interaction=batchmode "\def\userinput{2}\input{xfm-test.tex}" > temp.log
   rem echo   xfm-test userinput=3
-  rem latex -interaction=batchmode -quiet "\def\userinput{3}\input{xfm-test.tex}" broken!
+  rem latex -interaction=batchmode "\def\userinput{3}\input{xfm-test.tex}" broken!
   echo   xfm-test userinput=4
-  latex -interaction=batchmode -quiet "\def\userinput{4}\input{xfm-test.tex}"
+  latex -interaction=batchmode "\def\userinput{4}\input{xfm-test.tex}" > temp.log
   echo   xfm-test userinput=5
-  latex -interaction=batchmode -quiet "\def\userinput{5}\input{xfm-test.tex}"
+  latex -interaction=batchmode "\def\userinput{5}\input{xfm-test.tex}" > temp.log
 
   goto :%NEXT%  
 

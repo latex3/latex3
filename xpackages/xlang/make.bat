@@ -81,9 +81,9 @@ set XOR3DIR=..\xor
 
   for %%I in (*.dtx) do (
     echo   %%I
-    pdflatex -interaction=nonstopmode -quiet %%I
+    pdflatex -interaction=nonstopmode %%I > temp.log
     if ERRORLEVEL 0 (
-      pdflatex -interaction=nonstopmode -quiet %%I
+      pdflatex -interaction=nonstopmode %%I > temp.log
     )
   )
 
@@ -112,7 +112,7 @@ set XOR3DIR=..\xor
 
   for %%I in (%TEST%) do (
     echo   %%I
-    pdflatex -interaction=batchmode -quiet %%I
+    pdflatex -interaction=batchmode %%I > temp.log
     if not ERRORLEVEL 0 (
       echo.
       echo **********************
