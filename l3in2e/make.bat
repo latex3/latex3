@@ -347,7 +347,7 @@ set VALIDATE=..\validate
   echo Making format
 
   tex l3format.ins > temp.log
-  pdftex -ini *lbase.ltx > temp.log
+  pdftex -etex -ini *latex3.ltx > temp.log
   
   goto :clean-int  
   
