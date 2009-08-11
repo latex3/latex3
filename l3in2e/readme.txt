@@ -259,24 +259,22 @@ to produce the experimental format.
 source3.tex
 ===========
 
-Run this file with pdfLaTeX:
+This file contains an introduction to the expl3 programming language
+followed by the full typeset documentation and code listing for each
+expl3 module.
 
-  pdflatex source3 
+To compile source3.pdf, ensure that l3doc.cls is installed or at least
+present in the same directory (run `tex l3doc.dtx` to extract it if
+necessary), then execute the following:
+
+    pdflatex source3 
+    makeindex -s l3doc.ist -o source3.ind source3.idx
+    pdflatex source3 
+    pdflatex source3 
+
+This typesets the documentation, then generates the index, and then
+requires one or two more compilations to fully resolve the cross-references.
   
-to produce the documentation. Doing this will produce three extra 
-files (source3.ist, l3doc.cfg and l3full.cfg). The first of these is a
-style file for makeindex; the others or configuration files for the 
-documentation class. If you want to full documentation including the 
-code listings than rename l3full.cfg to l3doc.cfg and run LaTeX again.
-Alternatively, run (in extended mode):
-
-  pdflatex "\PassOptionsToClass{full}{l3doc}\input{source3}"
-  
-After that run makeindex to produce the index, like so:
-
-  makeindex -s source3.ist source3
-
-and rerun LaTeX.
 
 expl3.dtx
 =========
