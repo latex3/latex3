@@ -340,14 +340,16 @@ set VALIDATE=..\validate
   goto :clean-int
   
 :format
-  
-  call make unpack
 
   echo. 
   echo Making format
+  
+  copy ..\xpackages\xbase\xparse.dtx > temp.log
 
   tex l3format.ins > temp.log
   pdftex -etex -ini *latex3.ltx > temp.log
+  
+  if exist xparse.dtx del xparse.dtx > temp.log
   
   goto :clean-int  
   
