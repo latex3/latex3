@@ -1,6 +1,9 @@
 % \iffalse
-%% File: xparse.dtx (C) Copyright 1999 Frank Mittelbach, Chris Rowley, David Carlisle
-%%                  (C) Copyright 2004-2008 Frank Mittelbach, LaTeX3 Project
+%% File: xparse.dtx (C) Copyright 1999 Frank Mittelbach, Chris Rowley, 
+%%                      David Carlisle
+%%                  (C) Copyright 2004-2008 Frank Mittelbach, 
+%%                      LaTeX3 Project
+%%                  (C) Copyright 2009 LaTeX3 Project
 %%
 %% It may be distributed and/or modified under the conditions of the
 %% LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -18,7 +21,7 @@
 %%
 %% The development version of the bundle can be found at
 %%
-%%    http://www.latex-project.org/cgi-bin/cvsweb.cgi/
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
 %%
 %% for those people who are interested.
 %%
@@ -32,2120 +35,1559 @@
 %%   prior consultation with the LaTeX Project Team.
 %%
 %% -----------------------------------------------------------------------
-%%
+%% 
+%
 %<*driver|package>
-\RequirePackage{expl3}
+\RequirePackage{l3names}
 %</driver|package>
 %\fi
 \GetIdInfo$Id$
-          {generic document command parser}
+  {Generic document command parser}
 %\iffalse
 %<*driver>
 %\fi
 \ProvidesFile{\filename.\filenameext}
   [\filedate\space v\fileversion\space\filedescription]
 %\iffalse
-  \documentclass{ltxdoc}
-  \usepackage[T1]{fontenc}
-  \usepackage{textcomp}
-  \makeatletter
-  \providecommand*\eTeX{%
-    \if b\expandafter\@car\f@series\@nil\boldmath\fi
-    $\m@th\varepsilon$-\TeX}
-  \makeatother
-% \usepackage{ldcdoc}
-  \begin{document}
-  \catcode`\_=11
-  \catcode`\:=11
+\documentclass[full]{l3doc}
+\begin{document}
   \DocInput{xparse.dtx}
-  \end{document}
+\end{document}
 %</driver>
 % \fi
 %
-% \CheckSum{632}
-%
-%
 % \title{The \textsf{xparse} package\thanks{This file
 %         has version number \fileversion, last
-%         revised \filedate.}}
-% \author{FMi, CAR, DPC, MH}
-% \date{\copyright~\filedate}
-%  \maketitle
+%         revised \filedate.}\\
+% Generic document command parser}
+% \author{\Team}
+% \date{\filedate}
+% \maketitle
 %
-% \begin{abstract}
-% The interfaces described in this document are not meant to be final
-% but only as a basis for discussion. Building productive applications
-% using the current code is discouraged.
-% \end{abstract}
+%\begin{documentation}
 %
-% \section{Interface}
+%\section{Creating document commands}
 %
-% This package implements high-level interface commands for class file
-% writers which allows the separation of formatting commands
-% (typically instances of so-called `templates') and their arguments
-% from the signature of document-level commands.
+% The \pkg{xparse} package provides a high-level interface for
+% producing document-level commands. In that way, it is intended as
+% a replacement for the \LaTeXe\ \cs{newcommand} macro. However,
+% \pkg{xparse} works so that the interface to a function (optional
+% arguments, stars and mandatory arguments, for example) is separate
+% from the internal implementation. \pkg{xparse} provides a normalised
+% input for the internal form of a function, independent of the 
+% document-level argument arrangement.
+% 
+%\subsection{Specifying arguments}
 %
-% This works by declaration commands that provide a general
-% specification method for the typical \LaTeX{} syntax, e.g.,
-% star-form, optional arguments, and mandatory arguments. A command
-% (or environment) declared in this way parses the input according to
-% its spec and presents its findings in a normalized way for further
-% processing.
+% Before introducing the functions used to create document commands,
+% the method for specifiying arguments with \pkg{xparse} will be 
+% illustrated. In order to allow each argument to be defined 
+% independently, \pkg{xparse} does not simply need to know the 
+% number of arguments for a function, but also the nature of each
+% one. This is done by constructing an \emph{argument specification},
+% which defines the number of arguments, the type of each argument
+% and any additional information needed for \pkg{xparse} to read the
+% user input and properly pass it thorugh to internal functions. 
+% 
+% The basic form of the argument specifier is a list of letters, where
+% each letter defines a type of argument. As will be described below,
+% some of the types need additional information, such as default values.
+% The argument types can be divided into two, those which are mandatory
+% (potentially raising an error if not found) and those which are 
+% optional. The mandatory types are:
+%\begin{itemize}
+%  \item[m] A standard mandatory argument, which will be passed to the
+%    internal code surronded by a brace pair. This is the \pkg{xparse}
+%    type specifier for a normal \TeX\ argument.
+%  \item[l] An argument which reads everything up to the first
+%    open group token: in standard \LaTeX\ this is a left brace. 
+%  \item[u] Reads an argument `until' \meta{tokens} are encountered,
+%    where the desired \meta{tokens} are given as an argument to the
+%    specifier: \texttt{u\marg{tokens}}.
+%\end{itemize}
+% The optional argument types are:
+%\begin{itemize}
+%  \item[o] A standard \LaTeX\ optional argument, which will supply
+%    the special \cs{NoValue} token if not given (as described later).
+%  \item[d] An optional argument which is delimited by \meta{token1}
+%    and \meta{token2}, which are given as arguments: 
+%    \texttt{d\meta{token1}\meta{token2}}. As with \texttt{o}, if no
+%    value is given the special token \cs{NoValue} is returned.
+%  \item[O] As for \texttt{o}, but returns \meta{default} if no
+%    value is given.  Should be given as \texttt{O\marg{default}}.
+%  \item[D] As for \texttt{d}, but returns \meta{default} if no
+%    value is given: \texttt{D\meta{token1}\meta{token2}\marg{default}}.
+%    Internally, the \texttt{o}, \texttt{d} and \texttt{O} types are
+%    shortcuts to an appropriated-constructed \texttt{D} type argument.
+%  \item[s] An optional star, which will result in a value 
+%    \cs{BooleanTrue} if a star is present and \cs{BooleanFalse}
+%    otherwise (as described later).
+%  \item[t] An optional \meta{token}, which will result in a value 
+%    \cs{BooleanTrue} if a star is present and \cs{BooleanFalse}
+%    otherwise. Given as \texttt{t\meta{token}}.
+%  \item[g] An optional argument given inside a pair of \TeX\ group
+%    tokens (in standard \LaTeX, |{| \ldots |}|).
+%\end{itemize}
 %
-% \subsection{Argument spec}
-%
-%
-%  An argument specification is a list of letters each representing a
-%  type of argument, i.e., |m| is a mandatory argument (surrounded by
-%  braces), |o| an optional argument (surrounded by brackets if
-%  present), and |s| represents a star (which might be present or not).
-%  Thus the argument spec for headings as implemented by
-%  |\@startsection| in standard \LaTeX{} would be represented by the
-%  three letters |som|. Other argument types are available and can be
-%  added at will. For a complete list of built-in argument types see
-%  the next section.
-%
-%  There is one important argument specifier worth taking note of. The
-%  |P| does not behave as a normal argument specifier but allows the
-%  next argument to take an argument containing the |\par| token which
-%  is not allowed by default.
-%
-%
-%  \subsection{Parsing results}
-%
-%  To normalise the result of parsing the input according to an
-%  argument specification it is important to uniquely identify all
-%  arguments found. For this reason each parsing operation initiated by
-%  one of the argument spec letters will result in an identifiable
-%  output as follows:
-%  \begin{description}
-%  \item[m] will return the parsed argument surrounded by a brace
-%    pair, i.e., will normally be the identity;
-%  \item[o] will return the parsed argument surrounded by a brace pair
-%    if present. Otherwise it will return the token |\NoValue|;
-%  \item[O\{default\}] will return the parsed argument surrounded by a
-%    brace pair if present. Otherwise it will return the |{default}|
-%    as specified above.
-%  \item[S\{\meta{symbol}\}] will return either the token |\c_true_bool| or
-%    |\c_false_bool| depending on whether or not the next token is
-%    \meta{symbol}.
-%  \item[s] will return either the token |\c_true_bool| or |\c_false_bool|
-%    depending on whether or not a star was parsed. This is just a
-%    shorthand for |S{*}|.
-%  \item[c] will parse the syntax |(|\meta{x}|,|\meta{y}|)|, i.e., a
-%    coordinate pair and will return |{{|\meta{x}|}{|\meta{y}|}}| as
-%    the result. If no open parentheses is scanned an error is
-%    signalled.
-%  \item[C\{\{x-default\}\{y-default\}\}] behaves like |c|, i.e.,
-%    parses a coordinate pair if present. If the coordinate pair is
-%    missing it returns the default values instead.
-%  \item[l] Reads everything up to the first left brace as the
-%    argument.
-%  \end{description}
-%  For example, given the spec |soomO{default}| the input
-%  |*[Foo]{Bar}| would be parsed as
-%  |\c_true_bool{Foo}\NoValue{Bar}{default}|. In other words there will be
-%  always exactly the same number of brace groups or tokens as the
-%  number of letters in the argument spec.
-%
-%  There are a few exceptions to this rule as the r\^ole of following
-%  letters is to affect how the next argument is read.
-%  \begin{description}
-%  \item[>] takes a mandatory argument like |{P}| or |{PW}| and
-%    inserts these extra argument specifiers so that they act on the
-%    next regular argument type. See below.
-%  \item[P] will cause the next argument to allow |\par| in it's
-%    argument. Thus the specification |m>{P}mm| will cause the command to
-%    read three mandatory arguments but only the second can contain the
-%    |\par| token.
-%  \item[W] will cause the next argument to \emph{not} ignore a space
-%    when trying to scan ahead for a special symbol such as a |*| or an
-%    optional argument. This is mostly useful when the last argument(s)
-%    of a document command are optional (see example later on).
-%  \end{description}
-%
-%
-%  \subsection{Applying the parsing results}
-%
-%  Since the result of the parsing is a well defined number of tokens or
-%  brace groups it is easy to pass them on in any order to any
-%  processing function. To this end the tokens or brace groups are
-%  associated with the standard argument specifiers in \TeX{} macros,
-%  i.e., |#1|, |#2|, and so forth. This limits the argument
-%  specification to a maximum number of 9 letters, but for practical
-%  applications this should be sufficient.
-%
-%  \subsection{The class designer interface}
-%
-%  This package provides commands for declaring commands
-%  and environments to be used within the document body.
-%
-%  \DescribeMacro\DeclareDocumentCommand
-%  The |\DeclareDocumentCommand| declaration takes three arguments. The
-%  first argument is the name of the command to be declared, the second
-%  is the argument specification in the syntax described above, and the
-%  third is the action to be carried out once the arguments are
-%  parsed. Within the third argument |#1|, |#2|, etc.\ denote the
-%  result of the parsing, e.g.,
+% Using these specifiers, it is possible to create complex input syntax
+% very easily. % For example, given the argument definition 
+% `|s o o m O{default}|', the input `|*[Foo]{Bar}|' would be parsed as:
+%\begin{itemize} 
+%  \item |#1| = |\BooleanTrue|
+%  \item |#2| = |{Foo}|
+%  \item |#3| = |\NoValue|
+%  \item |#4| = |{Bar}|
+%  \item |#5| = |{default}|
+%\end{itemize}
+% whereas `|[One][Two]{}[three]|' would be parsed as:
+%\begin{itemize} 
+%  \item |#1| = |\BooleanFalse|
+%  \item |#2| = |{One}|
+%  \item |#3| = |{Two}|
+%  \item |#4| = |{}|
+%  \item |#5| = |{Three}|
+%\end{itemize}
+% In other words there will be always exactly the same number of brace 
+% groups or tokens as the number of letters in the argument specifier.
+% 
+% Two more tokens have a special meaning when creating an argument 
+% specifier. First, \texttt{+} is used to make an argument \cs{long}
+% (to accept paragraph tokens). In contrast to \LaTeXe's 
+% \cs{newcommand}, this applies on an argument-by-argument basis.
+% So modififying the example to `|s o o +m O{default}|' means that
+% the mandatory argument is now \cs{long}, whereas the optional
+% arguments are not.
+% 
+% Secondly, the token \texttt{>} is used to introduce so called
+% `argument processors'. These are a somewhat advanced topic, and
+% are covered in Section~\ref{sec:processors}.
+% 
+%\subsection{Declaring commands and environments}
+% 
+% With the concept of an argument specifier defined, it is now 
+% possible to describe the methods available for creating both
+% functions and environments using \pkg{xparse}.
+% 
+% The interface-building commands are the preferred method for 
+% creating document-level functions in \LaTeX3. All of the functions 
+% generated in this way are naturally robust (using the \eTeX\ 
+% \cs{protected} mechanism).
+% 
+%\begin{function}{
+%  \DeclareDocumentCommand|
+%  \NewDocumentCommand|
+%  \RenewDocumentCommand|
+%  \ProvideDocumentCommand
+%}
+%  \begin{syntax}
+%    "\DeclareDocumentCommand" <function> <arg spec> <code>
+%  \end{syntax}
+%  This family of commands are used to create a document-level
+%  <function>. The argument specification for te function is
+%  given by <arg spec>, and the function will execute <code>.
+%  
+%  As an example:
 %  \begin{verbatim}
-%  \DeclareDocumentCommand{\chapter}{som}
-%    { \IfBooleanTF {#1}
-%        { \typesetnormalchapter {#2}{#3} }
-%        { \typesetstarchapter   {#3} }
+%    \DeclareDocumentCommand \chapter { s o m } {
+%      \IfBooleanTF {#1} {
+%        \typesetnormalchapter {#2} {#3} 
+%      }{
+%        \typesetstarchapter {#3}
+%      }
 %    }
 %  \end{verbatim}
-%  would be a way to define a |\chapter| command which would
-%  essentially behave like the current \LaTeX{} command (except that it
-%  would accept an optional argument even when a |*| was parsed). The
-%  |\typesetnormalchapter| could test its first argument for being
-%  |\NoValue| to see if an optional argument was present.
+%  would be a way to define a \cs{chapter} command which would
+%  essentially behave like the current \LaTeXe\ command (except that it
+%  would accept an optional argument even when a \texttt{*} was parsed).
+%  The \cs{typesetnormalchapter} could test its first argument for being
+%  \cs{NoValue} to see if an optional argument was present.
+% 
+%  The difference between the \cs{Declare\ldots}, \cs{New\ldots}
+%  \cs{Renew\ldots} and \cs{Provide\ldots} versions is the behaviour
+%  if <function> is already defined. 
+%  \begin{itemize}
+%    \item \cs{DeclareDocumentCommand} will always create the new 
+%      definition, irrespective of any existing <function> with the 
+%      same name. 
+%   \item \cs{NewDocumentCommand} will issue an error if <function>
+%     has already been defined.
+%   \item \cs{RenewDocumentCommand} will issue an error if <function>
+%     has not previously been defined.
+%   \item \cs{ProvideDocumentCommand} creates a new definition fo
+%     <function> only if one has not already been given.
+%  \end{itemize}  
+%  
+%  \begin{texnote}
+%     Unlike \LaTeXe's \cs{newcommand} and relatives, the \pkg{xparse}
+%     \cs{DeclareDocumentCommand} set of functions do not prevent 
+%     creation of functions with names starting \cs{end\ldots}.
+%  \end{texnote}
+%\end{function} 
 %
-%  Of course something like the |\IfNoValueTF| test could also be
-%  placed inside a function that would process all three arguments, thus
-%  using the templates and their instances as provided by the
-%  \texttt{template} package such a declaration would probably look
-%  more like the following example:
+%\begin{function}{%
+%  \DeclareDocumentEnvironment|
+%  \NewDocumentEnvironment|
+%  \RenewDocumentEnvironment|
+%  \ProvideDocumentEnvironment
+%}
+%  \begin{syntax}
+%    "\DeclareDocumentEnvironment" <environment> <arg spec>
+%    ~~~~<start code> <end code>
+%  \end{syntax}
+%  These commands work in the same way as \cs{DeclareDocumentCommand},
+%  etc., but create environments (\cs{begin}|{|<function>|}| \ldots
+%  \cs{end}|{|<function>|}|). Both the <start code> and <end code>
+%  may access the arguments as defined by <arg spec>.
+%  
+%  \begin{texnote}
+%    In contrast to \LaTeXe, these commands do not create a pair of
+%    macros \cs{<environment>} and \cs{end<environment>}. Thus \LaTeX3
+%    environments have to be accessed using the \cs{begin} \ldots
+%    \cs{end} mechanism.
+%  \end{texnote}
+%\end{function}
+%
+%\subsection{Testing special values}
+%
+%\begin{variable}{\NoValue} 
+%  \cs{NoValue} is a special marker returned by \pkg{xparse} if no 
+%  value is given for an optional argument. If typeset (which should
+%  not happen),  it will print the value \texttt{-NoValue-}.
+%\end{variable}
+%
+%\begin{function}{\IfNoValue / (TF) (EXP)}
+%  \begin{syntax}
+%    "\IfNoValue" <argument> <true code> <false code>
+%  \end{syntax}
+%  The \cs{IfNoValue} tests are used to check if <argument> (|#1|,
+%  |#2|, etc.) is the special \cs{NoValue} token. For example
 %  \begin{verbatim}
-%  \DeclareDocumentCommand{\chapter}{som}
-%    { \UseInstance {head} {A-head-main} {#1} {#2} {#3} }
-%  \end{verbatim}
-%
-%  Using the |\DeclareDocumentCommand| interface it is easy to modify
-%  the document-level syntax while still applying the same
-%  layout-generating functions, e.g., a class that would not support
-%  optional arguments or star forms for the heading commands could
-%  define |\chapter| like this:
-%  \begin{verbatim}
-%   \DeclareDocumentCommand{\chapter}{m}
-%     { \UseInstance {head} {A-head-main} \BooleanFalse \NoValue {#1} }
-%  \end{verbatim}
-%  while a class that would allow for an additional optional argument
-%  (for whatever reason) could define it like that:
-%  \begin{verbatim}
-%   \DeclareDocumentCommand{\chapter}{somo}
-%     { \doSomethingWithTheExtraOptionalArg {#4}
-%       \UseInstance {head} {A-head-main} {#1} {#2} {#3} }
-%  \end{verbatim}
-%  \DescribeMacro\NewDocumentCommand
-%  \DescribeMacro\RenewDocumentCommand
-%  \DescribeMacro\ProvideDocumentCommand If |\DeclareDocumentCommand|
-%  is used on an already defined command, it'll overwrite it. The
-%  commands |\NewDocumentCommand|, |\RenewDocumentCommand| and
-%  |\ProvideDocumentCommand| have identical syntax to that of
-%  |\DeclareDocumentCommand| with the exception that |\New...| will
-%  only define the command if it is undefined, |\Renew...| will only
-%  redefine an existing command and |\Provide...| will only define the
-%  command if it is already undefined.
-%
-%
-%  \DescribeMacro\DeclareDocumentEnvironment
-%  \DescribeMacro\NewDocumentEnvironment
-%  \DescribeMacro\RenewDocumentEnvironment
-%  \DescribeMacro\ProvideDocumentEnvironment The
-%  |\DeclareDocumentEnvironment| declaration is similar to
-%  |\DeclareDocumentCommand| except that it takes four arguments: the
-%  first being the environment name (without a backslash), the second
-%  again the argument-spec, and the third and forth are the actions
-%  taken at start aqnd end of the environment. The parsed arguments are
-%  available to both the start and the finish as |#1|, |#2|, etc.
-%
-%  All commands and environments defined with the above commands are
-%  automatically robust.
-%
-%
-%
-% \subsection{A different interface (for class design?)}
-%
-%  Combining signature and top-level definition of a command |\foo| as
-%  in
-%  \begin{verbatim}
-%  \DeclareDocumentCommand \foo { m c m }
-%  { \typeout{1:#1}
-%    \typeout{2:#2}
-%    \typeout{3:#3}
-%  }
-%  \end{verbatim}
-%  is fine in certain cases, e.g., if the user wants to declare a few
-%  commands this way in the preamble of a document. However in a class
-%  file it probably better to completely separate signature (i.e.,
-%  argument \#1 and \#2) from top-level implementation (i.e., argument
-%  \#3).
-%
-%
-%  \begin{verbatim}
-%  \DeclareDocumentCommandInterface \foo {bar} { m c m }
-%  \end{verbatim}
-%  The above now declare only the signature of the command |\foo| and
-%  states that the implementation is to be found under the label |bar|.
-%
-%  A bunch of such statements would then for the first time clearly
-%  define a document class (i.e., what a document class instance needs
-%  to define to be compliant).
-%
-%  An instance would then consist of a lot of declarations of the type
-%  \begin{verbatim}
-%  \DeclareDocumentCommandImplementation {bar} {3}
-%  { \typeout{1:#1}
-%    \typeout{2:#2}
-%    \typeout{3:#3}
-%  }
-%  \end{verbatim}
-%  i.e., defining how to format things being referenced as part of the
-%  signature.
-%
-%  The functions |\DeclareDocumentCommandInterface| and
-%  |\DeclareDocumentCommandImplementation| are implemented for now but
-%  it is not sure if they will stay. If a document command is defined
-%  with |\DeclareDocumentCommandInterface| but there is no matching
-%  interface it prints the label in quotes as |``bar''|.
-%
-%
-%
-%
-%  \subsection{Checking for a value or boolean}
-%
-%  It would make perfect sense to make |\NoValue| a \LaTeX3 quark but
-%  as there is a real danger of it getting executed by accident it is
-%  best not to as it would result in an infinite loop.
-%
-%  \DescribeMacro\NoValue
-%  For this reason |\NoValue| is defined to expand to the string
-%  |-NoValue-| which would get typeset if ever executed thus clearly
-%  indicating the type of error the writer made.
-%
-%  However this makes testing for this token slightly complicated as in
-%  that case the test
-%  \begin{verbatim}
-%  \tl_set:Nn \l_seen_tl {#1}
-%  \tl_set:Nn \l_hidden_novalue_tl {\NoValue}
-%  \tl_if_eq:NNTF \l_seen_tl \l_hidden_novalue_tl
-%  \end{verbatim}
-%  will be true if |#1| was |\NoValue| but false if |#1| itself
-%  contains a macro which contains |\NoValue|; a case that happens
-%  unfortunately very often in practice.  Using an unguarded |x| type
-%  expansion to define |\l_seen_tl| is out of the question as |#1| is
-%  typically either |\NoValue| or arbitrary user input for which we
-%  can't properly guard it unless we are sure people only use robust
-%  commands. When running a pure \LaTeX3 format where all document
-%  commands are robust this is perhaps something to be looked at again
-%  but when running on top of \LaTeXe{} we have to be careful.
-%
-%  Therefore we use a somewhat different procedure here, which goes
-%  like this:
-%  \begin{enumerate}
-%  \item Store |#1| in a temporary variable and check if it equals a
-%    variable containing |\NoValue|. If true, execute the \meta{true}
-%    code, otherwise go to~2. 
-%  \item Peek at the first token in |#1|. If this is a macro taking no
-%    arguments expand |#1| once and go to~1. Otherwise execute the
-%    \meta{false} code.
-%  \end{enumerate}
-%  The reason for the careful peeking ahead is that |#1| may very well
-%  be a macro taking arguments and it is not certain that these
-%  arguments are present! Hence this could lead to the well-known
-% \begin{verbatim}
-% Argument of \XXX has an extra }
-% \end{verbatim}
-%  and we wouldn't want that\dots{} Goes without saying that this
-%  procedure is quite tedious but usually it will exit after the first
-%  time |#1| has been inspected. One additional test could be added,
-%  namely that |#1| should also contain exactly one token but I don't
-%  think that is going to matter much.
-%
-%  \DescribeMacro\IfNoValueTF
-%  \DescribeMacro\IfNoValueT
-%  \DescribeMacro\IfNoValueF
-%  \DescribeMacro\IfValueTF
-%  \DescribeMacro\IfValueT
-%  \DescribeMacro\IfValueF
-%  These macros are used for checking if an optional argument was
-%  present as in the example below.
-%  \begin{verbatim}
-%  \DeclareDocumentCommand\testcmd{om}{
-%    \IfNoValueTF{#1}{``#2''}{#1,#2}
-%  }
-%  \end{verbatim}
-%
-%
-%
-%  \DescribeMacro\IfBooleanTF
-%  \DescribeMacro\IfBooleanT
-%  \DescribeMacro\IfBooleanF
-%  As mentioned earlier, the parsing result for a symbol argument like
-%  |s| or |S{+}| is represented as the one of the tokens |\c_true_bool| or
-%  |\c_false_bool| respectively. To test for these values the macro
-%  |\IfBooleanTF| can be used. It expects as its first argument either
-%  |\c_true_bool| or |\c_false_bool| and executes its second or third argument
-%  depending on this value. |\IfBooleanT| and |\IfBooleanF| are
-%  obvious shortcuts.
-%
-%  At one point in time I thought that one can represent everything
-%  using |\NoValue|, e.g., for the star case either return |*| or
-%  |\NoValue|. However, this slows down processing of commands like
-%  |\\*| considerably since they would then have to use a slower
-%  internal test instead of a fast two-way switch.
-%
-%
-%  \subsection{New argument types and shorthands}
-%
-%  New argument types can be added at in a fairly straight forward
-%  manner with the command
-%  |\DeclareArgumentType|\DescribeMacro\DeclareArgumentType. This
-%  command takes seven arguments: |#1| is a symbol denoting the
-%  argument type, |#2| is the token the scanner should look for, |#3|
-%  is one of the words |meaning|, |charcode| or |catcode| which is
-%  handed down to the underlying |\peek_meaning:NTF| or
-%  |\peek_charcode:NTF| etc. functions. For instance you can use the
-%  |charcode| version if you want to pick up a literal |*| and not
-%  just something that has the same \emph{meaning} as a regular
-%  |*|. |#4| is for executing a special action (like an error message)
-%  if no argument is found, |#5| is the default value in case of a
-%  missing argument, |#6| is what the scanner will encounter, and
-%  finally |#7| is what the scanner grabs from the argument type. This
-%  is perhaps clearer with an example\dots{} This is how the |o| type
-%  is implemented:
-%  \begin{verbatim}
-%  \DeclareArgumentType o [ {meaning} {} {\NoValue} {#1[#2]} {#2}
-%  \end{verbatim}
-%  In a similar fashion a |b| type expecting its argument inside |<|
-%  and |>| would be defined as
-%  \begin{verbatim}
-%  \DeclareArgumentType b < {meaning} {} {\NoValue} {#1<#2>} {#2}
-%  \end{verbatim}
-%
-%  \DescribeMacro\DeclareArgumentTypeWithDefault
-%  |\DeclareArgumentTypeWithDefault| is even simpler as this type
-%  expects the default value to be input at the time of argument
-%  specification. Thus arguments |#3| and |#4| from above are
-%  unnecessary and are simply absent. Thus the |O| type is
-%  implemented\footnote{I would say it is at best wishful thinking
-%    that the interface could be something like
-%    \texttt{\cs{DeclareArgumentTypeWithDefault}
-%      C\{2\}\{meaning\}\{(\#1,\#2)\}\{\{\#1\}\{\#2\}\}} as it would
-%    be quite troublesome implementation-wise and the current syntax
-%    isn't that difficult to use.} as
-%  \begin{verbatim}
-%  \DeclareArgumentTypeWithDefault O [ {meaning}{#1[#2]} {#2}
-%  \end{verbatim}
-%  and again a similar |B| type could be implemented as
-%  \begin{verbatim}
-%  \DeclareArgumentTypeWithDefault B < {meaning}{#1<#2>} {#2}
-%  \end{verbatim}
-%
-%
-%  There is also a possibility to define a shorthand for a specific
-%  sequence of arguments with the command
-%  \DescribeMacro\DeclareArgumentTypeShorthand
-%  |\DeclareArgumentTypeShorthand|. As an example the |s| argument
-%  type is just a different way of saying |S{*}| so it's simply
-%  implemented as
-%  \begin{verbatim}
-%  \DeclareArgumentTypeShorthand s {S{*}}
-%  \end{verbatim}
-%  Similarly one could add a shorthand |M| for inserting five
-%  mandatory arguments where the latter is allowed to take |\par| in
-%  its argument:
-%  \begin{verbatim}
-%  \DeclareArgumentTypeShorthand M {mmmm>{P}m}
-%  \end{verbatim}
-%
-%  Finally there is also the command
-%  \DescribeMacro\DeclareSymbolArgument|\DeclareSymbolArgument| which
-%  defines the low level interface to looking ahead for specific
-%  symbols and removing them. For instance the |S| type argument is
-%  declared as
-% \begin{verbatim}
-% \DeclareSymbolArgument S{meaning}
-% \end{verbatim}
-%  So symbols picked up by this type will compare the meaning of the
-%  tokens. One could do a
-% \begin{verbatim}
-% \DeclareSymbolArgument A{charcode}
-% \end{verbatim}
-%  and then the |A| type would compare character codes instead. For
-%  instance a command which expects a |+| symbol would return
-%  \meta{true} if a |+| of any catcode is detected, not just catcode
-%  12 as is usual.
-%
-% \subsection{Some comments on the need for the \texttt{O} specifier}
-%
-% With |\newcommand| there is the possibility of specifying a default
-% for an optional argument which is stored away in a more or less
-% efficient manner. For example below is the old definition of
-% |\linebreak| as can be found in the \LaTeX2e kernel:
-%\begin{verbatim}
-%\def\linebreak{\@testopt{\@no@lnbk-}4}
-%\def\@no@lnbk #1[#2]{%
-%  \ifvmode
-%    \@nolnerr
-%  \else
-%    \@tempskipa\lastskip
-%    \unskip
-%    \penalty #1\@getpen{#2}%
-%    \ifdim\@tempskipa>\z@
-%      \hskip\@tempskipa
-%      \ignorespaces
-%    \fi
-%  \fi}
-%\end{verbatim}
-% Ignoring for the moment that the above is slightly optimised an
-% expansion of this code under |\tracingall| will result in about 90
-% lines of tracing output.  If we reimplement this using
-% |\DeclarDocumentCommand\linebreak{o}| we have to use |\IfNoValueTF|
-% to find out if an argument was present which (because of the careful
-% expansion we do internally) results in about twice as much of
-% tracing lines. In contrast using |O{4}| as below we end up with 110
-% lines, which seems roughly the price we have to pay for the extra
-% generality available (though this could perhaps even be reduced by a
-% better implementation of the parsing machine as originally done by
-% David, before i talked him into adding support for arguments in the
-% end code of an environment).\footnote{These comments were made
-%   before the extensive changes in expl3 and xparse in 2005.}
-%
-%\begin{verbatim}
-%\DeclareDocumentCommand\linebreak { O{4} }
-% {
-%  \ifvmode
-%    \@nolnerr
-%  \else
-%    \@tempskipa\lastskip
-%    \unskip
-% %    \IfNoValueTF{#1}
-% %       {\break}
-% %       {\penalty -\@getpen{#1}}
-%    \penalty -\@getpen{#1}
-%    \ifdim\@tempskipa>\z@
-%      \hskip\@tempskipa
-%      \ignorespaces
-%    \fi
-%  \fi
-% }
-%\end{verbatim}
-%
-%
-% \subsection{A somewhat complicated example}
-%
-% This example reimplements the |\makebox| and |\framebox| interface
-% of \LaTeX{} both of which are unfortunately quite overloaded
-% syntactically. For this reason the example isn't meant to show good
-% coding practice but to show the power of the interface even though
-% applied in a somewhat bad way.
-%
-% |\makebox| and |\framebox| support the following different document
-% syntax forms:
-% \begin{itemize}
-% \item
-% |\makebox{A}|: only a single mandatory argument.
-%
-% \item
-% |\makebox[20pt]{B}|: one optional argument specify the box width.
-%
-%
-% \item
-% |\makebox[30pt][r]{C}|: two optional arguments the second specifying
-%    the text position within the box being made (l,c,r being allowed
-%    with c being the default).
-%
-% \item
-% |\makebox(20,30){D}|: within picture mode the width is specified not
-% as an optional argument in brackets but as a coordinate pair.
-%
-% \item
-% |\makebox(0,0)[lt]{E}|: in that case an optional argument following
-% coordinate pair denotes the placement within the box which can have
-% different values compared to case C above.
-% \end{itemize}
-%
-% To cater for this overloaded structure we can define |\makebox| to
-% be something like the following:
-%\begin{verbatim}
-%\DeclareDocumentCommand \makebox { C{\NoValue} o O{c} m}
-% { \IfNoValueTF{#1}
-%     { \ltx@maketextbox{#2}{#3}{#4} }
-%     { \ltx@makepicbox #1  {#2}{#4} } }
-%\end{verbatim}
-% In other words: if we do not see a coordinate pair first (i.e.,
-% first argument is |\NoValue| then we expect up to two optional
-% arguments (the width of the box or |\NoValue| if not given and the
-% placement specifier with a default of |c| if not given) and one
-% mandatory one which is the text. In that case we pass argument 2 to
-% 4 to an internal function |\ltx@maketextbox| which builds the text
-% box.
-%
-% Otherwise, if the first argument is a coordinate pair we parse an
-% optional argument denoting the placement specifier. Since
-% \texttt{xparse} doesn't support variant syntax we actually parse for
-% another optional argument (which has no meaning in that case and is
-% in fact ignored if present) followed by a mandatory one containing
-% the box text. In that case we pass the coordinate pair (|#1|), the
-% specifier (|#2|), and the text (|#4|) to the function
-% |\ltx@makepicbox| which builds the picture box. Note the special
-% handling of the coordinatesD: which are passed without surrounding
-% braces to |\ltx@makepicbox|: since the coordinate argument looks
-% like |{x-val}{y-val}| the receiving function |\ltx@makepicbox| gets
-% the |x-val| as argument one and the |y-val| as argument two.
-%
-% A definition for |\framebox| would look more or less identical
-% except that we would need to pass the arguments to slightly
-% different internal functions. The alternative is to give the
-% internal functions an extra argument that controls whether or not a
-% frame is bying built.
-%
-% \begin{macro}{\ltx@makepicbox}
-% So here is a possible implementation of |\ltx@makepicbox| that
-% builds a picture box with or without frame. It takes the following
-% mandatory arguments:
-% \begin{enumerate}
-% \item x-part of coordinate
-% \item y-part of coordinate
-% \item placement specifier, e.g., |lt| or |\NoValue|
-% \item text of box
-% \item the token |\frame| (if a frame should surround the box) or the
-% token |\@firstofone| --- not pretty i agree
-% \end{enumerate}
-%\begin{verbatim}
-%\def\ltx@makepicbox#1#2#3#4#5
-%  {
-%   #5{
-%     \vbox to#2\unitlength
-%      {\let\mb@b\vss \let\mb@l\hss\let\mb@r\hss
-%       \let\mb@t\vss
-%       \IfNoValueF{#3}
-%        {
-%         \@tfor\reserved@a :=#3\do{
-%           \if s\reserved@a
-%             \let\mb@l\relax\let\mb@r\relax
-%           \else
-%             \expandafter\let\csname mb@\reserved@a\endcsname\relax
-%           \fi}%
-%        }
-%       \mb@t
-%       \hb@xt@ #1\unitlength{\mb@l #4\mb@r}
-%       \mb@b
-%       \kern\z@}
-%   }
-%  }
-%\end{verbatim}
-% \end{macro}
-%
-%
-%
-% \begin{macro}{\ltx@maketextbox}
-% For the text case the internal function could  take the following
-% mandatory arguments:
-% \begin{enumerate}
-% \item width of the box or |\NoValue| (denoting to build the box at
-% natural width)
-% \item placement specifier, e.g., |l|. (No test for |\NoValue| being undertaken)
-% \item text of box
-% \item the token |\fbox| (if a frame should surround the box) or the
-% token |\mbox|
-% \end{enumerate}
-% The actual code is taken straight from the current \LaTeX{} kernel
-% and looks kind of scary.
-%\begin{verbatim}
-%\def\ltx@maketextbox#1#2#3#4
-% {
-%  \IfNoValueTF{#1}
-%     {#4{#3}}
-%     {
-%      \leavevmode
-%      \@begin@tempboxa\hbox{#3}
-%       \setlength\@tempdima{#1}
-%       \ifx#4\fbox
-%         \setbox\@tempboxa\hb@xt@\@tempdima
-%              {\kern\fboxsep\csname bm@#2\endcsname\kern\fboxsep}
-%         \@frameb@x{\kern-\fboxrule}
-%       \else
-%         \hb@xt@\@tempdima{\csname bm@#2\endcsname}
-%       \fi
-%      \@end@tempboxa
-%     }
-% }
-%\end{verbatim}
-% \end{macro}
-%
-% \begin{macro}{\makebox}
-% \begin{macro}{\framebox}
-% Given the above internal functions the declarations of |\makebox|
-% and |\framebox| would then look like this:
-%\begin{verbatim}
-%\DeclareDocumentCommand \makebox { C{\NoValue} o O{c} m}
-% { \IfNoValueTF{#1}
-%     { \ltx@maketextbox{#2}{#3}{#4}\mbox }
-%     { \ltx@makepicbox #1  {#2}{#4}\@firstofone } }
-%
-%\DeclareDocumentCommand \framebox { C{\NoValue} o O{c} m}
-% { \IfNoValueTF{#1}
-%     { \ltx@maketextbox{#2}{#3}{#4}\fbox }
-%     { \ltx@makepicbox #1  {#2}{#4}\frame } }
-%\end{verbatim}
-% \end{macro}
-% \end{macro}
-%
-%
-%
-%  Here's another example which shows how one can use the |W| specifier.
-%  The \textsf{amsmath} environments use their own definition of |\\|
-%  which goes under the name |\math@cr|. As there is a good chance the
-%  next line of math begins with either an asterisk or something in
-%  square brackets this often leads to errors. The following example
-%  definition works (I \emph{did} try it).
-%  \begin{verbatim}
-%  \ExplSyntaxOn
-%  \makeatletter
-%  \DeclareDocumentCommand\math@cr{>{W}s >{W}O{\z@}}{
-%    \IfBooleanTF{#1}
-%    { \global\@eqpen\@M }{
-%      \global\@eqpen
-%        \ifnum\dspbrk@lvl <\z@
-%          \interdisplaylinepenalty
-%        \else
-%          -\@getpen\dspbrk@lvl
-%        \fi
+%    \DeclareDocumentCommand \foo { o m } {
+%      \IfNoValueTF {#1} {
+%        \DoSomethingJustWithMandatoryArgument {#2}
+%      }{
+%        \DoSomethingBothArguments {#1} {#2}
+%      }
 %    }
-%    \math@cr@@@
-%    \noalign{\vskip#2\relax}
-%  }
-%  \makeatother
-%  \ExplSyntaxOff
 %  \end{verbatim}
-%  Note that this definition automatically avoids problems within the
-%  alignments even if it is called as |\\&|.
+%  will use a different internal function if the optional argument
+%  is given than if it is not present.
+%  
+%  As the \cs{IfNoValue} tests are expandable, it is possible to test
+%  these values later, for example at the point of typesetting or in
+%  an expansion context.
+%\end{function}
 %
+%\begin{variable}{
+%  \BooleanFalse|
+%  \BooleanTrue
+%} 
+%  The \texttt{true} and \texttt{false} flags set when searching for
+%  an optional token (using \texttt{s} or \texttt{t<token>}) have
+%  names which are accessible outside of code blocks. 
+%\end{variable}
 %
+%\begin{function}{\IfBoolean / (TF) (EXP)}
+%  \begin{syntax}
+%    "\IfBooleanTF" <argument> <true code> <false code>
+%  \end{syntax}
+%  Used to test if <argument> (|#1|, |#2|, etc.) is \cs{BooleanTrue}
+%  or \cs{BooleanFalse}. For example
+%  \begin{verbatim}
+%    \DeclareDocumentCommand \foo { s m } {
+%      \IfBooleanTF #1 {
+%        \DoSomethingWithStar {#2} 
+%      }{
+%        \DoSomethingWithoutStar {#2}
+%    }
+%  \end{verbatim}
+%  checks for a star as the first argument, then chooses the action to
+%  take based on this information.
+%\end{function}
 %
+%\subsection{Argument processors}
+%\label{sec:processors}
 %
-% \subsection{Open issues}
+% \pkg{xparse} introdues the idea of an argument processor, which is
+% applied to an argument after it has been grabbed by the underlying
+% system but before it is passed to \meta{code}. An argument processor
+% can therefore be used to regularise input at an early stage, allowing
+% the internal functions to be completely independent of input form.
+% 
+% Each argument processor is specified by the syntax 
+% \texttt{>\marg{processor}} in the argument specification. Processors
+% are applied from right to left, so that 
+%\begin{verbatim}
+%  >{\ProcessorB} >{\ProcessorA} m
+%\end{verbatim}
+% would apply \cs{ProcessorA} 
+% followed by \cs{ProcessorB} to the \texttt{m} argument. Processors are
+% not applied to \cs{NoValue}.
+% 
+%\begin{function}{\xparse_arg_to_str:n}
+%  \begin{syntax}
+%    "\xparse_arg_to_str:n" <grabbed argument>
+%  \end{syntax}
+%  The \cs{xparse_arg_to_str:n} processor applies the \LaTeX3
+%  \cs{tl_to_str:n} function to the grabbed argument before passing
+%  it through to the <code> of a <function>. For example
+%  \begin{verbatim}
+%    \DeclareDocumentCommand \foo { >{\xparse_arg_to_str:n} m } {
+%      #1 % Which is a string
+%    }
+%  \end{verbatim}
+%  
+%  As can be seen here, processor functions must have a last \texttt{n}
+%  argument, so that they pick up the <grabbed argument>, which is
+%  passed to them by \pkg{xparse} for processing.
+%\end{function}
 %
-% In this section unresolved issues or ideas to think about and
-% perhaps implement are collected. There is no particular order to
-% them.
+%\begin{function}{\xparse_arg_split_on_comma:n}
+%  \begin{syntax}
+%    "\\xparse_arg_split_on_comma:n" <grabbed argument>
+%  \end{syntax}
+%  The \cs{xparse_arg_split_coords:n} processor splits the 
+%  grabbed argument at the first comma, returning the two
+%  parts of the result in braces. If no comma is found, the second
+%  part of the returned value is empty. This function is intended to
+%  aid the processing of co-ordinate pairs. For exmple
+%  \begn{verbatim}
+%    \DeclareDocumentCommand \foo 
+%      { >{\xparse_arg_split_on_comma:n} D(){0,0} m }
+%      { \foo_internal:nnn #1 {#2} }
+%  \end{verbatim}
+%  will result in \cs{foo_internal:nnn} receiving one co-ordinate as 
+%  |#1| and the second as |#2|.
+%\end{function}
 %
-% \begin{itemize}
-% \item
-%   Support for parsing verbatim type of arguments was considered (and
-%   actually implemented at one stage. E.g.,
-%   |g{|\meta{prepare-parsing}|}| where |g| first run
-%   \meta{prepare-parsing} (which might involve |catcode|
-%   changes)\footnote{urg horror!}, then look at the next token: if
-%   that would be a |{| it would scan a brace delimited argument
-%   (reverting catcodes of |{| and |}| if needed) otherwise would scan
-%   for an argument delimited by that token so that something like
-%   |\verb+%\+| would scan |%\| as its argument assuming that the
-%   \meta{prepare-parsing} turned |%| and |\| into non-letters.
+%\begin{variable}{\l_xparse_arg_toks}
+%  Processor functions should return the processed argument in the
+%  variable \cs{l_xparse_arg_toks}. This will always be empty when the
+%  processor function is called by \pkg{xparse}, even if more than one
+%  argument processor is applied.
+%\end{variable}
+%  
+%\subsection{Variables and constants}
 %
-%   All kind of nasty problems lurking especially no proper error
-%   checks possible and of course as we all know such commands would
-%   then not work inside arguments of other commands. At least they
-%   would have some restrictions.
+%\begin{variable}{\c_xparse_shorthands_prop}
+%  Shorthands and replacement text.
+%\end{variable}
 %
-%   Also no way to make the parsing smart by not accepting newlines as
-%   part of the code (|\verb| does this right now and this is really
-%   helpful as it catches runaways nicely).
+%\begin{variable}{\l_xparse_args_toks}
+%  Token register for arguments as they are picked up for passing on to
+%  user functions.
+%\end{variable}
 %
+%\begin{variable}{\l_xparse_environment_args_toks}
+%  Token register to pass arguments to the end of an environment from
+%  the beginning.
+%\end{variable}
 %
-% \item
-%   \textsf{xparse} should probably go into the \LaTeX3 kernel in which
-%   case it should also provide the definitions of |\begin| and |\end|
-%   and this raises a few questions: Will environments be defined as
-%   control sequences |\foo| and |\endfoo|? If they are do we then want
-%   to include support for a separate command |\foo| and if so what
-%   about using the environment forms in special scanner mechanisms
-%   where we \emph{can't} use |\begin{foo}|? In those cases one could
-%   use a special command like what the \textsf{fancyvrb} package
-%   provides with the command |\VerbatimEnvironment| and all packages
-%   that define such special arguments should then also make sure that
-%   the |\foo| command issued on its own should cause an error.
-%   Another solution would be to simply define environments as
-%   |\beginfoo| and |\endfoo| and then let |\begin| check if it was
-%   used to call an environment or a command. If the latter is the
-%   case then insert grouping as that could be handled by |\beginfoo|
-%   itself. When |\end| is reached check if |\endfoo| exists. If it
-%   does then use that, otherwise we were probably using a normal
-%   command which should just close the group.
-% \end{itemize}
+%\begin{variable}{\l_xparse_long_bool}
+%  Flag used to indicate creation of \cs{long} arguments.
+%\end{variable}
 %
+%\begin{variable}{\l_xparse_m_args_int}
+%  Used to enumerate the \texttt{m} arguments with no modifications.
+%\end{variable}
 %
-% \subsection{Rejected ideas---and why}
+%\begin{variable}{\l_xparse_m_only_bool}
+%  Flag used to indicate that all arguments are of type \texttt{m}.
+%\end{variable}
 %
-% Let's say the document command |\testmo| has signature |mo|. If we
-% call it as |\testmo{arg} [opt]| a following space will be obeyed.
-% However calling it with the mandatory argument only as in
-% |\testmo{arg}| will gobble a following space because the peek ahead
-% in the |o| type ignores spaces. We can record that a space has been
-% gobbled when peeking ahead and we can also put it back in if needed
-% but I have only ever seen one request for this and in that case the
-% better solution was to use a signature |mWo| so that no spaces are
-% allowed between the mandatory and the optional argument. One could
-% even argue that this is the most appropriate thing to do if the user
-% is really that sensitive to spaces! In any case it is not
-% implemented here as it creates an unnecessary overhead for something
-% that is never used and a simple solution exists.
+%\begin{variable}{
+%  \l_xparse_processor_int|
+%  \l_xparse_processor_use_int
+%}
+%  For counting up processors as defined and as used, respectively.
+%\end{variable}
 %
-% \subsection{Experimental features}
+%\begin{variable}{\l_xparse_signature_toks}
+%  For constucting the signature of the functionm defined.
+%\end{variable}
 %
-% Experimental features in an experimental packages\dots{} Needless to
-% say that you can't rely on them staying!
+%\begin{variable}{\l_xparse_tmp_tl}
+%  Scratch space.
+%\end{variable}
 %
+%\begin{variable}{\l_xparse_total_args_int}
+%  Used to enumerate the total number of arguments.
+%\end{variable}
 %
-% One new feature is what I decided to call ``pseudo
-% arguments''. Strictly speaking these aren't real arguments but
-% instead read by removing a begin group token and then using
-% |\tex_aftergroup:D| to regain control. The definition of |\footnote|
-% in plain \TeX\ uses this so that people can use
-% |\verb| and the like inside the footnotes. The command
-% |\DeclarePseudoArgument|\DescribeMacro{\DeclarePseudoArgument} takes
-% four arguments: |#1| is a name for the pseudo argument, |#2| is the
-% number of arguments it takes, |#3| is the action to be taken right
-% before the left brace is removed and |#4| is what to be done when
-% the right brace has been read and we regain control. Note that both
-% |#3| and |#4| may use arguments! Here is a silly example:
-% \begin{verbatim}
-% \DeclarePseudoArgument{boxtest}{1}
-% {Before:~`#1',\hbox_set_inline_begin:N \l_tmpa_box }
-% {\hbox_set_inline_end: \iow_space:  the~ box:~
-%   \hbox_unpack_and_clear:N\l_tmpa_box ,~
-%   After:~`#1'}
-% \end{verbatim}
-% Now when you want to use it, you simply call it with the macro
-% |\UsePseudoArgument|\DescribeMacro{\UsePseudoArgument}, which as its
-% first argument takes a name and the remaining depend on how many
-% arguments the pseudo argument was defined to have. Hence we could
-% use our |boxtest| definition like this:
-% \begin{verbatim}
-% \DeclareDocumentCommand\sillyboxtest{m}{
-%   Testing~#1:~\UsePseudoArgument{boxtest}{#1}
-% }
-% \end{verbatim}
-%   Then calling |\sillyboxtest{AB}{a\verb*+% $%&\+b}| produces
-%     \begin{quote}
-%       Testing AB: Before: `AB', the box:
-%       a\verb*+% $%&\+b, After: `AB'
-%     \end{quote}
-%     |\UsePseudoArgument| should always come last in the document
-%     command definition.
+%\subsection{Internal functions}
 %
-% \StopEventually{}
+%\begin{function}{\xparse_add_arg:n}
+%  \begin{syntax}
+%    "\xparse_add_arg:n" <grabbed arg>
+%  \end{syntax}
+%  Adds <grabbed arg> to the output \pkg{xparse} supplies to the
+%  defined <code>, applying any post-processing that is needed.
+%\end{function}
 %
-% \section{Implementation}
+%\begin{function}{\xparse_add_grabber:N}
+%  \begin{syntax}
+%    "\xparse_add_grabber:N" <grabber type>
+%  \end{syntax}
+%  Adds appropriate grabber for <grabber type> to the signature
+%  being constructed, making it \cs{long} if necessary.
+%\end{function}
 %
-%  Versions prior to and including 1.19 contained several different
-%  implementations. These are gone now but can be looked at by
-%  getting an older version of the package from the CVS repository.
+%\begin{function}{
+%  \xparse_add_type_+:|
+%  \xparse_add_type_>:|
+%  \xparse_add_type_d:|
+%  \xparse_add_type_D:|
+%  \xparse_add_type_g:|
+%  \xparse_add_type_G:|
+%  \xparse_add_type_l:|
+%  \xparse_add_type_m:|
+%  \xparse_add_type_t:|
+%  \xparse_add_type_u:
+%}
+%  \begin{syntax}
+%    "\xparse_add_type_u:"
+%  \end{syntax}
+%  Carry out necessary processes to add given <type> of argument to 
+%  the siganture being constructed.
+%\end{function}
 %
-%  First the required packages.
+%\begin{function}{\xparse_check_and_add:N}
+%  \begin{syntax}
+%    "\xparse_check_and_add:N" <arg spec>
+%  \end{syntax}
+%  Ensures that <arg spec> is valid, and if so adds it to the signature
+%  being constructed.
+%\end{function}
+%
+%\begin{function}{
+%  \xparse_declare_cmd:Nnn|
+%  \xparse_declare_cmd:cnn
+%}
+%  \begin{syntax}
+%    "\xparse_declare_cmd:Nnn" <function> <signature>
+%    ~~~~<code>
+%  \end{syntax}
+%  Declares <function> using <signature> for argument definition and
+%  <code> as expansion.
+%  \begin{texnote}
+%    This is the internal name for \cs{DeclareDocumentCommand}.
+%  \end{texnote}
+%\end{function}
+%
+%\begin{function}{\xparse_declare_env:nnnn}
+%  \begin{syntax}
+%    "\xparse_declare_env:nnnn" <env> <arg spec>
+%    ~~~~<start code> <end code>
+%  \end{syntax}
+%  Declares <env> as an environment taking <arg spec> arguments 
+%  at \cs{begin}\{<env>\}. The <start code> is eceutre at the beginning
+%  of the environment, and the <end code> at the end. Both parts may
+%  use the arguments defined by <arg spec>.
+%  \begin{texnote}
+%    This is the internal name for \cs{DeclareDocumentEnvironment}.
+%  \end{texnote}
+%\end{function}
+%
+%\begin{function}{\xparse_flush_m_args:}
+%  \begin{syntax}
+%    "\xparse_flush_m_args:" 
+%  \end{syntax}
+%  Adds an outstanding \texttt{m} arguments to the signature.
+%\end{function}
+%
+%\begin{function}{
+%  \xparse_grab_D:w     |
+%  \xparse_grab_D_long:w|
+%  \xparse_grab_G:w     |
+%  \xparse_grab_G_long:w|
+%  \xparse_grab_l:w     |
+%  \xparse_grab_l_long:w|
+%  \xparse_grab_m:w     |
+%  \xparse_grab_m_long:w|
+%  \xparse_grab_m_1:w   |
+%  \xparse_grab_m_2:w   |
+%  \xparse_grab_m_3:w   |
+%  \xparse_grab_m_4:w   |
+%  \xparse_grab_m_5:w   |
+%  \xparse_grab_m_6:w   |
+%  \xparse_grab_m_7:w   |
+%  \xparse_grab_m_8:w   |
+%  \xparse_grab_t:w     |
+%  \xparse_grab_t_long:w|
+%  \xparse_grab_u:w     |
+%  \xparse_grab_u_long:w
+%}
+%  \begin{syntax}
+%    "\xparse_grab_D:w" <arg data> "\l_xparse_args_toks"
+%  \end{syntax}
+%  Argument grabbing functions, which re-arrange other <arg data>
+%  so that the argument is read correctly.
+%\end{function}
+%
+%\begin{function}{\xparse_if_no_value:n / (TF) (EXP)}
+%  \begin{syntax}
+%    "\xparse_if_no_value:n" <arg> <true code> <false code>
+%  \end{syntax}
+%  Executes <true code> if <arg> is equal to the special 
+%  \cs{NoValue} marker and <false code> otherwise.  
+%\end{function}
+%
+%\begin{function}{
+%  \xparse_prepare_signature:n|
+%  \xparse_prepare_signature:N
+%}
+%  \begin{syntax}
+%    "\xparse_prepare_signature:n"  <arg specs>
+%  \end{syntax}
+%  Parse one or more <arg specs> and convert to an output <signature>.  
+%\end{function}
+%
+%\begin{function}{\xparse_process_arg:n}
+%  \begin{syntax}
+%    "\xparse_process_arg:n" <processor>
+%  \end{syntax}
+%  Sets up code to apply <processor> to next grabbed argument.
+%\end{function}
+%
+%\begin{function}{\xparse_prepare_next:w}
+%  \begin{syntax}
+%    "\xparse_next:w"
+%  \end{syntax}
+%  Function to call to loop parsing of <arg spec>, which may need to
+%  collect additional information for the previous <type>.
+%\end{function}
+%
+%\end{documentation}
+% 
+%\begin{implementation}
+%
+%\section{\pkg{xparse} implementation}
+%
+% The usual lead-off: only needed for the package, of course (one day we
+% may have a \LaTeX3 kernel).
 %    \begin{macrocode}
 %<*package>
 \ProvidesExplPackage
   {\filename}{\filedate}{\fileversion}{\filedescription}
 \RequirePackage{expl3}
+%</package>
+%<*initex|package>
 %    \end{macrocode}
+%    
+%\subsection{Variables and constants}
 %
-%
-%
-%  \subsection{Error and warning messages}
-%
-%  Here we define the error message we're going to use in this package.
-%
-%  \begin{macro}{\xparse_already_defined_error_msg:N}
-%  \begin{macro}{\xparse_not_yet_defined_error_msg:N}
-%  \begin{macro}{\xparse_begins_with_end_error_msg:N}
-%  \begin{macro}{\xparse_unknown_arg_type_error_msg:N}
-%  \begin{macro}{\xparse_number_of_arguments_error_msg:Nn}
-%  \begin{macro}{\xparse_no_command_implementation_warning:n}
-%  The names should give the function's purpose away.
+%\begin{macro}{\c_xparse_shorthands_prop}
+% Shorthands are stored as a property list: this is set up here as it
+% is a constant.
 %    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_already_defined_error_msg:N {
-  \xparse_error:x {
-    Command~name~`\token_to_str:N #1'~ already~defined!
-  }
-}
-\cs_new_nopar:Nn \xparse_not_yet_defined_error_msg:N {
-  \xparse_error:x {
-    Command~`\token_to_str:N #1'~ not~ yet~defined!
-  }
-}
-\cs_new_nopar:Nn \xparse_begins_with_end_error_msg:N  {
-  \xparse_error:x {
-    Command~`\token_to_str:N #1'~begins~with~
-    `\token_to_str:N \end'!
-  }
-}
+\prop_new:N \c_xparse_shorthands_prop
+\prop_put:Nnn \c_xparse_shorthands_prop { o } { d[] }
+\prop_put:Nnn \c_xparse_shorthands_prop { O } { D[] }
+\prop_put:Nnn \c_xparse_shorthands_prop { s } { t* }
 %    \end{macrocode}
-%  This one is for when we've encountered an unknown argument type in
-%  the argument specification. We can try to recover by putting in an
-%  |m| type instead and hope for the best.
+%\end{macro}
+%
+%\begin{macro}{\l_xparse_arg_toks}
+% Token registers for single grabbed argument when post-processing.
 %    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_unknown_arg_type_error_msg:N {
-  \xparse_error:x {
-    Unknown~ argument~ type~ `#1'~
-    I'll~ substitute~ it~ with~ `m'~ for~ now.~ Fingers~ crossed...
-  }
-}
+\toks_new:N \l_xparse_arg_toks
 %    \end{macrocode}
-%  A message for people using the wrong number of arguments.
+%\end{macro}
+%
+%\begin{macro}{\l_xparse_args_toks}
+% Token registers for grabbed arguments.
 %    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_no_command_implementation_warning:n  {
-  \xparse_warning:x {No~ implementation~ for~ `#1'~ defined}
-}
+\toks_new:N \l_xparse_args_toks
 %    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
+%\end{macro}
 %
-%  \begin{macro}{\xparse_error:x}
-%  \begin{macro}{\xparse_warning:x}
-%  Here's how we produce the error messages and warnings currently.
-%  This awaits a proper error message module!
+%\begin{macro}{\l_xparse_environment_args_toks}
+% Used to pass arguments to the end of an environment.
 %    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_error:x {\tex_errmessage:D {xparse~error:~#1}}
-\cs_new_nopar:Nn \xparse_warning:x {\iow_term:x{xparse~warning:~#1}}
+\toks_new:N \l_xparse_environment_args_toks
 %    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
+%\end{macro}
 %
-%
-%
-%  \subsection{Checking for valid command names}
-%
-%
-%  \begin{macro}{\xparse_if_definable:NT}
-%  \begin{macro}{\xparse_if_definable:cT}
-%  An undefinable command is either |\c_undefined| or |\scan_stop:| and
-%  furthermore we won't allow it to start with |\end|.
-%  If the command is definable we do what was asked for otherwise
-%  we give an appropriate error message.
+%\begin{macro}{\l_xparse_long_bool}
+% A flag for \cs{long} arguments.
 %    \begin{macrocode}
-\cs_new_nopar:Npn \xparse_if_definable:NTF #1 {
+\bool_new:N \l_xparse_long_bool
 %    \end{macrocode}
-%  First check if the control sequence is free.
+%\end{macro}
+%
+%\begin{macro}{\l_xparse_m_args_int}
+% The number of simple \texttt{m} arguments is tracked so they can be
+% dumped \emph{en masse}.
 %    \begin{macrocode}
-  \cs_if_free:NTF #1
+\int_new:N \l_xparse_m_args_int
 %    \end{macrocode}
-%  If free check if it begins with |\end|.
+%\end{macro}
+%
+%\begin{macro}{\l_xparse_m_only_bool}
+% A flag to indicate that only \texttt{m} arguments have been found.
 %    \begin{macrocode}
-  {
-    \xparse_begins_with_end:NTF #1
-    { \xparse_begins_with_end_error_msg:N #1 \use_ii:nn }
-    \use_i:nn
-  }
+\bool_new:N \l_xparse_m_only_bool
 %    \end{macrocode}
-%  If not free give an error message.
+%\end{macro}
+%
+%\begin{macro}{\l_xparse_processor_int}
+%\begin{macro}{\l_xparse_processor_use_int}
+% For keeping a count of post-processors and then using them.
 %    \begin{macrocode}
-  { \xparse_already_defined_error_msg:N #1 \use_ii:nn }
-}
-\cs_generate_variant:Nn \xparse_if_definable:NTF {c}
+\int_new:N \l_xparse_processor_int
+\int_new:N \l_xparse_processor_use_int
 %    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%  \begin{macro}{\xparse_if_redefinable:NTF}
-%  \begin{macro}{\xparse_if_redefinable:cTF}
-%  A re-definable command is almost the same as above but here we
-%  demand that it already exists.
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\l_xparse_signature_toks}
+% Token registers for making signatures.
 %    \begin{macrocode}
-\cs_new_nopar:Npn \xparse_if_redefinable:NTF #1 {
-  \cs_if_free:NTF #1
-  { \xparse_not_yet_defined_error_msg:N #1 \use_ii:nn }
-  {
-    \xparse_begins_with_end:NTF #1
-    { \xparse_begins_with_end_error_msg:N #1 \use_ii:nn }
-    \use_i:nn
-  }
-}
-\cs_generate_variant:Nn \xparse_if_redefinable:NTF  {c}
+\toks_new:N \l_xparse_signature_toks
 %    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
+%\end{macro}
 %
-%
-%  \begin{macro}{\xparse_begins_with_end:NTF}
-%  \begin{macro}{\xparse_begins_with_end_aux:N}
-%  Finally we need the magic function for checking if the control
-%  sequence begins with |\end|.
-%  We wish to determine if the control sequence in question begins with
-%  |\end| which is forbidden. The end goal is to get a control sequence
-%  consisting of the first three letters to test against |\end| with
-%  |\cs_if_eq_name_p:NN|. The function |\cs_to_str:N| will remove the |\|
-%  from a command name and return the rest of the characters with
-%  category code 12. Thus using an |f| type expansion to get the first
-%  three characters is perfectly safe as it'll stop right there. Then
-%  we turn these three letters into a control sequence with a simple
-%  expansion which is then tested with |\xparse_begins_with_end_aux:N|.
+%\begin{macro}{\l_xparse_tmp_tl}
+% A general purpose token list variable.
 %    \begin{macrocode}
-\cs_new_nopar:Npn \xparse_begins_with_end:NTF #1 {
+\tl_new:N \l_xparse_tmp_tl
 %    \end{macrocode}
-%  We do it all in a group as there is no need to fill up the hash
-%  table with weird three letter control sequences.
+%\end{macro}
+%
+%\begin{macro}{\l_xparse_total_args_int}
+% Thje total number of arguments is used to create the internal function
+% which has a fixed number of arguments.
 %    \begin{macrocode}
-  \group_begin:
-    \exp_args:Nc \xparse_begins_with_end_aux:N {
-      \tl_head_iii:f { \cs_to_str:N #1 ??}
-    }
-}
-%    \end{macrocode}
-%  After the above expansion tricks we now have a real control sequence
-%  to test against |\end|. We end the group again.
-%    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_begins_with_end_aux:N {
-  \if_predicate:w \cs_if_eq_name_p:NN #1 \end
-    \group_end:
-    \exp_after:wN \use_i:nn
-  \else:
-    \group_end:
-    \exp_after:wN \use_ii:nn
-  \fi:
-}
-%    \end{macrocode}
-%  Note that these definitions make no use of temporary variables.
-%  \end{macro}
-%  \end{macro}
-%
-%
-%
-%
-%
-%  \subsection{The low level definitions}
-%
-%
-%  First some helper functions
-%  \begin{macro}{\l_xparse_grabbed_args_toks}
-%  \begin{macro}{\l_xparse_end_environment_args_toks}
-%  \begin{macro}{\l_xparse_mandatory_args_int}
-%  \begin{macro}{\l_xparse_total_args_int}
-%  We need some \meta{token} registers to keep track of things. We also
-%  allocate an \meta{int} register to keep track of the number of
-%  arguments.
-%    \begin{macrocode}
-\toks_new:N \l_xparse_grabbed_args_toks
-\toks_new:N \l_xparse_end_environment_args_toks
-\int_new:N \l_xparse_mandatory_args_int
 \int_new:N \l_xparse_total_args_int
 %    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
+%\end{macro}
+%    
+%\subsection{Internal commands}
 %
-%
-%  \begin{macro}{\xparse_declare_document_command:Nnn}
-%  \begin{macro}{\xparse_declare_document_command:cnn}
-%  |\xparse_declare_document_command:Nnn| is a two step procedure. The
-%  user level command |\|\meta{cmd} contains the argument grabbers
-%  while the internal command |\\|\meta{cmd} holds the actual
-%  definition of what to do with the arguments. Naturally this calls
-%  for every such user level command to be robust which is done using
-%  the \eTeX{} protection feature.
+%\begin{macro}{\xparse_add_arg:n}
+%\begin{macro}[aux]{\xparse_add_arg_aux:n}
+%\begin{macro}[aux]{\xparse_add_arg_aux:V}
+% The argument-storing system provides a single point for interfacing
+% with processors. They are done in a loop, couning upward. Notice that
+% a set of braces are added back around the result of processing so that
+% the internal function will correctly pick up one argument for each
+% input argument.
 %    \begin{macrocode}
-\cs_set:Nn \xparse_declare_document_command:Nnn {
-%    \end{macrocode}
-%  First we prepare the signature.
-%    \begin{macrocode}
-  \xparse_prepare_signature:n {#2}
-%    \end{macrocode}
-%  Now for the document command. Make it robust and make sure it starts
-%  with |\toks_set:Nn \l_xparse_grabbed_args_toks {\\|\meta{cmd}|}|.
-%    \begin{macrocode}
-  \cs_set_protected_nopar:Npx #1 {
-    \exp_not:n { \toks_set:Nn \l_xparse_grabbed_args_toks }
-    {\exp_not:c {\token_to_str:N #1}}
-%    \end{macrocode}
-% Then add the argument grabbers which contain code gathered when
-% preparing the signature.
-%    \begin{macrocode}
-    \toks_use:N \l_xparse_grabbed_args_toks
-%    \end{macrocode}
-% Finally execute |\toks_use:N \l_xparse_grabbed_args_toks| which now
-% holds the grabbed arguments enclosed in braces and starts with the
-% internal command |\\|\meta{cmd}.
-%    \begin{macrocode}
-    \exp_not:n{ \toks_use:N \l_xparse_grabbed_args_toks}
+\cs_new:Nn \xparse_add_arg:n {
+  \intexpr_compare:nTF { \l_xparse_processor_int = \c_zero } {
+    \toks_put_right:Nn \l_xparse_args_toks { {#1} }
+  }{
+    \xparse_if_no_value:nTF {#1} {
+      \int_zero:N \l_xparse_processor_int
+      \toks_put_right:Nn \l_xparse_args_toks { {#1} }
+    }{
+      \int_zero:N \l_xparse_processor_use_int
+      \xparse_add_arg_aux:n {#1}
+    }
   }
-%    \end{macrocode}
-%  Define the internal command by making it a |\long| macro with number
-%  of arguments equal to |\l_xparse_total_args_int| and definition as
-%  given by |#3|. Even though this internal macro allows |\par| in its
-%  argument the decision is left to the individual argument grabbers.
-%    \begin{macrocode}
-  \cs_generate_from_arg_count:cNnn {\token_to_str:N #1}\cs_set:Npn
-                                   \l_xparse_total_args_int{#3}
 }
-\cs_generate_variant:Nn  \xparse_declare_document_command:Nnn {cnn}
+\cs_new:Nn \xparse_add_arg_aux:n {
+  \int_incr:N \l_xparse_processor_use_int
+  \use:c { xparse_processor_ \int_use:N \l_xparse_processor_use_int :n }
+    {#1}
+  \intexpr_compare:nTF { 
+    \l_xparse_processor_use_int = \l_xparse_processor_int 
+  } {
+    \toks_put_right:No \l_xparse_args_toks {
+      \exp_after:wN { \toks_use:N \l_xparse_arg_toks }
+    }
+    \int_zero:N \l_xparse_processor_int
+  }{
+    \xparse_add_arg_aux:V \l_xparse_arg_toks
+  }  
+}
+\cs_generate_variant:Nn \xparse_add_arg_aux:n { V }
 %    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
 %
-%  \begin{macro}{\xparse_declare_document_environment:nnnn}
-%  |\xparse_declare_document_environment:nnnn| is almost the same. In
-%  order to use the grabbed arguments we take them from
-%  |\l_xparse_grabbed_args_toks| just before they are executed. We
-%  also insert a |\group_begin:| as it will otherwise fail miserably
-%  in case a user tries to use it without |\begin ... \end|.
+%\begin{macro}{\xparse_add_grabber:N}
+% A shortcut to add the appropriate grabber to the signature, possibly
+% \cs{long}, and to then clear the flag.
 %    \begin{macrocode}
-\cs_new:Nn \xparse_declare_document_environment:nnnn {
-  \xparse_declare_document_command:cnn {#1}{#2}
-  { \group_begin:
-      \toks_set_eq:NN \l_xparse_end_environment_args_toks
-                      \l_xparse_grabbed_args_toks
+\cs_new_nopar:Nn \xparse_add_grabber:N {
+  \toks_put_right:Nx \l_xparse_signature_toks {
+    \exp_not:c { 
+      xparse_grab_ #1 \bool_if:NT \l_xparse_long_bool { _long } :w
+    }
+  }
+  \bool_set_false:N \l_xparse_long_bool
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\xparse_add_type_+:}
+% Making the next argument \cs{long} means setting the flag and
+% knocking one back off the totatl argument count. The \texttt{m}
+% arguments are recorded here as this has to be done for every case
+% where there is then a \cs{long} argument.
+%    \begin{macrocode}
+\cs_new_nopar:cn { xparse_add_type_+: } {
+  \xparse_flush_m_args:
+  \bool_set_true:N \l_xparse_long_bool 
+  \bool_set_false:N \l_xparse_m_only_bool
+  \int_decr:N \l_xparse_total_args_int
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\xparse_add_type_>:}
+%\begin{macro}[aux]{\xparse_add_type_>_aux:}
+% Preprocessors are simply added to the signature.
+%    \begin{macrocode}
+\cs_new_nopar:cn { xparse_add_type_>: } {
+  \xparse_flush_m_args:
+  \int_decr:N \l_xparse_total_args_int
+  \cs_set_eq:Nc \xparse_prepare_next:w { xparse_add_type_>_aux:n }
+}
+\cs_new:cn { xparse_add_type_>_aux:n } {
+  \toks_put_right:Nn \l_xparse_signature_toks {  
+    \xparse_process_arg:n {#1}
+  }
+  \cs_set_eq:NN \xparse_prepare_next:w \xparse_prepare_signature:N
+  \xparse_prepare_signature:N
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_add_type_d:}
+%\begin{macro}[aux]{\xparse_add_type_d_aux:NN}
+% To save on repeated code, \texttt{d} is actually turned into
+% the same grabber as is used by \texttt{D}, by putting the
+% \cs{NoValue} default in the correct place.
+%    \begin{macrocode}
+\cs_new_nopar:Nn \xparse_add_type_d: {
+  \xparse_flush_m_args:
+  \xparse_add_grabber:N D
+  \cs_set_eq:NN \xparse_prepare_next:w \xparse_add_type_d_aux:NN
+}
+\cs_new:Nn \xparse_add_type_d_aux:NN {
+  \toks_put_right:Nn \l_xparse_signature_toks { #1#2 { \NoValue } }
+  \cs_set_eq:NN \xparse_prepare_next:w \xparse_prepare_signature:N
+  \xparse_prepare_signature:N
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_add_type_D:}
+%\begin{macro}[aux]{\xparse_add_type_D_aux:NNN}
+% The \texttt{D} version is much the same as \texttt{d}, execpt the
+% default value has to be picked up.
+%    \begin{macrocode}
+\cs_new_nopar:Nn \xparse_add_type_D: {
+  \xparse_flush_m_args:
+  \xparse_add_grabber:N D
+  \cs_set_eq:NN \xparse_prepare_next:w \xparse_add_type_D_aux:NNN
+}
+\cs_new:Nn \xparse_add_type_D_aux:NNN {
+  \toks_put_right:Nn \l_xparse_signature_toks { #1#2 {#3} }
+  \cs_set_eq:NN \xparse_prepare_next:w \xparse_prepare_signature:N
+  \xparse_prepare_signature:N
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_add_type_g:}
+% Optional grouped arguments are easy: an alias for \texttt{g} with
+% a \cs{NoValue} default.
+%    \begin{macrocode}
+\cs_new_nopar:Nn \xparse_add_type_g: {
+  \xparse_flush_m_args:
+  \xparse_add_grabber:N G
+  \toks_put_right:Nn \l_xparse_signature_toks { { \NoValue } }
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\xparse_add_type_G:}
+%\begin{macro}[aux]{\xparse_add_type_G_aux:n}
+% Optional braced arguments with a default just need to find that
+% value.
+%    \begin{macrocode}
+\cs_new_nopar:Nn \xparse_add_type_G: {
+  \xparse_flush_m_args:
+  \xparse_add_grabber:N G
+  \cs_set_eq:NN \xparse_prepare_next:w \xparse_add_type_G_aux:N
+}
+\cs_new:Nn \xparse_add_type_G_aux:N {
+  \toks_put_right:Nn \l_xparse_signature_toks { {#1} }
+  \cs_set_eq:NN \xparse_prepare_next:w \xparse_prepare_signature:N
+  \xparse_prepare_signature:N
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_add_type_l:}
+% Finding \texttt{l} arguments is very simple.
+%    \begin{macrocode}
+\cs_new_nopar:Nn \xparse_add_type_l: {
+  \xparse_flush_m_args:
+  \xparse_add_grabber:N l
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\xparse_add_type_m:}
+% The \texttt{m} type is special as only \cs{long} arguments are
+% explicitly handled. For non-\cs{long} arguments, the total number
+% is counted and dealt with \emph{en masse} later.
+%    \begin{macrocode}
+\cs_new_nopar:Nn \xparse_add_type_m: {
+  \bool_if:NTF \l_xparse_long_bool {
+    \bool_set_false:N \l_xparse_long_bool
+    \toks_put_right:Nn \l_xparse_signature_toks 
+      { \xparse_grab_m_long:w }
+  }{
+    \intexpr_compare:nTF { \l_xparse_processor_int = \c_zero } {
+      \int_incr:N \l_xparse_m_args_int
+    }{
+      \toks_put_right:Nn \l_xparse_signature_toks { \xparse_grab_m:w }
+    }
+  }
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\xparse_add_type_t:}
+%\begin{macro}[aux]{\xparse_add_type_t_aux:N}
+% Setting up a \texttt{t} argument has two steps: add to the signature,
+% then set up to collect and store one more token.
+%    \begin{macrocode}
+\cs_new_nopar:Nn \xparse_add_type_t: {
+  \xparse_flush_m_args:
+  \xparse_add_grabber:N t
+  \cs_set_eq:NN \xparse_prepare_next:w \xparse_add_type_t_aux:N
+}
+\cs_new:Nn \xparse_add_type_t_aux:N {
+  \toks_put_right:Nn \l_xparse_signature_toks { #1 }
+  \cs_set_eq:NN \xparse_prepare_next:w \xparse_prepare_signature:N
+  \xparse_prepare_signature:N
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_add_type_u:}
+%\begin{macro}[aux]{\xparse_add_type_u_aux:n}
+% Setting up a \texttt{u} argument is very similar to a \texttt{t} one,
+% with the naming difference that the auxiliary function expects a 
+% braced argument.
+%    \begin{macrocode}
+\cs_new_nopar:Nn \xparse_add_type_u: {
+  \xparse_flush_m_args:
+  \xparse_add_grabber:N u
+  \cs_set_eq:NN \xparse_prepare_next:w \xparse_add_type_u_aux:n
+}
+\cs_new_eq:NN \xparse_add_type_u_aux:n \xparse_add_type_B_aux:N
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_check_and_add:N}
+% This function checks if the argument type actually exists and gives
+% an error if it doesn't.
+%    \begin{macrocode}
+\cs_new_nopar:Nn \xparse_check_and_add:N  {
+  \cs_if_free:cTF { xparse_add_type_#1: } {
+    \msg_error:nnx { xparse } { unknown-argument-type } {#1}
+    \xparse_add_type_m:
+  }{
+    \use:c { xparse_add_type_#1: }
+  }
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\xparse_declare_cmd:Nnn}
+%\begin{macro}{\xparse_declare_cmd:cnn}
+%\begin{macro}[aux]{\xparse_declare_cmd_all_m:Nn}
+%\begin{macro}[aux]{\xparse_declare_cmd_mixed:Nn}
+% First, the signature is set up from the argument specification. There
+% is then a check: if only \texttt{m} arguments are needed (which 
+% includes functions with no arguments at all) then the definition is
+% simple. On the other hand, if the signature is more complex then an 
+% internal function actually contains the code with the user function
+% as a simple wrapper.
+%    \begin{macrocode}
+\cs_new:Nn \xparse_declare_cmd:Nnn {
+  \xparse_prepare_signature:n {#2}
+  \bool_if:NTF \l_xparse_m_only_bool {
+    \xparse_declare_cmd_all_m:Nn #1 {#3}
+  }{
+    \xparse_declare_cmd_mixed:Nn #1 {#3}
+  }
+}
+\cs_generate_variant:Nn \xparse_declare_cmd:Nnn { cnn }
+\cs_new:Nn \xparse_declare_cmd_all_m:Nn {
+  \cs_generate_from_arg_count:NNnn 
+    #1 \cs_set_protected_nopar:Npn \l_xparse_total_args_int {#2}
+}
+\cs_new:Nn \xparse_declare_cmd_mixed:Nn {
+  \cs_set_protected_nopar:Npx #1 {
+    \exp_not:n { 
+      \int_zero:N \l_xparse_processor_int
+      \toks_set:Nn \l_xparse_args_toks 
+    } { \exp_not:c { \token_to_str:N #1 } }
+    \toks_use:N \l_xparse_signature_toks
+    \exp_not:n{ \toks_use:N \l_xparse_args_toks }
+  }
+  \cs_generate_from_arg_count:cNnn 
+    { \token_to_str:N #1 } \cs_set:Npn \l_xparse_total_args_int {#2}
+}
+%    \end{macrocode} 
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_declare_env:nnnn}
+% The idea here is to make sure that the end of the environment has the
+% same arguments available as the beginning.
+%    \begin{macrocode}
+\cs_new:Nn \xparse_declare_env:nnnn {
+  \xparse_declare_cmd:cnn { environment_begin_ #1 :w } {#2} {
+    \group_begin:
+      \toks_set_eq:NN \l_xparse_environment_args_toks 
+        \l_xparse_args_toks
       #3
   }
-%    \end{macrocode}
-%  We let |\end|\meta{envir} equal to a standard version which will do
-%  all the work.
-%    \begin{macrocode}
-  \cs_set_eq:cN {end #1} \xparse_parsed_end_environment:
-%    \end{macrocode}
-%  Now define |\end\\|\meta{envir}.
-%    \begin{macrocode}
-  \cs_generate_from_arg_count:cNnn {end \token_to_str:N \\ #1}\cs_set:Npn
-                                   \l_xparse_total_args_int{#4}
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-%  \begin{macro}{\xparse_parsed_end_environment:}
-%  \begin{macro}{\xparse_parsed_end_environment_aux:N}
-%  |\end|\meta{envir} is set equal to |\xparse_parsed_end_environment:|
-%  which then executes |\end\\|\meta{envir}. The |\\|\meta{envir} comes
-%  from the argument grabbing. The remainder of the token list is the
-%  grabbed arguments. We better make this robust as well.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Nn \xparse_parsed_end_environment: {
-  \exp_after:wN \xparse_parsed_end_environment_aux:N
-    \toks_use:N \l_xparse_end_environment_args_toks
-  \group_end:
-}
-\cs_new_nopar:Nn \xparse_parsed_end_environment_aux:N {
-  \use:c {end \token_to_str:N #1 }
-}
-%    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%
-%
-%  \subsection{The high level commands}
-%
-%
-%  Here we set up the functions for defining and redefining document
-%  commands and environments. It's all rather straight forward here so
-%  I've saved on the comments.
-%
-%  \begin{macro}{\DeclareDocumentCommand}
-%  \begin{macro}{\NewDocumentCommand}
-%  \begin{macro}{\RenewDocumentCommand}
-%  In case we can't do what the user wanted we gobble the next
-%  arguments from the input stream. For commands there are two
-%  arguments waiting.
-%    \begin{macrocode}
-\cs_new_eq:NN \DeclareDocumentCommand  \xparse_declare_document_command:Nnn 
-\cs_new_nopar:Npn \NewDocumentCommand #1 {
-  \xparse_if_definable:NTF #1
-  { \xparse_declare_document_command:Nnn #1 }
-  \use_none:nn
-}
-\cs_new_nopar:Npn \RenewDocumentCommand #1 {
-  \xparse_if_redefinable:NTF #1
-  { \xparse_declare_document_command:Nnn #1 }
-  \use_none:nn
-}
-%    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%
-%  \begin{macro}{\DeclareDocumentEnvironment}
-%  \begin{macro}{\NewDocumentEnvironment}
-%  \begin{macro}{\RenewDocumentEnvironment}
-%  Three arguments for environments.
-%    \begin{macrocode}
-\cs_new_eq:NN \DeclareDocumentEnvironment
-              \xparse_declare_document_environment:nnnn
-\cs_new_nopar:Npn \NewDocumentEnvironment #1 {
-  \xparse_if_definable:cTF {#1}
-  { \xparse_declare_document_environment:nnnn {#1} }
-  \use_none:nnn
-}
-\cs_new_nopar:Npn \RenewDocumentEnvironment #1 {
-  \xparse_if_redefinable:cTF {#1}
-  { \xparse_declare_document_environment:nnnn {#1} }
-  \use_none:nnn
-}
-%    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%
-%  \begin{macro}{\ProvideDocumentCommand}
-%  \begin{macro}{\ProvideDocumentEnvironment}
-%  When providing a command we just check if the control sequence is
-%  free. If it is let |\DeclareDocument...| do the rest, otherwise
-%  gobble the next arguments.
-%    \begin{macrocode}
-\cs_new_nopar:Npn \ProvideDocumentCommand #1{
-  \cs_if_free:NTF #1
-  { \DeclareDocumentCommand #1}
-  \use_none:nn
-}
-\cs_new_nopar:Npn \ProvideDocumentEnvironment #1{
-  \cs_if_free:cTF {#1}
-  { \DeclareDocumentEnvironment {#1} }
-  \use_none:nnn
-}
-%    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%
-%
-%  \subsubsection{A class designer interface}
-%
-%  Below is the implementation of |\DeclareDocumentCommandInterface|
-%  and the close cousin |\DeclareDocumentCommandImplementation|.
-%  It is an open issue whether this concept should be supported.
-%
-%  \begin{macro}{\DeclareDocumentCommandInterface}
-%  With this macro we define the document command |#1| to have
-%  signature |#3| which does the argument grabbing. The arguments are
-%  passed on to the internal command |\impl-#2|.
-%    \begin{macrocode}
-\cs_new:Npn \DeclareDocumentCommandInterface #1#2#3{
-  \xparse_prepare_signature:n {#3}
-  \cs_set_protected_nopar:Npx #1 {
-    \exp_not:n { \toks_set:Nn \l_xparse_grabbed_args_toks }
-    {\exp_not:c {impl-#2}}
-    \toks_use:N\l_xparse_grabbed_args_toks
-    \exp_not:n{ \toks_use:N \l_xparse_grabbed_args_toks}
+  \cs_set_nopar:cpx { environment_end_ #1 :w } {
+      \exp_not:N \exp_last_unbraced:NV 
+      \exp_not:c { environment_end_ #1 _aux:N }
+      \exp_not:N \l_xparse_environment_args_toks
+    \exp_not:N \group_end:
+  } 
+  \cs_set_nopar:cx { environment_end_ #1 _aux:N } {
+    \exp_not:c { environment_end_ #1 _aux :w }
   }
-%    \end{macrocode}
-%  Define the internal command by making it a |\long| macro as we did
-%  for |\DeclareDocumentCommand| but give it just a default definition
-%  instead (usually an error message).
-%    \begin{macrocode}
-  \cs_generate_from_arg_count:cNnn {impl-#2} \cs_set:Npn 
-    \l_xparse_total_args_int
-    {\xparse_undefined_command_implementation:n{#2}}
+  \cs_generate_from_arg_count:cNnn 
+    { environment_end_ #1 _aux :w } \cs_set:Npn
+    \l_xparse_total_args_int {#4}
+%</initex|package>
+%<*package>
+  \cs_set_eq:cc {#1} { environment_begin_ #1 :w } 
+  \cs_set_eq:cc { end #1 } { environment_end_ #1 :w }
+%</package>
+%<*initex|package>
 }
 %    \end{macrocode}
-%  \end{macro}
-%  \begin{macro}{\xparse_undefined_command_implementation:n}
-%  What to do if no implementation is made and the command is
-%  called. Let's just typeset the name in quotes indicating that
-%  something is wrong.
+%\end{macro}
+%
+%\begin{macro}{\xparse_flush_m_args:}
+% As \texttt{m} arguments are simply counted, there is a need to add 
+% them to the token register in a block. As this function can only
+% be called if something other than \texttt{m} turns up, the flag can 
+% be switched here.
 %    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_undefined_command_implementation:n {
-  ``#1''
-%  \ensuremath{\langle\textit{#1}\rangle}
-  \xparse_no_command_implementation_warning:n {#1}
+\cs_new_nopar:Nn \xparse_flush_m_args: {
+  \cs_if_exist:cT { 
+    xparse_grab_m_ \int_use:N \l_xparse_m_args_int :w 
+  } {
+    \toks_put_right:Nx \l_xparse_signature_toks {
+       \exp_not:c { xparse_grab_m_ \int_use:N \l_xparse_m_args_int :w }
+    }
+  }
+  \int_zero:N \l_xparse_m_args_int
+  \bool_set_false:N \l_xparse_m_only_bool
 }
 %    \end{macrocode}
-%  \end{macro}
+%\end{macro}
 %
-%  \begin{macro}{\DeclareDocumentCommandImplementation}
-%  Defines the internal command |\impl-#1| with |#2| arguments
-%  and definition |#3|.
+%\begin{macro}{\xparse_grab_D:w}
+%\begin{macro}{\xparse_grab_D_long:w}
+%\begin{macro}[aux]{\xparse_grab_D_aux:NNnnN}
+%\begin{macro}[aux]{\xparse_grab_D_aux:w}
+% The generic delimited argument grabber.
 %    \begin{macrocode}
-\cs_new:Npn \DeclareDocumentCommandImplementation #1#2#3{
-  \cs_generate_from_arg_count:cNnn {impl-#1}\cs_set:Npn {#2}{#3}
+\cs_new:Npn \xparse_grab_D:w #1#2#3#4 \l_xparse_args_toks {
+  \xparse_grab_D_aux:NNnnN #1 #2 {#3} {#4} \cs_set_nopar:Npn
+}
+\cs_new:Npn \xparse_grab_D_long:w #1#2#3#4 \l_xparse_args_toks {
+  \xparse_grab_D_aux:NNnnN #1 #2 {#3} {#4} \cs_set:Npn
+}
+\cs_set:Nn \xparse_grab_D_aux:NNnnN {
+  #5 \xparse_grab_D_aux:w #1 ##1 #2 {
+    \xparse_add_arg:n {##1}
+    #4 \l_xparse_args_toks
+  }
+  \peek_charcode:NTF #1 { 
+    \xparse_grab_D_aux:w 
+  }{
+    \xparse_add_arg:n {#3}
+    #4 \l_xparse_args_toks
+  }
+}
+\cs_new:Npn \xparse_grab_D_aux:w { }
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_grab_G:w}
+%\begin{macro}{\xparse_grab_G_long:w}
+%\begin{macro}[aux]{\xparse_grab_G_aux:nnN}
+%\begin{macro}[aux]{\xparse_grab_G_aux:n}
+% Optional groups are checed by meaning, so that the same code will 
+% work with, for example, Con\TeX{}t-like input.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_grab_G:w #1#2 \l_xparse_args_toks {
+  \xparse_grab_G_aux:nnN {#1} {#2} \cs_set_nopar:Nn
+}
+\cs_new:Npn \xparse_grab_G_long:w #1#2 \l_xparse_args_toks {
+  \xparse_grab_G_aux:nnN {#1} {#2} \cs_set:Nn
+}
+\cs_set:Nn \xparse_grab_G_aux:nnN {
+  #3 \xparse_grab_G_aux:n {
+    \xparse_add_arg:n {##1}
+    #2 \l_xparse_args_toks
+  }
+  \peek_meaning:NTF \c_group_begin_token { 
+    \xparse_grab_G_aux:n 
+  }{
+    \xparse_add_arg:n {#1}
+    #2 \l_xparse_args_toks
+  }
+}
+\cs_new:Npn \xparse_grab_G_aux:n { }
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_grab_l:w}
+%\begin{macro}{\xparse_grab_l_long:w}
+%\begin{macro}[aux]{\xparse_grab_l_aux:nN}
+%\begin{macro}[aux]{\xparse_grab_l_aux:w}
+% Argument grabbers for mandatory \TeX\ arguments are pretty simple.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_grab_l:w #1 \l_xparse_args_toks {
+  \xparse_grab_l_aux:nN {#1} \cs_set_nopar:Npn
+}
+\cs_new:Npn \xparse_grab_l_long:w #1 \l_xparse_args_toks { 
+  \xparse_grab_l_aux:nN {#1} \cs_set:Npn
+}
+\cs_new:Nn \xparse_grab_l_aux:nN {
+  #2 \xparse_grab_l_aux:w ##1## {
+    \xparse_add_arg:n \l_xparse_args_toks {##1}
+    #1 \l_xparse_args_toks
+  }
+  \xparse_grab_l_aux:w
+}
+\cs_new:Nn \xparse_grab_l_aux:w { }
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_grab_m:w}
+%\begin{macro}{\xparse_grab_m_long:w}
+%\begin{macro}[aux]{\xparse_grab_m_aux:n}
+% Collecting a single mandatory argument is quite easy.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_grab_m:w #1 \l_xparse_args_toks {
+  \cs_set_nopar:Nn \xparse_grab_m_aux:n {
+    \xparse_add_arg:n {##1}
+    #1 \l_xparse_args_toks
+  }
+  \xparse_grab_m_aux:n
+}
+\cs_new:Npn \xparse_grab_m_long:w #1 \l_xparse_args_toks {
+  \cs_set:Nn \xparse_grab_m_aux:n {
+    \xparse_add_arg:n {##1}
+    \showthe\l_xparse_args_toks
+    #1 \l_xparse_args_toks
+  }
+  \xparse_grab_m_aux:n
+}
+\cs_new:Nn \xparse_grab_m_aux:n { }
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_grab_m_1:w}
+%\begin{macro}[aux]{\xparse_grab_m_1_aux:n}
+%\begin{macro}{\xparse_grab_m_2:w}
+%\begin{macro}[aux]{\xparse_grab_m_2_aux:nn}
+%\begin{macro}{\xparse_grab_m_3:w}
+%\begin{macro}[aux]{\xparse_grab_m_3_aux:nnn}
+%\begin{macro}{\xparse_grab_m_4:w}
+%\begin{macro}[aux]{\xparse_grab_m_4_aux:nnnn}
+%\begin{macro}{\xparse_grab_m_5:w}
+%\begin{macro}[aux]{\xparse_grab_m_5_aux:nnnnn}
+%\begin{macro}{\xparse_grab_m_6:w}
+%\begin{macro}[aux]{\xparse_grab_m_6_aux:nnnnnn}
+%\begin{macro}{\xparse_grab_m_7:w}
+%\begin{macro}[aux]{\xparse_grab_m_7_aux:nnnnnnn}
+%\begin{macro}{\xparse_grab_m_8:w}
+%\begin{macro}[aux]{\xparse_grab_m_8_aux:nnnnnnnn}
+% Grabbing 1--8 mandatory arguments. We don't need to worry about 
+% nine arguments as this is only possible if everything is 
+% mandatory. Each function has an auxiliary so that \cs{par} tokens
+% from other arguments still work.
+%    \begin{macrocode}
+\cs_new:cpn { xparse_grab_m_1:w } #1 \l_xparse_args_toks {
+  \cs_set_nopar:cn { xparse_grab_m_1_aux:n } {
+    \toks_put_right:Nn \l_xparse_args_toks { {##1} }
+    #1 \l_xparse_args_toks
+  }
+  \use:c { xparse_grab_m_1_aux:n }
+}
+\cs_new_nopar:cn { xparse_grab_m_1_aux:n } { }
+\cs_new:cpn { xparse_grab_m_2:w } #1 \l_xparse_args_toks {
+  \cs_set_nopar:cn { xparse_grab_m_2_aux:nn } {
+    \toks_put_right:Nn \l_xparse_args_toks { {##1} {##2} }
+    #1 \l_xparse_args_toks
+  }
+  \use:c { xparse_grab_m_2_aux:nn }
+}
+\cs_new_nopar:cn { xparse_grab_m_2_aux:nn } { }
+\cs_new:cpn { xparse_grab_m_3:w } #1 \l_xparse_args_toks {
+  \cs_set_nopar:cn { xparse_grab_m_3_aux:nnn } {
+    \toks_put_right:Nn \l_xparse_args_toks { {##1} {##2} {##3} }
+    #1 \l_xparse_args_toks
+  }
+  \use:c { xparse_grab_m_3_aux:nnn }
+}
+\cs_new_nopar:cn { xparse_grab_m_3_aux:nnn } { }
+\cs_new:cpn { xparse_grab_m_4:w } #1 \l_xparse_args_toks {
+  \cs_set_nopar:cn { xparse_grab_m_4_aux:nnnn } {
+    \toks_put_right:Nn \l_xparse_args_toks { {##1} {##2} {##3} {##4} }
+    #1 \l_xparse_args_toks
+  }
+  \use:c { xparse_grab_m_4_aux:nnnn }
+}
+\cs_new_nopar:cn { xparse_grab_m_4_aux:nnnn } { }
+\cs_new:cpn { xparse_grab_m_5:w } #1 \l_xparse_args_toks {
+  \cs_set_nopar:cn { xparse_grab_m_5_aux:nnnnn } {
+    \toks_put_right:Nn \l_xparse_args_toks { 
+      {##1} {##2} {##3} {##4} {##5} 
+    }
+    #1 \l_xparse_args_toks
+  }
+  \use:c { xparse_grab_m_5_aux:nnnnn }
+}
+\cs_new_nopar:cn { xparse_grab_m_5_aux:nnnnn } { }
+\cs_new:cpn { xparse_grab_m_6:w } #1 \l_xparse_args_toks {
+  \cs_set_nopar:cn { xparse_grab_m_6_aux:nnnnnn } {
+    \toks_put_right:Nn \l_xparse_args_toks { 
+      {##1} {##2} {##3} {##4} {##5} {##6}
+    }
+    #1 \l_xparse_args_toks
+  }
+  \use:c { xparse_grab_m_6_aux:nnnnnn }
+}
+\cs_new_nopar:cn { xparse_grab_m_6_aux:nnnnnn } { }
+\cs_new:cpn { xparse_grab_m_7:w } #1 \l_xparse_args_toks {
+  \cs_set_nopar:cn { xparse_grab_m_7_aux:nnnnnnn } {
+    \toks_put_right:Nn \l_xparse_args_toks { 
+      {##1} {##2} {##3} {##4} {##5} {##6} {##7} 
+    }
+    #1 \l_xparse_args_toks
+  }
+  \use:c { xparse_grab_m_7_aux:nnnnnnn }
+}
+\cs_new_nopar:cn { xparse_grab_m_7_aux:nnnnnnn } { }
+\cs_new:cpn { xparse_grab_m_8:w } #1 \l_xparse_args_toks {
+  \cs_set_nopar:cn { xparse_grab_m_8_aux:nnnnnnnn } {
+    \toks_put_right:Nn \l_xparse_args_toks { 
+      {##1} {##2} {##3} {##4} {##5} {##6} {##7} {##8} 
+    }
+    #1 \l_xparse_args_toks
+  }
+  \use:c { xparse_grab_m_8_aux:nnnnnnnn }
+}
+\cs_new_nopar:cn { xparse_grab_m_8_aux:nnnnnnnn } { }
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_grab_t:w}
+%\begin{macro}{\xparse_grab_t_long:w}
+%\begin{macro}[aux]{\xparse_grab_t_aux:NnN}
+%\begin{macro}[aux]{\xparse_grab_t_aux:}
+% Dealing with a token is quite easy. Check the match, remove the 
+% token if needed and add a flag to the output.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_grab_t:w #1#2 \l_xparse_args_toks {
+  \xparse_grab_t_aux:NnN #1 {#2} \cs_set_nopar:Nn
+}
+\cs_new:Npn \xparse_grab_t_long:w #1#2 \l_xparse_args_toks {
+  \xparse_grab_t_aux:NnN #1 {#2} \cs_set:Nn
+}
+\cs_new:Nn \xparse_grab_t_aux:NnN {
+  #3 \xparse_grab_t_aux: {
+    \peek_charcode_remove:NTF #1 { 
+      \xparse_add_arg:n { \BooleanTrue }
+      #2 \l_xparse_args_toks
+    }{
+      \xparse_add_arg:n { \BooleanFalse }
+      #2 \l_xparse_args_toks
+    }
+  }
+  \xparse_grab_t_aux:
+}
+\cs_new:Nn \xparse_grab_t_aux: { }
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_grab_u:w}
+%\begin{macro}{\xparse_grab_u_long:w}
+%\begin{macro}[aux]{\xparse_grab_u_aux:NnN}
+%\begin{macro}[aux]{\xparse_grab_u_aux:w}
+% Grabbing up to a list of tokens is quite easy: define the grabber,
+% and then collect.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_grab_u:w #1#2 \l_xparse_args_toks {
+  \xparse_grab_u_aux:NnN {#1} {#2} \cs_set_nopar:Npn
+}
+\cs_new:Npn \xparse_grab_u_long:w #1#2 \l_xparse_args_toks {
+  \xparse_grab_u_aux:NnN {#1} {#2} \cs_set:Npn
+}
+\cs_new:Nn \xparse_grab_u_aux:NnN {
+  #3 \xparse_grab_u_aux:w ##1 #1 {
+    \xparse_add_arg:n {##1}
+    #2 \l_xparse_args_toks
+  }
+  \xparse_grab_u_aux:w
+}
+\cs_new:Nn \xparse_grab_u_aux:w { }
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}[TF]{\xparse_if_no_value:n}
+% Tests for \cs{NoValue}.
+%    \begin{macrocode}
+\prg_new_conditional:Nnn \xparse_if_no_value:n {TF,T,F} {
+  \tl_if_eq:nnTF {#1} { \NoValue } {
+    \prg_return_true:
+  }{
+    \prg_return_false:
+  }
 }
 %    \end{macrocode}
-% \end{macro}
+%\end{macro}
 %
-%
-%  \subsection{Creating the signature}
-%
-%
-% \begin{macro}{\xparse_prepare_signature:n}
-%   The actual preparation of the signature is always the same but we
-%   have different ways of handling it afterwards, so we make it a
-%   separate function.
+%\begin{macro}{\xparse_prepare_signature:n}
+% Creating the signature is a case of working through the input and
+% turning into the output in \cs{l_xparse_signature_toks}. A track is
+% also kept of the total number of arguments. This function sets 
+% everything up then hands off to the parser.
 %    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_prepare_signature:n  {
-%    \end{macrocode}
-% Initialize the counter taking care of the number of arguments. In
-% case we reach more than nine we will give an error message later on.
-%    \begin{macrocode}
+\cs_new:Nn \xparse_prepare_signature:n  {
+  \bool_set_true:N \l_xparse_m_only_bool
+  \bool_set_false:N \l_xparse_long_bool
+  \int_zero:N \l_xparse_m_args_int
+  \int_zero:N \l_xparse_processor_int
+  \toks_clear:N \l_xparse_signature_toks
   \int_zero:N \l_xparse_total_args_int
-%    \end{macrocode}
-% Clear the token register we use when building the signature and the
-% number of ``normal'' mandatory arguments. Also clear out the special
-% markers and initialize the two booleans to \meta{false}.
-%    \begin{macrocode}
-  \toks_clear:N \l_xparse_grabbed_args_toks
-  \int_zero:N \l_xparse_mandatory_args_int
-  \bool_gset_false:N \g_xparse_insert_marker_bool
-  \bool_gset_false:N \g_xparse_allow_par_bool
-  \tl_gset_eq:NN \g_xparse_ignore_marker_tl 
-                  \g_xparse_ignore_spaces_marker_tl
-%    \end{macrocode}
-%  Then call |\xparse_parse_signature:n|.
-%    \begin{macrocode}
-  \xparse_parse_signature:n #1 \q_nil
+  \xparse_prepare_signature:N #1 \q_nil
 }
 %    \end{macrocode}
-%  \end{macro}
+%\end{macro}
 %
-%
-%  \subsection{The argument types}
-%
-%
-%
-%  All argument types must be denoted by single letters.\footnote{You
-%  can use a multi-letter sequence to denote a shorthand but it
-%  requires you to put two brace groups around it in the signature and
-%  it's not officially supported.} We have three categories of letters:
-%  Special markers, basic argument types, and shorthands.
-%
-%  For certain argument types where we peek ahead in the token stream
-%  we have a multitude of choices for how the macro should work:
-%  Should it ignore spaces or other tokens? Which test should it use
-%  for comparing tokens: meaning, catcode or charcode? Because of
-%  these difficulties every argument that require peeking ahead must
-%  be declared as one of the three test types.
-%
-%  \subsubsection{Special markers}
-%
-%  Since there are different markers that may be used at the same
-%  time, we use the a special ``insert'' marker |>| to do this.
-%
-% \begin{macro}{\g_xparse_ignore_marker_tl}
-% The current ignore marker is contained in this string.
+%\begin{macro}{\xparse_prepare_signature:N}
+%\begin{macro}[aux]{\xparse_prepare_signature_aux:N}
+% The main signature-preparation loop is in two parts, to keep the code 
+% a little clearer. Most of the checks here is pretty clear, with a key
+% point to watch what is next on the stack so that the loop continues
+% correctly. 
 %    \begin{macrocode}
-\tl_new:Nn \g_xparse_ignore_marker_tl {}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\g_xparse_ignore_marker_seq}
-%   We start out by declaring a new sequence to contain all the
-%   different types of ignore functions. Each element should be the
-%   missing part of a |\peek_meaning|\meta{text}|:NTF| function.
-%    \begin{macrocode}
-\seq_new:N \g_xparse_ignore_marker_seq
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\g_xparse_insert_marker_bool}
-% A boolean to check if we just saw an insert marker.
-%    \begin{macrocode}
-\bool_new:N \g_xparse_insert_marker_bool
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_add_arg_type_>:}
-%   The insert marker is called when this is seen. Is has a funny
-%   definition but it works. |#1| is some test in the loop function
-%   and |#2| is the list of markers.
-%    \begin{macrocode}
-\cs_new_nopar:cpn {xparse_add_arg_type_>:} #1 
-  \xparse_read_arg_type_or_grab_default:n #2{
-%    \end{macrocode}
-% Insert pending |m| args first.
-%    \begin{macrocode}
-  \xparse_add_remaining_m_args:
-%    \end{macrocode}
-% Then we set the boolean true and subtract one from the argument
-% count.
-%    \begin{macrocode}
-  \bool_gset_true:N \g_xparse_insert_marker_bool
-  \int_decr:N \l_xparse_total_args_int
-%    \end{macrocode}
-% Then go through the list and call each subtype if it exists.
-%    \begin{macrocode}
-  \tl_map_inline:nn{#2}{
-    \xparse_check_and_add_argument_type:N ##1
-  }
-%    \end{macrocode}
-% Finally call the loop again.
-%    \begin{macrocode}
-  \xparse_parse_signature:n
-}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_add_ignore_marker:Nnn}
-% A small function for adding a new ignore type marker.
-%    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_add_ignore_marker:Nnn {
-  \tl_new:cn {g_xparse #2 _marker_tl}{#3}
-  \seq_gpush:Nv \g_xparse_ignore_marker_seq {g_xparse #2 _marker_tl}
-  \cs_new_nopar:cpn {xparse_add_arg_type_#1:}{
-    \tl_gset_eq:Nc \g_xparse_ignore_marker_tl {g_xparse #2 _marker_tl}
-  }
-}
-%    \end{macrocode}
-% \end{macro}
-% Here we add some ignore markers. 
-% \begin{macrocode}
-\xparse_add_ignore_marker:Nnn W{_ignore_nothing}{}
-\xparse_add_ignore_marker:Nnn i{_ignore_spaces}{_ignore_spaces}
-\xparse_add_ignore_marker:Nnn I{_ignore_pars}{_ignore_pars}
-%    \end{macrocode}
-%
-% \begin{macro}{\xparse_add_arg_type_P:}
-% This is simple, just set a boolean.
-% \begin{macrocode}
-\cs_new_nopar:Nn \xparse_add_arg_type_P: {
-  \bool_gset_true:N \g_xparse_allow_par_bool
-}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\g_xparse_allow_par_bool}
-% The boolean for allowing the |\par| token.
-%    \begin{macrocode}
-\bool_new:N \g_xparse_allow_par_bool
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%  \begin{macro}{\xparse_parse_signature:n}
-%  |\xparse_parse_signature:n| reads the signature one token/brace
-%  group at a time and builds a list of argument grabbers which is
-%  stored in |\l_xparse_grabbed_args_toks|. The function is recursive
-%  which is why we use a quark to delimit it.
-%    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_parse_signature:n {
-%    \end{macrocode}
-%  Check if we reached the end of the signature.
-%    \begin{macrocode}
-  \quark_if_nil:NTF #1
-%    \end{macrocode}
-% If we did we may have pending |m| type arguments so we clear them
-% out here. Also check if the insert marker is true because if it is,
-% something is wrong. Otherwise we just continue.
-%    \begin{macrocode}
-  { 
-    \xparse_add_remaining_m_args: 
-  }
-%    \end{macrocode}
-% Then proceed with adding arguments. 
-%    \begin{macrocode}
-  {
-    \int_incr:N \l_xparse_total_args_int
-    \xparse_check_and_add_argument_type:N #1
-%    \end{macrocode}
-% If the insert marker is true at this point we reset it again and
-% also disallow |\par| in arguments and make all |\peek| functions use
-% the |_ignore_spaces| versions.
-%    \begin{macrocode}
-    \bool_if:NT \g_xparse_insert_marker_bool
-    {
-      \bool_gset_false:N \g_xparse_insert_marker_bool
-      \bool_gset_false:N \g_xparse_allow_par_bool    
-      \tl_gset_eq:NN \g_xparse_ignore_marker_tl 
-                      \g_xparse_ignore_spaces_marker_tl
+\cs_new:Nn \xparse_prepare_signature:N {
+  \quark_if_nil:NTF #1 {
+    \bool_if:NF \l_xparse_m_only_bool {
+      \xparse_flush_m_args:
     }
-%    \end{macrocode}
-% After adding arguments we better set the boolean false in case we
-% don't have an insert marker.
-%    \begin{macrocode}
-%    \end{macrocode}
-% First we add the remaining |m| arguments.
-%    \begin{macrocode}
-%    \end{macrocode}
-%  Then we run the loop again.
-%    \begin{macrocode}
-    \xparse_read_arg_type_or_grab_default:n
-  }
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-%
-%  \begin{macro}{\xparse_check_and_add_argument_type:N}
-%  This function checks if the argument type actually exists and gives
-%  an error if it doesn't.
-%    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_check_and_add_argument_type:N  {
-  \cs_if_free:cTF {xparse_add_arg_type_#1:}
-  { \xparse_unknown_arg_type_error_msg:N #1
-    \int_incr:N \l_xparse_mandatory_args_int
-  }
-%    \end{macrocode}
-%  Otherwise we just add it with its dedicated function.
-%    \begin{macrocode}
-  { \use:c {xparse_add_arg_type_#1:} }
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-%
-%
-%  \begin{macro}{\xparse_read_arg_type_or_grab_default:n}
-%  \begin{macro}{\xparse_grab_default_arg:n}
-%  \begin{macro}{\xparse_grab_default_arg_allow_par:n}
-%    The function for grabbing a default value. The default setting is
-%    just to tun the loop again. However, some argument types need to
-%    add a default argument so we add these as well.
-%    \begin{macrocode}
-\cs_new_eq:NN \xparse_read_arg_type_or_grab_default:n
-            \xparse_parse_signature:n
-\cs_new_nopar:Nn \xparse_grab_default_arg:n {
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks {{#1}}
-  \cs_set_eq:NN \xparse_read_arg_type_or_grab_default:n
-          \xparse_parse_signature:n
-  \xparse_parse_signature:n
-}
-\cs_new:Nn \xparse_grab_default_arg_allow_par:n {
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks {{#1}}
-  \cs_set_eq:NN \xparse_read_arg_type_or_grab_default:n
-          \xparse_parse_signature:n
-  \xparse_parse_signature:n
-}
-%    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%
-%
-%
-%
-%
-%
-%  \subsubsection{The default argument types}
-%
-%
-%
-%  When scanning the signature we need to add the argument type which
-%  is done by a function |\xparse_add_arg_type_|\meta{X}|:|, where
-%  \meta{X} is the letter denoting the argument type. If not found an
-%  error message is issued ny |\xparse_unknown_arg_type_error_msg:N|.
-%
-%  By default the package implements the argument types  |m|, |S|, |c|,
-%  |C|, |o|, and |O| argument types as low level ones. The |s| type is
-%  a shorthand as we shall see later.
-%
-%  As we don't make every single |m| argument a separate grabber all
-%  other types must clear out any pending |m|s.
-%
-%  \paragraph{Mandatory arguments}
-%
-%  Below follows the implementation of mandatory arguments.
-%
-%  \begin{macro}{\xparse_add_arg_type_m:}
-%    Check if the user asked for an |m| argument allowing |\par|
-%    tokens and insert it. Otherwise increment the number of
-%    non-|\long| argument grabbers.
-%    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_add_arg_type_m: {
-  \bool_if:NTF \g_xparse_allow_par_bool
-  {
-    \toks_put_right:Nn \l_xparse_grabbed_args_toks {\xparse_allow_par_m:w}
-  }
-  { \int_incr:N \l_xparse_mandatory_args_int }
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-%  \begin{macro}{\xparse_add_remaining_m_args:}
-%    And here is the function for clearing out normal pending |m|
-%    arguments. There is little point in adding any arguments if none
-%    are required.
-%    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_add_remaining_m_args: {
-  \intexpr_compare:nNnF \l_xparse_mandatory_args_int = \c_zero
-  {
-    \toks_put_right:Nx \l_xparse_grabbed_args_toks {
-      \exp_not:c{xparse_m
-        \int_use:N \l_xparse_mandatory_args_int
-        :w }
-    }
-    \int_zero:N \l_xparse_mandatory_args_int
-  }
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-%
-%  \begin{macro}{\xparse_m1:w}
-%  \begin{macro}{\xparse_m2:w}
-%  \begin{macro}{\xparse_m3:w}
-%  \begin{macro}{\xparse_m4:w}
-%  \begin{macro}{\xparse_m5:w}
-%  \begin{macro}{\xparse_m6:w}
-%  \begin{macro}{\xparse_m7:w}
-%  \begin{macro}{\xparse_m8:w}
-%  \begin{macro}{\xparse_m9:w}
-%  Grabbing 1--9 mandatory arguments. The one grabbing nine arguments
-%  will automatically end with
-%  |\toks_use:N \l_xparse_grabbed_args_toks| anyway so we avoid
-%  problems with that one.
-%    \begin{macrocode}
-\cs_new_nopar:cpn {xparse_m1:w} #1 \l_xparse_grabbed_args_toks#2{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks{{#2}}
-  #1 \l_xparse_grabbed_args_toks
-}
-\cs_new_nopar:cpn {xparse_m2:w} #1 \l_xparse_grabbed_args_toks #2#3{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks{{#2}{#3}}
-  #1 \l_xparse_grabbed_args_toks
-}
-\cs_new_nopar:cpn {xparse_m3:w} #1 \l_xparse_grabbed_args_toks #2#3#4{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks{{#2}{#3}{#4}}
-  #1 \l_xparse_grabbed_args_toks
-}
-\cs_new_nopar:cpn {xparse_m4:w} #1 \l_xparse_grabbed_args_toks #2#3#4#5{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks{{#2}{#3}{#4}{#5}}
-  #1 \l_xparse_grabbed_args_toks
-}
-\cs_new_nopar:cpn {xparse_m5:w} #1 \l_xparse_grabbed_args_toks #2#3#4#5#6{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks{{#2}{#3}{#4}{#5}{#6}}
-  #1 \l_xparse_grabbed_args_toks
-}
-\cs_new_nopar:cpn {xparse_m6:w} #1 \l_xparse_grabbed_args_toks #2#3#4#5#6#7{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks
-                     {{#2}{#3}{#4}{#5}{#6}{#7}}
-  #1 \l_xparse_grabbed_args_toks
-}
-\cs_new_nopar:cpn {xparse_m7:w} #1 \l_xparse_grabbed_args_toks#2#3#4#5#6#7#8{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks
-                     {{#2}{#3}{#4}{#5}{#6}{#7}{#8}}
-  #1 \l_xparse_grabbed_args_toks
-}
-\cs_new_nopar:cpn {xparse_m8:w} #1\l_xparse_grabbed_args_toks
-                                                       #2#3#4#5#6#7#8#9{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks
-                     {{#2}{#3}{#4}{#5}{#6}{#7}{#8}{#9}}
-  #1 \l_xparse_grabbed_args_toks
-}
-\cs_new_nopar:cpn {xparse_m9:w} \toks_use:N \l_xparse_grabbed_args_toks
-                                                     #1#2#3#4#5#6#7#8#9{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks
-                     {{#1}{#2}{#3}{#4}{#5}{#6}{#7}{#8}{#9}}
-  \toks_use:N \l_xparse_grabbed_args_toks
-}
-%    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%
-%  \begin{macro}{\xparse_allow_par_m:w}
-%  The |m| type allowing |\par| tokens. We only define one of them as
-%  two in a row would be quite rare.
-%    \begin{macrocode}
-\cs_new:Npn \xparse_allow_par_m:w #1 \l_xparse_grabbed_args_toks#2{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks{{#2}}
-  #1 \l_xparse_grabbed_args_toks
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-% \paragraph{Arguments delimited by a left brace}
-%
-% \begin{macro}{\xparse_add_arg_type_l:}
-% \begin{macro}{\xparse_l:w}
-% \begin{macro}{\xparse_allow_par_l:w}
-%   This is almost exactly the same as the |m| type except we read
-%   everything up to the first left brace.
-%    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_add_arg_type_l: {
-  \xparse_add_remaining_m_args:
-  \bool_if:NTF \g_xparse_allow_par_bool
-  {
-    \toks_put_right:Nn \l_xparse_grabbed_args_toks {\xparse_allow_par_l:w}
-  }
-  { \toks_put_right:Nn \l_xparse_grabbed_args_toks {\xparse_l:w} }
-}
-\cs_new_nopar:Npn \xparse_l:w #1 \l_xparse_grabbed_args_toks#2#{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks{{#2}}
-  #1 \l_xparse_grabbed_args_toks
-}
-\cs_new:Npn \xparse_allow_par_l:w #1 \l_xparse_grabbed_args_toks#2#{
-  \toks_put_right:Nn \l_xparse_grabbed_args_toks{{#2}}
-  #1 \l_xparse_grabbed_args_toks
-}
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-%  \paragraph{Adding a symbol argument type}
-%
-%
-%  \begin{macro}{\DeclareSymbolArgument}
-% The actual grabber functions just issue a |\peek_meaning_remove:NTF|
-% or similar on the symbol chosen. If found, we put a |\c_true_bool| on the
-% argument stack and |\c_false_bool| otherwise.
-%    \begin{macrocode}
-\cs_new_nopar:Npn \DeclareSymbolArgument #1#2{
-  \seq_map_variable:NNn \g_xparse_ignore_marker_seq \l_tmpa_tl {
-    \cs_set_nopar:cpx {xparse \l_tmpa_tl _#1:w}##1##2
-      \l_xparse_grabbed_args_toks{
-      \exp_not:c{peek_ #2 _remove \l_tmpa_tl :NTF} ##1
-      { 
-        \exp_not:N \toks_put_right:Nn \exp_not:N
-        \l_xparse_grabbed_args_toks \exp_not:N \c_true_bool
-        ##2 \exp_not:N\l_xparse_grabbed_args_toks
-      }
-      { 
-        \exp_not:N \toks_put_right:Nn \exp_not:N
-        \l_xparse_grabbed_args_toks \exp_not:N \c_false_bool
-        ##2 \exp_not:N\l_xparse_grabbed_args_toks
-      }
+  }{
+    \prop_if_in:NnTF \c_xparse_shorthands_prop {#1} {
+      \prop_get:NnN \c_xparse_shorthands_prop {#1} \l_xparse_tmp_tl
+      \exp_last_unbraced:NV \xparse_prepare_signature_aux:N 
+        \l_xparse_tmp_tl
+    }{
+      \xparse_prepare_signature_aux:N #1
     }
   }
+}
+\cs_new_nopar:Nn \xparse_prepare_signature_aux:N {
+  \int_incr:N \l_xparse_total_args_int
+  \xparse_check_and_add:N #1
+  \xparse_prepare_next:w
+}
 %    \end{macrocode}
-%  Implementing a symbol type is fairly straight forward. It needs to
-%  grab a default argument. First we must clear out any pending |m|
-%  arguments.
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_prepare_next:w}
+% Initially, the next action to take is to find the next symbol. 
+% However, that might not always be the case, and in some cases more 
+% than one token is absorbed (hence \texttt{:w}).
 %    \begin{macrocode}
-  \cs_set_nopar:cpn {xparse_add_arg_type_#1:} {
-    \xparse_add_remaining_m_args:
-    \toks_put_right:Nx \l_xparse_grabbed_args_toks
-    { \exp_not:c {xparse \g_xparse_ignore_marker_tl _#1:w } }
+\cs_new_eq:NN \xparse_prepare_next:w \xparse_prepare_signature:N
 %    \end{macrocode}
-% Nothing special when building the signature: We always grab a single
-% default argument.
+%\end{macro}
+%
+%\begin{macro}{\xparse_process_arg:n}
+% Processors are saved for use later during the grabbbing process.
 %    \begin{macrocode}
-    \cs_set_eq:NN \xparse_read_arg_type_or_grab_default:n 
-                  \xparse_grab_default_arg:n
+\cs_new:Nn \xparse_process_arg:n {
+  \int_incr:N \l_xparse_processor_int
+  \cs_set:cn { xparse_processor_ \int_use:N \l_xparse_processor_int :n }
+    { #1 {##1} }
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\subsection{Argument processors}
+%
+%\begin{macro}{\xparse_arg_to_str:n}
+% A basic argument processor: as much an example as anything else.
+%    \begin{macrocode}
+\cs_new:Nn \xparse_arg_to_str:n {
+  \toks_set:Nx \l_xparse_arg_toks {
+    \tl_to_str:n {#1}
   }
 }
 %    \end{macrocode}
-% It is this easy now:
+%\end{macro}
+%
+%\begin{macro}{\xparse_arg_split_on_comma:n}
+%\begin{macro}[aux]{\xparse_arg_split_on_comma_aux:w}
+% Turns a co-ordinate pair into two separate values.
 %    \begin{macrocode}
-\DeclareSymbolArgument S{meaning}
+\cs_new:Nn \xparse_arg_split_on_comma:n {
+  \tl_if_in:nnTF {#1} { , } {
+    \xparse_arg_split_on_comma_aux:w #1 \q_stop
+  }{
+    \toks_set:Nn \l_xparse_arg_toks { {#1} { } }
+  }
+}
+\cs_new:Npn \xparse_arg_split_on_comma_aux:w #1 , #2 \q_stop {
+  \toks_set:Nn \l_xparse_arg_toks { {#1} {#2} }
+}
 %    \end{macrocode}
-% \end{macro}
+%\end{macro}
+%\end{macro}
+%    
+%\subsection{Messages}
+%    
+% Some error messages.   
+%    \begin{macrocode}
+\msg_new:nnn { xparse } { command-already-defined } {%
+  Command name `\token_to_str:N #1' already defined!%
+}
+\msg_new:nnnn { xparse } { command-not-yet-defined } {%
+  Command `\token_to_str:N #1' not yet defined!%
+}{%
+  You have used \token_to_str:N \RenewDocumentCommand, or similar\\%
+  with a command that was never defined.\\%
+  Perhaps you meant \token_to_str:N \NewDocumentCommand.%
+}
+\msg_new:nnn { xparse } { environment-already-defined } {%
+  Environment `#1' already defined!%
+}
+\msg_new:nnn { xparse } { environment-not-yet-defined } {%
+  Environment `#1' not yet defined!%
+}
+\msg_new:nnn { xparse } { unknown-argument-type } {%
+  Unknown argument type `#1' replaced by `m'. Fingers crossed ...%
+}
+%    \end{macrocode}
+%    
+%\subsection{User functions}
 %
-%
-%  \paragraph{Adding delimited arguments}
-%
+% The user functions are more or less just the internal functions 
+% renamed. 
 % 
-%  \begin{macro}{\DeclareArgumentType}
-%    Argument types that read their argument delimited as the |o| type
-%    can be defined with this function. |#1| is the letter associated
-%    with the type, |#3| is the test type we should use, i.e.,
-%    meaning, charcode or catcode. |#2| is the left delimiter \LaTeX{}
-%    will look for, |#4| can be used for an error message or such in
-%    case of a missing value, and |#5| the value inserted in case the
-%    optional argument is missing.  The last two arguments control how
-%    the arguments are picked up and parsed on to the inner parsing.
+%\begin{macro}{\BooleanFalse}
+%\begin{macro}{\BooleanTrue}
+% Design-space names for the Boolean values.
 %    \begin{macrocode}
-\cs_new_nopar:Npn \DeclareArgumentType #1#2#3#4#5#6#7{
+\cs_new_eq:NN \BooleanFalse \c_false_bool
+\cs_new_eq:NN \BooleanTrue  \c_true_bool
 %    \end{macrocode}
-% For instance, we want |\DeclareArgumentType a{charcode}[...| to
-% define the function |\xparse_ignore_spaces_a:w| with meaning
-% |\peek_charcode_ignore_spaces:NTF [{...}{...}|.  We want to define a
-% series of functions for each of these delimited argument types. One
-% for each of the |ignore| types plus an identical version of each of
-% these allowing the |\par| token in the argument. All the different
-% ignore types are stored in the sequence
-% |\g_xparse_ignore_marker_seq| so we go through that when doing the
-% definitions.
+%\end{macro}
+%\end{macro}
+% 
+%\begin{macro}{\DeclareDocumentCommand}
+%\begin{macro}{\NewDocumentCommand}
+%\begin{macro}{\RenewDocumentCommand}
+%\begin{macro}{\ProvideDocumentCommand}
+% The user macros are pretty simple wrappers around the internal ones.
 %    \begin{macrocode}
-  \seq_map_variable:NNn \g_xparse_ignore_marker_seq \l_tmpa_tl {
-    \cs_set_nopar:cpx {xparse \l_tmpa_tl _#1:w}##1\l_xparse_grabbed_args_toks{
-      \exp_not:c{peek_#3 \l_tmpa_tl :NTF} \exp_not:N #2
-      { \exp_not:c{xparse_#1_#3_help:nw}{##1} }
-      { 
-        \exp_not:n {
-          #4 \toks_put_right:Nn \l_xparse_grabbed_args_toks {#5}
-        }
-        ##1 \exp_not:N\l_xparse_grabbed_args_toks
-      }
-    }
-%    \end{macrocode}
-% And now an almost identical version which allows the |\par| token.
-%    \begin{macrocode}
-    \cs_set:cpx {xparse_allow_par \l_tmpa_tl _#1:w}##1
-    \l_xparse_grabbed_args_toks{
-      \exp_not:c{peek_#3 \l_tmpa_tl :NTF} \exp_not:N #2
-      { \exp_not:c{xparse_allow_par_#1_#3_help:nw}{##1} }
-      { 
-        \exp_not:n {
-          #4 \toks_put_right:Nn \l_xparse_grabbed_args_toks {#5} 
-        }
-        ##1 \exp_not:N\l_xparse_grabbed_args_toks
-      }
-    }
-  }
-%    \end{macrocode}
-% Here is the function for building the argument grabbing. We clear
-% out the remaining |m| arguments first. 
-%    \begin{macrocode}
-  \cs_set_nopar:cpn {xparse_add_arg_type_#1:} {
-    \xparse_add_remaining_m_args:
-    \toks_put_right:Nx \l_xparse_grabbed_args_toks {
-      \exp_not:c {xparse 
-%    \end{macrocode}
-% Insert |_allow_par| in the csname if needed. This also applies to
-% the argument grabber (although this should probably just be the
-% default).
-%    \begin{macrocode}
-        \bool_if:NT \g_xparse_allow_par_bool {_allow_par} 
-        \g_xparse_ignore_marker_tl        
-        _#1:w
-      }
-    }
-    \cs_set_eq:NN \xparse_read_arg_type_or_grab_default:n \xparse_parse_signature:n
-  }
-%    \end{macrocode}
-% Now all we need to do is to define the helper functions.
-%    \begin{macrocode}
-  \xparse_define_helper:Nnnn #1{#3}{#6}{#7}
+\cs_new_protected:Npn \DeclareDocumentCommand {
+  \xparse_declare_cmd:Nnn 
 }
-%    \end{macrocode}
-%  \end{macro}
-%
-%  \begin{macro}{\DeclareArgumentTypeDefaultValue}
-%  The same as above but expects a default value in the signature.
-%  Therefore it doesn't have the arguments of the default value and
-%  what to do if it is missing like the above.
-%    \begin{macrocode}
-\cs_new_nopar:Npn \DeclareArgumentTypeDefaultValue #1#2#3#4#5{
-  \seq_map_variable:NNn \g_xparse_ignore_marker_seq \l_tmpa_tl {
-    \cs_set_nopar:cpx {xparse \l_tmpa_tl _#1:w}##1##2\l_xparse_grabbed_args_toks{
-      \exp_not:c{peek_#3 \l_tmpa_tl :NTF} \exp_not:N #2
-      { \exp_not:c{xparse_#1_#3_help:nw}{##2} }
-      { 
-        \exp_not:N \toks_put_right:Nn 
-        \exp_not:N \l_xparse_grabbed_args_toks {{##1}}
-        ##2 \exp_not:N \l_xparse_grabbed_args_toks
-      }
-    }
-%    \end{macrocode}
-% And now an almost identical version which allows the |\par| token.
-%    \begin{macrocode}
-    \cs_set:cpx {xparse_allow_par \l_tmpa_tl _#1:w}##1##2
-    \l_xparse_grabbed_args_toks{
-      \exp_not:c{peek_#3 \l_tmpa_tl :NTF} \exp_not:N #2
-      { \exp_not:c{xparse_allow_par_#1_#3_help:nw}{##2} }
-      { 
-        \exp_not:N \toks_put_right:Nn
-        \exp_not:N \l_xparse_grabbed_args_toks {{##1}}
-        ##2 \exp_not:N \l_xparse_grabbed_args_toks
-      }
-    }
+\cs_new_protected:Npn \NewDocumentCommand #1 {
+  \cs_if_exist:NTF #1 { 
+    \msg_error:nnx { xparse } { command-already-defined } {#1}
+    \use_none:nn
+  }{
+    \xparse_declare_cmd:Nnn #1
   }
-%    \end{macrocode}
-% Here is the function for building the argument grabbing. We clear
-% out the remaining |m| arguments first. 
-%    \begin{macrocode}
-  \cs_set_nopar:cpn {xparse_add_arg_type_#1:} {
-    \xparse_add_remaining_m_args:
-    \toks_put_right:Nx \l_xparse_grabbed_args_toks {
-      \exp_not:c {xparse 
-%    \end{macrocode}
-% Insert |_allow_par| in the csname if needed. This also applies to
-% the argument grabber (although this should probably just be the
-% default).
-%    \begin{macrocode}
-        \bool_if:NT \g_xparse_allow_par_bool {_allow_par} 
-        \g_xparse_ignore_marker_tl        
-        _#1:w
-      }
-    }
-    \cs_set_eq:Nc \xparse_read_arg_type_or_grab_default:n 
-    {xparse_grab_default_arg
-      \bool_if:NT \g_xparse_allow_par_bool {_allow_par} 
-      :n
-    }
-  }
-%    \end{macrocode}
-% Now all we need to do is to define the helper functions.
-%    \begin{macrocode}
-  \xparse_define_helper:Nnnn #1{#3}{#4}{#5}
 }
-%    \end{macrocode}
-% \end{macro}
-%
-%  \begin{macro}{\xparse_define_helper:Nnnn}
-%  All we need now is the helper functions. We define a generic
-%  interface that should be fairly easy to use.
-%    \begin{macrocode}
-\cs_new_nopar:Nn \xparse_define_helper:Nnnn {
-  \toks_set:Nn \l_tmpa_toks
-  {
-    #3
-    {
-%    \end{macrocode}
-% Remember to add an extra set of braces here.
-%    \begin{macrocode}
-      \toks_put_right:Nn \l_xparse_grabbed_args_toks {{#4}}
-      ##1 \l_xparse_grabbed_args_toks
-    }
+\cs_new_protected:Npn \RenewDocumentCommand #1 {
+  \cs_if_exist:NTF #1 {
+    \xparse_declare_cmd:Nnn #1
+  }{  
+    \msg_error:nnx { xparse } { command-not-yet-defined } {#1}
+    \use_none:nn
   }
-%    \end{macrocode}
-%  The next bit looks a little ugly but that's life.
-%    \begin{macrocode}
-  \toks_set:Nx \l_tmpa_toks {
-    \exp_not:n {\cs_set_nopar:cpn{xparse_#1_#2_help:nw}}
-    \toks_use:N \l_tmpa_toks
-    \exp_not:n {\cs_set_nopar:cpn{xparse_allow_par_#1_#2_help:nw}}
-    \toks_use:N\l_tmpa_toks
-  }
-  \toks_use:N \l_tmpa_toks
 }
-%    \end{macrocode}
-%  \end{macro}
-%
-%  All the above may seem like an awful lot of trouble but it is
-%  general and it allows the following simple definitions:
-%    \begin{macrocode}
-\DeclareArgumentType o[{meaning}{}{\NoValue}{#1[#2]}{#2}
-%    \end{macrocode}
-%  For the |c| type we add give an error message.
-%    \begin{macrocode}
-\DeclareArgumentType c({meaning}{
-  \xparse_error:x{
-    Missing~ coordinate~ argument.~ A~ value~ of~ (0,0)~ is~ assumed}
-  }
-  {{00}}
-  {#1(#2,#3)}{{#2}{#3}}
-\DeclareArgumentTypeDefaultValue O[{meaning}{#1[#2]}{#2}
-\DeclareArgumentTypeDefaultValue C({meaning}{#1(#2,#3)}{{#2}{#3}}
-%    \end{macrocode}
-% One could also do
-% \begin{verbatim}
-% \DeclareArgumentTypeDefaultValue O[{charcode}{#1#2#3]}{#3}
-% \end{verbatim}
-% where argument |#2| is the bracket but not requiring it to have
-% catcode~12. However we can't use the same trick for reading the end
-% of the argument.
-%
-% Another interesting one could be
-% \begin{verbatim}
-% \DeclareArgumentType a\c_group_begin_token{catcode}{}{\NoValue}{#1#2}{#2}
-% \end{verbatim}
-% which would basically be an optional argument in braces.
-%
-%
-%
-%  \subsubsection{Argument shorthands}
-%
-%
-%  \begin{macro}{\DeclareArgumentTypeShorthand}
-%    Letting a letter or symbol be a shorthand for a more complicated
-%    structure is rather easy actually. All we need to do is to gobble
-%    the remainder of the main loop in the signature creation until
-%    |\xparse_parse_signature:n|, decrement the argument counter, put
-%    in the replacement argument specifiers and start the loop
-%    again. The disadvantage of this scheme is that we have to cheat
-%    and give it the wrong name as it should have a |w| argument
-%    specification but I hope you can forgive this little white lie.
-%    \begin{macrocode}
-\cs_new_nopar:Npn \DeclareArgumentTypeShorthand #1#2{
-  \cs_new_nopar:cpn {xparse_add_arg_type_#1:}
-    ##1 \xparse_read_arg_type_or_grab_default:n {
-    \int_decr:N \l_xparse_total_args_int
-    \xparse_read_arg_type_or_grab_default:n #2
+\cs_new_protected:Npn \ProvideDocumentCommand #1 {
+  \cs_if_exist:NTF #1 { 
+    \use_none:nn
+  }{
+    \xparse_declare_cmd:Nnn #1
   }
 }
 %    \end{macrocode}
-%  \end{macro}
-%  \begin{macro}{\xparse_add_arg_type_s:}
-%  Defining the |s| type is easy now since it really means |S{*}|.
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\DeclareDocumentEnvironment}
+%\begin{macro}{\NewDocumentEnvironment}
+%\begin{macro}{\RenewDocumentEnvironment}
+%\begin{macro}{\ProvideDocumentEnvironment}
+% Very similar for environments.
 %    \begin{macrocode}
-\DeclareArgumentTypeShorthand s {S{*}}
+\cs_new_protected_nopar:Npn \DeclareDocumentEnvironment {
+  \xparse_declare_env:nnnn
+}
+\cs_new_protected_nopar:Npn \NewDocumentEnvironment #1 {
+  \cs_if_exist:cTF { environment_begin_ #1 :w } { 
+    \msg_error:nnx { xparse } { environment-already-defined } {#1}
+    \use_none:nnn
+  }{
+    \xparse_declare_env:nnnn {#1}
+  }
+}
+\cs_new_protected_nopar:Npn \RenewDocumentEnvironment #1 {
+  \cs_if_exist:cTF { environment_begin_ #1 :w } {
+    \xparse_declare_env:nnnn {#1}
+  }{  
+    \msg_error:nnx { xparse } { environment-not-yet-defined } {#1}
+    \use_none:nnn
+  }
+}
+\cs_new_protected_nopar:Npn \ProvideDocumentEnvironment #1 {
+  \cs_if_exist:cTF { environment_begin_ #1 :w } { 
+    \use_none:nnn
+  }{
+    \xparse_declare_env:nnnn {#1}
+  }
+}
 %    \end{macrocode}
-%  \end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
 %
+%\begin{macro}{\DeclareExpandableDocumentCommand}
+%\begin{macro}{\NewExpandableDocumentCommand}
+%\begin{macro}{\RenewExpandableDocumentCommand}
+%\begin{macro}{\ProvideExpandableDocumentCommand}
+% The expanable versions of the basic functions are essentially the same.
+%    \begin{macrocode}
+\cs_new_protected:Npn \DeclareExpandableDocumentCommand {
+  \xparse_declare_cmd_exp:Nnn 
+}
+\cs_new_protected:Npn \NewExpandableDocumentCommand #1 {
+  \cs_if_exist:NTF #1 { 
+    \msg_error:nnx { xparse } { command-already-defined } {#1}
+    \use_none:nn
+  }{
+    \xparse_declare_cmd_exp:Nnn #1
+  }
+}
+\cs_new_protected:Npn \RenewExpandableDocumentCommand #1 {
+  \cs_if_exist:NTF #1 {
+    \xparse_declare_cmd_exp:Nnn #1
+  }{  
+    \msg_error:nnx { xparse } { command-not-yet-defined } {#1}
+    \use_none:nn
+  }
+}
+\cs_new_protected:Npn \ProvideExpandableDocumentCommand #1 {
+  \cs_if_exist:NTF #1 { 
+    \use_none:nn
+  }{
+    \xparse_declare_cmd_exp:Nnn #1
+  }
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
 %
-%  \subsection{Checking for optional values}
-%
-%
-%  \begin{macro}{\IfBooleanTF}
-%  \begin{macro}{\IfBooleanT}
-%  \begin{macro}{\IfBooleanF}
-%    The logical \meta{true} and \meta{false} statements are just our
-%    normal |\c_true_bool| and |\c_false_bool| so testing for them is done with
-%    our usual |\bool_if:NTF| functions from \textsf{l3prg}.
+%\begin{macro}[TF]{\IfBoolean}
+% The logical \meta{true} and \meta{false} statements are just the 
+% normal \cs{c_true_bool} and \cs{c_false_bool}, so testing for them is
+% done with the \cs{bool_if:NTF} functions from \textsf{l3prg}.
 %    \begin{macrocode}
 \cs_new_eq:NN \IfBooleanTF \bool_if:NTF
 \cs_new_eq:NN \IfBooleanT  \bool_if:NT
 \cs_new_eq:NN \IfBooleanF  \bool_if:NF
 %    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
+%\end{macro}
 %
-%  \begin{macro}{\NoValue}
-%  \begin{macro}{\c_xparse_hidden_no_value_tl}
-%    |\NoValue| is just a text string and we define it as a token list
-%    variable. However we will actually test for token list variables
-%    with \emph{meaning} |\NoValue|. Hence if an argument is really
-%    |-NoValue-| it will not be detected but that shouldn't happen.
+%\begin{macro}[TF]{\IfNoValue}
+% Simple re-naming. 
 %    \begin{macrocode}
-\tl_new:Nn \NoValue {-NoValue-}
-\tl_new:Nn \c_xparse_hidden_no_value_tl {\NoValue}
-%    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%
-%  \begin{macro}{\xparse_if_no_value:nTF}
-%    The test start by making a token list variable out of the first
-%    argument and then check if it is equal to
-%    |\c_xparse_hidden_no_value_tl| which contains |\NoValue|.
-%    \begin{macrocode}
-\cs_new:Npn \xparse_if_no_value:nTF #1{
-  \tl_set:Nx \l_tmpa_tl{\exp_not:n{#1}}
-  \tl_if_eq:NNTF \l_tmpa_tl \c_xparse_hidden_no_value_tl
-%    \end{macrocode}
-% If they are equal we just exit and execute the \meta{true} code.
-%    \begin{macrocode}
-  { \use_i:nn }
-%    \end{macrocode}
-% If not, take a closer look at |#1|. Peek ahead at the first token in
-% |#1| and then call the function |\xparse_if_no_value_aux:| but only
-% if |#1| is not empty or a blank space: in that case we can execute
-% the \meta{false} code immediately. We must use this test at some
-% point otherwise the macros for checking tokens will break since the
-% argument may be empty.
-%    \begin{macrocode}
-  { \tl_if_blank:nTF {#1}
-    { \use_ii:nn }
-    {\peek_after:NN \xparse_if_no_value_aux: #1 \q_nil {#1} }
-  }
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-%  \begin{macro}{\xparse_if_no_value_aux:}
-%    Now we simply check the argument specification of the token. If
-%    it is not a macro the function |\token_get_arg_spec:N| returns
-%    |\scan_stop:|.
-%    \begin{macrocode}
-\cs_new:Nn \xparse_if_no_value_aux: {
-  \tl_set:Nx \l_tmpa_tl{\token_get_arg_spec:N \l_peek_token }
-%    \end{macrocode}
-% Then check if |\l_tmpa_tl| is empty, because this means we have a
-% macro taking zero arguments and we can expand it once
-% safely. Otherwise we just exit and execute the false code. Remember
-% that we have the sequence |{#1}| waiting after the |\q_nil| in
-% |\xparse_if_no_value:nTF| above.
-%    \begin{macrocode}
-  \tl_if_empty:NTF \l_tmpa_tl
-  {\use_i_delimit_by_q_nil:nw {\exp_args:No\xparse_if_no_value:nTF}}
-  {\use_i_delimit_by_q_nil:nw {\use_iii:nnn}}
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-%
-%  \begin{macro}{\IfNoValueTF}
-%  \begin{macro}{\IfNoValueT}
-%  \begin{macro}{\IfNoValueF}
-%  \begin{macro}{\IfValueTF}
-%  \begin{macro}{\IfValueT}
-%  \begin{macro}{\IfValueF}
-%  |\IfNoValueTF| and its varieties are implemented as subcases of
-%  |\xparse_if_no_value:nTF|.
-%    \begin{macrocode}
+\cs_new_eq:NN \IfNoValueF  \xparse_if_no_value:nF 
+\cs_new_eq:NN \IfNoValueT  \xparse_if_no_value:nT 
 \cs_new_eq:NN \IfNoValueTF \xparse_if_no_value:nTF 
-\cs_new:Npn \IfNoValueT #1#2 {\xparse_if_no_value:nTF{#1}{#2}{}}
-\cs_new:Npn \IfNoValueF #1 {\xparse_if_no_value:nTF {#1}{}}
 %    \end{macrocode}
-%  For |\IfValueTF| we just reverse the arguments.
-%    \begin{macrocode}
-\cs_new:Npn \IfValueTF #1#2#3{\xparse_if_no_value:nTF {#1}{#3}{#2}}
-\cs_new_eq:NN \IfValueT \IfNoValueF
-\cs_new_eq:NN \IfValueF \IfNoValueT
-%    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
-%  \end{macro}
+%\end{macro}
 %
+%\begin{macro}{\NoValue}
+% The marker for no value being give: this can be typeset safely.
+% This is coded by hand as making it \cs{protected} ensures that it
+% will not turn into anything else by accident.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \NoValue { -NoValue- }
+%    \end{macrocode}
+%\end{macro}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
 % 
-% \subsection{Pseudo arguments}
-%
-% \begin{macro}{\l_xparse_pseudo_post_arg_tl}
-% A temporary token list variable to store the post-arguments.
-%    \begin{macrocode}
-\tl_new:Nn \l_xparse_pseudo_post_arg_tl {}
-%    \end{macrocode}
-% \end{macro}
-% \begin{macro}{\DeclarePseudoArgument}
-%   Must be called at the end of the replacement text.  Can use the
-%   parameters picked up so far. |#1| is a name for it, |#2| is the
-%   number of arguments, |#3| is the pre-argument definition, |#4| is
-%   the post-argument definition. The idea here is to define two
-%   functions: One to execute before the special pseudo argument is
-%   found and one to to it afterwards. Hence we define such two
-%   functions with |#2| arguments and definitions |#3| and |#4|
-%   respectively.
-%    \begin{macrocode}
-\cs_new:Npn \DeclarePseudoArgument #1#2#3#4{
-  \cs_set:cn {xparse_pseudo_pre_arg_#1:\prg_replicate:nn{#2}{n}} {#3}
-  \cs_set:cn {xparse_pseudo_post_arg_#1:\prg_replicate:nn{#2}{n}} {#4}
-%    \end{macrocode}
-% In case the user doesn't put the argument in braces, it must be a
-% single token which we just grab and then execute the
-% post-argument. Surely it won't be a |\par| token!
-%    \begin{macrocode}
-   \cs_set_nopar:cn {xparse_pseudo_nobrace_arg_#1:N}  {
-    ##1 \l_xparse_pseudo_post_arg_tl
-  }
-%    \end{macrocode}
-% The regular version of the command is then this:
-% \begin{enumerate}
-% \item Execute the pre-code at level $n$.
-% \item Store the post-code in a token list variable at level $n$.
-% \item Look for a begin-group token.
-% \item[4a] If found, remove it, start a group (level $n+1$) and make
-%   sure the token list variable from 2) is executed after the group
-%   has ended (at level $n$).
-% \item[4b] If not found, call the |nobrace_arg| version which also
-%   executes the token list variable from 2) at level $n$.
-% \end{enumerate}
-% This scheme enables these commands to be nested since they all
-% appear at different grouping levels.
-%
-% Next we define the function. Also make sure that it gets all the
-% arguments carried over to the post-argument.
-%    \begin{macrocode}
-  \cs_generate_from_arg_count:cNnn {xparse_pseudo_arg_#1:w}
-  \cs_set:Npx {#2}
-  {
-    \exp_not:c {
-      xparse_pseudo_pre_arg_#1: \prg_replicate:nn{#2}{n}
-    }
-    \use:c{use_ \intexpr_eval:n{#2} _parameter:}
-    \exp_not:n {\tl_set:Nn \l_xparse_pseudo_post_arg_tl}
-    {
-      \exp_not:c {xparse_pseudo_post_arg_#1:\prg_replicate:nn{#2}{n}}
-      \use:c{use_ \intexpr_eval:n{#2}_parameter:}
-    }
-    \exp_not:n{ \peek_catcode_remove_ignore_spaces:NTF \c_group_begin_token }
-    {
-%    \end{macrocode}
-% Here we insert the left brace token which was removed removed.
-% In case you're wondering then yes, I know that |\c_group_begin_token|
-% and |\group_execute_after:N| are unexpandable but I prefer this method
-% because I don't want to remember which commands are expandable and 
-% which are not.
-%    \begin{macrocode}
-     \exp_not:n {
-        \c_group_begin_token 
-        \group_execute_after:N \l_xparse_pseudo_post_arg_tl
-      }
-    }
-    {
-      \exp_not:c{xparse_pseudo_nobrace_arg_#1:N}
-    }
-  }
-}
-%    \end{macrocode}
-% \end{macro}
-% \begin{macro}{\UsePseudoArgument}
-%   Just a nice wrapper for calling such an argument.
-%    \begin{macrocode}
-\cs_new_nopar:Npn \UsePseudoArgument #1{\use:c{xparse_pseudo_arg_#1:w}}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-%
-% \Finale
-%
-\endinput
+% \PrintIndex
