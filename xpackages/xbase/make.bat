@@ -2,7 +2,7 @@
 
 setlocal
 
-set AUXFILES=aaux cmds glo gls hd idx ilg ind log lvt out toc tlg xref
+set AUXFILES=aux cmds glo gls hd idx ilg ind log lvt out toc tlg xref
 set CLEAN=pdf sty
 set EXPL3DIR=..\..\l3in2e
 set TEST=template-test template-test2 tprestrict-test xparse-test
