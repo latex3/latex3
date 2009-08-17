@@ -2,7 +2,7 @@
 
 setlocal
 
-set AUXFILES=aux dvi log toc
+set AUXFILES=aaux cmds glo gls hd idx ilg ind log lvt out toc tlg xref
 set CLEAN=pdf sty
 set EXPL3DIR=..\..\l3in2e
 set TEST=template-test template-test2 tprestrict-test xparse-test
@@ -10,12 +10,12 @@ set NEXT=end
 
 :loop
 
-  if /i "%1" == "all"    goto :all
-  if /i "%1" == "check"  goto :check
-  if /i "%1" == "clean"  goto :clean
-  if /i "%1" == "doc"    goto :doc
-  if /i "%1" == "test"   goto :test
-  if /i "%1" == "unpack" goto :unpack
+  if /i [%1] == [all]    goto :all
+  if /i [%1] == [check]  goto :check
+  if /i [%1] == [clean]  goto :clean
+  if /i [%1] == [doc]    goto :doc
+  if /i [%1] == [test]   goto :test
+  if /i [%1] == [unpack] goto :unpack
 
   goto :help
   
@@ -52,8 +52,6 @@ set NEXT=end
 :clean-int
 
   for %%I in (%AUXFILES%) do if exist *.%%I del /q *.%%I
-  
-  if exist l3in2e.err del l3in2e.err
       
   goto :end
   
@@ -61,8 +59,12 @@ set NEXT=end
 
   for %%I in (*.dtx) do (
     echo   %%I
-    pdflatex -interaction=nonstopmode %%I > temp.log
-    if ERRORLEVEL 0 (
+    pdflatex -interaction=nonstopmode -draftmode %%~nI.dtx > temp.log
+    if not ERRORLEVEL 1 (
+      if exist %%~nI.idx (
+        makeindex -q -s l3doc.ist -o %%~nI.ind %%~nI.idx > temp.log
+      )
+      pdflatex -interaction=nonstopmode %%I > temp.log
       pdflatex -interaction=nonstopmode %%I > temp.log
     )
   )
@@ -72,7 +74,7 @@ set NEXT=end
 :help
 
   echo.
-  echo. make all                - extract modules plus expl3
+  echo  make all                - extract modules plus expl3
   echo  make clean              - clean out directory
   echo  make check              - set up and run all test files
   echo  make doc                - typeset all dtx files
@@ -93,7 +95,7 @@ set NEXT=end
   for %%I in (%TEST%) do (
     echo   %%I
     pdflatex -interaction=batchmode %%I > temp.log
-    if not ERRORLEVEL 0 (
+    if not %ERRORLEVEL%==0 (
       echo.
       echo **********************
       echo * Compilation failed *
