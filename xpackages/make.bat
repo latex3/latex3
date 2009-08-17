@@ -192,7 +192,7 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
   for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
     if exist "%%I\zip.exe" (
       set ZIPEXE=zip
-      set ZIPFLAG=-r -q -X
+      set ZIPFLAG=-ll -q -r -X
     )
     set PATHCOPY=%%J;%%K
   )
