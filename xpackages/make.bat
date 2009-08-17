@@ -92,16 +92,19 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
   ren README-ctan.txt README
   popd
   
-  cd tds
-  "%ZIP%" %ZIPFLAG% xpackages.tds.zip > temp.log
-  cd ..
-  copy /y tds\xpackages.tds.zip temp\ > temp.log
+  pushd tds
+  %ZIP% %ZIPFLAG% zip.zip * > ..\temp.log
+  popd
+  copy /y tds\zip.zip > temp.log
+  ren zip.zip xpackages.tds.zip > temp.log
+  copy /y xpackages.tds.zip temp\ > temp.log
   
-  cd temp
-  "%ZIP%" %ZIPFLAG% xpackages.zip > temp.log
-  cd ..
-  copy /y temp\xpackages.zip > temp.log
-  
+  pushd temp
+  %ZIP% %ZIPFLAG% zip.zip * > ..\temp.log
+  popd
+  copy /y temp\zip.zip > temp.log
+  ren zip.zip xpackages.zip > temp.log
+    
   rmdir /q /s tds
   rmdir /q /s temp
 
@@ -184,9 +187,10 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
   )
   
   cd tds
-  "%ZIP%" %ZIPFLAG% xpackages.tds.zip > temp.log
+  "%ZIP%" %ZIPFLAG% zip.zip * > ..\temp.log
   cd ..
-  copy /y tds\xpackages.tds.zip > temp.log
+  copy /y tds\zip.zip > temp.log
+  ren zip.zip xpackages.tds.zip 
   
   rmdir /q /s tds
 
@@ -199,9 +203,9 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
 :zip-loop
   
   for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
-    if exist %%I\7z.exe (
-      set ZIP=7z
-      set ZIPFLAG=a
+    if exist %%I\zip.exe (
+      set ZIP=zip
+      set ZIPFLAG=-r -X
     )
     set PATHCOPY=%%J;%%K
   )
@@ -210,9 +214,9 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
 
   if not "%PATHCOPY%"==";" goto :zip-loop
   
-  if exist %ProgramFiles%\7-zip\7z.exe (
-    set ZIP=%ProgramFiles%\7-zip\7z.exe
-    set ZIPFLAG=a
+  if exist %ProgramFiles%\Info-ZIP\zip.exe (
+    set ZIP=%ProgramFiles%\Info-ZIP\zip.exe
+    set ZIPFLAG=-r -X
   )
   
   if defined ZIP (
