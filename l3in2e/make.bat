@@ -1,8 +1,8 @@
 @echo off
 rem This Windows batch file provides very similar functionality to the
 rem Makefile also available here. Some of the options provided here 
-rem require Perl (http://www.perl.org) or a zip program such as 7-Zip
-rem (http://www.7zip.org).
+rem require Perl (http://www.perl.org) or a zip program such as Info-ZIP
+rem (http://www.info-zip.org).
 
 setlocal
 
@@ -301,9 +301,10 @@ set VALIDATE=..\validate
   copy /y expl3.tds.zip temp\ > temp.log
   
   cd temp
-  "%ZIP%" %ZIPFLAG% expl3.zip > temp.log
+  "%ZIP%" %ZIPFLAG% zip.zip * > ..\temp.log
   cd ..
-  copy temp\expl3.zip > temp.log
+  copy temp\zip.zip > temp.log
+  ren zip.zip expl3.zip > temp.log
   rmdir /q /s temp
   
   goto :clean-int
@@ -550,9 +551,10 @@ set VALIDATE=..\validate
   )
  
   cd tds
-  "%ZIP%" %ZIPFLAG% expl3.tds.zip > temp.log
+  "%ZIP%" %ZIPFLAG% zip.zip * > ..\temp.log
   cd ..
-  copy /y tds\expl3.tds.zip > temp.log
+  copy /y tds\zip.zip > temp.log
+  ren zip.zip expl3.tds.zip > temp.log
   
   rmdir /q /s tds
   
@@ -592,9 +594,9 @@ set VALIDATE=..\validate
 :zip-loop
   
   for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
-    if exist %%I\7z.exe (
-      set ZIP=7z
-      set ZIPFLAG=a
+    if exist %%I\zip.exe (
+      set ZIP=zip
+      set ZIPFLAG=-r -X
     )
     set PATHCOPY=%%J;%%K
   )
@@ -603,9 +605,9 @@ set VALIDATE=..\validate
 
   if not "%PATHCOPY%"==";" goto :zip-loop
   
-  if exist %ProgramFiles%\7-zip\7z.exe (
-    set ZIP=%ProgramFiles%\7-zip\7z.exe
-    set ZIPFLAG=a
+  if exist %ProgramFiles%\Info-ZIP\zip.exe (
+    set ZIP=%ProgramFiles%\Info-ZIP\zip.exe
+    set ZIPFLAG=-r -X
   )
   
   if defined ZIP (
