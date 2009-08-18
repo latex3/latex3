@@ -357,6 +357,8 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
 
 :localinstall
 
+  call :unpack
+
   echo.
   echo Installing files
 
