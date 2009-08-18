@@ -17,11 +17,11 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
 
 :loop
 
-  if /i [%1] == [check]         goto :check
-  if /i [%1] == [clean]         goto :clean
-  if /i [%1] == [ctan]          goto :ctan
-  if /i [%1] == [localinstall]  goto :localinstall
-  if /i [%1] == [tds]           goto :tds
+  if /i [%1] == [check]        goto :check
+  if /i [%1] == [clean]        goto :clean
+  if /i [%1] == [ctan]         goto :ctan
+  if /i [%1] == [localinstall] goto :localinstall
+  if /i [%1] == [tds]          goto :tds
 
   goto :help
 
@@ -187,6 +187,10 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
 
 :zip 
 
+  set PATHCOPY=%PATH%
+
+:zip-loop
+
   if defined ZIPEXE goto :EOF
 
   for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
@@ -196,9 +200,9 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     )
     set PATHCOPY=%%J;%%K
   )
-  if not "%PATHCOPY%" == ";" goto :zip
+  if not "%PATHCOPY%" == ";" goto :zip-loop
   
-  if defined ZIPEXE else (
+  if not defined ZIPEXE (
     echo.
     echo This procedure requires a zip program,
     echo but one could not be found.
