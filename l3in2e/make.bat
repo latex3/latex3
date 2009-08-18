@@ -17,7 +17,7 @@ set TEMPLOG=%TEMP%\temp.log
 set TESTDIR=testfiles
 set TEX=source3
 set TXT=README
-set UNPACK=l3.ins
+set UNPACK=l3.ins l3doc.dtx
 set VALIDATE=..\validate
 set XPACKAGEDIR=..\xpackages\
 set XPACKAGES=xparse
@@ -369,10 +369,10 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
 
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
 
-  xcopy /q /y *.sty ""%INSTALLROOT%\"   > %TEMPLOG%
   if exist *.cls (
-    xcopy /q /y *.cls ""%INSTALLROOT%\" > %TEMPLOG%
+    xcopy /q /y *.cls "%INSTALLROOT%\" > %TEMPLOG%
   )
+  xcopy /q /y *.sty "%INSTALLROOT%\"   > %TEMPLOG%
 
   xcopy /q /y l3vers.dtx "%INSTALLROOT%\" > %TEMPLOG%
   xcopy /q /y l3doc.ist  "%TEXMFHOME%\makeindex\%PACKAGE%\" > %TEMPLOG%
