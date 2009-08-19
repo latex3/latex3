@@ -124,9 +124,11 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
   if not defined TEXMFHOME (
     set TEXMFHOME=%USERPROFILE%\texmf
   )
-  set INSTALLROOT=%TEXMFHOME%\%TDSROOT%
+  set INSTALLROOT=%TEXMFHOME%\tex\%TDSROOT%
 
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
+
+  echo !!! %INSTALLROOT%
 
   for %%I in (%XPACKAGES%) do (
     echo   %%I
