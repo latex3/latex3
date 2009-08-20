@@ -128,8 +128,6 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
 
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
 
-  echo !!! %INSTALLROOT%
-
   for %%I in (%XPACKAGES%) do (
     echo   %%I
     pushd %%I

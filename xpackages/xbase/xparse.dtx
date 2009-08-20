@@ -496,10 +496,15 @@
 %\end{variable}
 %
 %\begin{variable}{
-%  \l_xparse_processor_int|
+%  \l_xparse_processor_total_int|
 %  \l_xparse_processor_use_int
 %}
-%  For counting up processors as defined and as used, respectively.
+%  Both of these variable are used when a document function is expanded.
+%  \cs{l_xparse_processor_total_int} counts up processors as they occur 
+%  in the function, while \cs{l_xparse_processor_use_int} tracks them
+%  as they are excuted. This is necessary as they must be used from
+%  $1$ to $n$, and so \cs{l_xparse_processor_total_int} cannot be 
+%  counted down.
 %\end{variable}
 %
 %\begin{variable}{\l_xparse_signature_toks}
@@ -656,10 +661,13 @@
 %
 %\begin{function}{\xparse_prepare_next:w}
 %  \begin{syntax}
-%    "\xparse_next:w"
+%    "\xparse_prepare_next:w"
 %  \end{syntax}
-%  Function to call to loop parsing of <arg spec>, which may need to
-%  collect additional information for the previous <type>.
+%  Funcion which exectutes the loop needed to read the argument
+%  specifier and convert it to a signature. It will either be
+%  equal to \cs{xparse_prepare_signature:N}, to grab the next
+%  argument type, or an auxiliary function, to grab extra tokens
+%  needed by the current argument type.
 %\end{function}
 %
 %\subsection{Creating expandable commands}
@@ -814,11 +822,15 @@
 %    \end{macrocode}
 %\end{macro}
 %
-%\begin{macro}{\l_xparse_processor_int}
+%\begin{macro}{\l_xparse_processor_total_int}
 %\begin{macro}{\l_xparse_processor_use_int}
-% For keeping a count of post-processors and then using them.
+% The first variable is used to count up processors as they appear in
+% the document command, the second then counts how many have been used
+% so that they can be used in the correct order. This is needed as the
+% order the functions appear in the code will be from $n$ to $1$, but
+% they need to be used from $1$ to $n$.
 %    \begin{macrocode}
-\int_new:N \l_xparse_processor_int
+\int_new:N \l_xparse_processor_total_int
 \int_new:N \l_xparse_processor_use_int
 %    \end{macrocode}
 %\end{macro}
@@ -865,11 +877,11 @@
 % input argument.
 %    \begin{macrocode}
 \cs_new:Nn \xparse_add_arg:n {
-  \intexpr_compare:nTF { \l_xparse_processor_int = \c_zero } {
+  \intexpr_compare:nTF { \l_xparse_processor_total_int = \c_zero } {
     \toks_put_right:Nn \l_xparse_args_toks { {#1} }
   }{
     \xparse_if_no_value:nTF {#1} {
-      \int_zero:N \l_xparse_processor_int
+      \int_zero:N \l_xparse_processor_total_int
       \toks_put_right:Nn \l_xparse_args_toks { {#1} }
     }{
       \int_zero:N \l_xparse_processor_use_int
@@ -882,12 +894,12 @@
   \use:c { xparse_processor_ \int_use:N \l_xparse_processor_use_int :n }
     {#1}
   \intexpr_compare:nTF { 
-    \l_xparse_processor_use_int = \l_xparse_processor_int 
+    \l_xparse_processor_use_int = \l_xparse_processor_total_int 
   } {
     \toks_put_right:No \l_xparse_args_toks {
       \exp_after:wN { \toks_use:N \l_xparse_arg_toks }
     }
-    \int_zero:N \l_xparse_processor_int
+    \int_zero:N \l_xparse_processor_total_int
   }{
     \xparse_add_arg_aux:V \l_xparse_arg_toks
   }  
@@ -1039,7 +1051,7 @@
     \toks_put_right:Nn \l_xparse_signature_toks 
       { \xparse_grab_m_long:w }
   }{
-    \intexpr_compare:nTF { \l_xparse_processor_int = \c_zero } {
+    \intexpr_compare:nTF { \l_xparse_processor_total_int = \c_zero } {
       \int_incr:N \l_xparse_m_args_int
     }{
       \toks_put_right:Nn \l_xparse_signature_toks { \xparse_grab_m:w }
@@ -1126,7 +1138,7 @@
 \cs_new:Nn \xparse_declare_cmd_mixed:Nn {
   \cs_set_protected_nopar:Npx #1 {
     \exp_not:n { 
-      \int_zero:N \l_xparse_processor_int
+      \int_zero:N \l_xparse_processor_total_int
       \toks_set:Nn \l_xparse_args_toks 
     } { \exp_not:c { \token_to_str:N #1 } }
     \toks_use:N \l_xparse_signature_toks
@@ -1194,10 +1206,20 @@
 %    \end{macrocode}
 %\end{macro}
 %
+%\begin{macro}[aux]{\xparse_grab_aux:w}
+% Each time an argument is actually grabbed, \pkg{xparse} defines a
+% function to do it. In that way, long arguments from previous functions
+% can be included in the definition of the grabber function, so that
+% it does not raise an error if not long. The generic function used
+% for this is reserved here.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_grab_aux:w { }
+%    \end{macrocode}
+%\end{macro}
+%
 %\begin{macro}{\xparse_grab_D:w}
 %\begin{macro}{\xparse_grab_D_long:w}
 %\begin{macro}[aux]{\xparse_grab_D_aux:NNnnN}
-%\begin{macro}[aux]{\xparse_grab_D_aux:w}
 % The generic delimited argument grabber.
 %    \begin{macrocode}
 \cs_new:Npn \xparse_grab_D:w #1#2#3#4 \l_xparse_args_toks {
@@ -1207,20 +1229,18 @@
   \xparse_grab_D_aux:NNnnN #1 #2 {#3} {#4} \cs_set:Npn
 }
 \cs_set:Nn \xparse_grab_D_aux:NNnnN {
-  #5 \xparse_grab_D_aux:w #1 ##1 #2 {
+  #5 \xparse_grab_aux:w #1 ##1 #2 {
     \xparse_add_arg:n {##1}
     #4 \l_xparse_args_toks
   }
   \peek_charcode:NTF #1 { 
-    \xparse_grab_D_aux:w 
+    \xparse_grab_aux:w 
   }{
     \xparse_add_arg:n {#3}
     #4 \l_xparse_args_toks
   }
 }
-\cs_new:Npn \xparse_grab_D_aux:w { }
 %    \end{macrocode}
-%\end{macro}
 %\end{macro}
 %\end{macro}
 %\end{macro}
@@ -1228,7 +1248,6 @@
 %\begin{macro}{\xparse_grab_G:w}
 %\begin{macro}{\xparse_grab_G_long:w}
 %\begin{macro}[aux]{\xparse_grab_G_aux:nnN}
-%\begin{macro}[aux]{\xparse_grab_G_aux:n}
 % Optional groups are checed by meaning, so that the same code will 
 % work with, for example, Con\TeX{}t-like input.
 %    \begin{macrocode}
@@ -1239,20 +1258,18 @@
   \xparse_grab_G_aux:nnN {#1} {#2} \cs_set:Nn
 }
 \cs_set:Nn \xparse_grab_G_aux:nnN {
-  #3 \xparse_grab_G_aux:n {
+  #3 \xparse_grab_aux:w {
     \xparse_add_arg:n {##1}
     #2 \l_xparse_args_toks
   }
   \peek_meaning:NTF \c_group_begin_token { 
-    \xparse_grab_G_aux:n 
+    \xparse_grab_aux:n 
   }{
     \xparse_add_arg:n {#1}
     #2 \l_xparse_args_toks
   }
 }
-\cs_new:Npn \xparse_grab_G_aux:n { }
 %    \end{macrocode}
-%\end{macro}
 %\end{macro}
 %\end{macro}
 %\end{macro}
@@ -1260,7 +1277,6 @@
 %\begin{macro}{\xparse_grab_l:w}
 %\begin{macro}{\xparse_grab_l_long:w}
 %\begin{macro}[aux]{\xparse_grab_l_aux:nN}
-%\begin{macro}[aux]{\xparse_grab_l_aux:w}
 % Argument grabbers for mandatory \TeX\ arguments are pretty simple.
 %    \begin{macrocode}
 \cs_new:Npn \xparse_grab_l:w #1 \l_xparse_args_toks {
@@ -1270,146 +1286,117 @@
   \xparse_grab_l_aux:nN {#1} \cs_set:Npn
 }
 \cs_new:Nn \xparse_grab_l_aux:nN {
-  #2 \xparse_grab_l_aux:w ##1## {
+  #2 \xparse_grab_aux:w ##1## {
     \xparse_add_arg:n \l_xparse_args_toks {##1}
     #1 \l_xparse_args_toks
   }
-  \xparse_grab_l_aux:w
+  \xparse_grab_aux:w
 }
-\cs_new:Nn \xparse_grab_l_aux:w { }
 %    \end{macrocode}
-%\end{macro}
 %\end{macro}
 %\end{macro}
 %\end{macro}
 %
 %\begin{macro}{\xparse_grab_m:w}
 %\begin{macro}{\xparse_grab_m_long:w}
-%\begin{macro}[aux]{\xparse_grab_m_aux:n}
 % Collecting a single mandatory argument is quite easy.
 %    \begin{macrocode}
 \cs_new:Npn \xparse_grab_m:w #1 \l_xparse_args_toks {
-  \cs_set_nopar:Nn \xparse_grab_m_aux:n {
+  \cs_set_nopar:Nn \xparse_grab_aux:w {
     \xparse_add_arg:n {##1}
     #1 \l_xparse_args_toks
   }
-  \xparse_grab_m_aux:n
+  \xparse_grab_m_aux:w
 }
 \cs_new:Npn \xparse_grab_m_long:w #1 \l_xparse_args_toks {
-  \cs_set:Nn \xparse_grab_m_aux:n {
+  \cs_set:Nn \xparse_grab_aux:w {
     \xparse_add_arg:n {##1}
     #1 \l_xparse_args_toks
   }
-  \xparse_grab_m_aux:n
+  \xparse_grab_aux:w
 }
-\cs_new:Nn \xparse_grab_m_aux:n { }
 %    \end{macrocode}
-%\end{macro}
 %\end{macro}
 %\end{macro}
 %
 %\begin{macro}{\xparse_grab_m_1:w}
-%\begin{macro}[aux]{\xparse_grab_m_1_aux:n}
 %\begin{macro}{\xparse_grab_m_2:w}
-%\begin{macro}[aux]{\xparse_grab_m_2_aux:nn}
 %\begin{macro}{\xparse_grab_m_3:w}
-%\begin{macro}[aux]{\xparse_grab_m_3_aux:nnn}
 %\begin{macro}{\xparse_grab_m_4:w}
-%\begin{macro}[aux]{\xparse_grab_m_4_aux:nnnn}
 %\begin{macro}{\xparse_grab_m_5:w}
-%\begin{macro}[aux]{\xparse_grab_m_5_aux:nnnnn}
 %\begin{macro}{\xparse_grab_m_6:w}
-%\begin{macro}[aux]{\xparse_grab_m_6_aux:nnnnnn}
 %\begin{macro}{\xparse_grab_m_7:w}
-%\begin{macro}[aux]{\xparse_grab_m_7_aux:nnnnnnn}
 %\begin{macro}{\xparse_grab_m_8:w}
-%\begin{macro}[aux]{\xparse_grab_m_8_aux:nnnnnnnn}
 % Grabbing 1--8 mandatory arguments. We don't need to worry about 
 % nine arguments as this is only possible if everything is 
 % mandatory. Each function has an auxiliary so that \cs{par} tokens
 % from other arguments still work.
 %    \begin{macrocode}
 \cs_new:cpn { xparse_grab_m_1:w } #1 \l_xparse_args_toks {
-  \cs_set_nopar:cn { xparse_grab_m_1_aux:n } {
+  \cs_set_nopar:Nn \xparse_grab_aux:w {
     \toks_put_right:Nn \l_xparse_args_toks { {##1} }
     #1 \l_xparse_args_toks
   }
-  \use:c { xparse_grab_m_1_aux:n }
+  \xparse_grab_aux:w
 }
-\cs_new_nopar:cn { xparse_grab_m_1_aux:n } { }
 \cs_new:cpn { xparse_grab_m_2:w } #1 \l_xparse_args_toks {
-  \cs_set_nopar:cn { xparse_grab_m_2_aux:nn } {
+  \cs_set_nopar:Nn \xparse_grab_aux:w {
     \toks_put_right:Nn \l_xparse_args_toks { {##1} {##2} }
     #1 \l_xparse_args_toks
   }
-  \use:c { xparse_grab_m_2_aux:nn }
+  \xparse_grab_aux:w
 }
-\cs_new_nopar:cn { xparse_grab_m_2_aux:nn } { }
 \cs_new:cpn { xparse_grab_m_3:w } #1 \l_xparse_args_toks {
-  \cs_set_nopar:cn { xparse_grab_m_3_aux:nnn } {
+  \cs_set_nopar:Nn \xparse_grab_aux:w {
     \toks_put_right:Nn \l_xparse_args_toks { {##1} {##2} {##3} }
     #1 \l_xparse_args_toks
   }
-  \use:c { xparse_grab_m_3_aux:nnn }
+  \xparse_grab_aux:w
 }
-\cs_new_nopar:cn { xparse_grab_m_3_aux:nnn } { }
 \cs_new:cpn { xparse_grab_m_4:w } #1 \l_xparse_args_toks {
-  \cs_set_nopar:cn { xparse_grab_m_4_aux:nnnn } {
+  \cs_set_nopar:Nn \xparse_grab_aux:w {
     \toks_put_right:Nn \l_xparse_args_toks { {##1} {##2} {##3} {##4} }
     #1 \l_xparse_args_toks
   }
-  \use:c { xparse_grab_m_4_aux:nnnn }
+  \xparse_grab_aux:w
 }
-\cs_new_nopar:cn { xparse_grab_m_4_aux:nnnn } { }
 \cs_new:cpn { xparse_grab_m_5:w } #1 \l_xparse_args_toks {
-  \cs_set_nopar:cn { xparse_grab_m_5_aux:nnnnn } {
+  \cs_set_nopar:Nn \xparse_grab_aux:w {
     \toks_put_right:Nn \l_xparse_args_toks { 
       {##1} {##2} {##3} {##4} {##5} 
     }
     #1 \l_xparse_args_toks
   }
-  \use:c { xparse_grab_m_5_aux:nnnnn }
+  \xparse_grab_aux:w
 }
-\cs_new_nopar:cn { xparse_grab_m_5_aux:nnnnn } { }
 \cs_new:cpn { xparse_grab_m_6:w } #1 \l_xparse_args_toks {
-  \cs_set_nopar:cn { xparse_grab_m_6_aux:nnnnnn } {
+  \cs_set_nopar:Nn \xparse_grab_aux:w {
     \toks_put_right:Nn \l_xparse_args_toks { 
       {##1} {##2} {##3} {##4} {##5} {##6}
     }
     #1 \l_xparse_args_toks
   }
-  \use:c { xparse_grab_m_6_aux:nnnnnn }
+  \xparse_grab_aux:w
 }
-\cs_new_nopar:cn { xparse_grab_m_6_aux:nnnnnn } { }
 \cs_new:cpn { xparse_grab_m_7:w } #1 \l_xparse_args_toks {
-  \cs_set_nopar:cn { xparse_grab_m_7_aux:nnnnnnn } {
+  \cs_set_nopar:Nn \xparse_grab_aux:w {
     \toks_put_right:Nn \l_xparse_args_toks { 
       {##1} {##2} {##3} {##4} {##5} {##6} {##7} 
     }
     #1 \l_xparse_args_toks
   }
-  \use:c { xparse_grab_m_7_aux:nnnnnnn }
+  \xparse_grab_aux:w
 }
-\cs_new_nopar:cn { xparse_grab_m_7_aux:nnnnnnn } { }
 \cs_new:cpn { xparse_grab_m_8:w } #1 \l_xparse_args_toks {
-  \cs_set_nopar:cn { xparse_grab_m_8_aux:nnnnnnnn } {
+  \cs_set_nopar:Nn \xparse_grab_aux:w {
     \toks_put_right:Nn \l_xparse_args_toks { 
       {##1} {##2} {##3} {##4} {##5} {##6} {##7} {##8} 
     }
     #1 \l_xparse_args_toks
   }
-  \use:c { xparse_grab_m_8_aux:nnnnnnnn }
+  \xparse_grab_aux:w
 }
-\cs_new_nopar:cn { xparse_grab_m_8_aux:nnnnnnnn } { }
 %    \end{macrocode}
-%\end{macro}
-%\end{macro}
-%\end{macro}
-%\end{macro}
-%\end{macro}
-%\end{macro}
-%\end{macro}
-%\end{macro}
 %\end{macro}
 %\end{macro}
 %\end{macro}
@@ -1422,7 +1409,6 @@
 %\begin{macro}{\xparse_grab_t:w}
 %\begin{macro}{\xparse_grab_t_long:w}
 %\begin{macro}[aux]{\xparse_grab_t_aux:NnN}
-%\begin{macro}[aux]{\xparse_grab_t_aux:}
 % Dealing with a token is quite easy. Check the match, remove the 
 % token if needed and add a flag to the output.
 %    \begin{macrocode}
@@ -1433,7 +1419,7 @@
   \xparse_grab_t_aux:NnN #1 {#2} \cs_set:Nn
 }
 \cs_new:Nn \xparse_grab_t_aux:NnN {
-  #3 \xparse_grab_t_aux: {
+  #3 \xparse_grab_aux:w {
     \peek_charcode_remove:NTF #1 { 
       \xparse_add_arg:n { \BooleanTrue }
       #2 \l_xparse_args_toks
@@ -1442,11 +1428,9 @@
       #2 \l_xparse_args_toks
     }
   }
-  \xparse_grab_t_aux:
+  \xparse_grab_aux:w
 }
-\cs_new:Nn \xparse_grab_t_aux: { }
 %    \end{macrocode}
-%\end{macro}
 %\end{macro}
 %\end{macro}
 %\end{macro}
@@ -1454,7 +1438,6 @@
 %\begin{macro}{\xparse_grab_u:w}
 %\begin{macro}{\xparse_grab_u_long:w}
 %\begin{macro}[aux]{\xparse_grab_u_aux:NnN}
-%\begin{macro}[aux]{\xparse_grab_u_aux:w}
 % Grabbing up to a list of tokens is quite easy: define the grabber,
 % and then collect.
 %    \begin{macrocode}
@@ -1465,15 +1448,13 @@
   \xparse_grab_u_aux:NnN {#1} {#2} \cs_set:Npn
 }
 \cs_new:Nn \xparse_grab_u_aux:NnN {
-  #3 \xparse_grab_u_aux:w ##1 #1 {
+  #3 \xparse_grab_aux:w ##1 #1 {
     \xparse_add_arg:n {##1}
     #2 \l_xparse_args_toks
   }
-  \xparse_grab_u_aux:w
+  \xparse_grab_aux:w
 }
-\cs_new:Nn \xparse_grab_u_aux:w { }
 %    \end{macrocode}
-%\end{macro}
 %\end{macro}
 %\end{macro}
 %\end{macro}
@@ -1502,7 +1483,7 @@
   \bool_set_true:N \l_xparse_m_only_bool
   \bool_set_false:N \l_xparse_long_bool
   \int_zero:N \l_xparse_m_args_int
-  \int_zero:N \l_xparse_processor_int
+  \int_zero:N \l_xparse_processor_total_int
   \toks_clear:N \l_xparse_signature_toks
   \int_zero:N \l_xparse_total_args_int
   \xparse_prepare_signature:N #1 \q_nil
@@ -1553,8 +1534,10 @@
 % Processors are saved for use later during the grabbbing process.
 %    \begin{macrocode}
 \cs_new:Nn \xparse_process_arg:n {
-  \int_incr:N \l_xparse_processor_int
-  \cs_set:cn { xparse_processor_ \int_use:N \l_xparse_processor_int :n }
+  \int_incr:N \l_xparse_processor_total_int
+  \cs_set:cn { 
+    xparse_processor_ \int_use:N \l_xparse_processor_total_int :n 
+  }
     { #1 {##1} }
 }
 %    \end{macrocode}
