@@ -407,6 +407,35 @@
 %  default value, which therefore includes a comma.
 %\end{function}
 %
+%\subsection{Separating interface and implementation}
+%
+% One \emph{experimental} idea implemented in \pkg{xparse} is to 
+% separate out document command intefaces (the argument specification)
+% from the implementation (code).  This is carried out using a 
+% pair of functions, \cs{DeclareDocumentCommandInterface} and
+% \cs{DeclareDocumentCommandImplementation}
+%
+%\begin{function}{\DeclareDocumentCommandInterface}
+%  \begin{syntax}
+%    "\DeclareDocumentCommandInterface" <function>
+%    ~~~~\Arg{implementation} \Arg{arg.~spec}
+%  \end{syntax}
+%  This declares a <function>, which will take arguments as detailed
+%  in the <arg.~spec>. When executed, the <function> will look for 
+%  code stored as an <implementation>. 
+%\end{function}  
+%
+%\begin{function}{\DeclareDocumentCommandImplementation}
+%  \begin{syntax}
+%    "\DeclareDocumentCommandImplementation" \Arg{implementation}
+%    ~~~~<args> \Arg{code}
+%  \end{syntax}
+%  Declares the <implementation> for a function to accept <args> 
+%  arguments and expand to <code>. An implementation must take the
+%  same number of arguments as a linked interface, although this is not
+%  enforced by the code.
+%\end{function}  
+% 
 %\subsection{Fully-expandable document commands}
 %
 % There are \emph{very rare} occasion when it may be useful to create
@@ -580,6 +609,32 @@
 %  <code> as expansion.
 %  \begin{texnote}
 %    This is the internal name for \cs{DeclareDocumentCommand}.
+%  \end{texnote}
+%\end{function}
+%
+%\begin{function}{\xparse_declare_cmd_interface:Nnn}
+%  \begin{syntax}
+%    "\xparse_declare_cmd_interface:Nnn" <function> 
+%    ~~~~\Arg{implementation} \Arg{signature}
+%  \end{syntax}
+%  Declares <function> using <signature>, which should have code stored
+%  as <implementation>.
+%  \begin{texnote}
+%    This is the internal name for \cs{DeclareDocumentCommandInterface}.
+%  \end{texnote}
+%\end{function}
+%
+%\begin{function}{\xparse_declare_cmd_implementation:nNn}
+%  \begin{syntax}
+%    "\xparse_declare_cmd_implementation:nNn" \Arg{implementation} 
+%    ~~~~<number> \Arg<code>
+%    ~~~~\Arg{code}
+%  \end{syntax}
+%  Declares <code> taking <number> arguments as an <implementation>,
+%  to be accessed using an interface defined elsewhere.
+%  \begin{texnote}
+%    This is the internal name for 
+%    \cs{DeclareDocumentCommandImplementation}.
 %  \end{texnote}
 %\end{function}
 %
@@ -1149,6 +1204,61 @@
 }
 %    \end{macrocode} 
 %\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_declare_cmd_implementation:nNn}
+% Creating a stand-alone implementation uisn the `two-part' mechanism
+% is quite easy as this is just a wrapper for
+% \cs{cs_generate_from_arg_count:cNnn}.
+%    \begin{macrocode}
+\cs_new:Nn \xparse_declare_cmd_implementation:nNn {
+  \cs_generate_from_arg_count:cNnn { implementation- #1 :w } 
+    \cs_set:Npn {#2} {#3}
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\xparse_declare_cmd_interface:Nnn}
+%\begin{macro}[aux]{\xparse_declare_cmd_interface_all_m:Nn}
+%\begin{macro}[aux]{\xparse_declare_cmd_interface_mixed:Nn}
+% As with the basic function \cs{xparse_declare_cmd:Nnn}, there are
+% three things to do here. First, generate a signature from the 
+% argument specification. Then use that to create a function which
+% will call the implementation part. Finally, a holder implementation
+% is created. As before, there is a short-cut for functions which only
+% have \texttt{m} type arguments.
+%    \begin{macrocode}
+\cs_new:Nn \xparse_declare_cmd_interface:Nnn {
+  \xparse_prepare_signature:n {#3}
+  \bool_if:NTF \l_xparse_m_only_bool {
+    \xparse_declare_cmd_interface_all_m:Nn #1 {#2}
+  }{
+    \xparse_declare_cmd_interface_mixed:Nn #1 {#2}
+  }
+  \cs_generate_from_arg_count:cNnn { implementation- #2 :w } 
+    \cs_set:Npn \l_xparse_total_args_int  { ``#2'' }
+}
+\cs_new:Nn \xparse_declare_cmd_interface_all_m:Nn {
+  \cs_generate_from_arg_count:NNnn 
+    #1 \cs_set_protected_nopar:Npn \l_xparse_total_args_int 
+    { \use:c { implementation- #2 :w } }
+}
+\cs_new:Nn \xparse_declare_cmd_interface_mixed:Nn {
+  \cs_set_protected_nopar:Npx #1 {
+    \exp_not:n { 
+      \int_zero:N \l_xparse_processor_total_int
+      \toks_set:Nn \l_xparse_args_toks 
+    } { \exp_not:c { \token_to_str:N #1 } }
+    \toks_use:N \l_xparse_signature_toks
+    \exp_not:n{ \toks_use:N \l_xparse_args_toks }
+  }
+  \cs_generate_from_arg_count:cNnn 
+    { \token_to_str:N #1 } \cs_set:Npn \l_xparse_total_args_int 
+    { \use:c { implementation- #2 :w } }
+}
+%    \end{macrocode}
 %\end{macro}
 %\end{macro}
 %\end{macro}
@@ -1987,6 +2097,21 @@
 %    \end{macrocode}
 %\end{macro}
 %\end{macro}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\DeclareDocumentCommandImplementation}
+%\begin{macro}{\DeclareDocumentCommandInterface}
+% The separate implementation/interface system is again pretty simple
+% to create at the outer layer.
+%    \begin{macrocode}
+\NewDocumentCommand \DeclareDocumentCommandImplementation { m m +m } {
+  \xparse_declare_cmd_implementation:nNn {#1} #2 {#3}
+}
+\NewDocumentCommand \DeclareDocumentCommandInterface { m m +m } {
+  \xparse_declare_cmd_interface:Nnn #1 {#2} {#3}
+}
+%    \end{macrocode}
 %\end{macro}
 %\end{macro}
 %
