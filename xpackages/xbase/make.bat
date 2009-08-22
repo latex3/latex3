@@ -5,8 +5,8 @@ rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 
 setlocal
 
-set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg out
-set CLEAN=fc pdf sty
+set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
+set CLEAN=fc gz pdf sty
 set EXPL3DIR=..\..\l3in2e
 set PACKAGE=xbase
 set SCRIPTDIR=..\..\support
