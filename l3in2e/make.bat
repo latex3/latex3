@@ -70,7 +70,7 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
 :check
 
   call :unpack
-  cal :perl
+  call :perl
   
   xcopy /q /y %SCRIPTDIR%\log2tlg            > %TEMPLOG%
   xcopy /q /y %VALIDATE%\regression-test.tex > %TEMPLOG%
@@ -92,7 +92,7 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
     echo   %%~nI
     pdflatex %%~nI.lvt > %TEMPLOG%
     pdflatex %%~nI.lvt > %TEMPLOG%
-    %PERL% log2tlg %%~nI < %%~nI.log > %%~nI.new.log 
+    %PERLEXE% log2tlg %%~nI < %%~nI.log > %%~nI.new.log 
     del /q %%~nI.log > %TEMPLOG%
     ren %%~nI.new.log %%~nI.log > %TEMPLOG%
     fc /n  %%~nI.log %%~nI.tlg > %%~nI.fc
@@ -210,9 +210,9 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   echo.
   echo Running checks on %1
 
-  %ENGINE% %1.lvt > %TEMPLOG%
-  %ENGINE% %1.lvt > %TEMPLOG%
-  %PERL% log2tlg %1 < %1.log > %1.new.log
+  pdflatex %1.lvt > %TEMPLOG%
+  pdflatex %1.lvt > %TEMPLOG%
+  %PERLEXE% log2tlg %1 < %1.log > %1.new.log
   del /q %1.log > %TEMPLOG% 
   ren %1.new.log %1.log > %TEMPLOG%
   fc /n  %1.log %1.tlg > %1.fc
@@ -446,7 +446,7 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   
   pdflatex %1.lvt > %TEMPLOG% 
   pdflatex %1.lvt > %TEMPLOG%
-  %PERL% log2tlg %2 < %1.log > %1.tlg
+  %PERLEXE% log2tlg %1 < %1.log > %1.tlg
   xcopy /q /y %1.tlg %TESTDIR%\%1.tlg > %TEMPLOG%
   
   goto :clean-int

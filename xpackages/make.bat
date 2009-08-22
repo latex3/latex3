@@ -11,31 +11,19 @@ set PACKAGE=xpackages
 set PATHCOPY=%PATH%
 set TDSROOT=latex\%PACKAGE%
 set TEMPLOG=%TEMP%\temp.log
-set TEST=galley xbase xfootnote xfrontm xhead xor xtheorem
+set TEST=xbase
 set TXT=readme-ctan
 set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor xtheorem
 
 :loop
 
-  if /i [%1] == [check]        goto :check
   if /i [%1] == [clean]        goto :clean
   if /i [%1] == [ctan]         goto :ctan
   if /i [%1] == [localinstall] goto :localinstall
   if /i [%1] == [tds]          goto :tds
+  if /i [%1] == [test]         goto :test
 
   goto :help
-
-:check
-  
-  for %%I in (%TEST%) do (
-    echo.
-    echo Testing %%I
-    pushd %%I
-    call make check clean
-    popd
-  )
-
-  goto :end
 
 :clean
 
@@ -109,10 +97,10 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
 
   echo.
   echo  make clean        - clean out all directories
-  echo  make check        - set up and run all tests
   echo  make ctan         - create a zip file ready to go to CTAN
   echo  make localinstall - install the .sty files in your home texmf tree
   echo  make tds          - creates a TDS-ready zip of CTAN packages
+  echo  make test         - set up and run all test documents
   
   goto :end
 
@@ -133,9 +121,6 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     pushd %%I
     call make unpack
     xcopy /q /y *.sty "%INSTALLROOT%\%%I\"   > %TEMPLOG% 
-    if exist *.tex (
-      xcopy /q /y *.tex "%INSTALLROOT%\%%I\" > %TEMPLOG%
-    )
     call make clean
     popd
   )
@@ -183,6 +168,18 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
 
   rmdir /q /s tds
   
+  goto :end
+
+:test
+  
+  for %%I in (%TEST%) do (
+    echo.
+    echo Testing %%I
+    pushd %%I
+    call make test clean
+    popd
+  )
+
   goto :end
 
 :zip 
