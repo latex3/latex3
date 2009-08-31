@@ -77,6 +77,25 @@
 % input for the internal form of a function, independent of the 
 % document-level argument arrangement.
 % 
+% At present, the functions in \pkg{xparse} which are regarded as
+% `stable' are:
+%\begin{itemize}
+%  \item \cs{DeclareDocumentCommand}
+%  \item \cs{NewDocumentCommand}
+%  \item \cs{RenewDocumentCommand}
+%  \item \cs{ProvideDocumentCommand}
+%  \item \cs{DeclareDocumentEnvironment}
+%  \item \cs{NewDocumentEnvironment}
+%  \item \cs{RenewDocumentEnvironment}
+%  \item \cs{ProvideDocumentEnvironment}
+%  \item \cs{IfNoValue(TF)} (the need for \cs{IfValue(TF)} is currently
+%    an item of active discussion)
+%  \item \cs{IfBoolean(TF)}
+%\end{itemize}
+% with the other functions currently regarded as `experimental'. Please
+% try all of the commands provided here, but be aware that the 
+% experimental ones may change or disappear.
+% 
 %\subsection{Specifying arguments}
 %
 % Before introducing the functions used to create document commands,
@@ -546,16 +565,11 @@
 %  handling on a one-off basis.
 %\end{variable}
 %
-%\begin{variable}{
-%  \l_xparse_processor_total_int|
-%  \l_xparse_processor_use_int
-%}
-%  Both of these variable are used when a document function is expanded.
-%  \cs{l_xparse_processor_total_int} counts up processors as they occur 
-%  in the function, while \cs{l_xparse_processor_use_int} tracks them
-%  as they are excuted. This is necessary as they must be used from
-%  $1$ to $n$, and so \cs{l_xparse_processor_total_int} cannot be 
-%  counted down.
+%\begin{variable}{\l_xparse_processor_int}
+%  Each time a processor is set up in the grabber routine, it is stored
+%  and the total number of processors is recorded here. Later, the 
+%  variable is counted back down to use the processors in reverse order
+%  to the collection order.
 %\end{variable}
 %
 %\begin{variable}{\l_xparse_signature_toks}
@@ -971,18 +985,13 @@
 %    \end{macrocode}
 %\end{macro}
 %
-%\begin{macro}{\l_xparse_processor_total_int}
-%\begin{macro}{\l_xparse_processor_use_int}
-% The first variable is used to count up processors as they appear in
-% the document command, the second then counts how many have been used
-% so that they can be used in the correct order. This is needed as the
-% order the functions appear in the code will be from $n$ to $1$, but
-% they need to be used from $1$ to $n$.
+%\begin{macro}{\l_xparse_processor_int}
+% In the grabber routine, each processor is saved with a number 
+% recording the order it was found in. The total is then used to work 
+% back through the grabbers so they apply to the argument right to left.
 %    \begin{macrocode}
-\int_new:N \l_xparse_processor_total_int
-\int_new:N \l_xparse_processor_use_int
+\int_new:N \l_xparse_processor_int
 %    \end{macrocode}
-%\end{macro}
 %\end{macro}
 %
 %\begin{macro}{\l_xparse_signature_toks}
@@ -1015,50 +1024,7 @@
 %    \end{macrocode}
 %\end{macro}
 %    
-%\subsection{Internal commands}
-%
-%\begin{macro}{\xparse_add_arg:n}
-%\begin{macro}[aux]{\xparse_add_arg_aux:n}
-%\begin{macro}[aux]{\xparse_add_arg_aux:V}
-% The argument-storing system provides a single point for interfacing
-% with processors. They are done in a loop, couning upward. Notice that
-% a set of braces are added back around the result of processing so that
-% the internal function will correctly pick up one argument for each
-% input argument.
-%    \begin{macrocode}
-\cs_new:Nn \xparse_add_arg:n {
-  \intexpr_compare:nTF { \l_xparse_processor_total_int = \c_zero } {
-    \toks_put_right:Nn \l_xparse_args_toks { {#1} }
-  }{
-    \xparse_if_no_value:nTF {#1} {
-      \int_zero:N \l_xparse_processor_total_int
-      \toks_put_right:Nn \l_xparse_args_toks { {#1} }
-    }{
-      \int_zero:N \l_xparse_processor_use_int
-      \xparse_add_arg_aux:n {#1}
-    }
-  }
-}
-\cs_new:Nn \xparse_add_arg_aux:n {
-  \int_incr:N \l_xparse_processor_use_int
-  \use:c { xparse_processor_ \int_use:N \l_xparse_processor_use_int :n }
-    {#1}
-  \intexpr_compare:nTF { 
-    \l_xparse_processor_use_int = \l_xparse_processor_total_int 
-  } {
-    \toks_put_right:No \l_xparse_args_toks {
-      \exp_after:wN { \toks_use:N \l_xparse_arg_toks }
-    }
-    \int_zero:N \l_xparse_processor_total_int
-  }{
-    \xparse_add_arg_aux:V \l_xparse_arg_toks
-  }  
-}
-\cs_generate_variant:Nn \xparse_add_arg_aux:n { V }
-%    \end{macrocode}
-%\end{macro}
-%\end{macro}
-%\end{macro}
+%\subsection{Turning the argument specifier into grabbers}
 %
 %\begin{macro}{\xparse_add_grabber_mandatory:N}
 %\begin{macro}{\xparse_add_grabber_optional:N}
@@ -1388,7 +1354,7 @@
 \cs_new:Nn \xparse_declare_cmd_mixed:Nn {
   \cs_set_protected_nopar:Npx #1 {
     \exp_not:n { 
-      \int_zero:N \l_xparse_processor_total_int
+      \int_zero:N \l_xparse_processor_int
       \toks_set:Nn \l_xparse_args_toks 
     } { \exp_not:c { \token_to_str:N #1 } }
     \toks_use:N \l_xparse_signature_toks
@@ -1443,7 +1409,7 @@
 \cs_new:Nn \xparse_declare_cmd_interface_mixed:Nn {
   \cs_set_protected_nopar:Npx #1 {
     \exp_not:n { 
-      \int_zero:N \l_xparse_processor_total_int
+      \int_zero:N \l_xparse_processor_int
       \toks_set:Nn \l_xparse_args_toks 
     } { \exp_not:c { \token_to_str:N #1 } }
     \toks_use:N \l_xparse_signature_toks
@@ -1515,6 +1481,131 @@
 %    \end{macrocode}
 %\end{macro}
 %
+%
+%\begin{macro}[TF]{\xparse_if_no_value:n}
+% Tests for \cs{NoValue}.
+%    \begin{macrocode}
+\prg_new_conditional:Nnn \xparse_if_no_value:n { TF,T,F } {
+  \tl_if_eq:nnTF {#1} { \NoValue } {
+    \prg_return_true:
+  }{
+    \prg_return_false:
+  }
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\xparse_prepare_signature:n}
+% Creating the signature is a case of working through the input and
+% turning into the output in \cs{l_xparse_signature_toks}. A track is
+% also kept of the total number of arguments. This function sets 
+% everything up then hands off to the parser.
+%    \begin{macrocode}
+\cs_new:Nn \xparse_prepare_signature:n {
+  \bool_set_false:N \l_xparse_long_bool
+  \int_zero:N \l_xparse_m_args_int
+  \bool_set_true:N \l_xparse_m_only_bool
+  \bool_set_false:N \l_xparse_processor_bool
+  \toks_clear:N \l_xparse_signature_toks
+  \int_zero:N \l_xparse_total_args_int
+  \xparse_prepare_signature:N #1 \q_nil
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\xparse_prepare_signature:N}
+%\begin{macro}[aux]{\xparse_prepare_signature_aux:N}
+% The main signature-preparation loop is in two parts, to keep the code 
+% a little clearer. Most of the checks here is pretty clear, with a key
+% point to watch what is next on the stack so that the loop continues
+% correctly. 
+%    \begin{macrocode}
+\cs_new:Nn \xparse_prepare_signature:N {
+  \bool_set_false:N \l_xparse_processor_bool
+  \xparse_prepare_signature_aux:N #1
+}
+\cs_new:Nn \xparse_prepare_signature_aux:N {
+  \quark_if_nil:NTF #1 {
+    \bool_if:NF \l_xparse_m_only_bool {
+      \xparse_flush_m_args:
+    }
+  }{
+    \prop_if_in:NnTF \c_xparse_shorthands_prop {#1} {
+      \prop_get:NnN \c_xparse_shorthands_prop {#1} \l_xparse_tmp_tl
+      \exp_last_unbraced:NV \xparse_prepare_signature:N \l_xparse_tmp_tl
+    }{
+     \int_incr:N \l_xparse_total_args_int
+      \xparse_check_and_add:N #1
+    }
+  }
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\xparse_process_arg:n}
+% Processors are saved for use later during the grabbbing process.
+%    \begin{macrocode}
+\cs_new:Nn \xparse_process_arg:n {
+  \int_incr:N \l_xparse_processor_int
+  \cs_set:cn { 
+    xparse_processor_ \int_use:N \l_xparse_processor_int :n 
+  }
+    { #1 {##1} }
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\subsection{Grabbing arguments}
+%
+%\begin{macro}{\xparse_add_arg:n}
+%\begin{macro}[aux]{\xparse_add_arg_aux:n}
+%\begin{macro}[aux]{\xparse_add_arg_aux:V}
+% The argument-storing system provides a single point for interfacing
+% with processors. They are done in a loop, couning downward. In this 
+% way, the processor which was found last is executed first. The result
+% is that processors apply from right to left, as intended. Notice that
+% a set of braces are added back around the result of processing so that
+% the internal function will correctly pick up one argument for each
+% input argument.
+%    \begin{macrocode}
+\cs_new:Nn \xparse_add_arg:n {
+  \intexpr_compare:nTF { \l_xparse_processor_int = \c_zero } {
+    \toks_put_right:Nn \l_xparse_args_toks { {#1} }
+  }{
+    \xparse_if_no_value:nTF {#1} {
+      \int_zero:N \l_xparse_processor_int
+      \toks_put_right:Nn \l_xparse_args_toks { {#1} }
+    }{
+      \xparse_add_arg_aux:n {#1}
+    }
+  }
+}
+\cs_new:Nn \xparse_add_arg_aux:n {
+  \use:c { xparse_processor_ \int_use:N \l_xparse_processor_int :n } 
+    {#1}
+  \int_decr:N \l_xparse_processor_int  
+  \intexpr_compare:nTF { \l_xparse_processor_int = \c_zero } {
+    \toks_put_right:No \l_xparse_args_toks {
+      \exp_after:wN { \toks_use:N \l_xparse_arg_toks }
+    }
+  }{
+    \xparse_add_arg_aux:V \l_xparse_arg_toks
+  }  
+}
+\cs_generate_variant:Nn \xparse_add_arg_aux:n { V }
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%
+% All of the grabbers follow the same basic pattern. The intial function
+% sets u the appropriate information to define \cs{parse_grab_arg:w} to
+% grab the argument. This means determining whether to use 
+% \cs{cs_set:Npn} or \cs{cs_set_nopar:Npn}, and for optional arguments
+% whether to skip spaces. In all cases, \cs{xparse_grab_arg:w} is then
+% called to actually do the grabbing.
+%
 %\begin{macro}{\xparse_grab_arg:w}
 % Each time an argument is actually grabbed, \pkg{xparse} defines a
 % function to do it. In that way, long arguments from previous functions
@@ -1525,13 +1616,6 @@
 \cs_new:Npn \xparse_grab_aux:w { }
 %    \end{macrocode}
 %\end{macro}
-%
-% All of the grabbers follow the same basic pattern. The intial function
-% sets u the appropriate information to define \cs{parse_grab_arg:w} to
-% grab the argument. This means determining whether to use 
-% \cs{cs_set:Npn} or \cs{cs_set_nopar:Npn}, and for optional arguments
-% whether to skip spaces. In all cases, \cs{xparse_grab_arg:w} is then
-% called to actually do the grabbing.
 %
 %\begin{macro}{\xparse_grab_D:w}
 %\begin{macro}{\xparse_grab_D_long:w}
@@ -1808,80 +1892,6 @@
 %    \end{macrocode}
 %\end{macro}
 %\end{macro}
-%\end{macro}
-%
-%\begin{macro}[TF]{\xparse_if_no_value:n}
-% Tests for \cs{NoValue}.
-%    \begin{macrocode}
-\prg_new_conditional:Nnn \xparse_if_no_value:n { TF,T,F } {
-  \tl_if_eq:nnTF {#1} { \NoValue } {
-    \prg_return_true:
-  }{
-    \prg_return_false:
-  }
-}
-%    \end{macrocode}
-%\end{macro}
-%
-%\begin{macro}{\xparse_prepare_signature:n}
-% Creating the signature is a case of working through the input and
-% turning into the output in \cs{l_xparse_signature_toks}. A track is
-% also kept of the total number of arguments. This function sets 
-% everything up then hands off to the parser.
-%    \begin{macrocode}
-\cs_new:Nn \xparse_prepare_signature:n {
-  \bool_set_false:N \l_xparse_long_bool
-  \int_zero:N \l_xparse_m_args_int
-  \bool_set_true:N \l_xparse_m_only_bool
-  \bool_set_false:N \l_xparse_processor_bool
-  \toks_clear:N \l_xparse_signature_toks
-  \int_zero:N \l_xparse_total_args_int
-  \xparse_prepare_signature:N #1 \q_nil
-}
-%    \end{macrocode}
-%\end{macro}
-%
-%\begin{macro}{\xparse_prepare_signature:N}
-%\begin{macro}[aux]{\xparse_prepare_signature_aux:N}
-% The main signature-preparation loop is in two parts, to keep the code 
-% a little clearer. Most of the checks here is pretty clear, with a key
-% point to watch what is next on the stack so that the loop continues
-% correctly. 
-%    \begin{macrocode}
-\cs_new:Nn \xparse_prepare_signature:N {
-  \bool_set_false:N \l_xparse_processor_bool
-  \xparse_prepare_signature_aux:N #1
-}
-\cs_new:Nn \xparse_prepare_signature_aux:N {
-  \quark_if_nil:NTF #1 {
-    \bool_if:NF \l_xparse_m_only_bool {
-      \xparse_flush_m_args:
-    }
-  }{
-    \prop_if_in:NnTF \c_xparse_shorthands_prop {#1} {
-      \prop_get:NnN \c_xparse_shorthands_prop {#1} \l_xparse_tmp_tl
-      \exp_last_unbraced:NV \xparse_prepare_signature:N \l_xparse_tmp_tl
-    }{
-     \int_incr:N \l_xparse_total_args_int
-      \xparse_check_and_add:N #1
-    }
-  }
-}
-%    \end{macrocode}
-%\end{macro}
-%\end{macro}
-%
-%\begin{macro}{\xparse_process_arg:n}
-% Processors are saved for use later during the grabbbing process.
-%    \begin{macrocode}
-\cs_new:Nn \xparse_process_arg:n {
-  \int_incr:N \l_xparse_processor_total_int
-  \cs_set:cn { 
-    xparse_processor_ \int_use:N \l_xparse_processor_total_int :n 
-  }
-    { #1 {##1} }
-}
-%    \end{macrocode}
 %\end{macro}
 %
 %\subsection{Argument processors}
@@ -2234,14 +2244,14 @@
 \msg_new:nnnn { xparse } { command-already-defined } {%
   Command name `\token_to_str:N #1' already defined!%
 }{%
-  You have used \token_to_str:N \NewwDocumentCommand, or similar\\%
+  You have used \token_to_str:N \NewDocumentCommand\\%
   with a command that already has a definition.\\%
   Perhaps you meant \token_to_str:N \RenewDocumentCommand.%
 }
 \msg_new:nnnn { xparse } { command-not-yet-defined } {%
   Command `\token_to_str:N #1' not yet defined!%
 }{%
-  You have used \token_to_str:N \RenewDocumentCommand, or similar\\%
+  You have used \token_to_str:N \RenewDocumentCommand\\%
   with a command that was never defined.\\%
   Perhaps you meant \token_to_str:N \NewDocumentCommand.%
 }
@@ -2257,9 +2267,9 @@
   Expandable functions must have a final mandatory argument.%
 }
 \msg_new:nnnn { xparse } { grouped-in-expandable } {%
-  Optioanl grouped arguments cannot be used with expandable functions.%
+  Optional grouped arguments cannot be used with expandable functions.%
 }{%
-  Argument specification `#1' contains an optional grouped argument:%
+  Argument specification `#1' contains an optional grouped argument:\\%
   this is only supported for standard robust functions.%
 }
 \msg_new:nnnn { xparse } { inconsistent-long } {%
@@ -2270,7 +2280,7 @@
 \msg_new:nnnn { xparse } { processor-in-expandable } {%
   Argument processors cannot be used with expandable functions.%
 }{%
-  Argument specification `#1' contains a processor function:%
+  Argument specification `#1' contains a processor function:\\%
   this is only supported for standard robust functions.%
 }
 \msg_new:nnn { xparse } { unknown-argument-type } {%
