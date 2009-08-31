@@ -365,7 +365,7 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   if not defined TEXMFHOME (
     set TEXMFHOME=%USERPROFILE%\texmf
   )
-  set INSTALLROOT=%TEXMFHOME%\%TDSROOT%
+  set INSTALLROOT=%TEXMFHOME%\tex\%TDSROOT%
 
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
 
