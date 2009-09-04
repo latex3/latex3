@@ -318,20 +318,14 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   goto :clean-int
 
 :format
+  
+  call make unpack
 
   echo. 
   echo Making format
-  
-  for %%I in (%XPACKAGES%) do (
-    xcopy /q /y %XBASEDIR%\%%I.dtx > %TEMPLOG%
-  )
 
   tex l3format.ins              > %TEMPLOG%
   pdftex -etex -ini *latex3.ltx > %TEMPLOG%
-  
-  for %%I in (%XPACKAGES%) do (
-    del /q %%I.dtx
-  )
   
   goto :clean-int  
 
