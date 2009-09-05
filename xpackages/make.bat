@@ -52,17 +52,17 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     echo Typesetting
     pushd %%I
     call make unpack
-    xcopy /q /y *.sty ..\tds\tex\%TDSROOT%\      > %TEMPLOG%
+    xcopy /q /y *.sty ..\tds\tex\%TDSROOT%\%%I\      > %TEMPLOG%
     call make doc
-    xcopy /q /y *.dtx ..\temp\%PACKAGE%\         > %TEMPLOG%
-    xcopy /q /y *.dtx ..\tds\source\%TDSROOT%\   > %TEMPLOG%
-    xcopy /q /y *.ins ..\temp\%PACKAGE%\         > %TEMPLOG%
-    xcopy /q /y *.ins ..\tds\source\%TDSROOT%\   > %TEMPLOG%
-    xcopy /q /y *.pdf ..\temp\%PACKAGE%\         > %TEMPLOG%
-    xcopy /q /y *.pdf ..\tds\doc\%TDSROOT%\      > %TEMPLOG%
+    xcopy /q /y *.dtx ..\temp\%PACKAGE%\             > %TEMPLOG%
+    xcopy /q /y *.dtx ..\tds\source\%TDSROOT%\%%I\   > %TEMPLOG%
+    xcopy /q /y *.ins ..\temp\%PACKAGE%\             > %TEMPLOG%
+    xcopy /q /y *.ins ..\tds\source\%TDSROOT%\%%I\   > %TEMPLOG%
+    xcopy /q /y *.pdf ..\temp\%PACKAGE%\             > %TEMPLOG%
+    xcopy /q /y *.pdf ..\tds\doc\%TDSROOT%\%%I\      > %TEMPLOG%
     if exist *.tex (
-      xcopy /q /y *.tex ..\temp\%PACKAGE%\       > %TEMPLOG%
-      xcopy /q /y *.tex ..\tds\source\%TDSROOT%\ > %TEMPLOG%
+      xcopy /q /y *.tex ..\temp\%PACKAGE%\           > %TEMPLOG%
+      xcopy /q /y *.tex ..\tds\source\%TDSROOT%\%%I\ > %TEMPLOG%
     )
     call make clean
     popd
@@ -141,13 +141,13 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     echo Typesetting
     pushd %%I
     call make unpack
-    xcopy /q /y *.sty ..\tds\tex\%TDSROOT%\      > %TEMPLOG%
+    xcopy /q /y *.sty ..\tds\tex\%TDSROOT%\%%I\      > %TEMPLOG%
     call make doc
-    xcopy /q /y *.dtx ..\tds\source\%TDSROOT%\   > %TEMPLOG%
-    xcopy /q /y *.ins ..\tds\source\%TDSROOT%\   > %TEMPLOG%
-    xcopy /q /y *.pdf ..\tds\doc\%TDSROOT%\      > %TEMPLOG%
+    xcopy /q /y *.dtx ..\tds\source\%TDSROOT%\%%I\   > %TEMPLOG%
+    xcopy /q /y *.ins ..\tds\source\%TDSROOT%\%%I\   > %TEMPLOG%
+    xcopy /q /y *.pdf ..\tds\doc\%TDSROOT%\%%I\      > %TEMPLOG%
     if exist *.tex (
-      xcopy /q /y *.tex ..\tds\source\%TDSROOT%\ > %TEMPLOG%
+      xcopy /q /y *.tex ..\tds\source\%TDSROOT%\%%I > %TEMPLOG%
     )
     call make clean
     popd
