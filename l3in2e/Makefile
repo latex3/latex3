@@ -348,22 +348,27 @@ sourcedoc: l3doc.cls
 ################################
 
 localinstall:
-	LTEXMF=`kpsewhich --var-value=TEXMFHOME`/tex/latex/ltx3; \
+	LTEXMF=`kpsewhich --var-value=TEXMFHOME`; \
+	LATEXDIR=$$LTEXMF/tex/latex/ltx3 ; \
+	MAKEINDDIR=$$LTEXMF/makeindex/latex/ltx3 ; \
 	echo "\nInstallation directory: \n   $$LTEXMF" ; \
-	mkdir -p $$LTEXMF/l3in2e/ ; \
-	mkdir -p $$LTEXMF/validate/ ; \
+	mkdir -p $$LATEXDIR/l3in2e/ ; \
+	mkdir -p $$LATEXDIR/validate/ ; \
+	mkdir -p $$MAKEINDDIR/ ; \
 	echo "\nDeleting any old files: \n" ; \
-	rm -fv $$LTEXMF/l3in2e/* ; \
-	rm -fv $$LTEXMF/validate/* ; \
+	rm -fv $$LATEXDIR/l3in2e/* ; \
+	rm -fv $$LATEXDIR/validate/* ; \
+	rm -fv $$MAKEINDDIR/* ; \
 	echo "\nExtracting and installing: \n" ; \
 	tex l3.ins &> /dev/null ; \
 	rm l3.log ; \
 	tex l3doc.dtx &> /dev/null ; \
-	ls *.sty | xargs -I {} mv -v ./{} $$LTEXMF/l3in2e/{} ; \
-	ls *.cls | xargs -I {} mv -v ./{} $$LTEXMF/l3in2e/{} ; \
-	cp -v l3vers.dtx $$LTEXMF/l3in2e/ ; \
-	cp -v ../validate/regression-test.tex $$LTEXMF/validate/ ; \
-	cp -v ../validate/commands-check.tex $$LTEXMF/validate/ ;
+	ls *.sty | xargs -I {} mv -v ./{} $$LATEXDIR/l3in2e/{} ; \
+	ls *.cls | xargs -I {} mv -v ./{} $$LATEXDIR/l3in2e/{} ; \
+	cp -v l3doc.ist $$MAKEINDDIR/ ; \
+	cp -v l3vers.dtx $$LATEXDIR/l3in2e/ ; \
+	cp -v ../validate/regression-test.tex $$LATEXDIR/validate/ ; \
+	cp -v ../validate/commands-check.tex $$LATEXDIR/validate/ ;
 
 
 
