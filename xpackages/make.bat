@@ -75,6 +75,9 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     ren tds\doc\%TDSROOT%\%%I.txt %%I
   )
 
+  ren temp\%PACKAGE%\readme-ctan    README
+  ren tds\doc\%TDSROOT%\readme-ctan README
+
   echo.
   echo Creating archive
 
@@ -157,6 +160,8 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > %TEMPLOG%
     ren tds\doc\%TDSROOT%\%%I.txt %%I
   )
+
+  ren tds\doc\%TDSROOT%\readme-ctan README
 
   echo.
   echo Creating archive
