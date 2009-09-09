@@ -10,7 +10,6 @@ set CLEAN=fc gz pdf sty
 set EXPL3DIR=..\..\l3in2e
 set PACKAGE=xbase
 set SCRIPTDIR=..\..\support
-set TEMPLOG=%TEMP%\temp.log
 set TEST=template-test template-test2 tprestrict-test xparse-test
 set TESTDIR=testfiles
 set TDSROOT=latex\xpackages\%PACKAGE%
@@ -34,7 +33,7 @@ set VALIDATE=..\..\validate
   pushd %EXPL3DIR%
   call make unpack
   popd 
-  xcopy /q /y %EXPL3DIR%\*.sty > %TEMPLOG%
+  xcopy /q /y %EXPL3DIR%\*.sty > nul
   pushd %EXPL3DIR%
   call make clean
   popd
@@ -47,16 +46,16 @@ set VALIDATE=..\..\validate
   call :unpack
   call :perl
   
-  xcopy /q /y %SCRIPTDIR%\log2tlg            > %TEMPLOG%
-  xcopy /q /y %VALIDATE%\regression-test.tex > %TEMPLOG%
+  xcopy /q /y %SCRIPTDIR%\log2tlg            > nul
+  xcopy /q /y %VALIDATE%\regression-test.tex > nul
   
   if exist *.fc  del /q *.fc
   if exist *.lvt del /q *.lvt
   if exist *.tlg del /q *.tlg
   for %%I in (%TESTDIR%\*.tlg) do (
     if exist %TESTDIR%\%%~nI.lvt (
-      xcopy /q /y %TESTDIR%\%%~nI.lvt > %TEMPLOG%
-      xcopy /q /y %TESTDIR%\%%~nI.tlg > %TEMPLOG%
+      xcopy /q /y %TESTDIR%\%%~nI.lvt > nul
+      xcopy /q /y %TESTDIR%\%%~nI.tlg > nul
     )
   )
   
@@ -65,11 +64,11 @@ set VALIDATE=..\..\validate
   
   for %%I in (*.tlg) do (
     echo   %%~nI
-    pdflatex %%~nI.lvt > %TEMPLOG%
-    pdflatex %%~nI.lvt > %TEMPLOG%
+    pdflatex %%~nI.lvt > nul
+    pdflatex %%~nI.lvt > nul
     %PERLEXE% log2tlg %%~nI < %%~nI.log > %%~nI.new.log 
-    del /q %%~nI.log > %TEMPLOG%
-    ren %%~nI.new.log %%~nI.log > %TEMPLOG%
+    del /q %%~nI.log > nul
+    ren %%~nI.new.log %%~nI.log > nul
     fc /n  %%~nI.log %%~nI.tlg > %%~nI.fc
   )
   
@@ -114,13 +113,13 @@ set VALIDATE=..\..\validate
 
   for %%I in (*.dtx) do (
     echo   %%I
-    pdflatex -interaction=nonstopmode -draftmode %%~nI.dtx > %TEMPLOG%
+    pdflatex -interaction=nonstopmode -draftmode %%~nI.dtx > nul
     if not ERRORLEVEL 1 (
       if exist %%~nI.idx (
-        makeindex -q -s l3doc.ist -o %%~nI.ind %%~nI.idx > %TEMPLOG%
+        makeindex -q -s l3doc.ist -o %%~nI.ind %%~nI.idx > nul
       )
-      pdflatex -interaction=nonstopmode %%I > %TEMPLOG%
-      pdflatex -interaction=nonstopmode %%I > %TEMPLOG%
+      pdflatex -interaction=nonstopmode %%I > nul
+      pdflatex -interaction=nonstopmode %%I > nul
     )
   )
 
@@ -153,7 +152,7 @@ set VALIDATE=..\..\validate
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
 
   call make unpack
-  xcopy /q /y *.sty "%INSTALLROOT%\"   > %TEMPLOG% 
+  xcopy /q /y *.sty "%INSTALLROOT%\"   > nul 
   call make clean
 
   goto :end
@@ -195,17 +194,17 @@ set VALIDATE=..\..\validate
   call :perl
   call :unpack
  
-  xcopy /q /y %SCRIPTDIR%\log2tlg > %TEMPLOG%
-  xcopy /q /y %VALIDATE%\regression-test.tex > %TEMPLOG%
-  xcopy /q /y %TESTDIR%\%1.lvt > %TEMPLOG%
+  xcopy /q /y %SCRIPTDIR%\log2tlg > nul
+  xcopy /q /y %VALIDATE%\regression-test.tex > nul
+  xcopy /q /y %TESTDIR%\%1.lvt > nul
   
   echo.
   echo Creating and copying %1.tlg
   
-  pdflatex %1.lvt > %TEMPLOG% 
-  pdflatex %1.lvt > %TEMPLOG%
+  pdflatex %1.lvt > nul 
+  pdflatex %1.lvt > nul
   %PERLEXE% log2tlg %1 < %1.log > %1.tlg
-  xcopy /q /y %1.tlg %TESTDIR%\%1.tlg > %TEMPLOG%
+  xcopy /q /y %1.tlg %TESTDIR%\%1.tlg > nul
   
   goto :clean-int
 
@@ -215,7 +214,7 @@ set VALIDATE=..\..\validate
 
   for %%I in (%TEST%) do (
     echo   %%I
-    pdflatex -interaction=batchmode %%I > %TEMPLOG%
+    pdflatex -interaction=batchmode %%I > nul
     if not [%ERRORLEVEL%] == [0] (
       echo.
       echo **********************
@@ -230,7 +229,7 @@ set VALIDATE=..\..\validate
 :unpack
 
   for %%I in (*.ins) do (
-    tex %%I > %TEMPLOG%
+    tex %%I > nul
   )
 
   goto :end
