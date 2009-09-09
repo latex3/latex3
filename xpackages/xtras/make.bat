@@ -9,7 +9,6 @@ set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
 set CLEAN=fc gz pdf sty
 set EXPL3DIR=..\..\l3in2e
 set PACKAGE=l3keys2e
-set TEMPLOG=%TEMP%\temp.log
 set TEX=l3keys2e-demo
 set TDSROOT=latex\xpackages\%PACKAGE%
 
@@ -28,7 +27,7 @@ set TDSROOT=latex\xpackages\%PACKAGE%
   pushd %EXPL3DIR%
   call make unpack
   popd 
-  xcopy /q /y %EXPL3DIR%\*.sty > %TEMPLOG%
+  xcopy /q /y %EXPL3DIR%\*.sty > nul
   pushd %EXPL3DIR%
   call make clean
   popd
@@ -52,13 +51,13 @@ set TDSROOT=latex\xpackages\%PACKAGE%
 
   for %%I in (*.dtx) do (
     echo   %%I
-    pdflatex -interaction=nonstopmode -draftmode %%~nI.dtx > %TEMPLOG%
+    pdflatex -interaction=nonstopmode -draftmode %%~nI.dtx > nul
     if not ERRORLEVEL 1 (
       if exist %%~nI.idx (
-        makeindex -q -s l3doc.ist -o %%~nI.ind %%~nI.idx > %TEMPLOG%
+        makeindex -q -s l3doc.ist -o %%~nI.ind %%~nI.idx > nul
       )
-      pdflatex -interaction=nonstopmode %%I > %TEMPLOG%
-      pdflatex -interaction=nonstopmode %%I > %TEMPLOG%
+      pdflatex -interaction=nonstopmode %%I > nul
+      pdflatex -interaction=nonstopmode %%I > nul
     )
   )
 
@@ -88,7 +87,7 @@ set TDSROOT=latex\xpackages\%PACKAGE%
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
 
   call make unpack
-  xcopy /q /y *.sty "%INSTALLROOT%\"   > %TEMPLOG% 
+  xcopy /q /y *.sty "%INSTALLROOT%\"   > nul 
   call make clean
 
   goto :end
@@ -96,7 +95,7 @@ set TDSROOT=latex\xpackages\%PACKAGE%
 :unpack
 
   for %%I in (*.ins) do (
-    tex %%I > %TEMPLOG%
+    tex %%I > nul
   )
 
   goto :end

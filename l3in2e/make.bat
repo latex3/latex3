@@ -13,7 +13,6 @@ set PATHCOPY=%PATH%
 set PDF=expl3 source3
 set SCRIPTDIR=..\support
 set TDSROOT=latex\%PACKAGE%
-set TEMPLOG=%TEMP%\temp.log
 set TESTDIR=testfiles
 set TEX=source3
 set TXT=README
@@ -72,16 +71,16 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   call :unpack
   call :perl
   
-  xcopy /q /y %SCRIPTDIR%\log2tlg            > %TEMPLOG%
-  xcopy /q /y %VALIDATE%\regression-test.tex > %TEMPLOG%
+  xcopy /q /y %SCRIPTDIR%\log2tlg            > nul
+  xcopy /q /y %VALIDATE%\regression-test.tex > nul
   
   if exist *.fc  del /q *.fc
   if exist *.lvt del /q *.lvt
   if exist *.tlg del /q *.tlg
   for %%I in (%TESTDIR%\*.tlg) do (
     if exist %TESTDIR%\%%~nI.lvt (
-      xcopy /q /y %TESTDIR%\%%~nI.lvt > %TEMPLOG%
-      xcopy /q /y %TESTDIR%\%%~nI.tlg > %TEMPLOG%
+      xcopy /q /y %TESTDIR%\%%~nI.lvt > nul
+      xcopy /q /y %TESTDIR%\%%~nI.tlg > nul
     )
   )
   
@@ -90,11 +89,11 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   
   for %%I in (*.tlg) do (
     echo   %%~nI
-    pdflatex %%~nI.lvt > %TEMPLOG%
-    pdflatex %%~nI.lvt > %TEMPLOG%
+    pdflatex %%~nI.lvt > nul
+    pdflatex %%~nI.lvt > nul
     %PERLEXE% log2tlg %%~nI < %%~nI.log > %%~nI.new.log 
-    del /q %%~nI.log > %TEMPLOG%
-    ren %%~nI.new.log %%~nI.log > %TEMPLOG%
+    del /q %%~nI.log > nul
+    ren %%~nI.new.log %%~nI.log > nul
     fc /n  %%~nI.log %%~nI.tlg > %%~nI.fc
   )
   
@@ -132,16 +131,16 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
 
 :checkcmd-int
   
-  xcopy /q /y %VALIDATE%\commands-check.tex > %TEMPLOG%
+  xcopy /q /y %VALIDATE%\commands-check.tex > nul
   if exist missing.cmds.log del /q missing.cmds.log
   
   echo.
   echo Checking commands in %1
   
-  pdflatex -interaction=batchmode %1.dtx > %TEMPLOG%
+  pdflatex -interaction=batchmode %1.dtx > nul
   pdflatex -interaction=batchmode "\def\CMDS{%1.cmds}\input commands-check" > cmds.log
   for /F "tokens=1*" %%I in (cmds.log) do (
-    if "%%I"=="!>" copy /y cmds.log missing.cmds.log > %TEMPLOG%
+    if "%%I"=="!>" copy /y cmds.log missing.cmds.log > nul
   )
   if exist missing.cmds.log (
     echo   Missing commands:
@@ -155,7 +154,7 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
 :checkcmds
 
   call :unpack
-  xcopy /q /y %VALIDATE%\commands-check.tex > %TEMPLOG%
+  xcopy /q /y %VALIDATE%\commands-check.tex > nul
 
   for %%I in (%CHECKCMDS%) do (
     call :checkcmd-int l3%%I
@@ -172,7 +171,7 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
 
   for %%I in (l3*.dtx) do (
     echo   %%~nI
-    pdflatex -interaction=nonstopmode -draftmode %%I > %TEMPLOG%
+    pdflatex -interaction=nonstopmode -draftmode %%I > nul
     if  not ERRORLEVEL 1 (
       for /F "tokens=*" %%J in (%%~nI.log) do (
         if "%%J" == "Functions documented but not defined:" (
@@ -199,22 +198,22 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   call :perl
   call :unpack
   
-  xcopy /q /y %SCRIPTDIR%\log2tlg > %TEMPLOG%
-  xcopy /q /y %VALIDATE%\regression-test.tex > %TEMPLOG%
+  xcopy /q /y %SCRIPTDIR%\log2tlg > nul
+  xcopy /q /y %VALIDATE%\regression-test.tex > nul
   
-  xcopy /q /y %TESTDIR%\%1.lvt > %TEMPLOG%
-  xcopy /q /y %TESTDIR%\%1.tlg > %TEMPLOG%
+  xcopy /q /y %TESTDIR%\%1.lvt > nul
+  xcopy /q /y %TESTDIR%\%1.tlg > nul
   
   if exist %1.fc  del /q %1.fc
   
   echo.
   echo Running checks on %1
 
-  pdflatex %1.lvt > %TEMPLOG%
-  pdflatex %1.lvt > %TEMPLOG%
+  pdflatex %1.lvt > nul
+  pdflatex %1.lvt > nul
   %PERLEXE% log2tlg %1 < %1.log > %1.new.log
-  del /q %1.log > %TEMPLOG% 
-  ren %1.new.log %1.log > %TEMPLOG%
+  del /q %1.log > nul 
+  ren %1.new.log %1.log > nul
   fc /n  %1.log %1.tlg > %1.fc
   
   for /f "skip=1 tokens=1" %%I in (%1.fc) do (
@@ -245,27 +244,27 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   if exist tds\*.*   rmdir /q /s tds
 
   if exist *.cls (
-    xcopy /q /y *.cls tds\tex\%TDSROOT%\       > %TEMPLOG%
+    xcopy /q /y *.cls tds\tex\%TDSROOT%\       > nul
   )
-  xcopy /q /y *.dtx temp\%PACKAGE%\            > %TEMPLOG%
-  xcopy /q /y *.dtx tds\source\%TDSROOT%\      > %TEMPLOG%
+  xcopy /q /y *.dtx temp\%PACKAGE%\            > nul
+  xcopy /q /y *.dtx tds\source\%TDSROOT%\      > nul
   for %%I in (%PDF%) do (
-    xcopy /q /y %%I.pdf temp\%PACKAGE%\        > %TEMPLOG%
-    xcopy /q /y %%I.pdf tds\doc\%TDSROOT%\     > %TEMPLOG%
+    xcopy /q /y %%I.pdf temp\%PACKAGE%\        > nul
+    xcopy /q /y %%I.pdf tds\doc\%TDSROOT%\     > nul
   )
-  xcopy /q /y *.ins temp\%PACKAGE%\            > %TEMPLOG%
-  xcopy /q /y *.ins tds\source\%TDSROOT%\      > %TEMPLOG%
+  xcopy /q /y *.ins temp\%PACKAGE%\            > nul
+  xcopy /q /y *.ins tds\source\%TDSROOT%\      > nul
   if exist *.ist (
-    xcopy /q /y *.ist tds\makeindex\%PACKAGE%\ > %TEMPLOG%
+    xcopy /q /y *.ist tds\makeindex\%PACKAGE%\ > nul
   )
-  xcopy /q /y *.sty tds\tex\%TDSROOT%\         > %TEMPLOG%
+  xcopy /q /y *.sty tds\tex\%TDSROOT%\         > nul
   for %%I in (%TEX%) do (
-    xcopy /q /y %%I.tex temp\%PACKAGE%\        > %TEMPLOG%
-    xcopy /q /y %%I.tex tds\source\%TDSROOT%\  > %TEMPLOG%
+    xcopy /q /y %%I.tex temp\%PACKAGE%\        > nul
+    xcopy /q /y %%I.tex tds\source\%TDSROOT%\  > nul
   )
   for %%I in (%TXT%) do (
-    xcopy /q /y %%I.txt temp\%PACKAGE%\    > %TEMPLOG%
-    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > %TEMPLOG%
+    xcopy /q /y %%I.txt temp\%PACKAGE%\    > nul
+    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > nul
     ren temp\%PACKAGE%\%%I.txt    %%I
     ren tds\doc\%TDSROOT%\%%I.txt %%I
   )
@@ -273,12 +272,12 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   pushd tds
   %ZIPEXE% %ZIPFLAG% %PACKAGE%.tds.zip .
   popd
-  xcopy /q /y tds\%PACKAGE%.tds.zip temp\ > %TEMPLOG%
+  xcopy /q /y tds\%PACKAGE%.tds.zip temp\ > nul
 
   pushd temp
   %ZIPEXE% %ZIPFLAG% %PACKAGE%.zip .
   popd
-  xcopy /q /y temp\%PACKAGE%.zip > %TEMPLOG%
+  xcopy /q /y temp\%PACKAGE%.zip > nul
 
   rmdir /q /s tds
   rmdir /q /s temp
@@ -298,11 +297,11 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   echo.
   echo Typesetting %1
   
-  pdflatex -interaction=nonstopmode -draftmode %1.dtx > %TEMPLOG%
+  pdflatex -interaction=nonstopmode -draftmode %1.dtx > nul
   if not ERRORLEVEL 1 (
-    makeindex -q -s l3doc.ist -o %2.ind %1.idx        > %TEMPLOG%
-    pdflatex -interaction=nonstopmode %1.dtx          > %TEMPLOG%
-    pdflatex -interaction=nonstopmode %1.dtx          > %TEMPLOG%
+    makeindex -q -s l3doc.ist -o %2.ind %1.idx        > nul
+    pdflatex -interaction=nonstopmode %1.dtx          > nul
+    pdflatex -interaction=nonstopmode %1.dtx          > nul
     for /F "tokens=*" %%I in (%1.log) do (
       if "%%I" == "Functions documented but not defined:" (
       echo ! Some functions not defined 
@@ -324,8 +323,8 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   echo. 
   echo Making format
 
-  tex l3format.ins              > %TEMPLOG%
-  pdftex -etex -ini *latex3.ltx > %TEMPLOG%
+  tex l3format.ins              > nul
+  pdftex -etex -ini *latex3.ltx > nul
   
   goto :clean-int  
 
@@ -364,12 +363,12 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
 
   if exist *.cls (
-    xcopy /q /y *.cls "%INSTALLROOT%\" > %TEMPLOG%
+    xcopy /q /y *.cls "%INSTALLROOT%\" > nul
   )
-  xcopy /q /y *.sty "%INSTALLROOT%\"   > %TEMPLOG%
+  xcopy /q /y *.sty "%INSTALLROOT%\"   > nul
 
-  xcopy /q /y l3vers.dtx "%INSTALLROOT%\" > %TEMPLOG%
-  xcopy /q /y l3doc.ist  "%TEXMFHOME%\makeindex\%PACKAGE%\" > %TEMPLOG%
+  xcopy /q /y l3vers.dtx "%INSTALLROOT%\" > nul
+  xcopy /q /y l3doc.ist  "%TEXMFHOME%\makeindex\%PACKAGE%\" > nul
 
   goto :clean-int
 
@@ -431,17 +430,17 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   call :perl
   call :unpack
  
-  xcopy /q /y %SCRIPTDIR%\log2tlg > %TEMPLOG%
-  xcopy /q /y %VALIDATE%\regression-test.tex > %TEMPLOG%
-  xcopy /q /y %TESTDIR%\%1.lvt > %TEMPLOG%
+  xcopy /q /y %SCRIPTDIR%\log2tlg > nul
+  xcopy /q /y %VALIDATE%\regression-test.tex > nul
+  xcopy /q /y %TESTDIR%\%1.lvt > nul
   
   echo.
   echo Creating and copying %1.tlg
   
-  pdflatex %1.lvt > %TEMPLOG% 
-  pdflatex %1.lvt > %TEMPLOG%
+  pdflatex %1.lvt > nul 
+  pdflatex %1.lvt > nul
   %PERLEXE% log2tlg %1 < %1.log > %1.tlg
-  xcopy /q /y %1.tlg %TESTDIR%\%1.tlg > %TEMPLOG%
+  xcopy /q /y %1.tlg %TESTDIR%\%1.tlg > nul
   
   goto :clean-int
 
@@ -452,13 +451,13 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   echo.
   echo Typesetting source3
 
-  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > %TEMPLOG%
+  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
   if not ERRORLEVEL 1 ( 
     echo   Re-typesetting for index generation
-    makeindex -q -s l3doc.ist -o source3.ind source3.idx > %TEMPLOG%
-    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > %TEMPLOG%
+    makeindex -q -s l3doc.ist -o source3.ind source3.idx > nul
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
     echo   Re-typesetting to resolve cross-references
-    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > %TEMPLOG%
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
     for /F "tokens=*" %%I in (source3.log) do (           
       if "%%I" == "Functions documented but not defined:" (   
         echo ! Warning: some functions not defined              
@@ -474,11 +473,11 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   echo.
   echo Typesetting expl3
   
-  pdflatex -interaction=nonstopmode -draftmode  expl3.dtx > %TEMPLOG%
+  pdflatex -interaction=nonstopmode -draftmode  expl3.dtx > nul
   if not ERRORLEVEL 1 (
-    makeindex -q -s l3doc.ist -o expl3.ind expl3.idx > %TEMPLOG%
-    pdflatex -interaction=nonstopmode expl3.dtx > %TEMPLOG%
-    pdflatex -interaction=nonstopmode expl3.dtx> %TEMPLOG%
+    makeindex -q -s l3doc.ist -o expl3.ind expl3.idx > nul
+    pdflatex -interaction=nonstopmode expl3.dtx > nul
+    pdflatex -interaction=nonstopmode expl3.dtx> nul
   ) else (
     echo ! expl3 compilation failed
   )
@@ -496,29 +495,29 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   if exist tds\*.*  rmdir /q /s tds
 
   if exist *.cls (
-    xcopy /q /y *.cls tds\tex\%TDSROOT%\       > %TEMPLOG%
+    xcopy /q /y *.cls tds\tex\%TDSROOT%\       > nul
   )
-  xcopy /q /y *.dtx tds\source\%TDSROOT%\      > %TEMPLOG%
+  xcopy /q /y *.dtx tds\source\%TDSROOT%\      > nul
   for %%I in (%PDF%) do (
-    xcopy /q /y %%I.pdf tds\doc\%TDSROOT%\     > %TEMPLOG%
+    xcopy /q /y %%I.pdf tds\doc\%TDSROOT%\     > nul
   )
-  xcopy /q /y *.ins tds\source\%TDSROOT%\      > %TEMPLOG%
+  xcopy /q /y *.ins tds\source\%TDSROOT%\      > nul
   if exist *.ist (
-    xcopy /q /y *.ist tds\makeindex\%PACKAGE%\ > %TEMPLOG%
+    xcopy /q /y *.ist tds\makeindex\%PACKAGE%\ > nul
   )
-  xcopy /q /y *.sty tds\tex\%TDSROOT%\         > %TEMPLOG%
+  xcopy /q /y *.sty tds\tex\%TDSROOT%\         > nul
   for %%I in (%TEX%) do (
-    xcopy /q /y %%I.tex tds\source\%TDSROOT%\  > %TEMPLOG%
+    xcopy /q /y %%I.tex tds\source\%TDSROOT%\  > nul
   )
   for %%I in (%TXT%) do (
-    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > %TEMPLOG%
+    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > nul
     ren tds\doc\%TDSROOT%\%%I.txt %%I
   )
 
   pushd tds
   %ZIPEXE% %ZIPFLAG% %PACKAGE%.tds.zip .
   popd
-  xcopy /q /y tds\%PACKAGE%.tds.zip > %TEMPLOG%
+  xcopy /q /y tds\%PACKAGE%.tds.zip > nul
 
   rmdir /q /s tds
   
@@ -530,7 +529,7 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   echo Unpacking files
 
   for %%I in (%UNPACK%) do (
-    tex %%I > %TEMPLOG%
+    tex %%I > nul
   )
 
   goto :clean-int

@@ -10,7 +10,6 @@ set CTAN=xbase xtras
 set PACKAGE=xpackages
 set PATHCOPY=%PATH%
 set TDSROOT=latex\%PACKAGE%
-set TEMPLOG=%TEMP%\temp.log
 set TEST=xbase
 set TXT=readme-ctan
 set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor xtheorem
@@ -52,25 +51,25 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     echo Typesetting
     pushd %%I
     call make unpack
-    xcopy /q /y *.sty ..\tds\tex\%TDSROOT%\%%I\      > %TEMPLOG%
+    xcopy /q /y *.sty ..\tds\tex\%TDSROOT%\%%I\      > nul
     call make doc
-    xcopy /q /y *.dtx ..\temp\%PACKAGE%\             > %TEMPLOG%
-    xcopy /q /y *.dtx ..\tds\source\%TDSROOT%\%%I\   > %TEMPLOG%
-    xcopy /q /y *.ins ..\temp\%PACKAGE%\             > %TEMPLOG%
-    xcopy /q /y *.ins ..\tds\source\%TDSROOT%\%%I\   > %TEMPLOG%
-    xcopy /q /y *.pdf ..\temp\%PACKAGE%\             > %TEMPLOG%
-    xcopy /q /y *.pdf ..\tds\doc\%TDSROOT%\%%I\      > %TEMPLOG%
+    xcopy /q /y *.dtx ..\temp\%PACKAGE%\             > nul
+    xcopy /q /y *.dtx ..\tds\source\%TDSROOT%\%%I\   > nul
+    xcopy /q /y *.ins ..\temp\%PACKAGE%\             > nul
+    xcopy /q /y *.ins ..\tds\source\%TDSROOT%\%%I\   > nul
+    xcopy /q /y *.pdf ..\temp\%PACKAGE%\             > nul
+    xcopy /q /y *.pdf ..\tds\doc\%TDSROOT%\%%I\      > nul
     if exist *.tex (
-      xcopy /q /y *.tex ..\temp\%PACKAGE%\           > %TEMPLOG%
-      xcopy /q /y *.tex ..\tds\source\%TDSROOT%\%%I\ > %TEMPLOG%
+      xcopy /q /y *.tex ..\temp\%PACKAGE%\           > nul
+      xcopy /q /y *.tex ..\tds\source\%TDSROOT%\%%I\ > nul
     )
     call make clean
     popd
   )
 
   for %%I in (%TXT%) do (
-    xcopy /q /y %%I.txt temp\%PACKAGE%\    > %TEMPLOG%
-    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > %TEMPLOG%
+    xcopy /q /y %%I.txt temp\%PACKAGE%\    > nul
+    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > nul
     ren temp\%PACKAGE%\%%I.txt    %%I
     ren tds\doc\%TDSROOT%\%%I.txt %%I
   )
@@ -84,12 +83,12 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
   pushd tds
   %ZIPEXE% %ZIPFLAG% %PACKAGE%.tds.zip .
   popd
-  xcopy /q /y tds\%PACKAGE%.tds.zip temp\ > %TEMPLOG%
+  xcopy /q /y tds\%PACKAGE%.tds.zip temp\ > nul
 
   pushd temp
   %ZIPEXE% %ZIPFLAG% %PACKAGE%.zip .
   popd
-  xcopy /q /y temp\%PACKAGE%.zip > %TEMPLOG%
+  xcopy /q /y temp\%PACKAGE%.zip > nul
 
   rmdir /q /s temp
   rmdir /q /s tds
@@ -123,7 +122,7 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     echo   %%I
     pushd %%I
     call make unpack
-    xcopy /q /y *.sty "%INSTALLROOT%\%%I\"   > %TEMPLOG% 
+    xcopy /q /y *.sty "%INSTALLROOT%\%%I\"   > nul 
     call make clean
     popd
   )
@@ -144,20 +143,20 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
     echo Typesetting
     pushd %%I
     call make unpack
-    xcopy /q /y *.sty ..\tds\tex\%TDSROOT%\%%I\      > %TEMPLOG%
+    xcopy /q /y *.sty ..\tds\tex\%TDSROOT%\%%I\      > nul
     call make doc
-    xcopy /q /y *.dtx ..\tds\source\%TDSROOT%\%%I\   > %TEMPLOG%
-    xcopy /q /y *.ins ..\tds\source\%TDSROOT%\%%I\   > %TEMPLOG%
-    xcopy /q /y *.pdf ..\tds\doc\%TDSROOT%\%%I\      > %TEMPLOG%
+    xcopy /q /y *.dtx ..\tds\source\%TDSROOT%\%%I\   > nul
+    xcopy /q /y *.ins ..\tds\source\%TDSROOT%\%%I\   > nul
+    xcopy /q /y *.pdf ..\tds\doc\%TDSROOT%\%%I\      > nul
     if exist *.tex (
-      xcopy /q /y *.tex ..\tds\source\%TDSROOT%\%%I > %TEMPLOG%
+      xcopy /q /y *.tex ..\tds\source\%TDSROOT%\%%I > nul
     )
     call make clean
     popd
   )
 
   for %%I in (%TXT%) do (
-    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > %TEMPLOG%
+    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > nul
     ren tds\doc\%TDSROOT%\%%I.txt %%I
   )
 
@@ -169,7 +168,7 @@ set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor
   pushd tds
   %ZIPEXE% %ZIPFLAG% %PACKAGE%.tds.zip .
   popd
-  xcopy /q /y tds\%PACKAGE%.tds.zip > %TEMPLOG%
+  xcopy /q /y tds\%PACKAGE%.tds.zip > nul
 
   rmdir /q /s tds
   
