@@ -1,409 +1,444 @@
+################################################################
+################################################################
+# Makefile for LaTeX3 "expl3" files                            #
+################################################################
+################################################################
+
+################################################################
+# Default with no target is to give help                       #
+################################################################
 
 help:
 	@echo ""
-	@echo "  make clean              - clean out test dirs"
+	@echo " make check               - runs automated test suite"
+	@echo " make checkcmd F=<module> - checks all functions are defined for <module>"
+	@echo " make checkcmds           - checks all functions are defined for all modules"
+	@echo " make checkdoc            - checks all module documentation compiles correctly"
+	@echo " make clean               - clean out test directory"
+	@echo " make cleanall            - clean out test and current directory"
+	@echo " make ctan                - create a CTAN-ready archive"
+	@echo " make checklvt F=<name>   - runs automated test on <name>"
+	@echo " make doc F=<module>      - typeset documentation for <module>"
+	@echo " make format              - create LaTeX3 format file"
+	@echo " make localinstall        - install files in local texmf tree"
+	@echo " make savetlg F=<name>    - save test log for <name>"  
+	@echo " make sourcedoc           - typeset expl3 and source3"
+	@echo " make tds                 - create a TDS-ready archive"
+	@echo " make unpack              - extract packages"
 	@echo ""
-	@echo "  make check              - set up and run all tests"
-	@echo "  make checklvt F=<name>  - run <name>.lvt only"
-	@echo "  make savetlg  F=<name>  - save <name>.tlg as new certified test"
-	@echo ""
-	@echo "  make checkdoc           - check all modules compile correctly"
-	@echo "  make checkcmd F=<name>  - check all functions are defined in one module"
-	@echo "  make checkcmds          - check all functions are defined in all modules"
-	@echo ""
-	@echo "  make doc F=<name>       - typeset <name>.dtx"
-	@echo "  make sourcedoc          - typeset source3.tex"
-	@echo "  make alldoc             - typeset all documentation"
-	@echo ""
-	@echo "  make localinstall       - install the .sty files in your home texmf tree"
-	@echo ""
-	@echo "  make /OR/ make help     - show this help text"
-	@echo ""
+	
+##############################################################
+# Master package name                                        #
+##############################################################
 
+PACKAGE = expl3
+	
+##############################################################
+# Directory structure for source files                       #
+##############################################################
 
-################################
-# PATHS
-################################
-
-# FIX next one (should use environment is provided)
-L3TESTDIR := /tmp/l3test
-
-TESTDIR := $(shell test -d $(L3TESTDIR)/test/l3in2e || mkdir -p $(L3TESTDIR)/test/l3in2e ; cd $(L3TESTDIR)/test/l3in2e ; pwd)
-
-SCRIPTDIR := $(shell test -d $(L3TESTDIR)/scripts || mkdir -p $(L3TESTDIR)/scripts ; cd $(L3TESTDIR)/scripts ; pwd)
-
-
-SOURCEDIR := .
-BASEDIR := ..
+SOURCEDIR   := .
+BASEDIR     := ..
 VALIDATEDIR := $(BASEDIR)/validate
 TESTFILEDIR := $(SOURCEDIR)/testfiles
 SUPPORTDIR  := $(BASEDIR)/support
 
+##############################################################
+# Directory structure for test system                        #
+##############################################################
 
-################################
-# VARIABLES
-################################
+L3TESTDIR  := /tmp/l3test
+SCRIPTDIR  := $(shell test -d $(L3TESTDIR)/scripts || mkdir -p $(L3TESTDIR)/scripts ; cd $(L3TESTDIR)/scripts ; pwd)
+TESTDIR    := $(shell test -d $(L3TESTDIR)/test/l3in2e || mkdir -p $(L3TESTDIR)/test/l3in2e ; cd $(L3TESTDIR)/test/l3in2e ; pwd)
+TESTAUXDIR := $(shell test -d $(TESTDIR)/testfiles || mkdir -p $(TESTDIR)/testfiles ; cd $(TESTDIR)/testfiles ; pwd)
 
+##############################################################
+# Directory structure for making zip files                   #
+##############################################################
 
-# All modules:
-MODULES = \
-	expl3.dtx \
-	l3alloc.dtx \
-	l3basics.dtx \
-	l3box.dtx \
-	l3calc.dtx \
-	l3chk.dtx \
-	l3clist.dtx \
-	l3expan.dtx \
-	l3file.dtx \
-	l3final.dtx \
-	l3int.dtx \
-	l3intexpr.dtx \
-	l3io.dtx \
-	l3keyval.dtx \
-	l3keys.dtx \
-	l3msg.dtx \
-	l3names.dtx \
-	l3num.dtx \
-	l3precom.dtx \
-	l3prg.dtx \
-	l3prop.dtx \
-	l3quark.dtx \
-	l3seq.dtx \
-	l3skip.dtx \
-	l3tl.dtx \
-	l3token.dtx \
-	l3toks.dtx \
-	l3vers.dtx \
-	l3xref.dtx
+CTANDIR := $(TESTDIR)/ctan/$(PACKAGE)
+TDSDIR  := $(TESTDIR)/tds
 
-# Modules to check in the `checkcmds` target:
-CHKMODULES = \
-	expl3 l3basics l3box l3calc l3clist l3expan l3int l3intexpr l3io \
-	l3file l3keyval l3keys l3msg l3names l3num l3precom l3prg l3prop \
-	l3quark l3seq l3skip l3tl l3token l3toks l3xref
+##############################################################
+# Data for local installation and TDS construction           #
+##############################################################
 
-# Docstrip install files:
-INSTALLS = \
-	l3format.ins \
-	l3.ins 
+INCLUDEPDF  := $(PACKAGE) source3
+INCLUDETEX  := source3
+INCLUDETXT  := README
+PACKAGEROOT := latex/$(PACKAGE)
 
-# Auxiliary files to clean up after typesetting:
+##############################################################
+# Details of source files                                    #
+##############################################################
+
+DTX      = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
+DTXFILES = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
+FORMAT   = l3format.ins
+UNPACK   = l3.ins l3doc.dtx
+
+##############################################################
+# Files for the check systems                                #
+##############################################################
+
+CHECKFILES = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/m3*.tlg)))
+SCRIPTS    = log2tlg
+TESTAUX    = filetest.txt
+VALIDATE   = commands-check.tex regression-test.tex
+
+##############################################################
+# Clean-up information                                       #
+##############################################################
+
 AUXFILES = \
-	.aux .glo .gls .hd .idx .ilg .ind .ist .log .out .toc
+	aux  \
+	cmds \
+	glo  \
+	gls  \
+	hd   \
+	idx  \
+	ilg  \
+	ind  \
+	log  \
+	out  \
+	tmp  \
+	toc  \
+	xref
+	
+CLEAN = \
+	cls  \
+	diff \
+	fmt  \
+	gz   \
+	ist  \
+	ltx  \
+	pdf  \
+	sty  \
+	zip 
+	
+################################################################
+# File copying: default actions                                #
+################################################################
 
-
-# Scripts used in the regression tests:
-SCRIPTS = \
-	checktlg \
-	log2tlg \
-	maketlg
-
-
-COMPATCHECK =
-
-MODULECHECK = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/m3*.tlg)))
-
-BUGCHECK = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/tlb*.tlg)))
-
-
-CFS = $(foreach file,$(COMPATCHECK) $(MODULECHECK) $(BUGCHECK),$(file).lvt)
-CLS = $(foreach file,$(COMPATCHECK) $(MODULECHECK) $(BUGCHECK),$(file).tlg)
-
-
-
-################################
-# default pattern rules for scripts
-################################
-
-$(SCRIPTDIR)/%:	$(SUPPORTDIR)/%
-	cp $< $@
-	chmod +x $@
-
-
-scripts:	$(foreach file,$(SCRIPTS),$(SCRIPTDIR)/$(file))
-
-################################
-# basic rules for setting things up
-################################
-
-.PHONY:	clean cleanuptest bootstrap \
-	check checklvt checkdoc checkcmd checkcmds \
-	savetlg scripts \
-	doc sourcedoc alldoc \
-	localinstall
-
-clean:	cleanuptest 
-
-cleanuptest:
-	rm -rf $(TESTDIR)/*
-
-bootstrap:	
-	@echo "dummy right now"
-
-texinputs:
-	@echo "dummy right now"
-
-unpack:	$(foreach file,$(MODULES) $(INSTALLS),$(TESTDIR)/$(file))
-	cd $(TESTDIR) ; \
-	for i in  $(INSTALLS); \
-	do \
-	  latex $$i ; \
-	done
-
-unpacksilent:	$(foreach file,$(MODULES) $(INSTALLS),$(TESTDIR)/$(file))
-	cd $(TESTDIR) ; \
-	for i in  $(INSTALLS); \
-	do \
-	  latex $$i &> /dev/null ; \
-	done
-
-testinstall:	bootstrap scripts texinputs unpack \
-                $(foreach file,$(CFS) $(CLS) $(CFextra),$(TESTDIR)/$(file)) \
-                $(TESTDIR)/regression-test.tex $(TESTDIR)/ascii.tcx \
-                $(TESTDIR)/testfiles/filetest.txt
-
-################################
-# unit tests
-################################
-
-check:	testinstall
-	cd $(TESTDIR) ; \
-	rm -f *tmp* *.log *.diff *.gls *.ind ; \
-	for i in  $(CFS); \
-	do \
-	  $(SCRIPTDIR)/checktlg latex $$i $(TESTDIR)/ascii.tcx ; \
-	done ; \
-	if [ `ls | grep '.diff' | wc -l` = 0 ] ; then \
-	  echo ; \
-	  echo All tests passed successfully. ; \
-	  echo ; \
-	else \
-	  echo ; \
-	  echo List of diffs produced during check: ; \
-	  echo ==================================== ; \
-	  echo ; \
-	  ls -1 `pwd`/*.diff ; \
-	  echo ; \
-	fi ;
-
-
-checklvt:	testinstall
-	cd $(TESTDIR) ; \
-	rm -f *tmp* *.log *.diff *.gls *.ind ; \
-	$(SCRIPTDIR)/checktlg latex $(F).lvt $(TESTDIR)/ascii.tcx ; \
-	if [ `ls | grep *.diff | wc -l` -ne 0 ] ; then \
-	  echo '\n* Diff between the expected and actual results: *' ; \
-	  ls -1 `pwd`/$(F).*.diff ; \
-	fi ;
-
-savetlg:	$(TESTDIR)/$(F).tmp.tlg
-	@cp -fp $< $(TESTFILEDIR)/$(F).tlg
-
-
-################################
-# checking that all functions are defined
-################################
-
-$(TESTDIR)/l3doc.cls: $(TESTDIR)/l3doc.dtx
-	cd $(TESTDIR); tex l3doc.dtx &> /dev/null
+$(SCRIPTDIR)/%: $(SUPPORTDIR)/%
+	@cp -fp $< $@
+	@chmod +x $@
+	
+$(TESTDIR)/%.dtx: $(SOURCEDIR)/%.dtx
+	@cp -fp $< $@
+	
+$(TESTDIR)/%.ins: $(SOURCEDIR)/%.ins
+	@cp -fp $< $@
+	
+$(TESTDIR)/%.lvt: $(TESTFILEDIR)/%.lvt
+	@cp -fp $< $@
+	
+$(TESTDIR)/%.tex: $(SOURCEDIR)/%.tex
+	@cp -fp $< $@	
+	
+$(TESTDIR)/%.tlg: $(TESTFILEDIR)/%.tlg
+	@cp -fp $< $@	
+	
+$(TESTDIR)/%.txt: $(SOURCEDIR)/%.txt
+	@cp -fp $< $@	
+	
+$(TESTAUXDIR)/%.txt: $(TESTFILEDIR)/%.txt
+	@cp -fp $< $@	
+	
+################################################################
+# File copying: specials                                       #
+################################################################
 
 $(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
-	@cp -fp $< $@
+	@cp -fp $< $@	
 
-checkcmd:  unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex
-	echo "Checking definitions of functions in $(F)" ; \
-	cd $(TESTDIR) ; \
-	latex -interaction=batchmode $(F).dtx &> /dev/null ; \
-	latex -interaction=nonstopmode \
-	  "\def\CMDS{$(F).cmds}\input commands-check" &> $(L3TESTDIR)/cmdlog.txt ; \
-	if [ $$? -ne 0 ] ; then \
-	  echo "Missing definitions:" ; \
-	  cat $(L3TESTDIR)/cmdlog.txt | grep '!> ' ; \
-	fi ; \
+$(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
+	@cp -fp $< $@	
+	
+################################################################
+# File buiding: default actions                                #
+################################################################
 
-checkcmds: unpacksilent $(TESTDIR)/l3doc.cls $(TESTDIR)/commands-check.tex
-	cd $(TESTDIR) ; \
-	for i in  $(CHKMODULES) ; do \
-	  latex -interaction=batchmode $$i.dtx &> /dev/null ; \
-	  latex -interaction=nonstopmode \
-	    "\def\CMDS{$$i.cmds}\input commands-check" \
-	      &> $(L3TESTDIR)/cmdlog.txt ; \
-	  if [ $$? -ne 0 ] ; then \
-	    echo "\n$$i missing definition(s):" ; \
-	    cat $(L3TESTDIR)/cmdlog.txt | grep '!> ' ; \
-	    echo "" ; \
-	  else \
-	    echo "$$i checked." ; \
+$(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
+	NAME=`basename $< .dtx` ; \
+	echo "Typesetting $$NAME" ; \
+	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
+	if [ $$? = 0 ] ; then  \
+	  makeindex -s l3doc.ist -o $(TESTDIR)/$$NAME.ind $(TESTDIR)/$$NAME.idx &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
+	  if [ `grep 'defined but not documented' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ] ; then \
+	    echo "! Warning: some functions defined but not documented" ; \
 	  fi ; \
+	  if [ `grep 'documented but not defined' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ]  ; then \
+	    echo "! Warning: some functions documented but not defined" ; \
+	  fi ; \
+	else \
+	  echo "  Complilation failed" ; \
+	fi ; \
+	for I in $(AUXFILES) ; do \
+	  rm -f $$NAME.$$I ; \
+	done
+	
+################################################################
+# File buiding: specials                                       #
+################################################################
+	
+$(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex
+	echo "Typesetting source3" ; \
+	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "\PassOptionsToClass{nocheck}{l3doc} \input $(TESTDIR)/source3" &> /dev/null ; \
+	if [ $$? = 0 ] ; then  \
+	  makeindex -s l3doc.ist -o $(TESTDIR)/source3.ind $(TESTDIR)/source3.idx &> /dev/null ; \
+	  echo "  Re-typesetting for index generation" ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "\PassOptionsToClass{nocheck}{l3doc} \input $(TESTDIR)/source3" &> /dev/null ; \
+	  echo "  Re-typesetting to resolve cross-references" ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "\PassOptionsToClass{nocheck}{l3doc} \input $(TESTDIR)/source3" &> /dev/null ; \
+	else \
+	  echo "  Complilation failed" ; \
+	fi ; \
+	for I in $(AUXFILES) ; do \
+	  rm -f source3.$$I ; \
+	done
+	
+################################################################
+# Internal make options                                        #
+################################################################
+
+.PHONY = \
+	support 
+	
+support: \
+	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
+	$(foreach FILE,$(TESTAUX),$(TESTAUXDIR)/$(FILE)) \
+	$(foreach FILE,$(VALIDATE),$(TESTDIR)/$(FILE))
+	
+################################################################
+# User make options                                            #
+################################################################
+
+.PHONY = \
+	alldoc       \
+	check        \
+	checkcmd     \
+	checkcmds    \
+	checkdoc     \
+	checklvt     \
+	clean        \
+	cleanall     \
+	ctan         \
+	doc          \
+	format       \
+	localinstall \
+	savetlg      \
+	sourcedoc    \
+	tds          \
+	unpack
+	
+alldoc: $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf) source3.pdf
+	
+check: \
+	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).lvt) \
+	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).tlg) \
+	support unpack
+	echo "Running checks on"
+	cd $(TESTDIR) ; \
+	for I in $(AUXFILES) diff ; do \
+	  rm -f *.$$I ; \
 	done ; \
-
-################################
-# checking the documentation compiles
-################################
-
-l3doc.cls: $(TESTDIR)/l3doc.dtx
-	tex l3doc.dtx &> /dev/null
-
-checkdoc: l3doc.cls
-	echo ; \
-	for i in  $(MODULES) ; do \
-	  MODNAME=`basename $$i .dtx` ; \
-	  echo "Typesetting $$i" ; \
-	  pdflatex -interaction=nonstopmode -draftmode $$i &> $(L3TESTDIR)/doclog.txt ; \
+	for I in $(CHECKFILES) ; do \
+	  echo "  $$I" ; \
+	  pdflatex $$I.lvt &> /dev/null ; \
+	  pdflatex $$I.lvt &> /dev/null ; \
+	  perl $(SCRIPTDIR)/log2tlg $$I < $$I.log > $$I.new.log ; \
+	  if !(cmp -s $$I.tlg $$I.new.log) ; then \
+	    diff -c $$I.new.log $$I.tlg &> $$I.diff ; \
+	  fi ; \
+	  for J in $(AUXFILES) lvt pdf tlg ; do \
+	    rm -f $$I.$$J ; \
+	  done ; \
+	done ; \
+	if (test -f *.diff) ; then \
+	  echo "  Check failed with difference files" ; \
+	  for I in *.diff ; do \
+	    echo "  - $$I" ; \
+	  done ; \
+	else \
+	  echo "  All checks passed" ; \
+	fi
+	
+checkcmd: support unpack
+	echo "Checking commands in $(F)" ; \
+	cd $(TESTDIR) ; \
+	pdflatex -interaction=nonstopmode $(F).dtx &> /dev/null ; \
+	pdflatex -interaction=nonstopmode "\def\CMDS{$(F).cmds}\input commands-check" &> cmds.log ; \
+	if [ $$? -ne 0 ] ; then \
+	  echo "  Missing definitions:" ; \
+	  cat $(TESTDIR)/cmds.log| grep '!> ' ; \
+	fi ; \
+	for I in $(AUXFILES) ; do \
+	  rm -f $(F).$$I ; \
+	done
+	
+checkcmds: support unpack
+	echo "Checking commands" ; \
+	cd $(TESTDIR) ; \
+	for I in $(DTXFILES) ; do \
+	  echo "  $$I" ; \
+	  pdflatex -interaction=nonstopmode $$I.dtx &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode "\def\CMDS{$$I.cmds}\input commands-check" &> cmds.log ; \
+	  if [ $$? -ne 0 ] ; then \
+	    echo "  Missing definitions:" ; \
+	    cat $(TESTDIR)/cmds.log| grep '!> ' ; \
+	  fi ; \
+	  for J in $(AUXFILES) ; do \
+	    rm -f $$I.$$J ; \
+	  done ; \
+	done
+	
+checkdoc: unpack
+	echo "Checking compilation"
+	cd $(TESTDIR) ; \
+	for I in $(DTXFILES) ; do \
+	  echo "  $$I" ; \
+	  pdflatex -draftmode -interaction=nonstopmode $$I.dtx &> /dev/null  ; \
 	  if [ $$? = 0 ] ; then \
-	    if [ `grep 'defined but not documented' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
+	    if [ `grep 'defined but not documented' $$I.log | wc -l` -ne 0 ] ; then \
 	      echo '! Warning: some functions defined but not documented' ; \
 	    fi ; \
-	    if [ `grep 'documented but not defined' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
+	    if [ `grep 'documented but not defined' $$I.log | wc -l` -ne 0 ] ; then \
 	      echo '! Warning: some functions documented but not defined' ; \
 	    fi ; \
 	  else \
-	    echo "\n!! $$i compilation failed.\n" ; \
+	    echo "! Compilation failed" ; \
 	  fi ; \
-	  for j in $(AUXFILES) ; do rm -f $$MODNAME$$j ; done ; \
+	  for J in $(AUXFILES) ; do \
+	    rm -f $$I.$$J ; \
+	  done ; \
+	done 
+	
+checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
+	echo "Running checks on $(F)"
+	cd $(TESTDIR) ; \
+	for I in $(AUXFILES) diff ; do \
+	  rm -f *.$$I ; \
 	done ; \
-	rm l3doc.cls l3doc.ist ;
-
-################################
-# typesetting the docs
-################################
-
-doc: l3doc.cls
-	echo ; \
-	FAIL=0 ; \
-	echo "Typesetting $(F).dtx" ; \
-	pdflatex -draftmode $(F).dtx ; \
-	if [ $$? = 0 ] ; then \
-	  pdflatex -interaction=nonstopmode -draftmode $(F).dtx &> /dev/null ; \
-	  makeindex -s l3doc.ist -o $(F).ind $(F).idx ; \
-	  echo "\nRe-typesetting $(F).dtx for cross-references" ; \
-	  pdflatex -interaction=nonstopmode $(F).dtx &> $(L3TESTDIR)/doclog.txt ; \
-	  if [ $$? -ne 0 ] ; then FAIL=1 ; fi ; \
-	  if [ `grep 'defined but not documented' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
-	    echo '! Warning: some functions defined but not documented' ; \
-	  fi ; \
-	  if [ `grep 'documented but not defined' $(L3TESTDIR)/doclog.txt | wc -l` -ne 0 ] ; then \
-	    echo '! Warning: some functions documented but not defined' ; \
-	  fi ; \
-	else \
-	  FAIL=1 ; \
+	pdflatex $(F).lvt &> /dev/null ; \
+	pdflatex $(F).lvt &> /dev/null ; \
+	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).new.log ; \
+	if !(cmp -s $(F).tlg $(F).new.log) ; then \
+	  diff -c $(F).new.log $(F).tlg &> $(F).diff ; \
 	fi ; \
-	if [ $$FAIL = 1 ] ; then \
-	  echo "\n!! $(F).dtx compilation failed." ; \
-	fi ; \
-	for j in $(AUXFILES) ; do rm -f $(F)$$j ; done ; \
-	rm l3doc.cls l3doc.ist ;
-
-alldoc: l3doc.cls
-	echo ; \
-	ALLPASSED=0 ; \
-	for i in  $(MODULES) ; do \
-	  FAIL=0 ; \
-	  MODNAME=`basename $$i .dtx` ; \
-	  echo "Typesetting $$i" ; \
-	  pdflatex -interaction=batchmode -draftmode $$i &> /dev/null ; \
-	  if [ $$? = 0 ] ; then \
-	    makeindex -s l3doc.ist -o $$MODNAME.ind $$MODNAME.idx &> /dev/null ; \
-	    pdflatex -interaction=batchmode -draftmode $$i &> /dev/null ; \
-	    pdflatex -interaction=batchmode $$i &> /dev/null ; \
-	    if [ $$? -ne 0 ] ; then FAIL=1 ; fi ; \
-	  else \
-	    FAIL=1 ; \
-	  fi ; \
-	  if [ $$FAIL = 1 ] ; then \
-	    ALLPASSED=1 ; \
-	    echo "!! $$i compilation failed." ; \
-	  fi ; \
-	  for j in $(AUXFILES) ; do rm -f $$MODNAME$$j ; done ; \
+	for I in $(AUXFILES) lvt pdf tlg ; do \
+	  rm -f $(F).$$I ; \
 	done ; \
-	rm l3doc.cls l3doc.ist ; \
-	if [ $$ALLPASSED = 0 ] ; then \
-	  echo ; \
-	  make sourcedoc ; \
-	fi ;
-
-sourcedoc: l3doc.cls
-	FAIL=0 ; \
-	echo "\nTypesetting source3.tex" ; \
-	pdflatex -interaction=batchmode -draftmode "\PassOptionsToClass{nocheck}{l3doc}\input source3.tex" &> /dev/null ; \
-	if [ $$? = 0 ] ; then \
-	  echo "Re-typesetting for index generation" ; \
-	  makeindex -s l3doc.ist -o source3.ind source3.idx &> /dev/null ; \
-	  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc}\input source3.tex" &> /dev/null ; \
-	  echo "Re-typesetting to resolve cross-references" ; \
-	  pdflatex -interaction=batchmode "\PassOptionsToClass{nocheck}{l3doc}\input source3.tex" &> /dev/null ; \
-	  if [ $$? -ne 0 ] ; then FAIL=1 ; fi ; \
+	if (test -f $(F).diff) ; then \
+	  echo "  Check failed" ; \
 	else \
-	  FAIL=1 ; \
-	fi ; \
-	if [ $$FAIL = 1 ] ; then \
-	  echo "!! source3.tex compilation failed." ; \
-	fi ; \
-	for j in $(AUXFILES) ; do rm -f source3$$j ; done ; \
-	rm l3doc.cls l3doc.ist ;
+	  echo "  Check passed" ; \
+	fi
+	
+clean:
+	echo "Cleaning up"
+	rm -rf $(TESTDIR)/*.*
+	
+cleanall: clean
+	for I in $(AUXFILES) $(CLEAN) ; do \
+	  rm -f *.$$I ; \
+	done
+	
+ctan: tds
+	echo "Creating CTAN archive"
+	mkdir -p $(CTANDIR)/
+	rm -rf $(CTANDIR)/*
+	cd $(TESTDIR) ; \
+	cp -f *.dtx $(CTANDIR)/ ; \
+	for I in $(INCLUDEPDF) ; do \
+	  cp -f $$I.pdf $(CTANDIR)/ ; \
+	done ; \
+	for I in $(INCLUDETEX); do \
+	  cp -f $$I.tex $(CTANDIR)/ ; \
+	done ; \
+	for I in $(INCLUDETXT); do \
+	  cp -f $$I.txt $(CTANDIR)/; \
+	  mv $(CTANDIR)/$$I.txt $(CTANDIR)/$$I ; \
+	done ; \
+	cp $(PACKAGE).tds.zip $(CTANDIR)/ 
+	cd $(CTANDIR) ; \
+	zip -ll -q -r -X $(PACKAGE).zip .
+	cd $(TESTDIR) ; \
+	cp $(CTANDIR)/$(PACKAGE).zip ./
+	
+doc: unpack $(TESTDIR)/$(F).pdf
+	
+format: \
+	$(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).dtx) \
+	$(foreach FILE,$(FORMAT),$(TESTDIR)/$(FILE))
+	echo "Making format"
+	cd $(TESTDIR) ; \
+	for I in $(FORMAT) ; do \
+	  tex $$I &> /dev/null ; \
+	done ; \
+	pdftex -etex -ini "*latex3.ltx" &> /dev/null
+	
+localinstall: unpack
+	echo "Installing files"
+	TEXMFHOME=`kpsewhich --var-value=TEXMFHOME` ; \
+	mkdir -p $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
+	mkdir -p $$TEXMFHOME/makeindex/$(PACKAGE)/ ; \
+	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
+	rm -rf $$TEXMFHOME/makeindex/$(PACKAGEROOT)/* ; \
+	cp l3vers.dtx $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
+	cd $(TESTDIR) ; \
+	cp *.cls $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
+	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
+	cp l3doc.ist $$TEXMFHOME/makeindex/$(PACKAGE) 
+	texhash &> /dev/null
+	
+savetlg: $(TESTDIR)/$(F).lvt support unpack
+	echo "Creating and copying $(F).tlg"
+	cd $(TESTDIR) ; \
+	for I in $(AUXFILES) diff ; do \
+	  rm -f *.$$I ; \
+	done ; \
+	pdflatex $(F).lvt &> /dev/null ; \
+	pdflatex $(F).lvt &> /dev/null ; \
+	rm -f $$I.pdf ; \
+	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).tlg
+	cp -f $(TESTDIR)/$(F).tlg $(TESTFILEDIR)/$(F).tlg	
+	
+sourcedoc: unpack $(foreach FILE,$(INCLUDEPDF),$(TESTDIR)/$(FILE).pdf)
 
-################################
-# installing the files locally
-################################
-
-localinstall:
-	LTEXMF=`kpsewhich --var-value=TEXMFHOME`; \
-	LATEXDIR=$$LTEXMF/tex/latex/ltx3 ; \
-	MAKEINDDIR=$$LTEXMF/makeindex/latex/ltx3 ; \
-	echo "\nInstallation directory: \n   $$LTEXMF" ; \
-	mkdir -p $$LATEXDIR/l3in2e/ ; \
-	mkdir -p $$LATEXDIR/validate/ ; \
-	mkdir -p $$MAKEINDDIR/ ; \
-	echo "\nDeleting any old files: \n" ; \
-	rm -fv $$LATEXDIR/l3in2e/* ; \
-	rm -fv $$LATEXDIR/validate/* ; \
-	rm -fv $$MAKEINDDIR/* ; \
-	echo "\nExtracting and installing: \n" ; \
-	tex l3.ins &> /dev/null ; \
-	rm l3.log ; \
-	tex l3doc.dtx &> /dev/null ; \
-	ls *.sty | xargs -I {} mv -v ./{} $$LATEXDIR/l3in2e/{} ; \
-	ls *.cls | xargs -I {} mv -v ./{} $$LATEXDIR/l3in2e/{} ; \
-	cp -v l3doc.ist $$MAKEINDDIR/ ; \
-	cp -v l3vers.dtx $$LATEXDIR/l3in2e/ ; \
-	cp -v ../validate/regression-test.tex $$LATEXDIR/validate/ ; \
-	cp -v ../validate/commands-check.tex $$LATEXDIR/validate/ ;
-
-
-
-
-################################
-# default pattern rules for test files in test directory
-################################
-
-$(TESTDIR)/%.lvt:	$(TESTFILEDIR)/%.lvt
-	@cp -fp $< $@
-
-$(TESTDIR)/%.tlg:	$(TESTFILEDIR)/%.tlg
-	@cp -fp $< $@
-
-$(TESTDIR)/%.dtx:	$(SOURCEDIR)/%.dtx
-	@cp -fp $< $@
-
-$(TESTDIR)/%.ins:	$(SOURCEDIR)/%.ins
-	@cp -fp $< $@
-
-$(TESTDIR)/testfiles/filetest.txt: $(TESTFILEDIR)/filetest.txt
-	mkdir -p $(TESTDIR)/testfiles;
-	@cp -fp $< $@
-
-################################
-# rules for files needed for checking
-################################
-
-$(TESTDIR)/ascii.tcx:		$(SUPPORTDIR)/ascii.tcx
-	@cp -fp $< $@
-
-$(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
-	@cp -fp $< $@
-
-
-
-
-
+tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).txt) sourcedoc
+	echo "Creating TDS archive"
+	mkdir -p $(TDSDIR)/
+	rm -rf $(TDSDIR)/*
+	mkdir -p $(TDSDIR)/doc/$(PACKAGEROOT)/
+	mkdir -p $(TDSDIR)/makeindex/$(PACKAGEROOT)/
+	mkdir -p $(TDSDIR)/source/$(PACKAGEROOT)/
+	mkdir -p $(TDSDIR)/tex/$(PACKAGEROOT)/
+	cd $(TESTDIR) ; \
+	cp -f *.cls $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
+	cp -f *.dtx $(TDSDIR)/source/$(PACKAGEROOT)/ ; \
+	cp -f *.ist $(TDSDIR)/makeindex/$(PACKAGEROOT)/ ; \
+	for I in $(INCLUDEPDF) ; do \
+	  cp -f $$I.pdf $(TDSDIR)/doc/$(PACKAGEROOT)/ ; \
+	done ; \
+	cp -f *.sty $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
+	for I in $(INCLUDETEX); do \
+	  cp -f $$I.tex $(TDSDIR)/doc/$(PACKAGEROOT)/ ; \
+	done ; \
+	for I in $(INCLUDETXT); do \
+	  cp -f $$I.txt $(TDSDIR)/doc/$(PACKAGEROOT)/ ; \
+	  mv $(TDSDIR)/doc/$(PACKAGEROOT)/$$I.txt $(TDSDIR)/doc/$(PACKAGEROOT)/$$I ; \
+	done 
+	cd $(TDSDIR) ; \
+	zip -ll -q -r -X $(PACKAGE).tds.zip .
+	cd $(TESTDIR) ; \
+	cp $(TDSDIR)/$(PACKAGE).tds.zip ./
+	
+unpack: $(foreach FILE,$(DTX) $(UNPACK),$(TESTDIR)/$(FILE))
+	echo "Unpacking files"
+	cd $(TESTDIR) ; \
+	for I in $(UNPACK) ; do \
+	  tex $$I &> /dev/null ; \
+	done
