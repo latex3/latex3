@@ -507,7 +507,7 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
   )
   xcopy /q /y *.sty tds\tex\%TDSROOT%\         > nul
   for %%I in (%TEX%) do (
-    xcopy /q /y %%I.tex tds\source\%TDSROOT%\  > nul
+    xcopy /q /y %%I.tex tds\doc\%TDSROOT%\  > nul
   )
   for %%I in (%TXT%) do (
     xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > nul
