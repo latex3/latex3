@@ -253,6 +253,19 @@
 % \end{syntax}
 % After the keys have been declared with "\DeclareTemplateInterface", the
 % implementation binds each <name of key> with an <internal variable>.
+% Assignments which should be made globally are indicated by adding the
+% word \texttt{global} before the variable name:
+% \begin{syntax}
+% "\DeclareTemplateCode" \Arg{type} \Arg{template} \Arg{Nargs}
+% "{"
+% "   "<name of key 1> "="        <internal variable 1> ","
+% "   "<name of key 2> "=" global <internal variable 2> ","
+% "    ..."
+% "}{"
+% "   \DoParameterAssignments"
+% "   "\meta{code \textup(to implement the design\textup)}
+% "}"
+% \end{syntax}
 %
 % The rest of the <code> section contains the implementation of the template
 % design, taking arguments |#1|, |#2|, etc.\ according to the number of
@@ -607,6 +620,11 @@
 % processing can be abandoned.
 %\end{variable}
 %
+%\begin{variable}{\l_template_global_bool}
+% When actually assigning data to variables, a check is made to see
+% if this should be global. The flag here is used to indicate this.
+%\end{variable}
+%
 %\begin{variable}{\l_template_key_seq}
 % The order in which keys are defined is stored here for later
 % recovery and use. It is transferred into the property list for the
@@ -941,31 +959,33 @@
 %  a list of variable assignments in \cs{l_template_assignments_toks}.
 %\end{function}
 %
+%\begin{function}{\template_find_global:}
+%  \begin{syntax}
+%    "\template_find_global:"
+%  \end{syntax}
+%  Checks in \cs{l_template_var_tl} for the special text 
+%  \texttt{global}, which is removed from the variable is found. The
+%  flag \cs{l_template_global_bool} is then set as appropriate.
+%\end{function}
+%
 %\subsection{Converting values to assignments}
 %
 %\begin{function}{
 %  \template_assign_boolean:    |
-%  \template_assign_+boolean:   |
 %  \template_assign_code:       |
 %  \template_assign_code:n      |
 %  \template_assign_function:   |
-%  \template_assign_+function:  |
 %  \template_assign_instance:   |
-%  \template_assign_+instance:  |
 %  \template_assign_integer:    |
-%  \template_assign_+integer:   |
 %  \template_assign_length:     |
-%  \template_assign_+length:    |
 %  \template_assign_skip:       |
-%  \template_assign_+skip:      |
-%  \template_assign_tokenlist:  |
-%  \template_assign_+tokenlist: 
+%  \template_assign_tokenlist:  
 %}
 %  \begin{syntax}
 %    "\template_assign_boolean:" 
 %  \end{syntax}
 %  Convert the given <keytype> of <key> into an assignment to a 
-%  <variable>. The \texttt{+} versions make global assignments.
+%  <variable>.
 %\end{function}
 %
 %\begin{function}{\template_assign_variable:N}
@@ -1165,6 +1185,13 @@
 %    \end{macrocode}
 %\end{macro}
 %
+%\begin{macro}{\l_template_global_bool}
+% Used to indicate that assignments should be global.
+%    \begin{macrocode}
+\bool_new:N \l_template_global_bool
+%    \end{macrocode}
+%\end{macro}
+%
 %\begin{macro}{\l_template_restrict_bool}
 % A flag to indicate that a template is being restricted.
 %    \begin{macrocode}
@@ -1345,23 +1372,13 @@
 %\begin{macro}{\template_if_keytype_exist:VTF}
 % The test for valid keytypes looks for a function to set up the key,
 % which is part of the `code' side of the template definition. This 
-% avoids having different lists for the two parts of the process. There
-% are two tests so that both local and global keytypes can be tested 
-% using the same system.
+% avoids having different lists for the two parts of the process. 
 %    \begin{macrocode}
 \prg_new_conditional:Nnn \template_if_keytype_exist:n { TF } {
   \cs_if_exist:cTF { template_store_value_ \l_template_keytype_tl :n } {
     \prg_return_true:
   }{
-    \cs_if_exist:cTF {
-      template_store_value_ 
-      \tl_tail:V \l_template_keytype_tl 
-      :n 
-    } {
-      \prg_return_true:
-    }{
-      \prg_return_false:
-    }
+    \prg_return_false:
   }
 }
 \cs_generate_variant:Nn \template_if_keytype_exist:nTF { V }
@@ -1754,24 +1771,6 @@
 %\end{macro}
 %\end{macro}
 %\end{macro}
-%
-%
-%    There is no difference between storing  global and local values. However,
-%    due to the way the code is written different functions are called, so we
-%    better define them:
-%    \begin{macrocode}
-\cs_new_eq:cN { template_store_value_+boolean:n } \template_store_value_boolean:n
-\cs_new_eq:cN { template_store_value_+code:n } \template_store_value_code:n
-\cs_new_eq:cN { template_store_value_+function:n } \template_store_value_function:n
-\cs_new_eq:cN { template_store_value_+instance:n } \template_store_value_instance:n
-\cs_new_eq:cN { template_store_value_+tokenlist:n } \template_store_value_tokenlist:n
-\cs_new_eq:cN { template_store_value_+integer:n } \template_store_value_integer:n 
-\cs_new_eq:cN { template_store_value_+number:n } \template_store_value_number:n 
-\cs_new_eq:cN { template_store_value_+length:n } \template_store_value_length:n 
-\cs_new_eq:cN { template_store_value_+skip:n } \template_store_value_skip:n    
-%    \end{macrocode}
-%
-%
 % 
 %\subsubsection{Implementation part of template declaration}
 %
@@ -2053,9 +2052,7 @@
 %\begin{macro}[aux]{\template_convert_to_assignments_aux:nV}
 % The idea on converting to a set of assignments is to loop over each
 % key, so that the loop order follows the declaration order of the keys.
-% For each key, if a value is available this is recovered along with 
-% the variable to save it in. The assignment itself is left to a 
-% keytype-specific function.
+% This is done using a sequence as property lists are not ``ordered''.
 %    \begin{macrocode}
 \cs_new:Nn \template_convert_to_assignments: {
   \toks_clear:N \l_template_assignments_toks
@@ -2068,6 +2065,15 @@
   \prop_get:NnN \l_template_keytypes_prop {#1} \l_template_tmp_tl
   \template_convert_to_assignments_aux:nV {#1} \l_template_tmp_tl
 }
+%    \end{macrocode}
+% The second auxiliary function actually does the work. The
+% arguments here are the key name (|#1|) and the keytype (|#2|). 
+% From those, the value to assign and the name of the appropriate
+% variable are recovered. A bit of work is then needed to sort out
+% keytypes with arguments (for example instances), and to look for 
+% global assignments. Once that is done, a hand-off can be made to the
+% handler for the relevant keytype.
+%    \begin{macrocode}
 \cs_new:Nn \template_convert_to_assignments_aux:nn {
   \prop_if_in:NnT \l_template_values_prop {#1} {
     \prop_if_in:NnTF \l_template_vars_prop {#1} {
@@ -2075,6 +2081,7 @@
       \prop_get:NnN \l_template_vars_prop {#1} \l_template_var_tl
       \template_split_keytype_arg:n {#2}
       \tl_if_eq:VnF \l_template_keytype_tl { code } {
+        \template_find_global:
         \exp_args:NV \cs_if_exist:NF \l_template_var_tl {
           \msg_error:nnx { template } { undeclared-variable }
             { \exp_not:V \l_template_var_tl }
@@ -2093,10 +2100,27 @@
 %\end{macro}
 %\end{macro}
 %
+%\begin{macro}{\template_find_global:}
+%\begin{macro}[aux]{\template_find_global_aux:w}
+% Global assignments should have the phrase ``global'' at the front. 
+% This is pretty easy to find: no other error checking, though.
+%    \begin{macrocode}
+\cs_new_nopar:Nn \template_find_global: {
+  \bool_set_false:N \l_template_global_bool
+  \tl_if_in:VnT \l_template_var_tl { global } {
+    \exp_after:wN \template_find_global_aux:w \l_template_var_tl \q_stop
+  }
+}
+\cs_new:Npn \template_find_global_aux:w  #1 global #2 \q_stop {
+  \tl_set:Nn \l_template_var_tl {#2}
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%
 %\subsubsection{Assigning values to variables}
 %
 %\begin{macro}{\template_assign_boolean:}
-%\begin{macro}{\template_assign_+boolean:}
 %\begin{macro}[aux]{\template_assign_boolean_aux:n}
 % Setting a Boolean value is slightly different to everything else 
 % as the value can be used to work out which \texttt{set} function to
@@ -2104,10 +2128,11 @@
 % variable, everything is pretty easy.
 %    \begin{macrocode}
 \cs_new_nopar:Nn \template_assign_boolean: {
-  \template_assign_boolean_aux:n { bool_set }
-}
-\cs_new_nopar:cn  { template_assign_ + boolean: } {
-  \template_assign_boolean_aux:n { bool_gset }
+  \bool_if:NTF \l_template_global_bool {
+    \template_assign_boolean_aux:n { bool_gset }
+  }{
+    \template_assign_boolean_aux:n { bool_set }
+  }
 }
 \cs_new_nopar:Nn \template_assign_boolean_aux:n {
   \template_if_attrib_value:VT \l_template_value_tl {
@@ -2119,7 +2144,6 @@
   }
 }
 %    \end{macrocode}
-%\end{macro}
 %\end{macro}
 %\end{macro}
 %
@@ -2144,16 +2168,16 @@
 %\end{macro}
 %
 %\begin{macro}{\template_assign_function:}
-%\begin{macro}{\template_assign_+function:}
 %\begin{macro}[aux]{\template_assign_function_aux:N}
 % For functions, the toks needs to have a cs-generation step created.
 % This looks a bit messy but is only actually one function.
 %    \begin{macrocode}
 \cs_new_nopar:Nn \template_assign_function: {
-  \template_assign_function_aux:N \cs_set:Npn
-}
-\cs_new_nopar:cn  { template_assign_ + function: } {
-  \template_assign_function_aux:N \cs_gset:Npn
+  \bool_if:NTF \l_template_global_bool {
+    \template_assign_function_aux:N \cs_gset:Npn
+  }{
+    \template_assign_function_aux:N \cs_set:Npn
+  }
 }
 \cs_new_nopar:Nn \template_assign_function_aux:N {
   \toks_put_left:Nx \l_template_assignments_toks {
@@ -2167,20 +2191,19 @@
 %    \end{macrocode}
 %\end{macro}
 %\end{macro}
-%\end{macro}
 %
 %\begin{macro}{\template_assign_instance:}
-%\begin{macro}{\template_assign_+instance:}
 %\begin{macro}[aux]{\template_assign_instance_aux:N}
 % Using an instance means adding the appropriate function creation to
 % the toks. No checks are made at this stage, so if the instance is 
 % not valid then errors will arise later.
 %    \begin{macrocode}
 \cs_new_nopar:Nn \template_assign_instance: {
-  \template_assign_instance_aux:N \cs_set:Npn
-}
-\cs_new_nopar:cn { template_assign_ + instance: } {
-  \template_assign_instance_aux:N \cs_gset:Npn
+  \bool_if:NTF \l_template_global_bool {
+    \template_assign_instance_aux:N \cs_gset:Npn
+  }{
+    \template_assign_instance_aux:N \cs_set:Npn
+  }
 }
 \cs_new_nopar:Nn \template_assign_instance_aux:N {
   \toks_put_left:Nx \l_template_assignments_toks {
@@ -2194,64 +2217,59 @@
 %    \end{macrocode}
 %\end{macro}
 %\end{macro}
-%\end{macro}
 %
 %\begin{macro}{\template_assign_integer:}
-%\begin{macro}{\template_assign_+integer:}
 %\begin{macro}{\template_assign_number:}
-%\begin{macro}{\template_assign_+number:}
 %\begin{macro}{\template_assign_length:}
-%\begin{macro}{\template_assign_+length:}
 %\begin{macro}{\template_assign_skip:}
-%\begin{macro}{\template_assign_+skip:}
 % All of the calculated assignments use the same underlying code, with
 % only the low-level assignment function changing.
 %    \begin{macrocode}
 \cs_new_nopar:Nn \template_assign_integer: {
-  \template_assign_variable:N \int_set:Nn
-}
-\cs_new_nopar:cn { template_assign_ + integer: } {
-  \template_assign_variable:N \int_gset:Nn
+  \bool_if:NTF \l_template_global_bool {
+    \template_assign_variable:N \int_gset:Nn
+  }{
+    \template_assign_variable:N \int_set:Nn
+  }
 }
 \cs_new_nopar:Nn \template_assign_number: {
-  \template_assign_variable:N \num_set:Nn
-}
-\cs_new_nopar:cn { template_assign_ + number: } {
-  \template_assign_variable:N \num_gset:Nn
+  \bool_if:NTF \l_template_global_bool {
+    \template_assign_variable:N \num_gset:Nn
+  }{
+    \template_assign_variable:N \num_set:Nn
+  }
 }
 \cs_new_nopar:Nn \template_assign_length: {
-  \template_assign_variable:N \dim_set:Nn
-}
-\cs_new_nopar:cn { template_assign_ + length: } {
-  \template_assign_variable:N \dim_gset:Nn
+  \bool_if:NTF \l_template_global_bool {
+    \template_assign_variable:N \dim_gset:Nn
+  }{
+    \template_assign_variable:N \dim_set:Nn
+  }
 }
 \cs_new_nopar:Nn \template_assign_skip: {
-  \template_assign_variable:N \skip_set:Nn
-}
-\cs_new_nopar:cn { template_assign_ + skip: } {
-  \template_assign_variable:N \skip_gset:Nn
+  \bool_if:NTF \l_template_global_bool {
+    \template_assign_variable:N \skip_gset:Nn
+  }{
+    \template_assign_variable:N \skip_set:Nn
+  }
 }
 %    \end{macrocode}
 %\end{macro}
 %\end{macro}
 %\end{macro}
 %\end{macro}
-%\end{macro}
-%\end{macro}
-%\end{macro}
-%\end{macro}
 %
 %\begin{macro}{\template_assign_tokenlist:}
-%\begin{macro}{\template_assign_+tokenlist:}
 %\begin{macro}[aux]{\template_assign_tokenlist_aux:N}
 % Storing lists of tokens is easy: no complex calculations and no
 % need to worry about numbers of arguments.
 %    \begin{macrocode}
 \cs_new_nopar:Nn \template_assign_tokenlist: {
-  \template_assign_tokenlist_aux:N \tl_set:Nn
-}
-\cs_new_nopar:cn  { template_assign_ + tokenlist: } {
-  \template_assign_tokenlist_aux:N \tl_gset:Nn
+  \bool_if:NTF \l_template_global_bool {
+    \template_assign_tokenlist_aux:N \tl_gset:Nn
+  }{
+    \template_assign_tokenlist_aux:N \tl_set:Nn
+  }
 }
 \cs_new_nopar:Nn \template_assign_tokenlist_aux:N {
   \toks_put_left:Nx \l_template_assignments_toks {
@@ -2260,7 +2278,6 @@
   }
 }
 %    \end{macrocode}
-%\end{macro}
 %\end{macro}
 %\end{macro}
 %
