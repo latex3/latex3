@@ -548,7 +548,7 @@
 %
 %\begin{variable}{\l_xparse_m_only_bool}
 %  Flag used to indicate that all arguments are of type \texttt{m},
-%  with no no modificiations.
+%  with no no modifications.
 %\end{variable}
 %
 %\begin{variable}{\l_xparse_mandatory_args_int}
@@ -556,6 +556,15 @@
 %  when optional arguments come after the last mandatory one. Counts 
 %  down again as mandatory arguments are added to the signature, so will
 %  be zero for any trailing optional arguments.
+%\end{variable}
+%
+%\begin{variable}{
+%  \l_xparse_nested_int  |
+%  \l_xparse_nested_toks 
+%}
+%  Nested optional (delimited) arguments have to be handled by hand: 
+%  \TeX\ will not count up the token-matching. So an integer is needed
+%  to count tokens, and a token register to build up the argument.
 %\end{variable}
 %
 %\begin{variable}{\l_xparse_processor_bool}
@@ -594,7 +603,10 @@
 %
 %\subsection{Internal functions}
 %
-%\begin{function}{\xparse_add_arg:n}
+%\begin{function}{
+%  \xparse_add_arg:n |
+%  \xparse_add_arg:V
+%}
 %  \begin{syntax}
 %    "\xparse_add_arg:n" <grabbed arg>
 %  \end{syntax}
@@ -974,6 +986,18 @@
 %    \begin{macrocode}
 \int_new:N \l_xparse_mandatory_args_int
 %    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\l_xparse_nested_int}
+%\begin{macro}{\l_xparse_nexted_toks}
+% To deal with nested delimited arguments, the code needs to do some
+% token counting `by hand'. That requires an integer, and also a token
+% register to store the growing argument collected.
+%    \begin{macrocode}
+\int_new:N \l_xparse_nested_int
+\toks_new:N \l_xparse_nested_toks
+%    \end{macrocode}
+%\end{macro}
 %\end{macro}
 %
 %\begin{macro}{\l_xparse_processor_bool}
@@ -1559,6 +1583,7 @@
 %\subsection{Grabbing arguments}
 %
 %\begin{macro}{\xparse_add_arg:n}
+%\begin{macro}{\xparse_add_arg:V}
 %\begin{macro}[aux]{\xparse_add_arg_aux:n}
 %\begin{macro}[aux]{\xparse_add_arg_aux:V}
 % The argument-storing system provides a single point for interfacing
@@ -1581,6 +1606,7 @@
     }
   }
 }
+\cs_generate_variant:Nn \xparse_add_arg:n { V }
 \cs_new:Nn \xparse_add_arg_aux:n {
   \use:c { xparse_processor_ \int_use:N \l_xparse_processor_int :n } 
     {#1}
@@ -1598,6 +1624,7 @@
 %\end{macro}
 %\end{macro}
 %\end{macro}
+%\end{macro}
 %
 % All of the grabbers follow the same basic pattern. The intial function
 % sets u the appropriate information to define \cs{parse_grab_arg:w} to
@@ -1607,21 +1634,27 @@
 % called to actually do the grabbing.
 %
 %\begin{macro}{\xparse_grab_arg:w}
+%\begin{macro}[aux]{\xparse_grab_arg_aux_i:w}
+%\begin{macro}[aux]{\xparse_grab_arg_aux_ii:w}
 % Each time an argument is actually grabbed, \pkg{xparse} defines a
 % function to do it. In that way, long arguments from previous functions
 % can be included in the definition of the grabber function, so that
 % it does not raise an error if not long. The generic function used
-% for this is reserved here.
+% for this is reserved here. A couple of auxiliary functions are also
+% needed in various places.
 %    \begin{macrocode}
-\cs_new:Npn \xparse_grab_aux:w { }
+\cs_new:Npn \xparse_grab_arg:w { }
+\cs_new:Npn \xparse_grab_arg_aux_i:w { }
+\cs_new:Npn \xparse_grab_arg_aux_ii:w { }
 %    \end{macrocode}
+%\end{macro}
+%\end{macro}
 %\end{macro}
 %
 %\begin{macro}{\xparse_grab_D:w}
 %\begin{macro}{\xparse_grab_D_long:w}
 %\begin{macro}{\xparse_grab_D_trailing:w}
 %\begin{macro}{\xparse_grab_D_long_trailing:w}
-%\begin{macro}[aux]{\xparse_grab_D_aux:NNnnNn}
 % The generic delimited argument grabber. The auxiliary function does
 % a peek test before calling \cs{xparse_grab_arg:w}, so that the 
 % optional nature of the argument works as expected.
@@ -1641,10 +1674,42 @@
   \l_xparse_args_toks {
   \xparse_grab_D_aux:NNnnNn #1 #2 {#3} {#4} \cs_set:Npn { }
 }
-\cs_set:Nn \xparse_grab_D_aux:NNnnNn {
-  #5 \xparse_grab_arg:w #1 ##1 #2 {
-    \xparse_add_arg:n {##1}
-    #4 \l_xparse_args_toks
+%    \end{macrocode}
+%\begin{macro}[aux]{\xparse_grab_D_aux:NNnnNn}
+% This is a bit complicated. The idea is that, in order to check for
+% nested optional argument tokens (\texttt{[[...]]} and so on) the
+% argument needs to be grabbed without removing any braces at all. If
+% this is not done, then cases like |[{[}]| fail. So after testing for
+% an optional argument, it is collected piece-wise. First, the opening
+% token is removed, then a check is made for a group. If it looks like
+% the entire argument is a group, then an extra set of braces are 
+% added back in. The closing token is then used to collect everything
+% else. There is then a test to see if there is nesting, by looking
+% for a `spare' open-argument token. If that is found, things hand off
+% to a loop to deal with that.
+%    \begin{macrocode}
+\cs_new:Nn \xparse_grab_D_aux:NNnnNn {
+  #5 \xparse_grab_arg:w #1 {
+    \peek_meaning:NTF \c_group_begin_token {
+      \xparse_grab_arg_aux_i:w
+    }{
+      \xparse_grab_arg_aux_ii:w
+    }
+  }
+  #5 \xparse_grab_arg_aux_i:w ##1 {
+    \peek_charcode:NTF #2 {
+      \xparse_grab_arg_aux_ii:w { {##1} }
+    }{
+      \xparse_grab_arg_aux_ii:w {##1}
+    }
+  }
+  #5 \xparse_grab_arg_aux_ii:w ##1 #2 {
+    \tl_if_in:nnTF {##1} {#1} {
+      \xparse_grab_D_nested:NNnNn #1 #2 {#4} #5 {##1}
+    }{ 
+      \xparse_add_arg:n {##1}
+      #4 \l_xparse_args_toks
+    }
   }
   \use:c { peek_charcode #6 :NTF } #1 { 
     \xparse_grab_arg:w 
@@ -1657,6 +1722,40 @@
 %\end{macro}
 %\end{macro}
 %\end{macro}
+%\end{macro}
+%\end{macro}
+%\begin{macro}[aux]{\xparse_grab_D_nested:NNnNn}
+%\begin{macro}[aux]{\xparse_grab_D_nested_aux:n}
+% Catching nested optional arguments means more work. As \TeX\ does not
+% help here, the brackets have to be counted by hand. The code then 
+% keeps looking for closing tokens until all of the opening ones
+% are matched.
+%    \begin{macrocode}
+\cs_new:Nn \xparse_grab_D_nested:NNnNn {
+  \int_zero:N \l_xparse_nested_int
+  \toks_set:Nn \l_xparse_nested_toks { #5 #2 }
+  \cs_set:Nn \xparse_grab_D_nested_aux:n {
+    \tl_if_eq:nnT {#1} {##1} {
+      \int_incr:N \l_xparse_nested_int
+    }
+  }
+  \tl_map_function:nN {#5} \xparse_grab_D_nested_aux:n
+  #4 \xparse_grab_arg:w ##1 #2 {
+    \int_decr:N \l_xparse_nested_int
+    \tl_map_function:nN {##1} \xparse_grab_D_nested_aux:n 
+    \intexpr_compare:nTF { \l_xparse_nested_int = \c_zero } {
+      \toks_put_right:Nn \l_xparse_nested_toks {##1}
+      \xparse_add_arg:V \l_xparse_nested_toks
+      #3 \l_xparse_args_toks
+    }{
+      \toks_put_right:Nn \l_xparse_nested_toks { ##1 #2 }
+      \xparse_grab_arg:w
+    }
+  }
+  \xparse_grab_arg:w
+}
+\cs_new:Nn \xparse_grab_D_nested_aux:n { }
+%    \end{macrocode}
 %\end{macro}
 %\end{macro}
 %
