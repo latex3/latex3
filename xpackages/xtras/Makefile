@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3 "xbase" files                            #
+# Makefile for LaTeX3 "xtras" files                            #
 ################################################################
 ################################################################
 
@@ -10,12 +10,10 @@
 
 help:
 	@echo ""
-	@echo " make check        - runs automated test suite"
 	@echo " make clean        - clean out test directory"
 	@echo " make cleanall     - clean out test and current directory"
 	@echo " make doc          - typeset documentation"
 	@echo " make localinstall - install files in local texmf tree"
-	@echo " make test         - typeset test files"
 	@echo " make unpack       - extract packages"
 	@echo ""
 
@@ -23,7 +21,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = xpackages/xbase
+PACKAGE = xpackages/xtras
 	
 ##############################################################
 # Directory structure for source files                       #
@@ -32,18 +30,6 @@ PACKAGE = xpackages/xbase
 SOURCEDIR   := .
 BASEDIR     := ../..
 EXPL3DIR    := $(BASEDIR)/l3in2e
-SUPPORTDIR  := $(BASEDIR)/support
-TESTFILEDIR := $(SOURCEDIR)/testfiles
-VALIDATEDIR := $(BASEDIR)/validate
-
-##############################################################
-# Directory structure for test system                        #
-##############################################################
-
-L3TESTDIR  := /tmp/l3test
-SCRIPTDIR  := $(shell test -d $(L3TESTDIR)/scripts || mkdir -p $(L3TESTDIR)/scripts ; cd $(L3TESTDIR)/scripts ; pwd)
-TESTDIR    := $(shell test -d $(L3TESTDIR)/test/$(PACKAGE) || mkdir -p $(L3TESTDIR)/test/$(PACKAGE) ; cd $(L3TESTDIR)/test/$(PACKAGE) ; pwd)
-TESTAUXDIR := $(shell test -d $(TESTDIR)/testfiles || mkdir -p $(TESTDIR)/testfiles ; cd $(TESTDIR)/testfiles ; pwd)
 
 ##############################################################
 # Data for local installation and TDS construction           #
@@ -57,16 +43,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
-TESTFILES = template-test template-test2 tprestrict-test xparse-test
-UNPACK    = xbase.ins
-
-##############################################################
-# Files for the check systems                                #
-##############################################################
-
-CHECKFILES = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/*.tlg)))
-SCRIPTS    = log2tlg
-VALIDATE   = commands-check.tex regression-test.tex
+UNPACK    = l3keys2e.ins
 
 ##############################################################
 # Clean-up information                                       #
@@ -102,38 +79,15 @@ CLEAN = \
 # File copying: default actions                                #
 ################################################################
 
-$(SCRIPTDIR)/%: $(SUPPORTDIR)/%
-	@cp -fp $< $@
-	@chmod +x $@
-	
 $(TESTDIR)/%.dtx: $(SOURCEDIR)/%.dtx
 	@cp -fp $< $@
 	
 $(TESTDIR)/%.ins: $(SOURCEDIR)/%.ins
 	@cp -fp $< $@
 	
-$(TESTDIR)/%.lvt: $(TESTFILEDIR)/%.lvt
-	@cp -fp $< $@
-	
 $(TESTDIR)/%.tex: $(SOURCEDIR)/%.tex
 	@cp -fp $< $@	
-	
-$(TESTDIR)/%.tlg: $(TESTFILEDIR)/%.tlg
-	@cp -fp $< $@	
-	
-$(TESTDIR)/%.txt: $(SOURCEDIR)/%.txt
-	@cp -fp $< $@	
-	
-################################################################
-# File copying: specials                                       #
-################################################################
-
-$(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
-	@cp -fp $< $@	
-
-$(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
-	@cp -fp $< $@	
-	
+		
 ################################################################
 # File building: default actions                                #
 ################################################################
@@ -164,28 +118,21 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 ################################################################
 
 .PHONY = \
-	expl3 \
-	support 
+	expl3
 
 expl3:
 	cd $(EXPL3DIR) ; \
 	make localinstall 
 	
-support: \
-	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
-	$(foreach FILE,$(VALIDATE),$(TESTDIR)/$(FILE))
-
 ################################################################
 # User make options                                            #
 ################################################################
 
 .PHONY = \
-	check        \
 	clean        \
 	cleanall     \
 	doc          \
 	localinstall \
-	test         \
 	unpack
 
 clean:
@@ -196,36 +143,6 @@ cleanall: clean
 	for I in $(AUXFILES) $(CLEAN) ; do \
 	  rm -f *.$$I ; \
 	done
-
-check: \
-	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).lvt) \
-	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).tlg) \
-	expl3 support unpack
-	echo "Running checks on"
-	cd $(TESTDIR) ; \
-	for I in $(AUXFILES) diff ; do \
-	  rm -f *.$$I ; \
-	done ; \
-	for I in $(CHECKFILES) ; do \
-	  echo "  $$I" ; \
-	  pdflatex $$I.lvt &> /dev/null ; \
-	  pdflatex $$I.lvt &> /dev/null ; \
-	  perl $(SCRIPTDIR)/log2tlg $$I < $$I.log > $$I.new.log ; \
-	  if !(cmp -s $$I.tlg $$I.new.log) ; then \
-	    diff -c $$I.new.log $$I.tlg &> $$I.diff ; \
-	  fi ; \
-	  for J in $(AUXFILES) lvt pdf tlg ; do \
-	    rm -f $$I.$$J ; \
-	  done ; \
-	done ; \
-	if (test -f *.diff) ; then \
-	  echo "  Check failed with difference files" ; \
-	  for I in *.diff ; do \
-	    echo "  - $$I" ; \
-	  done ; \
-	else \
-	  echo "  All checks passed" ; \
-	fi
 
 doc: $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf)
 
@@ -238,16 +155,6 @@ localinstall: unpack
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	texhash &> /dev/null
 
-test: \
-	$(foreach FILE,$(TESTFILES),$(TESTDIR)/$(FILE).tex)
-	expl3 unpack 
-	echo "Testing files"
-	cd $(TESTDIR) ;\
-	for I in $(TESTFILES) ; do \
-	  echo " $$I" ; \
-	  pdflatex  $$I ; \
-	done
-	
 unpack: $(foreach FILE,$(DTX) $(UNPACK),$(TESTDIR)/$(FILE))
 	echo "Unpacking files"
 	cd $(TESTDIR) ; \
