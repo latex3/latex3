@@ -57,7 +57,19 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-XPACKAGES = xbase xtras
+ALLPACKAGES = \
+	galley    \
+	xbase     \
+	xcontents \
+	xfootnote \
+	xfrontm   \
+	xhead     \
+	xinitials \
+	xlang     \
+	xor       \
+	xtheorem  \
+	xtras
+XPACKAGES   = xbase xtras
 
 ################################################################
 # File copying: default actions                                #
@@ -81,7 +93,7 @@ $(TESTDIR)/%.txt: $(SOURCEDIR)/%.txt
 	unpack
 
 check:
-	for I in $(XPACKAGES) ; do \
+	for I in $(ALLPACKAGES) ; do \
 	  cd $$I ; \
 	  make check ; \
 	  cd .. ; \
@@ -160,7 +172,7 @@ tds: $(TESTDIR)/readme-ctan.txt doc unpack
 	cp $(TDSDIR)/$(PACKAGE).tds.zip ./
 
 unpack:
-	for I in $(XPACKAGES) ; do \
+	for I in $(ALLPACKAGES) ; do \
 	  cd $$I ; \
 	  make unpack ; \
 	  cd .. ; \
