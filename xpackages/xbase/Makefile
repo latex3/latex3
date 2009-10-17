@@ -58,6 +58,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 TESTFILES = template-test template-test2 tprestrict-test xparse-test
+TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
 UNPACK    = xbase.ins
 
 ##############################################################
@@ -248,7 +249,7 @@ test: \
 	  pdflatex  $$I ; \
 	done
 	
-unpack: $(foreach FILE,$(DTX) $(UNPACK),$(TESTDIR)/$(FILE))
+unpack: $(foreach FILE,$(DTX) $(TEX) $(UNPACK),$(TESTDIR)/$(FILE))
 	echo "Unpacking files"
 	cd $(TESTDIR) ; \
 	for I in $(UNPACK) ; do \
