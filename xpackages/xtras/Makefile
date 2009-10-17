@@ -32,6 +32,13 @@ BASEDIR     := ../..
 EXPL3DIR    := $(BASEDIR)/l3in2e
 
 ##############################################################
+# Directory structure for test system                        #
+##############################################################
+
+L3TESTDIR  := /tmp/l3test
+TESTDIR    := $(shell test -d $(L3TESTDIR)/test/$(PACKAGE) || mkdir -p $(L3TESTDIR)/test/$(PACKAGE) ; cd $(L3TESTDIR)/test/$(PACKAGE) ; pwd)
+
+##############################################################
 # Data for local installation and TDS construction           #
 ##############################################################
 
@@ -43,6 +50,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
+TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
 UNPACK    = l3keys2e.ins
 
 ##############################################################
@@ -155,7 +163,7 @@ localinstall: unpack
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	texhash &> /dev/null
 
-unpack: $(foreach FILE,$(DTX) $(UNPACK),$(TESTDIR)/$(FILE))
+unpack: $(foreach FILE,$(DTX) $(TEX) $(UNPACK),$(TESTDIR)/$(FILE))
 	echo "Unpacking files"
 	cd $(TESTDIR) ; \
 	for I in $(UNPACK) ; do \
