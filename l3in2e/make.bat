@@ -19,8 +19,7 @@ set TXT=README
 set UNPACK=l3.ins l3doc.dtx
 set VALIDATE=..\validate
 set XPACKAGEDIR=..\xpackages\
-set XPACKAGES=xparse
-set XBASEDIR=%XPACKAGEDIR%\xbase
+set XPACKAGES=xbase
 
 :loop
 
@@ -318,7 +317,11 @@ set XBASEDIR=%XPACKAGEDIR%\xbase
 
 :format
   
-  call make unpack
+  call :unpack
+
+  for %%I in (%XPACKAGES%) do (
+    copy %XPACKAGEDIR%\%%I\*.dtx > nul
+  )
 
   echo. 
   echo Making format
