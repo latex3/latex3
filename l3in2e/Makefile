@@ -42,6 +42,7 @@ BASEDIR     := ..
 VALIDATEDIR := $(BASEDIR)/validate
 TESTFILEDIR := $(SOURCEDIR)/testfiles
 SUPPORTDIR  := $(BASEDIR)/support
+XPACKAGEDIR := $(BASEDIR)/xpackages
 
 ##############################################################
 # Directory structure for test system                        #
@@ -72,10 +73,11 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-DTX      = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
-DTXFILES = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
-FORMAT   = l3format.ins
-UNPACK   = l3.ins l3doc.dtx
+DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
+DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
+FORMAT    = l3format.ins
+UNPACK    = l3.ins l3doc.dtx
+XPACKAGES = xbase
 
 ##############################################################
 # Files for the check systems                                #
@@ -156,7 +158,7 @@ $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 	@cp -fp $< $@	
 	
 ################################################################
-# File buiding: default actions                                #
+# File building: default actions                               #
 ################################################################
 
 $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
@@ -181,7 +183,7 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	done
 	
 ################################################################
-# File buiding: specials                                       #
+# File building: specials                                      #
 ################################################################
 	
 $(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex
@@ -372,13 +374,16 @@ doc: unpack $(TESTDIR)/$(F).pdf
 	
 format: \
 	$(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).dtx) \
-	$(foreach FILE,$(FORMAT),$(TESTDIR)/$(FILE))
+	$(foreach FILE,$(FORMAT),$(TESTDIR)/$(FILE)) 
 	echo "Making format"
+	for I in $(XPACKAGES) ; do \
+	  cp $(XPACKAGEDIR)/$$I/*.dtx $(TESTDIR)/ ; \
+	done
 	cd $(TESTDIR) ; \
 	for I in $(FORMAT) ; do \
 	  tex $$I &> /dev/null ; \
 	done ; \
-	pdftex -etex -ini "*latex3.ltx" &> /dev/null
+	pdftex -etex -ini "*latex3.ltx" 
 	
 localinstall: unpack
 	echo "Installing files"
