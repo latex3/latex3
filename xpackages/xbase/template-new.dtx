@@ -1164,11 +1164,22 @@
 % to parse the keytype correctly.
 %    \begin{macrocode}
 \clist_new:N \c_template_keytypes_arg_clist
-\clist_put_right:Nn \c_template_keytypes_arg_clist {
-  choice   ,
-  function ,
-  instance 
-}
+\clist_put_right:Nn  \c_template_keytypes_arg_clist { choice }
+\clist_put_right:Nn  \c_template_keytypes_arg_clist { function }
+\clist_put_right:Nn  \c_template_keytypes_arg_clist { instance }
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\c_template_var_arbitrary_clist}
+% Most keytypes need a variable name, but \texttt{code} and 
+% \texttt{choice} actually have arbitrary code instead. So the 
+% `variable' names given for these keytypes cannot be checked. The 
+% keytypes are stored here for flexibility elsewhere.
+%    \begin{macrocode}
+\clist_new:N \c_template_var_arbitrary_clist
+\clist_put_right:Nn \c_template_var_arbitrary_clist { choice }
+\clist_put_right:Nn \c_template_var_arbitrary_clist { code }
+
 %    \end{macrocode}
 %\end{macro}
 %
@@ -1432,6 +1443,50 @@
 \prg_new_conditional:Nnn \template_if_type_exist:n { TF } {
   \prop_if_in:NnTF \l_template_object_type_prop {#1} {
     \prg_return_true:
+  }{
+    \prg_return_false:
+  }
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\template_if_var_valid:nTF}
+% To check that the `variable' name given is valid there are a few
+% different things to consider. First, some keytypes can have completely
+% arbitrary data in the `variable' field, and so everything is valid.
+% Second, there may be \texttt{global} prefixing the variable name.
+%    \begin{macrocode}
+\prg_new_conditional:Nnn \template_if_var_valid:n { TF } {
+  \clist_if_in:NVTF  \c_template_var_arbitrary_clist 
+    \l_template_keytype_tl {
+    \prg_return_true:
+  }{
+    \tl_if_eq:noTF {#1} { \tl_head:w #1 \q_nil } {
+      \cs_if_exist:NTF #1 {
+        \prg_return_true:
+      }{
+        \prg_return_false:
+      }
+    }{
+      \tl_if_in:nnTF {#1} { global } {
+        \template_if_var_valid:w #1 \q_nil
+      }{
+        \prg_return_false:
+      }
+    }
+  }
+}
+\cs_new:Npn \template_if_var_valid_aux:w #1 global #2 \q_nil {
+  \tl_if_empty:nTF {#1} {
+    \tl_if_eq:noTF {#1} { \tl_head:w #1 \q_nil } {
+      \cs_if_exist:NTF #1 {
+        \prg_return_true:
+      }{
+        \prg_return_false:
+      }
+    }{
+      \prg_return_false:
+    }
   }{
     \prg_return_false:
   }
@@ -1891,12 +1946,50 @@
   \tl_replace_all_in:Nnn \l_template_key_name_tl { ~ } { }
   \prop_if_in:NVTF \l_template_keytypes_prop \l_template_key_name_tl {
     \prop_del:NV \l_template_keytypes_prop \l_template_key_name_tl
-    \prop_put:NVn \l_template_vars_prop \l_template_key_name_tl {#2}
+    \template_parse_vars_elt_aux:n {#2}
   }{
     \msg_error:nnx { template } { key-not-declared } {#1}
   }
 }
 %    \end{macrocode}
+%\end{macro}
+%\begin{macro}[aux]{\template_parse_vars_elt_aux:n}
+%\begin{macro}[aux]{\template_parse_vars_elt_aux:w}
+% There now needs to be some sanity checking on the variable name
+% given. This does not apply for \texttt{choice} or 
+% \texttt{code} `variables', but in all other cases the variable needs
+% to exist. Also, the only prefix acceptable is \texttt{global}. So 
+% there are a few related checks to make.
+%    \begin{macrocode}
+\cs_new:Nn \template_parse_vars_elt_aux:n {
+  \tl_if_eq:VnTF \l_template_keytype_tl { choice } {
+  }{
+    \prop_put:NVn \l_template_vars_prop \l_template_key_name_tl {#1}
+    \tl_if_eq:VnF \l_template_keytype_tl { code } {
+      \tl_if_eq:noF {#1} { \tl_head:w #1 \q_nil } {
+        \tl_if_in:nnTF {#1} { global } {
+          \template_parse_vars_elt_aux:w #1 \q_nil
+        }{
+          \msg_error:nnx { template } { bad-variable } 
+            { \exp_not:n {#1} }
+        }
+      }
+    }
+  }
+}
+\cs_new:Npn \template_parse_vars_elt_aux:w #1 global #2 \q_nil {
+  \tl_if_empty:nTF {#1} {
+    \tl_if_eq:noF {#2} { \tl_head:w #2 \q_nil } {
+      \msg_error:nnx { template } { bad-variable } 
+        { \exp_not:n { #1 global #2 } }
+    }
+  }{
+    \msg_error:nnx { template } { bad-variable } 
+      { \exp_not:n { #1 global #2 } }
+  }
+}
+%    \end{macrocode}
+%\end{macro}
 %\end{macro}
 %
 %\subsubsection{Editing template defaults}
@@ -2498,6 +2591,10 @@
 %    \begin{macrocode}
 \msg_new:nnn { template } { bad-arg-count } {%
   Template type `#1' does not take #2 arguments.%
+}
+\msg_new:nnn { template } { bad-variable } {%
+  The argument `#1'\\%
+  is not of the form `<variable>' or `global <variable>'.%
 }
 \msg_new:nnnn { template } { code-no-keys } {%
   No key definitions for template `#2' of type `#1'.%
