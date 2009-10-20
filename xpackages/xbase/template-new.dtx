@@ -659,10 +659,11 @@
 %\end{variable}
 %
 %\begin{variable}{
-%  \l_template_tmp_dim  |
-%  \l_template_tmp_int  |
-%  \l_template_tmp_skip |
-%  \l_template_tmp_tl   |
+%  \l_template_tmp_clist |
+%  \l_template_tmp_dim   |
+%  \l_template_tmp_int   |
+%  \l_template_tmp_skip  |
+%  \l_template_tmp_tl    |
 %}
 % Used when carrying out assignments, as the pre-processing can take
 % place here before passing data through to the storage area defined
@@ -1288,6 +1289,7 @@
 %\end{macro}
 %\end{macro}
 %
+%\begin{macro}{\l_template_tmp_clist}
 %\begin{macro}{\l_template_tmp_dim}
 %\begin{macro}{\l_template_tmp_int}
 %\begin{macro}{\l_template_tmp_num}
@@ -1296,11 +1298,13 @@
 % scratch variables are needed. The assignments are made to these in the
 % first instance, unless evaluation is delayed.
 %    \begin{macrocode}
+\clist_new:N \l_template_tmp_clist
 \dim_new:N \l_template_tmp_dim
 \int_new:N \l_template_tmp_int
 \num_new:N \l_template_tmp_num
 \skip_new:N \l_template_tmp_skip
 %    \end{macrocode}
+%\end{macro}
 %\end{macro}
 %\end{macro}
 %\end{macro}
@@ -1657,6 +1661,11 @@
       \prop_put:NVV \l_template_keytypes_prop \l_template_key_name_tl
         \l_template_tmp_tl
       \seq_put_right:NV \l_template_key_seq \l_template_key_name_tl 
+      \tl_if_eq:VnT \l_template_keytype_tl { choice } {
+        \clist_if_in:NnT \l_template_keytype_arg_tl { unknown } {
+          \msg_error:nn { template } { choice-unknown-reserved }
+        }
+      }
     }{
       \msg_error:nnx { template } { invalid-keytype } 
         { \l_template_keytype_tl }
@@ -1670,10 +1679,16 @@
 % For keys which have a default, the keytype and key name are first
 % separated out by the \cs{template_parse_keys_elt:n}
 % routine, before storing the default value in the scratch property list.
+% Choices have special handling as the code is not yet available to 
+% actually do the storing!
 %    \begin{macrocode}
 \cs_new:Nn \template_parse_keys_elt:nn {
   \template_parse_keys_elt:n {#1}
-  \use:c { template_store_value_ \l_template_keytype_tl :n } {#2}
+  \tl_if_eq:VnTF \l_template_keytype_tl { choice } {
+    \template_store_value_choice_name:n {#2}
+  }{
+    \use:c { template_store_value_ \l_template_keytype_tl :n } {#2}
+  }
 }
 %    \end{macrocode}
 %\end{macro}
@@ -1791,6 +1806,47 @@
   }
 }
 %    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\template_store_value_choice:n}
+%\begin{macro}{\template_store_value_choice:V}
+%\begin{macro}[aux]{\template_store_value_choice_aux:n}
+%\begin{macro}[aux]{\template_store_value_choice_aux:V}
+%\begin{macro}{\template_store_value_choice_name:n}
+%    \begin{macrocode}
+\cs_new:Nn \template_store_value_choice:n {
+  \tl_set:Nx \l_template_tmp_tl {
+    \l_template_key_name_tl ~ #1
+  }
+  \prop_if_in:NVTF \l_template_vars_prop \l_template_tmp_tl {
+    \template_store_value_choice_aux:V \l_template_tmp_tl
+  }{
+    \tl_set:Nx \l_template_tmp_tl {
+      \l_template_key_name_tl ~ unknown
+    }
+    \prop_if_in:NVTF \l_template_vars_prop \l_template_tmp_tl {
+      \template_store_value_choice_aux:V \l_template_tmp_tl
+    }{
+      \msg_error:nnxx { template } { unknown-choice } {#1}
+        { \l_template_key_name_tl }
+    }
+  }
+}
+\cs_generate_variant:Nn \template_store_value_choice:n { V }
+\cs_new:Nn \template_store_value_choice_aux:n {
+  \prop_get:NnN \l_template_vars_prop {#1} \l_template_tmp_tl
+  \prop_put:NVV \l_template_values_prop \l_template_key_name_tl 
+    \l_template_tmp_tl
+}
+\cs_generate_variant:Nn \template_store_value_choice_aux:n { V }
+\cs_new:Nn \template_store_value_choice_name:n {
+  \prop_put:NVn \l_template_values_prop \l_template_key_name_tl {#1}
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
 %\end{macro}
 %
 %\begin{macro}{\template_store_value_code:n}
@@ -1913,7 +1969,7 @@
   \prop_clear:N \l_template_vars_prop
   \cs_set_eq:NN \KV_key_no_value_elt:n \template_parse_vars_elt:n
   \cs_set_eq:NN \KV_key_value_elt:nn \template_parse_vars_elt:nn
-  \KV_parse_space_removal_sanitize:n {#3}
+  \KV_parse_no_space_removal_no_sanitize:n {#3}
   \template_store_vars:n { #1 / #2 }
   \clist_clear:N \l_template_restrict_clist
   \template_store_restrictions:n { #1 / #2 }
@@ -1963,6 +2019,7 @@
 %    \begin{macrocode}
 \cs_new:Nn \template_parse_vars_elt_aux:n {
   \tl_if_eq:VnTF \l_template_keytype_tl { choice } {
+    \template_implement_choices:n {#1}
   }{
     \prop_put:NVn \l_template_vars_prop \l_template_key_name_tl {#1}
     \tl_if_eq:VnF \l_template_keytype_tl { code } {
@@ -1987,6 +2044,62 @@
     \msg_error:nnx { template } { bad-variable } 
       { \exp_not:n { #1 global #2 } }
   }
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\template_implement_choices:n}
+% Implementing choices requires a second key--value loop. So after a
+% little set-up, the standard parser is called. There is then a 
+% check for a default choice being set: at this stage the name of
+% the choice is replaced by the code to implement it.
+%    \begin{macrocode}
+\cs_new:Nn \template_implement_choices:n {
+  \clist_set_eq:NN \l_template_tmp_clist \l_template_keytype_arg_tl
+  \cs_set_eq:NN \KV_key_no_value_elt:n \template_implement_choice_elt:n
+  \cs_set_eq:NN \KV_key_value_elt:nn \template_implement_choice_elt:nn
+  \KV_parse_no_space_removal_no_sanitize:n {#1}
+  \cs_set_eq:NN \KV_key_no_value_elt:n \template_parse_vars_elt:n
+  \cs_set_eq:NN \KV_key_value_elt:nn \template_parse_vars_elt:nn
+  \prop_if_in:NVT \l_template_values_prop \l_template_key_name_tl {
+    \prop_get:NVN \l_template_values_prop \l_template_key_name_tl 
+      \l_template_tmp_tl
+    \template_store_value_choice:V \l_template_tmp_tl
+  }
+}
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\template_implement_choice_elt:n}
+%\begin{macro}{\template_implement_choice_elt:nn}
+% The actual storage of the implementation of a choice is mainly about
+% error checking. The code here ensures that all choices have to have
+% been declared, apart from the special \texttt{unknown} choice, which 
+% must come last. The code for each choice is stored along with the
+% key name in the variables property list.
+%    \begin{macrocode}
+\cs_new:Nn \template_implement_choice_elt:n {
+  \clist_if_empty:NTF \l_template_tmp_clist {
+    \tl_if_eq:nnF {#1} { unknown } {
+      \msg_error:nnxx { template } { bad-choice } {#1} 
+        { \l_template_key_name_tl }
+    }
+  }{
+    \clist_if_in:NnTF \l_template_tmp_clist {#1} {
+      \clist_remove_element:Nn \l_template_tmp_clist {#1}
+    }{
+      \msg_error:nnxx { template } { bad-choice } {#1} 
+        { \l_template_key_name_tl }
+    }
+  }
+}
+\cs_new:Nn \template_implement_choice_elt:nn {
+  \template_implement_choice_elt:n {#1}
+  \tl_set:Nx \l_template_tmp_tl {
+    \l_template_key_name_tl ~ #1
+  }
+  \prop_put:NVn \l_template_vars_prop \l_template_tmp_tl {#2}
 }
 %    \end{macrocode}
 %\end{macro}
@@ -2591,9 +2704,21 @@
 \msg_new:nnn { template } { bad-arg-count } {%
   Template type `#1' does not take #2 arguments.%
 }
+\msg_new:nnn { template } { bad-choice } {%
+  The choice `#1' was not declared for key `#2'.%
+}
 \msg_new:nnn { template } { bad-variable } {%
   The argument `#1'\\%
   is not of the form `<variable>' or `global <variable>'.%
+}
+\msg_new:nnnn { template } { choice-unknown-reserved } {%
+  The choice `unknown' is reserved, and should not be included in\\%
+  the list given for a choice key.
+}{%
+  The `unknown' choice is automatically checked by template when\\%
+  a choice key is given with an unknown value. It should not be\\%
+  included in the list of named choices for a key, and is always\\%
+  given last in the implementation of choices.%
 }
 \msg_new:nnnn { template } { code-no-keys } {%
   No key definitions for template `#2' of type `#1'.%
@@ -2634,6 +2759,9 @@
   \token_to_str:N \KeyValue 
   \token_to_str:N { #1 \token_to_str:N }\\%
   but there is no key called `#1'.%
+}
+\msg_new:nnn { template } { unknown-choice } {%
+  The choice `#1' for key `#2' is unknown.%
 }
 \msg_new:nnn { template } { unknown-instance } {%
   The instance `#2' of type `#1' is unknown.%
