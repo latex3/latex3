@@ -235,6 +235,7 @@
 % "function "$N$ & A function definition with $N$ arguments 
 %   ($N$ = $0$ to $9$) \\
 % "instance "\meta{name} & An instance of type \meta{name} \\
+% "choice "\meta{choices} & A list of pre-defined choices \\
 % "code" & Generalised key type; use "#1" as the input to the key \\
 % \bottomrule
 % \end{tabular}
@@ -417,6 +418,50 @@
 % the `"frontmatter"' and override the instance that is used in the default case.
 %
 % \section{Bits 'n' pieces}
+% 
+% \subsection{Multiple choices}
+% 
+% The \texttt{choice} keytype implements multiple choice input. At the 
+% interface level, only the list of valid choices is needed:
+% \begin{verbatim}
+% \DeclareTemplateInterface { foo } { bar } 0 {
+%   key-name : choice { A,B,C }
+% }
+% \end{verbatim}
+% where the choices are given as a comma-list (which must therefore
+% be wrapped in braces). A default value can also be given:
+% \begin{verbatim}
+% \DeclareTemplateInterface { foo } { bar } 0 {
+%   key-name : choice { A,B,C } = A
+% }
+% \end{verbatim}
+% 
+% At the implementation level, each choice is associated with code, 
+% using a nested key--value list.
+% \begin{verbatim}
+% \DeclareTemplateCode { foo } { bar } 0 {
+%   key-name = {
+%     A = Code-A ,
+%     B = Code-B ,
+%     C = Code-C ,
+%   }
+% } { ... }
+% \end{verbatim}
+% The two choice lists should match, but in the implementation a
+% special \texttt{unknown} choice is also available. This can be used 
+% to ignore values and implement an `else' branch:
+% \begin{verbatim}
+% \DeclareTemplateCode { foo } { bar } 0 {
+%   key-name = {
+%     A       = Code-A ,
+%     B       = Code-B ,
+%     C       = Code-C ,
+%     unknown = Else-code
+%   }
+% } { ... }
+% \end{verbatim}
+% The \texttt{unknown} entry must be the last one given, and should
+% \emph{not} be listed in the interface part of of the template.
 %
 % \subsection{Does an instance exist?}
 %
@@ -849,6 +894,8 @@
 %
 %\begin{function}{
 %  \template_store_value_boolean:n   |
+%  \template_store_value_choice:n    |
+%  \template_store_value_choice:V    |
 %  \template_store_value_code:n      |
 %  \template_store_value_commalist:n |
 %  \template_store_value_function:n  |
@@ -867,6 +914,14 @@
 %  For the numeric and Boolean data types, the value is evaluated 
 %  at this stage unless \cs{DelayEvaluation} or \cs{KeyValue} are
 %  used in the <value>.
+%\end{function}
+%
+%\begin{function}{\template_store_value_choice_name:n}
+%  \begin{syntax}
+%    "\template_store_value_choice_name:n" \marg{value}
+%  \end{syntax}
+%  Stores the name of a choice for a multiple choice key, which will
+%  be turned into an implementation when code is available.
 %\end{function}
 %
 %\subsection{Implementing templates}
@@ -899,6 +954,35 @@
 %  \end{syntax}
 %  Used by the key--value parser to assign a <variable> for each
 %  <key> listed.
+%\end{function}
+%
+%
+%\begin{function}{\template_store_key_implementation:nnn}
+%  \begin{syntax}
+%    "\template_store_key_implementation:nnn" \marg{type}
+%    ~~~~\marg{template} \marg{keyvals}
+%  \end{syntax}
+%  Stores the implementation for keys as specified in <keyvals> for
+%  a <template> of <type>.
+%\end{function}
+%
+%\begin{function}{\template_implement_choices:n}
+%  \begin{syntax}
+%    "\template_implement_choices:n" {key--value list}
+%  \end{syntax}
+%  Master function for turning <key-value lsit> into a set of choices.
+%\end{function}
+
+%
+%\begin{function}{
+%  \template_implement_choice_elt:n  |
+%  \template_implement_choice_elt:nn
+%}
+%  \begin{syntax}
+%    "\template_implement_choice_elt:nn" \marg{choice} \marg{code}
+%  \end{syntax}
+%  Used by the key--value parser to convert a key--value list of 
+%  choices and code into working multiple choice values.
 %\end{function}
 %
 %\subsection{Modifying templates}
@@ -934,7 +1018,7 @@
 %  \template_parse_values_elt:nn
 %}
 %  \begin{syntax}
-%    "\template_parse_vars_elt:nn" \marg{key} \marg{variable}
+%    "\template_parse_values_elt:nn" \marg{key} \marg{variable}
 %  \end{syntax}
 %  Used by the key--value parser to find <value> to assing to 
 %  implementation of <key>.
@@ -989,6 +1073,7 @@
 %
 %\begin{function}{
 %  \template_assign_boolean:    |
+%  \template_assign_choice:     |
 %  \template_assign_code:       |
 %  \template_assign_code:n      |
 %  \template_assign_commalist:  |
@@ -1173,19 +1258,6 @@
 \clist_put_right:Nn  \c_template_keytypes_arg_clist { choice }
 \clist_put_right:Nn  \c_template_keytypes_arg_clist { function }
 \clist_put_right:Nn  \c_template_keytypes_arg_clist { instance }
-%    \end{macrocode}
-%\end{macro}
-%
-%\begin{macro}{\c_template_var_arbitrary_clist}
-% Most keytypes need a variable name, but \texttt{code} and 
-% \texttt{choice} actually have arbitrary code instead. So the 
-% `variable' names given for these keytypes cannot be checked. The 
-% keytypes are stored here for flexibility elsewhere.
-%    \begin{macrocode}
-\clist_new:N \c_template_var_arbitrary_clist
-\clist_put_right:Nn \c_template_var_arbitrary_clist { choice }
-\clist_put_right:Nn \c_template_var_arbitrary_clist { code }
-
 %    \end{macrocode}
 %\end{macro}
 %
@@ -1452,50 +1524,6 @@
 \prg_new_conditional:Nnn \template_if_type_exist:n { TF } {
   \prop_if_in:NnTF \l_template_object_type_prop {#1} {
     \prg_return_true:
-  }{
-    \prg_return_false:
-  }
-}
-%    \end{macrocode}
-%\end{macro}
-%
-%\begin{macro}{\template_if_var_valid:nTF}
-% To check that the `variable' name given is valid there are a few
-% different things to consider. First, some keytypes can have completely
-% arbitrary data in the `variable' field, and so everything is valid.
-% Second, there may be \texttt{global} prefixing the variable name.
-%    \begin{macrocode}
-\prg_new_conditional:Nnn \template_if_var_valid:n { TF } {
-  \clist_if_in:NVTF  \c_template_var_arbitrary_clist 
-    \l_template_keytype_tl {
-    \prg_return_true:
-  }{
-    \tl_if_eq:noTF {#1} { \tl_head:w #1 \q_nil } {
-      \cs_if_exist:NTF #1 {
-        \prg_return_true:
-      }{
-        \prg_return_false:
-      }
-    }{
-      \tl_if_in:nnTF {#1} { global } {
-        \template_if_var_valid:w #1 \q_nil
-      }{
-        \prg_return_false:
-      }
-    }
-  }
-}
-\cs_new:Npn \template_if_var_valid_aux:w #1 global #2 \q_nil {
-  \tl_if_empty:nTF {#1} {
-    \tl_if_eq:noTF {#1} { \tl_head:w #1 \q_nil } {
-      \cs_if_exist:NTF #1 {
-        \prg_return_true:
-      }{
-        \prg_return_false:
-      }
-    }{
-      \prg_return_false:
-    }
   }{
     \prg_return_false:
   }
@@ -2064,6 +2092,7 @@
   \clist_set_eq:NN \l_template_tmp_clist \l_template_keytype_arg_tl
   \cs_set_eq:NN \KV_key_no_value_elt:n \template_implement_choice_elt:n
   \cs_set_eq:NN \KV_key_value_elt:nn \template_implement_choice_elt:nn
+  \prop_put:NVn \l_template_vars_prop \l_template_key_name_tl { }
   \KV_parse_no_space_removal_no_sanitize:n {#1}
   \cs_set_eq:NN \KV_key_no_value_elt:n \template_parse_vars_elt:n
   \cs_set_eq:NN \KV_key_value_elt:nn \template_parse_vars_elt:nn
@@ -2338,13 +2367,12 @@
       \prop_get:NnN \l_template_values_prop {#1} \l_template_value_tl
       \prop_get:NnN \l_template_vars_prop {#1} \l_template_var_tl
       \template_split_keytype_arg:n {#2}
-      \tl_if_eq:VnTF \l_template_keytype_tl { choice } {
-      }{
+      \tl_if_eq:VnF \l_template_keytype_tl { choice } {
         \tl_if_eq:VnF \l_template_keytype_tl { code } {
           \template_find_global:
         }
-        \use:c { template_assign_ \l_template_keytype_tl : }
       }
+      \use:c { template_assign_ \l_template_keytype_tl : }
     }{
       \msg_error:nnx { template } { unknown-attribute } {#1}
     }
@@ -2370,6 +2398,10 @@
 }
 \cs_new:Npn \template_find_global_aux:w  #1 global #2 \q_stop {
   \tl_set:Nn \l_template_var_tl {#2}
+  \cs_if_exist:NF #2 {
+    \msg_error:nnx { template } { undeclared-variable } 
+      { \exp_not:N #2 }
+  }
 }
 %    \end{macrocode}
 %\end{macro}
@@ -2402,6 +2434,17 @@
 }
 %    \end{macrocode}
 %\end{macro}
+%\end{macro}
+%
+%\begin{macro}{\template_assign_choice:}
+% Assigning a choice is actually trivial: the code needed will
+% be in \cs{l_template_value_tl}, and is simply copied to the correct
+% place.
+%    \begin{macrocode}
+\cs_new_nopar:Nn \template_assign_choice: {
+  \toks_put_left:NV \l_template_assignments_toks \l_template_value_tl
+}
+%    \end{macrocode}
 %\end{macro}
 %
 %\begin{macro}{\template_assign_code:}
@@ -2753,6 +2796,12 @@
 }
 \msg_new:nnn { template } { no-keytype } {%
   The key description `#1' does not contain a keytype.%
+}
+\msg_new:nnnn { template } { undeclared-variable } {%
+  The variable #1 has not been declared.%
+}{%  
+  Before declaring an instance, all of the required variables\\%
+  must be created.%
 }
 \msg_new:nnn { template } { unknown-key } {%
   The key `#1' is unknown.%
