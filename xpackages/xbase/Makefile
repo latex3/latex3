@@ -24,7 +24,7 @@ help:
 ##############################################################
 
 PACKAGE = xpackages/xbase
-	
+
 ##############################################################
 # Directory structure for source files                       #
 ##############################################################
@@ -87,7 +87,7 @@ AUXFILES = \
 	tmp  \
 	toc  \
 	xref
-	
+
 CLEAN = \
 	cls  \
 	diff \
@@ -98,7 +98,7 @@ CLEAN = \
 	pdf  \
 	sty  \
 	zip 
-	
+
 ################################################################
 # File copying: default actions                                #
 ################################################################
@@ -106,25 +106,25 @@ CLEAN = \
 $(SCRIPTDIR)/%: $(SUPPORTDIR)/%
 	@cp -fp $< $@
 	@chmod +x $@
-	
+
 $(TESTDIR)/%.dtx: $(SOURCEDIR)/%.dtx
 	@cp -fp $< $@
-	
+
 $(TESTDIR)/%.ins: $(SOURCEDIR)/%.ins
 	@cp -fp $< $@
-	
+
 $(TESTDIR)/%.lvt: $(TESTFILEDIR)/%.lvt
 	@cp -fp $< $@
-	
+
 $(TESTDIR)/%.tex: $(SOURCEDIR)/%.tex
 	@cp -fp $< $@	
-	
+
 $(TESTDIR)/%.tlg: $(TESTFILEDIR)/%.tlg
 	@cp -fp $< $@	
-	
+
 $(TESTDIR)/%.txt: $(SOURCEDIR)/%.txt
 	@cp -fp $< $@	
-	
+
 ################################################################
 # File copying: specials                                       #
 ################################################################
@@ -134,7 +134,7 @@ $(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 	@cp -fp $< $@	
-	
+
 ################################################################
 # File building: default actions                                #
 ################################################################
@@ -171,7 +171,7 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 expl3:
 	cd $(EXPL3DIR) ; \
 	make localinstall 
-	
+
 support: \
 	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
 	$(foreach FILE,$(VALIDATE),$(TESTDIR)/$(FILE))
@@ -192,7 +192,7 @@ support: \
 clean:
 	echo "Cleaning up"
 	rm -rf $(TESTDIR)/*.*
-	
+
 cleanall: clean
 	for I in $(AUXFILES) $(CLEAN) ; do \
 	  rm -f *.$$I ; \
@@ -222,7 +222,7 @@ check: \
 	if (test -f *.diff) ; then \
 	  echo "  Check failed with difference files" ; \
 	  for I in *.diff ; do \
-	    echo "  - $$I" ; \
+	    echo "  - " `pwd`"/$$I" ; \
 	  done ; \
 	else \
 	  echo "  All checks passed" ; \
@@ -248,7 +248,7 @@ test: \
 	  echo " $$I" ; \
 	  pdflatex  $$I ; \
 	done
-	
+
 unpack: $(foreach FILE,$(DTX) $(TEX) $(UNPACK),$(TESTDIR)/$(FILE))
 	echo "Unpacking files"
 	cd $(TESTDIR) ; \
