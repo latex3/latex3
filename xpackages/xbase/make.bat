@@ -201,10 +201,10 @@ set VALIDATE=..\..\validate
   echo.
   echo Creating and copying %1.tlg
   
-  pdflatex %1.lvt > nul 
+  pdflatex %1.lvt > nul
   pdflatex %1.lvt > nul
   %PERLEXE% log2tlg %1 < %1.log > %1.tlg
-  xcopy /q /y %1.tlg %TESTDIR%\%1.tlg > nul
+  copy /y %1.tlg %TESTDIR%\%1.tlg > nul
   
   goto :clean-int
 
