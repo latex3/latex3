@@ -10,13 +10,14 @@
 
 help:
 	@echo ""
-	@echo " make check        - runs automated test suite"
-	@echo " make clean        - clean out test directory"
-	@echo " make cleanall     - clean out test and current directory"
-	@echo " make doc          - typeset documentation"
-	@echo " make localinstall - install files in local texmf tree"
-	@echo " make test         - typeset test files"
-	@echo " make unpack       - extract packages"
+	@echo " make check            - runs automated test suite"
+	@echo " make clean            - clean out test directory"
+	@echo " make cleanall         - clean out test and current directory"
+	@echo " make doc              - typeset documentation"
+	@echo " make localinstall     - install files in local texmf tree"
+	@echo " make savetlg F=<name> - save test log for <name>"  
+	@echo " make test             - typeset test files"
+	@echo " make unpack           - extract packages"
 	@echo ""
 
 ##############################################################
@@ -186,6 +187,7 @@ support: \
 	cleanall     \
 	doc          \
 	localinstall \
+	savetlg      \
 	test         \
 	unpack
 
@@ -238,6 +240,18 @@ localinstall: unpack
 	cd $(TESTDIR) ; \
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	texhash &> /dev/null
+
+savetlg: $(TESTDIR)/$(F).lvt support unpack
+	echo "Creating and copying $(F).tlg"
+	cd $(TESTDIR) ; \
+	for I in $(AUXFILES) diff ; do \
+	  rm -f *.$$I ; \
+	done ; \
+	pdflatex $(F).lvt &> /dev/null ; \
+	pdflatex $(F).lvt &> /dev/null ; \
+	rm -f $$I.pdf ; \
+	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).tlg
+	cp -f $(TESTDIR)/$(F).tlg $(TESTFILEDIR)/$(F).tlg
 
 test: \
 	$(foreach FILE,$(TESTFILES),$(TESTDIR)/$(FILE).tex)
