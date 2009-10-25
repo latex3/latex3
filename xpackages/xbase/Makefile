@@ -254,7 +254,7 @@ savetlg: $(TESTDIR)/$(F).lvt support unpack
 	cp -f $(TESTDIR)/$(F).tlg $(TESTFILEDIR)/$(F).tlg
 
 test: \
-	$(foreach FILE,$(TESTFILES),$(TESTDIR)/$(FILE).tex)
+	$(foreach FILE,$(TESTFILES),$(TESTDIR)/$(FILE).tex) \
 	expl3 unpack 
 	echo "Testing files"
 	cd $(TESTDIR) ;\
