@@ -221,7 +221,7 @@ check: \
 	    rm -f $$I.$$J ; \
 	  done ; \
 	done ; \
-	if (test -f *.diff) ; then \
+	if (ls *.diff &> /dev/null) ; then \
 	  echo "  Check failed with difference files" ; \
 	  for I in *.diff ; do \
 	    echo "  - " `pwd`"/$$I" ; \
