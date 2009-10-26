@@ -7,9 +7,6 @@ Issues:
 
  - documentation (.dtx) currently doesn't compile)
 
- - Due to missing multiselection the default label comes out wrong. 
+ - lot of code still in old format/conventions
 
- - itemize and description have some strange indentation on the right
-
-
-frank 2009/10
+frank 2009/10/26
