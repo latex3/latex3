@@ -12,7 +12,7 @@ set PATHCOPY=%PATH%
 set TDSROOT=latex\%PACKAGE%
 set TEST=xbase
 set TXT=readme-ctan
-set XPACKAGES=galley xbase xcontents xfootnote xfrontm xhead xinitials xlang xor xtheorem
+set XPACKAGES=galley xbase xcontents xfootnote xfrontm xinitials xlang xor xtheorem
 
 :loop
 
