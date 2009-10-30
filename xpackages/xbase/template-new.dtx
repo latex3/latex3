@@ -306,8 +306,6 @@
 % \end{function}
 % \end{function}
 %
-%
-%
 % \subsection{Multiple choices}
 % \label{sec:choices-key}
 % 
@@ -424,6 +422,40 @@
 % }
 % \end{verbatim}
 % \end{quote}
+% 
+% \begin{function}{\UseTemplate}
+% \par
+% \begin{syntax}
+% "\UseTemplate" \Arg{type} \Arg{template} \Arg{settings} <arguments>
+% \end{syntax}
+% There are occasions where creating an instance of a template does not
+% make sense, as it will only be used once. In this case, templates can
+% be used directly, with the key settings given as an argument to the
+% \cs{UseTemplate} function. This will also work when giving an argument
+% to a key which needs an instance. For example, if we have an key
+% \texttt{instance-key} which expects an instance of \texttt{object2},
+% then we can either declare an instance:
+% \begin{quote}
+% \begin{verbatim}
+% \DeclareInstance {object2} {template2} {temp-instance} {
+%   <settings>
+% }
+% \DeclareInstance {object} {template} {instance} {
+%   instance-key = temp-instance
+% }
+% \end{verbatim}
+% \end{quote} 
+% or use the template directly:
+% \begin{quote}
+% \begin{verbatim}
+% \DeclareInstance {object} {template} {instance} {
+%   instance-key = \UseTemplate {object2} {template2} {<settings>}
+% }
+% \end{verbatim}
+% \end{quote} 
+% Which is the best approach will depend on the exact nature of the
+% situation.
+% \end{function}
 %
 % \subsection{Summaries}
 %
@@ -1526,6 +1558,19 @@
 %    \end{macrocode}
 %\end{macro}
 %
+%\begin{macro}{\template_if_use_template:nTF}
+% Tests for the first token in a string being \cs{UseTemplate}.
+%    \begin{macrocode}
+\prg_new_conditional:Nnn \template_if_use_template:n { TF } {
+  \tl_if_eq:noTF { \UseTemplate } { \tl_head:w #1 \q_nil } {
+    \prg_return_true:
+  }{
+    \prg_return_false:
+  }
+}
+%    \end{macrocode}
+%\end{macro}
+%
 %\subsubsection{Saving and recovering property lists}
 %
 % The various property lists for templates have to be shuffled in
@@ -2404,6 +2449,24 @@
 %\end{macro}
 %\end{macro}
 %
+%\subsection{Using templates directly}
+%
+% \begin{macro}{\template_use_template:nnn}
+% Directly use a template with a particular parameter setting.
+% This is also picked up if used in a nested fashion inside a parameter
+% list. The idea is essentially the same as creating an instance, 
+% just with no saving of the result.
+%    \begin{macrocode}
+\cs_new:Nn \template_use_template:nnn {
+  \template_recover_defaults:n { #1 / #2 }
+  \template_recover_vars:n { #1 / #2 }
+  \template_parse_values:nn { #1 / #2 } {#3}
+  \template_convert_to_assignments:
+  \use:c { \c_template_code_root_tl #1 / #2 :w  }
+}
+%    \end{macrocode}
+% \end{macro}
+%
 %\subsubsection{Assigning values to variables}
 %
 %\begin{macro}{\template_assign_boolean:}
@@ -2621,12 +2684,31 @@
 %\subsubsection{Using instances}
 %
 %\begin{macro}{\template_use_instance:nn}
+%\begin{macro}[aux]{\template_use_instance_aux:nNnnn}
+%\begin{macro}[aux]{\template_use_instance_aux:nn}
 % Using an instance is just a question of finding the appropriate
 % function. There is the possibility that a collection instance exists,
 % so this is checked before trying the general instance. If nothing is
-% found, an error is raised.
+% found, an error is raised. One additional complication is that
+% if the first token of argument |#2| is \cs{UseTemplate} then that
+% is also valid. There is an error-test to make sure that the
+% types agree, and if so the template is used directly.
 %    \begin{macrocode}
 \cs_new:Nn \template_use_instance:nn {
+  \template_if_use_template:nTF {#2} {
+    \template_use_instance_aux:nNnnn {#1} #2 
+  }{
+    \template_use_instance_aux:nn {#1} {#2}
+  }
+}
+\cs_new:Nn \template_use_instance_aux:nNnnn {
+  \tl_if_eq:nnTF {#1} {#3} {
+    \template_use_template:nnn {#3} {#4} {#5}
+  }{
+    \msg_error:nnnn { template } { type-mismatch } {#1} {#3}
+  }
+}
+\cs_new:Nn \template_use_instance_aux:nn {
   \template_get_collection:n {#1}
   \template_if_instance_exist:nnnTF 
     {#1} { \l_template_collection_tl } {#2} {
@@ -2643,6 +2725,8 @@
   }
 }
 %    \end{macrocode}
+%\end{macro}
+%\end{macro}
 %\end{macro}
 %
 %\begin{macro}{\template_use_collection:nn}
@@ -2789,6 +2873,13 @@
 \msg_new:nnn { template } { non-implemented-choices } {%
  The choices `#1' have no implementation.%
 }
+\msg_new:nnnn { template } { type-mismatch } {%
+  Object types `#1' and `#2' do not agree.%
+}{%
+  You are trying to use a template directly with 
+  \token_to_str:N \UseInstance \\%
+  (or a similar function), but the object types do not match.%
+}
 \msg_new:nnnn { template } { undeclared-variable } {%
   The variable #1 has not been declared.%
 }{%  
@@ -2835,6 +2926,7 @@
 %\begin{macro}{\DeclareCollectionInstance}
 %\begin{macro}{\EditInstance}
 %\begin{macro}{\EditCollectionInstance}
+%\begin{macro}{\UseTemplate}
 %\begin{macro}{\UseInstance}
 %\begin{macro}{\UseCollection}
 % All simple translations, with the appropriate long/short argument
@@ -2867,6 +2959,9 @@
 \cs_new_protected:Npn \EditCollectionInstance #1#2#3#4#5 {
   \template_edit_instance:nnnnn {#2} {#4} {#1} {#3} {#5}
 }
+\cs_new_protected_nopar:Npn \UseTemplate #1#2#3 {
+  \template_use_template:nn {#1} {#2} {#3}
+}
 \cs_new_protected_nopar:Npn \UseInstance #1#2 {
   \template_use_instance:nn {#1} {#2}
 }
@@ -2874,6 +2969,7 @@
   \template_use_collection:nn {#1} {#2}
 }
 %    \end{macrocode}
+%\end{macro}
 %\end{macro}
 %\end{macro}
 %\end{macro}
@@ -2962,13 +3058,6 @@
 %
 %\subsubsection{Recent additions to the code}
 %
-% This section contains code that was needed to do make the first bigger trial
-% run work (i.e., xor using template-new). It will not necessarily survive in
-% the this way, but needs integration in the above.
-%
-% The next function is used in templates to check a certain error condition,
-% certainly will need at least a name change.
-%
 %  \begin{macro}{\TP_split_finite_skip_value:nnNN}
 %  This macro is for use in error checking template values like
 %  "text-float-sep" that can't contain infinite glue and needs the
@@ -2985,52 +3074,6 @@
 }
 %    \end{macrocode}
 %  \end{macro}
-%
-% \begin{macro}{\UseTemplate}
-% |{type}{templatename}{keyval}|
-% Directly use a template with a particular parameter setting.
-% This is also picked up if used in a nested fashion inside a parameter
-% list.\\
-% |#1| type of a template.\\
-% |#2| name of a template.\\
-% |#3| key value assignments for parameters of |#1|.
-%    \begin{macrocode}
-\cs_new_nopar:Npn \UseTemplate #1#2#3{
-    \template_recover_defaults:n { #1 / #2 }
-    \template_recover_vars:n { #1 / #2 }
-    \template_parse_values:nn { #1 / #2 } {#3}
-    \template_convert_to_assignments:
-%    \exp_args:NV \template_assignments_push:n \l_template_assignments_toks
-    \use:c { \c_template_code_root_tl #1 / #2 :w  }
-}
-%    \end{macrocode}
-% \end{macro}
-
-% We do allow "\UseTemplate" instead of a named instance.
-% This could do with a bit more error checking, e.g., the object type to
-% "\UseTemplate"  should match the object type listed on the key (not done).
-%    \begin{macrocode}
-\cs_set:Nn \template_use_instance:nn {
-  \tl_if_eq:noTF { \UseTemplate } { \tl_head:w #2 \q_nil }
-  {#2}
-  {
-     \template_get_collection:n {#1}
-     \template_if_instance_exist:nnnTF 
-       {#1} { \l_template_collection_tl } {#2} {
-       \use:c { 
-	 \c_template_instances_root_tl #1 / \l_template_collection_tl /#2 
-	 :w
-       }
-     }{
-       \template_if_instance_exist:nnnTF {#1} { } {#2} {
-	 \use:c { \c_template_instances_root_tl #1 / / #2 :w }
-       }{
-	 \msg_error:nnxx { template } { unknown-instance } {#1} {#2}
-       }
-     }
-  }
-}
-%    \end{macrocode}
 %    
 %    \begin{macrocode}
 %</initex|package>
