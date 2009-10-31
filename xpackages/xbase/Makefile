@@ -11,6 +11,7 @@
 help:
 	@echo ""
 	@echo " make check            - runs automated test suite"
+	@echo " make checklvt F=<name>   - runs automated test on <name>"
 	@echo " make clean            - clean out test directory"
 	@echo " make cleanall         - clean out test and current directory"
 	@echo " make doc              - typeset documentation"
@@ -183,6 +184,7 @@ support: \
 
 .PHONY = \
 	check        \
+	checklvt     \
 	clean        \
 	cleanall     \
 	doc          \
@@ -228,6 +230,28 @@ check: \
 	  done ; \
 	else \
 	  echo "  All checks passed" ; \
+	fi
+
+checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
+	echo "Running checks on $(F)"
+	cd $(TESTDIR) ; \
+	for I in $(AUXFILES) diff ; do \
+	  rm -f *.$$I ; \
+	done ; \
+	pdflatex $(F).lvt ; \
+	pdflatex $(F).lvt &> /dev/null ; \
+	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).new.log ; \
+	if !(cmp -s $(F).tlg $(F).new.log) ; then \
+	  diff -c $(F).new.log $(F).tlg &> $(F).diff ; \
+	fi ; \
+	for I in $(AUXFILES) lvt pdf tlg ; do \
+	  rm -f $(F).$$I ; \
+	done ; \
+	if (test -f $(F).diff) ; then \
+	  echo "  Check failed" ; \
+	  more `pwd`/$(F).diff ; \
+	else \
+	  echo "  Check passed" ; \
 	fi
 
 doc: $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf)
