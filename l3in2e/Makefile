@@ -262,7 +262,7 @@ check: \
 	if (test -f *.diff) ; then \
 	  echo "  Check failed with difference files" ; \
 	  for I in *.diff ; do \
-	    echo "  - $$I" ; \
+	    echo "  - " `pwd`"/$$I" ; \
 	  done ; \
 	else \
 	  echo "  All checks passed" ; \
