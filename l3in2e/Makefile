@@ -167,8 +167,8 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
 	if [ $$? = 0 ] ; then  \
 	  makeindex -s l3doc.ist -o $(TESTDIR)/$$NAME.ind $(TESTDIR)/$$NAME.idx &> /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
+	  pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "\PassOptionsToClass{check}{l3doc}\input{$<}" &> /dev/null ; \
 	  if [ `grep 'defined but not documented' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ] ; then \
 	    echo "! Warning: some functions defined but not documented" ; \
 	  fi ; \
@@ -176,7 +176,7 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	    echo "! Warning: some functions documented but not defined" ; \
 	  fi ; \
 	else \
-	  echo "  Complilation failed" ; \
+	  echo "  Compilation failed" ; \
 	fi ; \
 	for I in $(AUXFILES) ; do \
 	  rm -f $$NAME.$$I ; \
@@ -188,15 +188,15 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	
 $(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex
 	echo "Typesetting source3" ; \
-	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "\PassOptionsToClass{nocheck}{l3doc} \input $(TESTDIR)/source3" &> /dev/null ; \
+	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
 	if [ $$? = 0 ] ; then  \
 	  makeindex -s l3doc.ist -o $(TESTDIR)/source3.ind $(TESTDIR)/source3.idx &> /dev/null ; \
 	  echo "  Re-typesetting for index generation" ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "\PassOptionsToClass{nocheck}{l3doc} \input $(TESTDIR)/source3" &> /dev/null ; \
+	  pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
 	  echo "  Re-typesetting to resolve cross-references" ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "\PassOptionsToClass{nocheck}{l3doc} \input $(TESTDIR)/source3" &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
 	else \
-	  echo "  Complilation failed" ; \
+	  echo "  Compilation failed" ; \
 	fi ; \
 	for I in $(AUXFILES) ; do \
 	  rm -f source3.$$I ; \
@@ -286,7 +286,7 @@ checkcmds: support unpack
 	cd $(TESTDIR) ; \
 	for I in $(DTXFILES) ; do \
 	  echo "  $$I" ; \
-	  pdflatex -interaction=nonstopmode $$I.dtx &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode "\PassOptionsToClass{check}{l3doc} \input $$I.dtx" &> /dev/null ; \
 	  pdflatex -interaction=nonstopmode "\def\CMDS{$$I.cmds}\input commands-check" &> cmds.log ; \
 	  if [ $$? -ne 0 ] ; then \
 	    echo "  Missing definitions:" ; \
@@ -302,7 +302,7 @@ checkdoc: unpack
 	cd $(TESTDIR) ; \
 	for I in $(DTXFILES) ; do \
 	  echo "  $$I" ; \
-	  pdflatex -draftmode -interaction=nonstopmode $$I.dtx &> /dev/null  ; \
+	  pdflatex -draftmode -interaction=nonstopmode "\PassOptionsToClass{check}{l3doc} \input $$I.dtx" &> /dev/null  ; \
 	  if [ $$? = 0 ] ; then \
 	    if [ `grep 'defined but not documented' $$I.log | wc -l` -ne 0 ] ; then \
 	      echo '! Warning: some functions defined but not documented' ; \
