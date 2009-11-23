@@ -391,7 +391,7 @@ localinstall: unpack
 	mkdir -p $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	mkdir -p $$TEXMFHOME/makeindex/$(PACKAGE)/ ; \
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
-	rm -rf $$TEXMFHOME/makeindex/$(PACKAGEROOT)/* ; \
+	rm -rf $$TEXMFHOME/makeindex/$(PACKAGE)/* ; \
 	cp l3vers.dtx $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cd $(TESTDIR) ; \
 	cp *.cls $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
@@ -418,13 +418,13 @@ tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).txt) sourcedoc
 	mkdir -p $(TDSDIR)/
 	rm -rf $(TDSDIR)/*
 	mkdir -p $(TDSDIR)/doc/$(PACKAGEROOT)/
-	mkdir -p $(TDSDIR)/makeindex/$(PACKAGEROOT)/
+	mkdir -p $(TDSDIR)/makeindex/$(PACKAGE)/
 	mkdir -p $(TDSDIR)/source/$(PACKAGEROOT)/
 	mkdir -p $(TDSDIR)/tex/$(PACKAGEROOT)/
 	cd $(TESTDIR) ; \
 	cp -f *.cls $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
 	cp -f *.dtx $(TDSDIR)/source/$(PACKAGEROOT)/ ; \
-	cp -f *.ist $(TDSDIR)/makeindex/$(PACKAGEROOT)/ ; \
+	cp -f *.ist $(TDSDIR)/makeindex/$(PACKAGE)/ ; \
 	for I in $(INCLUDEPDF) ; do \
 	  cp -f $$I.pdf $(TDSDIR)/doc/$(PACKAGEROOT)/ ; \
 	done ; \
