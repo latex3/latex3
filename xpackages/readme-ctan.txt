@@ -1,9 +1,8 @@
 
-   Experimental Packages Demonstrating
-   Possible LaTeX3 High-Level Concepts
-   ====================================
+   Experimental LaTeX3 High-Level Concepts
+   =======================================
 
-   2009/06/09
+   2009/11/25
 
 
 WHERE TO GET IT
@@ -19,12 +18,13 @@ instructions.
 OVERVIEW
 --------
 
-The `xpackages' term is a designation used for proto-type
-implementations of new concepts for a LaTeX Designer Interface. Some
-work as standalone packages providing new functionality, such as the
-packages in xbase; others go deeper and redefine LaTeX internals in
-order to provide newer and better methods for managing certain
-constructs.
+The xpackages are a collection of experimental implementations
+for aspects of the LaTeX3 kernel, dealing with higher-level
+ideas such as the Desginer Interface. Some of them work as stand
+alone packages, providing new functionality, and can be used 
+on top of LaTeX2e with no changes to the existing kernel. 
+Others go further, and redefine LaTeX2e internals to provide
+better methods for managing certain constructs.
 
 All xpackages require expl3 and, in addition to this, many require
 functionality provided by the packages within the xbase bundle.
@@ -32,30 +32,44 @@ functionality provided by the packages within the xbase bundle.
 Currently included in the CTAN release of xpackages are the following
 bundles:
     xbase
+    xtras
 
 xbase
 -----
 
-The xbase bundle provides the packages xparse and template, and the
-support package ldcsetup.
+The xbase bundle provides mechansims for defining document commands
+(xparse) and design constructions (xtemplate). 
 
 The xparse package provides a high-level interface for declaring
 document commands, e.g., a uniform way to define commands taking
 optional arguments, optional stars (and others), mandatory arguments
 and more.
 
-The template package provides an interface for defining generic
-functions using a key=val syntax.
+The xtemplate package provides an interface for defining generic
+functions using a key=val syntax. This is designed to be 
+"self-documenting", with the key definitions providing information
+on how they are to be used.
 
-The ldcsetup package used to establish prototype LaTeX3 coding conventions,
-needed by xparse and xbase, but is now slowly being stripped in favor
-of functionality added to expl3.
+The legacy template and ldcsetup packages are included at the 
+present time, but new LaTeX3 code will not use these!
 
-Files included:
-  source: xbase.ins, xparse.dtx, template.dtx, ldcsetup.dtx
-  test:   template-test.tex, template-test2.tex, tprestrict-test.tex,
-          xparse-test.tex
+Source files:
+  - xbase.ins
+  - xparse.dtx
+  - xtemplate.dtx
 
+xtras
+-----
+
+The xtras bundle provides functionality to bridge between LaTeX2e
+and LaTeX3. It provides add-ons to LaTeX2e to allow other xpackages
+to be used in the LaTeX2e context. 
+
+The l3keys2e package allows keys defined using l3keys to be used
+as package and class options with LaTeX2e. This is tied to the
+method the existing kernel uses for processing options, and so it
+is likely that a stand-alone LaTeX3 kernel will use a very different
+approach.
 
 
 DISCUSSION
@@ -82,9 +96,6 @@ distribution (see bugs.txt there) using the category "Experimental
 LaTeX kernel".  However please do *not* use this method for
 suggestions / comments / improvements / etc. For this the list LATEX-L
 should be used instead.
-
-Also please don't expect these package to work with *any* code that
-floats around in the LaTeX2e world. :-)
 
 
 --- Copyright 1998 -- 2009
