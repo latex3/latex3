@@ -370,7 +370,6 @@ set XPACKAGES=xbase
   )
   xcopy /q /y *.sty "%INSTALLROOT%\"   > nul
 
-  xcopy /q /y l3vers.dtx "%INSTALLROOT%\" > nul
   xcopy /q /y l3doc.ist  "%TEXMFHOME%\makeindex\%PACKAGE%\" > nul
 
   goto :clean-int
