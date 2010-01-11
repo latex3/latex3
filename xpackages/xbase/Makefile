@@ -102,6 +102,12 @@ CLEAN = \
 	zip 
 
 ################################################################
+# Document settings                                            #
+################################################################
+
+PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
+
+################################################################
 # File copying: default actions                                #
 ################################################################
 
@@ -144,11 +150,11 @@ $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	NAME=`basename $< .dtx` ; \
 	echo "Typesetting $$NAME" ; \
-	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
+	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
 	if [ $$? = 0 ] ; then  \
 	  makeindex -s l3doc.ist -o $(TESTDIR)/$$NAME.ind $(TESTDIR)/$$NAME.idx &> /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
 	  if [ `grep 'defined but not documented' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ] ; then \
 	    echo "! Warning: some functions defined but not documented" ; \
 	  fi ; \
