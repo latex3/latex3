@@ -117,6 +117,12 @@ CLEAN = \
 	pdf  \
 	sty  \
 	zip 
+
+################################################################
+# Document settings                                            #
+################################################################
+
+PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 	
 ################################################################
 # File copying: default actions                                #
@@ -164,11 +170,11 @@ $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	NAME=`basename $< .dtx` ; \
 	echo "Typesetting $$NAME" ; \
-	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
+	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
 	if [ $$? = 0 ] ; then  \
 	  makeindex -s l3doc.ist -o $(TESTDIR)/$$NAME.ind $(TESTDIR)/$$NAME.idx &> /dev/null ; \
-	  pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "\PassOptionsToClass{check}{l3doc}\input{$<}" &> /dev/null ; \
+	  pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \PassOptionsToClass{check}{l3doc}\input{$<}" &> /dev/null ; \
 	  if [ `grep 'defined but not documented' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ] ; then \
 	    echo "! Warning: some functions defined but not documented" ; \
 	  fi ; \
@@ -188,13 +194,13 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	
 $(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex
 	echo "Typesetting source3" ; \
-	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
+	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
 	if [ $$? = 0 ] ; then  \
 	  makeindex -s l3doc.ist -o $(TESTDIR)/source3.ind $(TESTDIR)/source3.idx &> /dev/null ; \
 	  echo "  Re-typesetting for index generation" ; \
-	  pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
+	  pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
 	  echo "  Re-typesetting to resolve cross-references" ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) $< &> /dev/null ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
 	else \
 	  echo "  Compilation failed" ; \
 	fi ; \
