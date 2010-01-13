@@ -11,6 +11,7 @@ set CHECKCMDS=basics box calc clist doc expan file int intexpr io keys keyval ms
 set PACKAGE=expl3
 set PATHCOPY=%PATH%
 set PDF=expl3 source3
+set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 set SCRIPTDIR=..\support
 set TDSROOT=latex\%PACKAGE%
 set TESTDIR=testfiles
@@ -296,11 +297,11 @@ set XPACKAGES=xbase
   echo.
   echo Typesetting %1
   
-  pdflatex -interaction=nonstopmode -draftmode %1.dtx > nul
+  pdflatex -interaction=nonstopmode -draftmode "%PDFSETTINGS% \input %1.dtx" > nul
   if not ERRORLEVEL 1 (
     makeindex -q -s l3doc.ist -o %2.ind %1.idx        > nul
-    pdflatex -interaction=nonstopmode %1.dtx          > nul
-    pdflatex -interaction=nonstopmode %1.dtx          > nul
+    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %1.dtx" > nul
+    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %1.dtx"  > nul
     for /F "tokens=*" %%I in (%1.log) do (
       if "%%I" == "Functions documented but not defined:" (
       echo ! Some functions not defined 
@@ -453,13 +454,13 @@ set XPACKAGES=xbase
   echo.
   echo Typesetting source3
 
-  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
+  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} %PDFSETTINGS% \input source3" > nul
   if not ERRORLEVEL 1 ( 
     echo   Re-typesetting for index generation
     makeindex -q -s l3doc.ist -o source3.ind source3.idx > nul
-    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} %PDFSETTINGS% \input source3" > nul
     echo   Re-typesetting to resolve cross-references
-    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} %PDFSETTINGS% \input source3" > nul
     for /F "tokens=*" %%I in (source3.log) do (           
       if "%%I" == "Functions documented but not defined:" (   
         echo ! Warning: some functions not defined              
@@ -475,11 +476,11 @@ set XPACKAGES=xbase
   echo.
   echo Typesetting expl3
   
-  pdflatex -interaction=nonstopmode -draftmode  expl3.dtx > nul
+  pdflatex -interaction=nonstopmode -draftmode "%PDFSETTINGS% \input expl3.dtx" > nul
   if not ERRORLEVEL 1 (
     makeindex -q -s l3doc.ist -o expl3.ind expl3.idx > nul
-    pdflatex -interaction=nonstopmode expl3.dtx > nul
-    pdflatex -interaction=nonstopmode expl3.dtx> nul
+    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input expl3.dtx" > nul
+    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input expl3.dtx" > nul
   ) else (
     echo ! expl3 compilation failed
   )

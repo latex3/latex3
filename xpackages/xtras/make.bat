@@ -9,6 +9,7 @@ set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
 set CLEAN=fc gz pdf sty
 set EXPL3DIR=..\..\l3in2e
 set PACKAGE=l3keys2e
+set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 set TEX=l3keys2e-demo
 set TDSROOT=latex\xpackages\%PACKAGE%
 
@@ -51,13 +52,13 @@ set TDSROOT=latex\xpackages\%PACKAGE%
 
   for %%I in (*.dtx) do (
     echo   %%I
-    pdflatex -interaction=nonstopmode -draftmode %%~nI.dtx > nul
+    pdflatex -interaction=nonstopmode -draftmode "%PDFSETTINGS% \input %%I" > nul
     if not ERRORLEVEL 1 (
       if exist %%~nI.idx (
         makeindex -q -s l3doc.ist -o %%~nI.ind %%~nI.idx > nul
       )
-      pdflatex -interaction=nonstopmode %%I > nul
-      pdflatex -interaction=nonstopmode %%I > nul
+      pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %%I" > nul
+      pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %%I" > nul
     )
   )
 
