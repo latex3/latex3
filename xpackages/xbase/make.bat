@@ -9,6 +9,7 @@ set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
 set CLEAN=fc gz pdf sty
 set EXPL3DIR=..\..\l3in2e
 set PACKAGE=xbase
+set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 set SCRIPTDIR=..\..\support
 set TEST=template-test template-test2 tprestrict-test xparse-test
 set TESTDIR=testfiles
@@ -113,13 +114,13 @@ set VALIDATE=..\..\validate
 
   for %%I in (*.dtx) do (
     echo   %%I
-    pdflatex -interaction=nonstopmode -draftmode %%~nI.dtx > nul
+    pdflatex -interaction=nonstopmode -draftmode "%PDFSETTINGS% \input %%I" > nul
     if not ERRORLEVEL 1 (
       if exist %%~nI.idx (
         makeindex -q -s l3doc.ist -o %%~nI.ind %%~nI.idx > nul
       )
-      pdflatex -interaction=nonstopmode %%I > nul
-      pdflatex -interaction=nonstopmode %%I > nul
+      pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %%I" > nul
+      pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %%I" > nul
     )
   )
 
