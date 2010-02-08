@@ -60,153 +60,205 @@
 % \maketitle
 %
 % \begin{documentation}
-%
-% This module only provides functions for extracting keys and values 
-% from a list. How this information is used is up to the programmer.
-% The \pkg{l3keys} module provides a higher-level interface for
-% managing run-time key--value input.
-%
-% A \meta{keyval list} is a list consisting of
-% \begin{verbatim}
-% key 1 = value 1 ,
-% key 2           ,
-% key 3 = value 3 ,
-% \end{verbatim}
 % 
-% The function names for retrieving the keys and values are long but
-% explain what they do. All these functions start with the name
-% |\KV_parse_|. If a value is surrounded by braces, one level (and
-% only one) is removed from the value. This is useful if you need to
-% input a value which contains |=| or |,|. There are two primary
-% actions we can take on a \meta{keyval list}.
-% \begin{itemize}
-% \item A \meta{keyval list} can be sanitized so that top level active
-%   commas or equal signs are converted into catcode 12. When
-%   declaring templates in the preamble one can probably safely assume
-%   that there are no active commas or equals; these things should
-%   only be active in the document. The name for this is either
-%   |no_sanitize| or |sanitize|.
-% \item Spaces on either side of a key or value can be trimmed. When
-%   using the \LaTeX3 programming interface, spaces are automatically
-%   ignored so there it would be a waste of time to search for extra
-%   spaces since there would be none. At the document level however,
-%   spaces must be removed. The name for this is either
-%   |no_space_removal| or |space_removal|. Note that when
-%   |space_removal| is called you get an additional option where you
-%   can decide if one level of braces should be stripped from the key
-%   and/or value; see the description of the boolean
-%   |\l_KV_remove_one_level_of_braces_bool| for details.
-% \end{itemize}
-%
-% During the parsing process, keys or values are not expanded and no
-% |#|s are doubled.  When the parsing process is over, the keys and
-% values are executed in the form
-% \begin{quote}
-% "\KV_key_value_elt:nn{key 1}{value 1}" \\
-% "\KV_key_no_value_elt:n{key 2}"        \\
-% "\KV_key_value_elt:nn{key 3}{value 3}"
-% \end{quote}
-% It is up to the programmer to provide a suitable definition of these
-% two functions before starting the parsing process.
-%
-%
-% \section{Functions}
+% A key--value list is input of the form
+%\begin{verbatim}
+%  KeyOne = ValueOne ,
+%  KeyTwo = ValueTwo ,
+%  KeyThree          ,
+%\end{verbatim} 
+% where each key--value pair is separated by a comma from the rest of
+% the list, and each key--value pair does not necessarily contain an
+% equals sign or a value! Processing this type of input correctly 
+% requires a number of careful steps, to correctly account for
+% braces, spaces and the category codes of separators.
 % 
-% \begin{function}{
-%     \KV_process_no_space_removal_no_sanitize:NNn |
-%     \KV_process_space_removal_no_sanitize:NNn |
-%     \KV_process_space_removal_sanitize:NNn |
-% }
-%   \begin{syntax}
-%     "\KV_process_no_space_removal_no_sanitize:NNn" 
-%       \meta{function1} \meta_function2} \Arg{keyval list}
-%   \end{syntax}
-%   Processes a \meta{keyval list} using \meta{function1} to
-%   handle keys with no value and \meta{function2} to handle keys
-%   which do have a value. As a result, \meta{function1} should be
-%   a function accepting one argument and \meta{function2} should
-%   be a function taking two arguments. Unlike the lower-level
-%   functions provided here, this family is safe when nested inside
-%   one another.
-%   
-%   As might be expected, the behaviour seen with respect to
-%   spaces and the category codes for \texttt{=} and \texttt{,}
-%   are indicated by the function names. 
-% \end{function}
+% This module provides the low-level machinery for processing arbitrary
+% key--value lists. The \pkg{l3keys} module provides a higher-level
+% interface for managing run-time settings using key--value input,
+% while other parts of \LaTeX3 also use key--value input based on
+% \pkg{l3keyval} (for example the \pkg{xtemplate} module).
+% 
+%\subsection{Features of \pkg{l3keyval}} 
 %
-% \begin{function}{
-%     \KV_parse_no_space_removal_no_sanitize:n |
-% }
+% As \pkg{l3keyval} is a low-level module, its functions are
+% restricted to converting a \meta{keyval list} into keys and values
+% for further processing. Each key and value (or key alone)
+% has to be processed further by a function provided when
+% \pkg{l3keyval} is called. Typically, this will be \emph{via}
+% one of the \cs{KV_process\ldots} functions:
+%\begin{verbatim}
+%  \KV_process_space_removal_sanitize:NNn
+%    \my_processor_function_one:n
+%    \my_processor_function_two:nn
+%    { <keyval list> }
+%\end{verbatim} 
+% The two processor functions here handle the cases where there is
+% only a key, and where there is both a key and value, respectively.
+% 
+% \pkg{l3keyval} parses key--value lists in a manner that does not
+% double "#" tokens or expand any input. The module has processor
+% functions which will sanitize the category codes of \texttt{=}
+% and \texttt{,} tokens (for use in the document body) as well
+% as faster versions which do not do this (for use inside code
+% blocks). Spaces can be removed from each end of the key and
+% value (again for the document body), again with faster code
+% to be used where this is not necessary. Values which are wrapped
+% in braces will have exactly one set removed, meaning that
+%\begin{verbatim}
+%  key = {value here},
+%\end{verbatim} 
+% and 
+%\begin{verbatim}
+%  key = value here,
+%\end{verbatim} 
+% are treated as identical (assuming that space removal is in force).
+% \pkg{l3keyval} 
+% 
+%\section{Functions}
+%
+% The \pkg{l3keyval} module should be accessed \emph{via} a small
+% set of external functions. These correctly set up the module 
+% internals for use by other parts of \LaTeX3.
+% 
+% In all cases, two functions have to be supplied by the programmer
+% to apply to the items from the <keyval list> after \pkg{l3keyval}
+% has separated out the entries. The first function should take
+% one argument, and will receive the names of keys for which no
+% value was supplied. The second function should take two arguments:
+% a key name and the associated value. 
+%
+%\begin{function}{\KV_process_space_removal_sanitize:NNn}
+%  \begin{syntax}
+%    "\KV_process_space_removal_sanitize:NNn"
+%    ~~~~<function 1> <function 2> \Arg{keyval list}
+%  \end{syntax}
+%  Parses the <keyval list> splitting it into keys and associated
+%  values. Spaces are removed from the ends of both the key and
+%  value by this function, and the category codes of non-braced
+%  \texttt{=} and \texttt{,} tokens are normalised so that 
+%  parsing is `category code safe'.  After parsing is completed, 
+%  <function 1> is used to process keys without values and 
+%  <function 2> deals with keys which have associated values. 
+%\end{function}
+%
+%\begin{function}{\KV_process_space_removal_no_sanitize:NNn}
+%  \begin{syntax}
+%    "\KV_process_space_removal_no_sanitize:NNn"
+%    ~~~~<function 1> <function 2> \Arg{keyval list}
+%  \end{syntax}
+%  Parses the <keyval list> splitting it into keys and associated
+%  values. Spaces are removed from the ends of both the key and
+%  value by this function, but category codes are not normalised.  
+%  After parsing is completed, <function 1> is used to process keys 
+%  without values and <function 2> deals with keys which have 
+%  associated values. 
+%\end{function}
+%
+%\begin{function}{\KV_process_no_space_removal_no_sanitize:NNn}
+%  \begin{syntax}
+%    "\KV_process_no_space_removal_no_sanitize:NNn"
+%    ~~~~<function 1> <function 2> \Arg{keyval list}
+%  \end{syntax}
+%  Parses the <keyval list> splitting it into keys and associated
+%  values. Spaces are \emph{not} removed from the ends of
+%  the key and value, and category codes are \emph{not} normalised.  
+%  After parsing is completed, <function 1> is used to process keys 
+%  without values and <function 2> deals with keys which have 
+%  associated values. 
+%\end{function}
+%
+% \begin{variable}{\l_KV_remove_one_level_of_braces_bool}
+%   This boolean controls whether or not one level of braces is
+%   stripped from the key and value. The default value for this
+%   boolean is \texttt{true} so that exactly one level of braces is
+%   stripped. For certain applications it is desirable to keep the
+%   braces in which case the programmer just has to set the boolean
+%   false temporarily. Only applicable when spaces are being
+%   removed.
+% \end{variable}
+%
+%\subsection{Internal functions}
+%
+% The remaining functions provided by \pkg{l3keyval} do not
+% have any protection for nesting of one call to the module 
+% inside another. They should therefore not be called directly by
+% other modules.
+%
+% \begin{function}{\KV_parse_no_space_removal_no_sanitize:n}
 %   \begin{syntax}
 %     "\KV_parse_no_space_removal_no_sanitize:n" \Arg{keyval list}
 %   \end{syntax}
-%   Parses the keys and values literally. For use when spaces are
-%   ignored and |=| and |,| have normal catcodes.
+%   Parses the keys and values, passing the results to
+%   \cs{KV_key_no_value_elt:n} and \cs{KV_key_value_elt:nn} as
+%   appropriate. Spaces are not removed in the parsing process and
+%   the category codes of \texttt{=} and \texttt{,} are not
+%   normalised.
 % \end{function}
 %
-% \begin{function}{
-%     \KV_parse_space_removal_no_sanitize:n |
-% }
+% \begin{function}{\KV_parse_space_removal_no_sanitize:n}
 %   \begin{syntax}
 %     "\KV_parse_space_removal_no_sanitize:n" \Arg{keyval list}
 %   \end{syntax}
-%   As above but also removes spaces around keys and values. For use
-%   when spaces are not ignored.
+%   Parses the keys and values, passing the results to
+%   \cs{KV_key_no_value_elt:n} and \cs{KV_key_value_elt:nn} as
+%   appropriate. Spaces are removed in the parsing process from the
+%   ends of the key and value, but the category codes of \texttt{=} 
+%   and \texttt{,} are not normalised.
 % \end{function}
 %
-% \begin{function}{
-%     \KV_parse_space_removal_sanitize:n |
-% }
+% \begin{function}{\KV_parse_space_removal_sanitize:n}
 %   \begin{syntax}
 %     "\KV_parse_space_removal_sanitize:n" \Arg{keyval list}
 %   \end{syntax}
-%   As above but additionally also replaces top-level active |=| and
-%   |,| with harmless versions.
+%   Parses the keys and values, passing the results to
+%   \cs{KV_key_no_value_elt:n} and \cs{KV_key_value_elt:nn} as
+%   appropriate. Spaces are removed in the parsing process from the
+%   ends of the key and value and the category codes of \texttt{=} 
+%   and \texttt{,} are normalised at the outer level 
+%   (\emph{i.e}.~only unbraced tokens are affected).
 % \end{function}
-%
-% \begin{variable}{
-%     \l_KV_remove_one_level_of_braces_bool  |
-% }
-%   \begin{syntax}
-%   \end{syntax}
-%   This boolean controls whether or not one level of braces is
-%   stripped from the key and value. The default value for this
-%   boolean is \meta{true} so that exactly one level of braces is
-%   stripped. For certain applications it is desirable to keep the
-%   braces in which case the programmer just has to set the boolean
-%   false temporarily. Setting this boolean has no effect when you
-%   call the |no_space_removal| functions since not stripping braces
-%   is a rare request and would clutter the otherwise elegant code of
-%   the |no_space_removal| functions for very little gain. If you need
-%   to preserve braces choose the slower |space_removal| functions.
-% \end{variable}
 %
 % \begin{function}{
 %     \KV_key_no_value_elt:n |
-%     \KV_key_value_elt:nn |
+%     \KV_key_value_elt:nn
 % }
 %   \begin{syntax}
 %     "\KV_key_no_value_elt:n" \Arg{key} \\
-%     "\KV_key_value_elt:n" \Arg{key} \Arg{value}
+%     "\KV_key_value_elt:n"    \Arg{key} \Arg{value}
 %   \end{syntax}
-%   Functions returned by the |\KV_parse_| functions. The default
-%   definition of these two functions is an error message!
+%   Used by \cs{KV_parse\ldots} functions to further process
+%   keys with no values and keys with values, respectively. The
+%   standard definitions are error functions: the programmer should
+%   provide appropriate definitions for both at point of use.
 % \end{function}
+% 
+%\subsection{Variables and constants}
+%
+%\begin{variable}{\c_KV_single_equal_sign_tl} 
+%  Constant token list to make finding \texttt{=} faster.
+%\end{variable}
+%
+%\begin{variable}{ 
+%  \l_KV_tmpa_tl | 
+%  \l_KV_tmpb_tl
+%}
+%  Scratch token lists.
+%\end{variable}
+% 
+%\begin{variable}{
+%  \l_KV_parse_toks   | 
+%  \l_KV_currkey_toks |
+%  \l_KV_currval_toks 
+%}
+% Token registers for various parts of the parsed input.
+\end{variable}
 %
 % \end{documentation}
 %
 % \begin{implementation}
 %
 % \section{\pkg{l3keyval} implementation}
-%
-% \subsection{Internal functions and variables}
-%
-% \begin{variable}{ \l_KV_tmpa_tl | \l_KV_tmpb_tl |
-%                   \c_KV_single_equal_sign_tl |
-%                   \l_KV_parse_toks | \l_KV_currkey_toks |
-%                   \l_KV_currval_toks }
-% Token list variables and token registers used internally.
-% \end{variable}
 %
 % \begin{function}{ \KV_sanitize_outerlevel_active_equals:N |
 %                   \KV_sanitize_outerlevel_active_commas:N }
