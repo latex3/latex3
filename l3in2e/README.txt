@@ -146,11 +146,6 @@ Integer and fake integer registers. With eTeX/Omega becoming more and
 more accessible this module is, at least in parts only of historical
 significance.  (Can be compiled with checking enabled)
 
-l3num
-=====
-
-Storing numbers as token-lists in macros
-
 l3skip
 ======
 
