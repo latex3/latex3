@@ -62,7 +62,8 @@ For an individual module, generate the documentation with
     
 For example, `make doc F=l3quark`. This will produce 
 `l3quark.pdf`, which includes the documentation for that 
-module and its implementation source code.
+module and its implementation source code. (On Windows,
+omit the 'F=', for example 'make doc l3quark'.)
 
 To generate the complete reference documentation for
 the `expl3` bundle, source3.pdf:
@@ -115,6 +116,6 @@ It will also check that each module's documentation
 still compiles without errors.
 
 
---- Copyright 1998 -- 2009
+--- Copyright 1998 -- 2010
     The LaTeX3 Project.  All rights reserved ---
 
