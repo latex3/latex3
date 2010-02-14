@@ -265,7 +265,6 @@ check: \
 	    rm -f $$I.$$J ; \
 	  done ; \
 	done ; \
-	ls *.diff ; \
 	if (test `ls *.diff |wc -l` -gt 0) ; then \
 	  echo "  Check failed with difference files" ; \
 	  for I in *.diff ; do \
