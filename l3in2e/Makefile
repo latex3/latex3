@@ -26,13 +26,13 @@ help:
 	@echo " make tds                 - create a TDS-ready archive"
 	@echo " make unpack              - extract packages"
 	@echo ""
-	
+
 ##############################################################
 # Master package name                                        #
 ##############################################################
 
 PACKAGE = expl3
-	
+
 ##############################################################
 # Directory structure for source files                       #
 ##############################################################
@@ -106,7 +106,7 @@ AUXFILES = \
 	tmp  \
 	toc  \
 	xref
-	
+
 CLEAN = \
 	cls  \
 	diff \
@@ -123,7 +123,7 @@ CLEAN = \
 ################################################################
 
 PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
-	
+
 ################################################################
 # File copying: default actions                                #
 ################################################################
@@ -131,28 +131,28 @@ PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 $(SCRIPTDIR)/%: $(SUPPORTDIR)/%
 	@cp -fp $< $@
 	@chmod +x $@
-	
+
 $(TESTDIR)/%.dtx: $(SOURCEDIR)/%.dtx
 	@cp -fp $< $@
-	
+
 $(TESTDIR)/%.ins: $(SOURCEDIR)/%.ins
 	@cp -fp $< $@
-	
+
 $(TESTDIR)/%.lvt: $(TESTFILEDIR)/%.lvt
 	@cp -fp $< $@
-	
+
 $(TESTDIR)/%.tex: $(SOURCEDIR)/%.tex
 	@cp -fp $< $@	
-	
+
 $(TESTDIR)/%.tlg: $(TESTFILEDIR)/%.tlg
 	@cp -fp $< $@	
-	
+
 $(TESTDIR)/%.txt: $(SOURCEDIR)/%.txt
 	@cp -fp $< $@	
-	
+
 $(TESTAUXDIR)/%.txt: $(TESTFILEDIR)/%.txt
 	@cp -fp $< $@	
-	
+
 ################################################################
 # File copying: specials                                       #
 ################################################################
@@ -162,7 +162,7 @@ $(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 	@cp -fp $< $@	
-	
+
 ################################################################
 # File building: default actions                               #
 ################################################################
@@ -187,11 +187,11 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	for I in $(AUXFILES) ; do \
 	  rm -f $$NAME.$$I ; \
 	done
-	
+
 ################################################################
 # File building: specials                                      #
 ################################################################
-	
+
 $(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex
 	echo "Typesetting source3" ; \
 	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
@@ -207,19 +207,19 @@ $(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex
 	for I in $(AUXFILES) ; do \
 	  rm -f source3.$$I ; \
 	done
-	
+
 ################################################################
 # Internal make options                                        #
 ################################################################
 
 .PHONY = \
 	support 
-	
+
 support: \
 	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
 	$(foreach FILE,$(TESTAUX),$(TESTAUXDIR)/$(FILE)) \
 	$(foreach FILE,$(VALIDATE),$(TESTDIR)/$(FILE))
-	
+
 ################################################################
 # User make options                                            #
 ################################################################
@@ -241,9 +241,9 @@ support: \
 	sourcedoc    \
 	tds          \
 	unpack
-	
+
 alldoc: $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf) source3.pdf
-	
+
 check: \
 	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).lvt) \
 	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).tlg) \
@@ -265,7 +265,8 @@ check: \
 	    rm -f $$I.$$J ; \
 	  done ; \
 	done ; \
-	if (test -f *.diff) ; then \
+	ls *.diff ; \
+	if (test `ls *.diff |wc -l` -gt 0) ; then \
 	  echo "  Check failed with difference files" ; \
 	  for I in *.diff ; do \
 	    echo "  - " `pwd`"/$$I" ; \
@@ -273,7 +274,7 @@ check: \
 	else \
 	  echo "  All checks passed" ; \
 	fi
-	
+
 checkcmd: support unpack
 	echo "Checking commands in $(F)" ; \
 	cd $(TESTDIR) ; \
@@ -286,7 +287,7 @@ checkcmd: support unpack
 	for I in $(AUXFILES) ; do \
 	  rm -f $(F).$$I ; \
 	done
-	
+
 checkcmds: support unpack
 	echo "Checking commands" ; \
 	cd $(TESTDIR) ; \
@@ -302,7 +303,7 @@ checkcmds: support unpack
 	    rm -f $$I.$$J ; \
 	  done ; \
 	done
-	
+
 checkdoc: unpack
 	echo "Checking compilation"
 	cd $(TESTDIR) ; \
@@ -323,7 +324,7 @@ checkdoc: unpack
 	    rm -f $$I.$$J ; \
 	  done ; \
 	done 
-	
+
 checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 	echo "Running checks on $(F)"
 	cd $(TESTDIR) ; \
@@ -344,16 +345,16 @@ checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 	else \
 	  echo "  Check passed" ; \
 	fi
-	
+
 clean:
 	echo "Cleaning up"
 	rm -rf $(TESTDIR)/*.*
-	
+
 cleanall: clean
 	for I in $(AUXFILES) $(CLEAN) ; do \
 	  rm -f *.$$I ; \
 	done
-	
+
 ctan: tds
 	echo "Creating CTAN archive"
 	mkdir -p $(CTANDIR)/
@@ -375,9 +376,9 @@ ctan: tds
 	zip -ll -q -r -X $(PACKAGE).zip .
 	cd $(TESTDIR) ; \
 	cp $(CTANDIR)/$(PACKAGE).zip ./
-	
+
 doc: unpack $(TESTDIR)/$(F).pdf
-	
+
 format: \
 	$(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).dtx) \
 	$(foreach FILE,$(FORMAT),$(TESTDIR)/$(FILE)) 
@@ -390,7 +391,7 @@ format: \
 	  tex $$I &> /dev/null ; \
 	done ; \
 	pdftex -etex -ini "*latex3.ltx" 
-	
+
 localinstall: unpack
 	echo "Installing files"
 	TEXMFHOME=`kpsewhich --var-value=TEXMFHOME` ; \
@@ -404,7 +405,7 @@ localinstall: unpack
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp l3doc.ist $$TEXMFHOME/makeindex/$(PACKAGE) 
 	texhash &> /dev/null
-	
+
 savetlg: $(TESTDIR)/$(F).lvt support unpack
 	echo "Creating and copying $(F).tlg"
 	cd $(TESTDIR) ; \
@@ -416,7 +417,7 @@ savetlg: $(TESTDIR)/$(F).lvt support unpack
 	rm -f $$I.pdf ; \
 	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).tlg
 	cp -f $(TESTDIR)/$(F).tlg $(TESTFILEDIR)/$(F).tlg	
-	
+
 sourcedoc: unpack $(foreach FILE,$(INCLUDEPDF),$(TESTDIR)/$(FILE).pdf)
 
 tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).txt) sourcedoc
@@ -446,7 +447,7 @@ tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).txt) sourcedoc
 	zip -ll -q -r -X $(PACKAGE).tds.zip .
 	cd $(TESTDIR) ; \
 	cp $(TDSDIR)/$(PACKAGE).tds.zip ./
-	
+
 unpack: $(foreach FILE,$(DTX) $(UNPACK),$(TESTDIR)/$(FILE))
 	echo "Unpacking files"
 	cd $(TESTDIR) ; \
