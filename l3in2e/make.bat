@@ -6,7 +6,7 @@ rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 setlocal
 
 set AUXFILES=aux cmds glo hd idx ilg ind log lvt out tlg toc xref
-set CLEAN=cls fc gz ist pdf sty zip
+set CLEAN=cls fc fmt gz ist ltx pdf sty zip
 set CHECKCMDS=basics box calc clist doc expan file int intexpr io keys keyval msg names num precom prg prop quark seq skip tl token toks xref
 set PACKAGE=expl3
 set PATHCOPY=%PATH%
