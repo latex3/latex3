@@ -69,12 +69,12 @@ ALLPACKAGES = \
 	xor       \
 	xtheorem  \
 	xtras
-XPACKAGES   = xbase xtras
+XPACKAGES   = xbase xtras xhead
 
 ################################################################
 # File copying: default actions                                #
 ################################################################
-	
+
 $(TESTDIR)/%.txt: $(SOURCEDIR)/%.txt
 	@cp -fp $< $@	
 
