@@ -548,6 +548,103 @@ This work consists of the file  xgalley.dtx
 %</package>
 %    \end{macrocode}  
 %    
+%\subsection{Data structure management}
+%
+% For each galley level, there are a range of parameters which apply
+% and alter the appearance. Some of these apply in an ongoing sense
+% (\emph{i.e}.~they are used until something actively alters them)
+% while others apply only once (they are applied to the current 
+% paragraph, with the ongoing value then restored before the next
+% paragraph). When starting a new galley level, both the current and
+% ongoing parameters need to be saved, so that they can safely be
+% restored afterwards. 
+% 
+% For performance reasons the parameters are all stored separately,
+% rather than using property lists. This is necessary as there will
+% be lots of work for the galleys, and for once performance issues
+% rather than clarity have to take a lead. Everything is done using 
+% token lists: again, this is to save on some complexity in the
+% code, although it does make things a little less clear.
+% 
+%\begin{macro}{\c_xgalley_parameters_seq}
+% As the same parameter names come up in both the save and restore
+% steps. It is therefore easiest to create a list which can then
+% be used to apply one function to all parameters.
+%    \begin{macrocode}
+\seq_new:N \c_xgalley_parameters_seq
+\seq_put_right:Nn \c_xgalley_parameters_seq { hoffset }           % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { indentation }       % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { measure }           % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { nobreak }           % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { object }            % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { parshape }          % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { queries }           % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { vpenalty }          % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { vpenalty_user }     % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { vspace }            % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { vspace_user }       % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { whatsits_next }     % ?
+\seq_put_right:Nn \c_xgalley_parameters_seq { whatsits_previous } % ?
+%    \end{macrocode}
+%\end{macro} 
+%
+% The various storage areas can now be created \emph{en masse}.
+%    \begin{macrocode}
+\seq_map_inline:Nn \c_xgalley_parameters_seq {
+  \tl_new:c { g_xgalley_current_ #1 _tl  }
+  \tl_new:c { g_xgalley_ongoing_ #1 _tl  }
+  \tl_new:c { l_xgalley_current_ #1 _tl  }
+  \tl_new:c { l_xgalley_ongoing_ #1 _tl  }
+}
+%    \end{macrocode}
+%    
+%\begin{macro}{\xgalley_saved_par:}
+% The meaning of \cs{par} has to be saved and restored as part of
+% the parameter mechanism: remember that \TeX\ insists this is actually
+% called \cs{par}.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \xgalley_saved_par: { }
+%    \end{macrocode}
+%\end{macro}    
+%    
+%\begin{macro}{\xgalley_save_parameters:}
+%\begin{macro}[aux]{\xgalley_save_parameters_aux:n}
+%\begin{macro}{\xgalley_restore_parameters:}
+%\begin{macro}[aux]{\xgalley_restore_parameters_aux:n}
+% Saving and restoring the galley parameters is pretty obvious. The
+% restore is global as the variables used are global for reasons 
+% explained elsewhere. As well as the parameters, which can be done 
+% in a simple loop, there is also a need to worry about the current 
+% meaning of \cs{par}.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \xgalley_save_parameters: {
+  \seq_map_function:NN \c_xgalley_parameters_seq 
+    \xgalley_save_parameters_aux:n
+  \cs_set_eq:NN \xgalley_saved_par: \par
+}
+\cs_new_nopar:Npn \xgalley_save_parameters_aux:n #1 {
+  \tl_set_eq:cc { l_xgalley_current_ #1 _tl  } 
+    { g_xgalley_current_ #1 _tl  } 
+  \tl_set_eq:cc { l_xgalley_ongoing_ #1 _tl  } 
+    { g_xgalley_ongoing_ #1 _tl  } 
+}
+\cs_new_nopar:Npn \xgalley_restore_parameters: {
+  \seq_map_function:NN \c_xgalley_parameters_seq 
+    \xgalley_restore_parameters_aux:n
+  \cs_gset_eq:NN \par \xgalley_saved_par:
+}
+\cs_new_nopar:Npn \xgalley_restore_parameters_aux:n #1 {
+  \tl_gset_eq:cc { g_xgalley_current_ #1 _tl  } 
+    { l_xgalley_current_ #1 _tl  } 
+  \tl_gset_eq:cc { g_xgalley_ongoing_ #1 _tl  } 
+    { l_xgalley_ongoing_ #1 _tl  } 
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%\end{macro}
+%    
 %\subsection{Support functions: layer one (external dimensions)}
 %
 %\begin{macro}{\l_xgalley_total_width_dim}
@@ -1182,20 +1279,22 @@ This work consists of the file  xgalley.dtx
   }
 %    \end{macrocode}
 %    
+% The \texttt{linebreak} template just passes everything through to 
+% TeX.   
 %    \begin{macrocode}
 \DeclareTemplateCode { linebreak }{ std } { 0 } {
-  pretolerance         = \tex_pretolerance:D         ,
-  tolerance            = \tex_tolerance:D            ,
-  linepenalty          = \tex_linepenalty:D          ,
-  binoppenalty         = \tex_binoppenalty:D         ,
-  relpenalty           = \tex_relpenalty:D           ,
-  hbadness             = \tex_hbadness:D             ,
-  adjdemerits          = \tex_adjdemerits:D          ,
-  doublehyphendemerits = \tex_doublehyphendemerits:D ,
-  finalhyphendemerits  = \tex_finalhyphendemerits:D  ,
-  hfuzz                = \tex_hfuzz:D                ,
-  emergencystretch     = \tex_emergencystretch:D     ,
-}
+    pretolerance         = \tex_pretolerance:D         ,
+    tolerance            = \tex_tolerance:D            ,
+    linepenalty          = \tex_linepenalty:D          ,
+    binoppenalty         = \tex_binoppenalty:D         ,
+    relpenalty           = \tex_relpenalty:D           ,
+    hbadness             = \tex_hbadness:D             ,
+    adjdemerits          = \tex_adjdemerits:D          ,
+    doublehyphendemerits = \tex_doublehyphendemerits:D ,
+    finalhyphendemerits  = \tex_finalhyphendemerits:D  ,
+    hfuzz                = \tex_hfuzz:D                ,
+    emergencystretch     = \tex_emergencystretch:D     ,
+  }
  { \AssignTemplateKeys }
 %</code>
 %    \end{macrocode}
