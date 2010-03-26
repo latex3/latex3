@@ -223,7 +223,7 @@ check: \
 	  pdflatex $$I.lvt &> /dev/null ; \
 	  perl $(SCRIPTDIR)/log2tlg $$I < $$I.log > $$I.new.log ; \
 	  if !(cmp -s $$I.tlg $$I.new.log) ; then \
-	    diff -c $$I.new.log $$I.tlg &> $$I.diff ; \
+	    diff -c $$I.tlg $$I.new.log &> $$I.diff ; \
 	  fi ; \
 	  for J in $(AUXFILES) lvt pdf tlg ; do \
 	    rm -f $$I.$$J ; \
