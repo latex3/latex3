@@ -571,15 +571,6 @@
 %  be zero for any trailing optional arguments.
 %\end{variable}
 %
-%\begin{variable}{
-%  \l_xparse_nested_int  |
-%  \l_xparse_nested_tl 
-%}
-%  Nested optional (delimited) arguments have to be handled by hand: 
-%  \TeX\ will not count up the token-matching. So an integer is needed
-%  to count tokens, and a token register to build up the argument.
-%\end{variable}
-%
 %\begin{variable}{\l_xparse_processor_bool}
 %  When converting an argument specification into a signature there is
 %  a need to know if there are any argument processors set up. This is
@@ -1006,18 +997,6 @@
 %    \begin{macrocode}
 \int_new:N \l_xparse_mandatory_args_int
 %    \end{macrocode}
-%\end{macro}
-%
-%\begin{macro}{\l_xparse_nested_int}
-%\begin{macro}{\l_xparse_nested_tl}
-% To deal with nested delimited arguments, the code needs to do some
-% token counting `by hand'. That requires an integer, and also a token
-% register to store the growing argument collected.
-%    \begin{macrocode}
-\int_new:N \l_xparse_nested_int
-\tl_new:N \l_xparse_nested_tl
-%    \end{macrocode}
-%\end{macro}
 %\end{macro}
 %
 %\begin{macro}{\l_xparse_processor_bool}
@@ -1761,7 +1740,7 @@
   }
   #5 \xparse_grab_arg_aux_ii:w ##1 #2 {
     \tl_if_in:nnTF {##1} {#1} {
-      \xparse_grab_D_nested:NNnNn #1 #2 {#4} #5 {##1}
+      \xparse_grab_D_nested:NNNnn #1 #2 {##1} {#4} #5
     }{ 
       \xparse_add_arg:n {##1}
       #4 \l_xparse_args_tl
@@ -1781,37 +1760,55 @@
 %\end{macro}
 %\end{macro}
 %\begin{macro}[aux]{\xparse_grab_D_nested:NNnNn}
-%\begin{macro}[aux]{\xparse_grab_D_nested_aux:n}
-% Catching nested optional arguments means more work. As \TeX\ does not
-% help here, the brackets have to be counted by hand. The code then 
-% keeps looking for closing tokens until all of the opening ones
-% are matched.
+%\begin{macro}{\_l_xparse_nesting_a_tl}
+%\begin{macro}{\_l_xparse_nesting_b_tl}
+%\begin{macro}{\_q_xparse}
+% Catching nested optional arguments means more work. The aim here is
+% to collect up each pair of optional tokens without \TeX\ helping out,
+% and without counting anything. The code above will already have
+% removed the leading opening token and a closing token, but the
+% wrong one. The aim is then to work through the the material grabbed
+% so far and divide it up on each opening token, grabbing a closing
+% token to match (thus working in pairs). Once there are no opening
+% tokens, then there is a second check to see if there are any
+% opening tokens in the second part of the argument (for things 
+% like "[][]"). Once everything has been found, the entire collected
+% material is added to the output as a single argument.
 %    \begin{macrocode}
-\cs_new:Npn \xparse_grab_D_nested:NNnNn #1#2#3#4#5 {
-  \int_zero:N \l_xparse_nested_int
-  \tl_set:Nn \l_xparse_nested_tl { #5 #2 }
-  \cs_set:Npn \xparse_grab_D_nested_aux:n ##1 {
-    \tl_if_eq:nnT {#1} {##1} {
-      \int_incr:N \l_xparse_nested_int
+\tl_new:N \_l_xparse_nesting_a_tl
+\tl_new:N \_l_xparse_nesting_b_tl
+\quark_new:N \_q_xparse
+\cs_new_protected:Npn \xparse_grab_D_nested:NNNnn #1#2#3#4#5 {
+  \tl_clear:N \_l_xparse_nesting_a_tl
+  \tl_clear:N \_l_xparse_nesting_b_tl
+  #5 \xparse_grab_arg:w ##1 #1 ##2 \_q_xparse ##3 #2
+    { 
+      \tl_put_right:Nn \_l_xparse_nesting_a_tl { ##1 #1 }
+      \tl_put_right:Nn \_l_xparse_nesting_b_tl { #2 ##3 }
+      \tl_if_in:nnTF {##2} {#1}
+        { \xparse_grab_arg:w ##2 \_q_xparse }
+        { 
+          \tl_if_in:NnTF \_l_xparse_nesting_b_tl {#1}
+            {
+              \tl_set_eq:NN \l_xparse_tmp_tl \_l_xparse_nesting_b_tl
+              \tl_clear:N \_l_xparse_nesting_b_tl
+              \exp_last_unbraced:NV \xparse_grab_arg:w
+                \l_xparse_tmp_tl \_q_xparse
+            }
+            {
+              \tl_put_right:Nn \_l_xparse_nesting_a_tl {##2}
+              \tl_put_right:NV \_l_xparse_nesting_a_tl 
+                \_l_xparse_nesting_b_tl
+              \xparse_add_arg:V \_l_xparse_nesting_a_tl
+              #4 \l_xparse_args_tl
+          }
+        }
     }
-  }
-  \tl_map_function:nN {#5} \xparse_grab_D_nested_aux:n
-  #4 \xparse_grab_arg:w ##1 #2 {
-    \int_decr:N \l_xparse_nested_int
-    \tl_map_function:nN {##1} \xparse_grab_D_nested_aux:n 
-    \intexpr_compare:nTF { \l_xparse_nested_int = \c_zero } {
-      \tl_put_right:Nn \l_xparse_nested_tl {##1}
-      \xparse_add_arg:V \l_xparse_nested_tl
-      #3 \l_xparse_args_tl
-    }{
-      \tl_put_right:Nn \l_xparse_nested_tl { ##1 #2 }
-      \xparse_grab_arg:w
-    }
-  }
-  \xparse_grab_arg:w
+  \xparse_grab_arg:w #3 \_q_xparse
 }
-\cs_new:Npn \xparse_grab_D_nested_aux:n #1 { }
 %    \end{macrocode}
+%\end{macro}
+%\end{macro}
 %\end{macro}
 %\end{macro}
 %
