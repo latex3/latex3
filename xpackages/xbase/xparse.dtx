@@ -393,39 +393,38 @@
 %  \end{verbatim}
 %\end{function}
 %
-%\begin{function}{\xparse_process_comma_split:n}
+%\begin{function}{ \ReverseBoolean }
 %  \begin{syntax}
-%    "\xparse_process_comma_split:n"
-%    ~~~~\Arg{grabbed argument}
+%    \cs{ReverseBoolean}
 %  \end{syntax}
-%  The \cs{xparse_process_comma_split:n} processor splits the 
-%  grabbed argument at the first comma, returning the two
-%  parts of the result in braces. If no comma is found, the second
-%  part of the returned value \cs{NoValue}. This function is intended to
-%  aid the processing of co-ordinate pairs. For example, to create
-%  a co-ordinate argument which raises an error if not given:
+%  This processor reverses the logic of \cs{BooleanTrue} and 
+%  \cs{BooleanFalse}, so that the the example from earlier would become 
+%  \begin{verbatim}
+%    \DeclareDocumentCommand \foo { > { \ReverseBoolean } s m } {
+%      \IfBooleanTF #1 
+%        { \DoSomethingWithoutStar {#2} }
+%        { \DoSomethingWithStar {#2} }
+%    }
+%  \end{verbatim}
+%\end{function}
+%
+%\begin{function}{ \SplitArgument }
+%  \begin{syntax}
+%    \cs{SplitArgument} \Arg{number} \Arg{token}
+%  \end{syntax}
+%  This processor splits the argument given at each occurrence of the
+%  \meta{token} up to a maximum of \meta{number} tokens (thus
+%  dividing the input into \( \text{\meta{number}} + 1 \) parts).
+%  An error is given if too many \meta{tokens} are present in the
+%  input. The processed input is places inside 
+%  \( \text{\meta{number}} + 1 \) sets of braces for further use.
 %  \begin{verbatim}
 %    \DeclareDocumentCommand \foo 
-%      { >{\xparse_process_comma_split:n} d() } {
-%        \IfNoValueTF #1 {
-%          \ERROR
-%        }{
-%          \foo_internal:nn #1
-%        }
-%      }  
+%      { > { \SplitArgument { 2 } { ; } } m } 
+%      { \InternalFunctionOfThreeArguments #1 }
 %  \end{verbatim}
-%  For the input |\foo(1.1,2.2)|, |#1| here would equal |{1.1}{2.2}|,
-%  and so \cs{foo_internal:nn} receives exactly the correct number of
-%  arguments. A similar function which takes an optional co-ordinate
-%  pair, could be created as:
-%  \begin{verbatim}
-%    \DeclareDocumentCommand \foo 
-%      { >{\xparse_process_comma_split:n} D(){0,0} } {
-%          \foo_internal:nn #1
-%      }  
-%  \end{verbatim}
-%  This illustrates that the processor function will be applied to the 
-%  default value, which therefore includes a comma.
+%  Any category code \( 13 \) (active) \meta{tokens} will be replaced
+%  before the split takes place.
 %\end{function}
 %
 %\subsection{Separating interface and implementation}
@@ -2059,21 +2058,77 @@
 %    \end{macrocode}
 %\end{macro}
 %
-%\begin{macro}{\xparse_process_comma_split:n}
-%\begin{macro}[aux]{\xparse_process_comma_split_aux:w}
-% Turns a co-ordinate pair into two separate values.
+%\begin{macro}{\_parse_bool_reverse:N}
+% A simple reversal.
 %    \begin{macrocode}
-\cs_new:Npn \xparse_process_comma_split:n #1 {
-  \tl_if_in:nnTF {#1} { , } {
-    \xparse_process_comma_split_aux:w #1 \q_stop
-  }{
-    \tl_set:Nn \ProcessedArgument { {#1} { \NoValue } }
-  }
-}
-\cs_new:Npn \xparse_process_comma_split_aux:w #1 , #2 \q_stop {
-  \tl_set:Nn \ProcessedArgument { {#1} {#2} }
+\cs_new_protected:Npn \_xparse_bool_reverse:N #1 {
+  \bool_if:NTF #1
+    { \tl_set:Nn \ProcessedArgument { \c_false_bool } }
+    { \tl_set:Nn \ProcessedArgument { \c_true_bool } }
 }
 %    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\_l_xparse_split_argument_tl}
+%\begin{macro}{\_xparse_split_argument:nnn}
+%\begin{macro}[aux]{\_xparse_split_argument_aux_i:w}
+%\begin{macro}[aux]{\_xparse_split_argument_aux_ii:w}
+%\begin{macro}[aux]{\_xparse_split_argument_aux_iii:w}
+% The idea of this function is to split the input \( n + 1 \) times using
+% a given token.
+%    \begin{macrocode}
+\tl_new:N \_l_xparse_split_argument_tl
+\group_begin:
+  \char_make_active:N \@
+  \cs_gset_protected:Npn \_xparse_split_argument:nnn #1#2#3 
+    {
+      \tl_set:Nn \_l_xparse_split_argument_tl {#3}
+      \group_begin:
+      \char_set_lccode:nn { `\@ } { `#2} 
+      \tl_to_lowercase:n
+        {
+          \group_end:
+          \tl_replace_all_in:Nnn \_l_xparse_split_argument_tl { @ } {#2}
+        }
+      \cs_set_protected:Npn \_xparse_split_argument_aux_i:w
+        ##1 \q_nil ##2 #2 ##3 \q_stop
+        {
+          \tl_put_right:Nn \ProcessedArgument { {##2} }
+          ##1 \q_nil ##3 \q_stop
+        }
+      \cs_set_protected:Npn \_xparse_split_argument_aux_iii:w
+        ##1 #2 ##2 \q_stop
+        {
+          \IfNoValueF {##1} 
+            { 
+              \msg_kernel_error:nnxxx { xparse } { split-excess-tokens }
+                { \exp_not:n {#2} } {#1} { \exp_not:n {#3} }
+            }
+        }
+      \tl_set:Nx \_l_xparse_tmp_tl
+        {
+          \prg_replicate:nn { #1 + 1 }
+            { \_xparse_split_argument_aux_i:w }
+          \_xparse_split_argument_aux_ii:w
+          \exp_not:N \q_nil
+          \exp_not:V \_l_xparse_split_argument_tl
+          \prg_replicate:nn {#1} { \exp_not:n {#2} \NoValue }
+          \exp_not:n { #2 \q_stop }
+        }  
+      \_l_xparse_tmp_tl  
+    }
+\group_end:
+\cs_set_protected:Npn \_xparse_split_argument_aux_i:w { }
+\cs_set_protected:Npn \_xparse_split_argument_aux_ii:w 
+  #1 \q_nil #2 \q_stop 
+  {
+    \tl_if_empty:nF {#2}
+      { \_xparse_split_argument_aux_iii:w #2 \q_stop } 
+  }
+\cs_set_protected:Npn \_xparse_split_argument_aux_iii:w { }
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
 %\end{macro}
 %\end{macro}
 %
@@ -2473,6 +2528,13 @@
     Argument~specification~'#1'~contains~a~processor~function:\\
     this~is~only~supported~for~standard~robust~functions.
   }
+\msg_kernel_set:nnnn { xparse } { split-excess-tokens } 
+  { Too~many~'#1'~tokens~when~trying~to~split~argument. }
+  {
+    LaTeX~was~asked~to~split~the~input~'#3'\\
+    at~each~occurrence~of~the~token~'#1',~up~to~a~maximum~of~#2~tokens.\\
+    There~were~too~many~'#1'~tokens.
+  }
 \msg_kernel_new:nnnn { xparse } { unknown-argument-type } 
   { Unknown~argument~type~'#1'~replaced~by~'m'.~Fingers~crossed~... }
   {
@@ -2681,6 +2743,20 @@
 % here although the definition will change.
 %    \begin{macrocode}
 \cs_new:Npn \ProcessedArgument { }
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\ReverseBoolean}
+% A processor to reverse the logic for token detection.
+%    \begin{macrocode}
+\cs_new_eq:NN \ReverseBoolean \_xparse_bool_reverse:N
+%    \end{macrocode}
+%\end{macro}
+%
+%\begin{macro}{\SplitArgument}
+% Another simple copy.
+%    \begin{macrocode}
+\cs_new_eq:NN \SplitArgument \_xparse_split_argument:nnn
 %    \end{macrocode}
 %\end{macro}
 %
