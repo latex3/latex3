@@ -341,6 +341,7 @@ checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 	done ; \
 	if (test -f $(F).diff) ; then \
 	  echo "  Check failed" ; \
+	  echo "  - " `pwd`"/$(F).diff" ; \
 	else \
 	  echo "  Check passed" ; \
 	fi
