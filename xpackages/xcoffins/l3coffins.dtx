@@ -30,27 +30,6 @@
 %
 % \section{Introduction}
 %
-% Note: 
-% This is now a mixture of stuff: it needs severe rationalisation when
-% we have decided what interfaces it should support (probably several
-% levels are needed).  Having done that, drastic renaming will needed.
-% 
-% A no longer so small extsnsion of David's handles.  I think that
-% everything gets expanded as needed, except possibly some of the
-% things put through calc.
-% 
-% Uses box register rather than putting the box on a list and then
-% removing it again (avoids, at least, possible unwanted messages).
-%
-% I think that I have got adjustments working and removed globally global
-% stuff so as to add extra robustness against reuse of box registers within
-% nested groups....maybe:-).
-%
-% I now see that we get arbitrary named handles for free: well done!
-% This suggests that it may be worth spending some time getting some
-% new types of coffins such as boxed/framed paras with handles on the
-% top and bottom baselines.
-%
 % Also, not yet fully done but easy and needed is (new) handles placed
 % relative to other (existing) ones.  This is not yet a single command
 % but I have now defined a lower-level tool that extracts the necessary
@@ -60,15 +39,15 @@
 % Pre-defined handles:
 %\begin{verbatim} 
 %              tl--------------tc--------------tr
-%               |lt                          rt| 
 %               |                              | 
-%               |lT___       __Tc__       ___rT| 
 %               |                              | 
-%               |lc                          rc| 
+%              Tl__          __Tc__          __Tr
 %               |                              | 
-%               |lB___       __Bc__       ___rB| 
+%              lc              cc              cr
 %               |                              | 
-%               |lb                          rb| 
+%              Bl__          __Bc__          __Br
+%               |                              | 
+%               |                              | 
 %              bl--------------bc--------------br
 %\end{verbatim}
 %  In addition, the two ends of the actual baseline are labelled: lH, rH.
@@ -78,20 +57,20 @@
 %\begin{verbatim}
 % \mathaxisht == \fontdimen...\textfont0}:
 %
-% lM\z@{(\ht#1-\dp#1)/2-\mathaxisht}%
-% rM{\wd#1}{(\ht#1-\dp#1)/2-\mathaxisht}%
+% lM\z@{(\box_ht:N#1-\box_dp:N#1)/2-\mathaxisht}%
+% rM{\box_wd:N#1}{(\box_ht:N#1-\box_dp:N#1)/2-\mathaxisht}%
 %\end{verbatim}
 %
 % But, eg, the top baseline in a vbox cannot be added to this list and
 % it will not be inherited by outer boxes in any sensible way.
-
+%
 % A `natural handle' probably has a better name: it is one that can be defined
-% for any box register and depends only on |\ht|, |\wd| and |\dp| (ie it is
+% for any box register and depends only on |\box_ht:N|, |\box_wd:N| and |\box_dp:N| (ie it is
 % defined entirely by the external attributes of the register and does
 % not depend in any other way on the contents of the box.  In a sense
 % these are the only ones we can have using standard TeX, but we fake
 % some others (see below) which are thus, definitely, `non-natural'.
-
+%
 % \section{Implementation}
 %    \begin{macrocode}
 %<*package>
@@ -101,7 +80,9 @@
 \RequirePackage{expl3}
 \GetIdInfo$Id$
   {coffins module}
-
+%    \end{macrocode}
+%    
+%    \begin{macrocode}
 \ProvidesExplPackage
   {\filename}{\filedate}{\fileversion}{\filedescription}
 %    \end{macrocode}
@@ -152,7 +133,9 @@
 %
 %
 %
-%  \begin{macro}{}
+%  \begin{macro}{\l_coffin_tmpa_tl,
+%                \l_coffin_tmpb_tl,
+%                \l_coffin_tmpc_tl}
 %    A few scratch token list registers used in many places.
 %    \begin{macrocode}
 \tl_new:N \l_coffin_tmpa_tl 
@@ -177,7 +160,7 @@
 %
 %  \begin{macro}{\_coffin_eval_handle_value:N}
 %    A temporary command that is redefined on the fly to resolve handle values
-%    that contain |##1| denoting the current coffin, e.g., |\wd ##1|.
+%    that contain |##1| denoting the current coffin, e.g., |\box_wd:N ##1|.
 %    \begin{macrocode}
 \cs_new:Npn \_coffin_eval_handle_value:N #1 {}
 %    \end{macrocode}
@@ -193,44 +176,60 @@
 % \subsection{The default set of handles}
 %
 %
-%  \begin{macro}{\l_coffin_default_handles_prop}
+%  \begin{macro}{\c_coffin_default_handles_prop}
 %    This propery list holds the default set of ``natural'' handles, i.e.,
 %    those that can be defined just through information about the box
 %    dimensions. The handles that relate to top and bottom baseline in a
 %    vertical box only get added when a coffin is filled bia a coffin
 %    operation like |\vcoffin_set:Nn|.
+%
+%    We declare this as a constant as it is supposed to stay unchanged as it
+%    is declared here:
 %    \begin{macrocode}
-\prop_new:N   \l_coffin_default_handles_prop
+\prop_new:N   \c_coffin_default_handles_prop
 %    \end{macrocode}
 %
 %    Handle names follow the following convention: vertical information comes
 %    first, followed by horizontal information, e.g., top-left = \texttt{tl}.    
 %    \begin{macrocode}
-\prop_put:Nnn \l_coffin_default_handles_prop {tl} {{0pt}    {\ht#1}}
-\prop_put:Nnn \l_coffin_default_handles_prop {tc} {{.5\wd#1}{\ht#1}}
-\prop_put:Nnn \l_coffin_default_handles_prop {tr} {{\wd#1}  {\ht#1}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {tl} {{0pt}          {\box_ht:N#1}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {tc} {{.5\box_wd:N#1}{\box_ht:N#1}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {tr} {{\box_wd:N#1}  {\box_ht:N#1}}
 %    \end{macrocode}
 %    
 %    \begin{macrocode}
-\prop_put:Nnn \l_coffin_default_handles_prop {cl} {{0pt}    {(\ht#1-\dp#1)/2}}
-\prop_put:Nnn \l_coffin_default_handles_prop {cc} {{.5\wd#1}{(\ht#1-\dp#1)/2}}
-\prop_put:Nnn \l_coffin_default_handles_prop {cr} {{\wd#1}  {(\ht#1-\dp#1)/2}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {cl} {{0pt}          {(\box_ht:N#1-\box_dp:N#1)/2}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {cc} {{.5\box_wd:N#1}{(\box_ht:N#1-\box_dp:N#1)/2}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {cr} {{\box_wd:N#1}  {(\box_ht:N#1-\box_dp:N#1)/2}}
 %    \end{macrocode}
 %    
 %    \begin{macrocode}
-\prop_put:Nnn \l_coffin_default_handles_prop {bl} {{0pt}    {-\dp#1}}
-\prop_put:Nnn \l_coffin_default_handles_prop {bc} {{.5\wd#1}{-\dp#1}}
-\prop_put:Nnn \l_coffin_default_handles_prop {br} {{\wd#1}  {-\dp#1}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {bl} {{0pt}          {-\box_dp:N#1}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {bc} {{.5\box_wd:N#1}{-\box_dp:N#1}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {br} {{\box_wd:N#1}  {-\box_dp:N#1}}
 %    \end{macrocode}
 %    
 %    The vertical position of the coffin reference point (i.e., its baseline)
 %    is denoted by the code \texttt{H}. The codes \texttt{B} for bottom
 %    baseline and \texttt{T} top baseline are added for vertical
-%    coffins. Alternativel, we could make them both equal for horizontal coffins.
+%    coffins. Alternatively, we could make them both equal for horizontal
+%    coffins.
 %    \begin{macrocode}
-\prop_put:Nnn \l_coffin_default_handles_prop {Hl} {{0pt}    {0pt}}
-\prop_put:Nnn \l_coffin_default_handles_prop {Hc} {{.5\wd#1}{0pt}}
-\prop_put:Nnn \l_coffin_default_handles_prop {Hr} {{\wd#1}  {0pt}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {Hl} {{0pt}          {0pt}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {Hc} {{.5\box_wd:N#1}{0pt}}
+\prop_put:Nnn \c_coffin_default_handles_prop
+              {Hr} {{\box_wd:N#1}  {0pt}}
 %    \end{macrocode}
 %  \end{macro}
 %
@@ -247,12 +246,15 @@
 %  \begin{macro}{\coffin_new:N}
 %    Declare a new coffin (which is a box and a property list holding
 %    information about the handles. Initially we use the natural default
-%    handles stored in |\l_coffin_default_handles_prop|.
+%    handles.
 %    \begin{macrocode}
 \cs_new:Npn \coffin_new:N #1 {
    \box_new:N #1
    \prop_new:c {l_coffin_ \tex_number:D #1 _prop}
-   \coffin_set_handles_to_default:N #1
+%    \end{macrocode}
+%    We use a global assignment here as the allocation is also global.
+%    \begin{macrocode}
+   \coffin_gset_handles_to_default:N #1
 }
 %    \end{macrocode}
 %  \end{macro}
@@ -263,7 +265,7 @@
 %
 %  \begin{macro}{\coffin_add_struture_if_needed:N}
 %
-%    Check if box has already coffin support data structure and if not add
+%    Check if a box already has a coffin support data structure and if not add
 %    it. Thus, this command turns an ordinary box into a coffin.
 %
 %    \begin{macrocode}
@@ -276,10 +278,12 @@
     {
      \prop_new:c {l_coffin_ \tex_number:D #1 _prop}
 %    \end{macrocode}
-%    The next line adds the default handles locally. Perhaps that isn't a good
-%    idea and we should do it globally here.\footnote{Issue?}
+%    The next line adds the default handles globally as the allocation of the
+%    property list is also global. Otherwise, the default setting would not
+%    survive the end of the group, but next time the test would be false as
+%    the propertylist already exist.
 %    \begin{macrocode}
-     \coffin_set_handles_to_default:N #1
+     \coffin_gset_handles_to_default:N #1
     }
 }
 %    \end{macrocode}
@@ -306,12 +310,17 @@
     {
      \prop_new:c {l_coffin_ \tex_number:D #1 _prop}
 %    \end{macrocode}
-%    The next line adds the default handles locally. Perhaps that isn't a good
-%    idea and we should do it globally here.\footnote{Issue? If okay, this
-%    code could be streamlined.}
+%    The next line adds the default handles globally as the allocation of the
+%    property list is also global. Otherwise, the default setting would not
+%    survive the end of the group, but next time the test would be false as
+%    the propertylist already exist.
 %    \begin{macrocode}
-     \coffin_set_handles_to_default:N #1
+     \coffin_gset_handles_to_default:N #1
     }
+%    \end{macrocode}
+%    But if the data structure already exists (i.e., the normal case) we do
+%    the setting locally.
+%    \begin{macrocode}
     {\coffin_set_handles_to_default:N #1 }
 }
 %    \end{macrocode}
@@ -341,11 +350,29 @@
 %
 %  \begin{macro}{\coffin_set_handles_to_default:N}
 %    Set all handles of one coffin to the default set of handles stored in
-%    property list |\l_coffin_default_handles_prop|.
+%    property list |\c_coffin_default_handles_prop|.
 %    \begin{macrocode}
 \cs_new:Npn \coffin_set_handles_to_default:N #1 {
     \prop_set_eq:cN {l_coffin_ \tex_number:D #1 _prop}
-                    \l_coffin_default_handles_prop
+                    \c_coffin_default_handles_prop
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%
+%
+%  \begin{macro}{\coffin_gset_handles_to_default:N}
+%    Set all handles of one coffin globally to the default set of handles stored in
+%    property list |\c_coffin_default_handles_prop|.
+%
+%    As the coffin data structure is supposed to be a local structure this
+%    command should only be used when turning an ordinary box into a
+%    coffin. There it is needed as the property list itself is globally allocated.
+%    \begin{macrocode}
+\cs_new:Npn \coffin_gset_handles_to_default:N #1 {
+    \prop_gset_eq:cN {l_coffin_ \tex_number:D #1 _prop}
+                    \c_coffin_default_handles_prop
 }
 %    \end{macrocode}
 %  \end{macro}
@@ -433,7 +460,7 @@
 %  \end{macro}
 %
 %
-
+%
 %  \begin{macro}{\coffin_set_handle_safe:Nnnn}
 %    This command provides a safe way to add or update a handle of some
 %    coffin. In the handle values the commands |\width|, |\height|, and
@@ -444,7 +471,7 @@
 %    \Argitem{1} reference to coffin
 %    \Argitem{2} handle name
 %    \Argitem{3} x-value of handle (can contain |##1| to refer to the coffin
-%    dimensions, e.g., |.2\wd ##1| half the width of the coffin.
+%    dimensions, e.g., |.2\box_wd:N ##1| half the width of the coffin.
 %    \Argitem{4} y-value of handle 
 %    \end{Arglist}
 %
@@ -458,14 +485,14 @@
 %    Provide definitions for |\width| etc.\ for use in  the
 %    coordinates.
 %
-%    Potential issue: this currently adds the box register, e.g., |\wd \aaa|
-%    and not something like a more generic |\wd ##1|. So at least something
+%    Potential issue: this currently adds the box register, e.g., |\box_wd:N \aaa|
+%    and not something like a more generic |\box_wd:N ##1|. So at least something
 %    like copying coffins wouldn't quite work. So it might be better to use
 %    |##1| instead.\footnote{Issue?}
 %    \begin{macrocode}
-  \cs_set:Npn\width{\wd#1}
-  \cs_set:Npn\height{\ht#1}
-  \cs_set:Npn\depth{\dp#1}
+  \cs_set:Npn\width{\box_wd:N#1}
+  \cs_set:Npn\height{\box_ht:N#1}
+  \cs_set:Npn\depth{\box_dp:N#1}
 %    \end{macrocode}
 %    
 %    Potential issue: as we have no control over the data passed to us as
@@ -490,7 +517,6 @@
   \cs_undefine:N \height
   \cs_undefine:N \depth
 }
-
 %    \end{macrocode}
 %  \end{macro}
 %
@@ -513,7 +539,7 @@
 %    \Argitem{1} reference to coffin
 %    \Argitem{2} handle name
 %    \Argitem{3} x-shift of handle (can contain |##1| to refer to the coffin
-%    dimensions, e.g., |.2\wd ##1| half the width of the coffin.
+%    dimensions, e.g., |.2\box_wd:N ##1| half the width of the coffin.
 %    \Argitem{4} y-shift of handle 
 %    \end{Arglist}
 %
@@ -526,9 +552,9 @@
 %    \end{macrocode}
 %    
 %    \begin{macrocode}
-  \cs_set:Npn\width{\wd#1}
-  \cs_set:Npn\height{\ht#1}
-  \cs_set:Npn\depth{\dp#1}
+  \cs_set:Npn\width {\box_wd:N#1}
+  \cs_set:Npn\height{\box_ht:N#1}
+  \cs_set:Npn\depth {\box_dp:N#1}
 %    \end{macrocode}
 %    Retrieve the handle and if non-existant signal an error. We do this on
 %    foot here instead of using |\coffin_get_handle_coordinates:NnN| as we are
@@ -638,15 +664,15 @@
 %    \begin{macrocode}
      {
       \exp_after:wN
-	 \cs_set:Npn
+         \cs_set:Npn
       \exp_after:wN 
-	  \_coffin_eval_handle_value:N
+          \_coffin_eval_handle_value:N
       \exp_after:wN 
-	  ##
+          ##
       \exp_after:wN
-	   1
+           1
       \exp_after:wN
-	  { #3 }
+          { #3 }
 %    \end{macrocode}
 %    Now we reset the value to make any box dimension dependencies explicit
 %    (i.e., replace |##1| with a reference to the coffin name in |#1|).
@@ -662,17 +688,36 @@
 }
 %    \end{macrocode}
 %  \end{macro}
-
-
-
+%
+%
+%
+%
+%
+%
 %
 %
 % \subsection{Setting the content of a coffin}
 %
 %
-
+%
+%  \begin{macro}{\_latex_sbox:Nn}
+%    Save away the original \LaTeX{} definition to make our life easier for now.
+%    \begin{macrocode}
+\cs_new_eq:NN \_latex_sbox:Nn \sbox
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%
 %  \begin{macro}{\hcoffin_set:Nn}
 %    
+%    
+%    Arguments:
+%    \begin{Arglist}
+%    \Argitem{1} 
+%    \Argitem{2} 
+%    \end{Arglist}
+%
 %    \begin{macrocode}
 \cs_set:Npn \hcoffin_set:Nn #1 {
 %    \end{macrocode}
@@ -688,19 +733,22 @@
 }
 %    \end{macrocode}
 %  \end{macro}
-
-
-%  \begin{macro}{\_latex_sbox:Nn}
-%    Save away the original \LaTeX{} definition.
-%    \begin{macrocode}
-\cs_new_eq:NN \_latex_sbox:Nn \sbox
-%    \end{macrocode}
-%  \end{macro}
+%
+%
+%
 %
 %
 %
 %  \begin{macro}{\vcoffin_set:Nnn}
 %    
+%    
+%    Arguments:
+%    \begin{Arglist}
+%    \Argitem{1} 
+%    \Argitem{2} 
+%    \Argitem{3} 
+%    \end{Arglist}
+%
 %    \begin{macrocode}
 \cs_new:Npn\vcoffin_set:Nnn #1#2#3 {
 %    \end{macrocode}
@@ -721,13 +769,13 @@
 %    new height:
 %    \begin{macrocode}
    \vbox_set_top:Nn \l_coffin_tmp_box {\vbox_unpack:N #1}
-   \dim_set:Nn \l_coffin_tmpa_dim {\ht #1 - \ht \l_coffin_tmp_box } 
+   \dim_set:Nn \l_coffin_tmpa_dim {\box_ht:N #1 - \box_ht:N \l_coffin_tmp_box } 
 %    \end{macrocode}
 %    We then use the new value to set up the \texttt{T} codes.
 %    \begin{macrocode}
    \tl_set:Nx \l_coffin_tmpa_tl { {0pt}         {\dim_use:N \l_coffin_tmpa_dim} }
-   \tl_set:Nx \l_coffin_tmpb_tl { {\wd ####1}   {\dim_use:N \l_coffin_tmpa_dim} }
-   \tl_set:Nx \l_coffin_tmpc_tl { {.5\wd ####1} {\dim_use:N \l_coffin_tmpa_dim} }
+   \tl_set:Nx \l_coffin_tmpb_tl { {\box_wd:N ####1}   {\dim_use:N \l_coffin_tmpa_dim} }
+   \tl_set:Nx \l_coffin_tmpc_tl { {.5\box_wd:N ####1} {\dim_use:N \l_coffin_tmpa_dim} }
 %    \end{macrocode}
 %    
 %    \begin{macrocode}
@@ -738,8 +786,8 @@
 %    The \texttt{B} codes are simpler since it is the same as \texttt{H}.
 %    \begin{macrocode}
    \coffin_set_handle_coordinates:Nnn #1 {Bl} {{0pt}      {0pt}}
-   \coffin_set_handle_coordinates:Nnn #1 {Bc} {{.5\wd ##1}{0pt}}
-   \coffin_set_handle_coordinates:Nnn #1 {Br} {{\wd ##1}  {0pt}}
+   \coffin_set_handle_coordinates:Nnn #1 {Bc} {{.5\box_wd:N ##1}{0pt}}
+   \coffin_set_handle_coordinates:Nnn #1 {Br} {{\box_wd:N ##1}  {0pt}}
 }
 %    \end{macrocode}
 %  \end{macro}
@@ -844,7 +892,7 @@
 %    us back to the reference point of box-A.
 %    \begin{macrocode}
       \box_use:N #5
-      \tex_kern:D -\wd #5 
+      \tex_kern:D -\box_wd:N #5 
 %    \end{macrocode}
 %    Then move horizontally by the calulated x-offset and place box-B with its
 %    reference point raised by the calulated y-offset. (The two horizontal
@@ -956,7 +1004,7 @@
 %    \begin{macrocode}
 \cs_new:Npn \coffin_save_handle_values_with_offset:NnnnnnN #1#2#3#4 #5#6 #7 {
 %    \end{macrocode}
-%    The x-value of the handle might involve a formula (such as |\wd ##1|), so
+%    The x-value of the handle might involve a formula (such as |\box_wd:N ##1|), so
 %    to calculate the numerical value we have to resolve this. This is done by
 %    defining a scratch command with one argument (receiving the box-A) and
 %    the handle ``formula'' as replacement text---if that replacement text is
@@ -1009,10 +1057,10 @@
 }
 %    \end{macrocode}
 %  \end{macro}
-
-
-
-
+%
+%
+%
+%
 %  \begin{macro}{\coffin_align_two_coffins:NnnnNnN}
 %    
 %    This helper command alligns two coffins at their handle with a specific
@@ -1054,10 +1102,10 @@
 }
 %    \end{macrocode}
 %  \end{macro}
-
-
-
-
+%
+%
+%
+%
 %  \begin{macro}{\coffin_align_clip_save:NnNnnnN}
 %    
 %    This commmand aligns two coffins at their handles with a certain offset
@@ -1219,7 +1267,7 @@
                   #1 {0pt}{0pt} #7
            \coffin_save_handle_values_with_offset:NnnN
                   #3 \l_coffin_offset_x_dim
-    		     \l_coffin_offset_y_dim #7
+                     \l_coffin_offset_y_dim #7
          }
 %    \end{macrocode}
 %    At this point  we could free up the coffin/box content of box-B (not done
@@ -1327,7 +1375,7 @@
 %    \end{macrocode}
 %  \end{macro}
 %
-
+%
 %  \begin{macro}{\coffin_typeset:Nnnn}
 %    This command typeset a coffin aligning one handle of it with the current reference
 %    point on the page with a certain x/y-offset. 
@@ -1454,5 +1502,5 @@
 %
 % \Finale
 %
-
+%
 \endinput
