@@ -371,6 +371,9 @@ ctan: tds
 	  cp -f $$I.txt $(CTANDIR)/; \
 	  mv $(CTANDIR)/$$I.txt $(CTANDIR)/$$I ; \
 	done ; \
+	for I in $(UNPACK); do \
+	  cp -f $$I $(CTANDIR)/ ; \
+	done ; \
 	cp $(PACKAGE).tds.zip $(CTANDIR)/ 
 	cd $(CTANDIR) ; \
 	zip -ll -q -r -X $(PACKAGE).zip .
