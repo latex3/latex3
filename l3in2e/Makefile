@@ -377,7 +377,6 @@ ctan: tds
 	cp $(PACKAGE).tds.zip $(CTANDIR)/ 
 	cd $(CTANDIR) ; \
 	zip -ll -q -r -X $(PACKAGE).zip .
-	cd $(TESTDIR) ; \
 	cp $(CTANDIR)/$(PACKAGE).zip ./
 
 doc: unpack $(TESTDIR)/$(F).pdf
