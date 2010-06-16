@@ -334,7 +334,7 @@ checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 	pdflatex $(F).lvt &> /dev/null ; \
 	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).new.log ; \
 	if !(cmp -s $(F).tlg $(F).new.log) ; then \
-	  diff -c $(F).new.log $(F).tlg &> $(F).diff ; \
+	  diff -c $(F).tlg $(F).new.log  &> $(F).diff ; \
 	fi ; \
 	for I in $(AUXFILES) lvt pdf tlg ; do \
 	  rm -f $(F).$$I ; \
