@@ -485,6 +485,19 @@ set XPACKAGES=xbase
     echo ! expl3 compilation failed
   )
 
+  echo.
+  echo Typesetting l3calc
+  
+  pdflatex -interaction=nonstopmode -draftmode "%PDFSETTINGS% \input l3calc.dtx" > nul
+  if not ERRORLEVEL 1 (
+    makeindex -q -s l3doc.ist -o l3calc.ind l3calc.idx > nul
+    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input l3calc.dtx" > nul
+    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input l3calc.dtx" > nul
+  ) else (
+    echo ! l3calc compilation failed
+  )
+
+
   goto :clean-int
 
 :tds
