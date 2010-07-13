@@ -10,7 +10,7 @@ set CLEAN=cls fc fmt gz ist ltx pdf sty zip
 set CHECKCMDS=basics box calc clist doc expan file int intexpr io keys keyval msg names num precom prg prop quark seq skip tl token toks xref
 set PACKAGE=expl3
 set PATHCOPY=%PATH%
-set PDF=expl3 source3
+set PDF=expl3 l3calc source3
 set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 set SCRIPTDIR=..\support
 set TDSROOT=latex\%PACKAGE%
