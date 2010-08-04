@@ -619,6 +619,53 @@
 %   Returns the type of <variable> (\texttt{tl}, \texttt{int}, etc.)
 %\end{function}
 %
+%\subsection{Mapping to variables}
+%
+%\begin{function}{ \prg_new_map_functions:Nn } 
+%  \begin{syntax}
+%    \cs{prg_new_map_functions:Nn} \meta{token} \Arg{name}
+%  \end{syntax}
+%  Creates a family of mapping functions which can be applied to 
+%  a token list, dividing the list up at each occurance of the
+%  \meta{token}. The functions defined will be
+%  \begin{itemize}
+%    \item \cs{\meta{name}_map_function:NN}
+%    \item \cs{\meta{name}_map_function:nN}
+%    \item \cs{\meta{name}_map_inline:Nn}
+%    \item \cs{\meta{name}_map_inline:nn}
+%    \item \cs{\meta{name}_map_break:}
+%  \end{itemize}
+%  Of these, the \texttt{inline} functions are not expandable but
+%  the other functions can be used in expansion contexts. The use of
+%  each function is best illustrated by the \cs{clist_map_\ldots} 
+%  family defined by \LaTeX3 itself for mapping to comma-separated
+%  lists. An error will be raised if the \meta{name} has already been
+%  used to generate a family of mapping functions. All of the
+%  definitions are created globally.
+%\end{function}
+%
+%\begin{function}{ \prg_set_map_functions:Nn } 
+%  \begin{syntax}
+%    \cs{prg_set_map_functions:Nn} \meta{token} \Arg{name}
+%  \end{syntax}
+%  Creates a family of mapping functions which can be applied to 
+%  a token list, dividing the list up at each occurance of the
+%  \meta{token}. The functions defined will be
+%  \begin{itemize}
+%    \item \cs{\meta{name}_map_function:NN}
+%    \item \cs{\meta{name}_map_function:nN}
+%    \item \cs{\meta{name}_map_inline:Nn}
+%    \item \cs{\meta{name}_map_inline:nn}
+%    \item \cs{\meta{name}_map_break:}
+%  \end{itemize}
+%  Of these, the \texttt{inline} functions are not expandable but
+%  the other functions can be used in expansion contexts. The use of
+%  each function is best illustrated by the \cs{clist_map_\ldots} 
+%  family defined by \LaTeX3 itself for mapping to comma-separated
+%  lists. Any existing defintions for the \meta{name} will be 
+%  overwritten. All of the definitions are created globally.
+%\end{function}
+%
 % \end{documentation}
 %
 % \begin{implementation}
@@ -1773,6 +1820,104 @@
 %\end{macro}
 %\end{macro}
 %\end{macro} 
+%
+%\subsection{Mapping to variables}
+%
+%\begin{macro}{\prg_new_map_functions:Nn}
+%\begin{macro}{\prg_set_map_functions:Nn}
+% The idea here is to generate all of the various mapping functions 
+% in one go. Everything is done with expansion so that the performance
+% hit is taken at definition time and not at point of use.  The inline
+% version uses a counter as this keeps things nestable, and global to
+% avoid problems with, for example, table cells.
+%    \begin{macrocode}
+\cs_new_protected:Npn \prg_new_map_functions:Nn #1#2 {
+  \cs_if_free:cTF { #2 _map_function:NN }
+    { \prg_set_map_functions:Nn #1 {#2} }
+    {
+      \msg_kernel_error:nnx { code } { csname-already-defined }
+        { \token_to_str:c { #2 _map_function:NN } }
+    }
+}
+\cs_new_protected:Npn \prg_set_map_functions:Nn #1#2 {
+  \cs_gset_nopar:cpx { #2 _map_function:NN } ##1##2
+    { 
+      \exp_not:N \tl_if_empty:NF ##1
+         {
+           \exp_not:N \exp_after:wN
+           \exp_not:c { #2 _map_function_aux:Nw }
+           \exp_not:N \exp_after:wN ##2 ##1
+           \exp_not:n { #1 \q_recursion_tail #1 \q_recursion_stop }
+         }  
+    }
+  \cs_gset:cpx { #2 _map_function:nN } ##1##2
+    { 
+      \exp_not:N \tl_if_blank:nF {##1}
+        {
+          \exp_not:c { #2 _map_function_aux:Nw } ##2 ##1
+            \exp_not:n { #1 \q_recursion_tail #1 \q_recursion_stop }
+        }
+    }  
+  \cs_gset:cpx { #2 _map_function_aux:Nw } ##1##2 #1
+    {
+      \exp_not:N \quark_if_recursion_tail_stop:n {##2}
+      ##1 {##2}
+      \exp_not:c { #2 _map_function_aux:Nw } ##1
+    }
+  \cs_if_free:cT { g_ #2 _map_inline_int }
+    { \int_new:c { g_ #2 _map_inline_int } }
+  \cs_gset_protected_nopar:cpx { #2 _map_inline:Nn } ##1##2
+    {
+      \exp_not:N \tl_if_empty:NF ##1
+        {
+          \exp_not:N \int_gincr:N \exp_not:c { g_ #2 _map_inline_int }
+          \cs_gset:cpn 
+            { 
+              #2 _map_inline_ 
+              \exp_not:N \int_use:N \exp_not:c { g_ #2 _map_inline_int }
+              :n 
+            } 
+            ####1 {##2}
+          \exp_not:N \exp_last_unbraced:NcV
+            \exp_not:c { #2 _map_function_aux:Nw }  
+            { 
+              #2 _map_inline_ 
+              \exp_not:N \int_use:N \exp_not:c { g_ #2 _map_inline_int }
+              :n 
+            }
+            ##1 \exp_not:n { #1 \q_recursion_tail #1 \q_recursion_stop }
+          \exp_not:N \int_gdecr:N \exp_not:c { g_ #2 _map_inline_int }
+        }
+    }
+  \cs_gset_protected:cpx { #2 _map_inline:nn } ##1##2 
+    {
+      \exp_not:N \tl_if_empty:nF {##1}
+        {
+          \exp_not:N \int_gincr:N \exp_not:c { g_ #2 _map_inline_int }
+          \cs_gset:cpn 
+            { 
+              #2 _map_inline_ 
+              \exp_not:N \int_use:N \exp_not:c { g_ #2 _map_inline_int }
+              :n 
+            } 
+            ####1 {##2}
+          \exp_not:N \exp_args:Nc
+            \exp_not:c { #2 _map_function_aux:Nw }  
+            { 
+              #2 _map_inline_ 
+              \exp_not:N \int_use:N \exp_not:c { g_ #2 _map_inline_int }
+              :n 
+            }
+            ##1 \exp_not:n { #1 \q_recursion_tail #1 \q_recursion_stop }
+          \exp_not:N \int_gdecr:N \exp_not:c { g_ #2 _map_inline_int }
+        }
+    }
+  \cs_gset_eq:cN { #2 _map_break: } 
+    \use_none_delimit_by_q_recursion_stop:w
+}
+%    \end{macrocode}
+%\end{macro}
+%\end{macro}
 %
 %  That's it (for now).
 %    \begin{macrocode}
