@@ -225,7 +225,7 @@ check: \
 	  if !(cmp -s $$I.tlg $$I.new.log) ; then \
 	    diff -c $$I.tlg $$I.new.log &> $$I.diff ; \
 	  fi ; \
-	  for J in $(AUXFILES) lvt pdf tlg ; do \
+	  for J in $(AUXFILES) lvt tlg ; do \
 	    rm -f $$I.$$J ; \
 	  done ; \
 	done ; \
