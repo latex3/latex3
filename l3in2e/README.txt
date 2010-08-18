@@ -2,7 +2,7 @@
    An Experimental LaTeX3 Programming Convention
    =============================================
 
-   2009/08/02
+   2010/08/18
 
 
 WHERE TO GET IT
@@ -192,11 +192,6 @@ l3msg
 
 Module providing a new mechanism to provide user messages.
 
-l3calc
-=====
-
-Module for using infix notation for the built-in register types
-(lengths and counters).
 
 l3keyval
 =====
@@ -209,6 +204,26 @@ l3keys
 Module for defining keys at a higher level than l3keyval; intended as
 the main programmer's interface for creating keyval settings and 
 arguments.
+
+l3fp
+=====
+
+Module implementing floating point arithmetic. currently under develeopment
+
+l3luatex
+====
+
+
+=====================================================================
+
+Modules around by not included in expl3.sty (may vanish)
+
+l3calc
+=====
+
+Module for using infix notation for the built-in register types
+(lengths and counters).
+
 
 =====================================================================
 
@@ -271,6 +286,18 @@ This typesets the documentation, then generates the index, and then
 requires one or two more compilations to fully resolve the cross-references.
   
 
+interface3.tex
+==============
+
+Documentation of all interfaces but omitting the implementation of the
+commands. Still a large file!
+
+    pdflatex interface3 
+    makeindex -s l3doc.ist -o interface3.ind interface3.idx
+    pdflatex interface3 
+    pdflatex interface3 
+
+
 expl3.dtx
 =========
 
@@ -280,5 +307,5 @@ explaining the basics of expl3 programming.
 
 =====================================================================
 
---- Copyright 1998 -- 2009 The LaTeX3 Project. All rights reserved ---
+--- Copyright 1998-2010 The LaTeX3 Project. All rights reserved ---
 
