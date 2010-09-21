@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3 "xor" files                            #
+# Makefile for LaTeX3 "xlists" files                            #
 ################################################################
 ################################################################
 
@@ -25,7 +25,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = xpackages/xor
+PACKAGE = xpackages/xlists
 
 ##############################################################
 # Directory structure for source files                       #
@@ -61,7 +61,7 @@ DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 TESTFILES = template-test template-test2 tprestrict-test xparse-test
 TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
-UNPACK    = xotrace.ins
+UNPACK    = xlists.ins
 
 ##############################################################
 # Files for the check systems                                #
