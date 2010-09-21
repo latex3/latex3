@@ -2,7 +2,7 @@
    An Experimental LaTeX3 Programming Convention
    =============================================
 
-   2010/08/18
+   2010/09/21
 
 
 WHERE TO GET IT
@@ -33,6 +33,21 @@ broadly stable. The syntax conventions and functions provided are now
 ready for wider use. There may still be changes to some functions, but
 these will be minor when compared to the scope of expl3.
 
+REQUIREMENTS
+------------
+
+The expl3 bundle requires the e-TeX extensions. It also uses the
+functionality of a small number of additional primitives. As a
+result, the bundle will only work with the following engines:
+
+ - pdfTeX v1.30 or later
+ - XeTeX v0.9994 or later
+ - LuaTeX v0.40 or later
+ 
+pdfTeX v1.30 was released in 2005, and so any recent TeX distribution
+will support expl3. Both XeTeX and LuaTeX have developed more
+actively over the past few years, and for this reason only recent 
+releases of these engines are supported.
 
 THE GUILTY PERSONS
 ------------------
