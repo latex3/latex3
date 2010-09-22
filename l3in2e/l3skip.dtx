@@ -408,6 +408,36 @@
 % \end{texnote}
 % \end{function}
 %
+%\begin{function}{
+%  \dim_compare_p:n / (EXP) |
+%  \dim_compare:n / (TF) (EXP)
+%}
+% \begin{syntax}
+%    "\dim_compare_p:n" \Arg{<dim expr.\ 1> <rel> <dim expr.\ 2>}
+%    "\dim_compare:nTF" \Arg{<dim expr.\ 1> <rel> <dim expr.\ 2>}
+%    ~~~~<true code> <false code>
+% \end{syntax}
+% Evaluates <dim expr.\ 1> and <dim expr.\ 2> and then carries out a
+% comparison of the resulting lengths using C-like operators:
+% \begin{center}
+%   \begin{tabular}{ll@{\hspace{2cm}}ll}
+%     Less than & "<" & Less than or equal & "<=" \\
+%     Greater than & ">" & Greater than or equal  &  ">=" \\
+%     Equal &  "==" or "=" & Not equal & "!="
+%   \end{tabular}
+% \end{center}
+% Based on the result of the comparison either the <true code>
+% or <false code> is executed. Both dimension expressions are evaluated
+% fully in the process. Note the syntax, which allows natural input in
+% the style of
+% \begin{quote}
+%    |\dim_compare_p:n {2.54cm != \l_tmpb_int}|
+% \end{quote}
+% A single equals sign is available as comparator (in addition to those
+% familiar to C users) as standard \TeX\ practice is to compare
+% values using \texttt{=}.
+% \end{function}
+%
 % \begin{function}{ \dim_compare:nNn / (TF)(EXP) | \dim_compare_p:nNn / (EXP)}
 % \begin{syntax}
 %   "\dim_compare:nNnTF"   \Arg{dim~expr} <rel> \Arg{dim~expr}
@@ -420,6 +450,10 @@
 % \dim_compare:nNnTF \l_temp_dim < \c_zero_skip {negative}{non-negative}
 % \end{verbatim}
 % you can safely omit the braces.
+%
+% These functions are faster than the \texttt{n}
+% variants described above but do not support an extended set
+% of relational operators.
 % \begin{texnote}
 % This is the \TeX{} primitive \tn{ifdim} turned into a function.
 % \end{texnote}
@@ -1018,6 +1052,114 @@
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
+%
+% \begin{macro}{\dim_compare_p:n}
+% \begin{macro}[TF]{\dim_compare:n}
+% [This code plus comments lifted directly from the |\intexpr_compare:nTF| function.]
+% Some things we need for the code below.
+% TODO: normalise names and things.
+%    \begin{macrocode}
+\cs_set_eq:NN \dim_value:w \tex_number:D
+\cs_set_eq:NN \dim_eval:w \etex_dimexpr:D
+\cs_set_eq:NN \if_dim_compare:w \if_dim:w
+\cs_set_eq:NN \dim_eval_end: \scan_stop:
+%    \end{macrocode}
+% Comparison tests using a simple syntax where only one set of braces
+% is required and additional operators such as "!=" and ">=" are
+% supported. First some notes on the idea behind this. We wish to
+% support writing code like
+% \begin{verbatim}
+% \dim_compare_p:n { 5 + \l_tmpa_dim != 4 - \l_tmpb_dim }
+% \end{verbatim}
+% In other words, we want to somehow add the missing "\dim_eval:w"
+% where required.  We can start evaluating from the left using
+% "\dim:w", and we know that since the relation symbols "<", ">",
+% "=" and "!" are not allowed in such expressions, they will terminate
+% the expression. Therefore, we first let \TeX\ evaluate this left
+% hand side of the (in)equality.
+%    \begin{macrocode}
+\prg_new_conditional:Npnn \dim_compare:n #1 {p,TF,T,F} {
+  \exp_after:wN \dim_compare_auxi:w
+    \dim_eval:w #1 \q_stop
+}
+%    \end{macrocode}
+% Then the next step is to figure out which relation we should use, so
+% we have to somehow get rid of the first evaluation so that we can
+% see what stopped it. "\tex_romannumeral:D" is handy here since its
+% expansion given a non-positive number is \m{null}. We therefore
+% simply check if the first token of the left hand side evaluation is
+% a minus. If not, we insert it and issue "\tex_romannumeral:D",
+% thereby ridding us of the left hand side evaluation. We do however
+% save it for later.
+%    \begin{macrocode}
+\cs_new:Npn \dim_compare_auxi:w #1#2 \q_stop {
+  \exp_after:wN \dim_compare_auxii:w \tex_romannumeral:D
+  \if:w #1- \else: -\fi: #1#2 \q_mark #1#2 \q_stop
+}
+%    \end{macrocode}
+% This leaves the first relation symbol in front and assuming the
+% right hand side has been input, at least one other token as well. We
+% support the following forms: |=|, |<|, |>| and the extended |!=|,
+% |==|, |<=| and |>=|. All the extended forms have an extra |=| so we
+% check if that is present as well. Then use specific function to
+% perform the test.
+%    \begin{macrocode}
+\cs_new:Npn \dim_compare_auxii:w #1#2#3\q_mark{
+  \use:c{
+      dim_compare_ #1 \if_meaning:w =#2 = \fi:
+    :w}
+}
+%    \end{macrocode}
+% The actual comparisons are then simple function calls, using the
+% relation as delimiter for a delimited argument.
+% Equality is easy:
+%    \begin{macrocode}
+\cs_new:cpn {dim_compare_=:w} #1 = #2 \q_stop {
+  \if_dim_compare:w #1 = \dim_eval:w #2 \dim_eval_end:
+    \prg_return_true: \else: \prg_return_false: \fi:
+}
+%    \end{macrocode}
+% So is the one using |==| -- we just have to use |==| in the
+% parameter text.
+%    \begin{macrocode}
+\cs_new:cpn {dim_compare_==:w} #1 == #2 \q_stop {
+  \if_dim_compare:w #1 = \dim_eval:w #2 \dim_eval_end:
+  \prg_return_true: \else: \prg_return_false: \fi:
+}
+%    \end{macrocode}
+% Not equal is just about reversing the truth value.
+%    \begin{macrocode}
+\cs_new:cpn {dim_compare_!=:w} #1 != #2 \q_stop {
+  \if_dim_compare:w #1 = \dim_eval:w #2 \dim_eval_end:
+  \prg_return_false: \else: \prg_return_true: \fi:
+}
+%    \end{macrocode}
+% Less than and greater than are also straight forward.
+%    \begin{macrocode}
+\cs_new:cpn {dim_compare_<:w} #1 < #2 \q_stop {
+  \if_dim_compare:w #1 < \dim_eval:w #2 \dim_eval_end:
+  \prg_return_true: \else: \prg_return_false: \fi:
+}
+\cs_new:cpn {dim_compare_>:w} #1 > #2 \q_stop {
+  \if_dim_compare:w #1 > \dim_eval:w #2 \dim_eval_end:
+  \prg_return_true: \else: \prg_return_false: \fi:
+}
+%    \end{macrocode}
+% The less than or equal operation is just the opposite of the greater
+% than operation. Vice versa for less than or equal.
+%    \begin{macrocode}
+\cs_new:cpn {dim_compare_<=:w} #1 <= #2 \q_stop {
+  \if_dim_compare:w #1 > \dim_eval:w #2 \dim_eval_end:
+  \prg_return_false: \else: \prg_return_true: \fi:
+}
+\cs_new:cpn {dim_compare_>=:w} #1 >= #2 \q_stop {
+  \if_dim_compare:w #1 < \dim_eval:w #2 \dim_eval_end:
+  \prg_return_false: \else: \prg_return_true: \fi:
+}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 %
 % \begin{macro}{\dim_while_do:nNnn}
 % \begin{macro}{\dim_until_do:nNnn}
