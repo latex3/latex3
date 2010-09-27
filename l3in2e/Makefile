@@ -57,8 +57,9 @@ TESTAUXDIR := $(shell test -d $(TESTDIR)/testfiles || mkdir -p $(TESTDIR)/testfi
 # Directory structure for making zip files                   #
 ##############################################################
 
-CTANDIR := $(TESTDIR)/ctan/$(PACKAGE)
-TDSDIR  := $(TESTDIR)/tds
+CTANROOT := $(TESTDIR)/ctan
+CTANDIR  := $(TESTDIR)/ctan/$(PACKAGE)
+TDSDIR   := $(TESTDIR)/tds
 
 ##############################################################
 # Data for local installation and TDS construction           #
@@ -374,10 +375,10 @@ ctan: tds
 	for I in $(UNPACK); do \
 	  cp -f $$I $(CTANDIR)/ ; \
 	done ; \
-	cp $(PACKAGE).tds.zip $(CTANDIR)/ 
-	cd $(CTANDIR) ; \
+	cp $(PACKAGE).tds.zip $(CTANROOT)/ 
+	cd $(CTANROOT) ; \
 	zip -ll -q -r -X $(PACKAGE).zip .
-	cp $(CTANDIR)/$(PACKAGE).zip ./
+	cp $(CTANROOT)/$(PACKAGE).zip ./
 
 doc: unpack $(TESTDIR)/$(F).pdf
 
