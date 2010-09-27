@@ -44,8 +44,9 @@ TESTDIR    := $(shell test -d $(L3TESTDIR)/test/$(PACKAGE) || mkdir -p $(L3TESTD
 # Directory structure for making zip files                   #
 ##############################################################
 
-CTANDIR := $(TESTDIR)/ctan/$(PACKAGE)
-TDSDIR  := $(TESTDIR)/tds
+CTANROOT := $(TESTDIR)/ctan
+CTANDIR  := $(TESTDIR)/ctan/$(PACKAGE)
+TDSDIR   := $(TESTDIR)/tds
 
 ##############################################################
 # Data for local installation and TDS construction           #
@@ -122,13 +123,12 @@ ctan: tds
 	  cp -f *.tex $(CTANDIR)/ ; \
 	done
 	cd $(TESTDIR) ; \
-	cp $(PACKAGE).tds.zip $(CTANDIR)/ ; \
+	cp $(PACKAGE).tds.zip $(CTANROOT)/ ; \
 	cp -f readme-ctan.txt $(CTANDIR)/ ; \
 	mv $(CTANDIR)/readme-ctan.txt $(CTANDIR)/README ; \
-	cd $(CTANDIR) ; \
+	cd $(CTANROOT) ; \
 	zip -ll -q -r -X $(PACKAGE).zip .
-	cd $(TESTDIR) ; \
-	cp $(CTANDIR)/$(PACKAGE).zip ./
+	cp $(CTANROOT)/$(PACKAGE).zip ./
 
 doc:
 	for I in $(XPACKAGES) ; do \
