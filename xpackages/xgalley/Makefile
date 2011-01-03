@@ -95,7 +95,6 @@ CLEAN = \
 	diff \
 	fmt  \
 	gz   \
-	ins  \
 	ist  \
 	ltx  \
 	pdf  \
