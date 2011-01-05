@@ -201,7 +201,7 @@ support: \
 
 clean:
 	echo "Cleaning up"
-	rm -rf $(TESTDIR)/*.*
+	rm -rf $(TESTDIR)/*
 
 cleanall: clean
 	for I in $(AUXFILES) $(CLEAN) ; do \
@@ -260,7 +260,7 @@ checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 	  echo "  Check passed" ; \
 	fi
 
-doc: $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf)
+doc: unpack $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf)
 
 localinstall: unpack
 	echo "Installing files"

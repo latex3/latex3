@@ -70,7 +70,7 @@ ALLPACKAGES = \
 	xor       \
 	xtheorem  \
 	xtras
-XPACKAGES   = xbase xtras xhead
+XPACKAGES   = xbase xcoffins xtras xhead
 
 ################################################################
 # File copying: default actions                                #
@@ -102,7 +102,7 @@ check:
 
 clean:
 	echo "Cleaning up"
-	rm -rf $(TESTDIR)/*.*
+	rm -rf $(L3TESTDIR)/*
 
 cleanall: clean
 	for I in $(XPACKAGES) ; do \
