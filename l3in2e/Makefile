@@ -349,7 +349,7 @@ checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 
 clean:
 	echo "Cleaning up"
-	rm -rf $(TESTDIR)/*.*
+	rm -rf $(L3TESTDIR)/*
 
 cleanall: clean
 	for I in $(AUXFILES) $(CLEAN) ; do \
