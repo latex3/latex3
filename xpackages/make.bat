@@ -6,7 +6,7 @@ rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 setlocal
 
 set CLEAN=zip
-set CTAN=xbase xtras
+set CTAN=xbase xcoffins xhead xtras
 set PACKAGE=xpackages
 set PATHCOPY=%PATH%
 set TDSROOT=latex\%PACKAGE%
