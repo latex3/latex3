@@ -66,7 +66,7 @@ TDSDIR   := $(TESTDIR)/tds
 ##############################################################
 
 INCLUDEPDF  := $(PACKAGE) source3 l3calc
-INCLUDETEX  := source3
+INCLUDETEX  := interface3 source3 source3body
 INCLUDETXT  := README
 PACKAGEROOT := latex/$(PACKAGE)
 
@@ -193,7 +193,7 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 # File building: specials                                      #
 ################################################################
 
-$(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex
+$(TESTDIR)/source3.pdf: $(TESTDIR)/interface3.tex $(TESTDIR)/source3.tex $(TESTDIR)/source3body.tex
 	echo "Typesetting source3" ; \
 	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
 	if [ $$? = 0 ] ; then  \

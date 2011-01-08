@@ -15,7 +15,7 @@ set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 set SCRIPTDIR=..\support
 set TDSROOT=latex\%PACKAGE%
 set TESTDIR=testfiles
-set TEX=source3
+set TEX=interface3 source3 source3body
 set TXT=README
 set UNPACK=l3.ins l3doc.dtx
 set VALIDATE=..\validate
