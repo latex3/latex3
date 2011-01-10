@@ -193,7 +193,7 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 # File building: specials                                      #
 ################################################################
 
-$(TESTDIR)/source3.pdf: $(TESTDIR)/interface3.tex $(TESTDIR)/source3.tex $(TESTDIR)/source3body.tex
+$(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex $(TESTDIR)/source3body.tex $(TESTDIR)/interface3.tex 
 	echo "Typesetting source3" ; \
 	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
 	if [ $$? = 0 ] ; then  \
