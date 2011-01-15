@@ -105,7 +105,7 @@ CLEAN = \
 # Document settings                                            #
 ################################################################
 
-PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
+PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2 \AtBeginDocument{\DisableImplementation}
 
 ################################################################
 # File copying: default actions                                #

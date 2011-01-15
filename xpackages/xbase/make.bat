@@ -9,7 +9,7 @@ set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
 set CLEAN=fc gz pdf sty
 set EXPL3DIR=..\..\l3in2e
 set PACKAGE=xbase
-set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
+set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2 \AtBeginDocument{\DisableImplementation}
 set SCRIPTDIR=..\..\support
 set TEST=template-test template-test2 tprestrict-test xparse-test
 set TESTDIR=testfiles
