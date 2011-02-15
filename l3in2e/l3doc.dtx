@@ -306,6 +306,23 @@ Do not distribute a modified version of this file.
 % % \end{macro}
 % \end{verbatim}
 %
+% \DescribeMacro{\testfile}
+% Within a "macro" environment, it is a good idea to mark whether a unit test has
+% been created for the commands it defines. This is indicated by writing \cs{testfile}\marg{filename}
+% anywhere within "\begin{macro}" \dots "\end{macro}".
+% The first time a test file is referred to its filename will be printed in the documentation;
+% subsequent referals will be noted by \textsf{l3doc} but not printed.
+%
+% If the class option "checktest" is enabled, then it is an \emph{error} to have a
+% "macro" environment without a \cs{testfile} file. This is intended for large packages such
+% as \pkg{expl3} that should have absolutely comprehensive tests suites and whose authors
+% may not always be as sharp at adding new tests with new code as they should be.
+%
+% \DescribeEnv{variable}
+% When documenting variable definitions, use the "variable" environment instead.
+% It will, here, behave identically to the "macro" environment, except that if the class
+% option "checktest" is enabled, variables will not be required to have a test file.
+%
 % \DescribeEnv{arguments}
 % Within a \env{macro} environment, you may use the \env{arguments} environment
 % to describe the arguments taken by the function(s). It behaves
@@ -418,6 +435,7 @@ Do not distribute a modified version of this file.
 \bool_new:N \g_doc_full_bool
 \bool_new:N \g_doc_lmodern_bool
 \bool_new:N \g_doc_checkfunc_bool
+\bool_new:N \g_doc_checktest_bool
 %    \end{macrocode}
 %
 %    \begin{macrocode}
@@ -431,13 +449,18 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 %
 %    \begin{macrocode}
+\DeclareOption{checktest}{ \bool_set_true:N \g_doc_checktest_bool }
+\DeclareOption{nochecktest}{ \bool_set_false:N \g_doc_checktest_bool }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
 \DeclareOption{cm-default}{ \bool_set_false:N \g_doc_lmodern_bool }
 \DeclareOption{lm-default}{ \bool_set_true:N \g_doc_lmodern_bool }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
 \DeclareOption*{\PassOptionsToClass{\CurrentOption}{article}}
-\ExecuteOptions{full,a4paper,nocheck,lm-default}
+\ExecuteOptions{full,a4paper,nocheck,nochecktest,lm-default}
 %    \end{macrocode}
 %
 % Input a local configuration file, if it exists.
@@ -462,7 +485,7 @@ Do not distribute a modified version of this file.
 %    \begin{macrocode}
 \LoadClass{article}
 \RequirePackage{doc}
-\RequirePackage{array,alphalph,booktabs,color,fixltx2e,enumitem,textcomp,trace,underscore}
+\RequirePackage{array,alphalph,booktabs,color,fixltx2e,enumitem,textcomp,trace,underscore,xparse}
 %    \end{macrocode}
 %
 %    \begin{macrocode}
@@ -625,13 +648,19 @@ Do not distribute a modified version of this file.
 % \begin{macro}{\EnableDocumentation,\EnableImplementation}
 % \begin{macro}{\DisableDocumentation,\DisableImplementation}
 %    \begin{macrocode}
-\newenvironment{documentation}{}{}
-\newenvironment{implementation}{}{}
+\cs_new:Npn \doc_implementation: {
+  \cs_set:Npn \variable {\macro[var]}
+}
+\cs_new:Npn \doc_docu: {
+  \cs_set_eq:NN \variable \function
+}
+\newenvironment{documentation}{\doc_docu:}{}
+\newenvironment{implementation}{\doc_implementation:}{}
 \newcommand\EnableDocumentation{%
-  \renewenvironment{documentation}{}{}%
+  \renewenvironment{documentation}{\doc_docu:}{}%
 }
 \newcommand\EnableImplementation{%
-  \renewenvironment{implementation}{}{}%
+  \renewenvironment{implementation}{\doc_implementation:}{}%
 }
 \newcommand\DisableDocumentation{%
   \cs_set_eq:NN \documentation \comment
@@ -686,10 +715,6 @@ Do not distribute a modified version of this file.
     \function_aux:n
 }
 \group_end:
-%    \end{macrocode}
-% And the "variable" function is exactly the same for now:
-%    \begin{macrocode}
-\cs_set_eq:NN \variable \function
 %    \end{macrocode}
 %
 % \begin{macro}{\function_aux:n}
@@ -892,11 +917,16 @@ Do not distribute a modified version of this file.
 \renewcommand \macro [1][] {
   \bool_set_false:N \l_doc_macro_aux_bool
   \bool_set_false:N \l_doc_macro_TF_bool
+  \bool_set_false:N \l_doc_macro_var_bool
+  \bool_set_false:N \l_doc_tested_bool
+  
   \cs_set_eq:NN \doc_macroname_prefix:n \use:n
   \cs_set_eq:NN \doc_macroname_suffix: \c_empty_tl
-
+  
   \cs_set_nopar:Npn \KV_key_no_value_elt:n ##1 { \use:c {doc_macro_opt_##1:} }
   \KV_parse_space_removal_sanitize:n {#1}
+  
+  \cs_set_eq:NN \testfile \doc_print_testfile:w
 
   \group_begin:
     \MakePrivateLetters
@@ -911,6 +941,7 @@ Do not distribute a modified version of this file.
 %    \begin{macrocode}
 \cs_new_nopar:Npn \doc_macro_aux:n #1 {
   \group_end:
+  \cs_set:Npn \l_doc_macro_input_clist {#1}
   \clist_map_inline:nn {#1} { \doc_macro_single {##1} }
 }
 %    \end{macrocode}
@@ -918,8 +949,11 @@ Do not distribute a modified version of this file.
 %    \begin{macrocode}
 \bool_new:N \l_doc_macro_aux_bool
 \bool_new:N \l_doc_macro_TF_bool
-\cs_set_nopar:Npn \doc_macro_opt_aux: { \bool_set_true:N \l_doc_macro_aux_bool }
-\cs_set_nopar:Npn \doc_macro_opt_TF:  { \bool_set_true:N \l_doc_macro_TF_bool }
+\bool_new:N \l_doc_macro_var_bool
+\bool_new:N \l_doc_macro_tested_bool
+\cs_set_nopar:Npn \doc_macro_opt_aux: { \bool_gset_true:N \l_doc_macro_aux_bool }
+\cs_set_nopar:Npn \doc_macro_opt_TF:  { \bool_gset_true:N \l_doc_macro_TF_bool  }
+\cs_set_nopar:Npn \doc_macro_opt_var: { \bool_gset_true:N \l_doc_macro_var_bool }
 %    \end{macrocode}
 % \end{environment}
 %
@@ -1007,6 +1041,42 @@ Do not distribute a modified version of this file.
 }
 \cs_set_nopar:Npn \doc_typeset_aux:n #1 {
   {\color[gray]{0.5} #1}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\doc_print_testfile:w}
+% Used to show that a macro has a test, somewhere.
+%    \begin{macrocode}
+\DeclareDocumentCommand \doc_print_testfile:w {m} {
+  \bool_set_true:N \l_doc_tested_bool
+  \seq_if_in:NnF \g_doc_testfiles_seq {#1}
+  {
+    \par{\footnotesize(\textit{
+      The~ test~ suite~ for~ this~ command~ (and~ others~ in~ this~ file)~ is~ \textsf{#1}}.
+    )\par}
+    \seq_gput_right:Nn \g_doc_testfiles_seq {#1}
+  }
+}
+\seq_new:N \g_doc_testfiles_seq
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\endmacro}
+%    \begin{macrocode}
+\cs_set:Npn \endmacro {
+  \bool_if:nT
+  { \g_doc_checktest_bool &&
+    !( \l_doc_macro_aux_bool || \l_doc_macro_var_bool ) &&
+    !\l_doc_tested_bool
+  }
+  {
+    \ClassError{l3doc}{\MessageBreak \MessageBreak
+      The~ following~ macro(s)~ do~ not~ have~ a~ test:
+      \MessageBreak \MessageBreak
+      \space\space\space\space \l_doc_macro_input_clist
+    }{}
+  }
 }
 %    \end{macrocode}
 % \end{macro}
