@@ -94,7 +94,7 @@ Do not distribute a modified version of this file.
 %<*class>
 \ProvidesExplClass
   {\filename}{\filedate}{\fileversion}{\filedescription}
-\RequirePackage{expl3}
+\RequirePackage{expl3,xparse}
 \let        \filename        \filenameOld
 \let     \filenameext     \filenameextOld
 \let        \filedate        \filedateOld
@@ -703,6 +703,7 @@ Do not distribute a modified version of this file.
 \group_begin:
 \char_make_active:N \<
 \cs_new_nopar:Npn \function {
+  \phantomsection
   \char_make_active:N \<
   \cs_set_eq:NN < \doc_open_meta:n
   \group_begin:
@@ -827,7 +828,6 @@ Do not distribute a modified version of this file.
 %    \begin{macrocode}
 \cs_set_nopar:Npn \doc_showmacro_aux_ii:w #1:#2:#3 \q_stop {
   \nextnewline
-
   \str_if_eq:xxTF {#1} {\g_doc_macro_tl} {
     \doc_typeset_aux:n
   }{
@@ -842,6 +842,12 @@ Do not distribute a modified version of this file.
   \bool_if:NT \l_doc_meta_EXP_bool {
     \hspace{\tabcolsep}
     $\star$
+  }
+  \tl_set:Nx \g_doc_macro_tl { \tl_to_str:N \g_doc_macro_tl }
+  \exp_args:NNf \tl_replace_all_in:Nnn \g_doc_macro_tl {\token_to_str:N _} {/}
+  \exp_args:NNf \tl_replace_all_in:Nnn \g_doc_macro_tl {\@backslashchar} {}
+  \bool_if:NT \g_doc_full_bool {
+    \exp_args:Nf\label{doc/function/\g_doc_macro_tl#3#2}
   }
 }
 %    \end{macrocode}
@@ -916,6 +922,10 @@ Do not distribute a modified version of this file.
 % awaiting a more robust solution.
 %    \begin{macrocode}
 \renewcommand \macro [1][] {
+
+  \int_compare:nNnT \currentgrouplevel=2
+    { \int_zero:N \g_doc_nested_macro_int }
+
   \bool_set_false:N \l_doc_macro_aux_bool
   \bool_set_false:N \l_doc_macro_TF_bool
   \bool_set_false:N \l_doc_macro_var_bool
@@ -966,7 +976,9 @@ Do not distribute a modified version of this file.
 % \item Macro/function/whatever name; input has already been sanitised.
 % \end{arguments}
 %    \begin{macrocode}
+\int_new:N \l_doc_macro_int
 \cs_set_nopar:Npn \doc_macro_single #1 {
+  \int_incr:N \l_doc_macro_int
   \tl_set:Nx \saved@macroname { \token_to_str:N #1 }
   \topsep\MacroTopsep
   \trivlist
@@ -992,6 +1004,13 @@ Do not distribute a modified version of this file.
   \bool_if:NT \l_doc_macro_TF_bool {
     \cs_set_eq:NN \doc_macroname_suffix: \doc_typeset_TF:
   }
+  
+  \bool_if:NF \l_doc_macro_aux_bool {
+  \tl_gset:Nx \l_doc_macro_tl { \tl_to_str:n {#1} }
+  \exp_args:NNf \tl_greplace_all_in:Nnn \l_doc_macro_tl {\token_to_str:N _} {/}
+  \exp_args:NNf \tl_greplace_all_in:Nnn \l_doc_macro_tl {\@backslashchar} {}
+
+  }
 
   \cs_set_nopar:Npx \@tempa {
     \exp_not:N \item [ \exp_not:N \doc_print_macroname:n {
@@ -1016,7 +1035,7 @@ Do not distribute a modified version of this file.
     \SpecialMainIndex{#1}\nobreak
     \DoNotIndex{#1}
   }
-
+  
   \global\advance \c@CodelineNo \m@ne
   \ignorespaces
 }
@@ -1026,7 +1045,12 @@ Do not distribute a modified version of this file.
 %    \begin{macrocode}
 \cs_set_nopar:Npn \doc_print_macroname:n #1 {
   \strut \MacroFont
-  \doc_macroname_prefix:n {#1} \doc_macroname_suffix: \ % space!
+  \bool_if:NTF \l_doc_macro_aux_bool
+  { \use:n }
+  { \hyperref [doc/function/\l_doc_macro_tl] }
+  {
+    \doc_macroname_prefix:n {#1} \doc_macroname_suffix: \ % space!
+  }
 }
 %    \end{macrocode}
 % \end{macro}
@@ -1037,8 +1061,11 @@ Do not distribute a modified version of this file.
 % conditionals and auxiliary functions.
 %    \begin{macrocode}
 \cs_set_nopar:Npn \doc_typeset_TF: {
-  \color[gray]{0.5}
-  \underline { \color{black} \itshape TF \kern-0.1em }
+  \itshape TF%
+  \makebox[0pt][r]{%
+    \color[gray]{0.5}
+    \underline { \phantom{\itshape TF} \kern-0.1em }
+  }
 }
 \cs_set_nopar:Npn \doc_typeset_aux:n #1 {
   {\color[gray]{0.5} #1}
@@ -1049,14 +1076,16 @@ Do not distribute a modified version of this file.
 % \begin{macro}{\doc_print_testfile:n}
 % Used to show that a macro has a test, somewhere.
 %    \begin{macrocode}
-\cs_new:Npn \doc_print_testfile:n #1 {
+\DeclareDocumentCommand \doc_print_testfile:n {m} {
   \bool_set_true:N \l_doc_tested_bool
-  \seq_if_in:NnF \g_doc_testfiles_seq {#1}
-  {
-    \par{\footnotesize(\textit{
-      The~ test~ suite~ for~ this~ command~ (and~ others~ in~ this~ file)~ is~ \textsf{#1}}.
-    )\par}
-    \seq_gput_right:Nn \g_doc_testfiles_seq {#1}
+  \tl_if_eq:nnF {#1} {*} {
+    \seq_if_in:NnF \g_doc_testfiles_seq {#1}
+    {
+      \par{\footnotesize(\textit{
+        The~ test~ suite~ for~ this~ command,~ and~ others~ in~ this~ file,~ is~ \textsf{#1}}.
+      )\par}
+      \seq_gput_right:Nn \g_doc_testfiles_seq {#1}
+    }
   }
 }
 \seq_new:N \g_doc_testfiles_seq
@@ -1065,7 +1094,22 @@ Do not distribute a modified version of this file.
 %
 % \begin{macro}{\endmacro}
 %    \begin{macrocode}
+\int_new:N \g_doc_nested_macro_int
 \cs_set:Npn \endmacro {
+  \int_gincr:N \g_doc_nested_macro_int
+  \bool_if:nT {
+    !\l_doc_macro_aux_bool &&
+    \int_compare_p:n {\g_doc_nested_macro_int<2}
+  }
+  {
+    \par\nobreak{\footnotesize(\emph{
+      \int_compare:nNnTF \l_doc_macro_int=1 {This~} {These~}
+      \bool_if:NTF \l_doc_macro_var_bool{variable}{function}
+      \int_compare:nNnTF \l_doc_macro_int=1 {~is~}{s~are~}
+      documented~on~page~
+      \exp_args:Nx\pageref{doc/function/\l_doc_macro_tl}.
+    })\par}
+  }
   \bool_if:nT
   { \g_doc_checktest_bool &&
     !( \l_doc_macro_aux_bool || \l_doc_macro_var_bool ) &&
