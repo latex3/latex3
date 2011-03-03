@@ -15,6 +15,7 @@ help:
 	@echo " make checkcmds           - checks all functions are defined for all modules"
 	@echo " make checkdoc            - checks all module documentation compiles correctly"
 	@echo " make checktest           - checks all functions have test file coverage"
+	@echo " make test F=<name>       - checks all functions have test file coverage for <name>.dtx"
 	@echo " make clean               - clean out test directory"
 	@echo " make cleanall            - clean out test and current directory"
 	@echo " make ctan                - create a CTAN-ready archive"
@@ -312,6 +313,11 @@ checktest: support unpack
 	  echo "  $$I" ; \
 	  pdflatex --interaction=batchmode "\PassOptionsToClass{checktest}{l3doc} \input $$I.dtx" ; \
 	done
+
+test: support unpack
+	@echo "Checking functions in $$F.dtx have tests" ; \
+	cd $(TESTDIR) ; \
+        pdflatex --interaction=batchmode "\PassOptionsToClass{checktest}{l3doc} \input $$F.dtx" ; \
 
 checkdoc: unpack
 	echo "Checking compilation"
