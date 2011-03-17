@@ -470,5 +470,5 @@ unpack: $(foreach FILE,$(DTX) $(UNPACK),$(TESTDIR)/$(FILE))
 	echo "Unpacking files"
 	cd $(TESTDIR) ; \
 	for I in $(UNPACK) ; do \
-	  tex $$I &> /dev/null ; \
+	  tex $$I > /dev/null ; \
 	done
