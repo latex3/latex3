@@ -109,11 +109,11 @@ $(TESTDIR)/%.tex: $(SOURCEDIR)/%.tex
 $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	NAME=`basename $< .dtx` ; \
 	echo "Typesetting $$NAME" ; \
-	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
+	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	if [ $$? = 0 ] ; then  \
-	  makeindex -s l3doc.ist -o $(TESTDIR)/$$NAME.ind $(TESTDIR)/$$NAME.idx &> /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
+	  makeindex -s l3doc.ist -o $(TESTDIR)/$$NAME.ind $(TESTDIR)/$$NAME.idx > /dev/null ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	  if [ `grep 'defined but not documented' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ] ; then \
 	    echo "! Warning: some functions defined but not documented" ; \
 	  fi ; \
@@ -167,11 +167,11 @@ localinstall: unpack
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
 	cd $(TESTDIR) ; \
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
-	texhash &> /dev/null
+	texhash > /dev/null
 
 unpack: $(foreach FILE,$(DTX) $(TEX) $(UNPACK),$(TESTDIR)/$(FILE))
 	echo "Unpacking files"
 	cd $(TESTDIR) ; \
 	for I in $(UNPACK) ; do \
-	  tex $$I &> /dev/null ; \
+	  tex $$I > /dev/null ; \
 	done
