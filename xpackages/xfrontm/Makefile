@@ -150,15 +150,16 @@ $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	NAME=`basename $< .dtx` ; \
 	echo "Typesetting $$NAME" ; \
-	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
+	cd $(TESTDIR) ; \
+	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	if [ $$? = 0 ] ; then  \
-	  makeindex -s l3doc.ist -o $(TESTDIR)/$$NAME.ind $(TESTDIR)/$$NAME.idx &> /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" &> /dev/null ; \
-	  if [ `grep 'defined but not documented' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ] ; then \
+	  makeindex -s l3doc.ist -o $$NAME.ind $$NAME.idx > /dev/null ; \
+	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	  if [ `grep 'defined but not documented' $$NAME.log | wc -l` -ne 0 ] ; then \
 	    echo "! Warning: some functions defined but not documented" ; \
 	  fi ; \
-	  if [ `grep 'documented but not defined' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ]  ; then \
+	  if [ `grep 'documented but not defined' $$NAME.log | wc -l` -ne 0 ]  ; then \
 	    echo "! Warning: some functions documented but not defined" ; \
 	  fi ; \
 	else \
@@ -167,7 +168,6 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	for I in $(AUXFILES) ; do \
 	  rm -f $$NAME.$$I ; \
 	done
-
 ################################################################
 # Internal make options                                        #
 ################################################################
@@ -219,17 +219,17 @@ check: \
 	done ; \
 	for I in $(CHECKFILES) ; do \
 	  echo "  $$I" ; \
-	  pdflatex $$I.lvt &> /dev/null ; \
-	  pdflatex $$I.lvt &> /dev/null ; \
+	  pdflatex $$I.lvt > /dev/null ; \
+	  pdflatex $$I.lvt > /dev/null ; \
 	  perl $(SCRIPTDIR)/log2tlg $$I < $$I.log > $$I.new.log ; \
 	  if !(cmp -s $$I.tlg $$I.new.log) ; then \
-	    diff -c $$I.tlg $$I.new.log &> $$I.diff ; \
+	    diff -c $$I.tlg $$I.new.log > $$I.diff ; \
 	  fi ; \
 	  for J in $(AUXFILES) lvt tlg ; do \
 	    rm -f $$I.$$J ; \
 	  done ; \
 	done ; \
-	if (ls *.diff &> /dev/null) ; then \
+	if (ls *.diff > /dev/null) ; then \
 	  echo "  Check failed with difference files" ; \
 	  for I in *.diff ; do \
 	    echo "  - " `pwd`"/$$I" ; \
@@ -245,10 +245,10 @@ checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 	  rm -f *.$$I ; \
 	done ; \
 	pdflatex $(F).lvt ; \
-	pdflatex $(F).lvt &> /dev/null ; \
+	pdflatex $(F).lvt > /dev/null ; \
 	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).new.log ; \
 	if !(cmp -s $(F).tlg $(F).new.log) ; then \
-	  diff -c $(F).new.log $(F).tlg &> $(F).diff ; \
+	  diff -c $(F).new.log $(F).tlg > $(F).diff ; \
 	fi ; \
 	for I in $(AUXFILES) lvt pdf tlg ; do \
 	  rm -f $(F).$$I ; \
@@ -269,7 +269,7 @@ localinstall: unpack
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
 	cd $(TESTDIR) ; \
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
-	texhash &> /dev/null
+	texhash > /dev/null
 
 savetlg: $(TESTDIR)/$(F).lvt support unpack
 	echo "Creating and copying $(F).tlg"
@@ -277,8 +277,8 @@ savetlg: $(TESTDIR)/$(F).lvt support unpack
 	for I in $(AUXFILES) diff ; do \
 	  rm -f *.$$I ; \
 	done ; \
-	pdflatex $(F).lvt &> /dev/null ; \
-	pdflatex $(F).lvt &> /dev/null ; \
+	pdflatex $(F).lvt > /dev/null ; \
+	pdflatex $(F).lvt > /dev/null ; \
 	rm -f $$I.pdf ; \
 	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).tlg
 	cp -f $(TESTDIR)/$(F).tlg $(TESTFILEDIR)/$(F).tlg
@@ -297,5 +297,5 @@ unpack: $(foreach FILE,$(DTX) $(TEX) $(UNPACK),$(TESTDIR)/$(FILE))
 	echo "Unpacking files"
 	cd $(TESTDIR) ; \
 	for I in $(UNPACK) ; do \
-	  tex $$I &> /dev/null ; \
+	  tex $$I > /dev/null ; \
 	done

@@ -109,15 +109,16 @@ $(TESTDIR)/%.tex: $(SOURCEDIR)/%.tex
 $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	NAME=`basename $< .dtx` ; \
 	echo "Typesetting $$NAME" ; \
-	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	cd $(TESTDIR) ; \
+	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	if [ $$? = 0 ] ; then  \
-	  makeindex -s l3doc.ist -o $(TESTDIR)/$$NAME.ind $(TESTDIR)/$$NAME.idx > /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" > /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" > /dev/null ; \
-	  if [ `grep 'defined but not documented' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ] ; then \
+	  makeindex -s l3doc.ist -o $$NAME.ind $$NAME.idx > /dev/null ; \
+	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	  if [ `grep 'defined but not documented' $$NAME.log | wc -l` -ne 0 ] ; then \
 	    echo "! Warning: some functions defined but not documented" ; \
 	  fi ; \
-	  if [ `grep 'documented but not defined' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ]  ; then \
+	  if [ `grep 'documented but not defined' $$NAME.log | wc -l` -ne 0 ]  ; then \
 	    echo "! Warning: some functions documented but not defined" ; \
 	  fi ; \
 	else \

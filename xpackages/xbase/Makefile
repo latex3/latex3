@@ -150,15 +150,16 @@ $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	NAME=`basename $< .dtx` ; \
 	echo "Typesetting $$NAME" ; \
-	pdflatex -draftmode -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	cd $(TESTDIR) ; \
+	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	if [ $$? = 0 ] ; then  \
-	  makeindex -s l3doc.ist -o $(TESTDIR)/$$NAME.ind $(TESTDIR)/$$NAME.idx > /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" > /dev/null ; \
-	  pdflatex -interaction=nonstopmode -output-directory=$(TESTDIR) "$(PDFSETTINGS) \input $<" > /dev/null ; \
-	  if [ `grep 'defined but not documented' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ] ; then \
+	  makeindex -s l3doc.ist -o $$NAME.ind $$NAME.idx > /dev/null ; \
+	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	  if [ `grep 'defined but not documented' $$NAME.log | wc -l` -ne 0 ] ; then \
 	    echo "! Warning: some functions defined but not documented" ; \
 	  fi ; \
-	  if [ `grep 'documented but not defined' $(TESTDIR)/$$NAME.log | wc -l` -ne 0 ]  ; then \
+	  if [ `grep 'documented but not defined' $$NAME.log | wc -l` -ne 0 ]  ; then \
 	    echo "! Warning: some functions documented but not defined" ; \
 	  fi ; \
 	else \
@@ -223,7 +224,7 @@ check: \
 	  pdflatex $$I.lvt > /dev/null ; \
 	  perl $(SCRIPTDIR)/log2tlg $$I < $$I.log > $$I.new.log ; \
 	  if !(cmp -s $$I.tlg $$I.new.log) ; then \
-	    diff -c $$I.tlg $$I.new.log &> $$I.diff ; \
+	    diff -c $$I.tlg $$I.new.log > $$I.diff ; \
 	  fi ; \
 	  for J in $(AUXFILES) lvt pdf tlg ; do \
 	    rm -f $$I.$$J ; \
@@ -248,7 +249,7 @@ checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 	pdflatex $(F).lvt > /dev/null ; \
 	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).new.log ; \
 	if !(cmp -s $(F).tlg $(F).new.log) ; then \
-	  diff -c $(F).new.log $(F).tlg &> $(F).diff ; \
+	  diff -c $(F).new.log $(F).tlg > $(F).diff ; \
 	fi ; \
 	for I in $(AUXFILES) lvt pdf tlg ; do \
 	  rm -f $(F).$$I ; \
