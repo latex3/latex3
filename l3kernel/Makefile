@@ -52,7 +52,7 @@ XPACKAGEDIR := $(BASEDIR)/xpackages
 
 L3TESTDIR  := /tmp/l3test
 SCRIPTDIR  := $(shell test -d $(L3TESTDIR)/scripts || mkdir -p $(L3TESTDIR)/scripts ; cd $(L3TESTDIR)/scripts ; pwd)
-TESTDIR    := $(shell test -d $(L3TESTDIR)/test/l3in2e || mkdir -p $(L3TESTDIR)/test/l3in2e ; cd $(L3TESTDIR)/test/l3in2e ; pwd)
+TESTDIR    := $(shell test -d $(L3TESTDIR)/test/l3kernel || mkdir -p $(L3TESTDIR)/test/l3kernel ; cd $(L3TESTDIR)/test/l3kernel ; pwd)
 TESTAUXDIR := $(shell test -d $(TESTDIR)/testfiles || mkdir -p $(TESTDIR)/testfiles ; cd $(TESTDIR)/testfiles ; pwd)
 
 ##############################################################
@@ -67,7 +67,7 @@ TDSDIR   := $(TESTDIR)/tds
 # Data for local installation and TDS construction           #
 ##############################################################
 
-INCLUDEPDF  := $(PACKAGE) source3 l3calc
+INCLUDEPDF  := $(PACKAGE) source3
 INCLUDETEX  := interface3 source3 source3body
 INCLUDETXT  := README
 PACKAGEROOT := latex/$(PACKAGE)
