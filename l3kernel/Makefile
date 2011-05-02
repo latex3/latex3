@@ -419,7 +419,6 @@ localinstall: unpack
 	mkdir -p $$TEXMFHOME/makeindex/$(PACKAGE)/ ; \
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
 	rm -rf $$TEXMFHOME/makeindex/$(PACKAGE)/* ; \
-	cp l3vers.dtx $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cd $(TESTDIR) ; \
 	cp *.cls $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
