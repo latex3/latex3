@@ -1,0 +1,387 @@
+% \iffalse
+%% File: l3chk.dtx Copyright (C) 1990-2006,2009 LaTeX3 project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3c of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the ``expl3 bundle'' (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %%
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX Project Team.
+%%
+%% -----------------------------------------------------------------------
+%%
+%<*driver|package>
+\RequirePackage{l3names}
+%</driver|package>
+%\fi
+\GetIdInfo$Id$
+          {L3 Experimental check module}
+%\iffalse
+%<*driver>
+%\fi
+\ProvidesFile{\filename.\filenameext}
+  [\filedate\space v\fileversion\space\filedescription]
+%\iffalse
+\documentclass[full]{l3doc}
+\begin{document}
+\DocInput{\filename.\filenameext}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{The \textsf{l3chk} package\thanks{This file
+%         has version number \fileversion, last
+%         revised \filedate.}\\
+% Checking things\ldots}
+% \author{\Team}
+% \date{\filedate}
+% \maketitle
+%
+% \begin{documentation}
+%
+% To ensure that functions and variables are properly used certain
+% checking functions are implemented that may or may not be compiled
+% into the final format.
+%
+% \section{Tracing}
+%
+% \begin{function}{\tracingall           |
+%                  \absolutelytracingall |
+%                  \donotcheck           |
+%                  \tracingoff           |
+%                  \traceon              |
+%                  \traceoff             }
+% Commands to control the level of verbosity in the tracing output.
+% \end{function}
+%
+% \section{Functions}
+%
+% \begin{function}{%
+%                  \chk_var_or_const:N |
+% }
+% \begin{syntax}
+%   "\chk_var_or_const:N" <cs>
+% \end{syntax}
+% Checks that <cs> is a proper variable or constant which means that its
+% name starts out with "\L", "\l", "\G", "\g", "\R", "\C", "\c", or "\q".
+% \end{function}
+%
+% \begin{function}{%
+%                  \chk_local:N |
+%                  \chk_global:N |
+% }
+% \begin{syntax}
+%   "\chk_local:N" <cs>
+% \end{syntax}
+% Checks that <cs> is a proper local or global variable. This means that
+% its name starts out with "\L", "\l", or "\G", "\g" respectively.
+% \end{function}
+%
+% \begin{function}{%
+%                  \chk_local_or_pref_global:N |
+%                  \pref_global_chk: |
+% }
+% To allow implementations where we precede some function with
+% "\pref_global:D" without loosing the possibility to check for the
+% correct variable type the following helper functions can be used:
+% "\chk_local_or_pref_global:N" <cs> is the variable check which is
+% usually let to "\chk_local:N", i.e.\ it will check that its argument
+% is a local variable. This behavior will be changed by
+% "\pref_global_chk:".  This function first changes
+% "\chk_local_or_pref_global:N" to check for global variables then it
+% issues a "\pref_global:D". After use "\chk_local_or_pref_global:N"
+% will restore itself to "\chk_local:N".  So, if we use
+% "\chk_local_or_pref_global:N" inside some function "\foo_bar:n" we can
+% implement a global version "\foo_gbar:n" by defining
+% \begin{quote}
+%    "\cs_new_nopar:Npn \foo_gbar:n {\pref_global_chk: \foo_bar:n }"
+% \end{quote}
+% provided that "\foo_bar:n" is built in a way that prefixing it with
+% "\pref_global:D" turns its operation into a global one. See
+% implementation for details.
+% \end{function}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3chk} implementation}
+%
+%    We start by ensuring that the required packages are loaded.
+%    \begin{macrocode}
+%<*package>
+\ProvidesExplPackage
+  {\filename}{\filedate}{\fileversion}{\filedescription}
+\package_check_loaded_expl:
+%</package>
+%<*initex|package>
+%    \end{macrocode}
+%
+% The |\chk| module contains those functions that are used primarily
+% during the development of \LaTeX3 for checking that things are not mixed up
+% too badly.  All these functions are of type `{\tt e}' since they
+% issue error messages if certain conditions are violated.
+%
+% \subsection{Checking variable assignments}
+%
+% \begin{macro}{\chk_local:N}
+% \begin{macro}[aux]{\chk_local_aux:w}
+%    This function checks that its argument is a proper local
+%    variable, i.e.\ its name starts with |\l| or |\L|.
+%    It is not allowed that the name starts with |\g| or |\G|,
+%    which means that we do not allow to update global
+%    variables locally. But see |\pref_global_chk:| below for
+%    the encoding of functions that might accept global variables
+%    in certain situations.  Not checked is the case that the
+%    argument isn't a variable at all, i.e.\ it doesn't have
+%    a |_| as second letter. Maybe we should add this for safety
+%    during the implementation since it will find certain errors
+%    involving wrong expansion in earlier stage.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \chk_local:N #1{
+  \exp_after:wN \chk_local_aux:w \token_to_str:N#1\q_stop}
+
+\cs_new_nopar:Npn \chk_local_aux:w #1#2#3\q_stop{
+   \if_num:w\tex_uccode:D`#2=`G\scan_stop:
+       \msg_kernel_bug:x {Local~mismatch:~local~function~called~with~
+                     global~variable:^^J\text_put_four_sp: #1#2#3~
+                     on~line~\tex_the:D\tex_inputlineno:D}
+   \else:
+     \if_num:w\tex_uccode:D`#2=`L\scan_stop:
+     \else:
+       \msg_kernel_bug:x {Variable~mismatch:~function~not~called~with~
+                     proper~variable:^^J\text_put_four_sp: #1#2#3~
+                     on~line~\tex_the:D\tex_inputlineno:D}\fi:
+   \fi:}
+%    \end{macrocode}
+%    We set the |\l_iow_new_line_code| at this point, just in case we
+%    run into errors.
+%    \begin{macrocode}
+\tex_newlinechar:D=`\^^J
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\chk_global:N}
+% \begin{macro}[aux]{\chk_global_aux:w}
+%    |\chk_global:N| is similar to |\chk_local:N| but looks only
+%    for global variables.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \chk_global:N #1{\exp_after:wN
+                           \chk_global_aux:w \token_to_str:N#1\q_stop}
+\cs_new_nopar:Npn \chk_global_aux:w #1#2#3\q_stop{
+   \if_num:w\tex_uccode:D`#2=`L\scan_stop:
+       \msg_kernel_bug:x {Global~mismatch:~global~function~called~with~
+                   local~variable:~#1#2#3~
+                   on~line~\tex_the:D\tex_inputlineno:D}
+   \else:
+     \if_num:w\tex_uccode:D`#2=`G\scan_stop:
+     \else:
+       \msg_kernel_bug:x {Variable~mismatch:~function~not~called~with~
+                     proper~variable:~#1#2#3~
+                     on~line~\tex_the:D\tex_inputlineno:D}\fi:\fi:}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\pref_global_chk:}
+% \begin{macro}{\chk_local_or_pref_global:N}
+%    To allow implementations where we precede some function with
+%    |\pref_global:D| without loosing the possibility to check for the
+%    correct type of a variable, the following helper functions can be
+%    used: |\chk_local_or_pref_global:N| \m{variable} is the variable
+%    check which is usually |\cs_set_eq:NN| to |\chk_local:N|, i.e.\ it will
+%    check for local variables. This behavior will be changed by
+%    |\pref_global_chk:|.  This function first changes
+%    |\chk_local_or_pref_global:N| to check for global variables, then
+%    issues a |\pref_global:D|. After being used,
+%    |\chk_local_or_pref_global:N| will restore itself to
+%    |\chk_local:N|. So, if we use |\chk_local_or_pref_global:N|
+%    inside some function |\foo_bar:n| we can implement a global
+%    version |\foo_gbar:n| by defining
+%    \begin{verbatim}
+%       \cs_new_nopar:Npn \foo_gbar:n {\pref_global_chk: \foo_bar:n }
+%\end{verbatim}
+%    provided of course, that |\foo_bar:n| is defined in a way that a
+%    |\pref_global:D| does work. Such a scheme has to be used
+%    carefully, but its advantage is that the checking version has the
+%    same structure as a streamlined version, we only have to change
+%    |\pref_global_chk:| into |\pref_global:D| and omit the
+%    |\chk_local_or_pref_global:N| function in the body.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \pref_global_chk: {
+    \cs_gset_nopar:Npn \chk_local_or_pref_global:N ##1{
+          \chk_global:N ##1
+          \cs_gset_eq:NN \chk_local_or_pref_global:N \chk_local:N}
+    \pref_global:D}
+\cs_new_eq:NN \chk_local_or_pref_global:N \chk_local:N
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\chk_var_or_const:N}
+% \begin{macro}[aux]{\chk_var_or_const_aux:w}
+%    |\chk_var_or_const:N| is used in situations where we want to check
+%    that we have a variable (or a constant) but do not care whether
+%    or not it is global (for example, in allocation routines).
+%    \begin{macrocode}
+\cs_new_nopar:Npn \chk_var_or_const:N #1{\exp_after:wN
+     \chk_var_or_const_aux:w \token_to_str:N#1\q_stop }
+\cs_new_nopar:Npn \chk_var_or_const_aux:w #1#2#3\q_stop {
+    \if_num:w\tex_uccode:D`#2=`L\scan_stop:
+    \else:
+      \if_num:w\tex_uccode:D`#2=`G\scan_stop:
+      \else:
+        \if_num:w\tex_uccode:D`#2=`C\scan_stop:
+        \else:
+%    \end{macrocode}
+%    We also allow the beast to be a quark, i.e.\ to start with |\q|.
+%    \begin{macrocode}
+          \if_charcode:w#2q\scan_stop:
+          \else:
+%    \end{macrocode}
+%    We might also want to allow that it is a user definable
+%    variable which means that its name consists of letters only. We
+%    could check this by testing that there is no |_|, but this is not
+%    implemented so far.
+%    \begin{macrocode}
+           \msg_kernel_bug:x {Variable~mismatch:~function~not~called~with~
+                       proper~variable:^^J\text_put_four_sp: #1#2#3~
+                       on~line~\tex_the:D\tex_inputlineno:D}\fi:\fi:\fi:
+    \fi:}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%
+% \subsection{Doing some tracing}
+%
+%  \begin{macro}{\tracingall}
+%  \begin{macro}{\absolutelytracingall}
+%  \begin{macro}{\donotcheck}
+%    During |\tracingall| we don't want to see all this code coming
+%    from the checking functions since something more substantial is
+%    probably wrong. Therefore this definition of it turns the
+%    functions of as far as possible.
+%    \begin{macrocode}
+\cs_new_nopar:Npn\donotcheck{
+  \cs_set_eq:NN \chk_global:N \use_none:n
+  \cs_set_eq:NN \chk_local:N \use_none:n
+  \cs_set_eq:NN \chk_local_or_pref_global:N \use_none:n
+  \cs_set_eq:NN \pref_global_chk: \pref_global:D
+  \cs_set_eq:NN \chk_if_free_cs:N \use_none:n
+  \cs_set_eq:NN \chk_exist_cs:N \use_none:n
+  \cs_set_eq:NN \chk_var_or_const:N \use_none:n
+  \cs_set_eq:NN \cs_record_name:N \use_none:n
+  \cs_set_eq:NN \cs_record_name:c \use_none:n
+  \cs_set_eq:NN \cs_record_meaning:N \use_none:n
+  \cs_set_eq:NN \register_record_name:N \use_none:n
+}
+\cs_new_nopar:Npn\absolutelytracingall{
+%    \end{macrocode}
+%  \end{macro}
+%
+%    We do the settings by hand to avoid uninteresting lines in the
+%    log file as much as possible.
+%    \begin{macrocode}
+  \pref_global:D\g_trace_commands_status\c_two
+  \pref_global:D\g_trace_statistics_status\c_two
+  \pref_global:D\g_trace_pages_status\c_one
+  \pref_global:D\g_trace_output_status\c_one
+  \pref_global:D\g_trace_chars_status\c_one
+  \pref_global:D\g_trace_macros_status\c_two
+  \pref_global:D\g_trace_paragraphs_status\c_one
+  \pref_global:D\g_trace_restores_status\c_one
+  \pref_global:D\g_trace_box_breadth_int\c_ten_thousand
+  \pref_global:D\g_trace_box_depth_int\c_ten_thousand
+  \pref_global:D\g_trace_online_status\c_one
+  \tex_errorstopmode:D}
+%
+% Use LaTeX2e definition for now.
+%\cs_new_nopar:Npn\tracingall{
+%  \donotcheck
+%  \absolutelytracingall
+%}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%
+%  \begin{macro}{\tracingoff}
+%    This macro turns off all tracing.
+%    \begin{macrocode}
+\cs_new_nopar:Npn\tracingoff{
+%    \end{macrocode}
+%    First we turn off |\g_trace_online_status| so that we get minimal
+%    rubbish on the terminal. Of course, in the log file all
+%    assignments are shown.
+%    \begin{macrocode}
+  \pref_global:D\g_trace_online_status\c_zero
+  \pref_global:D\g_trace_commands_status\c_zero
+  \pref_global:D\g_trace_statistics_status\c_zero
+  \pref_global:D\g_trace_pages_status\c_zero
+  \pref_global:D\g_trace_output_status\c_zero
+  \pref_global:D\g_trace_chars_status\c_zero
+  \pref_global:D\g_trace_macros_status\c_zero
+  \pref_global:D\g_trace_paragraphs_status\c_zero
+  \pref_global:D\g_trace_restores_status\c_zero
+  \pref_global:D\g_trace_box_breadth_int\c_zero
+  \pref_global:D\g_trace_box_depth_int\c_zero
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+% \subsection{Tracing modules}
+%
+%  \begin{macro}{\traceon}
+%  \begin{macro}{\traceoff}
+%    Turning the tracing of modules on or off. (primitive version).
+%    \begin{macrocode}
+%<*trace>
+\cs_new_nopar:Npn\traceon#1{
+  \clist_map_inline:nn {#1}{
+    \cs_if_free:cF{g_trace_ ##1 _status}
+    {\int_gincr:c{g_trace_ ##1 _status}}
+  }
+}
+\cs_new_nopar:Npn\traceoff#1{
+  \clist_map_inline:nn {#1}{
+    \cs_if_free:cF{g_trace_ ##1 _status}
+    {\int_gdecr:c{g_trace_ ##1 _status}}
+  }
+}
+%</trace>
+%<-trace>\cs_new_eq:NN\traceon\use_none:n
+%<-trace>\cs_new_eq:NN\traceoff\use_none:n
+%</initex|package>
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%
+%
+%
+% \end{implementation}
+% \PrintIndex
+%
+% \endinput
