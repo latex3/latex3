@@ -19,8 +19,6 @@ set TEX=interface3 source3 source3body
 set TXT=README
 set UNPACK=l3.ins l3doc.dtx
 set VALIDATE=..\validate
-set XPACKAGEDIR=..\xpackages\
-set XPACKAGES=xbase
 
 :loop
 
@@ -320,15 +318,12 @@ set XPACKAGES=xbase
   
   call :unpack
 
-  for %%I in (%XPACKAGES%) do (
-    copy %XPACKAGEDIR%\%%I\*.dtx > nul
-  )
 
   echo. 
   echo Making format
 
-  tex l3format.ins              > nul
-  pdftex -etex -ini *latex3.ltx > nul
+  tex l3format.ins > nul
+  pdftex -etex -ini *l3format.ltx > nul
   
   goto :clean-int  
 
