@@ -80,7 +80,6 @@ DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 FORMAT    = l3format.ins
 UNPACK    = l3.ins l3doc.dtx
-XPACKAGES = xbase
 
 ##############################################################
 # Files for the check systems                                #
@@ -403,14 +402,11 @@ format: \
 	$(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).dtx) \
 	$(foreach FILE,$(FORMAT),$(TESTDIR)/$(FILE)) 
 	echo "Making format"
-	for I in $(XPACKAGES) ; do \
-	  cp $(XPACKAGEDIR)/$$I/*.dtx $(TESTDIR)/ ; \
-	done
 	cd $(TESTDIR) ; \
 	for I in $(FORMAT) ; do \
 	  tex $$I > /dev/null ; \
 	done ; \
-	pdftex -etex -ini "*latex3.ltx" 
+	pdftex -etex -ini "*l3format.ltx" 
 
 localinstall: unpack
 	echo "Installing files"
