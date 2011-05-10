@@ -1,0 +1,402 @@
+% \iffalse meta-comment
+%
+%% File: l3keyval.dtx Copyright (C) 2006-2011 The LaTeX3 Project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3c of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the "expl3 bundle" (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %%
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX3 Project.
+%%
+%% -----------------------------------------------------------------------
+%
+%<*driver|package>
+\RequirePackage{l3names}
+\GetIdInfo$Id$
+  {L3 Experimental key-value parsing}
+%</driver|package>
+%<*driver>
+\documentclass[full]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \pkg{l3keyval} package\\ Key--value parsing^^A
+%   \thanks{This file describes v\fileversion, last revised \filedate.}^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released \filedate}
+%
+% \maketitle
+%
+% \begin{documentation}
+% 
+% A key--value list is input of the form
+% \begin{verbatim}
+%   KeyOne = ValueOne ,
+%   KeyTwo = ValueTwo ,
+%   KeyThree   
+% \end{verbatim} 
+% where each key--value pair is separated by a comma from the rest of
+% the list, and each key--value pair does not necessarily contain an
+% equals sign or a value! Processing this type of input correctly 
+% requires a number of careful steps, to correctly account for
+% braces, spaces and the category codes of separators.
+% 
+% This module provides the low-level machinery for processing arbitrary
+% key--value lists. The \pkg{l3keys} module provides a higher-level
+% interface for managing run-time settings using key--value input,
+% while other parts of \LaTeX3 also use key--value input based on
+% \pkg{l3keyval} (for example the \pkg{xtemplate} module).
+% 
+ %\section{Parsing key--value lists}
+%
+% The low-level parsing system converts a \meta{key--value list}
+% into \meta{keys} and associated \meta{values}. After the parsing phase
+% is completed, the resulting keys and values (or keys alone) are
+% available for further processing. This is not carried out by the
+% low-level parser, and so the parser requires the names of
+% two functions along with the key--value list. One function is
+% needed to process key--value pairs (\emph{i.e}~two arguments), 
+% and a second function if required for keys given without arguments
+% (\emph{i..e.~a single argument).
+% 
+% The parser does not double |#| tokens or expand any input. The tokens
+% |=| and |,| are corrected so that the parser does not \enquote{miss}
+% any due to category code changes. Spaces are removed from the ends
+% of the keys and values. Values which are given in braces will have
+% exactly one set removed, thus
+% \begin{verbatim}
+%    key = {value here},
+% \end{verbatim}
+% and
+% \begin{verbatim}
+%   key = value here,
+% \end{verbatim}
+% are treated identically.
+% 
+ %\begin{function}{\keyval_parse:NNn}
+%   \begin{syntax}
+%     \cs{keyval_parse:NNn} \meta{function1} \meta{function2}
+%     ~~\Arg{key--value list}
+%   \end{syntax}
+%   Parses the \meta{key--value list} into a series of \meta{keys} and
+%   associated \meta{values}, or keys alone (if no \meta{value} was
+%   given).  \meta{function1} should take one argument, while
+%   \meta{function2} should absorb two arguments. After
+%   \cs{keyval_parse:NNn} has parsed the \meta{key--value list}, 
+%   \meta{function1} will be used to process keys given with no value
+%   and \meta{function2} will be used to process keys given with a
+%   value. The order of the \meta{keys} in the \meta{key--value list}
+%   will be preserved. Thus
+%   \begin{verbatim}
+%     \keyval_parse:NNn \function:n \function:nn
+%       { key1 = value1 , key2 = value2, key3 = , key4 }
+%   \end{verbatim}
+%   will be converted into an input stream
+%   \begin{verbatim}
+%     \function:nn { key1 } { value1 }
+%     \function:nn { key2 } { value2 }
+%     \function:nn { key3 } { }
+%     \function:n  { key4 }
+%   \end{verbatim}
+%   Note that there is a difference between an empty value (an equals
+%   sign followed by nothing) and a missing value (no equals sign at
+%   all). 
+% \end{function}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3keyval} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%    
+%    \begin{macrocode}
+%<*package>
+\ProvidesExplPackage
+  {\filename}{\filedate}{\fileversion}{\filedescription}
+\package_check_loaded_expl:
+%</package>
+%    \end{macrocode}
+%    
+% \begin{variable}{\g_keyval_level_int}
+%   For nesting purposes an integer is needed for the current level.
+%    \begin{macrocode}
+\int_new:N \g_keyval_level_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_keyval_key_tl, \l_keyval_value_tl}
+%   The current key name and value.
+%    \begin{macrocode}
+\tl_new:N \l_keyval_key_tl
+\tl_new:N \l_keyval_value_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_keyval_sanitise_tl}
+% \begin{macro}{\l_keyval_parse_tl}
+%   Token list variables for dealing with awkward category codes in the
+%   input.
+%    \begin{macrocode}
+\tl_new:N \l_keyval_sanitise_tl
+\tl_new:N \l_keyval_parse_tl
+%    \end{macrocode}
+%\end{variable}
+%\end{variable}
+%
+% \begin{macro}{\keyval_parse:n}
+%   The parsing function first deals with the category codes for
+%   |=| and |,|, so that there are no odd events. The input is then
+%   handed off to the element by element system. 
+%    \begin{macrocode}
+\group_begin:
+  \char_make_active:n { `\= }
+  \char_make_active:n { `\, }
+  \char_set_lccode:nn { `\8 } { `\= }
+  \char_set_lccode:nn { `\9 } { `\, }
+\tl_to_lowercase:n
+  {
+    \group_end:
+    \cs_new_protected:Npn \keyval_parse:n #1
+      {
+        \group_begin:
+          \tl_clear:N \l_keyval_sanitise_tl
+          \tl_set:Nn \l_keyval_sanitise_tl {#1}
+          \tl_replace_all_in:Nnn \l_keyval_sanitise_tl { = } { 8 }
+          \tl_replace_all_in:Nnn \l_keyval_sanitise_tl { , } { 9 }
+          \tl_clear:N \l_keyval_parse_tl
+          \exp_after:wN \keyval_parse_elt:w \exp_after:wN
+            \q_no_value \l_keyval_sanitise_tl 9 \q_nil 9
+        \exp_after:wN \group_end:
+        \l_keyval_parse_tl
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\keyval_parse_elt:w}
+%   Each item to be parsed will have \cs{q_no_value} added to the front.
+%   Hence the blank test here can always be used to find a totally
+%   empty argument. If this is the case, the system loops round. If there
+%   is something to parse, there is a check for the \cs{q_nil} marker
+%   and if not a hand-off.
+%    \begin{macrocode}
+\cs_new_protected:Npn \keyval_parse_elt:w #1 ,
+  {
+    \tl_if_blank:oTF { \use_none:n #1 }
+      { \keyval_parse_elt:w \q_no_value }
+      {
+        \quark_if_nil:oF { \use_ii:nn #1 }
+          {
+            \keyval_split_key_value:w #1 = = \q_stop
+            \keyval_parse_elt:w \q_no_value
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\keyval_split_key_value:w}
+% \begin{macro}[aux]{\keyval_split_key_value_aux:wTF}
+%   The key and value are handled separately. First the key is grabbed and
+%   saved as \cs{l_keyval_key_tl}. Then a check is need to see if there is
+%   a value at all: if not then the key name is simply added to the output.
+%   If there is a value then there is a check to ensure that there was
+%   only one |=| in the input (remembering some extra ones are around at
+%   the moment to prevent errors). All being well, there is an
+%   hand-off to find the value: the \cs{q_nil} is there to prevent loss
+%   of braces.
+%    \begin{macrocode}
+\cs_new_protected:Npn \keyval_split_key_value:w #1 = #2 \q_stop
+  {
+    \keyval_split_key:w #1 \q_stop
+    \str_if_eq:nnTF {#2} { = }
+      {
+        \tl_put_right:Nx \l_keyval_parse_tl
+          {
+            \exp_not:c { keyval_key_no_value_elt_ \int_use:N \g_keyval_level_int :n }
+              { \exp_not:o \l_keyval_key_tl }
+          }
+      }
+      {
+        \keyval_split_key_value_aux:wTF #2 \q_no_value \q_stop
+          { \keyval_split_value:w \q_nil #2 }
+          { \msg_kernel_error:nn { keyval } { misplaced-equals-sign } }
+      }
+  }
+\cs_new:Npn \keyval_split_key_value_aux:wTF #1 = #2#3 \q_stop
+  { \tl_if_head_eq_meaning:nNTF {#3} \q_no_value }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\keyval_split_key:w}
+% \begin{macro}{\keyval_remove_spaces:w}
+% \begin{macro}[aux]{\keyval_split_key_aux:w}
+% \begin{macro}[aux]{\keyval_remove_spaces_aux:w}
+%   The aim here is to remove spaces and also exactly one set of braces.
+%   The spaces are trimmed off from each end using a \enquote{funny}
+%   |Q|, which will never turn up in normal use. The idea is that
+%   the \texttt{f}-type expansion will stop if it finds an unexpandable
+%   token or a space, and will gobble the space. To avoid expanding
+%   anything else, the \cs{exp_not:N} works by ensuring that the first
+%   non-space token in the setting will stop the \texttt{f}-type
+%   expansion. The \cs{use_none:n} is needed to remove the leading
+%   quark, while the second setting of \cs{l_keyval_key_tl}
+%   removes exactly one set of braces.
+%    \begin{macrocode}
+\group_begin:
+  \char_set_catcode:nn { `\Q } { 3 }
+  \cs_new_protected:Npn \keyval_split_key:w #1 \q_stop
+    {
+      \exp_args:NNf \tl_set:Nn \l_keyval_key_tl
+        {
+          \exp_after:wN \keyval_remove_spaces:w \exp_after:wN
+            \exp_not:N \use_none:n #1 Q ~ Q
+        }
+      \tl_set:Nx \l_keyval_key_tl
+        { \exp_after:wN \keyval_split_key_aux:w \l_keyval_key_tl \q_stop }
+    }
+  \cs_gset:Npn \keyval_split_key_aux:w #1 \q_stop { \exp_not:n {#1} }
+  \cs_gset:Npn \keyval_remove_spaces:w #1 ~ Q { \keyval_remove_spaces_aux:w #1 Q }
+  \cs_gset:Npn \keyval_remove_spaces_aux:w #1 Q #2 {#1}
+\group_end:
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\keyval_split_value:w}
+%   Here the value has to be separated from the equals signs and the
+%   leading \cs{q_nil} added in to keep the brace levels. Fist the
+%   processing function can be added to the output list. If there is no
+%   value, setting \cs{l_keyval_value_tl} with three groups removed will
+%   leave nothing at all, and so an empty group can be added to the
+%   parsed list. On the other hand, if the value is entirely contained
+%   within a set of braces then \cs{l_keyval_value_tl} will contain
+%   \cs{q_nil} only. In that case, strip off the leading quark using
+%   \cs{use_ii:nnn}, which also deals with any spaces.
+%    \begin{macrocode}
+\cs_new_protected:Npn \keyval_split_value:w #1 = =
+  {
+    \tl_put_right:Nx \l_keyval_parse_tl
+      {
+        \exp_not:c { keyval_key_value_elt_ \int_use:N \g_keyval_level_int :nn }
+          { \exp_not:o \l_keyval_key_tl }
+      }
+    \tl_set:Nx \l_keyval_value_tl { \exp_not:o { \use_none:nnn #1 \q_nil \q_nil } }
+    \tl_if_empty:NTF \l_keyval_value_tl
+      { \tl_put_right:Nn \l_keyval_parse_tl { { } } }
+      {
+        \quark_if_nil:NTF \l_keyval_value_tl
+          {
+            \tl_put_right:Nx \l_keyval_parse_tl
+              { { \exp_not:o { \use_ii:nnn #1 \q_nil } } }
+          }
+          { \keyval_split_value_aux:w #1 \q_stop }
+      }
+  }
+%    \end{macrocode}
+%   A similar idea to the key code: remove the spaces from each end and
+%   deal with one set of braces.
+%    \begin{macrocode}
+\group_begin:
+  \char_set_catcode:nn { `\Q } { 3 }
+  \cs_new_protected:Npn \keyval_split_value_aux:w \q_nil #1 \q_stop
+    {
+      \exp_args:NNf \tl_set:Nn \l_keyval_value_tl
+        { \keyval_remove_spaces:w \exp_not:N #1 Q ~ Q }
+      \tl_put_right:Nx \l_keyval_parse_tl { { \exp_not:o \l_keyval_value_tl } }
+    }
+\group_end:
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\keyval_parse:NNn}
+%   The outer parsing routine just sets up the processing functions and
+%   hands off.
+%    \begin{macrocode}
+\cs_new_protected:Npn \keyval_parse:NNn #1#2#3
+  {
+    \int_gincr:N \g_keyval_level_int
+    \cs_gset_eq:cN { keyval_key_no_value_elt_ \int_use:N \g_keyval_level_int :n } #1
+    \cs_gset_eq:cN { keyval_key_value_elt_ \int_use:N \g_keyval_level_int :nn }   #2
+    \keyval_parse:n {#3}
+    \int_gdecr:N \g_keyval_level_int
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% One message for the low level parsing system.
+%    \begin{macrocode}
+\msg_kernel_new:nnnn { keyval } { misplaced-equals-sign }
+  { Misplaced~equals~sign~in~key-value~input~\msg_line_number: }
+  {
+    LaTeX~is~attempting~to~parse~some~key-value~input~but~found~
+    two~equals~signs~not~separated~by~a~comma.
+  }
+%    \end{macrocode}
+%    
+% \subsection{Depreciated functions}
+% 
+% Depreciated on 0000-00-00 for removal by 0000-00-00.
+%
+% \begin{macro}{\KV_process_space_removal_sanitize:NNn}
+% \begin{macro}{\KV_process_space_removal_no_sanitize:NNn}
+% \begin{macro}{\KV_process_no_space_removal_no_sanitize:NNn}
+% There is just one function for this now.
+%    \begin{macrocode}
+\cs_new_eq:NN \KV_process_space_removal_sanitize:NNn       \keyval_parse:NNn
+\cs_new_eq:NN \KV_process_space_removal_no_sanitize:NNn    \keyval_parse:NNn
+\cs_new_eq:NN \KV_process_no_space_removal_no_sanitize:NNn \keyval_parse:NNn
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+% 
+% \end{implementation}
+% 
+% \PrintIndex
