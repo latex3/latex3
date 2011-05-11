@@ -6,13 +6,13 @@ rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 setlocal
 
 set CLEAN=zip
-set CTAN=xparse
+set CTAN=xparse xtras
 set PACKAGE=xpackages
 set PATHCOPY=%PATH%
 set TDSROOT=latex\%PACKAGE%
-set TEST=xbase
+set TEST=
 set TXT=README
-set XPACKAGES=xparse
+set XPACKAGES=xparse xtras
 
 :loop
 
