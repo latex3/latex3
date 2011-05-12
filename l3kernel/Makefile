@@ -126,6 +126,13 @@ CLEAN = \
 
 PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 
+##############################################################
+# For building a format                                      #
+##############################################################
+
+ENGINE = pdftex
+
+
 ################################################################
 # File copying: default actions                                #
 ################################################################
@@ -406,7 +413,7 @@ format: \
 	for I in $(FORMAT) ; do \
 	  tex $$I > /dev/null ; \
 	done ; \
-	pdftex -etex -ini "*l3format.ltx" 
+	$(ENGINE) -ini "*l3format.ltx" 
 
 localinstall: unpack
 	echo "Installing files"
