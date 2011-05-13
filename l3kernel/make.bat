@@ -1,84 +1,96 @@
 @echo off
-rem This Windows batch file provides very similar functionality to the
-rem Makefile also available here.  Some of the options provided here 
-rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 
-setlocal
+rem Makefile for LaTeX3 "expl3" files
 
-set AUXFILES=aux cmds glo hd idx ilg ind log lvt out tlg toc xref
-set CLEAN=cls fc fmt gz ist ltx pdf sty zip
-set CHECKCMDS=basics box calc clist doc expan file int io keys keyval msg names prg prop quark seq skip tl token
-set PACKAGE=expl3
-set PATHCOPY=%PATH%
-set PDF=expl3 l3calc source3
-set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
-set SCRIPTDIR=..\support
-set TDSROOT=latex\%PACKAGE%
-set TESTDIR=testfiles
-set TEX=interface3 source3 source3body
-set TXT=README
-set UNPACK=l3.ins l3doc.dtx
-set VALIDATE=..\validate
+  if not "%1" == "" goto :init
 
-:loop
+:help
 
-  if /i [%1] == [alldoc]       goto :alldoc
-  if /i [%1] == [check]        goto :check
-  if /i [%1] == [checkcmd]     goto :checkcmd
-  if /i [%1] == [checkcmds]    goto :checkcmds
-  if /i [%1] == [checkdoc]     goto :checkdoc
-  if /i [%1] == [checklvt]     goto :checklvt
-  if /i [%1] == [clean]        goto :clean
-  if /i [%1] == [ctan]         goto :ctan
-  if /i [%1] == [doc]          goto :doc
-  if /i [%1] == [format]       goto :format
-  if /i [%1] == [localinstall] goto :localinstall
-  if /i [%1] == [savetlg]      goto :savetlg
-  if /i [%1] == [sourcedoc]    goto :sourcedoc
-  if /i [%1] == [tds]          goto :tds
-  if /i [%1] == [unpack]       goto :unpack
+  rem Default with no target is to give help
+
+  echo.
+  echo  make check           - run the automated tests
+  echo  make checkcmd ^<name^> - checks all functions are defined in ^<name^> 
+  echo  make checkcmds       - checks all functions are defined in all modules
+  echo  make checkdoc        - checks all documentation compiles correctly
+  echo  make checklvt ^<name^> - runs the automated tests for ^<name^>
+  echo  make checktest       - checks test file coverage for all modules
+  echo  make clean           - delete all generated files
+  echo  make ctan            - create an archive ready for CTAN
+  echo  make doc ^<name^>      - typesets ^<name^>.dtx
+  echo  make format          - create a format file using pdfTeX
+  echo  make format ^<engine^> - creates a format file using ^<engine^>
+  echo  make localinstall    - extract packages
+  echo  make savetlg ^<name^>  - save test log for ^<name^>
+  echo  make sourcedoc       - typeset expl3 and source3
+  echo  make test ^<name^>     - checks test file coverage for ^<name^>.dtx
+  echo  make tds             - create a TDS-ready archive
+  echo  make unpack          - extract files
+
+  goto :end
+
+:init
+
+  rem Avoid clobbering anyone else's variables
+  
+  setlocal
+  
+  set AUXFILES=aux bbl blg cmds dvi glo gls hd idx ilg ind ist log lvt los out tlg tmp toc
+  set CLEAN=bib bst cls fc fmt gz ltx orig pdf sty zip
+  set CTANDIR=%CTANROOT%\%PACKAGE%
+  set CTANFILES=dtx ins pdf
+  set CTANROOT=ctan
+  set ENGINE=pdftex
+  set INCLUDETXT=README
+  set INCLUDEPDF=expl3 source3
+  set PACKAGE=expl3
+  set TDSFILES=%CTANFILES% cls sty
+  set TDSROOT=tds
+  set TESTDIR=testfiles
+  set SUPPORTDIR=..\support
+  set UNPACK=l3.ins
+  set VALIDATE=..\validate
+
+  cd /d "%~dp0"
+
+:main
+
+  if /i "%1" == "check"        goto :check
+  if /i "%1" == "checkcmd"     goto :checkcmd
+  if /i "%1" == "checkcmds"    goto :checkcmds
+  if /i "%1" == "checkdoc"     goto :checkdoc
+  if /i "%1" == "checklvt"     goto :checklvt
+  if /i "%1" == "checktest"    goto :checktest
+  if /i "%1" == "clean"        goto :clean
+  if /i "%1" == "cleanall"     goto :clean
+  if /i "%1" == "ctan"         goto :ctan
+  if /i "%1" == "doc"          goto :doc
+  if /i "%1" == "help"         goto :help
+  if /i "%1" == "format"       goto :format
+  if /i "%1" == "localinstall" goto :localinstall
+  if /i "%1" == "savetlg"      goto :savetlg
+  if /i "%1" == "sourcedoc"    goto :sourcedoc
+  if /i "%1" == "test"         goto :test
+  if /i "%1" == "tds"          goto :tds
+  if /i "%1" == "unpack"       goto :unpack
 
   goto :help
-
-:alldoc
-
-  call :sourcedoc
   
-  for %%I in (l3*.dtx) do (
-    call :doc-int %%~nI
-  )
-  
-  goto :end
-
-:clean
-
-  for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
-
-:clean-int
-
-  for %%I in (%AUXFILES%) do if exist *.%%I del /q *.%%I
-
-  if exist log2tlg del /q log2tlg
-  if exist commands-check.tex del /q commands-check.tex
-  if exist regression-test.tex del /q regression-test.tex
-
-  goto :end
-
 :check
 
   call :unpack
   call :perl
-  
-  xcopy /q /y %SCRIPTDIR%\log2tlg            > nul
-  xcopy /q /y %VALIDATE%\regression-test.tex > nul
-  
+
+  copy /y %SUPPORTDIR%\log2tlg           > nul
+  copy /y %VALIDATE%\regression-test.tex > nul
+
   if exist *.fc  del /q *.fc
   if exist *.lvt del /q *.lvt
   if exist *.tlg del /q *.tlg
   for %%I in (%TESTDIR%\*.tlg) do (
     if exist %TESTDIR%\%%~nI.lvt (
-      xcopy /q /y %TESTDIR%\%%~nI.lvt > nul
-      xcopy /q /y %TESTDIR%\%%~nI.tlg > nul
+      copy /y %TESTDIR%\%%~nI.lvt > nul
+      copy /y %TESTDIR%\%%~nI.tlg > nul
     )
   )
   
@@ -118,7 +130,7 @@ set VALIDATE=..\validate
   )
   
   goto :clean-int
-
+  
 :checkcmd
 
   shift
@@ -129,7 +141,7 @@ set VALIDATE=..\validate
 
 :checkcmd-int
   
-  xcopy /q /y %VALIDATE%\commands-check.tex > nul
+  copy /y %VALIDATE%\commands-check.tex > nul
   if exist missing.cmds.log del /q missing.cmds.log
   
   echo.
@@ -146,20 +158,20 @@ set VALIDATE=..\validate
       if "%%I"=="!>" echo   - %%J 
     )
   ) 
-  
+  goto :end
   goto :clean-int
 
 :checkcmds
 
   call :unpack
-  xcopy /q /y %VALIDATE%\commands-check.tex > nul
+  copy /y %VALIDATE%\commands-check.tex > nul
 
-  for %%I in (%CHECKCMDS%) do (
-    call :checkcmd-int l3%%I
+  for %%I in (l3*.dtx) do (
+    call :checkcmd-int %%I
   )
 
   goto :clean-int
-
+  
 :checkdoc
 
   call :unpack
@@ -185,101 +197,122 @@ set VALIDATE=..\validate
   )  
 
   goto :clean-int 
-
+  
 :checklvt
 
-  shift 
-  if [%1] == [] goto :help
-  if not exist %TESTDIR%\%1.lvt goto :no-lvt
-  if not exist %TESTDIR%\%1.tlg goto :no-tlg
-
-  call :perl
   call :unpack
-  
-  xcopy /q /y %SCRIPTDIR%\log2tlg > nul
-  xcopy /q /y %VALIDATE%\regression-test.tex > nul
-  
-  xcopy /q /y %TESTDIR%\%1.lvt > nul
-  xcopy /q /y %TESTDIR%\%1.tlg > nul
-  
-  if exist %1.fc  del /q %1.fc
+  call :perl
+
+  copy /y %SUPPORTDIR%\log2tlg           > nul
+  copy /y %VALIDATE%\regression-test.tex > nul
+
+  shift
+
+  if exist %~n1.fc  del /q %~n1.fc
+  if exist %~n1.lvt del /q %~n1.lvt
+  if exist %~n1.tlg del /q %~n1.tlg
+  if exist %TESTDIR%\%~n1.lvt (
+    copy /y %TESTDIR%\%~n1.lvt > nul
+    copy /y %TESTDIR%\%~n1.tlg > nul
+  )
   
   echo.
-  echo Running checks on %1
-
-  pdflatex %1.lvt > nul
-  pdflatex %1.lvt > nul
-  %PERLEXE% log2tlg %1 < %1.log > %1.new.log
-  del /q %1.log > nul 
-  ren %1.new.log %1.log > nul
-  fc /n  %1.log %1.tlg > %1.fc
+  echo Running checks on %~n1
   
-  for /f "skip=1 tokens=1" %%I in (%1.fc) do (
-    if "%%I" == "FC:" (
-      del /q %1.fc
+  pdflatex %~n1.lvt > nul
+  pdflatex %~n1.lvt > nul
+  %PERLEXE% log2tlg %~n1 < %~n1.log > %~n1.new.log 
+  del /q %~n1.log > nul
+  ren %~n1.new.log %~n1.log > nul
+  fc /n  %~n1.log %~n1.tlg > %~n1.fc
+  
+  for %%I in (*.fc) do (
+    for /f "skip=1 tokens=1" %%J in (%%~nI.fc) do (
+      if "%%J" == "FC:" (
+        del /q %%I
+      )
     )
   )
   
-  if exist %1.fc (
-    echo   Checks fails
+  if exist %~n1.fc (
+    echo   Check fails 
   ) else (
-    echo   Check passed
+    echo   Check passes
   )
   
-  if exist %1.pdf del /q %1.pdf
+  if exist %~n1.pdf del /q %~n1.pdf
   
-  goto :clean-int 
+  goto :clean-int
+
+
+:checktest
+
+  call :unpack
+  
+  
+  echo.
+  echo Checking functions have tests
+  
+  for %%I in (l3*.dtx) do  (
+    echo   %%~nI
+    pdflatex --interaction=batchmode "\PassOptionsToClass{checktest}{l3doc} \input %%I"
+  )
+
+  goto :clean-int
+
+:clean
+
+  echo.
+  echo Deleting files
+
+  for %%I in (%CLEAN%) do (
+    if exist *.%%I del /q *.%%I
+  )
+
+  for %%I in (%TXT% l3generic.tex regression-test.tex) do (
+    if exist %%I del /q %%I
+  )
+
+:clean-int
+
+  for %%I in (%AUXFILES%) do (
+    if exist *.%%I del /q *.%%I
+  )
+
+  if exist log2tlg del /q log2tlg
+  if exist commands-check.tex del /q commands-check.tex
+  if exist regression-test.tex del /q regression-test.tex
+
+  goto :end
 
 :ctan
 
   call :zip
-  call :sourcedoc
+  if errorlevel 1 goto :end
 
-  echo.
-  echo Creating archive
+  call :tds
+  if errorlevel 1 goto :end
 
-  if exist temp\*.*  rmdir /q /s temp
-  if exist tds\*.*   rmdir /q /s tds
-
-  if exist *.cls (
-    xcopy /q /y *.cls tds\tex\%TDSROOT%\       > nul
+  for %%I in (%INCLUDEPDF%) do (
+    xcopy /q /y %%I "%CTANDIR%\" > nul
+  )  
+  for %%I in (%CTANFILES%) do (
+    xcopy /q /y *.%%I "%CTANDIR%\" > nul
   )
-  xcopy /q /y *.dtx temp\%PACKAGE%\            > nul
-  xcopy /q /y *.dtx tds\source\%TDSROOT%\      > nul
-  for %%I in (%PDF%) do (
-    xcopy /q /y %%I.pdf temp\%PACKAGE%\        > nul
-    xcopy /q /y %%I.pdf tds\doc\%TDSROOT%\     > nul
-  )
-  xcopy /q /y *.ins temp\%PACKAGE%\            > nul
-  xcopy /q /y *.ins tds\source\%TDSROOT%\      > nul
-  if exist *.ist (
-    xcopy /q /y *.ist tds\makeindex\%PACKAGE%\ > nul
-  )
-  xcopy /q /y *.sty tds\tex\%TDSROOT%\         > nul
-  for %%I in (%TEX%) do (
-    xcopy /q /y %%I.tex temp\%PACKAGE%\        > nul
-    xcopy /q /y %%I.tex tds\source\%TDSROOT%\  > nul
-  )
-  for %%I in (%TXT%) do (
-    xcopy /q /y %%I.txt temp\%PACKAGE%\    > nul
-    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > nul
-    ren temp\%PACKAGE%\%%I.txt    %%I
-    ren tds\doc\%TDSROOT%\%%I.txt %%I
+  for %%I in (%INCLUDETXT%) do (
+    xcopy /q /y %%I.txt "%CTANDIR%\" > nul
+    ren "%CTANDIR%\%%I.txt" %%I
   )
 
-  pushd tds
-  %ZIPEXE% %ZIPFLAG% %PACKAGE%.tds.zip .
-  popd
-  xcopy /q /y tds\%PACKAGE%.tds.zip temp\ > nul
+  xcopy /q /y %PACKAGE%.tds.zip "%CTANROOT%\" > nul
 
-  pushd temp
+  pushd "%CTANROOT%"
   %ZIPEXE% %ZIPFLAG% %PACKAGE%.zip .
   popd
-  xcopy /q /y temp\%PACKAGE%.zip > nul
+  copy /y "%CTANROOT%\%PACKAGE%.zip" > nul
 
-  rmdir /q /s tds
-  rmdir /q /s temp
-  
+  rmdir /s /q %CTANROOT%
+
   goto :end
 
 :doc
@@ -295,11 +328,11 @@ set VALIDATE=..\validate
   echo.
   echo Typesetting %1
   
-  pdflatex -interaction=nonstopmode -draftmode "%PDFSETTINGS% \input %1.dtx" > nul
+  pdflatex -interaction=nonstopmode -draftmode "\input %1.dtx" > nul
   if not ERRORLEVEL 1 (
     makeindex -q -s l3doc.ist -o %2.ind %1.idx        > nul
-    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %1.dtx" > nul
-    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %1.dtx"  > nul
+    pdflatex -interaction=nonstopmode "\input %1.dtx" > nul
+    pdflatex -interaction=nonstopmode "\input %1.dtx"  > nul
     for /F "tokens=*" %%I in (%1.log) do (
       if "%%I" == "Functions documented but not defined:" (
       echo ! Some functions not defined 
@@ -314,39 +347,33 @@ set VALIDATE=..\validate
   
   goto :clean-int
 
-:format
-  
-  call :unpack
+:file2tdsdir
 
+  set TDSDIR=
+
+  if /i "%~x1" == ".cls" set TDSDIR=tex\latex\%PACKAGE%
+  if /i "%~x1" == ".dtx" set TDSDIR=source\latex\%PACKAGE%
+  if /i "%~x1" == ".ins" set TDSDIR=source\latex\%PACKAGE%
+  if /i "%~x1" == ".pdf" set TDSDIR=doc\latex\%PACKAGE%
+  if /i "%~x1" == ".sty" set TDSDIR=tex\latex\%PACKAGE%
+  if /i "%~x1" == ".tex" set TDSDIR=doc\latex\%PACKAGE%
+  if /i "%~x1" == ".txt" set TDSDIR=doc\latex\%PACKAGE%
+
+  goto :end
+
+:format
 
   echo. 
   echo Making format
+  
+  shift
+  if not "%1" == "" set ENGINE=%1
 
   tex l3format.ins > nul
-  pdftex -etex -ini *l3format.ltx > nul
-  
-  goto :clean-int  
+  %ENGINE% -etex -ini "*l3format.ltx"
 
-:help
-
-  echo  make alldoc            - typeset all documentation
-  echo  make check             - runs automated test suite 
-  echo  make checklvt ^<name^>   - runs automated test on ^<name^> 
-  echo  make checkcmd ^<name^>   - checks all functions are defined in ^<name^> 
-  echo  make checkcmds         - checks all functions are defined in all modules 
-  echo  make checkdoc          - checks all documentation compiles correctly
-  echo  make clean             - delete all generated files
-  echo  make ctan              - create an archive ready for CTAN
-  echo  make doc ^<name^>        - typesets ^<name^>.dtx
-  echo  make format            - create create lbase format file
-  echo  make localinstall      - extract packages
-  echo  make savetlg ^<name^>    - save test log for ^<name^>
-  echo  make sourcedoc         - typeset expl3 and source3
-  echo  make tds               - create a TDS-ready archive
-  echo  make unpack            - extract packages
-  
   goto :end
-
+  
 :localinstall
 
   call :unpack
@@ -357,7 +384,7 @@ set VALIDATE=..\validate
   if not defined TEXMFHOME (
     set TEXMFHOME=%USERPROFILE%\texmf
   )
-  set INSTALLROOT=%TEXMFHOME%\tex\%TDSROOT%
+  set INSTALLROOT=%TEXMFHOME%\tex\latex\%PACKAGE%
 
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
 
@@ -366,17 +393,8 @@ set VALIDATE=..\validate
   )
   xcopy /q /y *.sty "%INSTALLROOT%\"   > nul
 
-  xcopy /q /y l3doc.ist  "%TEXMFHOME%\makeindex\%PACKAGE%\" > nul
-
   goto :clean-int
 
-:no-dtx
-  
-  echo.
-  echo No such file %1.dtx
-
-  goto :end
-  
 :no-lvt
   
   echo.
@@ -397,27 +415,21 @@ set VALIDATE=..\validate
 
 :perl-loop
 
-  if defined PERLEXE goto :EOF
+  if defined PERLEXE goto :end
   
   for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
     if exist %%I\perl.exe set PERLEXE=perl
     set PATHCOPY=%%J;%%K
   )
   
-  if defined PERLEXE goto :EOF
+  if defined PERLEXE goto :end
 
   if not "%PATHCOPY%"==";" goto :perl-loop
-  
-  if exist %SYSTEMROOT%\Perl\bin\perl.exe set PERLEXE=%SYSTEMROOT%\Perl\bin\perl
-  if exist %ProgramFiles%\Perl\bin\perl.exe set PERLEXE=%ProgramFiles%\Perl\bin\perl
-  if exist %SYSTEMROOT%\strawberry\Perl\bin\perl.exe set PERLEXE=%SYSTEMROOT%\strawberry\Perl\bin\perl
-  
-  if defined PERL goto :EOF
   
   echo.
   echo  This procedure requires Perl, but it could not be found.
   
-  goto :EOF
+  goto :end
 
 :savetlg
 
@@ -428,9 +440,9 @@ set VALIDATE=..\validate
   call :perl
   call :unpack
  
-  xcopy /q /y %SCRIPTDIR%\log2tlg > nul
-  xcopy /q /y %VALIDATE%\regression-test.tex > nul
-  xcopy /q /y %TESTDIR%\%1.lvt > nul
+  copy /y %SUPPORTDIR%\log2tlg > nul
+  copy /y %VALIDATE%\regression-test.tex > nul
+  copy /y %TESTDIR%\%1.lvt > nul
   
   echo.
   echo Creating and copying %1.tlg
@@ -438,10 +450,10 @@ set VALIDATE=..\validate
   pdflatex %1.lvt > nul 
   pdflatex %1.lvt > nul
   %PERLEXE% log2tlg %1 < %1.log > %1.tlg
-  xcopy /q /y %1.tlg %TESTDIR%\%1.tlg > nul
+  copy /y %1.tlg %TESTDIR%\%1.tlg > nul
   
   goto :clean-int
-
+  
 :sourcedoc
 
   call :unpack
@@ -449,13 +461,13 @@ set VALIDATE=..\validate
   echo.
   echo Typesetting source3
 
-  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} %PDFSETTINGS% \input source3" > nul
+  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
   if not ERRORLEVEL 1 ( 
     echo   Re-typesetting for index generation
     makeindex -q -s l3doc.ist -o source3.ind source3.idx > nul
-    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} %PDFSETTINGS% \input source3" > nul
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
     echo   Re-typesetting to resolve cross-references
-    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} %PDFSETTINGS% \input source3" > nul
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
     for /F "tokens=*" %%I in (source3.log) do (           
       if "%%I" == "Functions documented but not defined:" (   
         echo ! Warning: some functions not defined              
@@ -471,67 +483,58 @@ set VALIDATE=..\validate
   echo.
   echo Typesetting expl3
   
-  pdflatex -interaction=nonstopmode -draftmode "%PDFSETTINGS% \input expl3.dtx" > nul
+  pdflatex -interaction=nonstopmode -draftmode "\input expl3.dtx" > nul
   if not ERRORLEVEL 1 (
     makeindex -q -s l3doc.ist -o expl3.ind expl3.idx > nul
-    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input expl3.dtx" > nul
-    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input expl3.dtx" > nul
+    pdflatex -interaction=nonstopmode "\input expl3.dtx" > nul
+    pdflatex -interaction=nonstopmode "\input expl3.dtx" > nul
   ) else (
     echo ! expl3 compilation failed
   )
-
-  echo.
-  echo Typesetting l3calc
   
-  pdflatex -interaction=nonstopmode -draftmode "%PDFSETTINGS% \input l3calc.dtx" > nul
-  if not ERRORLEVEL 1 (
-    makeindex -q -s l3doc.ist -o l3calc.ind l3calc.idx > nul
-    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input l3calc.dtx" > nul
-    pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input l3calc.dtx" > nul
-  ) else (
-    echo ! l3calc compilation failed
-  )
-
-
   goto :clean-int
 
 :tds
 
   call :zip
+  if errorlevel 1 goto :end
+
   call :sourcedoc
+  if errorlevel 1 goto :end
 
   echo.
   echo Creating archive
 
-  if exist tds\*.*  rmdir /q /s tds
-
-  if exist *.cls (
-    xcopy /q /y *.cls tds\tex\%TDSROOT%\       > nul
+  for %%I in (%INCLUDEPDF%) do (
+    call :tds-int %%I.pdf
   )
-  xcopy /q /y *.dtx tds\source\%TDSROOT%\      > nul
-  for %%I in (%PDF%) do (
-    xcopy /q /y %%I.pdf tds\doc\%TDSROOT%\     > nul
+  for %%I in (%TDSFILES%) do (
+    call :tds-int *.%%I
   )
-  xcopy /q /y *.ins tds\source\%TDSROOT%\      > nul
-  if exist *.ist (
-    xcopy /q /y *.ist tds\makeindex\%PACKAGE%\ > nul
-  )
-  xcopy /q /y *.sty tds\tex\%TDSROOT%\         > nul
-  for %%I in (%TEX%) do (
-    xcopy /q /y %%I.tex tds\doc\%TDSROOT%\  > nul
-  )
-  for %%I in (%TXT%) do (
-    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > nul
-    ren tds\doc\%TDSROOT%\%%I.txt %%I
+  for %%I in (%INCLUDETXT%) do (
+    copy /y %%I.txt "%TDSROOT%\doc\latex\%PACKAGE%\" > nul
+    ren "%TDSROOT%\doc\latex\%PACKAGE%\%%I.txt" %%I
   )
 
-  pushd tds
+  pushd "%TDSROOT%"
   %ZIPEXE% %ZIPFLAG% %PACKAGE%.tds.zip .
   popd
-  xcopy /q /y tds\%PACKAGE%.tds.zip > nul
+  copy /y "%TDSROOT%\%PACKAGE%.tds.zip" > nul
 
-  rmdir /q /s tds
-  
+  rmdir /s /q "%TDSROOT%"
+
+  goto :end
+
+:tds-int
+
+  call :file2tdsdir %1
+
+  if defined TDSDIR (
+    xcopy /q /y %1 "%TDSROOT%\%TDSDIR%\" > nul
+  ) else (
+    echo Unknown file type "%~x1"
+  )
+
   goto :end
 
 :unpack
@@ -543,25 +546,22 @@ set VALIDATE=..\validate
     tex %%I > nul
   )
 
-  goto :clean-int
+  goto :end
 
 :zip 
 
-  set PATHCOPY=%PATH%
+  if not defined ZIPFLAG set ZIPFLAG=-r -q -X -ll
 
-:zip-loop
+  if defined ZIPEXE goto :end
 
-  if defined ZIPEXE goto :EOF
-
-  for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
-    if exist "%%I\zip.exe" (
-      set ZIPEXE=zip
-      set ZIPFLAG=-ll -q -r -X
-    )
-    set PATHCOPY=%%J;%%K
+  for %%I in (zip.exe "%~dp0zip.exe") do (
+    if not defined ZIPEXE if exist %%I set ZIPEXE=%%I
   )
-  if not "%PATHCOPY%" == ";" goto :zip-loop
-  
+
+  for %%I in (zip.exe) do (
+    if not defined ZIPEXE set ZIPEXE="%%~$PATH:I"
+  )
+
   if not defined ZIPEXE (
     echo.
     echo This procedure requires a zip program,
@@ -573,9 +573,9 @@ set VALIDATE=..\validate
     echo.
   )
 
-  goto :EOF
+  goto :end
 
 :end
 
   shift
-  if not [%1] == [] goto :loop
+  if not "%1" == "" goto :main
