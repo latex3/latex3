@@ -58,8 +58,8 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-ALLPACKAGES = xparse xtras
-XPACKAGES   = xparse xtras
+ALLPACKAGES = xparse xtemplate xtras
+XPACKAGES   = xparse xtemplate xtras
 
 ################################################################
 # File copying: default actions                                #
