@@ -31,9 +31,19 @@ functionality provided by the packages within the xbase bundle.
 
 Currently included in the CTAN release of xpackages are the following
 bundles:
-    xparse
-    xtemplate
-    xtras
+ * xcoffins
+ * xparse
+ * xtemplate
+ * xtras
+    
+xcoffins
+--------
+
+A _coffin_ is a 'box with handles': a data structure which comprises
+both a TeX box and associated information to allow controlled typesetting.
+The xcoffins package provides a high-level interface for manipulating
+coffins. This is supported by the lower-level l3coffins package, which
+provides the data structure.
 
 xparse
 -----
