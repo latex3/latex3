@@ -17,7 +17,6 @@ help:
 	@echo " make doc              - typeset documentation"
 	@echo " make localinstall     - install files in local texmf tree"
 	@echo " make savetlg F=<name> - save test log for <name>"  
-	@echo " make test             - typeset test files"
 	@echo " make unpack           - extract packages"
 	@echo ""
 
