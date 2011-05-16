@@ -24,7 +24,6 @@ set VALIDATE=..\..\validate
   if /i [%1] == [doc]          goto :doc
   if /i [%1] == [localinstall] goto :localinstall
   if /i [%1] == [savetlg]      goto :savetlg
-  if /i [%1] == [test]         goto :test
   if /i [%1] == [unpack]       goto :unpack
 
   goto :help
