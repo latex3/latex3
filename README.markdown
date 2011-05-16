@@ -76,6 +76,7 @@ The LaTeX3 Project
 Development of LaTeX3 is carried out by
 [The LaTeX3 Project](http://www.latex-project.org/latex3.html). Currently,
 the team members are
+
   * Johannes Braams
   * David Carlisle
   * Robin Fairbairns
@@ -87,7 +88,9 @@ the team members are
   * Chris Rowley
   * Rainer Schöpf
   * Joseph Wright
+  
 Former members of The LaTeX3 Project team were
+
   * Michael Downes
   * Denys Duchier
   * Alan Jeffrey
