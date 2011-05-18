@@ -13,7 +13,7 @@ set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2 \AtBeginDocument{\Dis
 set SCRIPTDIR=..\..\support
 set TEST=xparse-test
 set TESTDIR=testfiles
-set TDSROOT=latex\xpackages\%PACKAGE%
+set TDSROOT=latex\l3package\%PACKAGE%
 set VALIDATE=..\..\validate
 
 :loop
