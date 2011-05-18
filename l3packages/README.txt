@@ -18,7 +18,7 @@ instructions.
 OVERVIEW
 --------
 
-The l3package collection is contains implementations for aspects of the
+The l3packages collection is contains implementations for aspects of the
 LaTeX3 kernel, dealing with higher-level ideas such as the Designer
 Interface. The packages here are considered broadly stable (The LaTeX3
 Project does not expect the interfaces to alter radically). These
@@ -28,7 +28,7 @@ so may not migrate in the current form to a stand-alone LaTeX3 format.
 All of the material in the collection require expl3. The packages may also
 depend upon one another.
 
-Currently included in the CTAN release of l3package are the following
+Currently included in the CTAN release of l3packages are the following
 bundles:
  * xparse
  * xtemplate
