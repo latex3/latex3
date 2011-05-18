@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3package
+PACKAGE = l3packages
 
 ##############################################################
 # Directory structure for source files                       #

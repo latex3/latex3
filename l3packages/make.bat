@@ -7,7 +7,7 @@ setlocal
 
 set CLEAN=zip
 set CTAN=xparse xtemplate
-set PACKAGE=xpackages
+set PACKAGE=l3packages
 set PATHCOPY=%PATH%
 set TDSROOT=latex\%PACKAGE%
 set TEST=
