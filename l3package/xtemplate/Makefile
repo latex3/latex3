@@ -17,7 +17,6 @@ help:
 	@echo " make doc              - typeset documentation"
 	@echo " make localinstall     - install files in local texmf tree"
 	@echo " make savetlg F=<name> - save test log for <name>"  
-	@echo " make test             - typeset test files"
 	@echo " make unpack           - extract packages"
 	@echo ""
 
@@ -25,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = xpackages/xtemplate
+PACKAGE = l3package/xtemplate
 
 ##############################################################
 # Directory structure for source files                       #
@@ -59,7 +58,6 @@ PACKAGEROOT := latex/$(PACKAGE)
 
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
-TESTFILES = template-test template-test2 tprestrict-test xparse-test
 TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
 UNPACK    = xtemplate.ins
 
@@ -197,7 +195,6 @@ support: \
 	doc          \
 	localinstall \
 	savetlg      \
-	test         \
 	unpack
 
 clean:

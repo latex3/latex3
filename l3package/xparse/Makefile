@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = xpackages/xparse
+PACKAGE = l3package/xparse
 
 ##############################################################
 # Directory structure for source files                       #
@@ -58,7 +58,6 @@ PACKAGEROOT := latex/$(PACKAGE)
 
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
-TESTFILES = template-test template-test2 tprestrict-test xparse-test
 TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
 UNPACK    = xparse.ins
 
@@ -196,7 +195,6 @@ support: \
 	doc          \
 	localinstall \
 	savetlg      \
-	test         \
 	unpack
 
 clean:

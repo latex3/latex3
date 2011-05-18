@@ -12,7 +12,7 @@ set PACKAGE=xtemplate
 set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2 \AtBeginDocument{\DisableImplementation}
 set SCRIPTDIR=..\..\support
 set TESTDIR=testfiles
-set TDSROOT=latex\xpackages\%PACKAGE%
+set TDSROOT=latex\l3package\%PACKAGE%
 set VALIDATE=..\..\validate
 
 :loop
@@ -23,7 +23,6 @@ set VALIDATE=..\..\validate
   if /i [%1] == [doc]          goto :doc
   if /i [%1] == [localinstall] goto :localinstall
   if /i [%1] == [savetlg]      goto :savetlg
-  if /i [%1] == [test]         goto :test
   if /i [%1] == [unpack]       goto :unpack
 
   goto :help
