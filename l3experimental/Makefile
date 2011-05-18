@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = xpackages
+PACKAGE = l3exprimental
 
 ##############################################################
 # Directory structure for source files                       #
@@ -58,8 +58,8 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-ALLPACKAGES = xcoffins xparse xtemplate xtras
-XPACKAGES   = xcoffins xparse xtemplate xtras
+ALLPACKAGES = xcoffins xtras
+XPACKAGES   = xcoffins xtras
 
 ################################################################
 # File copying: default actions                                #

@@ -18,22 +18,17 @@ instructions.
 OVERVIEW
 --------
 
-The xpackages are a collection of experimental implementations
-for aspects of the LaTeX3 kernel, dealing with higher-level
-ideas such as the Desginer Interface. Some of them work as stand
-alone packages, providing new functionality, and can be used 
-on top of LaTeX2e with no changes to the existing kernel. 
-Others go further, and redefine LaTeX2e internals to provide
-better methods for managing certain constructs.
+The l3experimental packages are a collection of experimental implementations
+for aspects of the LaTeX3 kernel, dealing with higher-level ideas such as the
+Designer Interface. Some of them work as stand alone packages, providing new
+functionality, and can be used on top of LaTeX2e with no changes to the
+existing kernel. Others go further, and redefine LaTeX2e internals to provide
+better methods for managing certain constructs. The packages in the collection
+are under active development and the interfaces may change.
 
-All xpackages require expl3 and, in addition to this, many require
-functionality provided by the packages within the xbase bundle.
-
-Currently included in the CTAN release of xpackages are the following
+Currently included in the CTAN release of l3experimental are the following
 bundles:
  * xcoffins
- * xparse
- * xtemplate
  * xtras
     
 xcoffins
@@ -44,22 +39,6 @@ both a TeX box and associated information to allow controlled typesetting.
 The xcoffins package provides a high-level interface for manipulating
 coffins. This is supported by the lower-level l3coffins package, which
 provides the data structure.
-
-xparse
------
-
-The xparse package provides a high-level interface for declaring
-document commands, e.g., a uniform way to define commands taking
-optional arguments, optional stars (and others), mandatory arguments
-and more.
-
-xtemplate
------
-
-The xtemplate package provides an interface for defining generic
-functions using a key=val syntax. This is designed to be 
-"self-documenting", with the key definitions providing information
-on how they are to be used.
 
 xtras
 -----
@@ -74,7 +53,6 @@ method the existing kernel uses for processing options, and so it
 is likely that a stand-alone LaTeX3 kernel will use a very different
 approach.
 
-
 DISCUSSION
 ----------
 
@@ -88,7 +66,6 @@ You can subscribe to this list by sending mail to
 with the body containing
 
   subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
-
 
 BUGS
 ----

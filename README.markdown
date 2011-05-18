@@ -15,10 +15,18 @@ The following directories contain experimental LaTeX3 code:
  * `l3kernel`: code which is intended to eventually appear in a
    stand-alone LaTeX3 format. Most of this material is also
    usable on top of LaTeX2e when loading the `expl3` package.
+ * `l3packages`: code which is written to be used on top of
+   LaTeX2e to experiment with LaTeX3 concepts. The interfaces to these
+   higher-level packages are 'stable'.
  * `l3experimental`: code which is written to be used on top of
-   LaTeX2e to experiment with LaTeX3 concepts. Parts of this code may
+   LaTeX2e to experiment with LaTeX3 concepts. The interfaces
+   for these packages are still under active discussion. Parts of this code may
    eventually be migrated to `l3kernel`, while other parts are tied closely
    to LaTeX2e and are intended to support mixing LaTeX2e and LaTeX3 concepts.
+ * `l3trial`: material which is under very active development, for potential
+   addition to `l3kernel` or `l3experimental`. Material in this directory
+   may include potential replacements for existing modules, where large-scale
+   changes are underway.
  * `l3leftovers`: code which has been developed in the past by The
    LaTeX3 Project but is not suitable for use in its current form.
    Parts of this code may be used as the basis for new developments
