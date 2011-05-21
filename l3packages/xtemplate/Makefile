@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3package/xtemplate
+PACKAGE = l3packages/xtemplate
 
 ##############################################################
 # Directory structure for source files                       #

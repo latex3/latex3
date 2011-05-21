@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3package/xparse
+PACKAGE = l3packages/xparse
 
 ##############################################################
 # Directory structure for source files                       #

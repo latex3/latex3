@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = xpackages/xcoffins
+PACKAGE = l3experimental/xcoffins
 
 ##############################################################
 # Directory structure for source files                       #
