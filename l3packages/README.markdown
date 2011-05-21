@@ -30,8 +30,17 @@ depend upon one another.
 
 Currently included in the CTAN release of l3packages are the following
 bundles:
+ * xfrac
  * xparse
  * xtemplate
+
+xfrac
+-----
+
+The xfrac package uses the interface defined by xtemplate to provide
+flexible split-level fractions _via_ the `\sfrac` macro. This is both a
+demonstration of the power of the template concept and also a useful
+addition to the available functionality in LaTeX2e.
 
 xparse
 -----
