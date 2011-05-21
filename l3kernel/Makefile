@@ -150,14 +150,14 @@ $(TESTDIR)/%.ins: $(SOURCEDIR)/%.ins
 $(TESTDIR)/%.lvt: $(TESTFILEDIR)/%.lvt
 	@cp -fp $< $@
 
+$(TESTDIR)/%.markdown: $(SOURCEDIR)/%.markdown
+	@cp -fp $< $@
+
 $(TESTDIR)/%.tex: $(SOURCEDIR)/%.tex
 	@cp -fp $< $@	
 
 $(TESTDIR)/%.tlg: $(TESTFILEDIR)/%.tlg
-	@cp -fp $< $@	
-
-$(TESTDIR)/%.txt: $(SOURCEDIR)/%.txt
-	@cp -fp $< $@	
+	@cp -fp $< $@		
 
 $(TESTAUXDIR)/%.txt: $(TESTFILEDIR)/%.txt
 	@cp -fp $< $@	
@@ -392,8 +392,8 @@ ctan: tds
 	  cp -f $$I.tex $(CTANDIR)/ ; \
 	done ; \
 	for I in $(INCLUDETXT); do \
-	  cp -f $$I.txt $(CTANDIR)/; \
-	  mv $(CTANDIR)/$$I.txt $(CTANDIR)/$$I ; \
+	  cp -f $$I.markdown $(CTANDIR)/; \
+	  mv $(CTANDIR)/$$I.markdown $(CTANDIR)/$$I ; \
 	done ; \
 	for I in $(UNPACK); do \
 	  cp -f $$I $(CTANDIR)/ ; \
@@ -442,7 +442,7 @@ savetlg: $(TESTDIR)/$(F).lvt support unpack
 
 sourcedoc: unpack $(foreach FILE,$(INCLUDEPDF),$(TESTDIR)/$(FILE).pdf)
 
-tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).txt) sourcedoc
+tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).markdown) sourcedoc
 	echo "Creating TDS archive"
 	mkdir -p $(TDSDIR)/
 	rm -rf $(TDSDIR)/*
@@ -462,8 +462,8 @@ tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).txt) sourcedoc
 	  cp -f $$I.tex $(TDSDIR)/doc/$(PACKAGEROOT)/ ; \
 	done ; \
 	for I in $(INCLUDETXT); do \
-	  cp -f $$I.txt $(TDSDIR)/doc/$(PACKAGEROOT)/ ; \
-	  mv $(TDSDIR)/doc/$(PACKAGEROOT)/$$I.txt $(TDSDIR)/doc/$(PACKAGEROOT)/$$I ; \
+	  cp -f $$I.markdown $(TDSDIR)/doc/$(PACKAGEROOT)/ ; \
+	  mv $(TDSDIR)/doc/$(PACKAGEROOT)/$$I.markdown $(TDSDIR)/doc/$(PACKAGEROOT)/$$I ; \
 	done 
 	cd $(TDSDIR) ; \
 	zip -ll -q -r -X $(PACKAGE).tds.zip .

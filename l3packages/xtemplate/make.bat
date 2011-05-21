@@ -12,7 +12,7 @@ set PACKAGE=xtemplate
 set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2 \AtBeginDocument{\DisableImplementation}
 set SCRIPTDIR=..\..\support
 set TESTDIR=testfiles
-set TDSROOT=latex\l3package\%PACKAGE%
+set TDSROOT=latex\l3packages\%PACKAGE%
 set VALIDATE=..\..\validate
 
 :loop

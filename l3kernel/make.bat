@@ -301,7 +301,7 @@ rem Makefile for LaTeX3 "expl3" files
   )
   for %%I in (%INCLUDETXT%) do (
     xcopy /q /y %%I.txt "%CTANDIR%\" > nul
-    ren "%CTANDIR%\%%I.txt" %%I
+    ren "%CTANDIR%\%%I.markdown" %%I
   )
 
   xcopy /q /y %PACKAGE%.tds.zip "%CTANROOT%\" > nul
@@ -513,7 +513,7 @@ rem Makefile for LaTeX3 "expl3" files
   )
   for %%I in (%INCLUDETXT%) do (
     copy /y %%I.txt "%TDSROOT%\doc\latex\%PACKAGE%\" > nul
-    ren "%TDSROOT%\doc\latex\%PACKAGE%\%%I.txt" %%I
+    ren "%TDSROOT%\doc\latex\%PACKAGE%\%%I.markdown" %%I
   )
 
   pushd "%TDSROOT%"

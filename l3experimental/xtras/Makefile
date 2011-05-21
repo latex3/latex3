@@ -21,7 +21,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = xpackages/xtras
+PACKAGE = l3experimental/xtras
 	
 ##############################################################
 # Directory structure for source files                       #

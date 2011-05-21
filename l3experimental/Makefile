@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3exprimental
+PACKAGE = l3experimental
 
 ##############################################################
 # Directory structure for source files                       #
@@ -65,7 +65,7 @@ XPACKAGES   = xcoffins xtras
 # File copying: default actions                                #
 ################################################################
 
-$(TESTDIR)/%.txt: $(SOURCEDIR)/%.txt
+$(TESTDIR)/%.markdown: $(SOURCEDIR)/%.markdown
 	@cp -fp $< $@	
 
 ################################################################
@@ -113,8 +113,8 @@ ctan: tds
 	done
 	cd $(TESTDIR) ; \
 	cp $(PACKAGE).tds.zip $(CTANROOT)/ ; \
-	cp -f README.txt $(CTANDIR)/ ; \
-	mv $(CTANDIR)/README.txt $(CTANDIR)/README ; \
+	cp -f README.markdown $(CTANDIR)/ ; \
+	mv $(CTANDIR)/README.markdown $(CTANDIR)/README ; \
 	cd $(CTANROOT) ; \
 	zip -ll -q -r -X $(PACKAGE).zip .
 	cp $(CTANROOT)/$(PACKAGE).zip ./
@@ -133,7 +133,7 @@ localinstall:
 	  cd .. ; \
 	done
 
-tds: $(TESTDIR)/README.txt doc unpack
+tds: $(TESTDIR)/README.markdown doc unpack
 	echo "Creating TDS archive"
 	mkdir -p $(TDSDIR)/
 	rm -rf $(TDSDIR)/*
@@ -153,9 +153,9 @@ tds: $(TESTDIR)/README.txt doc unpack
 	  cp -f *.tex $(TDSDIR)/doc/$(PACKAGEROOT)/$$I/ ; \
 	done
 	cd $(TESTDIR) ; \
-	cp -f README.txt $(TDSDIR)/doc/$(PACKAGEROOT)/ ; \
+	cp -f README.markdown $(TDSDIR)/doc/$(PACKAGEROOT)/ ; \
 	cd $(TDSDIR) ; \
-	mv doc/$(PACKAGEROOT)/README.txt doc/$(PACKAGEROOT)/README ; \
+	mv doc/$(PACKAGEROOT)/README.markdown doc/$(PACKAGEROOT)/README ; \
 	zip -ll -q -r -X $(PACKAGE).tds.zip . ; \
 	cd $(TESTDIR) ; \
 	cp $(TDSDIR)/$(PACKAGE).tds.zip ./

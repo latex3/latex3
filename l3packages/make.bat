@@ -68,10 +68,10 @@ set XPACKAGES=xparse xtemplate
   )
 
   for %%I in (%TXT%) do (
-    xcopy /q /y %%I.txt temp\%PACKAGE%\    > nul
-    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > nul
-    ren temp\%PACKAGE%\%%I.txt    %%I
-    ren tds\doc\%TDSROOT%\%%I.txt %%I
+    xcopy /q /y %%I.markdown temp\%PACKAGE%\    > nul
+    xcopy /q /y %%I.markdown tds\doc\%TDSROOT%\ > nul
+    ren temp\%PACKAGE%\%%I.markdown    %%I
+    ren tds\doc\%TDSROOT%\%%I.markdown %%I
   )
 
   echo.
@@ -153,8 +153,8 @@ set XPACKAGES=xparse xtemplate
   )
 
   for %%I in (%TXT%) do (
-    xcopy /q /y %%I.txt tds\doc\%TDSROOT%\ > nul
-    ren tds\doc\%TDSROOT%\%%I.txt %%I
+    xcopy /q /y %%I.markdown tds\doc\%TDSROOT%\ > nul
+    ren tds\doc\%TDSROOT%\%%I.markdown %%I
   )
 
   ren tds\doc\%TDSROOT%\readme-ctan README

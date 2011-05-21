@@ -11,7 +11,7 @@ set EXPL3DIR=..\..\l3kernel
 set PACKAGE=l3keys2e
 set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 set TEX=l3keys2e-demo
-set TDSROOT=latex\xpackages\%PACKAGE%
+set TDSROOT=latex\l3experimental\%PACKAGE%
 
 :loop
 
