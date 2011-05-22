@@ -58,7 +58,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-ALLPACKAGES = xcoffins xtras
+ALLPACKAGES = xcoffins xgalley xtras
 XPACKAGES   = xcoffins xtras
 
 ################################################################
