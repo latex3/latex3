@@ -29,6 +29,7 @@ are under active development and the interfaces may change.
 Currently included in the CTAN release of l3experimental are the following
 bundles:
  * xcoffins
+ * xgalley
  * xtras
     
 xcoffins
@@ -39,6 +40,18 @@ both a TeX box and associated information to allow controlled typesetting.
 The xcoffins package provides a high-level interface for manipulating
 coffins. This is supported by the lower-level l3coffins package, which
 provides the data structure.
+
+xgalley
+-------
+
+In LaTeX3 terminology a galley is a rectangular area which receives
+text and other material filling it from top. The vertically extend of 
+a galley is normally not restricted: instead certain chunks are taken 
+off the top of an already partially filled galley to form columns or 
+similar areas on a page. This process is typically asynchronous but 
+there are ways to control or change its behaviour. The xgalley module
+provides a mechanism for filling galleys and controlling the spacing,
+hyphenation and justification within them.
 
 xtras
 -----

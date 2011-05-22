@@ -12,7 +12,7 @@ set PATHCOPY=%PATH%
 set TDSROOT=latex\%PACKAGE%
 set TEST=
 set TXT=README
-set XPACKAGES=xcoffins xtras
+set XPACKAGES=xcoffins xgalley xtras
 
 :loop
 
