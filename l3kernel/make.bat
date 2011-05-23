@@ -37,7 +37,6 @@ rem Makefile for LaTeX3 "expl3" files
   
   set AUXFILES=aux bbl blg cmds dvi glo gls hd idx ilg ind ist log lvt los out tlg tmp toc
   set CLEAN=bib bst cls fc fmt gz ltx orig pdf sty zip
-  set CTANDIR=%CTANROOT%\%PACKAGE%
   set CTANFILES=dtx ins pdf
   set CTANROOT=ctan
   set ENGINE=pdftex
@@ -50,6 +49,8 @@ rem Makefile for LaTeX3 "expl3" files
   set SUPPORTDIR=..\support
   set UNPACK=l3.ins
   set VALIDATE=..\validate
+  
+  set CTANDIR=%CTANROOT%\%PACKAGE%
 
   cd /d "%~dp0"
 
@@ -294,13 +295,13 @@ rem Makefile for LaTeX3 "expl3" files
   if errorlevel 1 goto :end
 
   for %%I in (%INCLUDEPDF%) do (
-    xcopy /q /y %%I "%CTANDIR%\" > nul
+    xcopy /q /y %%I.pdf "%CTANDIR%\" > nul
   )  
   for %%I in (%CTANFILES%) do (
     xcopy /q /y *.%%I "%CTANDIR%\" > nul
   )
   for %%I in (%INCLUDETXT%) do (
-    xcopy /q /y %%I.txt "%CTANDIR%\" > nul
+    xcopy /q /y %%I.markdown "%CTANDIR%\" > nul
     ren "%CTANDIR%\%%I.markdown" %%I
   )
 
@@ -358,6 +359,8 @@ rem Makefile for LaTeX3 "expl3" files
   if /i "%~x1" == ".sty" set TDSDIR=tex\latex\%PACKAGE%
   if /i "%~x1" == ".tex" set TDSDIR=doc\latex\%PACKAGE%
   if /i "%~x1" == ".txt" set TDSDIR=doc\latex\%PACKAGE%
+  
+  if /i "%~x1" == ".markdown" set TDSDIR=doc\latex\%PACKAGE%
 
   goto :end
 
@@ -512,7 +515,7 @@ rem Makefile for LaTeX3 "expl3" files
     call :tds-int *.%%I
   )
   for %%I in (%INCLUDETXT%) do (
-    copy /y %%I.txt "%TDSROOT%\doc\latex\%PACKAGE%\" > nul
+    copy /y %%I.markdown "%TDSROOT%\doc\latex\%PACKAGE%\" > nul
     ren "%TDSROOT%\doc\latex\%PACKAGE%\%%I.markdown" %%I
   )
 
