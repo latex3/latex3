@@ -1445,19 +1445,53 @@
 % \begin{macro}[pTF]{\token_if_macro:N}
 % \begin{macro}[aux]{\token_if_macro_p_aux:w}
 %   When a token is a macro, |\token_to_meaning:N| will always output
-%   something like |\long macro:#1->#1| so we simply check to see if
-%   the meaning contains |->|. Argument |#2| in the code below will be
-%   empty if the string |->| isn't present, proof that the token was
-%   not a macro (which is why we reverse the emptiness test). Contrarily
-%   to the similar-looking \cs{token_get_arg_spec:N}, this function works
-%   properly for any token.
+%   something like |\long macro:#1->#1| so we could naively check to
+%   see if the meaning contains |->|. However, this can fail the five
+%   \cs{tex_...mark:D} primitives, whose meaning has the form
+%   |...mark:|\meta{user material}. The problem is that the
+%   \meta{user material} can contain |->|.
+%
+%   However, only characters, macros, and marks can contain the colon
+%   character. The idea is thus to grab until the first |:|, and analyse
+%   what is left. However, macros can have any combination of |\long|,
+%   |\protected| or |\outer| (not used in \LaTeX3) before the string
+%   |macro:|. We thus only select the part of the meaning between
+%   the first |ma| and the first following |:|. If this string is
+%   |cro|, then we have a macro. If the string is |rk|, then we have
+%   a mark. The string can also be |cro parameter character | for a
+%   colon with a weird category code (namely the usual category code
+%   of |#|). Otherwise, it is empty.
+%
+%   This relies on the fact that |\long|, |\protected|, |\outer|
+%   cannot contain |ma|, regardless of the escape character, even if
+%   the escape character is |m|\ldots{}
+%
+%   Both |ma| and |:| must be of category code $12$ (other), and we
+%   achieve using the standard lowercasing technique.
+%
 %    \begin{macrocode}
-\prg_new_conditional:Npnn \token_if_macro:N #1 { p , T ,  F , TF }
-  { \exp_after:wN \token_if_macro_p_aux:w \token_to_meaning:N #1 -> \q_stop }
-\cs_new_nopar:Npn \token_if_macro_p_aux:w #1 -> #2 \q_stop
+\group_begin:
+\char_make_other:N \M
+\char_make_other:N \A
+\char_set_lccode:nn { `\; } { `\: }
+\char_set_lccode:nn { `\T } { `\T }
+\char_set_lccode:nn { `\F } { `\F }
+\tl_to_lowercase:n
   {
-    \if_predicate:w \tl_if_empty_p:n {#2}
-      \prg_return_false: \else: \prg_return_true: \fi:
+    \group_end:
+    \prg_new_conditional:Npnn \token_if_macro:N #1 { p , T ,  F , TF }
+      {
+        \exp_after:wN \token_if_macro_p_aux:w
+        \token_to_meaning:N #1 MA; \q_stop
+      }
+    \cs_new_nopar:Npn \token_if_macro_p_aux:w #1 MA #2 ; #3 \q_stop
+      {
+        \if_int_compare:w \pdftex_strcmp:D { #2 } { cro } = \c_zero
+            \prg_return_true:
+        \else:
+            \prg_return_false:
+        \fi:
+      }
   }
 %    \end{macrocode}
 %  \end{macro}
@@ -1656,65 +1690,92 @@
 %
 % \begin{macro}[pTF]{\token_if_primitive:N}
 % \begin{macro}[aux]{\token_if_primitive_aux:NNw,
-%     \token_if_primitive_aux:NNw,
+%     \token_if_primitive_aux_space:w,
+%     \token_if_primitive_aux_nullfont:N,
 %     \token_if_primitive_aux_loop:N,
 %     \token_if_primitive_auxii:Nw,
-%     \token_if_primitive_aux_space:wN,
-%     \token_if_primitive_aux_mark:N}
+%     \token_if_primitive_aux_undefined:N}
 %^^A See http://groups.google.com/group/comp.text.tex/browse_thread/thread/0a72666873f8753d#
 %
+%   We filter out macros first, because they cause endless trouble later
+%   otherwise.
+%
 %   Primitives are almost distinguished by the fact that the result
-%   of \cs{token_to_meaning:N} is formed from letters only.
-%   Nine exceptions: \cs{tex_space:D}, \cs{tex_italiccorr:D},
+%   of \cs{token_to_meaning:N} is formed from letters only. Every other
+%   token has either a space (e.g., |the letter A|), a digit
+%   (e.g., |\count123|) or a double quote (e.g., |\char"A|).
+%
+%   Ten exceptions: on the one hand, \cs{c_undefined:D} is not a
+%   primitive, but its meaning is |undefined|, only letters;
+%   on the other hand, \cs{tex_space:D}, \cs{tex_italiccorr:D},
 %   \cs{tex_hyphen:D}, \cs{tex_firstmark:D}, \cs{tex_topmark:D},
 %   \cs{tex_botmark:D}, \cs{tex_splitfirstmark:D}, \cs{tex_splitbotmark:D},
-%   and \cs{tex_nullfont:D}.
-%   On the other hand, macros have |:| in their meaning, characters
-%   have spaces, and registers have digits or |"|. These non-letters
-%   always appear further than the second character.
+%   and \cs{tex_nullfont:D} are primitives, but have non-letters
+%   in their meaning.
 %
-%   Three of the exceptions are easy to treat: the meanings of
-%   \cs{tex_space:D}, \cs{tex_italiccorr:D} and \cs{tex_hyphen:D}
-%   are an escape character followed by a space, a forward slash, or
-%   a dash, respectively. Removing two undelimited arguments will
-%   eliminate all those non-letters, regardless of the value of
-%   \cs{tex_escapechar:D}.
+%   We start by removing the two first (non-space) characters from
+%   the meaning. This removes the escape character (which may be
+%   inexistent depending on \cs{tex_endlinechar:D}), and takes care
+%   of three of the exceptions: \cs{tex_space:D}, \cs{tex_italiccorr:D}
+%   and \cs{tex_hyphen:D}, whose meaning is at most two characters.
+%   This leaves a string terminated by some |:|, and \cs{q_stop}. 
 %
-%   In all cases, we are left with a string terminated by one or more
-%   |*|, and we want to determine if it contains anything else than
-%   letters. In fact, we don't need to be quite so strict: we can simply
-%   check that it contains no character with character code less than
-%   |`A|.
+%   The meaning of each one of the five \cs{tex_...mark:D} primitives
+%   has the form \meta{letters}|:|\meta{user material}. In other words,
+%   the first non-letter is a colon. We remove everything after the first
+%   colon.
+%
+%   We are now left with a string, which we must analyze. For primitives,
+%   it contains only letters. For non-primitives, it contains either
+%   |"|, or a space, or a digit. Two exceptions remain: \cs{c_undefined:D},
+%   which is not a primitive, and \cs{tex_nullfont:D}, which is a primitive.
 %
 %   Spaces cannot be grabbed in an undelimited way, so we check them
-%   separately: if there is a space in the meaning, then the token is
-%   either a character (e.g., ``|the letter A|''), a macro containing
-%   a space, or one of the six remaining exceptions, which must be
-%   checked by hand.
-%
-%   Finally, we go through characters one by one, testing their
-%   character code. The first character code less than |`A| determines
-%   the outcome: if it is our end-marker |*|, then the token is a
-%   primitive. If it is |:|, then our token is either a macro or one of
-%   the five mark primitives. Otherwise, our token is a register, or
-%   was defined with \cs{tex_chardef:D}, \emph{etc.}: it is not a
-%   primitive.
+%   separately. If there is a space, we test for \cs{tex_nullfont:D}.
+%   Otherwise, we go through characters one by one, and stop at the
+%   first character less than |`A| (this is not quite a test for
+%   \enquote{only letters}, but is close enough to work in this context).
+%   If this first character is |:| then we have a primitive, or
+%   \cs{c_undefined:D}, and if it is |"| or a digit, then the token
+%   is not a primitive.
 %
 %    \begin{macrocode}
-\prg_new_conditional:Npnn \token_if_primitive:N #1 { p , T , F , TF }
+\tex_chardef:D \c_token_A_int = `A ~ %
+\group_begin:
+\char_make_other:N \;
+\char_set_lccode:nn { `\; } { `\: }
+\char_set_lccode:nn { `\T } { `\T }
+\char_set_lccode:nn { `\F } { `\F }
+\tl_to_lowercase:n {
+  \group_end:
+  \prg_new_conditional:Npnn \token_if_primitive:N #1 { p , T , F , TF }
+    {
+      \token_if_macro:NTF #1
+        \prg_return_false:
+        {
+          \exp_after:wN \token_if_primitive_aux:NNw
+          \token_to_meaning:N #1 ; ; ; \q_stop #1
+        }
+    }
+  \cs_new_nopar:Npn \token_if_primitive_aux:NNw #1#2 #3 ; #4 \q_stop
+    {
+      \tl_if_empty:oTF { \token_if_primitive_aux_space:w #3 ~ }
+        { \token_if_primitive_aux_loop:N #3 ; \q_stop }
+        { \token_if_primitive_aux_nullfont:N }
+    }
+}
+\cs_new_nopar:Npn \token_if_primitive_aux_space:w #1 ~ { }
+\cs_new:Npn \token_if_primitive_aux_nullfont:N #1
   {
-    \exp_after:wN \token_if_primitive_aux:NNw
-    \token_to_meaning:N #1 * * * ~ \q_stop #1
-  }
-\cs_new_nopar:Npn \token_if_primitive_aux:NNw #1#2 #3 ~ #4 \q_stop
-  {
-    \tl_if_empty:nTF {#4}
-      { \token_if_primitive_aux_loop:N #3 \q_stop }
-      { \token_if_primitive_aux_space:N }
+    \if_meaning:w \tex_nullfont:D #1
+      \prg_return_true:
+    \else:
+      \prg_return_false:
+    \fi:
   }
 \cs_new_nopar:Npn \token_if_primitive_aux_loop:N #1
   {
-    \if_num:w `#1 < `A ~ %
+    \if_num:w `#1 < \c_token_A_int %
       \exp_after:wN \token_if_primitive_auxii:Nw
       \exp_after:wN #1
     \else:
@@ -1723,49 +1784,19 @@
   }
 \cs_new_nopar:Npn \token_if_primitive_auxii:Nw #1 #2 \q_stop
   {
-    \if:w * #1
-      \prg_return_true:
+    \if:w : #1
+      \exp_after:wN \token_if_primitive_aux_undefined:N
+    \else:
+      \prg_return_false:
       \exp_after:wN \use_none:n
-    \else:
-      \if:w : #1
-        \exp_after:wN \exp_after:wN
-        \exp_after:wN \token_if_primitive_aux_mark:N
-      \else:
-        \prg_return_false:
-        \exp_after:wN \exp_after:wN \exp_after:wN \use_none:n
-      \fi:
     \fi:
   }
-\cs_new:Npn \token_if_primitive_aux_space:N #1
+\cs_new:Npn \token_if_primitive_aux_undefined:N #1
   {
-    \if_meaning:w \tex_nullfont:D #1
+    \if_cs_exist:N #1
       \prg_return_true:
     \else:
-      \token_if_primitive_aux_mark:N #1
-    \fi:
-  }
-\cs_new:Npn \token_if_primitive_aux_mark:N #1
-  {
-    \if_meaning:w \tex_firstmark:D #1
-      \prg_return_true:
-    \else:
-      \if_meaning:w \tex_topmark:D #1
-        \prg_return_true:
-      \else:
-        \if_meaning:w \tex_botmark:D #1
-          \prg_return_true:
-        \else:
-          \if_meaning:w \tex_splitfirstmark:D #1
-            \prg_return_true:
-          \else:
-            \if_meaning:w \tex_splitbotmark:D #1
-              \prg_return_true:
-            \else:
-              \prg_return_false:
-            \fi:
-          \fi:
-        \fi:
-      \fi:
+      \prg_return_false:
     \fi:
   }
 %    \end{macrocode}
