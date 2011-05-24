@@ -7,14 +7,14 @@ setlocal
 
 set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
 set CLEAN=fc gz ins pdf sty txt
-set EXPL3DIR=..\..\l3in2e
+set EXPL3DIR=..\..\l3kernel
 set PACKAGE=xgalley
 set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 set SCRIPTDIR=..\..\support
 set TEST=xgalley-test
 set TESTDIR=testfiles
-set TDSROOT=latex\xpackages\%PACKAGE%
-set UNPACK=%PACKAGE%.dtx
+set TDSROOT=latex\l3experimental\%PACKAGE%
+set UNPACK=%PACKAGE%.ins
 set VALIDATE=..\..\validate
 
 :loop
