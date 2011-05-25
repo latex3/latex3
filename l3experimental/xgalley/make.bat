@@ -6,7 +6,7 @@ rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 setlocal
 
 set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
-set CLEAN=fc gz ins pdf sty txt
+set CLEAN=fc gz pdf sty txt
 set EXPL3DIR=..\..\l3kernel
 set PACKAGE=xgalley
 set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
