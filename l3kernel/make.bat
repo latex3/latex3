@@ -42,7 +42,7 @@ rem Makefile for LaTeX3 "expl3" files
   set ENGINE=pdftex
   set INCLUDETXT=README
   set INCLUDEPDF=expl3 source3
-  set PACKAGE=expl3
+  set PACKAGE=l3kernel
   set TDSFILES=%CTANFILES% cls sty
   set TDSROOT=tds
   set TESTDIR=testfiles
