@@ -33,7 +33,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = expl3
+PACKAGE = l3kernel
 
 ##############################################################
 # Directory structure for source files                       #
@@ -44,7 +44,6 @@ BASEDIR     := ..
 VALIDATEDIR := $(BASEDIR)/validate
 TESTFILEDIR := $(SOURCEDIR)/testfiles
 SUPPORTDIR  := $(BASEDIR)/support
-XPACKAGEDIR := $(BASEDIR)/xpackages
 
 ##############################################################
 # Directory structure for test system                        #
