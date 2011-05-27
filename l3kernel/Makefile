@@ -66,7 +66,7 @@ TDSDIR   := $(TESTDIR)/tds
 # Data for local installation and TDS construction           #
 ##############################################################
 
-INCLUDEPDF  := $(PACKAGE) source3
+INCLUDEPDF  := expl3 source3
 INCLUDETEX  := interface3 source3 source3body
 INCLUDETXT  := README
 PACKAGEROOT := latex/$(PACKAGE)
@@ -130,7 +130,6 @@ PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 ##############################################################
 
 ENGINE = pdftex
-
 
 ################################################################
 # File copying: default actions                                #
