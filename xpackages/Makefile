@@ -60,7 +60,6 @@ PACKAGEROOT := latex/$(PACKAGE)
 
 ALLPACKAGES = \
 	galley    \
-	xbase     \
 	xcontents \
 	xfootnote \
 	xfrontm   \
@@ -68,9 +67,8 @@ ALLPACKAGES = \
 	xinitials \
 	xlang     \
 	xor       \
-	xtheorem  \
-	xtras
-XPACKAGES   = xbase xcoffins xtras xhead
+	xtheorem
+XPACKAGES   = xhead
 
 ################################################################
 # File copying: default actions                                #
