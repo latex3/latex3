@@ -94,7 +94,7 @@ clean:
 	rm -rf $(L3TESTDIR)/*
 
 cleanall: clean
-	for I in $(XPACKAGES) ; do \
+	for I in $(ALLPACKAGES) ; do \
 	  cd $$I ; \
 	  make cleanall ; \
 	  cd .. ; \
