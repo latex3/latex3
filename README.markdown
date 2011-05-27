@@ -46,10 +46,9 @@ Documentation is found in:
   * `examples`: demonstration documents showing how to use LaTeX3 concepts.
   * `news`: source for _LaTeX3 News_.
   
-The repository also contains the directories `l3in2e` and `xpackages`. These
-contain code which is being moved (broadly) to `l3kernel` and `l3experimental`,
-respectively. Over time, both `l3in2e` and `xpackages` are expected to be
-removed from the repository.
+The repository also contains the directory `xpackages`. This
+contain code which is being moved (broadly) `l3experimental`.
+Over time, `xpackages` is expected to be removed from the repository.
   
 
 Discussion
