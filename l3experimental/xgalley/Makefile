@@ -32,7 +32,7 @@ PACKAGE = xpackages/xgalley
 
 SOURCEDIR   := .
 BASEDIR     := ../..
-EXPL3DIR    := $(BASEDIR)/l3in2e
+EXPL3DIR    := $(BASEDIR)/l3kernel
 SUPPORTDIR  := $(BASEDIR)/support
 TESTFILEDIR := $(SOURCEDIR)/testfiles
 VALIDATEDIR := $(BASEDIR)/validate
