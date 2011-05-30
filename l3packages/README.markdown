@@ -30,9 +30,19 @@ depend upon one another.
 
 Currently included in the CTAN release of l3packages are the following
 bundles:
+ * l3keys2e
  * xfrac
  * xparse
  * xtemplate
+
+l3keys2e
+-------- 
+
+The l3keys2e package allows keys defined using l3keys to be used
+as package and class options with LaTeX2e. This is tied to the
+method the existing kernel uses for processing options, and so it
+is likely that a stand-alone LaTeX3 kernel will use a very different
+approach.
 
 xfrac
 -----

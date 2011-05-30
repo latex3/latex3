@@ -29,8 +29,6 @@ are under active development and the interfaces may change.
 Currently included in the CTAN release of l3experimental are the following
 bundles:
  * xcoffins
- * xgalley
- * xtras
     
 xcoffins
 --------
@@ -52,19 +50,6 @@ similar areas on a page. This process is typically asynchronous but
 there are ways to control or change its behaviour. The xgalley module
 provides a mechanism for filling galleys and controlling the spacing,
 hyphenation and justification within them.
-
-xtras
------
-
-The xtras bundle provides functionality to bridge between LaTeX2e
-and LaTeX3. It provides add-ons to LaTeX2e to allow other xpackages
-to be used in the LaTeX2e context. 
-
-The l3keys2e package allows keys defined using l3keys to be used
-as package and class options with LaTeX2e. This is tied to the
-method the existing kernel uses for processing options, and so it
-is likely that a stand-alone LaTeX3 kernel will use a very different
-approach.
 
 DISCUSSION
 ----------
