@@ -59,7 +59,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
-UNPACK    = xgalley.dtx
+UNPACK    = xgalley.ins
 
 ##############################################################
 # Files for the check systems                                #
