@@ -58,8 +58,8 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-ALLPACKAGES = xcoffins xgalley xtras
-XPACKAGES   = xcoffins xtras
+ALLPACKAGES = xcoffins xgalley
+XPACKAGES   = xcoffins
 
 ################################################################
 # File copying: default actions                                #

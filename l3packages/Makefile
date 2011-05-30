@@ -58,8 +58,8 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-ALLPACKAGES = xfrac xparse xtemplate
-XPACKAGES   = xfrac xparse xtemplate
+ALLPACKAGES = l3keys2e xfrac xparse xtemplate
+XPACKAGES   = l3keys2e xfrac xparse xtemplate
 
 ################################################################
 # File copying: default actions                                #
@@ -99,6 +99,7 @@ cleanall: clean
 	  make cleanall ; \
 	  cd .. ; \
 	done
+	rm -rf *.zip
 
 ctan: tds
 	echo "Creating CTAN archive"
