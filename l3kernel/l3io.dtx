@@ -236,9 +236,9 @@
 %
 % \section{Wrapping lines in output}
 %
-% \begin{function}{\iow_wrap:nnnnN}
+% \begin{function}{\iow_wrap:xnnnN}
 %   \begin{syntax}
-%     \cs{iow_wrap:nnnnN} \Arg{text} \Arg{run-on text} \Arg{run-on length}
+%     \cs{iow_wrap:xnnnN} \Arg{text} \Arg{run-on text} \Arg{run-on length}
 %     ~~\Arg{set up} \meta{function}
 %   \end{syntax}
 %   This function will wrap the \meta{text} to a fixed number of
@@ -257,11 +257,14 @@
 %   will perform \texttt{x}-type expansion. For this reason, material which
 %   is to be written \enquote{as is} should be given as the argument to
 %   \cs{token_to_str:N} or \cs{tl_to_str:n} (as appropriate) within
-%   the \meta{text}.
+%   the \meta{text}. (It is \emph{possible} to use \cs{iow_wrap:xnnnN} with a
+%   \meta{function} which does not carry out \texttt{x}-type expansion, and
+%   so it is left to the programmer to ensure that appropriate steps are taken
+%   to deal with the two potential expansion steps.)
 % \end{function}
 %
 % \begin{variable}{\l_iow_line_length_int}
-%   The maximum length of a line to be written by the \cs{iow_wrap:nnnnN}
+%   The maximum length of a line to be written by the \cs{iow_wrap:xxnnN}
 %   function. This value depends on the \TeX{} system in use: the standard
 %   value is $78$, which is typically correct for unmodified \TeX{}live
 %   and MiK\TeX{} systems.
@@ -912,7 +915,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\iow_wrap:nnnnN}
+% \begin{macro}{\iow_wrap:xnnnN}
 % \begin{macro}[aux]{\iow_wrap_loop:}
 % \begin{macro}[aux]{\iow_wrap_loop_aux:}
 % \begin{macro}[aux]{\iow_wrap_space:}
@@ -927,9 +930,11 @@
 %   will do the actual wrapping. After the loop, the resulting text is
 %   passed on to the function which has been given as a post-processor.
 %   The argument |#4| is available for additional set up steps for
-%   the output.
+%   the output. The second group surrounding the use of |#4| here allows for
+%   cases where this alters the meaning of \cs{exp_not:N} or similar low-level
+%   material.
 %    \begin{macrocode}
-\cs_new_protected:Npn \iow_wrap:nnnnN #1#2#3#4#5
+\cs_new_protected:Npn \iow_wrap:xnnnN #1#2#3#4#5
   {
     \group_begin:
       \int_set:Nn \l_iow_target_length_int { \l_iow_line_length_int - ( #3 ) }
@@ -939,27 +944,30 @@
       \tl_clear:N \l_iow_wrapped_tl
       \cs_set_eq:NN \\ \iow_protected_newline:
       \cs_set_eq:NN \  \c_space_tl
-      #4
+      \group_begin:
+        #4
 %<*initex>
-      \tl_set:Nx \l_iow_wrap_tl {#1}
+        \tl_set:Nx \l_iow_wrap_tl {#1}
 %</initex>
 %<*package>
-      \protected@edef \l_iow_wrap_tl {#1}
+        \protected@edef \l_iow_wrap_tl {#1}
 %</package>
+      \exp_args:NNNo \group_end:
+      \tl_set:Nn \l_iow_wrap_tl \l_iow_wrap_tl
       \exp_after:wN \iow_wrap_loop: \l_iow_wrap_tl \q_iow_stop
       \tl_replace_all_in:Nnn \l_iow_wrapped_tl { \\ } { \iow_newline: #2 }
     \exp_args:NNo \group_end:
     #5 \l_iow_wrapped_tl
 }
 %    \end{macrocode}
-%   The main loop function is simply a wrapper around \cs{peek_after:NN},
+%   The main loop function is simply a wrapper around \cs{peek_after:Nw},
 %   which is useful as there is a low-level \cs{tex_afterassignment:D}
 %   needed to make everything work. The auxiliary here does a series of
 %   comparisons to work out how to handle the next token. Each of the
 %   cases is explained with the appropriate handler function.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \iow_wrap_loop:
-  { \peek_after:NN \iow_wrap_loop_aux: }
+  { \peek_after:Nw \iow_wrap_loop_aux: }
 \cs_new_protected:Npn \iow_wrap_loop_aux:
   {
     \cs_if_eq:NNTF \l_peek_token \q_iow_stop
@@ -993,7 +1001,7 @@
 \cs_new_protected:Npn \iow_wrap_space:
   {
     \int_set:Nn \l_iow_current_word_int
-      { \tl_elt_count:N \l_iow_current_word_tl }
+      { \tl_length:N \l_iow_current_word_tl }
     \int_compare:nNnTF
       { \l_iow_current_line_int + \l_iow_current_word_int }
         < \l_iow_target_length_int
@@ -1013,7 +1021,7 @@
       {
         \tl_put_right:Nx \l_iow_wrapped_tl
           {
-            \l_iow_current_line_tl
+            \exp_not:o \l_iow_current_line_tl
             \\
           }
         \int_set_eq:NN \l_iow_current_line_int \l_iow_current_word_int
@@ -1031,7 +1039,7 @@
 \cs_new_protected:Npn \iow_wrap_newline:N #1
   {
     \int_set:Nn \l_iow_current_word_int
-      { \tl_elt_count:N \l_iow_current_word_tl }
+      { \tl_length:N \l_iow_current_word_tl }
     \int_compare:nNnTF
       { \l_iow_current_line_int + \l_iow_current_word_int }
         < \l_iow_target_length_int
@@ -1049,7 +1057,7 @@
       {
         \tl_put_right:Nx \l_iow_wrapped_tl
           {
-            \l_iow_current_line_tl
+            \exp_not:o \l_iow_current_line_tl
             \\
           }
         \int_set_eq:NN \l_iow_current_line_int \l_iow_current_word_int
@@ -1069,7 +1077,7 @@
     \tl_set:Nx \l_iow_wrap_tl
       {
         \iow_char:N \{
-        #1
+        \exp_not:n {#1}
         \iow_char:N \}
       }
     \exp_after:wN \iow_wrap_loop: \l_iow_wrap_tl
@@ -1094,7 +1102,7 @@
 \cs_new_protected:Npn \iow_wrap_end:N #1
   {
     \int_set:Nn \l_iow_current_word_int
-      { \tl_elt_count:N \l_iow_current_word_tl }
+      { \tl_length:N \l_iow_current_word_tl }
     \int_compare:nNnTF
       { \l_iow_current_line_int + \l_iow_current_word_int }
         < \l_iow_target_length_int
@@ -1197,9 +1205,9 @@
 %   an expansion there, so a bit of a hack is needed.
 %    \begin{macrocode}
 \cs_new_protected:Npn \iow_now_buffer_safe:Nn #1#2
-  { \iow_wrap:nnnnN { \exp_not:n {#2} } { } \c_zero { } \iow_now:Nn #1 }
+  { \iow_wrap:xnnnN { \exp_not:n {#2} } { } \c_zero { } \iow_now:Nn #1 }
 \cs_new_protected:Npn \iow_now_buffer_safe:Nx #1#2
-  { \iow_wrap:nnnnN {#2} { } \c_zero { } \iow_now:Nn #1 }
+  { \iow_wrap:xnnnN {#2} { } \c_zero { } \iow_now:Nn #1 }
 %    \end{macrocode}
 % \end{macro}
 %
