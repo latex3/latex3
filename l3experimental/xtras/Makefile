@@ -144,11 +144,14 @@ expl3:
 ################################################################
 
 .PHONY = \
+	check        \
 	clean        \
 	cleanall     \
 	doc          \
 	localinstall \
 	unpack
+	
+check:
 
 clean:
 	echo "Cleaning up"
