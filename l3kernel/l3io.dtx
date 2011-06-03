@@ -885,7 +885,7 @@
 %\end{macro}
 %
 % \begin{macro}[aux]{\l_iow_wrap_tl}
-%   Used for initial expansion of text for wrapping.
+%   Used for the expansion step before detokenizing.
 %    \begin{macrocode}
 \tl_new:N \l_iow_wrap_tl
 %    \end{macrocode}
@@ -893,7 +893,7 @@
 %
 % \begin{macro}[aux]{\l_iow_wrapped_tl}
 %   The output from wrapping text: fully expanded and with lines
-%   while are not overly long.
+%   which are not overly long.
 %    \begin{macrocode}
 \tl_new:N \l_iow_wrapped_tl
 %    \end{macrocode}
@@ -906,28 +906,24 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\iow_protected_newline:}
-%   When converting explicit new lines in the source, there needs to
-%   be a \enquote{marker}: this is a protected new line, which will
-%   therefore not expand to |^^J|.
+% \begin{macro}{\l_iow_line_start_bool}
+%   Boolean to avoid adding a space at the beginning of lines.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \iow_protected_newline: { \iow_newline: }
+\bool_new:N \l_iow_line_start_bool
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\iow_wrap:xnnnN}
-% \begin{macro}[aux]{\iow_wrap_detokenize_first:w, \iow_wrap_detokenize:w}
-% \begin{macro}[aux]{\iow_wrap_loop:}
-% \begin{macro}[aux]{\iow_wrap_loop_aux:}
-% \begin{macro}[aux]{\iow_wrap_space:}
-% \begin{macro}[aux]{\iow_wrap_newline:N}
-% \begin{macro}[aux]{\iow_wrap_group:n}
-% \begin{macro}[aux]{\iow_wrap_char:N}
-% \begin{macro}[aux]{\iow_wrap_end:N}
+% \begin{macro}[aux]{\iow_wrap_loop:w}
+% \begin{macro}[aux]{\iow_wrap_word:}
+% \begin{macro}[aux]{\iow_wrap_word_fits:}
+% \begin{macro}[aux]{\iow_wrap_word_newline:}
+% \begin{macro}[aux]{\iow_wrap_newline:}
+% \begin{macro}[aux]{\iow_wrap_end:}
 %   The main wrapping function works as follows. The target number of
 %   characters in a line is calculated, before fully-expanding the input
 %   such that |\\| and \verb*|\ | are converted into the appropriate
-%   values. There is then a loop over each token in the input, which
+%   values. There is then a loop over each word in the input, which
 %   will do the actual wrapping. After the loop, the resulting text is
 %   passed on to the function which has been given as a post-processor.
 %   The argument |#4| is available for additional set up steps for
@@ -939,9 +935,9 @@
       \int_set:Nn \l_iow_target_length_int { \l_iow_line_length_int - ( #3 ) }
       \int_zero:N \l_iow_current_line_int
       \tl_clear:N \l_iow_current_line_tl
-      \tl_clear:N \l_iow_current_word_tl
-      \tl_clear:N \l_iow_wrapped_tl
-      \cs_set_eq:NN \\ \iow_protected_newline:
+      \tl_clear:N \l_iow_wrap_tl
+      \bool_set_true:N \l_iow_line_start_bool
+      \cs_set:Npx \\ { \c_space_tl \iow_newline: \c_space_tl }
       \cs_set_eq:NN \  \c_space_tl
       #4
 %<*initex>
@@ -950,206 +946,130 @@
 %<*package>
       \protected@edef \l_iow_wrap_tl {#1}
 %</package>
-      \tl_if_empty:NF \l_iow_wrap_tl
+      \cs_set:Npn \\ { \iow_newline: #2 }
+      \use:x
         {
-          \exp_after:wN \iow_wrap_detokenize_first:w \l_iow_wrap_tl
-            \\ \q_recursion_tail \\ \q_recursion_stop
-          \exp_after:wN \iow_wrap_loop: \l_iow_wrap_tl \q_iow_stop
-          \tl_replace_all_in:Nnn \l_iow_wrapped_tl { \\ } { \iow_newline: #2 }
+          \exp_not:N \iow_wrap_loop:w
+          \tl_to_str:N \l_iow_wrap_tl \c_space_tl
+          \exp_not:N \q_iow_stop \c_space_tl
         }
     \exp_args:NNo \group_end:
     #5 \l_iow_wrapped_tl
-}
-%    \end{macrocode}
-%   The aim here is to detokenize everything except for |\\|: a loop is the
-%   best way. Two functions are used so that there is no extra |\\|
-%   inserted, and to avoid needing to clear \cs{l_iow_wrap_tl} in the
-%   code above.
-%    \begin{macrocode}
-\cs_new_protected:Npn \iow_wrap_detokenize_first:w #1 \\
-  {
-    \quark_if_recursion_tail_stop:n {#1}
-    \tl_set:Nx \l_iow_wrap_tl { \tl_to_str:n {#1} }
-    \iow_wrap_detokenize:w
-  }
-\cs_new_protected:Npn \iow_wrap_detokenize:w #1 \\
-  {
-    \quark_if_recursion_tail_stop:n {#1}
-    \tl_put_right:Nx \l_iow_wrap_tl { \\ \tl_to_str:n {#1} }
-    \iow_wrap_detokenize:w
   }
 %    \end{macrocode}
-%   The main loop function is simply a wrapper around \cs{peek_after:Nw},
-%   which is useful as there is a low-level \cs{tex_afterassignment:D}
-%   needed to make everything work. The auxiliary here does a series of
-%   comparisons to work out how to handle the next token. Each of the
-%   cases is explained with the appropriate handler function.
+% The loop grabs one word in the input, and checks whether it is
+% the end, or a forced new line, or a normal word.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \iow_wrap_loop:
-  { \peek_after:Nw \iow_wrap_loop_aux: }
-\cs_new_protected:Npn \iow_wrap_loop_aux:
+\cs_new:Npn \iow_wrap_loop:w #1 ~ %
   {
-    \cs_if_eq:NNTF \l_peek_token \q_iow_stop
-      { \iow_wrap_end:N }
+    \tl_set:Nn \l_iow_current_word_tl {#1}
+    \tl_if_eq:NNTF \l_iow_current_word_tl \iow_newline:
+      { \iow_wrap_newline: }
       {
-        \token_if_space:NTF \l_peek_token
-          { \iow_wrap_space: }
-          {
-            \cs_if_eq:NNTF \l_peek_token \\
-              { \iow_wrap_newline:N }
-              {
-                 \cs_if_eq:NNTF \l_peek_token \iow_newline:
-                   { \iow_wrap_newline:N }
-                   {
-                     \token_if_group_begin:NTF \l_peek_token
-                       { \iow_wrap_group:n }
-                       { \iow_wrap_char:N }
-                   }
-              }
-          }
+        \tl_if_eq:NNTF \l_iow_current_word_tl \q_iow_stop
+          { \iow_wrap_end: }
+          { \iow_wrap_word: }
       }
   }
 %    \end{macrocode}
-%   Dealing with a space first means working out if the current word
-%   will fit on the end of the current line. If it will, then there is
-%   an addition, while otherwise a new line is forced. In either case,
-%   the space then needs to be removed from the input. This is done using
-%   the same approach as used by the \enquote{space skipping}
-%   \cs{peek_\ldots} functions.
+% For a normal word, update the line length, then test if the current
+% word would fit in the current line, and call the appropriate function.
 %    \begin{macrocode}
-\cs_new_protected:Npn \iow_wrap_space:
+\cs_new:Npn \iow_wrap_word:
   {
     \int_set:Nn \l_iow_current_word_int
-      { \tl_length:N \l_iow_current_word_tl }
-    \int_compare:nNnTF
-      { \l_iow_current_line_int + \l_iow_current_word_int }
-        < \l_iow_target_length_int
+      { \str_length_skip_spaces:N \l_iow_current_word_tl }
+    \int_add:Nn \l_iow_current_line_int { \l_iow_current_word_int }
+    \int_compare:nNnTF \l_iow_current_line_int
+                     < \l_iow_target_length_int
+      { \iow_wrap_word_fits: }
+      { \iow_wrap_word_newline: }
+    \iow_wrap_loop:w
+  }
+%    \end{macrocode}
+% If the word fits in the current line, add it to the line, preceeded by
+% a space unless it is the first word of the line.
+%    \begin{macrocode}
+\cs_new:Npn \iow_wrap_word_fits:
+  {
+    \bool_if:NTF \l_iow_line_start_bool
       {
-        \int_add:Nn \l_iow_current_line_int { \l_iow_current_word_int }
-        \tl_if_empty:NTF \l_iow_current_line_tl
-          { \tl_set_eq:NN \l_iow_current_line_tl \l_iow_current_word_tl }
-          {
-            \tl_put_right:Nx \l_iow_current_line_tl
-              {
-                \c_space_tl
-                \exp_not:o \l_iow_current_word_tl
-              }
-            \int_incr:N \l_iow_current_line_int
-          }
-      }
-      {
-        \tl_put_right:Nx \l_iow_wrapped_tl
-          {
-            \exp_not:o \l_iow_current_line_tl
-            \\
-          }
-        \int_set_eq:NN \l_iow_current_line_int \l_iow_current_word_int
+        \bool_set_false:N \l_iow_line_start_bool
         \tl_set_eq:NN \l_iow_current_line_tl \l_iow_current_word_tl
       }
-    \tl_clear:N \l_iow_current_word_tl
-    \tex_afterassignment:D \iow_wrap_loop:
-    \cs_set_eq:NN \l_peek_token
+      {
+        \tl_put_right:Nx \l_iow_current_line_tl
+          { ~ \l_iow_current_word_tl }
+        \int_incr:N \l_iow_current_line_int
+      }
   }
 %    \end{macrocode}
-%   A new line is almost the same as a space: work out the line length and
-%   store the current word as appropriate. The only difference is that
-%   here removing the token is easy, as it can be done by absorbing it.
+% Otherwise, the current line is added to the result, with the run-on text.
+% The current word (and its length) are then put in the new line.
 %    \begin{macrocode}
-\cs_new_protected:Npn \iow_wrap_newline:N #1
+\cs_new:Npn \iow_wrap_word_newline:
   {
-    \int_set:Nn \l_iow_current_word_int
-      { \tl_length:N \l_iow_current_word_tl }
-    \int_compare:nNnTF
-      { \l_iow_current_line_int + \l_iow_current_word_int }
-        < \l_iow_target_length_int
-      {
-        \tl_put_right:Nx \l_iow_wrapped_tl
-          {
-            \exp_not:o \l_iow_current_line_tl
-            \tl_if_empty:NF \l_iow_current_line_tl { \c_space_tl }
-            \exp_not:o \l_iow_current_word_tl
-            \\
-          }
-        \tl_clear:N \l_iow_current_line_tl
-        \int_zero:N \l_iow_current_line_int
-      }
-      {
-        \tl_put_right:Nx \l_iow_wrapped_tl
-          {
-            \exp_not:o \l_iow_current_line_tl
-            \\
-          }
-        \int_set_eq:NN \l_iow_current_line_int \l_iow_current_word_int
-        \tl_set_eq:NN \l_iow_current_line_tl \l_iow_current_word_tl
-      }
-    \tl_clear:N \l_iow_current_word_tl
-    \iow_wrap_loop:
+    \tl_put_right:Nx \l_iow_wrapped_tl
+      { \l_iow_current_line_tl \\ }
+    \int_set_eq:NN \l_iow_current_line_int \l_iow_current_word_int
+    \tl_set_eq:NN  \l_iow_current_line_tl  \l_iow_current_word_tl
   }
 %    \end{macrocode}
-%   For a group, the assumption is that as expansion has already occurred
-%   the group should actually be printed. This is achieved by inserting
-%   the appropriate tokens at either side of the input, which is therefore
-%   absorbed here.
+% Forced newlines are almost identical to those caused by overflow,
+% except that here the word is empty. And remember to continue the loop!
 %    \begin{macrocode}
-\cs_new_protected:Npn \iow_wrap_group:n #1
+\cs_new:Npn \iow_wrap_newline:
   {
-    \tl_set:Nx \l_iow_wrap_tl
-      {
-        \iow_char:N \{
-        \exp_not:n {#1}
-        \iow_char:N \}
-      }
-    \exp_after:wN \iow_wrap_loop: \l_iow_wrap_tl
+    \tl_put_right:Nx \l_iow_wrapped_tl
+      { \l_iow_current_line_tl \\ }
+    \int_zero:N \l_iow_current_line_int
+    \tl_clear:N \l_iow_current_line_tl
+    \bool_set_true:N \l_iow_line_start_bool
+    \iow_wrap_loop:w
   }
 %    \end{macrocode}
-%   For the general case of any other token, it is simply added to the
-%   current word and the loop repeats. The token is therefore absorbed
-%   at this stage. The token at this stage is \enquote{made safe} against
-%   further expansion.
+% At the end, we simply save the last line (without the run-on text).
 %    \begin{macrocode}
-\cs_new_protected:Npn \iow_wrap_char:N #1
+\cs_new:Npn \iow_wrap_end:
   {
-    \tl_put_right:Nn \l_iow_current_word_tl {#1}
-    \iow_wrap_loop:
+    \tl_put_right:Nx \l_iow_wrapped_tl
+      { \l_iow_current_line_tl }
   }
 %    \end{macrocode}
-%   At the end of the loop, the first task is to remove the
-%   \cs{q_iow_stop} marker (|#1|). After that, tidying up is reminiscent of
-%   the routine for a new line. If the line is short enough, the last
-%   word is added to it, while otherwise a new line is forced with
-%   the word on its own.
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\str_length_skip_spaces:N}
+% \begin{macro}{\str_length_skip_spaces:n}
+% \begin{macro}{\str_length_loop:NNNNNNNNN}
+%   The wrapping code requires to measure the number of character
+%   in each word. This could be done with \cs{tl_length:n}, but
+%   it is ten times faster (litterally) to use the code below.
 %    \begin{macrocode}
-\cs_new_protected:Npn \iow_wrap_end:N #1
+\cs_new:Npn \str_length_skip_spaces:N
+  { \exp_args:No \str_length_skip_spaces:n }
+\cs_new:Npn \str_length_skip_spaces:n #1
   {
-    \int_set:Nn \l_iow_current_word_int
-      { \tl_length:N \l_iow_current_word_tl }
-    \int_compare:nNnTF
-      { \l_iow_current_line_int + \l_iow_current_word_int }
-        < \l_iow_target_length_int
-      {
-        \tl_put_right:Nx \l_iow_wrapped_tl
-          {
-            \exp_not:o \l_iow_current_line_tl
-            \tl_if_empty:NF \l_iow_current_word_tl { \c_space_tl }
-            \exp_not:o \l_iow_current_word_tl
-          }
-      }
-      {
-        \tl_put_right:Nx \l_iow_wrapped_tl
-          {
-            \exp_not:o \l_iow_current_line_tl
-            \\
-            \exp_not:o \l_iow_current_word_tl
-          }
-      }
+    \int_value:w \int_eval:w
+      \exp_after:wN \str_length_loop:NNNNNNNNN \tl_to_str:n {#1}
+      {X8}{X7}{X6}{X5}{X4}{X3}{X2}{X1}{X0} \q_stop
+    \int_eval_end:
+  }
+\cs_new:Npn \str_length_loop:NNNNNNNNN #1#2#3#4#5#6#7#8#9
+  {
+    \if_catcode:w X #9
+      \exp_after:wN \use_none_delimit_by_q_stop:w
+    \else:
+      9 + 
+      \exp_after:wN \str_length_loop:NNNNNNNNN
+    \fi:
   }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
