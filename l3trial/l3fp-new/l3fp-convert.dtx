@@ -1,0 +1,1462 @@
+% \iffalse meta-comment
+% 
+%% File: l3fp-convert.dtx Copyright(C) 2011 The LaTeX3 Project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3c of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the "l3trial bundle" (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %%
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX Project Team.
+%%
+%% -----------------------------------------------------------------------
+%%
+%
+%<*driver|package>
+\RequirePackage{expl3,l3fp-aux}
+\GetIdInfo$Id: l3fp-convert.dtx 0000 0000-00-00 00:00:00Z bruno $
+  {L3 Experimental floating point conversion}
+%</driver|package>
+%<*driver>
+\documentclass[full]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+% 
+% \title{^^A
+%   The \textsf{l3fp-convert} package\\ Floating point conversion^^A
+%   \thanks{This file describes v\fileversion, last revised \filedate.}^^A
+% }
+%         
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released \filedate}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+%   The internal representation of floating point numbers is quite
+%   untypable, and we provide here the tools to convert from a more
+%   user-friendly representation to internal floating point numbers,
+%   and for various other conversions. Every floating point operation
+%   calls those functions to normalize the input, so they must be
+%   optimized.
+%
+%   \section{Internal representation}
+%
+%   Internally, a floating point number \meta{X} is a
+%   protected token list containing
+%   \begin{quote}
+%     \cs{s_fp} \cs{fp_use:w} \meta{case} \meta{sign} \meta{body} |;|
+%   \end{quote}
+%   Let us explain each piece separately.
+%
+%   Internal floating point numbers will be used in expressions,
+%   and in this context will be subject to f-expansion. They must
+%   leave a recognizable mark after f-expansion, to prevent the
+%   floating point number from being re-parsed. Thus, \cs{s_fp}
+%   is simply another name for \cs{tex_relax:D}.
+%
+%   Since floating point numbers are always accessed by the various
+%   operations using f-expansion, we can safely let them be protected:
+%   x-expansion will then leave them untouched. However, when typeset,
+%   \cs{s_fp} will do nothing, and \cs{fp_use:w} will take care of
+%   typesetting the number, with whichever typesetting setting is
+%   currently active.
+%
+%   The (decimal part of the) IEEE-754-2008 standard requires the
+%   format to be able to represent special floating point numbers
+%   besides the usual positive and negative cases. The various
+%   possibilities will be distinguished by their \meta{case}, which
+%   is a single digit:\footnote{Bruno: I need to implement subnormal
+%     numbers. Also, quiet and signalling NaN must be better
+%     distinguished.}
+%   \begin{itemize}
+%   \item[0] zeros: |+0| and |-0|,
+%   \item[1] \enquote{normal} numbers (positive and negative),
+%   \item[2] infinities: |+inf| and |-inf|,
+%   \item[3] quiet and signalling |NaN|.
+%   \end{itemize}
+%   The \meta{sign} is |0| (positive) or |2| (negative),
+%   except in the case of |NaN|, which have $\meta{sign} = 1$.
+%   This ensures that changing the \meta{sign} digit to $2-\meta{sign}$
+%   is exactly equivalent to changing the sign of the number.
+%
+%   Special floating point numbers have the form
+%   \begin{quote}
+%     \cs{s_fp} \cs{fp_use:w} \meta{case} \meta{sign} \cs{fp_info:...} |;|
+%   \end{quote}
+%   where \cs{fp_info:...} is a control sequence let to
+%   \cs{tex_relax:D}, carrying an information string
+%   \enquote{\texttt{...}} which describes where the
+%   number was formed (useful for debugging).
+%
+%   Normal floating point numbers ($\meta{case} = 1$) have the form
+%   \begin{quote}
+%     \cs{s_fp} \cs{fp_use:w} 1 \meta{sign} \Arg{exponent}
+%     \Arg{X1} \Arg{X2} \Arg{X3} \Arg{X4} |;|
+%   \end{quote}
+%   Here, the \meta{exponent} is an integer in the range
+%   [\cs{c_fp_min_exponent_int},\cs{c_fp_max_exponent_int}].
+%   The body consists in four blocks of exactly $4$ digits,
+%   $ 0000 \leq \meta{X\sb{i}} \leq 9999 $, such that
+%   \[
+%   \meta{X}
+%   = (-1)^{\meta{sign}} 10^{-\meta{exponent}}
+%   \sum_{i=1}^{4} \meta{X\sb{i}} 10^{-4i}
+%   \]
+%   and such that the \meta{exponent} is minimal. This implies
+%   $ 1000 \leq \meta{X1} \leq 9999 $.
+%
+%   \begin{table}\centering
+%     \caption{Internal representation of floating point numbers.}
+%     \label{tab:fp-convert-special}
+%     \begin{tabular}{ll}
+%       \toprule
+%       \multicolumn{1}{c}{Representation} & Meaning \\
+%       \midrule
+%       0 0 \cs{fp_info:...}  \texttt{;} & Positive zero.      \\
+%       0 2 \cs{fp_info:...}  \texttt{;} & Negative zero.      \\
+%       1 0 \Arg{exponent} \Arg{X1} \Arg{X2} \Arg{X3} \Arg{X4} \texttt{;}
+%                                        & Positive floating point. \\
+%       1 2 \Arg{exponent} \Arg{X1} \Arg{X2} \Arg{X3} \Arg{X4} \texttt{;}
+%                                        & Negative floating point. \\
+%       2 0 \cs{fp_info:...}  \texttt{;} & Positive infinity.  \\
+%       2 2 \cs{fp_info:...}  \texttt{;} & Negative infinity.  \\
+%       3 1 \cs{fp_info:q...} \texttt{;} & Quiet |NaN|.        \\
+%       3 1 \cs{fp_info:s...} \texttt{;} & Signalling |NaN|.   \\
+%       \bottomrule
+%     \end{tabular}
+%   \end{table}
+%
+%   \section{Conversion functions}
+%
+%   \begin{function}[EXP]{\fp_convert_from_str:n}
+%     \begin{syntax}
+%       \cs{fp_convert_from_str:n} \Arg{token list}
+%     \end{syntax}
+%     Reads the \meta{token list}, and expands to the internal
+%     representation of the corresponding floating point number.
+%     The \meta{token list} may be an internal floating point
+%     number, or any reasonable input.\footnote{Bruno: clarify.}
+%     This function is f-expandable.
+%   \end{function}
+%
+%   \begin{function}[EXP]{\fp_convert_from_old:N,\fp_convert_from_old:w}
+%     \begin{syntax}
+%       \cs{fp_convert_from_old:N} \meta{old fp var}
+%       \cs{fp_convert_from_old:w} \meta{old floating point} |;|
+%     \end{syntax}
+%     Converts the \meta{old fp var} to the new floating
+%     point format. Leaves the result in the input stream.
+%     These functions are f-expandable. Note the trailing
+%     semicolon (with catcode other) in the |w| case.
+%   \end{function}
+%
+%   \begin{function}[EXP]{\fp_convert_to_str:N,\fp_convert_to_str:w}
+%     \begin{syntax}
+%       \cs{fp_convert_to_str:N} \meta{fp var}
+%       \cs{fp_convert_to_str:w} \meta{floating point}
+%     \end{syntax}
+%     These functions f-expand to a string representation of the
+%     internal floating point number, in the form
+%     \texttt{0.}\meta{\1\6 digits}\texttt{e}\meta{exponent}.
+%     Note that the \meta{floating point} is naturally delimited
+%     by a semicolon.
+%   \end{function}
+%
+%   \begin{function}[EXP]{\fp_convert_to_old:f,
+%       \fp_convert_to_old:N,\fp_convert_to_old:w}
+%     \begin{syntax}
+%       \cs{fp_convert_to_old:f} \Arg{token list}
+%       \cs{fp_convert_to_old:N} \meta{fp var}
+%       \cs{fp_convert_to_old:w} \meta{floating point}
+%     \end{syntax}
+%     These functions convert an internal floating point number to the old
+%     format (\meta{sign}\meta{digit}.\meta{9~digits}e\meta{exponent}).
+%     Note that since the new internal floating point number format includes
+%     a trailing semicolon, it is not needed for \cs{fp_convert_to_old:w}.
+%
+%     This should probably be made into some generic rounding procedure.
+%   \end{function}
+%
+% \end{documentation}
+% 
+% \begin{implementation}
+%
+% \section{\texttt{l3fp-convert} implementation}
+% 
+% We start by ensuring that the required packages are loaded.
+%    \begin{macrocode}
+%<*package>
+\ProvidesExplPackage
+  {\filename}{\filedate}{\fileversion}{\filedescription}
+%</package>
+%<*initex|package>
+%    \end{macrocode}
+%
+% \subsection{Conversion to string}
+%
+% It is easy to convert an internal floating point to a string:
+% no rounding, and the format is very well defined. We simply
+% have to filter out the various special cases.
+%
+% \begin{macro}[EXP]{
+%     \fp_convert_to_str:f,
+%     \fp_convert_to_str:N,
+%     \fp_convert_to_str:w}
+% \begin{macro}[aux,EXP]{
+%     \fp_convert_to_str_zero:Nw,
+%     \fp_convert_to_str_normal:Nnnnnn,
+%     \fp_convert_to_str_inf:Nw,
+%     \fp_convert_to_str_nan:w}
+%   \begin{syntax}
+%     \cs{fp_convert_to_str:w}
+%     ~~\cs{s_fp} \cs{fp_use:w} \meta{case} \meta{sign} \meta{body} |;|
+%   \end{syntax}
+%   The expanding versions must leave their argument unbraced.
+%    \begin{macrocode}
+\cs_new:Npn \fp_convert_to_str:f
+  { \exp_last_unbraced:Nf \fp_convert_to_str:w }
+\cs_new:Npn \fp_convert_to_str:N
+  { \exp_after:wN \fp_convert_to_str:w }
+\cs_new:Npn \fp_convert_to_str:w \s_fp \fp_use:w #1
+  {
+    \tex_ifcase:D #1 \exp_stop_f:
+         \exp_after:wN \fp_convert_to_str_zero:Nw
+    \or: \exp_after:wN \fp_convert_to_str_normal:Nnnnnn
+    \or: \exp_after:wN \fp_convert_to_str_inf:Nw
+    \or: \exp_after:wN \fp_convert_to_str_nan:w
+    \fi:
+  }
+\cs_new:Npn \fp_convert_to_str_zero:Nw #1 #2;
+  {
+    \if:w 0 #1
+      \exp_after:wN +
+    \else:
+      \exp_after:wN -
+    \fi:
+    0
+  }
+\cs_new:Npn \fp_convert_to_str_inf:Nw #1 #2;
+  {
+    \if:w 0 #1
+      \exp_after:wN +
+    \else:
+      \exp_after:wN -
+    \fi:
+    inf
+  }
+\cs_new:Npn \fp_convert_to_str_nan:w #1; { nan }
+\cs_new:Npn \fp_convert_to_str_normal:Nnnnnn #1 #2 #3#4#5#6 ;
+  {
+    \if:w 0 #1
+      \exp_after:wN +
+    \else:
+      \exp_after:wN -
+    \fi:
+    0 . #3 #4 #5 #6 e #2
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%
+% \subsection{Conversion from old floating points}
+%
+% To ease the transition, we provide a conversion from the old
+% floating point implementation to the new one. The input is a token
+% list of the form \meta{sign} \meta{1~digit}|.|\meta{9~digits}
+% |e|\meta{exponent}.
+%
+% \begin{macro}[EXP]{
+%     \fp_convert_from_old:N,
+%     \fp_convert_from_old:w
+%   }
+% \begin{macro}[EXP,aux]{
+%     \fp_convert_from_old_special:Nw,
+%     \fp_convert_from_old_normal:NnNNNNww,
+%     \fp_convert_from_old_sign:N
+%   }
+%
+%   The old module only has one special case, \cs{c_undefined_fp},
+%   distinguished by its sign. It is converted to an \enquote{empty}
+%   \texttt{qNaN}. All other numbers are converted with no
+%   precision loss, just by adding zero at the end. The exponent
+%   is shifted by $1$ (because the mantissa of new floating point
+%   numbers starts with $0.\cdots$). For instance,
+%   \texttt{+1.234512345e7} is stored as \cs{s_fp} \cs{fp_use:w}
+%   |10{8}{1234}{5123}{4500}{0000};|.
+%
+%   \begin{macrocode}
+\cs_new_nopar:Npn \fp_convert_from_old:N #1
+  { \exp_after:wN \fp_convert_from_old:w #1 ; }
+\cs_new_nopar:Npn \fp_convert_from_old:w #1 #2.#3#4#5
+  {
+    \if_meaning:w 0 #2
+      \exp_after:wN \fp_convert_from_old_special:Nw
+    \else:
+      \exp_after:wN \fp_convert_from_old_normal:NnNNNNww
+    \fi:
+    #1 {#2#3#4#5}
+  }
+\cs_new_nopar:Npn \fp_convert_from_old_special:Nw #1 #2 ;
+  {
+    \if:w X #1
+      \exp_after:wN \c_empty_qnan_fp
+    \else:
+      \exp_after:wN \c_plus_zero_fp
+    \fi:
+  }
+\cs_new_nopar:Npn \fp_convert_from_old_normal:NnNNNNww
+    #1 #2 #3#4#5#6 #7 e #8 ;
+  {
+    \fp_convert_from_old_sign:N #1
+    { \tex_number:D \etex_numexpr:D #8 + 1 }
+    {#2} {#3#4#5#6} {#700} {0000} ;
+  }
+\cs_new_nopar:Npn \fp_convert_from_old_sign:N #1
+  {
+    \exp_after:wN \s_fp
+    \exp_after:wN \fp_use:w
+    \tex_number:D 1 \if_meaning:w + #1 0 \else: 2 \fi: \exp_after:wN
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%
+% \subsection{Conversion to old floating points}
+%
+% Converting from the internal representation to the old format for fp
+% is slightly harder, as it involves rounding.
+%
+% \begin{macro}[EXP]{
+%     \fp_convert_to_old:f,
+%     \fp_convert_to_old:N,
+%     \fp_convert_to_old:w
+%   }
+% \begin{macro}[aux,EXP]{
+%     \fp_convert_to_old_zero:w,
+%     \fp_convert_to_old_undefined:w
+%   }
+% \begin{macro}[aux,EXP]{
+%     \fp_convert_to_old_normal:Nnnn,
+%     \fp_convert_to_old_aux_i:NNN,
+%     \fp_convert_to_old_aux_ii:N,
+%     \fp_convert_to_old_aux_iii:NN,
+%     \fp_convert_to_old_carry:w
+%     \fp_convert_to_old_sanitize:NNw,
+%   }
+%   \begin{syntax}
+%     \cs{fp_convert_to_old:w}
+%     ~~\cs{s_fp} \cs{fp_use:w} \meta{case} \meta{sign} \meta{body} |;|
+%   \end{syntax}
+%   The expanding versions must leave their argument unbraced.
+%    \begin{macrocode}
+\cs_new:Npn \fp_convert_to_old:f
+    { \exp_last_unbraced:Nf \fp_convert_to_old:w }
+\cs_new:Npn \fp_convert_to_old:N
+    { \exp_after:wN \fp_convert_to_old:w }
+%    \end{macrocode}
+%
+%   The conversion then starts by examining the \meta{case}, and
+%   branching accordingly. Infinities and NaN are treated identically.
+%    \begin{macrocode}
+\cs_new:Npn \fp_convert_to_old:w \s_fp \fp_use:w #1
+  {
+    \if_case:w #1 \exp_stop_f:
+         \exp_after:wN \fp_convert_to_old_zero:w
+    \or: \exp_after:wN \fp_convert_to_old_normal:Nnnn
+    \else: \exp_after:wN \fp_convert_to_old_undefined:w
+    \fi:
+  }
+\cs_new:Npn \fp_convert_to_old_zero:w #1; { \c_zero_old_fp }
+\cs_new:Npn \fp_convert_to_old_undefined:w #1; { \c_undefined_old_fp }
+%    \end{macrocode}
+%
+%   In the case of normal numbers ($\meta{case}=1$), we do the
+%   rounding within some \cs{etex_numexpr:D}. Afterwards,
+%   check for a carry. This only ever happens to yield $1.0\cdots0$
+%   as a result, so \cs{fp_convert_to_old_carry:w} knows
+%   precisely what follows.
+%
+%   The whole thing is wrapped in a calculation of the exponent.
+%   This will be ended by $-1$ (unless there is a carry). At the end,
+%   \emph{i.e.}, after the carry, \cs{fp_convert_to_old_sanitize:NNw}
+%   tests for overflow or underflow, and reorders the various pieces.
+%    \begin{macrocode}
+\cs_new:Npn \fp_convert_to_old_normal:Nnnn #1 #2 #3#4
+  {
+    \exp_after:wN \fp_convert_to_old_sanitize:NNw
+    \exp_after:wN #1
+    \tex_the:D \etex_numexpr:D #2
+      \exp_after:wN \fp_convert_to_old_aux_iii:NN
+      \tex_the:D \etex_numexpr:D 1#3
+        \exp_after:wN \fp_convert_to_old_aux_ii:N
+        \tex_the:D \etex_numexpr:D
+          1 #4 \fp_convert_to_old_aux_i:NNN #1
+  }
+\cs_new:Npn \fp_convert_to_old_aux_i:NNN #1 #2#3
+  { % <sign> <X9> <X10> <X11-X16> ;
+    #2 #3
+    + \fp_aux_round_s:NNNw #1#3
+  }
+\cs_new:Npn \fp_convert_to_old_aux_ii:N #1
+  { % <1 or 2> <X'6-10> ;
+    \if_meaning:w 2 #1 + 1 \fi: \tex_relax:D
+  }
+\cs_new:Npn \fp_convert_to_old_aux_iii:NN #1 #2
+  { % <1 or 2> <X'1>
+    \if_meaning:w 2 #1
+      \exp_after:wN \fp_convert_to_old_carry:w
+    \fi:
+    - 1 ;
+    #2.
+  }
+\cs_new:Npn \fp_convert_to_old_carry:w - 1 ; 0.000000000 ;
+  { ; 1.000000000 ; }
+%    \end{macrocode}
+%   If (the absolute value of) the exponent is less than $100$,
+%   then the number fits in the \enquote{old} range of exponents:
+%   simply set the sign correctly. Underflow gives \cs{c_zero_old_fp}
+%   and  overflow gives \cs{c_undefined_old_fp}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_convert_to_old_sanitize:NNw #1 #2#3 ;
+  { % <sign digit> <exponent> ; <body> ;
+    \if_num:w \if:w - #2 - \fi: #2#3 < \c_one_hundred
+      \exp_after:wN \fp_convert_to_old_sane:Nww
+    \else:
+      \exp_after:wN \fp_convert_to_old_unsane:NNww
+    \fi:
+    #1 #2#3 ;
+  }
+\cs_new:Npn \fp_convert_to_old_sane:Nww #1 #2; #3;
+  { \if:w 0 #1 \exp_after:wN + \else: \exp_after:wN - \fi: #3 e #2 }
+\cs_new:Npn \fp_convert_to_old_unsane:NNww #1 #2#3; #4;
+  {
+    \if:w - #2
+      \exp_after:wN \c_zero_old_fp
+    \else:
+      \exp_after:wN \c_undefined_old_fp
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% 
+%
+%
+% \subsection{Conversion from string}
+%
+% In this section, we write some code to convert user input to
+% an internal floating point. The following forms are accepted:
+% \begin{itemize}
+% \item \meta{signs} \meta{floating point}
+% \item \meta{signs} \meta{integer} |.| \meta{decimal} |e| \meta{exponent}
+% \end{itemize}
+% In both cases, \meta{signs} is a (possibly empty) string of
+% |+| and |-| (with any category code\footnote{Bruno: except
+%   1, 2, 4, 10, 13, and those which cannot be tokens (0, 5, 9),
+%   so really, just 3, 6, 7, 8, 11, 12.}).
+%
+% In the second form, the \meta{integer} is a sequence of digits,
+% whose length is not limited by constraints \TeX{}'s integer
+% registers. It stops at the first non-digit character. The
+% \meta{decimal} part is formed by all digits from the dot
+% (if it exists) until the first non-digit character. The
+% \meta{exponent} part has the form \meta{exponent sign}
+% \meta{exponent body}, where \meta{exponent sign} is any string
+% of |+| or |-|, and \meta{exponent body} is a string of digits,
+% stopping, as usual, at the first non-digit.
+%
+% The code attempts to match the longest possible string. If some
+% tokens remain, no error is raised.\footnote{Bruno: this \emph{must}
+%   be fixed, and \texttt{sNaN} be returned!}
+%
+% Any missing part will take the appropriate default value.
+% \begin{itemize}
+% \item A missing \meta{exponent} is considered to be zero.
+% \item A number with no dot has zero decimal part.
+% \item An empty \meta{integer} part or decimal part is zero.
+% \end{itemize}
+%
+% Border cases:
+% \begin{itemize}
+% \item \texttt{e1} is considered as invalid input, and gives
+%   \texttt{qNaN}.\footnote{Bruno: now just gives an error.}
+%   This will be important once parsing expressions is
+%   implemented, since \texttt{e-1} would be ambiguous otherwise.
+% \item \texttt{.e3} and \texttt{.} are zero.
+% \end{itemize}
+% 
+% Bruno: expansion, not yet. Only f-expansion at the start, and
+% unpacking of registers after signs.
+%
+%
+% Work-plan.
+% \begin{itemize}
+% \item Remove any leading sign and build the \meta{sign} as we go.
+%   If the next character is a letter, go to the \enquote{special}
+%   branch, discussed later.
+% \item Drop leading zeros.
+% \item If the next character is a dot, drop some more zeros,
+%   keeping track of how many were dropped after the dot.
+%   Counting those gives $\meta{exp1}<0$. Then read the decimal part
+%   with the \cs{fp_convert_from_str_small} functions.
+% \item Otherwise, $\meta{exp1}=0$, and first read the integer part,
+%   then the decimal part. This is implemented through the more
+%   elaborate \cs{fp_convert_from_str_large} functions.
+% \item Continuing in the same line of expansion, read the exponent
+%   \meta{exp2}.
+% \item Finally check that nothing is left.\footnote{Bruno: not done yet.}
+% \end{itemize}
+%
+%
+% 
+% \begin{macro}{\fp_convert_from_str:n}
+%   \begin{syntax}
+%     \cs{fp_convert_from_str:n} \Arg{token list}
+%   \end{syntax}
+%   This f-expands to an internal floating point number.
+%    \begin{macrocode}
+\cs_new:Npn \fp_convert_from_str:n #1
+  { \fp_cfs_sign:w #1 \s_fp_mark \s_fp_stop }
+%    \end{macrocode}
+% \end{macro}
+%
+% 
+% \subsubsection{Signs}
+%
+% \begin{macro}{\fp_cfs_sign:w,
+%     \fp_cfs_sign_loop:N,
+%     \fp_cfs_sign_end:w}
+%
+%   Finding the sign is done with an \cs{etex_numexpr:D} of the form
+%   $1-\pm\cdots\pm 1$, which is $0$ if $\pm\cdots\pm = +$
+%   (positive input) and $2$ for a negative input.
+%   The conditionals are a bit tricky.
+%   \begin{itemize}
+%   \item If |#1| is |+|, the inner \cs{if:w} is false, but the second
+%     |#1| makes the outer \cs{if:w} true, and we continue the loop.
+%   \item If |#1| is |-|, the inner \cs{if:w} is true, and leaves |+|,
+%     making the outer \cs{if:w} true as well. Thus, the second |#1|
+%     (which is |-|) remains, changing the sign in the \cs{etex_numexpr:D}
+%     appropriately.
+%   \item Otherwise, the inner and outer \cs{if:w} are false,
+%     and the loop ends.
+%   \end{itemize}
+%   Note that \cs{token_to_str:N} ensures that a non-catcode-other
+%   minus sign does not break anything.
+%
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_sign:w
+  {
+    \exp_after:wN \fp_cfs_sign_after:Nwn
+    \tex_the:D \etex_numexpr:D 1 -
+      \exp_after:wN \fp_cfs_sign_loop:N
+      \tex_romannumeral:D \__fp_aux_use_f:w
+  }
+\cs_new:Npn \fp_cfs_sign_loop:N #1
+  {
+      \if:w + \if:w - #1 + \fi: \token_to_str:N #1
+        \exp_after:wN \fp_cfs_sign_loop:N
+        \tex_romannumeral:D
+      \else:
+        \fp_cfs_lead_test:w #1
+      \fi:
+      \__fp_aux_use_f:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\fp_cfs_sign_after:Nwn}
+%   \begin{syntax}
+%     \cs{fp_cfs_sign_after:Nwn} \meta{sign} E \meta{exp1} |;| \meta{function}
+%   \end{syntax}
+%   Puts \meta{function} back in front. This function will be
+%   \begin{itemize}
+%   \item \cs{fp_cfs_premature_end:w} when the sign is
+%     immediately followed by the end of the number (gives a sNaN).
+%   \item \cs{fp_cfs_internal:NNNw} when parsing an internal floating point,
+%   \item \cs{fp_cfs_zero:Nw} when parsing a zero,
+%   \item \cs{fp_cfs_small:NwN} when the mantissa is less than $1$,
+%   \item \cs{fp_cfs_large:NwN} when the mantissa is greater than $1$.
+%   \item \cs{fp_cfs_letter:?} when what follows the sign is a letter.
+%   \end{itemize}
+%   \footnote{Bruno: the \texttt{E} is useless here.}
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_sign_after:Nwn #1 E #2 ; #3 { #3 #1 #2 ; }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \subsubsection{Filter special cases}
+%
+% \begin{macro}{\fp_cfs_lead_test:w}
+%   Dirty trick to nest \TeX{}'s conditionals properly: remove
+%   unwanted tokens in front of us, and put \cs{fi:} back.
+%   That's probably quicker than the corresponding
+%   \cs{exp_after:wN} construction.\footnote{Bruno: must test.}
+%
+%   Non-characters are either \cs{tex_relax:D} or registers
+%   (everything else is invalid in the context of floating
+%   point expressions, since we've f-expanded).
+%   A leading character can be a digit, a dot, or a letter.
+%   Letters need special treatment: used for \texttt{-+inf}
+%   or \texttt{qNaN}.\footnote{Bruno: not implemented yet.}
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_lead_test:w #1 \fi: \__fp_aux_use_f:w
+  {
+      \fi:
+      \if_catcode:w \tex_relax:D #1
+        \if_meaning:w \tex_relax:D #1
+          \exp_after:wN \exp_after:wN \exp_after:wN
+          \fp_cfs_lead_relax:N
+        \else:
+          \exp_after:wN \fp_cfs_sign_loop:N
+          \tex_the:D
+        \fi:
+      \else:
+        \c_one \exp_after:wN E
+        \tex_number:D \etex_numexpr:D \c_zero
+          \if_num:w 9 < 1 #1 \exp_stop_f:
+            \exp_after:wN \exp_after:wN \exp_after:wN
+            \fp_cfs_trim_loop:N
+          \else:
+            \exp_after:wN \exp_after:wN \exp_after:wN
+            \fp_cfs_lead_test_dot:N
+          \fi:
+      \fi:
+      #1
+  }
+\cs_new:Npn \fp_cfs_lead_test_dot:N #1
+  {
+      \if:w . #1
+        \exp_after:wN \fp_cfs_strim_loop:N
+        \tex_romannumeral:D
+      \else:
+        \fp_cfs_lead_letter:w #1
+      \fi:
+      \__fp_aux_use_f:w
+  }
+\cs_new:Npn \fp_cfs_lead_letter:w #1 \fi: \__fp_aux_use_f:w
+  { \fi: ; \fp_cfs_letter: \NotImplementedError:letter #1 }
+%    \end{macrocode}
+%\footnote{Bruno: letter not implemented.}
+% \end{macro}
+%
+%
+% \subsubsection{Trimming leading zeros}
+%
+% \begin{macro}{\fp_cfs_trim_loop:N,\fp_cfs_trim_end:w}
+%
+%   In this branch, we expect a number with a non-empty mantissa
+%   (between the sign part and the exponent part), starting with
+%   a digit (those starting with a dot are handled by
+%   \cs{fp_cfs_strim_loop:N}. The goal here is to trim zeros from
+%   the beginning of the number, reaching the most significant
+%   digit before starting to really read the number (this is required
+%   to round properly).
+%
+%   There are two cases. If we find a non-zero digit before any dot
+%   or exponent part, the mantissa is \enquote{large} ($\geq 1$).
+%   If we find no non-zero digit before a dot, we need to continue
+%   removing zeros afterwards (through the \cs{fp_cfs_strim} functions,
+%   resulting in a \enquote{small} mantissa ($<1$). In the latter case,
+%   we have to keep track of the shift $\meta{exp1}<0$ as we remove
+%   zeros after the dot. This exponent is \cs{c_zero} for large
+%   mantissas.
+%
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_trim_loop:N #1
+  {
+      \if:w 0 #1
+        \exp_after:wN \fp_cfs_trim_loop:N
+        \tex_romannumeral:D
+      \else:
+        \if:w . #1
+          \exp_after:wN \fp_cfs_strim_loop:N
+          \tex_romannumeral:D
+        \else:
+          \fp_cfs_trim_end:w #1
+        \fi:
+      \fi:
+      \__fp_aux_use_f:w
+  }
+\cs_new:Npn \fp_cfs_trim_end:w #1 \fi: \fi: \__fp_aux_use_f:w
+  {
+        \fi:
+      \fi:
+      \if_num:w 9 < 1#1 \exp_stop_f:
+        \exp_after:wN ; \exp_after:wN \fp_cfs_large:NwN
+      \else:
+        \exp_after:wN ; \exp_after:wN \fp_cfs_zero:Nw
+      \fi:
+      #1
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\fp_cfs_strim_loop:N,\fp_cfs_strim_end:w}
+%   If we have removed all digits until a period (or if the body
+%   started with a period), then enter the
+%   \enquote{\texttt{small\_trim}} loop which outputs $-1$ for each
+%   removed $0$.
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_strim_loop:N #1
+  {
+      \if:w 0 #1
+        - \c_one
+        \exp_after:wN \fp_cfs_strim_loop:N
+        \tex_romannumeral:D
+      \else: 
+        \fp_cfs_strim_end:w #1
+      \fi:
+      \__fp_aux_use_f:w
+  }
+%    \end{macrocode}
+%
+%   As we cannot round properly before the sign is known,
+%   we need to take a rest when reaching a non-zero, stop the
+%   \cs{etex_numexpr:D} which is computing the \meta{exp1},
+%   and simply leave instructions after the semicolon on what to
+%   do next. This will be seen by \cs{fp_cfs_sign_after:Nwn}
+%   and put in front of everything to continue parsing.
+%
+%
+% %   and the best we can do at this stage is to read up to $16$
+% %   digits, and use any remaining digit to produce the correct
+% %   \meta{rounding} digit, as described for \cs{fp_aux_round:NNN}.
+% %   This can be done at most $9$ digits at a time, so we need two
+% %   steps.
+% %
+% %   If the number of digits in front of us is less than $16$,
+% %   simply fill with more zeros. If there are more digits, start
+% %   a loop to remove them, doing almost nothing (taking care of
+% %   the \meta{rounding}).
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_strim_end:w #1 \fi: \__fp_aux_use_f:w
+  {
+      \fi:
+      \if_num:w 9 < 1#1 \exp_stop_f:
+        \exp_after:wN ; \exp_after:wN \fp_cfs_small:NwN
+      \else:
+        \exp_after:wN ; \exp_after:wN \fp_cfs_zero:Nw
+      \fi:
+      #1
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \subsubsection{Special cases}
+%
+% \begin{macro}{\fp_cfs_lead_relax:N}
+%   The argument is a token equal to \cs{tex_relax:D}.
+%   This can be \cs{s_fp}, \cs{s_fp_mark}, or a badly
+%   initialized register.\footnote{Bruno: this is not
+%     caught yet.}
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_lead_relax:N #1
+  {
+    \reverse_if:N \if_num:w \pdftex_strcmp:D {\s_fp} {#1} = \c_zero
+      \fp_cfs_premature_end_i:w
+    \fi:
+    \fp_cfs_internal:w
+    #1
+  }
+%    \end{macrocode}
+%
+%   In the case of an internal floating point number, |#1| is
+%   \cs{s_fp}, and what follows looks as follows.
+%   We terminate the \cs{etex_numexpr:D} for the sign, and
+%   put the tokens in the right place to fool
+%   \cs{fp_cfs_sign_after:Nwn}.\footnote{Bruno: everywhere,
+%     check whether the input was completely parsed (i.e.,
+%     nothing left before \cs{s_fp_mark}).}
+%   ^^A Need consistency check: |#4| must be blank.
+%   ^^A When parsing expressions, we must pursue after the fp.
+%   \begin{syntax}
+%     \cs{fp_cfs_internal:w} \cs{s_fp} \cs{fp_use:w}
+%     ~~\meta{case} \meta{sign} \meta{body} |;|
+%     ~~\meta{remaining input} \cs{s_fp_mark} \cs{s_fp_stop}
+%   \end{syntax}
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_internal:w
+    \s_fp \fp_use:w #1 #2 #3 ; #4 \s_fp_mark \s_fp_stop
+  {
+    \etex_numexpr:D 1 - #2 E #3 ; { \s_fp \fp_use:w #1 }
+  }
+%    \end{macrocode}
+%
+%   All other \cs{tex_relax:D} are invalid input, and we
+%   produce a signalling \texttt{NaN}, whose \meta{info}
+%   field is the remaining part of the input.
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_premature_end_i:w \fi: \fp_cfs_internal:w
+  { \fi: \c_one E 0 ; \fp_cfs_premature_end_ii:w }
+\cs_new:Npn \fp_cfs_premature_end_ii:w #1 0; #2 \s_fp_mark \s_fp_stop
+  {
+    \exp_after:wN \fp_aux_snan_fp:N
+    \cs:w
+      fp_info:~ early~ end~ in~ "
+      \if_meaning:w 0 #1 + \else: - \fi:
+      \tl_to_str:n {#2} "
+    \cs_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\fp_cfs_zero:Nw}
+%   \begin{syntax}
+%     \cs{fp_cfs_zero:Nw} \meta{sign} \meta{exp1} ; \meta{non-digit}
+%   \end{syntax}
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_zero:Nw #1 #2 ;
+  {
+    \exp_after:wN \fp_cfs_zero_aux:Nw
+    \exp_after:wN #1
+    \tex_number:D \fp_cfs_exponent_test:N
+  }
+\cs_new:Npn \fp_cfs_zero_aux:Nw #1 #2 ; \s_fp_mark \s_fp_stop
+  { \fp_aux_zero_fp:N #1 }
+%    \end{macrocode}
+% \end{macro}
+%
+% 
+% \subsubsection{Small mantissa}
+%
+% \begin{macro}{\fp_cfs_small:NwN}
+%   \begin{syntax}
+%     \cs{fp_cfs_small:NwN} \meta{sign} \meta{exp1} |;| \meta{non-zero digit}
+%   \end{syntax}
+%   The goal here is to grab up to $16$ digits. But we can't do
+%   that all at once, because \cs{tex_number:D} (which allows us
+%   to collect digits and continue expanding) can only go up to
+%   $9$ digits. We do it in two steps of (almost) $8$ digits.
+%   Using $8$ rather than $9$ helps us repack more easily. In fact,
+%   we've already read one digit, and there is no need to re-read it,
+%   hence the use of \cs{fp_aux_grab_digits_vii:N}. As usual,
+%   brace-removing f-expansion of the following. The goal is
+%   \begin{syntax}
+%     \cs{fp_cfs_sanitize:Nw} \meta{sign} \meta{exp} |;|
+%     ~~\Arg{\4 digits} \Arg{\4 digits} \Arg{\4 digits} \Arg{\4 digits} |;|
+%   \end{syntax}
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_small:NwN #1 #2 ; #3
+  {
+    \exp_after:wN \fp_cfs_sanitize:Nw
+    \exp_after:wN #1
+    \tex_the:D \etex_numexpr:D #2
+      \exp_after:wN \fp_cfs_i_after:NNNNNww
+      \tex_the:D \etex_numexpr:D 1 
+        \exp_after:wN \fp_cfs_small_i:NwwNN
+        \exp_after:wN #1
+        \tex_number:D 1 #3
+          \exp_after:wN \fp_aux_grab_digits_vii:N
+          \tex_romannumeral:D \__fp_aux_use_f:w
+  }
+%    \end{macrocode}
+%
+%   The next function appears within the \cs{etex_numexpr:D}
+%   for the final exponent.
+%   \begin{syntax}
+%     \cs{fp_cfs_small_i:NwwNN} \meta{sign}
+%     ~~|1| \meta{digits} |,| \meta{zeros} |;| \meta{number~of~zeros}
+%   \end{syntax}
+%   Here, \meta{digits}\meta{zeros} is a string of $8$ digits,
+%   and \meta{number~of~zeros} counts how many zeros we had to
+%   add to complete the digits that we had already found.
+%
+%   Note that the next token, |#5|, is already f-expanded in all
+%   cases (by the \cs{fp_aux_grab_digits} functions which looked
+%   for a digit). If that next token is a digit, then we need to
+%   grab more digits, until the $15$th digit (the digit number
+%   $16$ plays a special role in rounding). Otherwise, we check
+%   for an exponent (\cs{fp_cfs_exponent_test:N/w} is used in
+%   all \enquote{normal} branches), and end.
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_small_i:NwwNN #1 1 #2, #3; #4 #5
+  {
+        #2 #3
+        \if_num:w 9 < 1 #5 \exp_stop_f:
+          \exp_after:wN \fp_cfs_small_ii:NwwNN
+          \exp_after:wN #1
+          \tex_number:D 1 #5
+            \exp_after:wN \fp_aux_grab_digits_vi:N
+            \tex_romannumeral:D
+        \else:
+          \exp_after:wN \fp_cfs_small_i_end:
+          \tex_number:D
+            \fp_cfs_exponent_test:w #5
+        \fi:
+        \__fp_aux_use_f:w
+  }
+%    \end{macrocode}
+%   Ending involves filling up with zeros, and bringing the exponent
+%   back in the input stream, for \cs{fp_cfs_i_after:NNNNNww}.
+%   Since \cs{fp_cfs_i_after:NNNNNww} is common to both the case
+%   where there are few digits, and the cases with many digits, there
+%   is a check for the carry which may arise from rounding up.
+%   This carry can only arise to give a power of ten (and |#1| is |0000|).
+%   \footnote{Bruno: explain by going down through the expansion, and
+%     then up.}
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_small_i_end: #1 ; \s_fp_mark \s_fp_stop
+  { ; #1 ; {0000} {0000} ; }
+\cs_new:Npn \fp_cfs_ii_after:NNNNNNww
+    #1 #2 #3#4#5#6 #7; #8 ; \s_fp_mark \s_fp_stop
+  {
+    \if:w 2 #2
+      + 1
+    \fi:
+    ; #8 + #1 ; {#3#4#5#6}{#7};
+  }
+\cs_new:Npn \fp_cfs_i_after:NNNNNww
+    #1 #2#3#4#5 #6; #7 ;
+  {
+    + #7
+    \if:w 2 #1
+      + 1 \exp_after:wN \fp_cfs_small_carry:w
+    \fi:
+    ; {#2#3#4#5} {#6}
+  }
+\cs_new:Npn \fp_cfs_small_carry:w ; #1 { ; {1000} }
+%    \end{macrocode}
+%
+%   \begin{syntax}
+%     \cs{fp_cfs_small_ii:NwwNN} \meta{sign}
+%     ~~|1| \meta{digits} |,| \meta{zeros} |;| \meta{number~of~zeros}
+%     ~~\meta{next~token}
+%   \end{syntax}
+%   Let's get ready for more digits. The \meta{next~token} is
+%   f-expanded. If it is a digit, it is the $16$th digit.
+%   \cs{fp_cfs_small_ii:NwwNN} builds a number $1$\meta{\8 digits},
+%   rounded properly, and feeds that to
+%   \cs{fp_cfs_large_ii_after:NNNNNNww}.
+%   
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_small_ii:NwwNN #1 1 #2, #3; #4 #5
+  {
+        \exp_after:wN \fp_cfs_ii_after:NNNNNNww
+        \exp_after:wN \c_zero
+        \tex_the:D \etex_numexpr:D 1 #2 #3 
+          \if_num:w 9 < 1 #5 \exp_stop_f:
+            #5
+            +
+            \exp_after:wN \fp_cfs_small_round:NNNw
+            \exp_after:wN #1
+            \exp_after:wN #5
+            \tex_romannumeral:D
+          \else:
+            0
+            \exp_after:wN ;
+            \tex_number:D
+              \fp_cfs_exponent_test:w #5
+          \fi:
+          \__fp_aux_use_f:w
+  }
+%    \end{macrocode}
+%   Just as \cs{fp_cfs_i_after:NNNNNww}, pack digits in blocks
+%   of $4$, check for a carry, and increase the \cs{etex_numexpr:D}
+%   above if needed. No surprise there.
+%    \begin{macrocode}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+% \subsubsection{Finding the exponent}
+%
+%
+% \begin{macro}{\fp_cfs_exponent_test:N}
+%   \begin{syntax}
+%     \cs{tex_number:D} \cs{fp_cfs_exponent_test:N}
+%   \end{syntax}
+%   Can also be invoked from within \cs{etex_numexpr:D}, since
+%   the exponent gets terminated by a semicolon.
+%
+%   Expansion is a little bit tricky here. When implementing
+%   expression parsing, later, we may want to accept input where
+%   multiplication is implicit.
+% \begin{verbatim}
+% \fp_parse:n { 3.2 erf(0.1) }
+% \fp_parse:n { 3.2 e\l_my_int }
+% \fp_parse:n { 3.2 \c_pi_fp }
+% \end{verbatim}
+%   The first case indicates that just looking one character ahead
+%   for an \enquote{\texttt{e}} is not enough, since we would mistake
+%   the function \texttt{erf} for an exponent of \enquote{\texttt{rf}}.
+%   An alternative would be to look two tokens ahead and check if what
+%   follows is a sign or a digit, considering in that case that we must
+%   be finding an exponent. But taking care of the second case requires
+%   that we unpack registers after \texttt{e}. However, blindly expanding
+%   the two tokens ahead completely (plus unpacking) would break
+%   the third example. Indeed, in the course of reading $3.2$,
+%   \cs{c_pi_fp} is expanded to \cs{s_fp} \cs{fp_use:w} |1| |0| |{-1}|
+%   |{3141}| $\cdots$ |;| and \cs{s_fp} stops the expansion. Expanding
+%   two tokens ahead would then force the expansion of \cs{fp_use:w}
+%   (despite it being protected), and that function typesets the floating
+%   point number.
+%
+%   What can we do? Really, the reason why this last case breaks is that
+%   just as \TeX{} does, we should read ahead as little as possible.
+%   Here, the only case where there may be an exponent is if the first
+%   token ahead is |e|.\footnote{The commented code below allows
+%     both \texttt{e} and \texttt{E}, but seems ugly.} Then we expand
+%   (and possibly unpack) the second token --- and hopefully that is safe.
+%
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_exponent_test:w
+    #1 \fi: \__fp_aux_use_f:w
+  {
+    \fi:
+    \fp_cfs_exponent_test:N #1
+  }
+\cs_new:Npn \fp_cfs_exponent_test:N #1
+  {
+    % \if_num:w \tex_uccode:D `e
+    %     = \tex_uccode:D \exp_after:wN ` \token_to_str:N #1 \exp_stop_f:
+    \if:w e #1
+      \exp_after:wN \fp_cfs_exponent_test_aux:NN
+      \exp_after:wN #1
+      \tex_romannumeral:D \exp_after:wN \__fp_aux_use_fun:w
+    \else:
+      \exp_after:wN 0
+      \exp_after:wN \fp_cfs_exponent_end:
+      \exp_after:wN #1
+    \fi:
+  }
+%    \end{macrocode}
+%   The interested reader (Joseph? Me later?) is invited to
+%   check that |#2=-| gives the case |0|, |#2=+| gives |2|,
+%   |#2=|digit gives the \cs{else:} branch, and all other case,
+%   including |*| and |/|, and also |(| and |)| (which stop the
+%   \cs{etex_numexpr:D}) go to case |1|. I'm not
+%   sure.\footnote{Bruno: check and remove comment.}
+%
+%   Anyways, that test should be rewritten. Now that I've put
+%   the expansion, it is ugly. Note that after the signs we
+%   unpack registers, whereas between digits we don't.
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_exponent_test_aux:NN #1 #2
+  {
+    \if_case:w \etex_numexpr:D 1 #2 1 \tex_relax:D
+      - \exp_after:wN \fp_cfs_exponent_sign:N
+      \tex_romannumeral:D \exp_after:wN \__fp_aux_use_fun:w
+    \or:
+      \exp_after:wN 0
+      \exp_after:wN \fp_cfs_exponent_end:
+      \exp_after:wN #1
+      \exp_after:wN #2
+    \or:
+      \exp_after:wN \fp_cfs_exponent_sign:N
+      \tex_romannumeral:D \exp_after:wN \__fp_aux_use_fun:w
+    \else:
+      #2
+      \exp_after:wN \fp_cfs_exponent_body:N
+      \tex_romannumeral:D \exp_after:wN \__fp_aux_use_f:w
+    \fi:
+  }
+\cs_new:Npn \fp_cfs_exponent_sign:N #1
+  {
+    \if:w + \if:w - #1 + \fi: #1
+      \exp_after:wN \fp_cfs_exponent_sign:N
+      \tex_romannumeral:D \exp_after:wN \__fp_aux_use_fun:w
+    \else:
+      \exp_after:wN \fp_cfs_exponent_body:N
+      \exp_after:wN #1
+    \fi:
+  }
+\cs_new:Npn \fp_cfs_exponent_body:N #1
+  {
+    \if_num:w 9 < 1 #1 \exp_stop_f:
+      #1
+      \exp_after:wN \fp_cfs_exponent_body:N
+      \tex_romannumeral:D \exp_after:wN \__fp_aux_use_f:w
+    \else:
+      \exp_after:wN \fp_cfs_exponent_end: \exp_after:wN #1
+    \fi:
+  }
+\cs_new:Npn \fp_cfs_exponent_end: #1 \s_fp_mark \s_fp_stop
+  {
+    \tl_if_empty:nF {#1} { \fp_aux_error:n {#1} } ; \s_fp_mark \s_fp_stop
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% 
+%
+%
+%
+% \subsubsection{Large mantissa}
+%
+% \begin{macro}{\fp_cfs_large:NwN}
+%   \begin{syntax}
+%     \cs{fp_cfs_large:NwN} \meta{sign} \meta{exp1} |;| \meta{non-zero digit}
+%   \end{syntax}
+%   This function and subsequent \cs{fp_cfs_large_...} functions are
+%   the most convoluted of this submodule. It is called after trimming
+%   leading zeros, if this does not reach a dot yet. Because we are
+%   reading the integer part of the number, digits must be counted.
+%   But at the same time, digits must be stored, and expansion must
+%   continue. We only have one place to store both digits and the
+%   corresponding exponent: upstream. Hence, quite a lot of reshuffling.
+%
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_large:NwN #1 #2 ; #3
+  {
+    \exp_after:wN \fp_cfs_sanitize:Nw
+    \exp_after:wN #1
+    \tex_the:D \etex_numexpr:D #2
+      \exp_after:wN \fp_cfs_large_i:NwwNN
+      \exp_after:wN #1
+      \tex_number:D 1 #3
+        \exp_after:wN \fp_aux_grab_digits_vii:N
+        \tex_romannumeral:D \__fp_aux_use_f:w
+  }
+%    \end{macrocode}
+%   Beyond |#3|, which is the first non-zero digit of the (large)
+%   mantissa (already expanded), we grab seven additional digits.
+%   Afterwards, we add to the exponent the shift corresponding to
+%   how many digits were grabbed, and test whether |#5| is a digit
+%   (the $9$th digit), a dot, or something else.
+%
+%   Then, if |#5| is a digit, it is the $9$th digit of the mantissa,
+%   and we grab six more digits to reach a total of $15$, calling
+%   \cs{fp_cfs_large_ii:NwwNN}.
+%
+%   Otherwise, |#5| may be a dot, in which case we switch to the
+%   functions we used in the \enquote{small} case. Finally, |#5|
+%   may be something else, in which case we just look for an exponent.
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_large_i:NwwNN #1 1 #2, #3; #4 #5
+  {
+      + 8 - #4
+      \exp_after:wN \fp_cfs_i_after:NNNNNww
+      \tex_the:D \etex_numexpr:D 1 #2
+        \if_num:w 9 < 1 #5 \exp_stop_f:
+          \exp_after:wN \fp_cfs_large_ii:NwwNN
+          \exp_after:wN #1
+          \tex_number:D 1 #5
+            \exp_after:wN \fp_aux_grab_digits_vi:N
+            \tex_romannumeral:D
+        \else:
+          \if:w . #5
+            \exp_after:wN \fp_cfs_small_i:NwwNN
+            \exp_after:wN #1
+            \tex_number:D 1
+              \cs:w
+                fp_aux_grab_digits_
+                \tex_romannumeral:D #4
+                :N \exp_after:wN
+              \cs_end:
+              \tex_romannumeral:D
+          \else:
+            #3
+            \exp_after:wN \fp_cfs_small_i_end:
+            \tex_number:D
+              \exp_after:wN \fp_cfs_exponent_test:w
+              \exp_after:wN #5
+          \fi:
+        \fi:
+        \__fp_aux_use_f:w
+  }
+%    \end{macrocode}
+%   
+%    \begin{macrocode}
+
+\cs_new:Npn \fp_cfs_large_ii:NwwNN #1 1 #2, #3; #4 #5
+  {
+      \if_num:w 9 < 1 #5 \exp_stop_f:
+        \exp_after:wN \fp_cfs_ii_after:NNNNNNww
+        \exp_after:wN \c_eight
+        \tex_the:D \etex_numexpr:D 1 #2 #5
+          + \exp_after:wN \fp_cfs_large_round:NNNw
+            \exp_after:wN #1
+            \exp_after:wN #5
+            \tex_romannumeral:D
+      \else:
+        \exp_after:wN \fp_cfs_ii_after:NNNNNNww
+        \tex_the:D \etex_numexpr:D 7 - #4 \exp_after:wN \tex_relax:D
+        \tex_the:D \etex_numexpr:D 1 #2
+          \if:w . #5
+            \exp_after:wN \fp_cfs_large_iii:NwwNN
+            \exp_after:wN #1
+            \tex_number:D 1
+              \cs:w
+                fp_aux_grab_digits_
+                \tex_romannumeral:D #4
+                :N \exp_after:wN
+              \cs_end:
+              \tex_romannumeral:D
+          \else:
+            #3 0 \exp_after:wN ;
+            \tex_number:D
+              \exp_after:wN \fp_cfs_exponent_test:w
+              \exp_after:wN #5
+          \fi:
+      \fi:
+      \__fp_aux_use_f:w
+  }
+\cs_new:Npn \fp_cfs_large_iii:NwwNN #1 1 #2, #3; #4 #5
+  {
+          #2 #3
+          \if_num:w 9 < 1 #5 \exp_stop_f:
+            #5
+            +
+            \exp_after:wN \fp_cfs_small_round:NNNw
+            \exp_after:wN #1
+            \exp_after:wN #5
+            \tex_romannumeral:D
+          \else:
+            0
+            \exp_after:wN ;
+            \tex_number:D
+              \fp_cfs_exponent_test:w #5
+          \fi:
+          \__fp_aux_use_f:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \subsubsection{Beyond 16 digits: rounding}
+%
+% \begin{macro}{\fp_cfs_round_loop:N}
+%   Used both for \cs{fp_cfs_small_round:NNNw} and
+%   \cs{fp_cfs_large_round:NNNw}.
+%   Should appear after a \cs{etex_numexpr:D} |0|. Reads digits one by one,
+%   until reaching a non-digit. Adds |+1| for each digit. If all digits
+%   found are |0|, ends the \cs{etex_numexpr:D} by |;\c_zero|, otherwise
+%   by |;\c_one|. This is done by switching the loop to |round_up|
+%   at the first non-zero digit.
+%
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_round_loop:N #1
+  {
+    \if_num:w 9 < 1 #1 \exp_stop_f:
+      + \c_one
+      \if:w 0 #1
+        \exp_after:wN \fp_cfs_round_loop:N
+        \tex_romannumeral:D
+      \else:
+        \exp_after:wN \fp_cfs_round_up:N
+        \tex_romannumeral:D
+      \fi:
+    \else:
+      \fp_aux_swap_fisuf:w \c_zero #1
+    \fi:
+    \__fp_aux_use_f:w
+  }
+\cs_new:Npn \fp_cfs_round_up:N #1
+  {
+    \if_num:w 9 < 1 #1 \exp_stop_f:
+      + 1
+      \exp_after:wN \fp_cfs_round_up:N
+      \tex_romannumeral:D
+    \else:
+      \fp_aux_swap_fisuf:w \c_one #1
+    \fi:
+    \__fp_aux_use_f:w
+  }
+\cs_new:Npn \fp_aux_swap_fisuf:w #1 \fi: \__fp_aux_use_f:w { \fi: ; #1 }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \begin{macro}{\fp_cfs_large_round:NNNw}
+%   \begin{syntax}
+%     \cs{fp_cfs_large_round:NNNw} \meta{sign} \meta{digit} \meta{stuff}
+%   \end{syntax}
+%   \meta{digit} is the digit that we are currently rounding (we only
+%   care whether it is even or odd).
+%
+%   The goal is to get \cs{c_zero} or \cs{c_one}, check for an exponent
+%   afterwards, and combine it to the number of digits before the decimal
+%   point (which we thus need to keep track of).
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_large_round:NNNw #1 #2 #3
+  {
+    \if_num:w 9 < 1 #3 \exp_stop_f:
+      \exp_after:wN \fp_aux_round_s:NNNw
+      \exp_after:wN #1
+      \exp_after:wN #2
+      \exp_after:wN #3
+      \tex_the:D \etex_numexpr:D
+        \exp_after:wN \fp_cfs_large_round_after:wNN
+        \tex_the:D \etex_numexpr:D 1
+          \exp_after:wN \fp_cfs_round_loop:N
+    \else: %^^A could be dot, or e, or other
+      \exp_after:wN \fp_cfs_large_round_dot_test:NNNw
+      \exp_after:wN #1
+      \exp_after:wN #2
+      \exp_after:wN #3
+    \fi:
+  }
+\cs_new:Npn \fp_cfs_large_round_dot_test:NNNw #1 #2 #3
+  {
+    \if:w . #3
+      \exp_after:wN \fp_cfs_small_round:NNNw
+      \exp_after:wN #1
+      \exp_after:wN #2
+      \tex_romannumeral:D
+    \else:
+      \exp_after:wN \c_zero \exp_after:wN ;
+      \tex_number:D
+        \fp_cfs_exponent_test:w #3
+    \fi:
+    \__fp_aux_use_f:w
+  }
+%    \end{macrocode}
+%   \begin{syntax}
+%     \cs{fp_cfs_large_round_after:wNN} \meta{exp} |;|
+%     ~~\meta{\0 or \1} \meta{next~token}
+%   \end{syntax}
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_large_round_after:wNN #1 ; #2 #3
+  {
+    \if:w . #3
+      \exp_after:wN \fp_cfs_large_round_after_ii:wN
+      \tex_the:D \etex_numexpr:D #1 +
+        \c_zero * \etex_numexpr:D
+          \exp_after:wN \fp_cfs_round_loop:N
+          \tex_romannumeral:D
+    \else:
+      + #2
+      \exp_after:wN ;
+      \tex_the:D \etex_numexpr:D #1 +
+        \fp_cfs_exponent_test:w #3
+    \fi:
+    \__fp_aux_use_f:w
+  }
+\cs_new:Npn \fp_cfs_large_round_after_ii:wN #1 ; #2
+  {
+    + #2
+    \exp_after:wN ;
+    \tex_the:D \etex_numexpr:D #1 +
+      \fp_cfs_exponent_test:N
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+% \begin{macro}{\fp_cfs_small_round:NNNw}
+%   \begin{syntax}
+%     \cs{fp_cfs_small_round:NNNw} \meta{sign} \meta{digit} \meta{stuff}
+%   \end{syntax}
+%   \meta{digit} is the digit that we are currently rounding (we only
+%   care whether it is even or odd).
+%
+%   The goal is to get \cs{c_zero} or \cs{c_one}
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_small_round:NNNw #1 #2 #3
+  {
+    \if_num:w 9 < 1 #3 \exp_stop_f:
+      \exp_after:wN \fp_aux_round_s:NNNw
+      \exp_after:wN #1
+      \exp_after:wN #2
+      \exp_after:wN #3
+      \tex_the:D \etex_numexpr:D
+        \exp_after:wN \fp_cfs_small_round_after:wN
+        \tex_the:D \etex_numexpr:D 0
+          \exp_after:wN \fp_cfs_round_loop:N
+          \tex_romannumeral:D
+    \else:
+      0 \exp_after:wN ;
+      \tex_number:D
+        \fp_cfs_exponent_test:w #3
+    \fi:
+    \__fp_aux_use_f:w
+  }
+\cs_new:Npn \fp_cfs_small_round_after:wN #1; #2
+  {
+    + #2 \exp_after:wN ;
+    \tex_number:D \fp_cfs_exponent_test:N
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \subsubsection{Just a final check}
+%
+% \begin{macro}{\fp_cfs_sanitize:Nw}
+%   \begin{syntax}
+%     \cs{fp_cfs_sanitize:Nw} \meta{sign} \meta{exp} |;|
+%     ~~\Arg{\4~digits} \Arg{\4~digits} \Arg{\4~digits} \Arg{\4~digits} |;|
+%   \end{syntax}
+%   check overflow
+%    \begin{macrocode}
+\cs_new:Npn \fp_cfs_sanitize:Nw #1 #2 ;
+  {
+    \if_num:w #2 > \c_fp_max_exponent_int
+      \exp_after:wN \fp_aux_overflow:wNNw
+    \else:
+      \if_num:w #2 < \c_fp_min_exponent_int
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \fp_aux_underflow:wNNw
+      \fi:
+    \fi:
+    \s_fp \fp_use:w 1 #1 {#2}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+% \subsection{Grabbing letters}
+%
+% When parsing expressions (later), we may encounter \emph{e.g.},
+% \texttt{1.2e34} or \texttt{1.2 exp(34)}. In the two cases, the
+% role of the \texttt{e} is different. Thus, it is not enough in
+% that case to test\footnote{Bruno: unfinished.}
+%
+%
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+%\end{implementation}
+%
+%\PrintChanges
+%
+%\PrintIndex
