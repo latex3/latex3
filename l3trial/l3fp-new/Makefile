@@ -146,7 +146,7 @@ $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 ################################################################
 
 $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
-	NAME=`basename $< .dtx` ; \
+	@NAME=`basename $< .dtx` ; \
 	echo "Typesetting $$NAME" ; \
 	cd $(TESTDIR) ; \
 	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
@@ -199,11 +199,11 @@ support: \
 	unpack
 
 clean:
-	echo "Cleaning up"
+	@echo "Cleaning up"
 	rm -rf $(TESTDIR)/*
 
 cleanall: clean
-	for I in $(AUXFILES) $(CLEAN) ; do \
+	@for I in $(AUXFILES) $(CLEAN) ; do \
 	  rm -f *.$$I ; \
 	done
 
@@ -211,8 +211,8 @@ check: \
 	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).lvt) \
 	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).tlg) \
 	expl3 support unpack
-	echo "Running checks on"
-	cd $(TESTDIR) ; \
+	@echo "Running checks on"
+	@cd $(TESTDIR) ; \
 	for I in $(AUXFILES) diff ; do \
 	  rm -f *.$$I ; \
 	done ; \
@@ -238,8 +238,8 @@ check: \
 	fi
 
 checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
-	echo "Running checks on $(F)"
-	cd $(TESTDIR) ; \
+	@echo "Running checks on $(F)"
+	@cd $(TESTDIR) ; \
 	for I in $(AUXFILES) diff ; do \
 	  rm -f *.$$I ; \
 	done ; \
@@ -262,8 +262,8 @@ checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 doc: unpack $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf)
 
 localinstall: unpack
-	echo "Installing files"
-	TEXMFHOME=`kpsewhich --var-value=TEXMFHOME` ; \
+	@echo "Installing files"
+	@TEXMFHOME=`kpsewhich --var-value=TEXMFHOME` ; \
 	mkdir -p $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
 	cd $(TESTDIR) ; \
@@ -271,8 +271,8 @@ localinstall: unpack
 	texhash > /dev/null
 
 savetlg: $(TESTDIR)/$(F).lvt support unpack
-	echo "Creating and copying $(F).tlg"
-	cd $(TESTDIR) ; \
+	@echo "Creating and copying $(F).tlg"
+	@cd $(TESTDIR) ; \
 	for I in $(AUXFILES) diff ; do \
 	  rm -f *.$$I ; \
 	done ; \
@@ -283,8 +283,8 @@ savetlg: $(TESTDIR)/$(F).lvt support unpack
 	cp -f $(TESTDIR)/$(F).tlg $(TESTFILEDIR)/$(F).tlg
 
 unpack: $(foreach FILE,$(DTX) $(TEX) $(UNPACK),$(TESTDIR)/$(FILE))
-	echo "Unpacking files"
-	cd $(TESTDIR) ; \
+	@echo "Unpacking files"
+	@cd $(TESTDIR) ; \
 	for I in $(UNPACK) ; do \
 	  tex $$I > /dev/null ; \
 	done
