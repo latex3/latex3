@@ -35,14 +35,13 @@
 %%
 %
 %<*driver|package>
-\RequirePackage{expl3,l3fp-aux,l3fp-convert}
+\RequirePackage{expl3,l3fp-aux,l3fp-convert, l3fp-basics}
 \GetIdInfo$Id: l3fp-parse.dtx 0000 0000-00-00 00:00:00Z bruno $
   {L3 Experimental floating-point expression parsing}
 %</driver|package>
 %<*driver>
 \documentclass[full]{l3doc}
 \begin{document}
-  \tableofcontents
   \DocInput{\jobname.dtx}
 \end{document}
 %</driver>
@@ -63,88 +62,113 @@
 % \date{Released \filedate}
 %
 % \maketitle
+% \tableofcontents
 %
-% \begin{documentation}
 %^^A To typeset the examples of expansion control, I'm using a hand-made
 %^^A environment.
-% \newcommand{\fpOperation}[1]{^^A
-%   \textcolor[rgb]{.6,.2,.2}{\ttfamily\detokenize{#1}}}
-% \newcommand{\fpPrecedence}[1]{^^A
-%   \textcolor[rgb]{.2,.2,.6}{\ttfamily\detokenize{#1}}}
-% \newcommand{\fpExpand}[2]{\underline{\textcolor{red}{#1{#2}}}}
-% \newenvironment{l3fp-code-example}{\begin{quote}^^A
-%     \catcode`\_=12\relax\edef\^{\string^}\relax
-%     \let\*\fpExpand
-%     \let\o\fpOperation
-%     \let\p\fpPrecedence
-%     \def\!{\begingroup
-%       \def\!{\endgroup\par}^^A
-%       \color[gray]{0.5}}^^A
-%     \ttfamily\frenchspacing
+% \newcommand{\fpOperation}[1]
+%   {\textcolor[rgb]{.6,.2,.2}{\ttfamily#1}}
+% \newcommand{\fpPrecedence}[1]
+%   {\textcolor[rgb]{.2,.2,.6}{\ttfamily#1}}
+% \newcommand{\fpExpand}[2]
+%   {\underline{\textcolor{red}{#1{#2}}}}
+% \newenvironment{l3fp-code-example}
+%   {\begin{quote}^^A
+%       \edef\^{\string^}^^A
+%       \let\*\fpExpand
+%       \let\o\fpOperation
+%       \let\p\fpPrecedence
+%       \def\!{\begingroup\def\!{\endgroup\par}\color[gray]{0.5}}^^A
+%       \ttfamily\frenchspacing
 %   }{\end{quote}}
+%
+% \begin{documentation}
 %
 % \section{Floating point expressions}
 %
-% The goal of the submodule |l3fp_parse| is to
-% calculate expandably expressions in floating point numbers
-% using infix notation. A typical example of use could be the following.
+% The goal of the submodule |l3fp_parse| is to expandably calculate
+% expressions in floating point numbers using infix notation for
+% the usual arithmetic operations |+-*/^%|, and prefix notation for
+% functions such as \texttt{sin}, \texttt{log}, etc. A typical example
+% of use could be the following.
 % \begin{verbatim}
 % \fp_parse:n { 3.2 + .04e-2 * ( -2e3^2 - sin(pi/3) ) - 1234.567e1 }
 % \end{verbatim}
-% Before presenting the user function, we first describe what a
-% floating point number is, and the syntax for operations.
-% 
+% The \pkg{l3fp-parse} submodule reads this kind of
+% \enquote{free-form} input and hands it to functions defined for
+% instance in \pkg{l3fp-basics}, to do the actual computations.
+% Before presenting the user functions, we describe what a floating
+% point number is, and the syntax for operations.
+%
 % \subsection{Floating point numbers}
 %
 % A floating point number is one which is stored as a mantissa and
-% a separate exponent. This module implements expandable parsing of
-% expressions which use floating point numbers, with infix notation
-% (|+,-,*,/| etc), and converts this \enquote{free-form} input to a
-% form suitable for expandable calculations by the companion module 
-% \texttt{l3fp-expan}. 
+% a separate exponent. Floating point numbers are stored in base
+% $10$, with $16$ significant digits, and their exponent should lie
+% in the range $[\cs{c_fp_min_exponent_int}, \cs{c_fp_max_exponent_int}]$,
+% currently $\ExplSyntaxOn [\int_use:N \c_fp_min_exponent_int,
+% \int_use:N \c_fp_max_exponent_int]$ (but that may change).
 %
-% Floating point numbers are stored in base $10$, with $16$ significant
-% digits, and their exponent should lie in the range
-% $[\cs{c_fp_min_exponent_int}, \cs{c_fp_max_exponent_int}]$.
-%
-% In the input, the exponent part is represented starting with an 
-% \texttt{e}. As this is a low-level module, error-checking is minimal.
-% Numbers which are too large for the floating point unit to handle
-% will result in errors, either from \TeX\ or from \LaTeX. The
-% \LaTeX\ code does not check that the input will not overflow, hence
-% the possibility of a \TeX\ error. On the other hand, numbers which
-% are too small will be dropped, which will mean that extra decimal
-% digits will simply be lost.
-% 
-% A \meta{floating point number} has the form\footnote{I should probably
-%   write a grammar?}
+% On input, a floating point number consists of the following
+% parts:\footnote{Bruno: we should probably have a grammar?}
 % \begin{itemize}
-% \item[\meta{sign}] string of |+| and |-| tokens;
-% \item[\meta{body}] string of digits;
-% \item[\meta{decimal part}] decimal point |.| followed by a string of digits;
-% \item[\meta{exponent}] exponent mark |e| followed by a string of
-%   |+|~and~|-| tokens, and a non-empty string of digits.
+% \item[\meta{sign}] possibly empty string of |+| and |-| characters;
+% \item[\meta{mantissa}] non-empty string of digits together with zero
+%   or one dot;
+% \item[\meta{exponent}] optionally, the character |e|, followed by
+%   a possibly empty string of |+|~and~|-| tokens, and a non-empty
+%   string of digits.
 % \end{itemize}
-% The \meta{sign} is as expected converted to a single |+|~or~|-| 
-% depending on the number of |-|~signs present. When parsing numbers,
-% any missing parts will be interpreted as zero. Note that |e-5| is
-% not a valid number, since it would be ambiguous: it could also denote
-% the difference between the variable |e| and the number |5|.
 %
-% This behaviour may differ slightly from the previous
-% |l3fp|\footnote{Bruno: clarify.}
+% The sign of the resulting number is |+| if \meta{sign} contains
+% an even number of |-|, and |-| otherwise, hence, an empty \meta{sign}
+% denotes a non-negative input. The stored mantissa is obtained from
+% \meta{mantissa} by omitting the decimal separator and leading zeros,
+% and rounding to $16$ significant digits, filling with trailing zeros
+% if necessary. Hence, the value stored is exact if the input
+% \meta{mantissa} has at most $16$ digits. The stored \meta{exponent}
+% is obtained by combining the input \meta{exponent} ($0$ if absent)
+% with a shift depending on the position of the mantissa and the number
+% of leading zeros.
+%
+% A special case arises if the resulting \meta{exponent} is either
+% too large or too small to be represented. This results either in an
+% overflow (the number is then replaced by $\pm\infty$), or an
+% underflow (resulting in $\pm 0$).\footnote{Bruno: currently, exponents
+%   which are too large for \TeX{}'s integers overflow \TeX{} itself. This
+%   ought to be rectified, since \texttt{0e99999999999} should be a valid
+%   representation of $0$.}
+%
+% The resulting number is thus $\pm 0$ if and only if \meta{mantissa}
+% contains no non-zero digit (\emph{i.e.}, consists only in |0| characters,
+% and an optional |.| character), or there is an underflow. Note that
+% a single dot is\footnote{Bruno: but that may change.} a valid floating
+% point number, equal to $+0$.
+%
+% Special numbers are input as follows:
+% \begin{itemize}
+% \item \texttt{inf} or \texttt{infty} or \texttt{infinity} all represent
+%   $+\infty$, and can be preceeded by any \meta{sign}.
+% \item \texttt{nan} represents a (quiet) non-number. It can be preceeded
+%   by any sign, but that will be ignored.
+% \item Any unrecognizable string will yield a signalling \texttt{nan}.
+% \end{itemize}
+%
+% Note that |e-1| is not a representation of $10^{-1}$, but of
+% $e-1 \simeq 1.718\cdots$. This behaviour may differ slightly
+% from the previous |l3fp|\footnote{Bruno: clarify.}
 %
 % See \pkg{l3fp-convert} for info on how floating point numbers are stored,
-% and \pkg{l3fp-convert} for info on how operations behave exactly.
+% and \pkg{l3fp-basics} for info on how operations behave exactly.
 %
 % \subsection{Operations}
-% 
+%
 % The following operations are currently supported.
 % \begin{itemize}
 % \item[\texttt{+-}] Addition and subtraction have lowest precedence.
 % \item[\texttt{*/}] Multiplication and division have higher precedence.
 %^^A \item[\texttt{\char`^}]  The power function has even higher precedence.
-% \item[\texttt{()}] The contents of parenthesized groups are evaluated 
+% \item[\texttt{()}] The contents of parenthesized groups are evaluated
 %   before being used in the computation.
 % \item[\texttt{square}] One function is coded so far, only for
 %   testing purposes. It will eventually be removed, and instead,
@@ -158,16 +182,18 @@
 %   \begin{syntax}
 %     \cs{fp_parse:n} \Arg{floating point expression}
 %   \end{syntax}
-%   Reads through the \meta{floating point expression}, f-expanding
-%   tokens from left to right until only non-expandable tokens remain,
-%   and parses this expanded result, converting floating point numbers 
-%   to an internal form, and performing the infix operations on those.
+%   This f-expands to the internal floating point number obtained
+%   as follows. It reads through the \meta{floating point expression},
+%   f-expanding tokens from left to right until only non-expandable
+%   tokens remain, and parses this expanded result, converting
+%   floating point numbers to an internal form, and performing
+%   the infix operations on those.
 %   \begin{texnote}
 %     Registers (integers, toks, etc.) are automatically unpacked,
 %     without requiring a function such as \cs{int_use:N}. Invalid
-%     tokens remaining after f-expansion will lead to unrecoverable 
+%     tokens remaining after f-expansion will lead to unrecoverable
 %     low-level TeX errors.\footnote{Bruno: describe what happens
-%       in cases like $2\cs{c_three} \to 6$.}
+%       in cases like $2\cs{c_three} = 6$.}
 %   \end{texnote}
 % \end{function}
 %
@@ -177,375 +203,425 @@
 % The task at hand is non-trivial, and some previous failed attempts have
 % shown me that the code ends up giving unreadable logs, so we'd better get
 % it (almost) right the first time. Let us thus first discuss precisely
-% the design before starting to write the code.\footnote{Bruno: this
-%   section has not been revised in the last month.}
+% the design before starting to write the code. To simplify matters,
+% we first consider expressions with integers only.
 %
 % \subsubsection{Storing results}
 %
-% The main issue in parsing expressions expandably is: \enquote{where 
-%   in the input stream should the result be put?} 
+% The main issue in parsing expressions expandably is: \enquote{where
+%   in the input stream should the result be put?}
 %
-% One option is to place the result at the end of the expression, 
+% One option is to place the result at the end of the expression,
 % but this has several drawbacks:
 % \begin{itemize}
 % \item firstly it means that for long expressions we would be reaching
-%   all the way to the end of the expression at every step of the 
+%   all the way to the end of the expression at every step of the
 %   calculation, which can be rather expensive;
-% \item secondly, when parsing parenthesized sub-expressions, we would 
+% \item secondly, when parsing parenthesized sub-expressions, we would
 %   naturally place the result after the corresponding closing parenthesis.
 %   But since \cs{fp_parse:n} does not assume that its argument is expanded,
 %   this closing parenthesis may be hidden in a macro, and not present yet,
 %   causing havoc.
 % \end{itemize}
-% 
-% The other natural option is to store the result at the start of the 
-% expression, and carry it as an argument of each macro. This does not 
+%
+% The other natural option is to store the result at the start of the
+% expression, and carry it as an argument of each macro. This does not
 % really work either: in order to expand what follows on the input stream,
 % we need to skip at each step over all the tokens in the result using
 % \cs{exp_after:wN}. But this requires adding many \cs{exp_after:wN} to
 % the result at each step, also an expensive process.
 %
-% Hence, we need to go for some fine expansion control: the result is 
+% Hence, we need to go for some fine expansion control: the result is
 % stored \emph{before} the start\ldots{} A toy model that illustrates this
-% idea is to try and add some positive integers which may be hidden 
+% idea is to try and add some positive integers which may be hidden
 % within macros, or registers. Assume that one number has already been
 % found, and that we want to parse the next number. The current status
 % of the code may look as follows.
-% \begin{quote}
-%   |\exp_after:wN \add:w \tex_number:D 12345 \exp_after:wN ;| \newline
-%   |\tex_romannumeral:D -`0 \clean:w| \meta{stuff}
+% \begin{quote}\ttfamily
+%   \cs{exp_after:wN} \cs{add:ww}
+%   \cs{int_value:w} 12345 \cs{exp_after:wN} ; \newline
+%   \cs{tex_romannumeral:D} -`0 \cs{clean:w} \meta{stuff}
 % \end{quote}
-% The macro \cs{clean:w} is here fully f-expanded. It is meant to clean 
-% the next number. Assume for instance that it expands \meta{stuff} to e.g.
-% |333444;|. Once \cs{clean:w} is done expanding, we will obtain essentially
-% \begin{quote}
-%   |\exp_after:wN \add:w \tex_number:D 12345 ; 333444 ;|
+% Hitting this construction by one step of expansion expands
+% \cs{exp_after:wN}, which triggers the primitive \cs{int_value:w},
+% which reads an integer, \texttt{12345}. This integer is unfinished,
+% causing the second \cs{exp_after:wN} to expand, and trigger
+% the construction \cs{tex_romannumeral:D} |-`0|, which f-expands
+% \cs{clean:w} (see \pkg{l3expan.dtx} for an explanation). Assume
+% then that \cs{clean:w} is such that it expands \meta{stuff} to
+% \emph{e.g.}, |333444;|. Once \cs{clean:w} is done expanding, we
+% will obtain essentially
+% \begin{quote}\ttfamily
+%   \cs{exp_after:wN} \cs{add:ww} \cs{int_value:w} 12345 ; 333444 ;
 % \end{quote}
-% where in fact \cs{exp_after:wN} has already been expanded, and 
-% \cs{tex_number:D} has already seen |12345|. Now, \cs{tex_number:D} sees
-% the |;|, and stops expanding, and we are left with
-% \begin{quote}
-%   |\add:w 12345 ; 333444 ;|
+% where in fact \cs{exp_after:wN} has already been expanded, and
+% \cs{int_value:w} has already seen \texttt{12345}. Now,
+% \cs{int_value:w} sees the \texttt{;}, and stops expanding, and
+% we are left with
+% \begin{quote}\ttfamily
+%   \cs{add:ww} 12345 ; 333444 ;
 % \end{quote}
-% which can safely perform the addition by grabbing two arguments 
-% delimited by |;|.
-% 
-% On this toy example, we could note that if we were to continue parsing 
-% the expression, then the following number should also be cleaned up before
-% the next use of \cs{add:w}. Just like |\tex_number:D 12345 \exp_after:wN ;|
-% expanded what follows once, we need \cs{add:w} to do the calculation,
-% and in the process to expand the following once. This is also true in our
-% real application: all the functions in |l3fp_expan| whose name ends with
-% |_o| expand the what follows once. This comes at the cost of leaving tokens
-% in the input stack, and we will need to be careful to waste as little as
-% possible of this precious memory.
-% 
-% 
+% which can safely perform the addition by grabbing two arguments
+% delimited by \texttt{;}.
+%
+% On this toy example, we could note that if we were to continue
+% parsing the expression, then the following number should also
+% be cleaned up before the next use of a binary operation such as
+% \cs{add:ww}. Just like \cs{int_value:w} \texttt{12345}
+% \cs{exp_after:wN} \texttt{;} expanded what follows once, we need
+% \cs{add:ww} to do the calculation, and in the process to expand
+% the following once. This is also true in our real application:
+% all the functions of the form \cs{fp_...:ww} expand the what
+% follows once. This comes at the cost of leaving tokens in the
+% input stack, and we will need to be careful to waste as little
+% as possible of this precious memory.
+%
+%
 % \subsubsection{Precedence}
 %
-% A major point to keep in mind when parsing expressions is that different
-% operators have different precedence. The true analog of our toy
-% \cs{clean:w} macro must thus take care of that. For definiteness, let us
-% assume that the operation which prompted \cs{clean:w} was a multiplication.
-% Then \cs{clean:w} (expand and) read digits until the number is ended by
-% some operation. If this is |+| or~|-|, then the multiplication must be
-% calculated, so \cs{clean:w} can simply decide that its job is done. 
-% However, if the operator we find is |^|, then this operation must be 
-% performed before returning control to the multiplication. This means that
-% we need to \cs{clean:w} the number following |^|, and perform the 
-% calculation, then just end our job. 
+% A major point to keep in mind when parsing expressions is that
+% different operators have different precedence. The true analog
+% of our toy \cs{clean:w} macro must thus take care of that. For
+% definiteness, let us assume that the operation which prompted
+% \cs{clean:w} was a multiplication. Then \cs{clean:w} (expand
+% and) read digits until the number is ended by some operation.
+% If this is \texttt{+} or~\texttt{-}, then the multiplication
+% should be calculated next, so \cs{clean:w} can simply decide
+% that its job is done. However, if the operator we find is |^|,
+% then this operation must be performed before returning control
+% to the multiplication. This means that we need to \cs{clean:w}
+% the number following |^|, and perform the calculation, then just
+% end our job.
 %
-% These test require the cleaning function to carry as an argument the 
-% previous operator, so \cs{clean:Nw} \meta{operator}. The process of
-% course has to happen recursively. for instance, |(1+2^3*4)| would involve 
-% the following steps.
+% Hence, each time a number is cleaned, the precedence of the
+% following operation must be compared to that of the previous
+% operation. The process of course has to happen recursively.
+% For instance, |1+2^3*4| would involve the following steps.
 % \begin{itemize}
-% \item |1| is cleaned up, and \cs{clean:Nw} |+| is invoked.
-% \item |2| is cleaned up, and \cs{clean:Nw} |+| sees |^|, which has 
-%   higher precedence. A recursive instance is invoked: \cs{clean:Nw} |^|.
-% \item |3| is cleaned up, and \cs{clean:Nw} |^| sees |*|, with lower
-%   precedence. \cs{clean:Nw} |^|'s job is done, |^| is evaluated, 
-%   we get |(1+8*4)|.
-% \item \cs{clean:Nw} |+| is still active, and cleans up |8|. It sees |*|,
-%   with higher precedence than |+|. This invokes \cs{clean:Nw} |*|.
-% \item |4| is cleaned up, and \cs{clean:Nw} |*| sees |+|, with lower
-%   precedence. This \cs{clean:Nw} is done, |*| is evaluated, we get 
-%   |(1+32)|.
-% \item \cs{clean:Nw} |+| cleans up |32| and sees |)|, which we will define
-%   to have a lower precedence. This last \cs{clean:Nw} dies, and |+|
-%   is evaluated, leaving us with the result, |(33)|.
+% \item |1| is cleaned up.
+% \item |2| is cleaned up.
+% \item The precedences of |+| and |^| are compared. Since the
+%   latter is higher, the second operand of |^| should be cleaned.
+% \item |3| is cleaned up.
+% \item The precedences of |^| and |*| are compared. Since the
+%   former is higher, the cleaning step stops.
+% \item Compute |2^3 = 8|.
+% \item We now have |1+8*4|, and the operation |+| is still
+%   looking for a second operand. Clean |8|.
+% \item The precedences of |+| and |*| are compared. Since the
+%   latter is higher, the second operand of |*| should be cleaned.
+% \item |4| is cleaned up, and the end of the expression is reached.
+% \item Compute |8*4 = 32|.
+% \item We now have |1+8*4|, and the operation |+| is still
+%   looking for a second operand. Clean |32|, and reach the end
+%   of the expression.
+% \item Compute |1+32 = 33|.
 % \end{itemize}
-% Here, there is some (expensive) redundant work: the results of 
+% Here, there is some (expensive) redundant work: the results of
 % computations should not need to be cleaned again. Thus the true definition
 % is slightly more elaborate.
 %
 % The precedence of |(| and |)| are defined to be equal, and smaller than
 % the precedence of |+| and |-|, itself smaller than |*| and |/|, smaller,
 % finally, then the power operator |**| (or |^|).
-% 
+%
 %
 % \subsubsection{Infix operators}
-% 
-% We now give a full example of how the code works when there are 
-% only infix operators, here |+|, |-|, |*| and |**|. To each operator,
-% for instance |*|, is associated the following data:
+%
+% The implementation that was chosen is slightly wasteful: it causes
+% more nesting than necessary.\footnote{Bruno: clarify.}
+% However, it is simpler to implement and to explain than a slightly
+% optimized variant.\footnote{Bruno: some day, I should
+%   implement the optimized version, and compare.}
+%
+% The cornerstone of that method is a pair of functions,
+% \cs{until} and \cs{one}, which both take as their first
+% argument the precedence (an integer) of the last operation.
+% The f-expansion of
+% \begin{quote}
+%   \cs{until} \meta{prec} \cs{one} \meta{prec} \meta{stuff}
+% \end{quote}
+% is the internal floating point obtained by \enquote{cleaning}
+% numbers which follow in the input stream, and performing
+% computations until reaching an operation with a precedence
+% less than or equal to \meta{prec}. This is followed by a control
+% sequence of the form \cs{infix_?}, namely,
+% \begin{quote}
+%   \meta{floating point} \cs{infix_?}
+% \end{quote}
+% where |?| is the operation following that number in the input
+% stream (we thus know that this operation has at most the
+% precedence \meta{prec}, otherwise it would have been performed
+% already).
+%
+% How is that expansion achieved? First, \cs{one} \meta{prec}
+% reads one \meta{floating point} number, and converts it to an
+% internal form, then the following operation, say |*|, is
+% packed in the form \cs{infix_*}, which is fed the \meta{prec}.
+% This function (one per infix operator) compares \meta{prec}
+% with the precedence of the operator we just read (here |*|).
+% If \meta{prec} is higher, our job is finished, and \cs{one}
+% leaves \cs{c_true_bool} so that \cs{until} knows to stop.
+% Otherwise, \cs{infix_*} triggers a new pair
+% \cs{until} \meta{prec(*)} \cs{one} \meta{prec(*)},
+% which produces the second operand \meta{floating point 2}
+% for the multiplication:
+% \begin{quote}
+%   \cs{until} \meta{prec} \meta{floating point} \newline
+%   \texttt{...} \meta{floating point 2} |;| \cs{infix_?}
+% \end{quote}
+% The dots are \cs{c_false_bool} \cs{fp_mul:ww}. The boolean
+% tells \cs{until} that it is not done, and it expands
+% (essentially) to
+% \begin{quote}
+%   \cs{until} \meta{prec}
+%   \cs{fp_mul:ww} \meta{floating point} \meta{floating point 2}
+%   \cs{tex_romannumeral:D} \texttt{-`0} \cs{infix_?} \meta{prec}
+% \end{quote}
+% making \TeX{} expand \cs{fp_mul:ww} before \cs{until}.
+% As implemented in \pkg{l3fp-basics}, this operation expands
+% what follows exactly once. This triggers \cs{tex_romannumeral:D},
+% which fully expands \cs{infix_?} \meta{prec}. This compares
+% the precedence of the next operation, |?|, and \meta{prec},
+% and leaves a boolean (and possibly more things), which is then
+% checked by \cs{until} \meta{prec} to know if the result
+% of the multiplication is the end of the story, or if |?|
+% should be computed as well before \cs{until} \meta{prec} ends.
+%
+% This should be easier to see on an example. To each infix
+% operator, for instance, |*|, is associated the following data:
 % \begin{itemize}
-% \item a test function, \cs{infix_*}, which conditionally continues 
+% \item a test function, \cs{infix_*}, which conditionally continues
 %   the calculation or waits to be hit again by expansion;
-% \item a function \fpOperation{*} which performs the actual calculation;
-% \item an integer, \fpPrecedence{*}, which encodes the precedence of 
-%   the operator.
+% \item a function \fpOperation{*} (notation for \cs{fp_mul:ww})
+%   which performs the actual calculation;
+% \item an integer, \fpPrecedence{*}, which encodes the precedence of
+%   the operator (typically, \cs{c_zero}, \cs{c_one}, or \cs{c_two}).
 % \end{itemize}
-% 
-% The test function \cs{infix_*} is given (the precedence of) the 
-% previous operation as an argument. If it is higher than \fpPrecedence{*}
-% then the multiplication should not be evaluated now:
-% \cs{infix_*} \fpPrecedence{**} expands to |?| \meta{false} \cs{infix_*}. 
-% If the previous operation had a lower precedence, then the
-% multiplication should be evaluated: \cs{infix_*} \fpPrecedence{+} 
-% expands to \cs{calc}\fpOperation{*}\fpPrecedence{*} 
-% \cs{clean}\fpPrecedence{*}. 
-% 
-% The \cs{clean} function is responsible for grabbing one number (expanding
-% tokens as it goes). Upon reaching the end of a number, it will build
-% the \cs{infix_} function corresponding to the following operation, and
-% feed it the previous precedence: the \cs{infix_} function will either
-% continue the calculation now, or wait peacefully  to be evaluated later.
-% The full expansion of \cs{clean} should have the form \meta{number}|;| 
-% \meta{operator} \meta{bool}.
-% 
-% Then \cs{calc} sees the following arguments: 
-% \cs{calc}\meta{oper1}\meta{prec1} \meta{number1}|;| \meta{oper2} \meta{bool},
-% always followed by \meta{number2}|;| \cs{infix_?}, where |?| is the next 
-% operation on the input stream, which must have a lower precedence than
-% \meta{oper2} (otherwise we would have calculated it already).
-% The \meta{bool} is true if \meta{oper2} should be performed now (\emph{i.e.}
-% if \meta{oper2} has higher precedence than \meta{oper1}). In that case, the
-% expansion is
-% \begin{quote}
-%   \cs{calc} \meta{oper1} \meta{prec1}
-%   \fpExpand\meta{oper2} \meta{prec1} \meta{number1}|;| \meta{number2}|;|
-%   \cs{infix_?}
-% \end{quote}
-% The function that is now being expanded by \TeX{} is \meta{oper2}, 
-% underlined. It calculates the result of the operation using \meta{number1}
-% and \meta{number2}:
-% \begin{quote}
-%   \cs{calc} \meta{oper1} \meta{prec1} \meta{result}|;|
-%   \fpExpand\cs{infix_?} \meta{prec1}
-% \end{quote}
-% Then \cs{infix_?} (the |?| is just the next operation on the input stream,
-% put in that form by some instance of \cs{clean}) checks whether it should
-% let \cs{calc} calculate \meta{oper1}, or calculate instead |?|, the next 
-% operation.
+% The token that is currently being expanded is underlined,
+% and in red. Tokens that have not yet been read (and could
+% still be hidden in macros) are in gray.
 %
-% The interested reader may want to study the rather detailed example below 
-% to understand more precisely how parsing goes. In a first reading,
-% the disinction between the \meta{precedence} \fpPrecedence{+}, the operation
-% \fpOperation{+}, and the character token |+| should not matter. It is only
-% required to accomodate for multi-token infix operators such as |**|: 
-% indeed, when controlling expansion, we need to skip over those tokens using 
-% \cs{exp_after:wN}, and this only skips one token. Thus |**| needs to be
-% replaced by a single token (either its precedence or its calculating 
-% function, depending on the place).
-% 
+% In a first reading, the disinction between the \meta{precedence}
+% \fpPrecedence{+}, the operation \fpOperation{+}, and the character
+% token |+| should not matter. It is only required to accomodate for
+% multi-token infix operators such as |**|: indeed, when controlling
+% expansion, we need to skip over those tokens using \cs{exp_after:wN},
+% and this only skips one token. Thus |**| needs to be replaced by a
+% single token (either its precedence or its calculating function,
+% depending on the place).
+%
+% To end the computation cleanly, we add a trailing right
+% parenthesis, and give |(| and |)| the lowest precedence,
+% so that \cs{until}\fpPrecedence{(} \cs{one}\fpPrecedence{(}
+% reads numbers and performs operations until meeting a right
+% parenthesis. This is discussed more precisely in the next section.
+%
 % \begin{l3fp-code-example}
-%   \o(\p& \cs{calc}\p(    \*\cs{clean}\p( \! 11 + 2**3 * 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 1  \*\cs{clean}\p( \! 1  + 2**3 * 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11 \*\cs{clean}\p( \!    + 2**3 * 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; \*\cs{infix_+}\p( \! 2**3 * 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ \*\cs{clean}\p+ \! 2**3 * 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 2 \*\cs{clean}\p+ \!  **3 * 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 2; \*\cs{infix_**}\p+ \! 3 * 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 2;
-%       T \o{**} \cs{calc}\p{**} \*\cs{clean}\p{**} \! 3 * 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 2;
-%       T \o{**} \cs{calc}\p{**} 3 \*\cs{clean}\p{**} \! * 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 2;
-%       T \o{**} \cs{calc}\p{**} 3; \*\cs{infix_*}\p{**} \! 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 2;
-%       T \o{**} \*\cs{calc}\p{**} 3; F \cs{infix_*} \! 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \*\cs{calc}\p+ 2;
-%       T \o{**} 3; \cs{infix_*} \! 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ \*\o{**} 2; 3;
+%   \cs{until}\p(    \*\cs{one}\p( \! 11 + 2**3 * 5 - 9 )\!
+%   \cs{until}\p( 1  \*\cs{one}\p( \! 1  + 2**3 * 5 - 9 )\!
+%   \cs{until}\p( 11 \*\cs{one}\p( \!    + 2**3 * 5 - 9 )\!
+%   \cs{until}\p( 11; \*\cs{infix_+}\p( \! 2**3 * 5 - 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ \*\cs{one}\p+ \! 2**3 * 5 - 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 2 \*\cs{one}\p+ \!  **3 * 5 - 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 2; \*\cs{infix_**}\p+ \! 3 * 5 - 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 2;
+%       F \o{**} \cs{until}\p{**} \*\cs{one}\p{**} \! 3 * 5 - 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 2;
+%       F \o{**} \cs{until}\p{**} 3 \*\cs{one}\p{**} \! * 5 - 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 2;
+%       F \o{**} \cs{until}\p{**} 3; \*\cs{infix_*}\p{**} \! 5 - 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 2;
+%       F \o{**} \*\cs{until}\p{**} 3; T \cs{infix_*} \! 5 - 9 )\!
+%   \cs{until}\p( 11; F \o+ \*\cs{until}\p+ 2;
+%       F \o{**} 3; \cs{infix_*} \! 5 - 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ \*\o{**} 2; 3;
 %       \cs{infix_*}\p+ \! 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 8; \*\cs{infix_*}\p+ \! 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 8;
-%       T \o* \cs{calc}\p* \*\cs{clean}\p* \! 5 - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 8;
-%       T \o* \cs{calc}\p* 5 \*\cs{clean}\p* \! - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 8;
-%       T \o* \cs{calc}\p* 5; \*\cs{infix_-}\p* \! 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 8;
-%       T \o* \*\cs{calc}\p* 5; F \cs{infix_-} \! 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \*\cs{calc}\p+ 8; T \o* 5; \cs{infix_-} \! 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ \*\o{*} 8; 5; \cs{infix_-}\p+ \! 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \cs{calc}\p+ 40; \*\cs{infix_-}\p+ \! 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o+ \*\cs{calc}\p+ 40; F \cs{infix_-} \! 9 )\!
-%   \o(\p& \*\cs{calc}\p( 11; T \o+ 40; \cs{infix_-} \! 9 )\!
-%   \o(\p& \cs{calc}\p( \*\o{+} 11; 40; \cs{infix_-}\p( \! 9 )\!
-%   \o(\p& \cs{calc}\p( 51; \*\cs{infix_-}\p( \! 9 )\!
-%   \o(\p& \cs{calc}\p( 51; T \o- \cs{calc}\p- \*\cs{clean}\p- \! 9 )\!
-%   \o(\p& \cs{calc}\p( 51; T \o- \cs{calc}\p- 9 \*\cs{clean}\p- \! )\!
-%   \o(\p& \cs{calc}\p( 51; T \o- \cs{calc}\p- 9; \*\cs{infix_)}\p- \!\!
-%   \o(\p& \cs{calc}\p( 51; T \o- \*\cs{calc}\p- 9; F \cs{infix_)} \!\!
-%   \o(\p& \*\cs{calc}\p( 51; T \o- 9; \cs{infix_)} \!\!
-%   \o(\p& \cs{calc}\p( \*\o{-} 51; 9; \cs{infix_)}\p( \!\!
-%   \o(\p& \cs{calc}\p( 42; \*\cs{infix_)}\p( \!\!
-%   \o(\p& \*\cs{calc}\p( 42; F \cs{infix_)} \!\!
-%   \*\o(\p& 42; \cs{infix_)} \!\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 8; \*\cs{infix_*}\p+ \! 5 - 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 8;
+%       F \o* \cs{until}\p* \*\cs{one}\p* \! 5 - 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 8;
+%       F \o* \cs{until}\p* 5 \*\cs{one}\p* \! - 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 8;
+%       F \o* \cs{until}\p* 5; \*\cs{infix_-}\p* \! 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 8;
+%       F \o* \*\cs{until}\p* 5; T \cs{infix_-} \! 9 )\!
+%   \cs{until}\p( 11; F \o+ \*\cs{until}\p+ 8; F \o* 5; \cs{infix_-} \! 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ \*\o{*} 8; 5; \cs{infix_-}\p+ \! 9 )\!
+%   \cs{until}\p( 11; F \o+ \cs{until}\p+ 40; \*\cs{infix_-}\p+ \! 9 )\!
+%   \cs{until}\p( 11; F \o+ \*\cs{until}\p+ 40; T \cs{infix_-} \! 9 )\!
+%   \*\cs{until}\p( 11; F \o+ 40; \cs{infix_-} \! 9 )\!
+%   \cs{until}\p( \*\o{+} 11; 40; \cs{infix_-}\p( \! 9 )\!
+%   \cs{until}\p( 51; \*\cs{infix_-}\p( \! 9 )\!
+%   \cs{until}\p( 51; F \o- \cs{until}\p- \*\cs{one}\p- \! 9 )\!
+%   \cs{until}\p( 51; F \o- \cs{until}\p- 9 \*\cs{one}\p- \! )\!
+%   \cs{until}\p( 51; F \o- \cs{until}\p- 9; \*\cs{infix_)}\p- \!\!
+%   \cs{until}\p( 51; F \o- \*\cs{until}\p- 9; T \cs{infix_)} \!\!
+%   \*\cs{until}\p( 51; F \o- 9; \cs{infix_)} \!\!
+%   \cs{until}\p( \*\o{-} 51; 9; \cs{infix_)}\p( \!\!
+%   \cs{until}\p( 42; \*\cs{infix_)}\p( \!\!
+%   \*\cs{until}\p( 42; T \cs{infix_)} \!\!
+%   42; \cs{infix_)} \!\!
 % \end{l3fp-code-example}
 %
-% Finally, the parenthesis can check whether it was closed by the correct
-% right parenthesis (as opposed to a bracket, for instance), and clean up
-% the result.
-% 
-% An example with parentheses.
+% The only missing step is to clean the output by removing \cs{infix_)},
+% and possibly checking that nothing else remains.
 %
+% \subsubsection{Prefix operators, parentheses, and functions}
+%
+% Prefix operators (typically the unary |-|) and parentheses are
+% taken care of by the same mechanism, and functions (\texttt{sin},
+% \texttt{exp}, etc.) as well. Finding the argument of the unary
+% |-|, for instance, is very similar to grabbing the second operand
+% of a binary infix operator, with a small subtelty on precedence
+% explained below. Once that argument is found, its sign can be
+% flipped. A left parenthesis is just a prefix operator which
+% removes the closing parenthesis (with some extra checks).
+%
+% Detecting prefix operators is done by \cs{one}. Before looking
+% for a number, it tests the first character. If it is a digit, a
+% dot, or a register, then we have a number. Otherwise, it is put
+% in a function, \cs{prefix_?} (where |?| is roughly that first
+% character), which is expanded. For instance, with a left
+% parenthesis we would have the following.
 % \begin{l3fp-code-example}
-%   \o(\p& \cs{calc}\p(    \*\cs{clean}\p( \! 11 * ( 2 + 3 ) - 9 )\!
-%   \o(\p& \cs{calc}\p( 1  \*\cs{clean}\p( \! 1  * ( 2 + 3 ) - 9 )\!
-%   \o(\p& \cs{calc}\p( 11 \*\cs{clean}\p( \!    * ( 2 + 3 ) - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; \*\cs{infix_*}\p( \!   ( 2 + 3 ) - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \*\cs{clean}\p* \! ( 2 + 3 ) - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \*\cs{prefix_(}\p* \! 2 + 3 ) - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \o(\p* \cs{calc}\p( \*\cs{clean}\p( \! 2 + 3 ) - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \o(\p* \cs{calc}\p( 2 \*\cs{clean}\p( \! + 3 ) - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \o(\p* \cs{calc}\p( 2; \*\cs{infix_+}\p( \! 3 ) - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \o(\p* \cs{calc}\p( 2; T \o+ \cs{calc}\p+ \*\cs{clean}\p+ \! 3)-9)\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \o(\p* \cs{calc}\p( 2; T \o+ \cs{calc}\p+ 3 \*\cs{clean}\p+ \! )-9)\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \o(\p* \cs{calc}\p( 2; T \o+ \cs{calc}\p+ 3; \*\cs{infix_)}\p+ \! -9)\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \o(\p* \cs{calc}\p( 2; T \o+ \*\cs{calc}\p+ 3; F \cs{infix_)} \! -9)\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \o(\p* \*\cs{calc}\p( 2; T \o+ 3; \cs{infix_)} \! - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \o(\p* \cs{calc}\p( \*\o+ 2; 3; \cs{infix_)}\p( \! - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \o(\p* \cs{calc}\p( 5; \*\cs{infix_)}\p( \! - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \o(\p* \*\cs{calc}\p( 5; F \cs{infix_)} \! - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* \*\o(\p* 5; \cs{infix_)} \! - 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \cs{calc}\p* 5; \*\cs{infix_-}\p* \! 9 )\!
-%   \o(\p& \cs{calc}\p( 11; T \o* \*\cs{calc}\p* 5; F \cs{infix_-} \! 9 )\!
-%   \o(\p& \*\cs{calc}\p( 11; T \o* 5; \cs{infix_-} \! 9 )\!
-%   \o(\p& \cs{calc}\p( \*\o* 11; 5; \cs{infix_-}\p( \! 9 )\!
-%   \o(\p& \cs{calc}\p( 55; \* \cs{infix_-}\p( \! 9 )\!
-%   \o(\p& \cs{calc}\p( 55; T \o- \cs{calc}\p- \*\cs{clean}\p- \! 9 )\!
-%   \o(\p& \cs{calc}\p( 55; T \o- \cs{calc}\p- 9 \*\cs{clean}\p- \! )\!
-%   \o(\p& \cs{calc}\p( 55; T \o- \cs{calc}\p- 9; \*\cs{infix_)}\p- \!\!
-%   \o(\p& \cs{calc}\p( 55; T \o- \*\cs{calc}\p- 9; F \cs{infix_)} \!\!
-%   \o(\p& \*\cs{calc}\p( 55; T \o- 9; \cs{infix_)} \!\!
-%   \o(\p& \cs{calc}\p( \*\o- 55; 9; \cs{infix_)}\p( \!\!
-%   \o(\p& \cs{calc}\p( 47; \*\cs{infix_)}\p( \!\!
-%   \o(\p& \*\cs{calc}\p( 47; F \cs{infix_)} \!\!
-%   \*\o(\p& 47; \cs{infix_)} \!\!
+%   \*\cs{one}\p* \! ( 2 + 3 ) \!
+%   \*\cs{prefix_(}\p* \! 2 + 3 ) \!
+%   \o(\p* \cs{until}\p( \*\cs{one}\p( \! 2 + 3 ) \!
+%   ... \!\!
+%   \o(\p* 5; \cs{infix_)} \! \!
+% \end{l3fp-code-example}
+% As usual, the \cs{until}--\cs{one} pair reads and compute
+% until reaching an operator of precedence at most \fpPrecedence{(}.
+% Then \fpOperation{(} removes \cs{infix_)} and looks ahead for
+% the next operation, comparing its precedence with the precedence
+% \fpPrecedence{*} of the previous operation (in fact, this comparison
+% is done by the relevant \cs{infix_?} built from the next operation).
+%
+% To support multi-character function (and constant) names, we
+% may need to put more than one character in the \cs{prefix_?}
+% construction. See implementation for details.
+%
+% Note that contrarily to \cs{infix_?} functions, the \cs{prefix_?}
+% functions perform no test on their argument (which is once more
+% the previous precedence), since we know that we need a number,
+% and must never stop there.
+%
+% Functions are implemented as prefix operators with infinitely high
+% precedence, so that their argument is the first number that can
+% possibly be built. For instance, something like the following could
+% happen in a computation
+% \begin{l3fp-code-example}
+%   \*\cs{one}\p* \! sqrt 4 + 3 ) \!
+%   \*\cs{prefix_sqrt}\p* \! 4 + 3 ) \!
+%   \o{sqrt}\p* \cs{until}\p{$\infty$} \*\cs{one}\p{$\infty$} \! 4 + 3 ) \!
+%   ... \!\!
+%   \o{sqrt}\p* 4; \cs{infix_+} \! 3 ) \!
+%   2; \*\cs{infix_+}\p* \! 3 ) \!
 % \end{l3fp-code-example}
 %
-% \subsubsection{Prefix operators and functions}
-% 
-% Both prefix operators (typically the unary |-|) and functions
-% (\emph{e.g.} \texttt{sin}, \texttt{exp}) are treated identically.
-% 
-% Grabbing the argument of a function can be done exactly as the (second)
-% argument of an infix operator with infinitely high precedence.
-% In this way, a single number will be grabbed, without evaluating the 
-% result of any infix operation, while prefix operators will always be 
-% expanded to yield a number. For instance, |2^sin - sin(pi) + 1| is
-% $2^{\sin(-\sin(\pi))}+1$. 
-%
-% Once the result of the function is calculated, the precedence of the 
-% operation preceeding it must be compared with the precedence of the
-% operation following it, just as in the case of an infix operator. For
-% instance, |2+sin 1 * 3| should be $2+(\sin(1)\times 3)$.
+% Lonely example, to be put somewhere: |2+sin 1 * 3| is $2+(\sin(1)\times 3)$.
 %
 % A further complication arises in the case of the unary |-| sign:
 % |-3**2| should be $-(3^2)=-9$, and not $(-3)^2=9$. Easy, just give
 % |-| a lower precedence, equal to that of the infix |+| and |-|.
 % Unfortunately, this fails in subtle cases such as |3**-2*4|,
 % yielding $3^{-2\times 4}$ instead of the correct $3^{-2}\times 4$.
-% In fact, a unary |-| should only perform operations whose precedence 
-% is greater than that of the last operation, as well as |-|.\footnote{Taking 
-%   into account the precedence of \texttt{-} itself only matters if some
-%   hypothetical operation $\bullet$ has a precedence lower than \texttt{-},
-%   but greater than, say, parentheses: then \texttt{(-2**4$\bullet$3)}
-%   should give \texttt{((-8)$\bullet$3)}.}
+% In fact, a unary |-| should only perform operations whose precedence
+% is greater than that of the last operation, as well as
+% |-|.\footnote{Taking into account the precedence of \texttt{-} itself
+%   only matters when it follows a left parenthesis:
+%   \texttt{(-2*4+3)} should give \texttt{((-8)+3)}, not \texttt{(-(8+3))}.}
 % Thus, \cs{prefix_-} \meta{prec} expands to something like
-% \begin{quote}
-%   \cs{after} \meta{prec}
-%   \cs{calc}\fpOperation{-}\fpPrecedence{-} 
-%   \fpExpand\cs{clean}\meta{max-prec}
-% \end{quote}
-% where \meta{max-prec} is the maximum of the precedence of |-| and of 
-% \meta{prec}. Once the argument of |-| is found, \cs{after} gets its
-% opposite, and leaves it for the previous operation to use.
-% 
-% 
-% Finally, for an open parenthesis, the argument should be calculated until
-% a closing parenthesis (or a comma, to grab arguments of a function), 
-% performing any prefix or infix operation on the way. 
-% This warrants giving lowest precedence to |(| and |)|.
-% 
-% The treatment of the open parenthesis in the example above is a slight
-% lie, since it forgets to keep track of the previous precedence. In fact,
-% \cs{prefix_(} \meta{prec} expands to 
-% \begin{quote}
-%   \cs{after} \meta{prec}
-%   \cs{calc}\fpOperation{(}\fpPrecedence{(} 
-%   \fpExpand\cs{clean}\fpPrecedence{(}
-% \end{quote}
-% Here, \meta{prec} is the precedence of the operation just before |(|;
-% the \cs{calc}--\cs{clean} pair evaluates prefix and infix operations
-% until reaching a closing parenthesis, and \cs{after} cleans up the result,
-% checking whether the computation should continue with the operation before
-% the group, or the one after the group.
+% \begin{l3fp-code-example}
+%   \o- \meta{prec} \cs{until}\p? \*\cs{one} \p?
+% \end{l3fp-code-example}
+% where \fpPrecedence{?} is the maximum of \meta{prec} and the
+% precedence of |-|. Once the argument of |-| is found, \fpOperation{-}
+% gets its opposite, and leaves it for the previous operation to use.
 %
+% An example with parentheses.
 %
+% \begin{l3fp-code-example}
+%   \cs{until}\p(    \*\cs{one}\p( \! 11 * ( 2 + 3 ) - 9 )\!
+%   \cs{until}\p( 1  \*\cs{one}\p( \! 1  * ( 2 + 3 ) - 9 )\!
+%   \cs{until}\p( 11 \*\cs{one}\p( \!    * ( 2 + 3 ) - 9 )\!
+%   \cs{until}\p( 11; \*\cs{infix_*}\p( \!   ( 2 + 3 ) - 9 )\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \*\cs{one}\p* \! ( 2 + 3 ) - 9 )\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \*\cs{prefix_(}\p* \! 2 + 3 ) - 9 )\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \o(\p* \cs{until}\p( \*\cs{one}\p( \! 2 + 3 ) - 9 )\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \o(\p* \cs{until}\p( 2 \*\cs{one}\p( \! + 3 ) - 9 )\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \o(\p* \cs{until}\p( 2; \*\cs{infix_+}\p( \! 3 ) - 9 )\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \o(\p* \cs{until}\p( 2; F \o+ \cs{until}\p+ \*\cs{one}\p+ \! 3)-9)\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \o(\p* \cs{until}\p( 2; F \o+ \cs{until}\p+ 3 \*\cs{one}\p+ \! )-9)\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \o(\p* \cs{until}\p( 2; F \o+ \cs{until}\p+ 3; \*\cs{infix_)}\p+ \! -9)\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \o(\p* \cs{until}\p( 2; F \o+ \*\cs{until}\p+ 3; T \cs{infix_)} \! -9)\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \o(\p* \*\cs{until}\p( 2; F \o+ 3; \cs{infix_)} \! - 9 )\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \o(\p* \cs{until}\p( \*\o+ 2; 3; \cs{infix_)}\p( \! - 9 )\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \o(\p* \cs{until}\p( 5; \*\cs{infix_)}\p( \! - 9 )\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \o(\p* \*\cs{until}\p( 5; T \cs{infix_)} \! - 9 )\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* \*\o(\p* 5; \cs{infix_)} \! - 9 )\!
+%   \cs{until}\p( 11; F \o* \cs{until}\p* 5; \*\cs{infix_-}\p* \! 9 )\!
+%   \cs{until}\p( 11; F \o* \*\cs{until}\p* 5; T \cs{infix_-} \! 9 )\!
+%   \*\cs{until}\p( 11; F \o* 5; \cs{infix_-} \! 9 )\!
+%   \cs{until}\p( \*\o* 11; 5; \cs{infix_-}\p( \! 9 )\!
+%   \cs{until}\p( 55; \* \cs{infix_-}\p( \! 9 )\!
+%   \cs{until}\p( 55; F \o- \cs{until}\p- \*\cs{one}\p- \! 9 )\!
+%   \cs{until}\p( 55; F \o- \cs{until}\p- 9 \*\cs{one}\p- \! )\!
+%   \cs{until}\p( 55; F \o- \cs{until}\p- 9; \*\cs{infix_)}\p- \!\!
+%   \cs{until}\p( 55; F \o- \*\cs{until}\p- 9; T \cs{infix_)} \!\!
+%   \*\cs{until}\p( 55; F \o- 9; \cs{infix_)} \!\!
+%   \cs{until}\p( \*\o- 55; 9; \cs{infix_)}\p( \!\!
+%   \cs{until}\p( 47; \*\cs{infix_)}\p( \!\!
+%   \*\cs{until}\p( 47; T \cs{infix_)} \!\!
+%   47; \cs{infix_)} \!\!
+% \end{l3fp-code-example}
 %
-% We need to modify \cs{clean} slightly. If the first 
-% character it sees is not a digit, then \cs{clean} grabs some characters
-% and makes them into a prefix operator (or a function). For instance,
-% seeing |-.3| will produce \cs{prefix_-}|.3|, then letting \cs{prefix_-}
-% find its argument and change the sign. Exactly how many characters 
-% end up into the prefix operator depends on the first character.
+% The end of this (sub)section was not revised yet
+%
 % \begin{itemize}
-% \item If it is a sign (|-| or |+|), then any following sign will be 
+% \item If it is a sign (|-| or |+|), then any following sign will be
 %   combined with this initial sign, forming \cs{prefix_+} or \cs{prefix_-}.
 % \item If it is a letter, then any following letter is grabbed, forming
 %   for instance \cs{prefix_sin} or \cs{prefix_sinh}.
 % \item Otherwise, only one token\footnote{Some support for multi-character
 %     prefix operator may be added in the future, but right now, I don't
-%     see a use for it. Perhaps, for including comments inside 
+%     see a use for it. Perhaps, for including comments inside
 %     the computation itself??} is grabbed, for instance \cs{prefix_(}.
 % \end{itemize}
-% 
-% Functions may take several arguments, possibly an unknown 
+%
+% Functions may take several arguments, possibly an unknown
 % number\footnote{Keyword argument support may be added later.},
-% for instance \texttt{round(1.23456,2)}. 
+% for instance \texttt{round(1.23456,2)}.
 % \begin{itemize}
-% \item \texttt{round} is made into \cs{prefix_round}, which tries to 
-%   grab one number using \cs{clean}.
-% \item This builds \cs{prefix_(}, which uses \cs{clean} to grab one 
+% \item \texttt{round} is made into \cs{prefix_round}, which tries to
+%   grab one number using \cs{one}.
+% \item This builds \cs{prefix_(}, which uses \cs{one} to grab one
 %   number, calculating as necessary. The comma is given the same
-%   precedence as parentheses, and thus ends the calculation of the 
+%   precedence as parentheses, and thus ends the calculation of the
 %   argument of \texttt{round}.
 % \item \texttt{round} now has its first argument. It can check whether
 %   the argument was closed by |,| or |)|, and branch accordingly.
-% \item If it was a comma, then the first argument is skipped over, 
+% \item If it was a comma, then the first argument is skipped over,
 %   through an expensive set of \cs{exp_after:wN}, and the second
-%   argument can be grabbed. Here it is simply an integer, easier 
-%   to parse by building upon \cs{etex_numexpr:D}. 
+%   argument can be grabbed. Here it is simply an integer, easier
+%   to parse by building upon \cs{etex_numexpr:D}.
 % \item The closing parenthesis (or another comma) is seen, and the
 %   control is given back to \cs{prefix_round}.
 % \end{itemize}
 %
 % \subsubsection{Type detection}
-% 
+%
 % The type of data should be detected by reading the first few tokens,
-% before calling the type-specific function of \file{l3fp-clean}. Or 
+% before calling the type-specific function of \file{l3fp-clean}. Or
 % should the type be obtained after the semicolon which indicates the
 % end of the thing? And placed there?
 %
 % Also to grab exponent correctly, build \cs{fp_<abc>:w} when seeing
 % some non-numeric |abc| while still looking to complete a number (or
 % other data). Then, if \cs{fp_postfix_<type>_<abc>:w} exists, use it.^^A...?
-% 
-%  
+%
+%
 %\end{documentation}
 %
 %\begin{implementation}
@@ -553,7 +629,7 @@
 %
 %\section{Implementation}
 %
-% 
+%
 %    We start by ensuring that the required packages are loaded.
 %    \begin{macrocode}
 %<*package>
@@ -563,14 +639,16 @@
 %</package>
 %<*initex|package>
 %    \end{macrocode}
-%    
+%
 % \subsection{Some useful \TeX{} techniques}
-% 
-% Full expansion can be done with \cs{tex_romannumeral:D} |-`0|. It is 
-% stopped by spaces. We can avoid being stopped by explicit spaces 
-% (and braced) if we simply add \cs{use:n} after |-`0|.
-% 
-% 
+%
+% This section is out of place here and should be moved to \emph{e.g.},
+% \pkg{l3fp-aux}.
+%
+% Full expansion can be done with \cs{tex_romannumeral:D} |-`0|. It is
+% stopped by spaces. We can avoid being stopped by explicit spaces
+% (and braced) if we simply add \cs{use:n} after~|-`0|.
+%
 % Testing if a character token |#1| is a digit can be done using
 % \begin{verbatim}
 % \if_num:w \c_nine < 1 \token_to_str:N #1
@@ -579,7 +657,7 @@
 %   false code
 % \fi:
 % \end{verbatim}
-% To exclude |0|, replace \cs{c_nine} by \cs{c_ten}. The use of 
+% To exclude |0|, replace \cs{c_nine} by \cs{c_ten}. The use of
 % \cs{token_to_str:N} ensures that a digit with any catcode is detected.
 %
 % When a positive integer |#1| is known to be less than $10^8$, the following
@@ -587,180 +665,96 @@
 % on the left.
 % \begin{verbatim}
 % \cs_new:Npn \aux:NNNNNw #1 #2#3#4#5 #6; { {#2#3#4#5} {#6} }
-% \exp_after:wN \aux:NNNNNw \tex_the:D \etex_numexpr:D 100000000 + #1 ;
+% \exp_after:wN \aux:NNNNNw \tex_the:D \etex_numexpr:D 1 0000 0000 + #1 ;
 % \end{verbatim}
-% The idea is that adding $100000000$ to the number ensures that it has 
+% The idea is that adding $10^8$ to the number ensures that it has
 % exactly $9$ digits, and can then easily find which digits correspond
 % to what position in the number. Of course, this can be modified
-% for any number of digits less or equal to~$9$ (since \cs{etex_numexpr:D}
-% has a limited range). This method is very heavily relied upon in
-% \texttt{l3fp-expand}. A variant of this trick, where the number may
-% be negative is used to convert the exponent from base~$10$ to the 
-% internal base~$10^4$ (see \emph{e.g.} \cs{_fp_parse_clean_body_c:w}).
-% 
-% 
+% for any number of digits less or equal to~$9$ (we are limited by
+% \TeX{}'s integers). This method is very heavily relied upon in
+% \texttt{l3fp-basics}.
+%
+%
+% \subsection{Main functions}
+%
 % \begin{macro}{\fp_parse:n}
+%   Thanks to \cs{tex_romannumeral:D}, this expands to an
+%   internal floating point number after two expansion steps,
+%   just like \cs{int_eval:n} and others.\footnote{Bruno:
+%     should the function be renamed \cs{fp_eval:n}?}
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse:n #1
-  {
-    \fp_parse:w #1 \fp_parse_end:
-  }
+  { \tex_romannumeral:D \fp_parse:w #1 \fp_parse_end: }
 \cs_new:Npn \fp_parse:w
   {
     \exp_after:wN \fp_parse_after:wN
     \tex_romannumeral:D -`0
-    \exp_after:wN \fp_parse_calc:NwN
-    \exp_after:wN \c_fp_parse_min_prec_int
-    \tex_romannumeral:D -`0
-    \fp_parse_number:Nw \c_fp_parse_min_prec_int
+    \fp_parse_uo:Nw \c_fp_parse_min_prec_int
+    \fp_aux_expand:w
   }
 \cs_new:Npn \fp_parse_after:wN #1; #2
   {
-    \cs_if_eq:cNF {fp_parse_infix_):N} #2 {\ERROR}
+    %\cs_if_eq:cNF {fp_parse_infix_):N} #2 {\ERROR}
+    \c_zero
     #1;
   }
 \cs_new:Npn \fp_parse_end: {)}
-\int_const:Nn \c_fp_parse_min_prec_int {-1000}
-%^^A arbitrary, but must be equal to precedence of ( and )
+\int_const:Nn \c_fp_parse_min_prec_int { \c_zero }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\fp_parse_infix_+:w,
-%     \fp_parse_do_+:ww,\c_fp_parse_precedence_+_int}
-%   Defined through a common function.
+% \begin{macro}{\fp_parse_uo:Nw}
+%   This is just a shorthand which sets up both \cs{fp_parse_until}
+%   and \cs{fp_parse_one} with the same precedence. Note the
+%   trailing \cs{tex_romannumeral:D}. This function should be
+%   used with much care.
 %    \begin{macrocode}
-\cs_new:Npn \fp_parse_def_infix:nNn #1
+\cs_new:Npn \fp_parse_uo:Nw #1
   {
-    \exp_args:Nccc \fp_parse_def_infix_aux:NNNNn
-      {fp_parse_infix_#1:N}
-      {fp_parse_do_#1:ww}
-      {c_fp_parse_precedence_#1_int}
-  }
-\cs_new:Npn \fp_parse_def_infix_aux:NNNNn #1#2#3#4#5
-  {
-    % #1 = \infix_+
-    % #2 = \do_+
-    % #3 = \prec_+
-    % Define:
-    % \infix_+ (  =>  T \do_+ \calc\prec_+  \*\clean\prec_+
-    % \infix_+ *  =>  F \infix_+
-    \cs_new:Npn #1 ##1
-      {
-        \if_num:w ##1 < #3
-          \exp_after:wN \use_i:nn
-        \else:
-          \exp_after:wN \use_ii:nn
-        \fi:
-        {
-          \exp_after:wN \c_true_bool
-          \exp_after:wN #2
-          \tex_romannumeral:D -`0
-          \exp_after:wN \fp_parse_calc:NwN
-          \exp_after:wN #3
-          \tex_romannumeral:D -`0
-          \fp_parse_number:Nw #3
-        }
-        { \c_false_bool #1 }
-      }
-    \cs_new_eq:NN #2 #4
-    \int_const:Nn #3 {#5}
-  }
-\fp_parse_def_infix:nNn {+} \fp_add:ww {1}
-\fp_parse_def_infix:nNn {-} \fp_sub:ww {1}
-\fp_parse_def_infix:nNn {*} \fp_mul:ww {2}
-\fp_parse_def_infix:nNn {/} \fp_div:ww {2}
-
-\cs_new:cpx {fp_parse_infix_):N} #1
-  { \c_false_bool \use:c {fp_parse_infix_):N} }
-\int_const:cn {c_fp_parse_precedence_)_int} {\c_fp_parse_min_prec_int}
-
-\cs_new:Npn \fp_parse_def_prefix:nNn #1
-  {
-    \exp_args:Nccc \fp_parse_def_prefix_aux:NNNNn
-      {fp_parse_prefix_#1:N}
-      {fp_parse_do_#1:ww}
-      {c_fp_parse_precedence_#1_int}
-  }
-\cs_new:Npn \fp_parse_def_prefix_aux:NNNNn #1#2#3#4#5
-  {
-    \cs_new:Npn #1 ##1
-      {
-        \exp_after:wN #2
-        \exp_after:wN ##1
-        \tex_romannumeral:D -`0
-        \exp_after:wN \fp_parse_calc:NwN
-        \exp_after:wN #3
-        \tex_romannumeral:D -`0
-        \fp_parse_number:Nw #3
-      }
-    \cs_new_eq:NN #2 #4
-    \int_const:Nn #3 {#5}
-  }
-\cs_new:Npn \fp_tmp_lparen:NwN #1 #2; #3
-  {
-    \cs_if_eq:cNF {fp_parse_infix_):N} #3 {\ERROR}
-    %\fp_parse_number_aux:Nw #1
-    #2;
-  }
-\fp_parse_def_prefix:nNn {(} \fp_tmp_lparen:NwN {\c_fp_parse_min_prec_int}
-\cs_new_eq:cc { fp_cfs_non_letter: ~ (; } {fp_parse_prefix_(:N}
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\fp_parse_number:Nw}
-%   Function called \cs{clean} at other places.
-%   It grabs one fp number, and packs the following in an
-%   \cs{infix_} function.
-%    \begin{macrocode}
-\cs_new:Npn \fp_parse_number:Nw #1
-  {
-    \exp_after:wN \fp_parse_number_aux:Nw
+    \exp_after:wN \fp_parse_until:NwN
     \exp_after:wN #1
-    \tex_romannumeral:D -`0 \fp_cfs_sign:w
-  }
-\cs_new:Npn \fp_parse_number_aux:Nw #1 #2; #3
-  {
-    \fp_aux_exp_after_fp:wN #2;
-    \tex_romannumeral:D -`0 \use:c {fp_parse_infix_#3:N} #1
+    \tex_romannumeral:D -`0
+    \exp_after:wN \fp_parse_one:NN
+    \exp_after:wN #1
+    \tex_romannumeral:D
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\fp_parse_calc:NwN}
+% \begin{macro}{\fp_parse_until:NwN}
 %   \begin{syntax}
-%     \cs{fp_parse_calc:NwN} \meta{prec} \meta{number} |;| \meta{bool}
+%     \cs{fp_parse_until:NwN} \meta{prec} \meta{number} \meta{bool}
 %   \end{syntax}
-%   The negation of the \meta{boolean} variable indicates
-%   whether or not \meta{number} should be sent upstream,
-%   in other words, whether it is the operand of the operation
-%   which has precedence \meta{prec} (and which is waiting upstream),
-%   or simply an intermediate value which will still be affected by
-%   further operations before being sent
-%   upstream.\footnote{Bruno: ugh, long sentence.}
-%
-%   If \meta{bool}, then we need to compute some more. Actually, we
-%   have \cs{fp_parse_calc:NwN} \meta{prec} \meta{number} |;| \meta{true}
-%   \meta{oper} \meta{number2} |;| \cs{fp_parse_infix_...} and expand to
+%   If \meta{bool} is true, then \meta{number} is the floating
+%   point number that we are looking for, and this expands to
+%   \meta{number}. If \meta{bool} is false, then the input
+%   stream actually looks like
 %   \begin{quote}
-%     \cs{fp_parse_calc:NwN} \meta{prec}
-%     \meta{oper} \meta{number1} |;| \meta{number2} |;|
-%     \cs{tex_romannumeral:D} |-`0| \cs{fp_parse_infix_...}
+%     \cs{fp_parse_until:NwN} \meta{prec} \meta{number 1} \meta{false}
+%     \meta{oper} \meta{number 2} \cs{infix_?}
 %   \end{quote}
-%   Otherwise, we just have \cs{fp_parse_calc:NwN}
-%   \meta{prec} \meta{number} |;| \meta{false} and only leave the number.
-%   
+%   and we must feed \meta{prec} to \cs{infix_?}, and perform
+%   \meta{oper} on \meta{number} and \meta{number 2}: this
+%   triggers the expansion of \cs{infix_?} \meta{prec}, continuing
+%   the computation (or stopping). In that case, the function \cs{until}
+%   yields
+%   \begin{quote}
+%     \cs{fp_parse_until:NwN} \meta{prec}
+%     \meta{oper} \meta{number 1} \meta{number 2}
+%     \cs{tex_romannumeral:D} |-`0| \cs{infix_?} \meta{prec}
+%   \end{quote}
+%   expanding \meta{oper} next.
 %    \begin{macrocode}
-\cs_new:Npn \fp_parse_calc:NwN #1 #2; #3
+\cs_new:Npn \fp_parse_until:NwN #1 #2; #3
   {
     \if_bool:N #3
-      \exp_after:wN \fp_parse_calc_aux:NwNwN
-      \exp_after:wN #1
+      \exp_after:wN \use_none:nn
     \fi:
-    #2;
+    \fp_parse_until_aux:NwNwN #1 #2;
   }
-\cs_new:Npn \fp_parse_calc_aux:NwNwN #1 #2; #3 #4; #5
+\cs_new:Npn \fp_parse_until_aux:NwNwN #1 #2; #3 #4; #5
   {
-    \exp_after:wN \fp_parse_calc:NwN
+    \exp_after:wN \fp_parse_until:NwN
     \exp_after:wN #1
     \tex_romannumeral:D -`0
     #3 #2; #4;
@@ -768,6 +762,288 @@
   }
 %    \end{macrocode}
 % \end{macro}
+%
+% \subsection{Parsing one number}
+%
+% \begin{macro}{\fp_parse_one:NN}
+%   Function called \cs{one} at other places. It grabs one
+%   fp number, and packs what follows in an \cs{infix_} function.
+%
+%   |#1| is the previous \meta{prec}. Since we fully expanded,
+%   and only registers and characters are alllowed in expressions,
+%   |#2| can be
+%   \begin{itemize}
+%   \item \cs{tex_relax:D} in some form. That can be an internal floating
+%     point, a premature end, or an unitialized register. In an
+%     \cs{int_eval:n}, we would get \enquote{missing number, treated as $0$}.
+%   \item A register. To be unpacked. But note that \cs{c_minus_one} is
+%     not equivalent to $-\cs{c_one}$.\footnote{Bruno: elaborate.}
+%   \item A digit, or a dot. That's the start of a number.
+%   \item A letter, which starts a \enquote{prefix} word, either
+%     constant or function (possibly unknown).
+%   \item A sign: in that case we grab all following signs, and turn
+%     them into a single \cs{prefix_+} or \cs{prefix_-} for efficiency.
+%   \item A left parenthesis.
+%   \item Any other character is an error.\footnote{Bruno: rephrase that,
+%       since really, it could be extended.}
+%   \end{itemize}
+%   The two first cases are separated out by an \cs{if_catcode:w} check,
+%   digits are also singled out, and then we use the \cs{grab_letters}
+%   facility.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_one:NN #1 #2
+  {
+    \if_catcode:w \tex_relax:D #2
+      \if_meaning:w \tex_relax:D #2
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \fp_parse_one_relax:NN
+      \else:
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \fp_parse_one_register:NN
+      \fi:
+    \else:
+      \if_num:w 9<1#2 \exp_stop_f:
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \fp_parse_one_digit:NN
+      \else:
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \fp_parse_one_other:NN
+      \fi:
+    \fi:
+    #1 #2
+  }
+\cs_new:Npn \fp_parse_one_relax:NN #1 #2
+  {
+    \exp_after:wN \fp_parse_one_after:NwN
+    \exp_after:wN #1
+    \tex_romannumeral:D -`0
+    \exp_after:wN \fp_cfs_sign:w #2
+  }
+\cs_new:Npn \fp_parse_one_register:NN #1 #2
+  {
+    \exp_after:wN \fp_parse_one_after:NwN
+    \exp_after:wN #1
+    \tex_romannumeral:D -`0
+    \exp_after:wN \fp_cfs_sign:w \tex_the:D #2
+  }
+\cs_new:Npn \fp_parse_one_digit:NN #1 #2
+  {
+    \exp_after:wN \fp_parse_one_after:NwN
+    \exp_after:wN #1
+    \tex_romannumeral:D -`0
+    \exp_after:wN \fp_cfs_sign:w #2
+  }
+\cs_new:Npn \fp_parse_one_after:NwN #1 #2; #3
+  {
+    \fp_aux_exp_after_fp:wN #2;
+    \tex_romannumeral:D -`0 %^^A must test for #3=\relax.
+    \use:c {fp_parse_infix_#3:N} #1
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \subsection{Prefix operators}
+%
+% \begin{macro}{\fp_parse_one_other:NN}
+%   The interesting bit is \cs{fp_parse_one_other:NN}. It separates
+%   letters from non-letters and builds the appropriate \cs{prefix}
+%   function. If it is not defined (is \cs{tex_relax:D}), make it
+%   a signalling \texttt{nan}. We don't look for an argument, as the
+%   unknown \enquote{prefix} can also be a (mistyped) constant such
+%   as \texttt{Inf}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_one_other:NN #1 #2
+  {
+    \exp_after:wN \fp_parse_one_other_aux:NN
+    \exp_after:wN #1
+    \cs:w fp_parse_prefix_
+      \if_num:w \int_eval:w \tex_uccode:D `#2 / \c_twenty_six = \c_three
+        #2
+        \exp_after:wN \fp_aux_grab_letters:N
+        \tex_romannumeral:D
+      \else:
+        #2 ;
+        \exp_after:wN \cs_end:
+        \tex_romannumeral:D
+      \fi:
+      \fp_aux_expand:w
+  }
+\cs_new:Npn \fp_parse_one_other_aux:NN #1 #2
+  {
+    \if_meaning:w \tex_relax:D #2
+      \fp_parse_one_other_error:w
+    \fi:
+    #2 #1
+  }
+\cs_new:Npn \fp_parse_one_other_error:w \fi: #1 #2 #3
+  {
+    \fi:
+    \exp_after:wN \fp_aux_snan_fp:N
+    \exp_after:wN #1
+    \tex_romannumeral:D -`0
+    \cs:w fp_parse_infix_#3:N \cs_end: #2
+  } %^^A must test for #3=\relax
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\fp_parse_prefix_inf;}
+% \begin{macro}{\fp_parse_prefix_nan;}
+%   This ought to give the infinite floating point.
+%    \begin{macrocode}
+\cs_new:cpn {fp_parse_prefix_inf;} #1 #2
+  {
+    \exp_after:wN \c_plus_inf_fp
+    \tex_romannumeral:D -`0
+    \cs:w fp_parse_infix_#2:N \cs_end: #1
+  } %^^A must test for #2=\relax.
+\cs_new_eq:cc {fp_parse_prefix_infty;} {fp_parse_prefix_inf;}
+\cs_new_eq:cc {fp_parse_prefix_infinity;} {fp_parse_prefix_inf;}
+\cs_new:cpn {fp_parse_prefix_nan;} #1 #2
+  {
+    \exp_after:wN \c_empty_qnan_fp
+    \tex_romannumeral:D -`0
+    \cs:w fp_parse_infix_#2:N \cs_end: #1
+  } %^^A must test for #2=\relax.
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\fp_parse_prefix_+;,\fp_parse_prefix_-;}
+% \begin{macro}[EXP,aux]{\fp_parse_one_after_unary:NNwN}
+%   Above, |#2| is \emph{e.g.}, \cs{fp_neg:w}, and expands once
+%   after the calculation.\footnote{Bruno: explain.}
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_one_after_unary:NNwN #1 #2 #3; #4
+  { #2 #3; \tex_romannumeral:D -`0 #4 #1 }
+%    \end{macrocode}
+%   A unary |+| is trivial. Unary |-| is harder. As an optimization,
+%   if the next character is also a |-|, we do like a unary |+|.
+%    \begin{macrocode}
+\cs_new_eq:cN {fp_parse_prefix_+;} \fp_parse_one:NN
+\cs_new:cpn {fp_parse_prefix_-;} #1 #2
+  {
+    \if:w - #2
+      \fp_parse_prefix_double_minus:Nw #1
+    \else:
+      \exp_after:wN \fp_parse_one_after_unary:NNwN
+      \exp_after:wN #1
+      \exp_after:wN \fp_neg:w
+      \tex_romannumeral:D -`0
+      \if_num:w \c_one < #1
+        \fp_parse_uo:Nw #1
+      \else:
+        \fp_parse_uo:Nw \c_one
+      \fi:
+    \fi:
+    \fp_aux_expand:w
+    #2
+  }
+\cs_new:Npn \fp_parse_prefix_double_minus:Nw
+    #1 #2 \fi: \fp_aux_expand:w #3
+  {
+    \fi:
+    \fp_parse_one:NN #1
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\fp_parse_prefix_(;}
+%   This really ought to have a correct argument spec,
+%   but it is technically complicated.
+%    \begin{macrocode}
+\cs_new:cpn {fp_parse_prefix_(;} #1
+  {
+    \exp_after:wN \fp_parse_lparen_after:NwN
+    \exp_after:wN #1
+    \tex_romannumeral:D -`0
+    \fp_parse_uo:Nw \c_fp_parse_min_prec_int
+    \fp_aux_expand:w
+  }
+\cs_new:Npn \fp_parse_lparen_after:NwN #1 #2; #3
+  { \fp_parse_one_after:NwN #1 #2; }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\fp_parse_prefix_.;}
+%   This function is called when a number starts with a dot.
+%    \begin{macrocode}
+\cs_new:cpn {fp_parse_prefix_.;} #1
+  {
+    \exp_after:wN \fp_parse_one_after:NwN
+    \exp_after:wN #1
+    \tex_romannumeral:D -`0
+    \exp_after:wN \fp_cfs_sign:w .
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\fp_parse_prefix_square;}
+%   Temporary function to test the expression parsing
+%   before I implement the calculation of sine, log, etc.
+%    \begin{macrocode}
+\cs_new:cpn {fp_parse_prefix_square;} #1
+  {
+    \exp_after:wN \fp_parse_one_after_unary:NNwN
+    \exp_after:wN #1
+    \exp_after:wN \fp_square:w
+    \tex_romannumeral:D -`0
+    \fp_parse_uo:Nw \c_ten %^^A change precedence to max.
+    \fp_aux_expand:w
+  }
+\cs_new:Npn \fp_square:w #1; { \fp_mul:ww #1; #1; }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Infix operators}
+%
+% \begin{macro}[aux]{\fp_parse_def_infix:nNN,\fp_parse_def_infix_aux:NNN}
+%   As described in the \enquote{work plan}, each infix operator
+%   has an associated \cs{infix} function, a computing function,
+%   and precedence, given as arguments to \cs{fp_parse_def_infix_aux:NNN}.
+%   The latter two are only needed when defining the \cs{infix} function.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_def_infix:nNN #1
+  {
+    \exp_args:Nc \fp_parse_def_infix_aux:NNN
+      {fp_parse_infix_#1:N}
+  }
+\cs_new:Npn \fp_parse_def_infix_aux:NNN #1#2#3
+  {
+    \cs_new:Npn #1 ##1
+      {
+        \if_num:w ##1 < #3
+          \exp_after:wN \c_false_bool
+          \exp_after:wN #2
+          \tex_romannumeral:D -`0
+          \fp_parse_uo:Nw #3
+        \else:
+          \exp_after:wN \c_true_bool
+          \exp_after:wN #1
+          \tex_romannumeral:D %^^A is expansion ok there?
+        \fi:
+        \fp_aux_expand:w
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\fp_parse_infix_+:N,\fp_parse_infix_-:N,
+%     \fp_parse_infix_*:N,\fp_parse_infix_/:N}
+% Using the general mechanism for arithmetic operations.
+%    \begin{macrocode}
+\fp_parse_def_infix:nNN {+} \fp_add:ww \c_one
+\fp_parse_def_infix:nNN {-} \fp_sub:ww \c_one
+\fp_parse_def_infix:nNN {*} \fp_mul:ww \c_two
+\fp_parse_def_infix:nNN {/} \fp_div:ww \c_two
+%    \end{macrocode}
+%    \begin{macrocode}
+\cs_new:cpx {fp_parse_infix_):N} #1
+  { \c_true_bool \exp_not:c {fp_parse_infix_):N} }
+%    \end{macrocode}
+% \end{macro}
+%
 %
 %    \begin{macrocode}
 %</initex|package>
