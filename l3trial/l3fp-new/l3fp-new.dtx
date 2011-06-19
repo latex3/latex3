@@ -40,6 +40,8 @@
 %</driver|package>
 %<*driver>
 \documentclass[full]{l3doc}
+\usepackage{amsmath}
+\usepackage{l3fp-new}
 \begin{document}
   \DocInput{\jobname.dtx}
 \end{document}
@@ -72,10 +74,12 @@
 % \begin{itemize}
 % \item \pkg{l3fp-aux} for auxiliary functions needed by all
 %   other submodules,
-% \item \pkg{l3fp-basics} for the implementation of elementary
-%   arithmetic (addition, subtraction, multiplication, division),
 % \item \pkg{l3fp-convert} for conversions to various formats,
 % \item \pkg{l3fp-parse} for parsing expressions,
+% \item \pkg{l3fp-basics} for the implementation of elementary
+%   arithmetic (addition, subtraction, multiplication, division),
+% \item \pkg{l3fp-expo} for the implementation of logarithm,
+%   and exponential,
 % \item \pkg{l3fp-assign} for all assignments.
 % \end{itemize}
 % It ensures that the submodules are loaded in the correct order,
@@ -93,17 +97,113 @@
 % Here, there may be a discussion of what floating point numbers
 % are, and a list of relevant resources (\emph{e.g.}, some of
 % Kahan's articles), and previous \TeX{} packages.
-% 
+%
 % \section{Input: floating point expressions}
-% 
-% This section might address the question of what a floating point
-% expression is.
+%
+% Floating point numbers are mainly\footnote{Bruno: only?} input
+% as floating point expressions. The corresponding computations
+% are then performed expandably, and the resulting floating point
+% is used: either stored, or output in some form, depending on the
+% function used. All \enquote{public} functions expecting floating
+% point numbers also accept floating point expressions as their
+% argument.\footnote{If one of them does not, it is an error,
+%   please inform the \LaTeX3 project.}
+%
+% Expressions are written using infix notation for the usual
+% arithmetic operations |+-*/^%|, and prefix notation for functions
+% such as \texttt{sin}, \texttt{log}, etc. A typical example of use
+% could be the following.
+% \begin{verbatim}
+% \fp_parse:n { 3.2 + .04e-2 * ( -2e3^2 - sin(pi/3) ) - 1234.567e1 }
+% \end{verbatim}
+% The \pkg{l3fp-parse} submodule reads this kind of
+% \enquote{free-form} input and hands it to functions defined for
+% instance in \pkg{l3fp-basics}, to do the actual computations.
+% Before presenting the user functions, we describe what a floating
+% point number is, and the syntax for operations.
+%
+% \subsection{Floating point numbers}
+%
+% A floating point number is one which is stored as a mantissa and
+% a separate exponent. Floating point numbers are stored in base
+% $10$, with $16$ significant digits, and their exponent should lie
+% in the range $[\cs{c_fp_min_exponent_int}, \cs{c_fp_max_exponent_int}]$,
+% currently $\ExplSyntaxOn [\int_use:N \c_fp_min_exponent_int,
+% \int_use:N \c_fp_max_exponent_int]$ (but that may change).
+%
+% On input, a floating point number consists of the following
+% parts:\footnote{Bruno: we should probably have a grammar?}
+% \begin{itemize}
+% \item[\meta{sign}] possibly empty string of |+| and |-| characters;
+% \item[\meta{mantissa}] non-empty string of digits together with zero
+%   or one dot;
+% \item[\meta{exponent}] optionally, the character |e|, followed by
+%   a possibly empty string of |+|~and~|-| tokens, and a non-empty
+%   string of digits.
+% \end{itemize}
+%
+% The sign of the resulting number is |+| if \meta{sign} contains
+% an even number of |-|, and |-| otherwise, hence, an empty \meta{sign}
+% denotes a non-negative input. The stored mantissa is obtained from
+% \meta{mantissa} by omitting the decimal separator and leading zeros,
+% and rounding to $16$ significant digits, filling with trailing zeros
+% if necessary. Hence, the value stored is exact if the input
+% \meta{mantissa} has at most $16$ digits. The stored \meta{exponent}
+% is obtained by combining the input \meta{exponent} ($0$ if absent)
+% with a shift depending on the position of the mantissa and the number
+% of leading zeros.
+%
+% A special case arises if the resulting \meta{exponent} is either
+% too large or too small to be represented. This results either in an
+% overflow (the number is then replaced by $\pm\infty$), or an
+% underflow (resulting in $\pm 0$).\footnote{Bruno: currently, exponents
+%   which are too large for \TeX{}'s integers overflow \TeX{} itself. This
+%   ought to be rectified, since \texttt{0e99999999999} should be a valid
+%   representation of $0$.}
+%
+% The resulting number is thus $\pm 0$ if and only if \meta{mantissa}
+% contains no non-zero digit (\emph{i.e.}, consists only in |0| characters,
+% and an optional |.| character), or there is an underflow. Note that
+% a single dot is\footnote{Bruno: but that may change.} a valid floating
+% point number, equal to $+0$.
+%
+% Special numbers are input as follows:
+% \begin{itemize}
+% \item \texttt{inf} or \texttt{infty} or \texttt{infinity} all represent
+%   $+\infty$, and can be preceeded by any \meta{sign}.
+% \item \texttt{nan} represents a (quiet) non-number. It can be preceeded
+%   by any sign, but that will be ignored.
+% \item Any unrecognizable string will yield a signalling \texttt{nan}.
+% \end{itemize}
+%
+% Note that |e-1| is not a representation of $10^{-1}$, because it
+% could be mistaken with the difference of \enquote{\texttt{e}} and
+% $1$. This is consistent with several other programming languages.
+% However, in order to avoid confusions, |e-1| is not considered to
+% be this difference either. To input the base of natural logarithms,
+% $\exp(1)$, use \cs{c_e_fp}.\footnote{Bruno: clarify what has changed
+%   or not compared to the previous \pkg{l3fp}.}
+%
+% See \pkg{l3fp-convert} for info on how floating point numbers are stored,
+% and \pkg{l3fp-basics} for info on how operations are implemented.
+%
+% \subsection{Operations}
+%
+% The following operations are currently supported.
+% \begin{itemize}
+% \item[\texttt{+-}] Addition and subtraction have lowest precedence.
+% \item[\texttt{*/}] Multiplication and division have higher precedence.
+%^^A \item[\texttt{\char`^}]  The power function has even higher precedence.
+% \item[\texttt{()}] The contents of parenthesized groups are evaluated
+%   before being used in the computation.
+% \item[\texttt{ln}] One function is coded so far. Eventually,
+%   we will provide |sin|, |cos|, |tan|, |ln|, |exp|, etc.
+%   The argument, within parentheses, is evaluated before the call
+%   to the function.
+% \end{itemize}
 % 
 % \section{Output}
 % 
-% Here would be described \cs{fp_use:n}, \cs{fp_to_dim:n},
-% and \cs{fp_to_tl:n}.
-%
 % \begin{function}{\fp_use:n}
 %   \begin{syntax}
 %     \cs{fp_use:n} \Arg{floating point expression}
@@ -139,11 +239,11 @@
 % \end{function}
 %
 % \subsection{Rounding}
-% 
+%
 % This explains how to go from a floating point number to a
 % rounded value for various applications. Perhaps worth coding
 % functionalities up to what siunitx can do on this matter.
-% 
+%
 % \section{Assignments}
 %
 % All function names below contain |assign_| to distinguish them
