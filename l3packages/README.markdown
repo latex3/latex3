@@ -25,8 +25,10 @@ Project does not expect the interfaces to alter radically). These
 packages are build on LaTeX2e conventions at the interface level, and
 so may not migrate in the current form to a stand-alone LaTeX3 format.
 
-All of the material in the collection require expl3. The packages may also
-depend upon one another.
+All of the material in the collection requires the LaTeX3 base layer
+package [l3kernel](http://ctan.org/pkg/l3kernel). The two packages must
+be installed in matching versions: if you update l3packages, make sure
+that l3kernel is updated at the same time.
 
 Currently included in the CTAN release of l3packages are the following
 bundles:
