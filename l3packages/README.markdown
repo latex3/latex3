@@ -2,7 +2,7 @@
    LaTeX3 High-Level Concepts
    ==========================
 
-   2011/05/18
+   2011/06/30
 
 
 WHERE TO GET IT
