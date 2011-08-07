@@ -378,6 +378,14 @@ cleanall: clean
 	done
 
 ctan: tds
+	echo ""
+	echo "Remember to:"
+	echo " - make cleanall"
+	echo " - make -s check"
+	echo " - make -s sourcedoc"
+	echo " - Update the file date for expl3.dtx"
+	echo "before updating CTAN!"
+	echo ""
 	echo "Creating CTAN archive"
 	mkdir -p $(CTANDIR)/
 	rm -rf $(CTANDIR)/*

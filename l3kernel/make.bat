@@ -294,6 +294,15 @@ rem Makefile for LaTeX3 "expl3" files
   call :tds
   if errorlevel 1 goto :end
 
+  echo.  
+  echo Remember to:
+  echo  - make cleanall
+  echo  - make -s check
+  echo  - make -s sourcedoc
+  echo  - Update the file date for expl3.dtx
+  echo before updating CTAN!
+  echo.
+
   for %%I in (%INCLUDEPDF%) do (
     xcopy /q /y %%I.pdf "%CTANDIR%\" > nul
   )  
