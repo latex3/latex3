@@ -297,8 +297,8 @@ rem Makefile for LaTeX3 "expl3" files
   echo.  
   echo Remember to:
   echo  - make cleanall
-  echo  - make -s check
-  echo  - make -s sourcedoc
+  echo  - make check
+  echo  - make sourcedoc
   echo  - Update the file date for expl3.dtx
   echo before updating CTAN!
   echo.
