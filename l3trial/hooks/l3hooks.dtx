@@ -70,8 +70,8 @@ Do not distribute a modified version of this file.
 %</driver|package>
 %<*driver>
 %\fi
-\ProvidesFile{\filename.\filenameext}
-  [\filedate\space v\fileversion\space\filedescription]
+\ProvidesExplFile{\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
+\ExplSyntaxOff
 %\iffalse
 \documentclass{l3doc}
 \begin{document}
@@ -82,18 +82,18 @@ Do not distribute a modified version of this file.
 %
 % \title{^^A
 %  The \LaTeX3 kernel: hooks\thanks{^^A
-%    This file describes v\fileversion, last revised \filedate.^^A
+%    This file describes v\ExplFileVersion, last revised \ExplFileDate.^^A
 %  }^^A
 % }
 % \author{\Team}
 %
-% \date{Released \filedate}
+% \date{Released \ExplFileDate}
 %
 % \maketitle
 %
 % \begin{abstract}
 % Provides author-level commands to access internal token registers
-% such as \cs{everymath}
+% such as \cs{everymath} and \cs{everypar}.
 % \end{abstract}
 %
 % \tableofcontents
@@ -150,10 +150,12 @@ Do not distribute a modified version of this file.
 %
 % \begin{function}{\hook_pre_pop:n,\hook_post_pop:n}
 % \begin{syntax}
-% "\hook_pre_push:nn" \Arg{hook name}
-% "\hook_post_push:nn" \Arg{hook name}
+% "\hook_pre_pop:n" \Arg{hook name}
+% "\hook_post_pop:n" \Arg{hook name}
 % \end{syntax}
 % Removes the last <material> added to a hook.
+% Never, ever use one of these without having pushed something
+% only the hook first!
 % \end{function}
 %
 % \begin{function}{\hook_pre_once:nn,\hook_post_once:nn}
@@ -177,19 +179,23 @@ Do not distribute a modified version of this file.
 %
 %    \begin{macrocode}
 \ProvidesExplPackage
-  {\filename}{\filedate}{\fileversion}{\filedescription}
+  {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
 %    \end{macrocode}
 %
-% \pkg{expl3} additions:
+% This may well be the only remainder of the `toks' module.
 %    \begin{macrocode}
-\cs_new_protected:Npn \seq_use:N #1 { \seq_map_function:NN #1 \use:n }
-\cs_generate_variant:Nn \seq_use:N {c}
-\cs_generate_variant:Nn \toks_set:Nn {Nc}
+%<!initex>\cs_set_eq:NN \toks_new:N \newtoks
+%<*initex>
+\cs_if_exist:NF \toks_new:N
+  {
+    \alloc_new:nnnN {toks} \c_zero \c_max_register_int \tex_toksdef:D
+  }
+%</initex>
 %    \end{macrocode}
 %
 % \begin{macro}[aux]{\_hook_new:nN}
 % The hook-generator function.
-% The primitive hook is replaced by \cs{<name>_hook:D}, where <name> is
+% The primitive hook is replaced by \cs{hook_<name>:D}, where <name> is
 % one of the hook names in Table~\ref{tab:hooks}.
 % This primitive hook is then given a pre-, main-, and post- hook for access
 % by authors.
@@ -198,17 +204,18 @@ Do not distribute a modified version of this file.
   \cs_set_eq:cN {hook_#1:D} #2
   \cs_gundefine:N #2
   \toks_new:N #2
-  \toks_set:Nc #2 {hook_#1:D}
+  \exp_args:Nc #2 {hook_#1:D}
   \seq_new:c {g_hook_pre_#1_seq}
   \seq_new:c {g_hook_post_#1_seq}
-  \toks_set:cx {hook_#1:D}
-  {
-    \seq_use:N
-    \exp_not:c {g_hook_pre_#1_seq}
-    \exp_not:n {\toks_use:N #2}
-    \seq_use:N
-    \exp_not:c {g_hook_post_#1_seq}
-  }
+  \tl_set:Nx \l_hook_tmp_tl
+    {
+      \exp_not:N \seq_use:N
+      \exp_not:c {g_hook_pre_#1_seq}
+      \exp_not:n {\tex_the:D #2}
+      \exp_not:N \seq_use:N
+      \exp_not:c {g_hook_post_#1_seq}
+    }
+  \cs:w hook_#1:D\cs_end: \exp_after:wN {\l_hook_tmp_tl}
 }
 %    \end{macrocode}
 % \end{macro}
@@ -220,10 +227,19 @@ Do not distribute a modified version of this file.
 % reliable since you never know when a dastardly package author overrides
 % anything you might do with "\everyxyz".
 %    \begin{macrocode}
-\cs_new:Nn \hook_pre_push:nn  { \seq_gpush:cn {g_hook_pre_#1_seq}  {#2} }
-\cs_new:Nn \hook_post_push:nn { \seq_gpush:cn {g_hook_post_#1_seq} {#2} }
-\cs_new:Nn \hook_pre_pop:n  { \seq_gpop:cN {g_hook_pre_#1_seq}  \l_tmpa_tl }
-\cs_new:Nn \hook_post_pop:n { \seq_gpop:cN {g_hook_post_#1_seq} \l_tmpa_tl }
+\cs_new:Nn \hook_pre_push:nn  { \seq_gput_left:cn  {g_hook_pre_#1_seq}  {#2} }
+\cs_new:Nn \hook_post_push:nn { \seq_gput_right:cn {g_hook_post_#1_seq} {#2} }
+%    \end{macrocode}
+% These should have error-checking but not tonight:
+%    \begin{macrocode}
+\cs_new:Nn \hook_pre_pop:n
+  {
+    \seq_gpop_left:cN  {g_hook_pre_#1_seq}  \l_hook_tmpa_tl
+  }
+\cs_new:Nn \hook_post_pop:n
+  {
+    \seq_gpop_right:cN {g_hook_post_#1_seq} \l_hook_tmpa_tl
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -231,12 +247,14 @@ Do not distribute a modified version of this file.
 % \begin{macro}{\hook_pre_once:nn,\hook_post_once:nn}
 % Experimental functions to only execute after the next hook.
 %    \begin{macrocode}
-\cs_new:Nn \hook_pre_once:nn {
-  \hook_pre_push:nn {#1} {#2 \hook_pre_pop:n {#1} }
-}
-\cs_new:Nn \hook_post_once:nn {
-  \hook_post_push:nn {#1} {#2 \hook_post_pop:n {#1} }
-}
+\cs_new:Nn \hook_pre_once:nn
+  {
+    \hook_pre_push:nn {#1} {#2 \hook_pre_pop:n {#1} }
+  }
+\cs_new:Nn \hook_post_once:nn
+  {
+    \hook_post_push:nn {#1} {#2 \hook_post_pop:n {#1} }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
