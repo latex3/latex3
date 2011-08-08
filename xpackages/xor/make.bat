@@ -1,6 +1,8 @@
-@echo off
+#@echo off
 
 setlocal
+
+set INSFILES=xo.ins
 
 set AUXFILES=aux dvi fpl log lof lot toc
 set CLEAN=pdf sty
@@ -127,7 +129,7 @@ set XBASEDIR=..\xbase
 
 :unpack-int
 
-  for %%I in (*.ins) do (
+  for %%I in (%INSFILES%) do (
     tex %%I > temp.log
   )
   
