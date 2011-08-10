@@ -784,7 +784,7 @@
 %   leaving nothing in the input stream.
 % \end{function}
 %
-% \begin{function}[EXP]{\tl_head:w}
+% \begin{function}[EXP]{\tl_head:w}\tracingall
 %   \begin{syntax}
 %     \cs{tl_head:w} \meta{tokens} \cs{q_stop}
 %   \end{syntax}
@@ -796,8 +796,15 @@
 %   and thus is suitable for use within an \texttt{o}-type expansion. In
 %   general, \cs{tl_head:n} should be preferred if the number of expansions
 %   is not critical.
+% \end{function}
+%
+% \begin{function}[EXP]{\str_head:n}
+%   \begin{syntax}
+%     \cs{str_head:n} \Arg{tokens}
 %   \end{syntax}
-%   
+%   Leaves in the input stream the first character of the output
+%   of \cs{tl_to_str:n} \Arg{tokens}, even if it is a space.
+%   An empty list of \meta{tokens} will result in \cs{scan_stop:}.
 % \end{function}
 %
 % \begin{function}[EXP]{\tl_tail:n, \tl_tail:V, \tl_tail:v, \tl_tail:f}
@@ -1974,37 +1981,62 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\str_head:n}
+% \begin{macro}[aux]{\str_head_aux:w}
+%   After \cs{tl_to_str:n}, we have a list of character tokens,
+%   all with category code 12, except the space, which has category
+%   code 10. Directly using \cs{tl_head:w} would thus lose leading spaces.
+%   Instead, we take an argument delimited by an explicit space, and
+%   then only use \cs{tl_head:w}. If the string started with a
+%   space, then the argument of \cs{str_head_aux:w} is empty, and
+%   the function correctly returns a space character. Otherwise,
+%   it returns the first token of |#1|, which is the first token
+%   of the string. If the string is empty, we return
+%   \cs{scan_stop:}.
+%    \begin{macrocode}
+\cs_new:Npn \str_head:n #1
+  {
+    \exp_after:wN \str_head_aux:w
+    \tl_to_str:n {#1}
+    { \scan_stop: } ~ \q_stop
+  }
+\cs_new_nopar:Npn \str_head_aux:w #1 ~ %
+  { \tl_head:w #1 { ~ } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}[pTF]{\tl_if_head_eq_meaning:nN}
 % \begin{macro}[pTF]{\tl_if_head_eq_charcode:nN}
 % \begin{macro}[pTF]{\tl_if_head_eq_charcode:fN}
 % \begin{macro}[pTF]{\tl_if_head_eq_catcode:nN}
-%   When we want to check if the first token of a list equals something
-%   specific it is usually either to see if it is a control sequence or
-%   a character. Hence we make two different functions as the internal
-%   test is different.
-%   \cs{tl_if_head_meaning_eq:nNTF} uses \cs{if_meaning:w} and will
-%   consider the tokens |b|$\sb{11}$ and |b|$\sb{12}$ different.
-%   \cs{tl_if_head_char_eq:nNTF} on the other hand only compares
-%   character codes so would regard |b|$\sb{11}$ and |b|$\sb{12}$ as
-%   equal but would also regard two primitives as equal.
-%    \begin{macrocode}
-\prg_new_conditional:Npnn \tl_if_head_eq_meaning:nN #1#2 { p , T , F , TF }
-  {
-    \exp_after:wN \if_meaning:w \tl_head:w #1 \q_stop #2
-      \prg_return_true:
-    \else:
-      \prg_return_false:
-    \fi:
-  }
-%    \end{macrocode}
-%   For the charcode and catcode versions we insert |\exp_not:N| in
-%   front of both tokens. If you need them to expand fully as \TeX{}
-%   does itself with these you can use an |f| type expansion.
+%   Accessing the first token of a token list is tricky in two cases:
+%   when it has category code 1 (begin-group token), or when it is
+%   an explicit space, with category code 10 and character code 32.
+%
+%   Forgetting temporarily about this issue we would use the
+%   following test in \cs{tl_if_head_eq_charcode:nN}. Here,
+%   an empty |#1| argument yields \cs{q_nil}, otherwise the
+%   first token of the token list.
+% \begin{verbatim}
+% \if_charcode:w
+%     \exp_after:wN \exp_not:N \tl_head:w #1 \q_nil \q_stop
+%     \exp_not:N #2
+% \end{verbatim}
+%   The special cases are detected by comparing |#1| with
+%   \cs{use:n}~|#1| (the extra |?| takes care of empty arguments).
+%   In those cases, the first token is a character, and
+%   since we only care about its character code, we can
+%   use \cs{str_head:n} to access it (this works even if
+%   it is a space character).
 %    \begin{macrocode}
 \prg_new_conditional:Npnn \tl_if_head_eq_charcode:nN #1#2 { p , T , F , TF }
   {
-    \exp_after:wN \if:w
-      \exp_after:wN \exp_not:N \tl_head:w #1 \q_stop \exp_not:N #2
+    \if_charcode:w
+        \exp_not:N #2
+        \str_if_eq:onTF { \use:n #1 ? } { #1 ? }
+          { \exp_after:wN \exp_not:N \tl_head:w #1 \q_nil \q_stop }
+          { \str_head:n {#1} }
       \prg_return_true:
     \else:
       \prg_return_false:
@@ -2015,13 +2047,69 @@
 \cs_generate_variant:Nn \tl_if_head_eq_charcode:nNT  { f }
 \cs_generate_variant:Nn \tl_if_head_eq_charcode:nNF  { f }
 %    \end{macrocode}
-% And now catcodes:
+%   For \cs{tl_if_head_eq_catcode:nN}, again we detect special
+%   cases with a \cs{str_if_eq:onTF} test. Then we need to test
+%   if the first token is a begin-group token or an explicit
+%   space token, and produce the relevant token, either
+%   \cs{c_group_begin_token} or \cs{c_space_token}.
 %    \begin{macrocode}
-\prg_new_conditional:Npnn \tl_if_head_eq_catcode:nN #1#2 { p , T , F , TF }
+\prg_new_conditional:Npnn \tl_if_head_eq_catcode:nN #1 #2 { p , T , F , TF }
   {
-    \exp_after:wN \if_catcode:w \exp_after:wN \exp_not:N
-        \tl_head:w #1 \q_stop \exp_not:N #2
-      \prg_return_true: \else: \prg_return_false: \fi:
+    \if_catcode:w
+        \exp_not:N #2
+        \str_if_eq:onTF { \use:n #1 ? } { #1 ? }
+          { \exp_after:wN \exp_not:N \tl_head:w #1 \q_nil \q_stop }
+          {
+            \tl_if_head_begin_group:nTF {#1}
+              { \c_group_begin_token }
+              { \c_space_token }
+          }
+      \prg_return_true:
+    \else:
+      \prg_return_false:
+    \fi:
+  }    
+%    \end{macrocode}
+%   For \cs{tl_if_head_eq_meaning:nN}, again, detect special cases.
+%   In the normal case, use \cs{tl_head:w}, with no \cs{exp_not:N}
+%   this time, since \cs{if_meaning:w} causes no expansion.
+%   In the special cases, we know that the first token is a character,
+%   hence \cs{if_charcode:w} and \cs{if_catcode:w} together are enough.
+%   We combine them in some order, hopefully faster than the reverse.
+%    \begin{macrocode}
+\prg_new_conditional:Npnn \tl_if_head_eq_meaning:nN #1#2 { p , T , F , TF }
+  {
+    \str_if_eq:onTF { \use:n #1 ? } { #1 ? }
+      { \tl_if_head_eq_meaning_aux_normal:nN }
+      { \tl_if_head_eq_meaning_aux_special:nN }
+    {#1} #2
+  }
+\cs_new:Npn \tl_if_head_eq_meaning_aux_normal:nN #1 #2
+  {
+    \exp_after:wN \if_meaning:w \tl_head:w #1 \q_nil \q_stop #2
+      \prg_return_true:
+    \else:
+      \prg_return_false:
+    \fi:
+  }
+\cs_new:Npn \tl_if_head_eq_meaning_aux_special:nN #1 #2
+  {
+    \if_charcode:w \str_head:n {#1} \exp_not:N #2
+      \exp_after:wN \use:n
+    \else:
+      \prg_return_false:
+      \exp_after:wN \use_none:n
+    \fi:
+    {
+      \if_catcode:w \exp_not:N #2
+                    \tl_if_head_begin_group:nTF {#1}
+                      { \c_group_begin_token }
+                      { \c_space_token }
+        \prg_return_true:
+      \else:
+        \prg_return_false:
+      \fi:
+    }
   }
 %    \end{macrocode}
 % \end{macro}
