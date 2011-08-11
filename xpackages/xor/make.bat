@@ -1,8 +1,8 @@
-#@echo off
+@echo off
 
 setlocal
 
-set INSFILES=xo.ins
+set INSFILES=xotrace.ins
 
 set AUXFILES=aux dvi fpl log lof lot toc
 set CLEAN=pdf sty
