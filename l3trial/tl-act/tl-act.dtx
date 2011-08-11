@@ -70,42 +70,32 @@
 %
 % \begin{documentation}
 %
-%   This module provides some basic functionalities to manipulate
+%   This module builds upon the experimental \cs{tl_act:NNNnn},
+%   and provides some extra functionalities to manipulate
 %   token lists expandably on a token by token basis.
-% 
-%   \section{Token list actions}
 %
-%   \begin{function}[EXP]{\tl_expandable_uppercase:n,\tl_expandable_lowercase:n}
+%   \begin{function}{\tl_act_expand:n}
 %     \begin{syntax}
-%       \cs{tl_expandable_uppercase:n} \Arg{token list}
-%       \cs{tl_expandable_lowercase:n} \Arg{token list}
+%       \cs{tl_act_expand:n} \Arg{token list}
 %     \end{syntax}
-%     These functions expandably uppercase or lowercase the token list,
-%     even within braces. The correspondance between upper- and lower-case
-%     letters does not use \TeX{}'s \cs{lccode} and \cs{uccode}, but rather
-%     private lists, \cs{c_upper_tl} and \cs{c_lower_tl} of the form
-%     |{a}{A} {b}{B}| etc.\footnote{Bruno: should those be \texttt{g}
-%       variables, to let the user add to them?}
-%   \end{function}
-%
-%   \begin{function}[EXP]{\tl_token_reverse:n}
-%     \begin{syntax}
-%       \cs{tl_token_reverse:n} \Arg{token list}
-%     \end{syntax}
-%     This function reverses the order of tokens in the \meta{token list}:
-%     the first token becomes the last, etc. Spaces are not lost.
-%     The content of each brace group is also reversed, but of course
-%     the braces cannot be exchanged, so they remain the \enquote{right
-%       way around}. The character code of catcode 1 and 2 tokens
-%     (usually braces) is lost, but that should never be a problem.
-%   \end{function}
-%
-%   \begin{function}[EXP]{\tl_token_length:n}
-%     \begin{syntax}
-%       \cs{tl_token_length:n} \Arg{token list}
-%     \end{syntax}
-%     This function counts the number of \emph{tokens} in the
-%     \meta{token list}, including spaces and braces.
+%     After two steps of expansion, yields a fully expanded
+%     \meta{token list}, as in the case of x-type arguments.
+%     Caveats:
+%     \begin{itemize}
+%     \item catcode 1 and 2 characters must be balanced at each step
+%       of the expansion. It requires some care when we do brace tricks
+%       elsewhere in \LaTeX3. See for instance a small change I made in
+%       \cs{group_align_safe_begin:}, but I think that every expandable
+%       function we now have is safe in this respect.
+%     \item catcode 1 and 2 characters are automatically converted
+%       to |{| and |}| (in charcode) when the corresponding group
+%       \enquote{reaches the start} of the token list.
+%     \item Furthermore, the expansion of such a group must remain within
+%       the \enquote{bounds} of that group. But this is basically the
+%       same as the first condition, and all of the \LaTeX3 functions
+%       fit the bill.
+%     \end{itemize}
+%     It doesn't seem like too extreme conditions to 
 %   \end{function}
 %
 % \end{documentation}
@@ -124,195 +114,164 @@
   {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
 %    \end{macrocode}
 %
-% \begin{macro}[EXP]{\exp_args:cf}
-%   This variant is used below. It could also be coded as
-%   \cs{exp_args:Nc} \cs{exp_args:Nf}, or as
-%   \cs{exp_args:Ncf} \cs{prg_do_nothing:}, but this lower-level
-%   code is faster. Not that it matters anyways.
+% \begin{macro}{\tl_act_expand:n}
+%   As usual, feed \cs{tl_act_aux:NNNnn} three functions, an empty
+%   parameter text, and the \meta{tokens} to expand.
 %    \begin{macrocode}
-\cs_new:Npn \exp_args:cf #1 #2
+\cs_new:Npn \tl_act_expand:n
   {
-    \cs:w #1 \exp_after:wN \cs_end:
-    \exp_after:wN { \tex_romannumeral:D -`0 #2 }
+    \tex_romannumeral:D
+    \tl_act_aux:NNNnn
+      \tl_act_expand_normal:nN
+      \tl_act_expand_group:nn
+      \tl_act_expand_space:n
+      { }
   }
 %    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\tl_act:nn}
-%   For full expansion, we usually use \cs{tex_romannumeral:D}.
-%   Here, the result is naturally surrounded by braces, so we need
-%   to remove those.
+%   Spaces are simply output. Groups need to be recursed in.
 %    \begin{macrocode}
-\cs_new:Npn \tl_act:nn
-  { \exp_after:wN \use:n \tex_romannumeral:D -`0 \tl_act_aux:nn }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\tl_act_aux:nn}
-%   The first argument is the action to apply (a piece of csname),
-%   the second is the token list. We act one \enquote{word} at a time,
-%   delimited by explicit spaces (the only spaces that are ignored by
-%   \TeX{}'s macro argument grabber). The \texttt{x}-expansion is needed
-%   to get a space where we want. Without \cs{prg_do_nothing:} we would
-%   lose braces around words.
-%    \begin{macrocode}
-\cs_new:Npx \tl_act_aux:nn #1 #2
+\cs_new:Npn \tl_act_expand_space:n #1
+  { \tl_act_output:n {~} }
+\cs_new:Npn \tl_act_expand_group:nn #1
   {
-    \exp_not:N \tl_act_word_loop:nwwn {#1}
-    \exp_not:N \prg_do_nothing: #2
-    \exp_not:N \q_nil \c_space_tl
-    \exp_not:N \q_recursion_stop
-    { }
+    \tl_act_group_recurse:Nnn
+      \tl_act_output:n
+      { \tl_act_expand:n }
   }
 %    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\tl_act_word_loop:nnwwn}
-%   Grab one word (the argument before that is the action). Act on that word.
-%   The odd looking \cs{use_i:nn} removes \cs{prg_do_nothing:} that was
-%   inserted. Once that word is finished, it will automatically be outputted.
-%   Then add a space. The last word won't get an extra space because the
-%   corresponding line is skipped when we find \cs{q_nil}, which marks
-%   the end of the token list.
+%   The case of a normal token requires more testing. If it does not
+%   expand in x-type arguments, then it should not expand here either,
+%   and we can simply output it as it is. Otherwise, we need to detect
+%   the primitives \cs{unexpanded}, \cs{noexpand} and \cs{the}, which
+%   have a somewhat special role in expansion contexts.
 %    \begin{macrocode}
-\cs_new:Npn \tl_act_word_loop:nwwn #1 #2 ~ %
+\cs_new:Npn \tl_act_expand_normal:nN #1 #2
   {
-    \use_i:nn { \tl_act_brace_loop:nwn {#1} } #2
-    \q_recursion_tail \q_recursion_stop {}
-    \use:c {#1_act_space:}
-    \tl_act_word_loop:nwwn {#1} \prg_do_nothing:
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\tl_act_brace_loop:nwn}
-%   Within each word, we must do things slowly: test whether
-%   the first token is of catcode 1. If it is, then we have a group,
-%   and we should act accordingly. Otherwise, the leading token is
-%   an \texttt{N}-type argument, possibly the end of the word,
-%   \cs{q_recursion_tail}. It can also be \cs{q_mark}, the end of
-%   a token list. This needs optimization.
-%    \begin{macrocode}
-\cs_new:Npn \tl_act_brace_loop:nwn #1 #2 \q_recursion_stop #3
-  {
-    \tl_if_head_begin_group:nTF {#2}
-      { \tl_act_group_do:nn  }
-      { \tl_act_normal_do:nN }
-    {#1} #2 \q_recursion_stop {#3}
-  }
-\cs_new:Npn \tl_act_group_do:nn #1 #2
-  {
-    \exp_args:cf {#1_act_group:n}
-      { \tl_act_aux:nn {#1} {#2} }
-    \tl_act_brace_loop:nwn {#1}
-  }
-\cs_new:Npn \tl_act_normal_do:nN #1 #2
-  {
-    \quark_if_recursion_tail_stop_do:Nn #2 { \use:c {#1_act_output:n} }
-    \quark_if_nil:NT #2
-      { \use_i_delimit_by_q_recursion_stop:nw { \tl_act_end:nn {#1} } }
-    \exp_args:cf {#1_act_output:n}
+    \token_if_expands_in_x:NTF #2
       {
-        \exp_args:NNv \prg_case_str:nnn #2 % <- bad coding!
-          { #1_act }
-          { \use:c {#1_act_default:N} #2 }
+        \prg_case_str:xxn { \token_to_meaning:N #2 }
+          {
+            { \token_to_str:N \noexpand } { \tl_act_expand_noexpand:w }
+            { \token_to_str:N \unexpanded } { \tl_act_expand_unexpanded:w }
+            { \token_to_str:N \the } { \tl_act_expand_the:w }
+          }
+          { \use_i:nn { \exp_after:wN \tl_act_loop:w #2 } }
       }
-    \tl_act_brace_loop:nwn {#1}
+      { \tl_act_output:n {#2} }
   }
-\cs_new:Npn \tl_act_end:nn #1 #2
+%    \end{macrocode}
+%   In the case of \cs{noexpand}, look ahead. If it is either a space
+%   or a group, then we can simply forget \cs{noexpand} as it has no effect.
+%   Otherwise, output the next token, and loop.
+%    \begin{macrocode}
+\cs_new:Npn \tl_act_expand_noexpand:w \tl_act_loop:w #1 \q_tl_act_stop
   {
-    \use:c {#1_act_output:n} {#2}
-    \use_none_delimit_by_q_recursion_stop:w
+    \tl_if_head_N_type:nTF {#1}
+      { \tl_act_expand_noexpand_head:N }
+      { \tl_act_loop:w }
+    #1 \q_tl_act_stop
   }
-\cs_new:Npn \tl_act_output_normal:n #1 #2 \q_recursion_stop #3
-  { #2 \q_recursion_stop { #3 #1 } }
+\cs_new:Npn \tl_act_expand_noexpand_head:N #1
+  {
+    \tl_act_output:n {#1}
+    \tl_act_loop:w
+  }
+%    \end{macrocode}
+%   To implement \cs{unexpanded}, we need to be able to
+%   detect and ignore what the \TeX{}book calls \meta{filler}:
+%   any set of spaces and relax tokens. Then grab a
+%   \meta{general text} and output it, then loop. Since one
+%   of our assumptions is that the token list is balanced
+%   at all times, we don't have to support ^^A|{|
+%   \cs{unexpanded} \cs{c_group_begin_token}\ldots|}|.
+%    \begin{macrocode}
+\cs_new:Npn \tl_act_expand_unexpanded:w \tl_act_loop:w
+  {
+    \exp_after:wN \tl_act_expand_unexpanded_aux:n
+    \tex_romannumeral:D \tl_act_expand_filler:w
+  }
+\cs_new:Npn \tl_act_expand_unexpanded_aux:n #1
+  {
+    \tl_act_output:n {#1}
+    \tl_act_loop:w
+  }
+%    \end{macrocode}
+%   \meta{Fillers} are not yet expanded properly.
+%    \begin{macrocode}
+\cs_new:Npn \tl_act_expand_filler:w { -`0 }
+% \cs_new:Npn \tl_act_expand_filler:w
+%   {
+%     \exp_after:wN \tl_act_expand_filler_aux:w
+%     \tex_romannumeral:D -`0
+%   }
+% \cs_new:Npn \tl_act_expand_filler_aux:w #1 \q_tl_act_stop
+%   {
+%     \tl_if_head_normal:nTF {#1}
+%       { \tl_act_expand_filler_aux_ii:N }
+%       {
+%         \tl_if_head_begin_group:nTF {#1}
+%           { \c_zero }
+%           {
+%             \exp_after:wN \tl_act_expand_filler:w
+%             \tex_romannumeral:D -`0
+%           }
+%       }
+%     #1 \q_tl_act_stop
+%   }
+% \cs_new:Npn \tl_act_expand_filler_aux_ii:N #1
+%   {
+%     \token_if_eq_meaning:NNTF #1 \tex_relax:D
+%       { \exp_after:wN \tl_act_expand_filler:w \use_none:n }
+%       {
+%         \exp_after:wN \if_meaning:w \exp_not:N #1 #1
+%         ...
+%         \token_if_eq_catcode:NNTF #1 \c_space_token
+%           { \exp_after:wN \tl_act_expand_filler:w \use_none:n }
+%           { \c_zero }
+%       }
+%   }
+%    \end{macrocode}
+% For \cs{the}, things are harder: it can act on one token or on
+% more than one token. However, in most cases, there is no need
+% to worry about expansion, and we can simply expand \cs{the}.
+% The only cases where preventing further expansion is important
+% is for toks registers, and toks parameters. The most troublesome
+% case is the \cs{toks} primitive itself, because it needs to
+% look ahead for a register number, and that can take very many forms.
+%    \begin{macrocode}
+\cs_new:Npn \tl_act_expand_the:w #1 \q_tl_act_stop
+  {
+    \msg_expandable_error:n {Not~Implemented~Yet!~Sorry.}
+    \tl_act_end:w
+  }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\tl_token_reverse:n}
-% \begin{macro}{\c_reverse_act,\c_reverse_act_output:n,
-%     \c_reverse_act_default:N,\c_reverse_act_space:,\c_reverse_act_group:n}
-%   Building the action table for reversing a token list.
+% \begin{macro}[pTF]{\token_if_expands_in_x:N}
+%   This is true for expandable non-protected commands.
 %    \begin{macrocode}
-\cs_new:Npn \tl_token_reverse:n { \tl_act:nn {c_reverse} }
-\tl_const:Nn \c_reverse_act { }
-\cs_new:Npn \c_reverse_act_output:n #1 #2 \q_recursion_stop #3
-  { #2 \q_recursion_stop { #1 #3 } }
-\cs_new_eq:NN \c_reverse_act_default:N \exp_stop_f:
-\cs_new:Npn \c_reverse_act_space: { \c_reverse_act_output:n { ~ } }
-\cs_new_eq:NN \c_reverse_act_group:n \c_reverse_act_output:n
+\cs_set:Npn \cs_tmp:w #1
+  {
+    \prg_new_conditional:Npnn \token_if_expands_in_x:N ##1 { TF }
+      {
+        \exp_after:wN \if_meaning:w \exp_not:N ##1 ##1
+          \prg_return_false:
+        \else:
+          \str_if_eq:xxTF
+            { \token_to_str:N \X }
+            {
+              \exp_after:wN \token_if_expands_in_x_aux:w
+              \token_to_meaning:N ##1 #1 \q_stop
+              X
+            }
+            \prg_return_false:
+            \prg_return_true:
+        \fi:
+      }
+    \cs_new:Npn \token_if_expands_in_x_aux:w ##1 #1 ##2 \q_stop {##1}
+  }
+\exp_args:No \cs_tmp:w { \tl_to_str:n { protected } }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\tl_token_length:n}
-% \begin{macro}{\c_length_act,\c_length_act_output:n,
-%     \c_length_act_default:N,\c_length_act_space:,\c_length_act_group:n}
-%   Building the action table for the length of a token list.
-%    \begin{macrocode}
-\tl_const:Nn \c_length_act { }
-\cs_new_eq:NN \c_length_act_output:n \tl_act_output_normal:n
-\cs_new:Npn \c_length_act_default:N #1 { + \c_one }
-\cs_new:Npn \c_length_act_space:
-  { \c_length_act_output:n { + \c_one } }
-\cs_new:Npn \c_length_act_group:n #1
-  { \c_length_act_output:n { \use:n #1 + \c_two } }
-\cs_new:Npn \tl_token_length:n #1
-  { \int_eval:n { 0 \tl_act:nn {c_length} {#1} } }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\tl_expandable_lowercase:n, \tl_expandable_uppercase:n}
-% \begin{macro}{\c_lower_act,\c_upper_act}
-% \begin{macro}{\c_lower_act_output:n,\c_lower_act_default:N,
-%     \c_lower_act_space:,\c_lower_act_group:n,\c_upper_act_output:n,
-%     \c_upper_act_default:N,\c_upper_act_space:,\c_upper_act_group:n}
-%    \begin{macrocode}
-\group_begin:
-  \cs_set:Npn \tl_act_put_letter:nn #1 #2
-    {
-      \char_set_lccode:nn {`A} {#1}
-      \char_set_lccode:nn {`B} {#2}
-      \tl_to_lowercase:n
-        { \tl_put_left:Nn \l_tmpa_tl { {A} {B} } }
-    }
-  % uppercase
-  \tl_set:Nn \l_tmpa_tl
-    {
-      { \i  } { I }
-      { \j  } { J }
-      { \oe } { \exp_stop_f: \OE }
-      { \o  } { \exp_stop_f: \O  }
-      { \ae } { \exp_stop_f: \AE }
-    }
-  \prg_stepwise_inline:nnnn {`Z} {-1} {`A}
-    { \tl_act_put_letter:nn {#1+32} {#1} }
-  \exp_args:NNo \tl_const:Nn \c_upper_act { \l_tmpa_tl }
-  % lowercase
-  \tl_set:Nn \l_tmpa_tl
-    {
-      { \OE } { \exp_stop_f: \oe }
-      { \O  } { \exp_stop_f: \o  }
-      { \AE } { \exp_stop_f: \ae }
-    }
-  \prg_stepwise_inline:nnnn {`Z} {-1} {`A}
-    { \tl_act_put_letter:nn {#1} {#1+32} }
-  \exp_args:NNo \tl_const:Nn \c_lower_act { \l_tmpa_tl }
-\group_end:
-\cs_new_eq:NN \c_upper_act_output:n \tl_act_output_normal:n
-\cs_new_eq:NN \c_upper_act_default:N \exp_stop_f:
-\cs_new:Npn \c_upper_act_space: { \c_upper_act_output:n { ~ } }
-\cs_new_eq:NN \c_upper_act_group:n \c_upper_act_output:n
-\cs_new_eq:NN \c_lower_act_output:n  \c_upper_act_output:n
-\cs_new_eq:NN \c_lower_act_default:N \c_upper_act_default:N
-\cs_new_eq:NN \c_lower_act_space:    \c_upper_act_space:
-\cs_new_eq:NN \c_lower_act_group:n   \c_upper_act_group:n
-\cs_new:Npn \tl_expandable_uppercase:n { \tl_act:nn {c_upper} }
-\cs_new:Npn \tl_expandable_lowercase:n { \tl_act:nn {c_lower} }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 %
 %    \begin{macrocode}
