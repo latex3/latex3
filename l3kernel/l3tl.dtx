@@ -786,25 +786,31 @@
 %   \begin{syntax}
 %     \cs{tl_trim_spaces:n} \meta{token list}
 %   \end{syntax}
-%   Removes any leading and trailing spaces from the \meta{token list}
-%   and leaves the result in the input stream. This process requires
-%   two expansions.
+%   Removes any leading and trailing explicit space characters
+%   from the \meta{token list} and leaves the result in the input
+%   stream. This process requires two expansions.
+%   \begin{texnote}
+%     The result is return within the \cs{etex_unexpanded:D}
+%     primitive (\cs{exp_not:n}), which means that the token
+%     list will not expand further when appearing in an x-type
+%     argument expansion.
+%   \end{texnote}
 % \end{function}
 %
 % \begin{function}{\tl_trim_spaces:N, \tl_trim_spaces:c}
 %   \begin{syntax}
 %     \cs{tl_trim_spaces:N} \meta{tl~var}
 %   \end{syntax}
-%   Removes any leading and trailing spaces from the content of the
-%   \meta{tl~var} within the current \TeX{} group.
+%   Removes any leading and trailing explicit space characters
+%   from the content of the \meta{tl~var} within the current \TeX{} group.
 % \end{function}
 % 
 % \begin{function}{\tl_gtrim_spaces:N, \tl_gtrim_spaces:c}
 %   \begin{syntax}
 %     \cs{tl_gtrim_spaces:N} \meta{tl~var}
 %   \end{syntax}
-%   Removes any leading and trailing spaces from the content of the
-%   \meta{tl~var} globally.
+%   Removes any leading and trailing explicit space characters
+%   from the content of the \meta{tl~var} globally.
 % \end{function}
 %
 % \section{The first token from a token list}
@@ -2017,36 +2023,73 @@
 %     \tl_trim_spaces:N, \tl_trim_spaces:c,
 %     \tl_gtrim_spaces:N, \tl_gtrim_spaces:c
 %   }
-% \begin{macro}[aux]{\tl_trim_spaces_exp:n}
-% \begin{macro}[aux]{\tl_trim_spaces_aux_i:w}
-% \begin{macro}[aux]{\tl_trim_spaces_aux_ii:w}
-%   Trimming spaces from around the input uses the idea of a sufficiently
-%   odd token to allow for a delimited argument to do this. Here, the
-%   standard approach [a |Q| with category code 3 (math toggle)] is used.
+% \begin{macro}[aux]
+%   {
+%     \tl_trim_spaces_aux_i:w, \tl_trim_spaces_aux_ii:w
+%     \tl_trim_spaces_aux_iii:w, \tl_trim_spaces_aux_iv:w
+%   }
+%   Trimming spaces from around the input is done using delimited
+%   arguments and quarks, and to get spaces at odd places in the
+%   definitions, we nest those in \cs{tl_tmp:w}, which then receives
+%   a single space as its argument: |#1| is \verb*+ +.
+%   Removing leading spaces is done with \cs{tl_trim_spaces_aux_i:w},
+%   which loops until \cs{q_mark}\verb*+ + matches the end of the token
+%   list: then |##1| is the token list and |##3| is
+%   \cs{tl_trim_spaces_aux_ii:w}. This hands the relevant tokens to the
+%   loop \cs{tl_trim_spaces_aux_iii:w}, responsible for trimming
+%   trailing spaces. The end is reached when \verb*+ + \cs{q_nil}
+%   matches the one present in the definition of \cs{tl_trim_spacs:n}.
+%   Then \cs{tl_trim_spaces_aux_iv:w} puts the token list into a group,
+%   as the argument of the initial \cs{etex_unexpanded:D}.
 %   The \cs{etex_unexpanded:D} here is used so that space trimming will
 %   behave correctly within an \texttt{x}-type expansion.
 %    \begin{macrocode}
-\cs_new:Npn \tl_trim_spaces:n #1
+\cs_set:Npn \tl_tmp:w #1
   {
-    \etex_unexpanded:D \exp_after:wN \exp_after:wN \exp_after:wN
-      { \tl_trim_spaces_exp:n {#1} }
+    \cs_new:Npn \tl_trim_spaces:n ##1
+      {
+        \etex_unexpanded:D
+          \tl_trim_spaces_aux_i:w
+          \q_mark
+          ##1
+          \q_nil
+          \q_mark #1 { }
+          \q_mark \tl_trim_spaces_aux_ii:w
+          \tl_trim_spaces_aux_iii:w
+          #1 \q_nil
+          \tl_trim_spaces_aux_iv:w
+          \q_stop
+      }
+    \cs_new:Npn \tl_trim_spaces_aux_i:w ##1 \q_mark #1 ##2 \q_mark ##3
+      {
+        ##3
+        \tl_trim_spaces_aux_i:w
+        \q_mark
+        ##2
+        \q_mark #1 {##1}
+      }
+    \cs_new:Npn \tl_trim_spaces_aux_ii:w ##1 \q_mark \q_mark ##2
+      {
+        \tl_trim_spaces_aux_iii:w
+        ##2
+      }
+    \cs_new:Npn \tl_trim_spaces_aux_iii:w ##1 #1 \q_nil ##2
+      {
+        ##2
+        ##1 \q_nil
+        \tl_trim_spaces_aux_iii:w
+      }
+    \cs_new:Npn \tl_trim_spaces_aux_iv:w ##1 \q_nil ##2 \q_stop
+      { \exp_after:wN { \use_none:n ##1 } }
   }
+\tl_tmp:w { ~ }
 \cs_new_protected:Npn \tl_trim_spaces:N #1
   { \tl_set:Nx #1 { \exp_after:wN \tl_trim_spaces:n \exp_after:wN {#1} } }
 \cs_new_protected:Npn \tl_gtrim_spaces:N #1
   { \tl_gset:Nx #1 { \exp_after:wN \tl_trim_spaces:n \exp_after:wN {#1} } }
-\group_begin:
-  \tex_catcode:D `\Q = 3 \scan_stop:
-  \cs_new:Npn \tl_trim_spaces_exp:n #1
-    { \tex_romannumeral:D - `0 \tl_trim_spaces_aux_i:w \exp_not:N #1 Q ~ Q }
-  \cs_new:Npn \tl_trim_spaces_aux_i:w #1 ~ Q { \tl_trim_spaces_aux_ii:w #1 Q }
-  \cs_new:Npn \tl_trim_spaces_aux_ii:w #1 Q #2 {#1}
-\group_end:
 \cs_generate_variant:Nn \tl_trim_spaces:N  { c }
 \cs_generate_variant:Nn \tl_gtrim_spaces:N { c }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
