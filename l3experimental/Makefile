@@ -127,7 +127,7 @@ doc:
 	done
 
 localinstall:
-	for I in $(XPACKAGES) ; do \
+	for I in $(ALLPACKAGES) ; do \
 	  cd $$I ; \
 	  make localinstall ; \
 	  cd .. ; \
