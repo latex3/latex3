@@ -2,7 +2,7 @@
    Experimental LaTeX3 High-Level Concepts
    =======================================
 
-   2011/05/11
+   2011/08/14
 
 
 WHERE TO GET IT
@@ -50,6 +50,15 @@ similar areas on a page. This process is typically asynchronous but
 there are ways to control or change its behaviour. The xgalley module
 provides a mechanism for filling galleys and controlling the spacing,
 hyphenation and justification within them.
+
+xfss
+----
+
+This package is a translation of LaTeX's font selection scheme into expl3.
+Its primary utility is to provide font support when LaTeX3 is built as a
+format, but in time features will be added that will make it useful in 2e
+as well.
+
 
 DISCUSSION
 ----------
