@@ -129,12 +129,18 @@
 %     token alone or multiple tokens surrounded by curly braces.
 %     Regardless of the input, the argument will be passed to the
 %     internal code surrounded by a brace pair. This is the \pkg{xparse}
-%     type specifier for a normal \TeX\ argument.
+%     type specifier for a normal \TeX{} argument.
 %   \item[l] An argument which reads everything up to the first
-%     open group token: in standard \LaTeX\ this is a left brace.
+%     open group token: in standard \LaTeX{} this is a left brace.
 %   \item[u] Reads an argument `until' \meta{tokens} are encountered,
 %     where the desired \meta{tokens} are given as an argument to the
 %     specifier: \texttt{u}\marg{tokens}.
+%   \item[v] Reads an argument \enquote{verbatim}, between the following
+%     character and its next occurrence, in a way similar to the argument
+%     of the \LaTeXe{} command \cs{verb}. A command with a verbatim
+%     argument will not work when it appears within an argument of
+%     another function. The delimiter cannot be any of |%|, |\|, |#|,
+%     |{|, |}|, |^| nor space.
 % \end{itemize}
 % The types which define optional arguments are:
 % \begin{itemize}[font=\ttfamily]
@@ -200,6 +206,11 @@
 % argument before it is passed to the macro definition. The use of
 % argument processors is a somewhat advanced topic, (or at least a less
 % commonly used feature) and is covered in Section~\ref{sec:processors}.
+%
+% By default, an argument of type \texttt{v} must be at most one line.
+% Prefixing with \texttt{+} allows line breaks within the argument.
+% The argument is given as a string of characters with category code~$12$,
+% except spaces, which have category code~$10$ (see \cs{tl_to_str:n}).
 %
 % \subsection{Spacing and optional arguments}
 %
@@ -519,6 +530,7 @@
 %       to mix short and long argument types.
 %     \item The `optional group' argument types \texttt{g} and
 %       \texttt{G} are not available.
+%     \item The `verbatim' argument type \texttt{v} is not available.
 %     \item It is not possible to differentiate between, for example
 %       |\foo[| and |\foo{[}|: in both cases the \texttt{[} will be
 %       interpreted as the start of an optional argument. As a result
@@ -1775,7 +1787,6 @@
 % \begin{variable}{\l_xparse_v_arg_tl}
 % \begin{variable}{\c_xparse_special_chars_seq}
 % \begin{macro}{\xparse_grab_v_aux:nw, \xparse_grab_v_aux_test:nN}
-% \begin{macro}{\xparse_grab_v_token_if_char:NTF}
 % \begin{macro}
 %   {
 %     \xparse_grab_v_aux_loop:N,
@@ -1784,20 +1795,35 @@
 %     \xparse_grab_v_group_end:
 %   }
 % \begin{macro}{\xparse_grab_v_aux_abort:, \xparse_grab_v_aux_abort_ii:w}
-%   Grabbing a verbatim argument requires some thought. The argument
-%   is read one character at a time and stored in
-%   \cs{g_xparse_v_arg_tl}. If we ever meet a token with category code
-%   $1$ (begin-group), $2$ (end-group) or $6$ (macro parameter), or
-%   a space character (category code $10$ and character code $32$),
-%   or a control sequence, then it means that the verbatim argument
-%   appeared within another function and we cannot retrieve it properly.
-%   The current approach is to throw away all that was grabbed until then,
-%   but that can be changed. Here, \enquote{short} means that newlines
-%   may not appear in the input. I'm not sure that I am doing the right
-%   thing by changing the \cs{tex_endlinechar:D}. We make it into a macro
-%   parameter character (or whatever else) so that the rest of the code
-%   triggers an error. When an error is raised, it checks for that case
-%   to give the appropriate error message.
+%   The opening delimiter is never read verbatim: if the preceeding
+%   argument was optional and absent, then \TeX{} has already read
+%   that token when looking for the optional argument. The first thing
+%   to check is that this delimiter is a character.
+%   Then change category codes, and start reading tokens one by one.
+%   If the verbatim was not nested, we will be grabbing one character
+%   at each step. Unfortunately, it can happen that what follows the
+%   verbatim argument is already tokenized. Thus, we check at each step
+%   that the next token is indeed a \enquote{nice}
+%   character, \emph{i.e.}, is not a character with
+%   category code $1$ (begin-group), $2$ (end-group)
+%   or $6$ (macro parameter), nor the space character,
+%   with category code~$10$ and character code~$32$,
+%   nor a control sequence.
+%   The partially built argument is stored in \cs{g_xparse_v_arg_tl}.
+%   If we ever meet a token which we cannot grab (non-N-type),
+%   or which is not a character according to
+%   \cs{xparse_grab_v_token_if_char:NTF}, then we bail out with
+%   \cs{xparse_grab_v_aux_abort:}. Otherwise, we stop at the first
+%   character matching the delimiter.
+%
+%   The group keep catcode changes local, and
+%   \cs{group_align_safe_begin/end:} allow to use a character
+%   with category code $4$ (normally |&|) as the delimiter.
+%
+%   The approach for short verbatim arguments is to make the end-line
+%   character a macro parameter character: this is forbidden by the
+%   rest of the code. Then the error branch can check what caused the
+%   bail out and give the appropriate error message.
 %    \begin{macrocode}
 \tl_new:N \l_xparse_v_rest_of_signature_tl
 \tl_new:N \l_xparse_v_arg_tl
@@ -1832,12 +1858,10 @@
         \seq_map_function:NN
           \c_xparse_special_chars_seq
           \char_set_catcode_other:N
+        \tex_endlinechar:D = `\^^M \scan_stop:
         \bool_if:NTF \l_xparse_long_bool
           { \char_set_catcode_other:n { \tex_endlinechar:D } }
-          {
-            \tex_endlinechar:D = `\^^M \scan_stop:
-            \char_set_catcode_parameter:n { \tex_endlinechar:D }
-          }
+          { \char_set_catcode_parameter:n { \tex_endlinechar:D } }
         \xparse_grab_v_aux_loop:N #1
       }
       { \xparse_grab_v_aux_abort: }
@@ -1868,8 +1892,6 @@
       { \exp_args:No \str_tail:n { \l_xparse_v_arg_tl } }
     \l_xparse_v_rest_of_signature_tl \l_xparse_args_tl
   }
-\cs_new_protected:Npn \xparse_grab_v_token_if_char:NTF #1
-  { \str_if_eq:xxTF { } { \str_tail:n {#1} } }
 \cs_new_protected_nopar:Npn \xparse_grab_v_aux_abort:
   {
     \xparse_grab_v_group_end:
@@ -1916,13 +1938,24 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
-% \end{macro}
 % \end{variable}
 % \end{variable}
 % \end{variable}
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\xparse_grab_v_token_if_char:NTF}
+%   This function assumes that the escape character is printable.
+%   Then the string representation of control sequences is at least
+%   two characters, and \cs{str_tail:n} only removes the escape
+%   character. Macro parameter characters are doubled by
+%   \cs{tl_to_str:n}, and will also yield a non-empty result,
+%   hence are not considered as characters.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_grab_v_token_if_char:NTF #1
+  { \str_if_eq:xxTF { } { \str_tail:n {#1} } }
+%    \end{macrocode}
+% \end{macro}
 %
 % \subsection{Argument processors}
 %
