@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3 "l3font" files                           #
+# Makefile for LaTeX3 "l3font" and "xfss" files                #
 ################################################################
 ################################################################
 
@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3experimental/l3font
+PACKAGE = l3experimental/xfont
 
 ##############################################################
 # Directory structure for source files                       #
@@ -59,7 +59,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
-UNPACK    = l3font.ins
+UNPACK    = xfont.ins
 
 ##############################################################
 # Files for the check systems                                #
