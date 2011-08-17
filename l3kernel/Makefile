@@ -180,7 +180,7 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	cd $(TESTDIR) ; \
 	pdflatex -draftmode -interaction=nonstopmode  "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	if [ $$? = 0 ] ; then  \
-	  makeindex -s l3doc.ist -o $$NAME.ind $$NAME.idx > /dev/null ; \
+	  makeindex -q -s l3doc.ist -o $$NAME.ind $$NAME.idx > /dev/null ; \
 	  pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	  pdflatex -interaction=nonstopmode  "$(PDFSETTINGS) \PassOptionsToClass{check}{l3doc}\input{$<}" > /dev/null ; \
 	  if [ `grep 'defined but not documented' $$NAME.log | wc -l` -ne 0 ] ; then \
@@ -205,7 +205,7 @@ $(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex $(TESTDIR)/source3body.tex $(TEST
 	cd $(TESTDIR) ; \
 	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	if [ $$? = 0 ] ; then  \
-	  makeindex -s l3doc.ist -o source3.ind source3.idx > /dev/null ; \
+	  makeindex -q -s l3doc.ist -o source3.ind source3.idx > /dev/null ; \
 	  echo "  Re-typesetting for index generation" ; \
 	  pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	  echo "  Re-typesetting to resolve cross-references" ; \
