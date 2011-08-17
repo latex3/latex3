@@ -16,6 +16,7 @@ set TDSROOT=latex\l3packages\%PACKAGE%
 :loop
 
   if /i [%1] == [all]          goto :all
+  if /i [%1] == [check]        goto :check
   if /i [%1] == [clean]        goto :clean
   if /i [%1] == [doc]          goto :doc
   if /i [%1] == [localinstall] goto :localinstall
@@ -34,6 +35,10 @@ set TDSROOT=latex\l3packages\%PACKAGE%
   popd
 
   goto :unpack
+  
+:check
+
+  goto :end
 
 :clean
 

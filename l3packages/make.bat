@@ -17,6 +17,7 @@ set XPACKAGES=l3keys2e xfrac xparse xtemplate
 :loop
 
   if /i [%1] == [clean]        goto :clean
+  if /i [%1] == [check]        goto :check
   if /i [%1] == [ctan]         goto :ctan
   if /i [%1] == [localinstall] goto :localinstall
   if /i [%1] == [tds]          goto :tds
@@ -26,13 +27,23 @@ set XPACKAGES=l3keys2e xfrac xparse xtemplate
 
 :clean
 
-  for %%I in (%XPACKACKAGES%) do (
+  for %%I in (%XPACKAGES%) do (
     pushd %%I
     call make clean
     popd
   )
 
   for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
+
+  goto :end
+  
+:check
+
+  for %%I in (%XPACKAGES%) do (
+    pushd %%I
+    call make check
+    popd
+  )
 
   goto :end
 
@@ -96,6 +107,7 @@ set XPACKAGES=l3keys2e xfrac xparse xtemplate
 
   echo.
   echo  make clean        - clean out all directories
+  echo  make check        - runs automated tests in all directories
   echo  make ctan         - create a zip file ready to go to CTAN
   echo  make localinstall - install the .sty files in your home texmf tree
   echo  make tds          - creates a TDS-ready zip of CTAN packages
