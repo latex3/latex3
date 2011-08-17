@@ -151,7 +151,7 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	cd $(TESTDIR) ; \
 	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	if [ $$? = 0 ] ; then  \
-	  makeindex -s l3doc.ist -o $$NAME.ind $$NAME.idx > /dev/null ; \
+	  makeindex -q -s l3doc.ist -o $$NAME.ind $$NAME.idx > /dev/null ; \
 	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	  if [ `grep 'defined but not documented' $$NAME.log | wc -l` -ne 0 ] ; then \
