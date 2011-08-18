@@ -66,8 +66,8 @@ TDSDIR   := $(TESTDIR)/tds
 # Data for local installation and TDS construction           #
 ##############################################################
 
-INCLUDEPDF  := expl3 source3
-INCLUDETEX  := interface3 source3 source3body
+INCLUDEPDF  := expl3 l3styleguide l3syntax-changes source3
+INCLUDETEX  := interface3 l3styleguide l3syntax-changes source3 source3body
 INCLUDETXT  := README
 PACKAGEROOT := latex/$(PACKAGE)
 
@@ -199,6 +199,32 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 ################################################################
 # File building: specials                                      #
 ################################################################
+
+$(TESTDIR)/l3styleguide.pdf: $(TESTDIR)/l3styleguide.tex
+	echo "Typesetting l3styleguide" ; \
+	cd $(TESTDIR) ; \
+	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	if [ $$? = 0 ] ; then  \
+	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	else \
+	  echo "  Compilation failed" ; \
+	fi ; \
+	for I in $(AUXFILES) ; do \
+	  rm -f l3styleguide.$$I ; \
+	done
+	
+$(TESTDIR)/l3syntax-changes.pdf: $(TESTDIR)/l3syntax-changes.tex
+	echo "Typesetting l3syntax-changes" ; \
+	cd $(TESTDIR) ; \
+	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	if [ $$? = 0 ] ; then  \
+	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	else \
+	  echo "  Compilation failed" ; \
+	fi ; \
+	for I in $(AUXFILES) ; do \
+	  rm -f l3styleguide.$$I ; \
+	done
 
 $(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex $(TESTDIR)/source3body.tex $(TESTDIR)/interface3.tex 
 	echo "Typesetting source3" ; \
