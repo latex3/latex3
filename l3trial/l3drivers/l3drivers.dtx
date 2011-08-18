@@ -86,7 +86,24 @@
 % The code here is all very low-level, and should not in general be used
 % outside of the kernel.
 % 
-% \subection{Colour support}
+% \section{Box rotation and scaling}
+% 
+% \begin{function}{\driver_box_rotate_begin:NNN, \driver_box_rotate_end:}
+%   \begin{syntax}
+%     \cs{driver_box_rotate_begin:NNN} \meta{angle} \meta{sine} \meta{cosine}
+%       \meta{box material}
+%     \cs{driver_box_rotate_end:}
+%   \end{syntax}
+%   Rotates the \meta{box material} anti-clockwise by the \meta{angle}
+%   (in degrees) about the current position. The
+%   \meta{angle} should be passed to \cs{driver_box_rotate_begin:NNN} stored in
+%   a \texttt{fp} variable. The \meta{sine} and \meta{cosine} of the angle
+%   should also be passed as \texttt{fp} variables. Here, \meta{box material}
+%   should be of the form \cs{box_use:N} \meta{box} or \cs{hbox:n}
+%   \Arg{material}.
+% \end{function}
+% 
+% \section{Colour support}
 % 
 % \end{documentation}
 %
@@ -127,57 +144,73 @@
 %    
 % \subsection{Box rotation and scaling}
 %
-% \begin{macro}{\l_driver_box_matrix_tl}
+% \begin{variable}{\l_driver_box_matrix_tl}
 %   A token list for the affine transformation matrix.
 %    \begin{macrocode}
 %<*pdfmode>
 \tl_new:N \l_driver_box_matrix_tl
 %</pdfmode>
 %    \end{macrocode}
-% \end{macro}
+% \end{variable}
 % 
-% \begin{macro}{\driver_box_rotate_begin:}
-%   Setting up rotation is more complex for \pdfTeX{} and \LuaTeX{} than
-%   it is for \XeTeX{}. For the later, all that is needed is the angle to
-%   rotate by. For \pdfTeX{} and \LuaTeX{}, the appropriate affine matrix is
-%   needed. This needs to be set up such that there is no danger of
-%   having a double negative sign, hence the two-part nature of the
-%   process.
+% \begin{variable}{\c_driver_identity_matrix_tl}
+%  An identity matrix to allow \enquote{do nothing} rotations to bail out.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \driver_box_rotate_begin:
+%<*pdfmode>
+\tl_const:Nn \c_driver_identity_matrix_tl { 1~0~0~1 }
+%</pdfmode>
+%    \end{macrocode}
+% \end{variable}
+% 
+% \begin{variable}{\l_driver_tmp_fp}
+%  Needed for a safe sign inversion in PDF mode.
+%    \begin{macrocode}
+%<*pdfmode>
+\fp_new:N \l_driver_tmp_fp
+%</pdfmode>
+%    \end{macrocode}
+% \end{variable}
+% 
+% \begin{macro}{\driver_box_rotate_begin:NNN}
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \driver_box_rotate_begin:NNN #1#2#3
   {
 %<*dvipdfmx>
-    \tex_special:D { pdf:btrans~rotate~ \fp_use:N \l_box_angle_fp }
+    \tex_special:D { pdf:btrans~rotate~ \fp_use:N #1 }
 %</dvipdfmx>
 %<*dvips>
    \tex_special:D
      {
        ps:~gsave~currentpoint~
-       currentpoint~translate~\fp_use:N \l_box_angle_fp \c_space_tl
+       currentpoint~translate~ \fp_use:N #1 \c_space_tl
        neg~rotate~neg~exch~neg~exch~translate
      }
 %</dvips>
 %<*pdfmode>
+    \fp_set_eq:NN \l_driver_tmp_fp #2 
+    \fp_neg:N \l_driver_tmp_fp 
     \tl_set:Nx \l_driver_box_matrix_tl
-      {
-        \fp_use:N \l_box_cos_fp
-        \c_space_tl
-        \fp_use:N \l_box_sin_fp
-        \c_space_tl
+      { 
+        \fp_use:N #3               \c_space_tl \fp_use:N #2 \c_space_tl
+        \fp_use:N \l_driver_tmp_fp \c_space_tl \fp_use:N #3
       }
-    \fp_neg:N \l_box_sin_fp  
-    \tl_put_right:Nx \l_driver_box_matrix_tl
+    \tl_if_eq:NNTF \l_driver_box_matrix_tl \c_driver_identity_matrix_tl
       {
-        \fp_use:N \l_box_sin_fp
-        \c_space_tl
-        \fp_use:N \l_box_cos_fp
+        \cs_set_protected_nopar:Npn \driver_box_rotate_end:
+          { 
+            \cs_set_protected_nopar:Npn \driver_box_rotate_end:
+              { \pdftex_pdfrestore:D }
+          }
       }
-    \pdftex_pdfsave:D
-    \pdftex_pdfsetmatrix:D { \l_driver_box_matrix_tl }
+      {
+        \pdftex_pdfsave:D
+        \pdftex_pdfsetmatrix:D { \l_driver_box_matrix_tl }
+        % TODO: BOX WIDTH ZERO
+      }  
 %</pdfmode>
 %<*xdvipdfmx>
     \tex_special:D { x:gsave }
-    \tex_special:D { x:rotate ~ \fp_use:N \l_box_angle_fp }
+    \tex_special:D { x:rotate ~ \fp_use:N #1 }
 %</xdvipdfmx>
   }
 %    \end{macrocode}
@@ -275,4 +308,4 @@
 %
 % \end{implementation}
 %
-% \PrintIndexs
+% \PrintIndex
