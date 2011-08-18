@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3trial/l3hooks
+PACKAGE = l3experimental/l3hooks
 
 ##############################################################
 # Directory structure for source files                       #
