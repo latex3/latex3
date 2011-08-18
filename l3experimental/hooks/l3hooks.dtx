@@ -9,7 +9,7 @@
 %%
 %%    http://www.latex-project.org/lppl.txt
 %%
-%% This file is part of the "l3trial bundle" (The Work in LPPL)
+%% This file is part of the "l3experimental bundle" (The Work in LPPL)
 %% and all files in that bundle must be distributed together.
 %%
 %% The released version of this bundle is available from CTAN.
@@ -163,17 +163,6 @@
 %   package authors may override any changes you make here.
 % \end{function}
 %
-% \subsection{Internal commands}
-%
-% \begin{function}{\hook_use:N}
-%   \begin{syntax}
-%     \cs{hook_use:N} \meta{hook}
-%   \end{syntax}
-%   Slightly more efficient than \cs{hook_use:n}, it expects the
-%   \meta{hook} directly rather than its \meta{hook name}. Names
-%   are built as \cs{g_hook_\meta{name}_seq}.
-% \end{function}
-%
 % \end{documentation}
 %
 % \begin{implementation}
@@ -199,10 +188,20 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{macro}[EXP]{\use:cF}
+%   Builds a control sequence from its argument, and uses it if it
+%   exists. Otherwise, take the false branch.
+%    \begin{macrocode}
+\cs_set:Npn \use:cF #1
+  { \cs_if_exist:cTF {#1} { \use:c {#1} } }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Creating and using hooks}
 %
 % \begin{macro}{\hook_new:n}
-%   A hook is simply a sequence \cs{g_hook_\meta{name}_seq} with
+%   A hook has two pieces: a token list, for use by the kernel team,
+%   and a sequence \cs{g_hook_\meta{name}_seq} with
 %   a special structure. The items of the sequence can be of two types:
 %   \begin{itemize}
 %   \item \cs{hook_item:n} for items which should remain
@@ -212,18 +211,23 @@
 %   \end{itemize}
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \hook_new:n #1
-  { \seq_new:c { g_hook_ #1 _seq } }
+  {
+    \tl_new:c   { g_hook_kernel_ #1 _tl }
+    \tl_gset:cx { g_hook_kernel_ #1 _tl }
+      { \hook_use:N \exp_not:c { g_hook_ #1 _seq } }
+    \seq_new:c { g_hook_ #1 _seq }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\hook_use:n}
-%   Hands in to \cs{hook_use:N} the \meta{hook} built
+%   Builds the kernel token list, which in most cases calls
+%   \cs{hook_use:N} with the \meta{hook} built
 %   from the given \meta{hook name}.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \hook_use:n #1
   {
-    \cs_if_exist:cTF { g_hook_ #1 _seq }
-      { \exp_args:Nc \hook_use:N { g_hook_ #1 _seq } }
+    \use:cF { g_hook_kernel_ #1 _tl }
       { \msg_error:nnx { hook } { use-unknown-hook } {#1} }
   }
 %    \end{macrocode}
@@ -331,7 +335,7 @@
       \hook_pre_push:nn {#1} { \tex_the:D #3 }
 %</package>
       \use:x
-        { \tex_global:D #2 = { \hook_use:N \exp_not:c { g_hook_ #1 _seq } } }
+        { \tex_global:D #2 = { \exp_not:c { g_hook_kernel_ #1 _tl } } }
     }
 %    \end{macrocode}
 % \end{macro}
@@ -355,6 +359,35 @@
 %    \begin{macrocode}
 \group_end:
 %    \end{macrocode}
+%
+% \subsubsection{Fix the \texttt{cr} hook}
+%
+% \begin{macro}{\hook_cr_use:N}
+%   The \texttt{cr} hook often contains the \cs{tex_noalign:D}
+%   primitive. \TeX{} does not allow assignments, or groups
+%   between the \cs{tex_cr:D} and a \cs{tex_noalign:D}.
+%   Hence, the normal approach of \cs{hook_use:N} will fail
+%   rather loudly. However, we can ourselves use a \cs{tex_noalign:D}
+%   group rather than the normal \cs{group_begin:} \ldots{} \cs{group_end:}.
+%   Furthermore, \cs{hook_cr_use:N} should not be protected! This is
+%   not a problem, since it is only use within \TeX{}'s own
+%   \cs{tex_everycr:D}, which has no reason to be unpacked within
+%   an \texttt{x}-type argument.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \hook_cr_use:N #1
+  {
+    \tex_noalign:D \c_group_begin_token
+    \cs_set:Npn \seq_item:n ##1 { \etex_unexpanded:D \use_none:n ##1 }
+    \use:x
+      {
+        \exp_not:n { \tl_gset:Nx #1 { \seq_use:N #1 } }
+        \c_group_end_token
+        #1
+      }
+  }
+\tl_gset:Nn \g_hook_kernel_cr_tl { \hook_cr_use:N \g_hook_cr_seq }
+%    \end{macrocode}
+% \end{macro}
 %
 % \subsection{Error messages}
 %
