@@ -41,7 +41,7 @@ rem Makefile for LaTeX3 "expl3" files
   set CTANROOT=ctan
   set ENGINE=pdftex
   set INCLUDETXT=README
-  set INCLUDEPDF=expl3 source3
+  set INCLUDEPDF=expl3 l3styleguide l3syntax-changes source3
   set PACKAGE=l3kernel
   set TDSFILES=%CTANFILES% cls sty
   set TDSROOT=tds
@@ -469,6 +469,38 @@ rem Makefile for LaTeX3 "expl3" files
 :sourcedoc
 
   call :unpack
+  
+  echo.
+  echo Typesetting expl3
+  
+  pdflatex -interaction=nonstopmode -draftmode "\input expl3.dtx" > nul
+  if not ERRORLEVEL 1 (
+    makeindex -q -s l3doc.ist -o expl3.ind expl3.idx > nul
+    pdflatex -interaction=nonstopmode "\input expl3.dtx" > nul
+    pdflatex -interaction=nonstopmode "\input expl3.dtx" > nul
+  ) else (
+    echo ! expl3 compilation failed
+  )
+  
+  echo.
+  echo Typesetting l3styleguide
+
+  pdflatex -interaction=nonstopmode -draftmode l3styleguide > nul
+  if not ERRORLEVEL 1 ( 
+    pdflatex -interaction=nonstopmode l3styleguide > nul
+  ) else (
+    echo ! l3styleguide compilation failed  
+  )
+  
+  echo.
+  echo Typesetting l3syntax-changes
+
+  pdflatex -interaction=nonstopmode -draftmode l3syntax-changes > nul
+  if not ERRORLEVEL 1 ( 
+    pdflatex -interaction=nonstopmode l3syntax-changes > nul
+  ) else (
+    echo ! l3syntax-changes compilation failed  
+  )
 
   echo.
   echo Typesetting source3
@@ -490,18 +522,6 @@ rem Makefile for LaTeX3 "expl3" files
     )
   ) else (
     echo ! source3 compilation failed  
-  )
-
-  echo.
-  echo Typesetting expl3
-  
-  pdflatex -interaction=nonstopmode -draftmode "\input expl3.dtx" > nul
-  if not ERRORLEVEL 1 (
-    makeindex -q -s l3doc.ist -o expl3.ind expl3.idx > nul
-    pdflatex -interaction=nonstopmode "\input expl3.dtx" > nul
-    pdflatex -interaction=nonstopmode "\input expl3.dtx" > nul
-  ) else (
-    echo ! expl3 compilation failed
   )
   
   goto :clean-int
