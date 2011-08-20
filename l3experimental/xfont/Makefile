@@ -268,6 +268,7 @@ localinstall: unpack
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
 	cd $(TESTDIR) ; \
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
+	cp *.cfg $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	texhash > /dev/null
 
 savetlg: $(TESTDIR)/$(F).lvt support unpack
