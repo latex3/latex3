@@ -1,8 +1,7 @@
+An Experimental LaTeX3 Programming Convention
+=============================================
 
-   An Experimental LaTeX3 Programming Convention
-   =============================================
-
-   2011/05/10
+   2011/08/22
 
 
 WHERE TO GET IT
@@ -85,5 +84,5 @@ discussion should be directed to the LaTeX-L lists.
 
 =====================================================================
 
---- Copyright 1998-2011 The LaTeX3 Project. All rights reserved ---
+Copyright 1998-2011 The LaTeX3 Project. All rights reserved
 
