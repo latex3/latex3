@@ -36,7 +36,7 @@ rem Makefile for LaTeX3 "expl3" files
   setlocal
   
   set AUXFILES=aux bbl blg cmds dvi glo gls hd idx ilg ind ist log lvt los out tlg tmp toc
-  set CLEAN=bib bst cls fc fmt gz ltx orig pdf sty zip
+  set CLEAN=bib bst cls def fc fmt gz ltx orig pdf sty zip
   set CTANFILES=dtx ins pdf
   set CTANROOT=ctan
   set ENGINE=pdftex
@@ -84,6 +84,7 @@ rem Makefile for LaTeX3 "expl3" files
 
   copy /y %SUPPORTDIR%\log2tlg           > nul
   copy /y %VALIDATE%\regression-test.tex > nul
+  copy /y %VALIDATE%\pdftex.def          > nul
 
   if exist *.fc  del /q *.fc
   if exist *.lvt del /q *.lvt
@@ -206,6 +207,7 @@ rem Makefile for LaTeX3 "expl3" files
 
   copy /y %SUPPORTDIR%\log2tlg           > nul
   copy /y %VALIDATE%\regression-test.tex > nul
+  copy /y %VALIDATE%\pdftex.def          > nul
 
   shift
 
@@ -454,6 +456,7 @@ rem Makefile for LaTeX3 "expl3" files
  
   copy /y %SUPPORTDIR%\log2tlg > nul
   copy /y %VALIDATE%\regression-test.tex > nul
+  copy /y %VALIDATE%\pdftex.def          > nul
   copy /y %TESTDIR%\%1.lvt > nul
   
   echo.
