@@ -87,7 +87,7 @@ UNPACK    = l3.ins l3doc.dtx
 CHECKFILES = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/m3*.tlg)))
 SCRIPTS    = log2tlg
 TESTAUX    = filetest.txt
-VALIDATE   = commands-check.tex regression-test.tex
+VALIDATE   = commands-check.tex pdftex.def regression-test.tex
 
 ##############################################################
 # Clean-up information                                       #
@@ -138,6 +138,9 @@ ENGINE = pdftex
 $(SCRIPTDIR)/%: $(SUPPORTDIR)/%
 	@cp -fp $< $@
 	@chmod +x $@
+	
+$(TESTDIR)/%.def: $(SOURCEDIR)/%.def
+	@cp -fp $< $@
 
 $(TESTDIR)/%.dtx: $(SOURCEDIR)/%.dtx
 	@cp -fp $< $@
@@ -165,6 +168,9 @@ $(TESTAUXDIR)/%.txt: $(TESTFILEDIR)/%.txt
 ################################################################
 
 $(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
+	@cp -fp $< $@	
+	
+$(TESTDIR)/pdftex.def: $(VALIDATEDIR)/pdftex.def
 	@cp -fp $< $@	
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
