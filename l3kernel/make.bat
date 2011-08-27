@@ -530,6 +530,28 @@ rem Makefile for LaTeX3 "expl3" files
     echo ! source3 compilation failed  
   )
   
+  echo.
+  echo Typesetting interface3
+
+  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" > nul
+  if not ERRORLEVEL 1 ( 
+    echo   Re-typesetting for index generation
+    makeindex -q -s l3doc.ist -o interface3.ind interface3.idx > nul
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" > nul
+    echo   Re-typesetting to resolve cross-references
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" > nul
+    for /F "tokens=*" %%I in (interface3.log) do (           
+      if "%%I" == "Functions documented but not defined:" (   
+        echo ! Warning: some functions not defined              
+      )                                  
+      if "%%I" == "Functions defined but not documented:" ( 
+        echo ! Warning: some functions not documented      
+      )                                                        
+    )
+  ) else (
+    echo ! interface3 compilation failed  
+  )
+  
   goto :clean-int
 
 :tds
