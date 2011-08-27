@@ -212,6 +212,23 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 # File building: specials                                      #
 ################################################################
 
+$(TESTDIR)/interface3.pdf: $(TESTDIR)/interface3.tex $(TESTDIR)/source3body.tex 
+	echo "Typesetting interface3" ; \
+	cd $(TESTDIR) ; \
+	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	if [ $$? = 0 ] ; then  \
+	  makeindex -q -s l3doc.ist -o interface3.ind interface3.idx > /dev/null ; \
+	  echo "  Re-typesetting for index generation" ; \
+	  pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	  echo "  Re-typesetting to resolve cross-references" ; \
+	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
+	else \
+	  echo "  Compilation failed" ; \
+	fi ; \
+	for I in $(AUXFILES) ; do \
+	  rm -f source3.$$I ; \
+	done
+
 $(TESTDIR)/l3styleguide.pdf: $(TESTDIR)/l3styleguide.tex
 	echo "Typesetting l3styleguide" ; \
 	cd $(TESTDIR) ; \
