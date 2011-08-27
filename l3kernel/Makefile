@@ -66,7 +66,7 @@ TDSDIR   := $(TESTDIR)/tds
 # Data for local installation and TDS construction           #
 ##############################################################
 
-INCLUDEPDF  := expl3 l3styleguide l3syntax-changes source3
+INCLUDEPDF  := expl3 interface3 l3styleguide l3syntax-changes source3
 INCLUDETEX  := interface3 l3styleguide l3syntax-changes source3 source3body
 INCLUDETXT  := README
 PACKAGEROOT := latex/$(PACKAGE)
