@@ -27,7 +27,7 @@ rem Makefile for LaTeX3 "expl3" files
   echo  make tds             - create a TDS-ready archive
   echo  make unpack          - extract files
 
-  goto :end
+  goto :EOF
 
 :init
 
