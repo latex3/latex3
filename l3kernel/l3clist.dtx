@@ -388,11 +388,17 @@
 %     ~~\Arg{true code} \Arg{false code}
 %   \end{syntax}
 %   Tests if the \meta{item} is present in the \meta{comma list}.
-%   This function \emph{does not} strip spaces, even when
-%   the comma list is given as an explicit \texttt{n}-type argument.
+%   In the case of an \texttt{n}-type \meta{comma list},
+%   spaces are stripped from each item, but braces are not removed.
+%   Hence,
+%   \begin{verbatim}
+%     \clist_if_in:nnTF { a , {b}~ , {b} , c } { b } {true} {false}
+%   \end{verbatim}
+%   yields \texttt{false}.
 %   \begin{texnote}
 %     The \meta{item} may not contain |{|, |}|, or |#|
-%     (assuming the usual \TeX{} category codes apply).
+%     (assuming the usual \TeX{} category codes apply),
+%     and should not contain |,| nor start or end with a space.
 %   \end{texnote}
 % \end{function}
 %
@@ -1098,42 +1104,58 @@
 % \UnitTested
 % \begin{macro}[aux]{\clist_remove_all_aux:NNn}
 % \begin{macro}[aux]{\clist_remove_all_aux:w}
-%   Removing an item from a comma list is done without looping over
-%   the entire list, as the performance of that approach is very bad for
-%   long lists. Instead, a delimited function is needed. For this to work
-%   correctly, there is a need to add an additional comma at the start of
-%   the list, and to remove it again once the removal is complete. Of
-%   course, the list can end up empty, which is the reason for the test
-%   before copying back to the parent.
+% \begin{macro}[aux]{\clist_remove_all_aux:}
+%   The method used here is very similar to \cs{tl_replace_all:Nnn}.
+%   Build a function delimited by the \meta{item} that should be removed,
+%   surrounded with commas, and call that function followed by
+%   the expanded comma list, and another copy of the \meta{item}.
+%   The loop is controlled by the argument grabbed by
+%   \cs{clist_remove_all_aux:w}: when the item was found,
+%   the \cs{q_mark} delimiter used is the one inserted by
+%   \cs{clist_tmp:w}, and \cs{use_none_delimit_by_q_stop:w}
+%   is deleted. At the end, the final \meta{item} is
+%   grabbed, and the argument of \cs{clist_tmp:w} contains
+%   \cs{q_mark}: in that case, \cs{clist_remove_all_aux:w}
+%   removes the second \cs{q_mark} (inserted by \cs{clist_tmp:w}),
+%   and lets \cs{use_none_delimit_by_q_stop:w} act.
+%
+%   No brace is lost because items are always grabbed with a leading comma.
+%   The result of the first assignment has an extra leading comma,
+%   which we remove in a second assignment.
+%   Two exceptions: if the clist lost all of its elements, the result
+%   is empty, and we shouldn't remove anything; if the clist started up
+%   empty, the first step happens to turn it into a single comma, and
+%   the second step removes it.
 %    \begin{macrocode}
 \cs_new_protected:Npn \clist_remove_all:Nn
-  { \clist_remove_all_aux:NNn \clist_set_eq:NN }
+  { \clist_remove_all_aux:NNn \tl_set:Nx }
 \cs_new_protected:Npn \clist_gremove_all:Nn
-  { \clist_remove_all_aux:NNn \clist_gset_eq:NN }
+  { \clist_remove_all_aux:NNn \tl_gset:Nx }
 \cs_new_protected:Npn \clist_remove_all_aux:NNn #1#2#3
   {
+    \cs_set:Npn \clist_tmp:w ##1 , #3 ,
+      {
+        ##1
+        , \q_mark , \use_none_delimit_by_q_stop:w ,
+        \clist_remove_all_aux:
+      }
+    #1 #2
+      {
+        \exp_after:wN \clist_remove_all_aux:
+        #2 , \q_mark , #3 , \q_stop
+      }
     \clist_if_empty:NF #2
       {
-        \clist_clear:N \l_clist_remove_clist
-        \cs_set_protected:Npn \clist_remove_all_aux:w
-          ##1 , #3 , ##2 \q_stop
+        #1 #2
           {
-            \tl_put_right:Nn \l_clist_remove_clist {##1}
-            \quark_if_no_value:nF {##2}
-              { \clist_remove_all_aux:w , ##2 \q_stop }
+            \exp_args:No \exp_not:o
+              { \exp_after:wN \use_none:n #2 }
           }
-        \exp_after:wN \clist_remove_all_aux:w
-          \exp_after:wN , #2 , #3 , \q_no_value \q_stop
-        \tl_if_empty:NF \l_clist_remove_clist
-          {
-            \exp_after:wN \tl_set:No \exp_after:wN
-              \l_clist_remove_clist \exp_after:wN
-                { \exp_after:wN \use_none:n \l_clist_remove_clist }
-          }
-        #1 #2 \l_clist_remove_clist
       }
   }
-\cs_new_protected:Npn \clist_remove_all_aux:w { }
+\cs_new:Npn \clist_remove_all_aux:
+  { \exp_after:wN \clist_remove_all_aux:w \clist_tmp:w , }
+\cs_new:Npn \clist_remove_all_aux:w #1 , \q_mark , #2 , { \exp_not:n {#1} }
 \cs_generate_variant:Nn \clist_remove_all:Nn  { c }
 \cs_generate_variant:Nn \clist_gremove_all:Nn { c }
 %    \end{macrocode}
@@ -1141,9 +1163,16 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
-%
+% \end{macro}
 %
 % \subsection{Comma list conditionals}
+%
+% \begin{variable}{\l_clist_if_in_clist}
+%   An internal comma list for \cs{clist_if_in:nn} conditionals.
+%    \begin{macrocode}
+\clist_new:N \l_clist_if_in_clist
+%    \end{macrocode}
+% \end{variable}
 %
 % \begin{macro}[pTF]{\clist_if_empty:N, \clist_if_empty:c}
 % \UnitTested
@@ -1172,19 +1201,27 @@
 %     \clist_if_in:cn, \clist_if_in:cV, \clist_if_in:co,
 %     \clist_if_in:nn, \clist_if_in:nV, \clist_if_in:no
 %   }
+% \begin{macro}[aux]{\clist_if_in_return:nn}
 % \UnitTested
 %   See description of the \cs{tl_if_in:Nn} function for details.
 %   We simply surround the comma list, and the item, with commas.
 %    \begin{macrocode}
+\prg_new_protected_conditional:Npnn \clist_if_in:Nn #1#2 { T  , F , TF }
+  {
+    \exp_args:No \clist_if_in_return:nn #1 {#2}
+  }
 \prg_new_protected_conditional:Npnn \clist_if_in:nn #1#2 { T  , F , TF }
   {
+    \clist_set:Nn \l_clist_if_in_clist {#1}
+    \exp_args:No \clist_if_in_return:nn \l_clist_if_in_clist {#2}
+  }
+\cs_new_protected:Npn \clist_if_in_return:nn #1#2
+  {
     \cs_set:Npn \clist_tmp:w ##1 ,#2, { }
-    \tl_if_empty:oTF { \clist_tmp:w ,#1, {} {} ,#2, }
+    \tl_if_empty:oTF
+      { \clist_tmp:w ,#1, {} {} ,#2, }
       { \prg_return_false: } { \prg_return_true: }
   }
-\cs_new_protected_nopar:Npn \clist_if_in:NnTF { \exp_args:No \clist_if_in:nnTF }
-\cs_new_protected_nopar:Npn \clist_if_in:NnT  { \exp_args:No \clist_if_in:nnT  }
-\cs_new_protected_nopar:Npn \clist_if_in:NnF  { \exp_args:No \clist_if_in:nnF  }
 \cs_generate_variant:Nn \clist_if_in:NnT  {     NV , No }
 \cs_generate_variant:Nn \clist_if_in:NnT  { c , cV , co }
 \cs_generate_variant:Nn \clist_if_in:NnF  {     NV , No }
@@ -1195,6 +1232,7 @@
 \cs_generate_variant:Nn \clist_if_in:nnF  {     nV , no }
 \cs_generate_variant:Nn \clist_if_in:nnTF {     nV , no }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \subsection{Mapping to comma lists}
