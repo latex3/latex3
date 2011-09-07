@@ -22,7 +22,7 @@ help:
 	@echo " make doc F=<module>      - typeset documentation for <module>"
 	@echo " make format              - create LaTeX3 format file"
 	@echo " make localinstall        - install files in local texmf tree"
-	@echo " make savetlg F=<name>    - save test log for <name>"  
+	@echo " make savetlg F=<name>    - save test log for <name>"
 	@echo " make sourcedoc           - typeset expl3 and source3"
 	@echo " make tds                 - create a TDS-ready archive"
 	@echo " make test F=<name>       - checks test file coverage for <name>.dtx"
@@ -117,7 +117,7 @@ CLEAN = \
 	ltx  \
 	pdf  \
 	sty  \
-	zip 
+	zip
 
 ################################################################
 # Document settings                                            #
@@ -138,7 +138,7 @@ ENGINE = pdftex
 $(SCRIPTDIR)/%: $(SUPPORTDIR)/%
 	@cp -fp $< $@
 	@chmod +x $@
-	
+
 $(TESTDIR)/%.def: $(SOURCEDIR)/%.def
 	@cp -fp $< $@
 
@@ -153,34 +153,34 @@ $(TESTDIR)/%.lvt: $(TESTFILEDIR)/%.lvt
 
 $(TESTDIR)/%.markdown: $(SOURCEDIR)/%.markdown
 	@cp -fp $< $@
-	
+
 $(TESTDIR)/%.def: $(SOURCEDIR)/%.mkii
 	@cp -fp $< $@
 
 $(TESTDIR)/%.tex: $(SOURCEDIR)/%.tex
-	@cp -fp $< $@	
+	@cp -fp $< $@
 
 $(TESTDIR)/%.tlg: $(TESTFILEDIR)/%.tlg
-	@cp -fp $< $@		
+	@cp -fp $< $@
 
 $(TESTAUXDIR)/%.txt: $(TESTFILEDIR)/%.txt
-	@cp -fp $< $@	
+	@cp -fp $< $@
 
 ################################################################
 # File copying: specials                                       #
 ################################################################
 
 $(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
-	@cp -fp $< $@	
-	
+	@cp -fp $< $@
+
 $(TESTDIR)/pdftex.def: $(VALIDATEDIR)/pdftex.def
-	@cp -fp $< $@	
+	@cp -fp $< $@
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
-	@cp -fp $< $@	
-	
+	@cp -fp $< $@
+
 $(TESTDIR)/supp-pdf.mkii: $(VALIDATEDIR)/supp-pdf.mkii
-	@cp -fp $< $@	
+	@cp -fp $< $@
 
 ################################################################
 # File building: default actions                               #
@@ -212,7 +212,7 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 # File building: specials                                      #
 ################################################################
 
-$(TESTDIR)/interface3.pdf: $(TESTDIR)/interface3.tex $(TESTDIR)/source3body.tex 
+$(TESTDIR)/interface3.pdf: $(TESTDIR)/interface3.tex $(TESTDIR)/source3body.tex
 	echo "Typesetting interface3" ; \
 	cd $(TESTDIR) ; \
 	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
@@ -241,7 +241,7 @@ $(TESTDIR)/l3styleguide.pdf: $(TESTDIR)/l3styleguide.tex
 	for I in $(AUXFILES) ; do \
 	  rm -f l3styleguide.$$I ; \
 	done
-	
+
 $(TESTDIR)/l3syntax-changes.pdf: $(TESTDIR)/l3syntax-changes.tex
 	echo "Typesetting l3syntax-changes" ; \
 	cd $(TESTDIR) ; \
@@ -255,7 +255,7 @@ $(TESTDIR)/l3syntax-changes.pdf: $(TESTDIR)/l3syntax-changes.tex
 	  rm -f l3styleguide.$$I ; \
 	done
 
-$(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex $(TESTDIR)/source3body.tex $(TESTDIR)/interface3.tex 
+$(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex $(TESTDIR)/source3body.tex $(TESTDIR)/interface3.tex
 	echo "Typesetting source3" ; \
 	cd $(TESTDIR) ; \
 	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
@@ -277,7 +277,7 @@ $(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex $(TESTDIR)/source3body.tex $(TEST
 ################################################################
 
 .PHONY = \
-	support 
+	support
 
 support: \
 	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
@@ -399,7 +399,7 @@ checkdoc: unpack
 	  for J in $(AUXFILES) ; do \
 	    rm -f $$I.$$J ; \
 	  done ; \
-	done 
+	done
 
 checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 	echo "Running checks on $(F)"
@@ -459,7 +459,7 @@ ctan: tds
 	for I in $(UNPACK); do \
 	  cp -f $$I $(CTANDIR)/ ; \
 	done ; \
-	cp $(PACKAGE).tds.zip $(CTANROOT)/ 
+	cp $(PACKAGE).tds.zip $(CTANROOT)/
 	cd $(CTANROOT) ; \
 	zip -ll -q -r -X $(PACKAGE).zip .
 	cp $(CTANROOT)/$(PACKAGE).zip ./
@@ -468,13 +468,13 @@ doc: unpack $(TESTDIR)/$(F).pdf
 
 format: \
 	$(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).dtx) \
-	$(foreach FILE,$(FORMAT),$(TESTDIR)/$(FILE)) 
+	$(foreach FILE,$(FORMAT),$(TESTDIR)/$(FILE))
 	echo "Making format"
 	cd $(TESTDIR) ; \
 	for I in $(FORMAT) ; do \
 	  tex $$I > /dev/null ; \
 	done ; \
-	$(ENGINE) -ini "*l3format.ltx" 
+	$(ENGINE) -ini "*l3format.ltx"
 
 localinstall: unpack
 	echo "Installing files"
@@ -486,7 +486,7 @@ localinstall: unpack
 	cd $(TESTDIR) ; \
 	cp *.cls $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
-	cp l3doc.ist $$TEXMFHOME/makeindex/$(PACKAGE) 
+	cp l3doc.ist $$TEXMFHOME/makeindex/$(PACKAGE)
 	texhash > /dev/null
 
 savetlg: $(TESTDIR)/$(F).lvt support unpack
@@ -499,7 +499,7 @@ savetlg: $(TESTDIR)/$(F).lvt support unpack
 	pdflatex $(F).lvt > /dev/null ; \
 	rm -f $$I.pdf ; \
 	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).tlg
-	cp -f $(TESTDIR)/$(F).tlg $(TESTFILEDIR)/$(F).tlg	
+	cp -f $(TESTDIR)/$(F).tlg $(TESTFILEDIR)/$(F).tlg
 
 sourcedoc: unpack $(foreach FILE,$(INCLUDEPDF),$(TESTDIR)/$(FILE).pdf)
 
@@ -525,7 +525,7 @@ tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).markdown) sourcedoc
 	for I in $(INCLUDETXT); do \
 	  cp -f $$I.markdown $(TDSDIR)/doc/$(PACKAGEROOT)/ ; \
 	  mv $(TDSDIR)/doc/$(PACKAGEROOT)/$$I.markdown $(TDSDIR)/doc/$(PACKAGEROOT)/$$I ; \
-	done 
+	done
 	cd $(TDSDIR) ; \
 	zip -ll -q -r -X $(PACKAGE).tds.zip .
 	cd $(TESTDIR) ; \

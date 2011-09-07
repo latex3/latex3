@@ -42,17 +42,17 @@ with the following engines:
  - pdfTeX v1.30 or later
  - XeTeX v0.9994 or later
  - LuaTeX v0.40 or later
- 
+
 pdfTeX v1.30 was released in 2005, and so any recent TeX distribution
 will support expl3. Both XeTeX and LuaTeX have developed more
-actively over the past few years, and for this reason only recent 
+actively over the past few years, and for this reason only recent
 releases of these engines are supported.
 
 THE GUILTY PERSONS
 ------------------
 
    Frank Mittelbach, Denys Duchier, Johannes Braams, Michael Downes,
-   David Carlisle, Alan Jeffrey, Chris Rowley, Rainer Schoepf 
+   David Carlisle, Alan Jeffrey, Chris Rowley, Rainer Schoepf,
    Javier Bezos, Morten Hoegholm, Thomas Lotze, Will Robertson,
    Joseph Wright, Bruno Le Floch
 
@@ -60,8 +60,8 @@ THE GUILTY PERSONS
 DISCUSSION
 ----------
 
-Discussion concerning the approach, suggestions for improvements, 
-changes, additions, etc. should be addressed to the list LaTeX-L. 
+Discussion concerning the approach, suggestions for improvements,
+changes, additions, etc. should be addressed to the list LaTeX-L.
 
 You can subscribe to this list by sending mail to
 
@@ -78,7 +78,7 @@ BUGS
 The issue tracker for LaTeX3 bugs is currently located at
 
   https://github.com/latex3/svn-mirror/issues
-  
+
 Please report specific issues with LaTeX3 code there. More general
 discussion should be directed to the LaTeX-L lists.
 
