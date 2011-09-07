@@ -10,7 +10,7 @@ rem Makefile for LaTeX3 "expl3" files
 
   echo.
   echo  make check           - run the automated tests
-  echo  make checkcmd ^<name^> - checks all functions are defined in ^<name^> 
+  echo  make checkcmd ^<name^> - checks all functions are defined in ^<name^>
   echo  make checkcmds       - checks all functions are defined in all modules
   echo  make checkdoc        - checks all documentation compiles correctly
   echo  make checklvt ^<name^> - runs the automated tests for ^<name^>
@@ -32,9 +32,9 @@ rem Makefile for LaTeX3 "expl3" files
 :init
 
   rem Avoid clobbering anyone else's variables
-  
+
   setlocal
-  
+
   set AUXFILES=aux bbl blg cmds dvi glo gls hd idx ilg ind ist log lvt los out tlg tmp toc
   set CLEAN=bib bst cls def fc fmt gz ltx mkii orig pdf sty zip
   set CTANFILES=dtx ins pdf
@@ -49,7 +49,7 @@ rem Makefile for LaTeX3 "expl3" files
   set SUPPORTDIR=..\support
   set UNPACK=l3.ins
   set VALIDATE=..\validate
-  
+
   set CTANDIR=%CTANROOT%\%PACKAGE%
 
   cd /d "%~dp0"
@@ -76,7 +76,7 @@ rem Makefile for LaTeX3 "expl3" files
   if /i "%1" == "unpack"       goto :unpack
 
   goto :help
-  
+
 :check
 
   call :unpack
@@ -96,20 +96,20 @@ rem Makefile for LaTeX3 "expl3" files
       copy /y %TESTDIR%\%%~nI.tlg > nul
     )
   )
-  
+
   echo.
   echo Running checks on
-  
+
   for %%I in (*.tlg) do (
     echo   %%~nI
     pdflatex %%~nI.lvt > nul
     pdflatex %%~nI.lvt > nul
-    %PERLEXE% log2tlg %%~nI < %%~nI.log > %%~nI.new.log 
+    %PERLEXE% log2tlg %%~nI < %%~nI.log > %%~nI.new.log
     del /q %%~nI.log > nul
     ren %%~nI.new.log %%~nI.log > nul
     fc /n  %%~nI.log %%~nI.tlg > %%~nI.fc
   )
-  
+
   for %%I in (*.fc) do (
     for /f "skip=1 tokens=1" %%J in (%%~nI.fc) do (
       if "%%J" == "FC:" (
@@ -117,39 +117,39 @@ rem Makefile for LaTeX3 "expl3" files
       )
     )
   )
-  
+
   echo.
   if exist *.fc (
     echo   Checks fails for
     for %%I in (*.fc) do (
       echo   - %%~nI
-    ) 
+    )
   ) else (
     echo   All checks passed
   )
-  
+
   for %%I in (*.tlg) do (
     if exist %%~nI.pdf del /q %%~nI.pdf
   )
-  
+
   goto :clean-int
-  
+
 :checkcmd
 
   shift
   if [%1] == [] goto :help
   if not exist %1.dtx goto :no-dtx
-  
+
   call :unpack
 
 :checkcmd-int
-  
+
   copy /y %VALIDATE%\commands-check.tex > nul
   if exist missing.cmds.log del /q missing.cmds.log
-  
+
   echo.
   echo Checking commands in %1
-  
+
   pdflatex -interaction=batchmode %1.dtx > nul
   pdflatex -interaction=batchmode "\def\CMDS{%1.cmds}\input commands-check" > cmds.log
   for /F "tokens=1*" %%I in (cmds.log) do (
@@ -158,9 +158,9 @@ rem Makefile for LaTeX3 "expl3" files
   if exist missing.cmds.log (
     echo   Missing commands:
     for /F "tokens=1*" %%I in (missing.cmds.log) do (
-      if "%%I"=="!>" echo   - %%J 
+      if "%%I"=="!>" echo   - %%J
     )
-  ) 
+  )
   goto :end
   goto :clean-int
 
@@ -174,11 +174,11 @@ rem Makefile for LaTeX3 "expl3" files
   )
 
   goto :clean-int
-  
+
 :checkdoc
 
   call :unpack
-  
+
   echo.
   echo Checking documentation of functions
 
@@ -197,10 +197,10 @@ rem Makefile for LaTeX3 "expl3" files
     ) else (
       echo     Compilation failed
     )
-  )  
+  )
 
-  goto :clean-int 
-  
+  goto :clean-int
+
 :checklvt
 
   call :unpack
@@ -220,17 +220,17 @@ rem Makefile for LaTeX3 "expl3" files
     copy /y %TESTDIR%\%~n1.lvt > nul
     copy /y %TESTDIR%\%~n1.tlg > nul
   )
-  
+
   echo.
   echo Running checks on %~n1
-  
+
   pdflatex %~n1.lvt > nul
   pdflatex %~n1.lvt > nul
-  %PERLEXE% log2tlg %~n1 < %~n1.log > %~n1.new.log 
+  %PERLEXE% log2tlg %~n1 < %~n1.log > %~n1.new.log
   del /q %~n1.log > nul
   ren %~n1.new.log %~n1.log > nul
   fc /n  %~n1.log %~n1.tlg > %~n1.fc
-  
+
   for %%I in (*.fc) do (
     for /f "skip=1 tokens=1" %%J in (%%~nI.fc) do (
       if "%%J" == "FC:" (
@@ -238,26 +238,26 @@ rem Makefile for LaTeX3 "expl3" files
       )
     )
   )
-  
+
   if exist %~n1.fc (
-    echo   Check fails 
+    echo   Check fails
   ) else (
     echo   Check passes
   )
-  
+
   if exist %~n1.pdf del /q %~n1.pdf
-  
+
   goto :clean-int
 
 
 :checktest
 
   call :unpack
-  
-  
+
+
   echo.
   echo Checking functions have tests
-  
+
   for %%I in (l3*.dtx) do  (
     echo   %%~nI
     pdflatex --interaction=batchmode "\PassOptionsToClass{checktest}{l3doc} \input %%I"
@@ -298,7 +298,7 @@ rem Makefile for LaTeX3 "expl3" files
   call :tds
   if errorlevel 1 goto :end
 
-  echo.  
+  echo.
   echo Remember to:
   echo  - make cleanall
   echo  - make check
@@ -309,7 +309,7 @@ rem Makefile for LaTeX3 "expl3" files
 
   for %%I in (%INCLUDEPDF%) do (
     xcopy /q /y %%I.pdf "%CTANDIR%\" > nul
-  )  
+  )
   for %%I in (%CTANFILES%) do (
     xcopy /q /y *.%%I "%CTANDIR%\" > nul
   )
@@ -338,10 +338,10 @@ rem Makefile for LaTeX3 "expl3" files
   call :unpack
 
 :doc-int
-  
+
   echo.
   echo Typesetting %1
-  
+
   pdflatex -interaction=nonstopmode -draftmode "\input %1.dtx" > nul
   if not ERRORLEVEL 1 (
     makeindex -q -s l3doc.ist -o %2.ind %1.idx        > nul
@@ -349,16 +349,16 @@ rem Makefile for LaTeX3 "expl3" files
     pdflatex -interaction=nonstopmode "\input %1.dtx"  > nul
     for /F "tokens=*" %%I in (%1.log) do (
       if "%%I" == "Functions documented but not defined:" (
-      echo ! Some functions not defined 
+      echo ! Some functions not defined
       )
       if "%%I" == "Functions defined but not documented:" (
-      echo ! Some functions not documented 
+      echo ! Some functions not documented
       )
     )
   ) else (
     echo ! %1 compilation failed
   )
-  
+
   goto :clean-int
 
 :file2tdsdir
@@ -372,16 +372,16 @@ rem Makefile for LaTeX3 "expl3" files
   if /i "%~x1" == ".sty" set TDSDIR=tex\latex\%PACKAGE%
   if /i "%~x1" == ".tex" set TDSDIR=doc\latex\%PACKAGE%
   if /i "%~x1" == ".txt" set TDSDIR=doc\latex\%PACKAGE%
-  
+
   if /i "%~x1" == ".markdown" set TDSDIR=doc\latex\%PACKAGE%
 
   goto :end
 
 :format
 
-  echo. 
+  echo.
   echo Making format
-  
+
   shift
   if not "%1" == "" set ENGINE=%1
 
@@ -389,7 +389,7 @@ rem Makefile for LaTeX3 "expl3" files
   %ENGINE% -etex -ini "*l3format.ltx"
 
   goto :end
-  
+
 :localinstall
 
   call :unpack
@@ -412,39 +412,39 @@ rem Makefile for LaTeX3 "expl3" files
   goto :clean-int
 
 :no-lvt
-  
+
   echo.
   echo No such file %1.lvt
 
   goto :end
-  
+
 :no-tlg
-  
+
   echo.
   echo No such file %1.tlg
 
   goto :end
 
-:perl 
+:perl
 
   set PATHCOPY=%PATH%
 
 :perl-loop
 
   if defined PERLEXE goto :end
-  
+
   for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
     if exist %%I\perl.exe set PERLEXE=perl
     set PATHCOPY=%%J;%%K
   )
-  
+
   if defined PERLEXE goto :end
 
   if not "%PATHCOPY%"==";" goto :perl-loop
-  
+
   echo.
   echo  This procedure requires Perl, but it could not be found.
-  
+
   goto :end
 
 :savetlg
@@ -455,30 +455,30 @@ rem Makefile for LaTeX3 "expl3" files
 
   call :perl
   call :unpack
- 
+
   copy /y %SUPPORTDIR%\log2tlg > nul
   copy /y %VALIDATE%\regression-test.tex > nul
   copy /y %VALIDATE%\pdftex.def          > nul
   copy /y %VALIDATE%\supp-pdf.mkii       > nul
   copy /y %TESTDIR%\%1.lvt > nul
-  
+
   echo.
   echo Creating and copying %1.tlg
-  
-  pdflatex %1.lvt > nul 
+
+  pdflatex %1.lvt > nul
   pdflatex %1.lvt > nul
   %PERLEXE% log2tlg %1 < %1.log > %1.tlg
   copy /y %1.tlg %TESTDIR%\%1.tlg > nul
-  
+
   goto :clean-int
-  
+
 :sourcedoc
 
   call :unpack
-  
+
   echo.
   echo Typesetting expl3
-  
+
   pdflatex -interaction=nonstopmode -draftmode "\input expl3.dtx" > nul
   if not ERRORLEVEL 1 (
     makeindex -q -s l3doc.ist -o expl3.ind expl3.idx > nul
@@ -487,71 +487,71 @@ rem Makefile for LaTeX3 "expl3" files
   ) else (
     echo ! expl3 compilation failed
   )
-  
+
   echo.
   echo Typesetting l3styleguide
 
   pdflatex -interaction=nonstopmode -draftmode l3styleguide > nul
-  if not ERRORLEVEL 1 ( 
+  if not ERRORLEVEL 1 (
     pdflatex -interaction=nonstopmode l3styleguide > nul
   ) else (
-    echo ! l3styleguide compilation failed  
+    echo ! l3styleguide compilation failed
   )
-  
+
   echo.
   echo Typesetting l3syntax-changes
 
   pdflatex -interaction=nonstopmode -draftmode l3syntax-changes > nul
-  if not ERRORLEVEL 1 ( 
+  if not ERRORLEVEL 1 (
     pdflatex -interaction=nonstopmode l3syntax-changes > nul
   ) else (
-    echo ! l3syntax-changes compilation failed  
+    echo ! l3syntax-changes compilation failed
   )
 
   echo.
   echo Typesetting source3
 
   pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
-  if not ERRORLEVEL 1 ( 
+  if not ERRORLEVEL 1 (
     echo   Re-typesetting for index generation
     makeindex -q -s l3doc.ist -o source3.ind source3.idx > nul
     pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
     echo   Re-typesetting to resolve cross-references
     pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
-    for /F "tokens=*" %%I in (source3.log) do (           
-      if "%%I" == "Functions documented but not defined:" (   
-        echo ! Warning: some functions not defined              
-      )                                  
-      if "%%I" == "Functions defined but not documented:" ( 
-        echo ! Warning: some functions not documented      
-      )                                                        
+    for /F "tokens=*" %%I in (source3.log) do (
+      if "%%I" == "Functions documented but not defined:" (
+        echo ! Warning: some functions not defined
+      )
+      if "%%I" == "Functions defined but not documented:" (
+        echo ! Warning: some functions not documented
+      )
     )
   ) else (
-    echo ! source3 compilation failed  
+    echo ! source3 compilation failed
   )
-  
+
   echo.
   echo Typesetting interface3
 
   pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" > nul
-  if not ERRORLEVEL 1 ( 
+  if not ERRORLEVEL 1 (
     echo   Re-typesetting for index generation
     makeindex -q -s l3doc.ist -o interface3.ind interface3.idx > nul
     pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" > nul
     echo   Re-typesetting to resolve cross-references
     pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" > nul
-    for /F "tokens=*" %%I in (interface3.log) do (           
-      if "%%I" == "Functions documented but not defined:" (   
-        echo ! Warning: some functions not defined              
-      )                                  
-      if "%%I" == "Functions defined but not documented:" ( 
-        echo ! Warning: some functions not documented      
-      )                                                        
+    for /F "tokens=*" %%I in (interface3.log) do (
+      if "%%I" == "Functions documented but not defined:" (
+        echo ! Warning: some functions not defined
+      )
+      if "%%I" == "Functions defined but not documented:" (
+        echo ! Warning: some functions not documented
+      )
     )
   ) else (
-    echo ! interface3 compilation failed  
+    echo ! interface3 compilation failed
   )
-  
+
   goto :clean-int
 
 :tds
@@ -608,7 +608,7 @@ rem Makefile for LaTeX3 "expl3" files
 
   goto :end
 
-:zip 
+:zip
 
   if not defined ZIPFLAG set ZIPFLAG=-r -q -X -ll
 
