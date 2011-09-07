@@ -82,6 +82,18 @@
 %     Tests whether the \meta{string} matches the \meta{regular expression}.
 %   \end{function}
 %
+%   \begin{function}[TF]{\regex_match_extract:nnN}
+%     \begin{syntax}
+%       \cs{regex_match_extract:nnN} \Arg{regular expression} \Arg{string}
+%       ~~\meta{seq variable}
+%     \end{syntax}
+%     Tests whether the string matches the \meta{regular expression},
+%     and stores the submatch information in the \meta{seq variable}.
+%   \end{function}
+%
+%^^A bug: \match { (a)(b)* } { abb } yields "ab" and "b" as submatches:
+%^^A the second group's paren moves the first group's one.
+%^^A todo: check "a*b*"!
 % \end{documentation}
 %
 % \begin{implementation}
@@ -92,7 +104,7 @@
 %    \begin{macrocode}
 \ProvidesExplPackage
   {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
-\RequireExplPackage{l3str}
+\RequirePackage{l3str}
 %    \end{macrocode}
 %
 % Most regex engines use backtracking. This allows to provide very
@@ -120,22 +132,11 @@
 %
 % \subsection{Constants and variables}
 %
-% \begin{variable}{\l_regex_regex_tl,\l_regex_string_tl}
+% \begin{variable}{\l_regex_regex_str,\l_regex_string_str}
 %   Store the regex and the string that being tested.
 %    \begin{macrocode}
-\tl_new:N \l_regex_regex_tl
-\tl_new:N \l_regex_string_tl
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{variable}{\c_regex_escape_token}
-%   An implicit backslash character.
-%    \begin{macrocode}
-\use:x
-  {
-    \cs_new_eq:NN \exp_not:N \c_regex_escape_token \cs_to_str:N \\
-    \tl_const:Nn  \exp_not:N \c_regex_escape_tl  { \cs_to_str:N \\ }
-  }
+\str_new:N \l_regex_regex_str
+\str_new:N \l_regex_string_str
 %    \end{macrocode}
 % \end{variable}
 %
@@ -174,54 +175,48 @@
 %
 % \begin{macro}[TF]{\regex_match:nn}
 %    \begin{macrocode}
+\cs_new:Npn \regex_if_track_submatches:T { \ERROR }
 \prg_new_protected_conditional:Npnn \regex_match:nn #1#2 { T , F , TF }
   {
-    \group_begin:
-    \regex_setup:
-    \exp_args:No \regex_read:nnN
-      { \c_regex_escape_tl } {#1} \l_regex_regex_tl
-    \regex_read:nnN { } {#2} \l_regex_string_tl
-    \regex_build_automaton:
-    \regex_run_automaton:
-    \regex_extract_submatches:
-%<*trace>
-    \int_zero:N \l_regex_trace_nesting_int
-    \regex_trace:x
-      { \\ Successful~thread:~ \int_use:N \l_regex_successful_thread_int }
-    \exp_args:NNV \prop_get:NnNT
-      \l_regex_submatch_prop
-      \l_regex_successful_thread_int
-      \l_regex_tmpa_prop
-      { \prop_show:N \l_regex_tmpa_prop }
-%</trace>
-    \int_compare:nNnTF { \l_regex_successful_thread_int } = { 0 }
-      { \group_end: \prg_return_false: }
-      { \group_end: \prg_return_true: }
+    \regex_match_aux_return:nnnn {#1} {#2}
+      { \cs_set_eq:NN \regex_if_track_submatches:T \use_none:n }
+      { }
   }
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\regex_read:nnN}
-%    \begin{macrocode}
-\group_begin:
-\char_set_lccode:nn { `\* } { `\  }
-\char_set_catcode_other:N \*
-\tl_to_lowercase:n
+\prg_new_protected_conditional:Npnn
+    \regex_match_extract:nnN #1#2#3 { T , F , TF }
   {
-    \group_end:
-    \cs_new_protected:Npn \regex_read:nnN #1#2#3
-      {
-        \tl_set:Nx #3 { \tl_to_str:n {#2} }
-        \tl_replace_all:Nnn #3 { #1 ~ } { #1 * }
-      }
+    \regex_match_aux_return:nnnn {#1} {#2}
+      { \cs_set_eq:NN \regex_if_track_submatches:T \use:n }
+      { \seq_set_eq:NN #3 \g_regex_submatches_seq }
+  }
+\cs_new_protected:Npn \regex_match_aux_return:nnnn #1#2#3#4
+  {
+    \group_begin:
+      \regex_setup:
+      #3
+      \str_set:Nn \l_regex_regex_str  {#1}
+      \str_set:Nn \l_regex_string_str {#2}
+%<trace>      \regex_trace_input:
+      \regex_build_automaton:
+      \regex_run_automaton:
+      \regex_if_track_submatches:T { \regex_extract_submatches: }
+%<trace>      \regex_trace_success:
+      \int_compare:nNnTF { \l_regex_successful_thread_int } = { 0 }
+        {
+          \group_end:
+          \prg_return_false:
+        }
+        {
+          \group_end:
+          #4
+          \prg_return_true:
+        }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% 
-% \subsection{Building the automaton}
 %
+% \subsection{Building the automaton}
 %
 % \subsubsection{Adding transitions}
 %
@@ -260,19 +255,18 @@
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_automaton:
   {
-    \exp_after:wN \regex_build_loop:N \l_regex_regex_tl
+    \exp_after:wN \regex_build_loop:N \l_regex_regex_str
     \q_recursion_tail \q_recursion_stop
     \regex_toks_put_right:nx { \l_regex_right_int }
       { \regex_thread_success:n { \int_use:N \l_regex_right_int } }
     \l_regex_end_build_tl
 %<*trace>
-    \regex_trace:x { \\ Automaton~built~from:~\tl_to_str:N \l_regex_regex_tl }
+    \regex_trace:x { \\ Automaton~built~from:~\tl_to_str:N \l_regex_regex_str }
     \prg_stepwise_inline:nnnn {1} {1} {\l_regex_max_int}
       {
         \regex_trace_wrap:nnx { \ \ \ \ } {4}
           { ##1 ~ > ~ \tex_the:D \tex_toks:D ##1 ~ }
       }
-    \show\relax
 %</trace>
   }
 %    \end{macrocode}
@@ -300,7 +294,7 @@
 %   a slash (rather than a backslash, because it is easier
 %   to get with \TeX{}'s usual catcode r\'egime), and loop.
 %    \begin{macrocode}
-\cs_new_protected_nopar:cpn { regex_build_ \c_regex_escape_tl : }
+\cs_new_protected_nopar:cpn { regex_build_ \c_backslash_str : }
   { \tl_gset:Nx \g_regex_maybe_escape_tl { / } }
 %    \end{macrocode}
 % \end{macro}
@@ -335,6 +329,17 @@
     \tex_muskip:D \l_regex_max_int = 0 mu minus -1mu \scan_stop:
     \int_set_eq:NN \l_regex_right_int \l_regex_max_int
   }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Ignoring spaces}
+%
+% \begin{macro}{\regex_build_~:}
+%   Spaces are ignored in regexes unless escaped.
+%   This is necessary, as \eTeX{} inserts a space
+%   after control sequences when detokenizing.
+%    \begin{macrocode}
+\cs_new_protected_nopar:cpn { regex_build_~: } { }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -389,18 +394,21 @@
 \cs_new_protected_nopar:cpn { regex_build_(: }
   {
     \regex_new_state:
-    \int_incr:N \l_regex_capturing_group_int
-    \regex_toks_put_right:nx { \l_regex_left_int }
+    \regex_if_track_submatches:T
       {
-        \regex_thread_submatch:nn
-          { \int_use:N \l_regex_left_int }
-          { \int_use:N \l_regex_capturing_group_int < }
-      }
-    \regex_toks_put_right:nx { \int_use:N \l_regex_right_int }
-      {
-        \regex_thread_submatch:nn
-          { \int_use:N \l_regex_right_int }
-          { \int_use:N \l_regex_capturing_group_int > }
+        \int_incr:N \l_regex_capturing_group_int
+        \regex_toks_put_right:nx { \l_regex_left_int }
+          {
+            \regex_thread_submatch:nn
+              { \int_use:N \l_regex_left_int }
+              { \int_use:N \l_regex_capturing_group_int < }
+          }
+        \regex_toks_put_right:nx { \int_use:N \l_regex_right_int }
+          {
+            \regex_thread_submatch:nn
+              { \int_use:N \l_regex_right_int }
+              { \int_use:N \l_regex_capturing_group_int > }
+          }
       }
     \seq_push:Nx \l_regex_left_int_seq { \int_use:N \l_regex_left_int }
     \seq_push:Nx \l_regex_right_int_seq { \int_use:N \l_regex_right_int }
@@ -580,7 +588,7 @@
 % \begin{macro}{\regex_class_\string\:}
 %   Escaping is done just as we do it outside classes.
 %    \begin{macrocode}
-\cs_new_protected_nopar:cpn { regex_class_ \c_regex_escape_tl : }
+\cs_new_protected_nopar:cpn { regex_class_ \c_backslash_str : }
   {
     \tl_gset:Nx \g_regex_maybe_escape_tl { / }
     \regex_class_loop:N
@@ -952,13 +960,13 @@
     % all skips have been set to zero
     \regex_setup_Bmu:
     \int_zero:N \l_regex_step_int
-    \prop_clear:N \l_regex_submatch_prop
+    \regex_if_track_submatches:T { \prop_clear:N \l_regex_submatch_prop }
     \int_zero:N \l_regex_successful_thread_int
     \int_zero:N \l_regex_last_thread_int
     \int_zero:N \l_regex_last_state_int
     \int_set:Nn \l_regex_max_thread_int {1}
     \regex_Bput_thread_in_state:nn {1} {1}
-    \exp_after:wN \regex_run_loop:N \l_regex_string_tl
+    \exp_after:wN \regex_run_loop:N \l_regex_string_str
     \q_recursion_tail \q_recursion_stop
   }
 %    \end{macrocode}
@@ -1093,8 +1101,11 @@
 \cs_new_protected:Npn \regex_thread_fail:n #1
   {
 %<trace>    \regex_trace:x { fail }
-    \exp_args:NNf \prop_pop:NnN \l_regex_submatch_prop
-      { \regex_Athread:n {#1} } \l_regex_tmpb_tl
+    \regex_if_track_submatches:T
+      {
+        \exp_args:NNf \prop_pop:NnN \l_regex_submatch_prop
+          { \regex_Athread:n {#1} } \l_regex_tmpb_tl
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1105,8 +1116,11 @@
 \cs_new_protected:Npn \regex_thread_obsolete:n #1
   {
 %<trace>    \regex_trace:x { obsolete~thread~\regex_Athread:n{#1} }
-    \exp_args:NNf \prop_pop:NnN \l_regex_submatch_prop
-      { \regex_Athread:n {#1} } \l_regex_tmpb_tl
+    \regex_if_track_submatches:T
+      {
+        \exp_args:NNf \prop_pop:NnN \l_regex_submatch_prop
+          { \regex_Athread:n {#1} } \l_regex_tmpb_tl
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1140,11 +1154,14 @@
         \fi:
         \int_incr:N \l_regex_max_thread_int
         \regex_Aput_thread_in_state:nn { \l_regex_max_thread_int } {#2}
-        \use:x
+        \regex_if_track_submatches:T
           {
-            \regex_thread_copy_submatch:nn
-              { \regex_Athread:n {#1} }
-              { \int_use:N \l_regex_max_thread_int }
+            \use:x
+              {
+                \regex_thread_copy_submatch:nn
+                  { \regex_Athread:n {#1} }
+                  { \int_use:N \l_regex_max_thread_int }
+              }
           }
 %<trace>        \regex_trace_the_toks:n {#2}
 %<!trace>        \tex_the:D \tex_toks:D #2 \scan_stop:
@@ -1245,14 +1262,35 @@
 %
 % \begin{macro}{\regex_extract_submatches:}
 %    \begin{macrocode}
+\seq_new:N \g_regex_submatches_seq
 \cs_new_protected_nopar:Npn \regex_extract_submatches:
   {
-    %^^A not done.
-    % \exp_args:NNV \prop_get:NnNT
-    %   \l_regex_submatch_prop
-    %   \l_regex_successful_thread_int
-    %   \l_regex_tmpa_prop
-    %   { \prop_show:N \l_regex_tmpa_prop }
+    \seq_gclear:N \g_regex_submatches_seq
+    \exp_args:NNV \prop_get:NnNT
+      \l_regex_submatch_prop
+      \l_regex_successful_thread_int
+      \l_regex_tmpa_prop
+      {
+%<trace>        \prop_show:N \l_regex_tmpa_prop
+        \prg_stepwise_inline:nnnn
+          {1} {1} { \l_regex_capturing_group_int }
+          {
+            \prop_pop:NnNTF \l_regex_tmpa_prop { ##1 < } \l_regex_tmpb_tl
+              {
+                \prop_pop:NnNTF \l_regex_tmpa_prop { ##1 > } \l_regex_tmpc_tl
+                  {
+                    \seq_gput_right:Nx \g_regex_submatches_seq
+                      {
+                        \str_from_to:Nnn \l_regex_string_str
+                          { \l_regex_tmpb_tl }
+                          { \l_regex_tmpc_tl }
+                      }
+                  }
+                  { \seq_gput_right:Nn \g_regex_submatches_seq { } }
+              }
+              { \seq_gput_right:Nn \g_regex_submatches_seq { } }
+          }
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1413,6 +1451,31 @@
     \int_incr:N \l_regex_trace_nesting_int
     \tex_the:D \tex_toks:D #1 \scan_stop:
     \int_decr:N \l_regex_trace_nesting_int
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\regex_trace_input:}
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_trace_input:
+  {
+    \regex_trace:x
+      {
+        Task:~match~the~regex~'\l_regex_regex_str'\\
+        in~'\l_regex_string_str'.
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\regex_trace_success:}
+%   Used at one place to print which thread was successful.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_trace_success:
+  {
+    \int_zero:N \l_regex_trace_nesting_int
+    \regex_trace:x
+      { \\ Successful~thread:~ \int_use:N \l_regex_successful_thread_int }
   }
 %    \end{macrocode}
 % \end{macro}
