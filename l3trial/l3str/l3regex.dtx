@@ -284,7 +284,6 @@
     \regex_cs_use:cF
       { regex_build_ \g_regex_tmpa_tl #1: }
       { \regex_build_normal:N #1 }
-    \regex_build_loop:N
   }
 %    \end{macrocode}
 % \end{macro}
@@ -295,7 +294,10 @@
 %   to get with \TeX{}'s usual catcode r\'egime), and loop.
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { regex_build_ \c_backslash_str : }
-  { \tl_gset:Nx \g_regex_maybe_escape_tl { / } }
+  {
+    \tl_gset:Nx \g_regex_maybe_escape_tl { / }
+    \regex_build_loop:N
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -319,6 +321,7 @@
             { \int_use:N \l_regex_left_int }
         \exp_not:N \fi:
       }
+    \regex_build_find_modifiers:F { \regex_build_loop:N }
   }
 \cs_new_protected_nopar:Npn \regex_new_state:
   {
@@ -335,48 +338,81 @@
 % \subsubsection{Ignoring spaces}
 %
 % \begin{macro}{\regex_build_~:}
+%^^A bug: when looking for modifiers, spaces are not ignored!
 %   Spaces are ignored in regexes unless escaped.
 %   This is necessary, as \eTeX{} inserts a space
 %   after control sequences when detokenizing.
 %    \begin{macrocode}
-\cs_new_protected_nopar:cpn { regex_build_~: } { }
+\cs_new_protected_nopar:cpn { regex_build_~: } { \regex_build_loop:N }
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsubsection{Special characters}
+% \subsubsection{Modifiers}
 %
-% \begin{macro}{\regex_build_?:}
+% \begin{macro}{\regex_build_find_modifiers:F}
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_build_find_modifiers:F #1#2
+  {
+    \tl_if_in:nnTF { * ? + } {#2}
+      { \regex_build_find_modifiers_aux:NN #2 }
+      { #1 #2 }
+  }
+\cs_new_protected_nopar:Npn \regex_build_find_modifiers_aux:NN #1#2
+  {
+    \token_if_eq_charcode:NNTF ? #2
+      { \use:c { regex_build_modifier_#1_lazy: } }
+      { \use:c { regex_build_modifier_#1: } #2 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\regex_build_modifier_?:}
 %   A question mark means that the last character or group
 %   is optional. This is achieved by adding a free transition
 %   which skips that group, going directly from the left node
 %   to the right node.
 %    \begin{macrocode}
-\cs_new_protected_nopar:cpn { regex_build_?: }
-  { \regex_put_free:nn { \l_regex_left_int } { \l_regex_right_int } }
+\cs_new_protected_nopar:cpn { regex_build_modifier_?: }
+  {
+    \regex_put_free:nn { \l_regex_left_int } { \l_regex_right_int }
+    \regex_build_loop:N
+  }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\regex_build_+:}
+% \begin{macro}{\regex_build_modifier_+:}
 %   A plus sign means that the last group must appear at least once,
 %   but can be repeated arbitrarily many times. For this, we insert
 %   a free transition from the end of the group to its beginning.
 %    \begin{macrocode}
-\cs_new_protected_nopar:cpn { regex_build_+: }
-  { \regex_put_free:nn { \l_regex_right_int } { \l_regex_left_int } }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\regex_build_*:}
-%   A star is a combination of \texttt{+} and \texttt{?}. Perhaps not
-%   the most efficient implementation, though.
-%    \begin{macrocode}
-\cs_new_protected_nopar:cpx { regex_build_*: }
+\cs_new_protected_nopar:cpn { regex_build_modifier_+: }
   {
-    \exp_not:c { regex_build_?: }
-    \exp_not:c { regex_build_+: }
+    \regex_put_free:nn { \l_regex_right_int } { \l_regex_left_int }
+    \regex_new_state:
+    \regex_toks_put_right:nx { \l_regex_left_int }
+      { %^^A avoids bug a+b+ matching abab.
+        \regex_thread_move:nn
+          { \int_use:N \l_regex_left_int }
+          { \int_use:N \l_regex_right_int }
+      }
+    \regex_build_loop:N
   }
 %    \end{macrocode}
 % \end{macro}
+%
+% \begin{macro}{\regex_build_modifier_*:}
+%   A star is a combination of \texttt{+} and \texttt{?}. Perhaps not
+%   the most efficient implementation, though.
+%    \begin{macrocode}
+\cs_new_protected_nopar:cpx { regex_build_modifier_*: }
+  {
+    \regex_put_free:nn { \l_regex_left_int } { \l_regex_right_int }
+    \exp_not:c { regex_build_modifier_+: }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Alternation}
 %
 % \begin{macro}{\regex_build_(:, \regex_build_):}
 % \catcode`\|=12\relax
@@ -413,11 +449,13 @@
     \seq_push:Nx \l_regex_left_int_seq { \int_use:N \l_regex_left_int }
     \seq_push:Nx \l_regex_right_int_seq { \int_use:N \l_regex_right_int }
     \regex_build_begin_alternation:
+    \regex_build_loop:N
   }
 \cs_new_protected_nopar:cpn { regex_build_|: }
   {
     \regex_build_end_alternation:
     \regex_build_begin_alternation:
+    \regex_build_loop:N
   }
 \cs_new_protected_nopar:cpn { regex_build_): }
   {
@@ -430,6 +468,17 @@
       {
         \regex_toks_put_right:nx { \int_use:N \l_regex_left_int }
           { \regex_thread_obsolete:n { \int_use:N \l_regex_left_int } }
+      }
+    \regex_build_find_modifiers:F
+      { %^^A avoids bug (a)(b)*
+        \regex_new_state:
+        \regex_toks_put_right:nx { \l_regex_left_int }
+          {
+            \regex_thread_move:nn
+              { \int_use:N \l_regex_left_int }
+              { \int_use:N \l_regex_right_int }
+          }
+        \regex_build_loop:N
       }
   }
 %    \end{macrocode}
@@ -451,7 +500,6 @@
           { \int_use:N \l_regex_right_int }
           { \l_regex_tmpb_tl }
       }
-
   }
 %    \end{macrocode}
 % \end{macro}
@@ -478,6 +526,7 @@
             { \int_use:N \l_regex_left_int }
         \exp_not:N \fi:
       }
+    \regex_build_find_modifiers:F { \regex_build_loop:N }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -502,6 +551,7 @@
           }
           #3
       }
+    \regex_build_find_modifiers:F { \regex_build_loop:N }
   }
 \tl_const:Nn \c_regex_d_tl { \regex_item_range:NN 0 9 }
 \tl_const:Nn \c_regex_w_tl
@@ -546,7 +596,7 @@
 %    \begin{macrocode}
 \bool_new:N \l_regex_class_bool
 \tl_new:N \l_regex_class_tl
-\cs_new_protected_nopar:cpn { regex_build_[: } \regex_build_loop:N
+\cs_new_protected_nopar:cpn { regex_build_[: }
   {
     \bool_set_true:N \l_regex_class_bool
     \tl_clear:N \l_regex_class_tl
@@ -691,7 +741,7 @@
               }
           }
       }
-    \regex_build_loop:N
+    \regex_build_find_modifiers:F { \regex_build_loop:N }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -742,7 +792,6 @@
 %
 % \begin{macro}{\regex_item_single:N,\regex_item_range:NN}
 % \begin{macro}{\regex_item_range_number:nn}
-%^^A todo: complete
 %    \begin{macrocode}
 \cs_new_nopar:Npn \regex_item_single:N #1
   {
