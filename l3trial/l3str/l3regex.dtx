@@ -233,6 +233,14 @@
         \tex_the:D \tex_toks:D \int_eval:w #1 \int_eval_end: #2
       }
   }
+\cs_new_protected:Npn \regex_toks_put_left:nx #1#2
+  {
+    \use:x
+      {
+        \tex_toks:D \int_eval:w #1 \int_eval_end:
+          { #2 \tex_the:D \tex_toks:D \int_eval:w #1 \int_eval_end: }
+      }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -242,8 +250,6 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_put_free:nn #1#2
   {
-    \regex_toks_put_right:nx {#1}
-      { \regex_thread_copy:nn { \int_eval:n {#1} } { \int_eval:n {#2} } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -307,21 +313,18 @@
 %   a transition with that letter from the last node
 %   to a new node.
 %    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_tmp_class:nn #1#2 { }
 \cs_new_protected_nopar:Npn \regex_build_normal:N #1
   {
-    \regex_new_state:
-    \regex_toks_put_right:nx { \l_regex_left_int }
+    \cs_set:Npx \regex_tmp_class:nn ##1##2
       {
-        \exp_not:N \if_num:w `#1 = \l_regex_current_char_int
-          \regex_thread_goto:nn
-            { \int_use:N \l_regex_left_int }
-            { \int_use:N \l_regex_right_int }
-        \exp_not:N \else:
-          \regex_thread_fail:n
-            { \int_use:N \l_regex_left_int }
-        \exp_not:N \fi:
+        \exp_not:n { \exp_not:N \if_num:w `#1 = \l_regex_current_char_int }
+          \regex_thread_goto:nn { ##1 } { ##2 }
+        \exp_not:n { \exp_not:N \else: }
+          \regex_thread_fail:n { ##1 }
+        \exp_not:n { \exp_not:N \fi: }
       }
-    \regex_build_find_modifiers:F { \regex_build_loop:N }
+    \regex_build_one_find_quantifier:
   }
 \cs_new_protected_nopar:Npn \regex_new_state:
   {
@@ -335,10 +338,167 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \subsubsection{Escaped letters: character classes}
+%
+% \begin{macro}{\regex_build_.:}
+%   Similar to \cs{regex_build_normal:N} but accepts any character,
+%   and refuses $-1$, which marks the end of the string.
+%    \begin{macrocode}
+\cs_new_protected_nopar:cpn { regex_build_.: }
+  {
+    \cs_set:Npn \regex_tmp_class:nn ##1##2
+      {
+        \exp_not:N \if_num:w \c_minus_one < \l_regex_current_char_int
+          \regex_thread_goto:nn {##1} {##2}
+        \exp_not:N \else:
+          \regex_thread_fail:n {##1}
+        \exp_not:N \fi:
+      }
+    \regex_build_one_find_quantifier:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\regex_build_/d:,\regex_build_/D}
+% \begin{macro}{\regex_build_/w:,\regex_build_/W}
+% \begin{macro}[aux]{\regex_build_slash_aux:Nnn}
+%   Similar to character classes with |[]|, but simpler.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_build_slash_aux:NNN #1#2#3
+  {
+    \cs_set:Npn \regex_tmp_class:nn ##1##2
+      {
+        \exp_not:o #1
+        \exp_not:N \regex_break_point:TF
+          #2 { \regex_thread_fail:n {##1} }
+          { \regex_thread_goto:nn {##1} {##2} }
+          #3 { \regex_thread_fail:n {##1} }
+      }
+    \regex_build_one_find_quantifier:
+  }
+\tl_const:Nn \c_regex_d_tl { \regex_item_range:NN 0 9 }
+\tl_const:Nn \c_regex_w_tl
+  {
+    \regex_item_range:NN A Z
+    \regex_item_range:NN a z
+    \regex_item_range:NN 0 9
+    \regex_item_single:N _
+  }
+\cs_new_protected_nopar:cpn { regex_build_/d: }
+  { \regex_build_slash_aux:NNN \c_regex_d_tl \use_none:n \use:n }
+\cs_new_protected_nopar:cpn { regex_build_/D: }
+  { \regex_build_slash_aux:NNN \c_regex_d_tl \use:n \use_none:n }
+\cs_new_protected_nopar:cpn { regex_build_/w: }
+  { \regex_build_slash_aux:NNN \c_regex_w_tl \use_none:n \use:n }
+\cs_new_protected_nopar:cpn { regex_build_/W: }
+  { \regex_build_slash_aux:NNN \c_regex_w_tl \use:n \use_none:n }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsubsection{Quantifier for one char}
+%
+% \begin{macro}{\regex_build_one_find_quantifier:}
+%   Used for one single character, or a character class.
+%   Some stuff is simpler since we don't need to keep track
+%   of submatches.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_build_one_find_quantifier: #1
+  {
+    \tl_if_in:nnTF { * ? + } {#1}
+      { \regex_build_one_find_quantifier_aux:NN }
+      {
+        \regex_new_state:
+        \regex_toks_put_right:nx \l_regex_left_int
+          {
+            \regex_tmp_class:nn
+              { \int_use:N \l_regex_left_int }
+              { \int_use:N \l_regex_right_int }
+          }
+        \regex_build_loop:N
+      }
+    #1
+  }
+\cs_new_protected_nopar:Npn \regex_build_one_find_quantifier_aux:NN #1#2
+  {
+    \token_if_eq_charcode:NNTF ? #2
+      { \use:c { regex_build_one_ #1 #2 : } \regex_build_loop:N }
+      { \use:c { regex_build_one_ #1 : } \regex_build_loop:N #2 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\regex_build_one_...:}
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_build_one_aux:NNNN #1#2#3#4
+  {
+    \regex_new_state:
+    \regex_toks_put_right:nx \l_regex_left_int
+      {
+        #1 { \int_use:N \l_regex_left_int } { \int_use:N #2 }
+        #3 { \int_use:N \l_regex_left_int } { \int_use:N #4 }
+      }
+  }
+\cs_new_protected_nopar:cpn { regex_build_one_?: }
+  {
+    \regex_build_one_aux:NNNN
+      \regex_tmp_class:nn   \l_regex_right_int
+      \regex_thread_copy:nn \l_regex_right_int
+  }
+\cs_new_protected_nopar:cpn { regex_build_one_??: }
+  {
+    \regex_build_one_aux:NNNN
+      \regex_thread_copy:nn \l_regex_right_int
+      \regex_tmp_class:nn   \l_regex_right_int
+  }
+\cs_new_protected_nopar:cpn { regex_build_one_*: }
+  {
+    \regex_build_one_aux:NNNN
+      \regex_tmp_class:nn   \l_regex_left_int
+      \regex_thread_copy:nn \l_regex_right_int
+  }
+\cs_new_protected_nopar:cpn { regex_build_one_*?: }
+  {
+    \regex_build_one_aux:NNNN
+      \regex_thread_copy:nn \l_regex_right_int
+      \regex_tmp_class:nn   \l_regex_left_int
+  }
+\cs_new_protected_nopar:cpn { regex_build_one_+: }
+  {
+    \regex_new_state:
+    \regex_toks_put_right:nx { \l_regex_left_int }
+      {
+        \regex_tmp_class:nn
+          { \int_use:N \l_regex_left_int }
+          { \int_use:N \l_regex_right_int }
+      }
+    \int_set_eq:NN \l_regex_tmpa_int \l_regex_left_int
+    \regex_build_one_aux:NNNN
+      \regex_thread_copy:nn \l_regex_tmpa_int
+      \regex_thread_move:nn \l_regex_right_int
+  }
+\cs_new_protected_nopar:cpn { regex_build_one_+?: }
+  {
+    \regex_new_state:
+    \regex_toks_put_right:nx { \l_regex_left_int }
+      {
+        \regex_tmp_class:nn
+          { \int_use:N \l_regex_left_int }
+          { \int_use:N \l_regex_right_int }
+      }
+    \int_set_eq:NN \l_regex_tmpa_int \l_regex_left_int
+    \regex_build_one_aux:NNNN
+      \regex_thread_copy:nn \l_regex_right_int
+      \regex_thread_move:nn \l_regex_tmpa_int
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Ignoring spaces}
 %
 % \begin{macro}{\regex_build_~:}
-%^^A bug: when looking for modifiers, spaces are not ignored!
+%^^A bug: when looking for quantifier, spaces are not ignored!
 %   Spaces are ignored in regexes unless escaped.
 %   This is necessary, as \eTeX{} inserts a space
 %   after control sequences when detokenizing.
@@ -347,70 +507,18 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsubsection{Modifiers}
+% \subsubsection{Groups and alternation}
 %
-% \begin{macro}{\regex_build_find_modifiers:F}
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_build_find_modifiers:F #1#2
-  {
-    \tl_if_in:nnTF { * ? + } {#2}
-      { \regex_build_find_modifiers_aux:NN #2 }
-      { #1 #2 }
-  }
-\cs_new_protected_nopar:Npn \regex_build_find_modifiers_aux:NN #1#2
-  {
-    \token_if_eq_charcode:NNTF ? #2
-      { \use:c { regex_build_modifier_#1_lazy: } }
-      { \use:c { regex_build_modifier_#1: } #2 }
-  }
-%    \end{macrocode}
-% \end{macro}
+% We support the syntax \texttt{(\meta{expr1}|\ldots{}%^^A
+%   |\meta{expr$\sb{n}$})\meta{quantifier}} for alternations.
+% If the \meta{quantifier} is \texttt{+} we will need to repeat
+% the alternation for priority to work correctly: indeed, the
+% decision of whether to repeat the pattern or not should be
+% made before the start of the pattern.\footnote{Clarification
+%   needed.} \textbf{For the moment, \texttt{(...)+} (or \texttt{+?})
+%   is \emph{not supported}!}
 %
-% \begin{macro}{\regex_build_modifier_?:}
-%   A question mark means that the last character or group
-%   is optional. This is achieved by adding a free transition
-%   which skips that group, going directly from the left node
-%   to the right node.
-%    \begin{macrocode}
-\cs_new_protected_nopar:cpn { regex_build_modifier_?: }
-  {
-    \regex_put_free:nn { \l_regex_left_int } { \l_regex_right_int }
-    \regex_build_loop:N
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\regex_build_modifier_+:}
-%   A plus sign means that the last group must appear at least once,
-%   but can be repeated arbitrarily many times. For this, we insert
-%   a free transition from the end of the group to its beginning.
-%    \begin{macrocode}
-\cs_new_protected_nopar:cpn { regex_build_modifier_+: }
-  {
-    \regex_put_free:nn { \l_regex_right_int } { \l_regex_left_int }
-    \regex_new_state:
-    \regex_toks_put_right:nx { \l_regex_left_int }
-      { %^^A avoids bug a+b+ matching abab.
-        \regex_thread_move:nn
-          { \int_use:N \l_regex_left_int }
-          { \int_use:N \l_regex_right_int }
-      }
-    \regex_build_loop:N
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\regex_build_modifier_*:}
-%   A star is a combination of \texttt{+} and \texttt{?}. Perhaps not
-%   the most efficient implementation, though.
-%    \begin{macrocode}
-\cs_new_protected_nopar:cpx { regex_build_modifier_*: }
-  {
-    \regex_put_free:nn { \l_regex_left_int } { \l_regex_right_int }
-    \exp_not:c { regex_build_modifier_+: }
-  }
-%    \end{macrocode}
-% \end{macro}
+% 
 %
 % \subsubsection{Alternation}
 %
@@ -427,24 +535,15 @@
 %   all cases of the alternation, then build each branch
 %   separately, and merge them to the common end-node.
 %    \begin{macrocode}
+\seq_new:N \l_regex_capturing_group_seq
 \cs_new_protected_nopar:cpn { regex_build_(: }
   {
     \regex_new_state:
     \regex_if_track_submatches:T
       {
         \int_incr:N \l_regex_capturing_group_int
-        \regex_toks_put_right:nx { \l_regex_left_int }
-          {
-            \regex_thread_submatch:nn
-              { \int_use:N \l_regex_left_int }
-              { \int_use:N \l_regex_capturing_group_int < }
-          }
-        \regex_toks_put_right:nx { \int_use:N \l_regex_right_int }
-          {
-            \regex_thread_submatch:nn
-              { \int_use:N \l_regex_right_int }
-              { \int_use:N \l_regex_capturing_group_int > }
-          }
+        \seq_push:Nx \l_regex_capturing_group_seq
+          { \int_use:N \l_regex_capturing_group_int }
       }
     \seq_push:Nx \l_regex_left_int_seq { \int_use:N \l_regex_left_int }
     \seq_push:Nx \l_regex_right_int_seq { \int_use:N \l_regex_right_int }
@@ -469,17 +568,7 @@
         \regex_toks_put_right:nx { \int_use:N \l_regex_left_int }
           { \regex_thread_obsolete:n { \int_use:N \l_regex_left_int } }
       }
-    \regex_build_find_modifiers:F
-      { %^^A avoids bug (a)(b)*
-        \regex_new_state:
-        \regex_toks_put_right:nx { \l_regex_left_int }
-          {
-            \regex_thread_move:nn
-              { \int_use:N \l_regex_left_int }
-              { \int_use:N \l_regex_right_int }
-          }
-        \regex_build_loop:N
-      }
+    \regex_build_group_find_quantifier:
   }
 %    \end{macrocode}
 %   Building each branch.
@@ -489,7 +578,12 @@
     \regex_new_state:
     \seq_get:NN \l_regex_left_int_seq \l_regex_tmpb_tl
     \int_set:Nn \l_regex_left_int { \l_regex_tmpb_tl }
-    \regex_put_free:nn { \l_regex_left_int } { \l_regex_right_int }
+    \regex_toks_put_right:nx \l_regex_left_int
+      {
+        \regex_thread_copy:nn
+          { \int_use:N \l_regex_left_int }
+          { \int_use:N \l_regex_right_int }
+      }
   }
 \cs_new_protected_nopar:Npn \regex_build_end_alternation:
   {
@@ -506,85 +600,138 @@
 % \end{macro}
 % \end{macro}
 %
-% \subsubsection{Escaped letters: character classes}
+% \subsubsection{Quantifier}
 %
-% \begin{macro}{\regex_build_.:}
-%   Similar to \cs{regex_build_normal:N} but accepts any character,
-%   and refuses $-1$, which marks the end of the string.
+% \begin{macro}{\regex_build_group_find_quantifier:}
 %    \begin{macrocode}
-\cs_new_protected_nopar:cpn { regex_build_.: }
+\cs_new_protected_nopar:Npn \regex_build_group_find_quantifier: #1
   {
-    \regex_new_state:
-    \regex_toks_put_right:nx { \l_regex_left_int }
+    \tl_if_in:nnTF { * ? + } {#1}
+      { \regex_build_group_find_quantifier_aux:NN }
       {
-        \exp_not:N \if_num:w -1 < \l_regex_current_char_int
-          \regex_thread_goto:nn
-            { \int_use:N \l_regex_left_int }
-            { \int_use:N \l_regex_right_int }
-        \exp_not:N \else:
-          \regex_thread_fail:n
-            { \int_use:N \l_regex_left_int }
-        \exp_not:N \fi:
-      }
-    \regex_build_find_modifiers:F { \regex_build_loop:N }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\regex_build_/d:,\regex_build_/D}
-% \begin{macro}{\regex_build_/w:,\regex_build_/W}
-% \begin{macro}[aux]{\regex_build_slash_aux:Nnn}
-%   Similar to character classes with |[]|, but simpler.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_build_slash_aux:Nnn #1#2#3
-  {
-    \regex_new_state:
-    \regex_toks_put_right:nx { \l_regex_left_int }
-      {
-        \exp_not:o #1
-        \exp_not:N \regex_break_point:TF
-          #2
+        \regex_if_track_submatches:T
           {
-            \regex_thread_goto:nn
+            \regex_build_group_track_submatches:NN
+              \l_regex_left_int \l_regex_right_int
+          }
+        \regex_new_state:
+        \regex_toks_put_right:nx { \l_regex_left_int }
+          {
+            \regex_thread_move:nn
               { \int_use:N \l_regex_left_int }
               { \int_use:N \l_regex_right_int }
           }
-          #3
+        \regex_build_loop:N
       }
-    \regex_build_find_modifiers:F { \regex_build_loop:N }
+    #1
   }
-\tl_const:Nn \c_regex_d_tl { \regex_item_range:NN 0 9 }
-\tl_const:Nn \c_regex_w_tl
+\cs_new_protected_nopar:Npn \regex_build_group_find_quantifier_aux:NN #1#2
   {
-    \regex_item_range:NN A Z
-    \regex_item_range:NN a z
-    \regex_item_range:NN 0 9
-    \regex_item_single:N _
+    \token_if_eq_charcode:NNTF ? #2
+      { \use:c { regex_build_group_ #1 #2 : } \regex_build_loop:N }
+      { \use:c { regex_build_group_ #1 : } \regex_build_loop:N #2 }
   }
-\cs_new_protected_nopar:cpn { regex_build_/d: }
+\cs_new_protected_nopar:Npn \regex_build_group_track_submatches:NN #1#2
   {
-    \regex_build_slash_aux:Nnn \c_regex_d_tl
-      { } { \regex_thread_fail:n { \int_use:N \l_regex_left_int } }
-  }
-\cs_new_protected_nopar:cpn { regex_build_/D: }
-  {
-    \regex_build_slash_aux:Nnn \c_regex_d_tl
-      { \regex_thread_fail:n { \int_use:N \l_regex_left_int } } { }
-  }
-\cs_new_protected_nopar:cpn { regex_build_/w: }
-  {
-    \regex_build_slash_aux:Nnn \c_regex_w_tl
-      { } { \regex_thread_fail:n { \int_use:N \l_regex_left_int } }
-  }
-\cs_new_protected_nopar:cpn { regex_build_/W: }
-  {
-    \regex_build_slash_aux:Nnn \c_regex_w_tl
-      { \regex_thread_fail:n { \int_use:N \l_regex_left_int } } { }
+    \seq_pop:NN \l_regex_capturing_group_seq \l_regex_tmpb_tl
+    \regex_toks_put_left:nx #1
+      { \regex_thread_submatch:nn { \int_use:N #1 } { \l_regex_tmpb_tl < } }
+    \regex_toks_put_left:nx #2
+      { \regex_thread_submatch:nn { \int_use:N #2 } { \l_regex_tmpb_tl > } }
   }
 %    \end{macrocode}
 % \end{macro}
+%
+% \begin{macro}{\regex_build_group_?:}
+%   A question mark means that the last character or group
+%   is optional. This is achieved by adding a free transition
+%   which skips that group, going directly from the left node
+%   to the right node.
+%    \begin{macrocode}
+\cs_new_protected_nopar:cpn { regex_build_group_?: }
+  { \regex_build_group_q_aux:N \regex_toks_put_right:nx }
+\cs_new_protected_nopar:cpn { regex_build_group_??: }
+  { \regex_build_group_q_aux:N \regex_toks_put_left:nx }
+\cs_new_protected_nopar:Npn \regex_build_group_q_aux:N #1
+  {
+    \regex_if_track_submatches:T
+      {
+        \regex_build_group_track_submatches:NN
+          \l_regex_left_int \l_regex_right_int
+      }
+    #1 \l_regex_left_int
+      {
+        \regex_thread_copy:nn
+          { \int_use:N \l_regex_left_int }
+          { \int_use:N \l_regex_right_int }
+      }
+  }
+%    \end{macrocode}
 % \end{macro}
+%
+% \begin{macro}{\regex_build_group_+:}
+%    \begin{macrocode}
+\cs_new_protected_nopar:cpn { regex_build_group_+: }
+  {
+    \msg_error:nnx { regex } { not-implemented } { (...)+ }
+    \regex_build_loop:N
+  }
+\cs_new_protected_nopar:cpn { regex_build_group_+?: }
+  {
+    \msg_error:nnx { regex } { not-implemented } { (...)+? }
+    \regex_build_loop:N
+  }
+\msg_new:nnnn { regex } { not-implemented }
+  { The~modifier~used~in~'#1'~is~not~implemented~yet! }
+  {
+    Use~'*'~instead,~and~copy~the~group.\\
+    For~instance,~(ab)+~is~(almost)~equivalent~to~ab(ab)*.
+  }
+  % todo: make +, ?, * into errors when appearing on their own.
+  % todo: make unimplemented features into errors (e.g., \s, \n...)
+%    \end{macrocode}
 % \end{macro}
+%
+% \begin{macro}{\regex_build_group_*:}
+%    \begin{macrocode}
+\cs_new_protected_nopar:cpn { regex_build_group_*: }
+  {
+    \regex_build_group_s_aux:NNN
+      \regex_toks_put_right:nx
+      \l_regex_tmpa_int \l_regex_right_int
+  }
+\cs_new_protected_nopar:cpn { regex_build_group_*?: }
+  {
+    \regex_build_group_s_aux:NNN
+      \regex_toks_put_left:nx
+      \l_regex_right_int \l_regex_tmpa_int
+  }
+\cs_new_protected_nopar:Npn \regex_build_group_s_aux:NNN #1#2#3
+  {
+    \int_set_eq:NN \l_regex_tmpa_int \l_regex_left_int
+    \regex_new_state:
+    #1 \l_regex_tmpa_int
+      {
+        \regex_thread_copy:nn
+          { \int_use:N \l_regex_tmpa_int }
+          { \int_use:N \l_regex_right_int }
+      }
+    \regex_toks_put_right:nx \l_regex_left_int
+      {
+        \regex_thread_copy:nn
+          { \int_use:N \l_regex_left_int } { \int_use:N #2 }
+        \regex_thread_move:nn
+          { \int_use:N \l_regex_left_int } { \int_use:N #3 }
+      }
+    \regex_if_track_submatches:T
+      {
+        \regex_build_group_track_submatches:NN
+          \l_regex_tmpa_int \l_regex_left_int
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 %
 % \subsubsection{Character classes}
 %
@@ -716,32 +863,22 @@
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { regex_class_]: }
   {
-    \regex_new_state:
-    \regex_toks_put_right:nx
-      \l_regex_left_int
+    \cs_set:Npn \regex_tmp_class:nn ##1##2
       {
         \exp_not:o \l_regex_class_tl
         \bool_if:NTF \l_regex_class_bool
           {
             \exp_not:N \regex_break_point:TF
-              {
-                \regex_thread_goto:nn
-                  { \int_use:N \l_regex_left_int }
-                  { \int_use:N \l_regex_right_int }
-              }
-              { \regex_thread_fail:n { \int_use:N \l_regex_left_int } }
+              { \regex_thread_goto:nn {##1} {##2} }
+              { \regex_thread_fail:n {##1} }
           }
           {
             \exp_not:N \regex_break_point:TF
-              { \regex_thread_fail:n { \int_use:N \l_regex_left_int } }
-              {
-                \regex_thread_goto:nn
-                  { \int_use:N \l_regex_left_int }
-                  { \int_use:N \l_regex_right_int }
-              }
+              { \regex_thread_fail:n {##1} }
+              { \regex_thread_goto:nn {##1} {##2} }
           }
       }
-    \regex_build_find_modifiers:F { \regex_build_loop:N }
+    \regex_build_one_find_quantifier:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1096,6 +1233,7 @@
       {
         \regex_A_make_used:n \l_regex_current_state_int
         \tex_the:D \tex_toks:D \l_regex_current_state_int
+        \regex_end_of_current_toks:n { }
       }
 %<trace>    \int_decr:N \l_regex_trace_nesting_int
     \regex_state_use:n {#2}
@@ -1114,7 +1252,7 @@
 % \item \cs{regex_thread_obsolete:n} similar to fail, but when
 %   a thread is clobbered by one with higher precedence.
 % \item \cs{regex_thread_copy:nn} for \enquote{free} arrows,
-%   coming from modifiers such as |*| or from alternations;
+%   coming from quantifiers such as |*| or from alternations;
 % \item \cs{regex_thread_move:nn} similar to \enquote{copy},
 %   but for cases where there is only one arrow, hence
 %   no copying is needed;
@@ -1152,8 +1290,11 @@
 %<trace>    \regex_trace:x { fail }
     \regex_if_track_submatches:T
       {
-        \exp_args:NNf \prop_pop:NnN \l_regex_submatch_prop
-          { \regex_Athread:n {#1} } \l_regex_tmpb_tl
+        \regex_put_at_end_of_current_toks:n
+          {
+            \exp_args:NNf \prop_pop:NnN \l_regex_submatch_prop
+              { \regex_Athread:n {#1} } \l_regex_tmpb_tl
+          }
       }
   }
 %    \end{macrocode}
@@ -1214,6 +1355,7 @@
           }
 %<trace>        \regex_trace_the_toks:n {#2}
 %<!trace>        \tex_the:D \tex_toks:D #2 \scan_stop:
+        \regex_end_of_current_toks:n { }
       }
   }
 \cs_new_protected:Npn \regex_thread_copy_submatch:nn #1 #2
@@ -1248,6 +1390,7 @@
         \regex_Aput_thread_in_state:nn { \regex_Athread:n {#1} } {#2}
 %<trace>        \regex_trace_the_toks:n {#2}
 %<!trace>        \tex_the:D \tex_toks:D #2 \scan_stop:
+        \regex_end_of_current_toks:n { }
       }
   }
 %    \end{macrocode}
@@ -1265,6 +1408,20 @@
     \use_none_delimit_by_q_stop:w
   }
 %    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\regex_put_at_end_of_current_toks:n}
+% \begin{macro}{\regex_end_of_current_toks:n}
+%   This is used to fail threads at the right place.
+%    \begin{macrocode}
+\cs_new:Npn \regex_put_at_end_of_current_toks:n
+    #1 #2 \regex_end_of_current_toks:n #3
+  {
+    #2 \regex_end_of_current_toks:n { #3 #1 }
+  }
+\cs_new_eq:NN \regex_end_of_current_toks:n \use:n
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \subsection{Extract submatches}
