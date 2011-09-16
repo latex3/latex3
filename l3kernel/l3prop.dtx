@@ -875,7 +875,7 @@
 %     \prop_if_in:Nn, \prop_if_in:NV, \prop_if_in:No,
 %     \prop_if_in:cn, \prop_if_in:cV, \prop_if_in:co
 %   }
-% \begin{macro}[aux]{\prop_if_in_aux:w}
+% \begin{macro}[aux]{\prop_if_in_aux:nwn,\prop_if_in_aux:Nw}
 %   Testing expandably if a key is in a property list
 %   requires to go through the key--value pairs one by one.
 %   This is rather slow, and a faster test would be
@@ -892,9 +892,14 @@
 %   \end{verbatim}
 %   but \cs{prop_split:NnTF} is non-expandable.
 %
-%   Instead, the key is compared to each key in turn using \cs{str_if_eq:nn},
-%   which is expandable. The mapping is stopped using |A|, which cannot appear
-%   within a key of the property list, since keys are strings.
+%   Instead, the key is compared to each key in turn using \cs{str_if_eq:xx},
+%   which is expandable. To terminate the mapping, we add the key that
+%   is search for at the end of the property list. This second
+%   \cs{tl_to_str:n} is not expanded at the start, but only when included
+%   in the \cs{str_if_eq:xx}. It cannot make the breaking mechanism choke,
+%   because the arbitrary token list material is enclosed in braces.
+%   When ending, we test the next token: it is either \cs{q_prop}
+%   or \cs{q_recursion_tail} in the case of a missing key.
 %   Here, \cs{prop_map_function:NN} is not sufficient for the mapping,
 %   since it can only map a single token, and cannot carry the key that
 %   is searched for.
@@ -903,20 +908,22 @@
   {
     \exp_last_unbraced:Noo \prop_if_in_aux:nwn
       { \tl_to_str:n {#2} } #1
-    A \q_prop { } \q_stop
+      \tl_to_str:n {#2} \q_prop { }
+    \q_recursion_tail \q_recursion_stop
   }
 \cs_new:Npn \prop_if_in_aux:nwn #1 \q_prop #2 \q_prop #3
   {
-    \if_meaning:w A #2
-       \prg_return_false:
-       \exp_after:wN \use_none_delimit_by_q_stop:w
+    \str_if_eq:xxTF {#1} {#2}
+      { \prop_if_in_aux:Nw }
+      { \prop_if_in_aux:nwn {#1} }
+  }
+\cs_new:Npn \prop_if_in_aux:Nw #1 #2 \q_recursion_stop
+  {
+    \if_meaning:w \q_prop #1
+      \prg_return_true:
+    \else:
+      \prg_return_false:
     \fi:
-    \str_if_eq:nnT {#1} {#2}
-      {
-        \prg_return_true:
-        \use_none_delimit_by_q_stop:w
-      }
-    \prop_if_in_aux:nwn {#1}
   }
 \cs_generate_variant:Nn \prop_if_in_p:Nn {     NV , No }
 \cs_generate_variant:Nn \prop_if_in_p:Nn { c , cV , co }
@@ -973,16 +980,16 @@
 % \begin{macro}[aux]{\prop_map_function_aux:Nwn}
 %   The fastest way to do a recursion here is to use an
 %   \cs{if_meaning:w} test: the keys are strings, and thus
-%   cannot match the marker |A| (which has catcode \enquote{letter}).
+%   cannot match the marker \cs{q_recursion_tail}.
 %    \begin{macrocode}
 \cs_new_nopar:Npn \prop_map_function:NN #1#2
   {
     \exp_last_unbraced:NNo \prop_map_function_aux:Nwn #2
-      #1 A \q_prop { } \q_recursion_stop
+      #1 \q_recursion_tail \q_prop { } \q_recursion_stop
   }
 \cs_new:Npn \prop_map_function_aux:Nwn #1 \q_prop #2 \q_prop #3
   {
-    \if_meaning:w A #2
+    \if_meaning:w \q_recursion_tail #2
       \exp_after:wN \prop_map_break:
     \fi:
     #1 {#2} {#3}
@@ -1125,18 +1132,18 @@
 % \begin{macro}[rEXP]{\prop_map_tokens:Nn, \prop_map_tokens:cn}
 % \begin{macro}[aux]{\prop_map_tokens_aux:nwn}
 %   The mapping grabs one key--value pair at a time, and stops when
-%   reaching the marker key |A|, with catcode \enquote{letter}, which
+%   reaching the marker key \cs{q_recursion_tail}, which
 %   cannot appear in normal keys since those are strings. The odd
 %   construction |\use:n {#1}| allows |#1| to contain any token.
 %    \begin{macrocode}
 \cs_new:Npn \prop_map_tokens:Nn #1#2
   {
     \exp_last_unbraced:Nno \prop_map_tokens_aux:nwn {#2} #1
-    A \q_prop { } \q_recursion_stop
+    \q_recursion_tail \q_prop { } \q_recursion_stop
   }
 \cs_new:Npn \prop_map_tokens_aux:nwn #1 \q_prop #2 \q_prop #3
   {
-    \if_meaning:w A #2
+    \if_meaning:w \q_recursion_tail #2
        \exp_after:wN \prop_map_break:
     \fi:
     \use:n {#1} {#2} {#3}
@@ -1147,8 +1154,8 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\prop_get:Nn, \prop_get:Nn}
-% \begin{macro}[aux]{\prop_get_aux:nnn}
+% \begin{macro}[EXP]{\prop_get:Nn, \prop_get:cn}
+% \begin{macro}[aux]{\prop_get_Nn_aux:nwn}
 %   Getting the value corresponding to a key in a property list in an
 %   expandable fashion is a simple instance of mapping some tokens.
 %   Map the function \cs{prop_get_aux:nnn} which takes as its three
@@ -1158,9 +1165,18 @@
 %   to nothing.
 %    \begin{macrocode}
 \cs_new:Npn \prop_get:Nn #1#2
-  { \prop_map_tokens:Nn #1 { \prop_get_aux:nnn {#2} } }
-\cs_new:Npn \prop_get_aux:nnn #1#2#3
-  { \str_if_eq:nnT {#1} {#2} { \prop_map_break:n {#3} } }
+  {
+    \exp_last_unbraced:Noo \prop_get_Nn_aux:nwn
+      { \tl_to_str:n {#2} } #1
+      \tl_to_str:n {#2} \q_prop { }
+    \q_recursion_stop
+  }
+\cs_new:Npn \prop_get_Nn_aux:nwn #1 \q_prop #2 \q_prop #3
+  {
+    \str_if_eq:xxTF {#1} {#2}
+      { \use_i_delimit_by_q_recursion_stop:nw {#3} }
+      { \prop_get_Nn_aux:nwn {#1} }
+  }
 \cs_generate_variant:Nn \prop_get:Nn { c }
 %    \end{macrocode}
 % \end{macro}
