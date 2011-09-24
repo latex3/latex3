@@ -425,10 +425,6 @@
 %   Boundary below which overfull vertical boxes are not reported.
 % \end{variable}
 %
-% \begin{variable}{\l_galley_parbreak_interline_penalty_int}
-%   Penalty for breaking between lines in a paragraph.
-% \end{variable}
-%
 % \begin{variable}{\l_galley_parbreak_pre_display_penalty_int}
 %   Penalty for breaking between immediately before display math material.
 % \end{variable}
@@ -436,31 +432,51 @@
 % \begin{variable}{\l_galley_parbreak_post_display_penalty_int}
 %   Penalty for breaking between immediately after display math material.
 % \end{variable}
-%
-% \begin{function}{\galley_parbreak_set_array_penalty:nn}
+% 
+% \begin{function}
+%   {
+%     \galley_parbreak_set_club_penalties:n,
+%     \galley_parbreak_set_display_club_penalties:n,
+%     \galley_parbreak_set_display_widow_penalties:n,
+%     \galley_parbreak_set_widow_penalties:n
+%   }
 %   \begin{syntax}
-%     \cs{galley_parbreak_set_array_penalty:nn} \Arg{case} \Arg{penalty list}
+%     \cs{galley_parbreak_set_club_penalties:n} \Arg{penalty list}
 %   \end{syntax}
-%   Sets the penalty applied for breaking a paragraph between lines in one
-%   of four \meta{cases}:
+%   Set the penalties for breaking lines at the beginning and end of
+%   (partial) paragraphs. In each case, the \meta{penalty list} is a
+%   comma-separated list of penalty values. The list applies as follows:
 %   \begin{itemize}
-%     \item[\texttt{club}] Penalties applied after the first, second, third,
-%       \emph{etc.}, line of a (partial) paragraph (\emph{i.e.}~applies
-%       after display math which forms part of a larger paragraph);
-%     \item[\texttt{displaywidow}] Penalties applied before the last,
-%       penultimate, antepenultimate, \emph{etc.}, line of a partial paragraph
-%       immediately preceding a display math environment.
-%     \item[\texttt{interline}] Penalties applied after the first, second,
-%       third, \emph{etc.}, line of a paragraph (\emph{i.e.}~applies only
-%       after the beginning of a paragraph, irrespective of any intervening
-%       display math);
-%     \item[\texttt{widow}] Penalties applied before the last, penultimate,
-%       antepenultimate, \emph{etc.}, line of a (partial) paragraph.
+%     \item[\texttt{club}] Penalties for breaking after the first, second,
+%       third, \emph{etc.}~line of the paragraph.
+%     \item[\texttt{display_club}] Penalties for breaking after the first,
+%       second, third, \emph{etc.}~line after a display math environment.
+%     \item[\texttt{display_club}] Penalties for breaking before the last,
+%       penultimate, antepenultimate, \emph{etc.}~line before a display
+%       math environment.
+%     \item[\texttt{widow}] Penalties for breaking before the last,
+%       penultimate, antepenultimate, \emph{etc.}~line of the paragraph.
 %   \end{itemize}
-%   In each case, the \meta{penalty list} should comprise a comma-separated
-%   list of integer penalty values. The final \meta{penalty} in the list
-%   is repeated as necessary for additional lines: thus the last value
-%   will be $0$ in cases where \enquote{no further effect} is required.
+%   In all cases, these penalties apply in addition to the general interline
+%   penalty or to any \enquote{special} line penalties.
+% \end{function}
+% 
+% \begin{function}{\galley_parbreak_set_interline_penalty:n}
+%   \begin{syntax}
+%     \cs{galley_parbreak_set_interline_penalty:n} \Arg{penalty}
+%   \end{syntax}
+%   Sets the standard interline penalty applied between lines of a paragraph.
+%   This value is added to any (display) club or widow penalty in force.
+% \end{function}
+% 
+% \begin{function}{\galley_parbreak_set_interline_penalties:n}
+%   \begin{syntax}
+%     \cs{galley_parbreak_set_interline_penalties:n} \Arg{penalty list}
+%   \end{syntax}
+%   Sets \enquote{special} interline penalties to be used in place of
+%   the standard value, specified as a comma-separated \meta{penalty list}.
+%   The \meta{penalties} apply to the first, second, third, \emph{etc.}~line
+%   of the paragraph.
 % \end{function}
 %
 % \section{Hooks and insertion points}
@@ -1699,50 +1715,219 @@
   \tex_predisplaypenalty:D
 %    \end{macrocode}
 % \end{variable}
-%
-% \begin{macro}{\galley_parbreak_set_array_penalty:nn}
-% \begin{macro}[aux]{\galley_parbreak_set_array_penalty_aux:n}
-%   For the penalties which \eTeX{} provides as an array, there is a simple
-%   conversion.
+% 
+% \begin{macro}
+%   {
+%     \l_galley_parbreak_club_penalties_clist,
+%     \l_galley_parbreak_line_penalties_clist
+%   }
+%   These are used to keep a track of information which cannot be
+%   extracted out of the primitives due to the overlapping nature of
+%   the meanings.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \galley_parbreak_set_array_penalty:nn #1#2
+\clist_new:N \l_galley_parbreak_club_penalties_clist
+\clist_new:N \l_galley_parbreak_line_penalties_clist
+%    \end{macrocode}
+% \end{macro}
+% 
+% \begin{macro}
+%   {
+%     \galley_parbreak_set_display_widow_penalties:n,
+%     \galley_parbreak_set_widow_penalties:n
+%   }
+% \begin{macro}[aux]{\galley_parbreak_set_aux:n}
+%   By far the easiest penalties to deal with are those for widows. These
+%   work exactly as the names imply, with the display version only used
+%   immediately before display math, and the standard penalty used at the end
+%   of a paragraph. Thus there is only the need to convert the argument into
+%   the correct form, and add a $0$ penalty at the end to nullify the effect of
+%   repeating the last value.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \galley_parbreak_set_display_widow_penalties:n #1
   {
-    \cs_if_exist:cT { etex_ #1 penalties:D }
-      {
-        \use:c { etex_ #1 penalties:D }
-          \clist_length:n {#1} ~
-          \clist_map_function:nN {#1} \galley_parbreak_set_array_penalty_aux:n
-      }
+    \etex_displaywidowpenalties:D
+      \int_eval:w \clist_length:n {#1} + \c_one \int_eval_end:
+      \clist_map_function:nN {#1} \galley_parbreak_set_aux:n
+      \c_zero
   }
-\cs_new_nopar:Npn \galley_parbreak_set_array_penalty_aux:n #1 { #1 ~ }
+\cs_new_protected_nopar:Npn \galley_parbreak_set_widow_penalties:n #1
+  {
+    \etex_widowpenalties:D
+      \int_eval:w \clist_length:n {#1} + \c_one \int_eval_end:
+      \clist_map_function:nN {#1} \galley_parbreak_set_aux:n
+      \c_zero
+  }
+\cs_new_nopar:Npn \galley_parbreak_set_aux:n #1 { #1 ~ }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
-%
-% \begin{macro}{\galley_parbreak_save_array_penalty:nN}
-% \begin{macro}[aux]{\galley_parbreak_save_array_penalty_aux:n}
-%  To convert an array penalty back into a comma list.
+% 
+% \begin{macro}
+%   {
+%     \galley_parbreak_set_club_penalties:n,
+%     \galley_parbreak_set_interline_penalties:n
+%   }
+%   Setting club or special line penalties is easy, as these are handled
+%   mainly by the interline set up function. The two concepts are essentially
+%   the same, but having two takes makes some special effects easier to
+%   carry out.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \galley_parbreak_save_array_penalty:nN #1#2
+\cs_new_protected_nopar:Npn \galley_parbreak_set_club_penalties:n #1
   {
-    \cs_if_exist:cTF { etex_ #1 penalties:D }
+    \clist_set:Nn \l_galley_parbreak_club_penalties_clist {#1}
+    \galley_parbreak_calc_interline_penalties:
+  }
+\cs_new_protected_nopar:Npn \galley_parbreak_set_interline_penalties:n #1
+  {
+    \clist_set:Nn \l_galley_parbreak_line_penalties_clist {#1}
+    \galley_parbreak_calc_interline_penalties:
+  }
+%    \end{macrocode}
+% \end{macro}
+% 
+% \begin{macro}{\galley_parbreak_set_display_club_penalties:n}
+%   Setting the display club penalties means first setting the primitive,
+%   then recalculating the interline array to allow for these new values.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \galley_parbreak_set_display_club_penalties:n #1
+  {
+    \etex_clubpenalties:D
+      \int_eval:w \clist_length:n {#1} + \c_one \int_eval_end:
+      \clist_map_function:nN {#1} \galley_parbreak_set_aux:n
+      \c_zero
+    \galley_parbreak_calc_interline_penalties:
+  }
+%    \end{macrocode}
+% \end{macro}
+% 
+% \begin{macro}{\galley_parbreak_set_interline_penalty:n}
+% \begin{macro}[aux]{\galley_parbreak_set_interline_penalty_aux:nn}
+% \begin{macro}[aux]
+%   {
+%     \galley_parbreak_set_interline_penalty_aux_i:n,
+%     \galley_parbreak_set_interline_penalty_aux_ii:n
+%   }
+%   Dealing with the general interline penalty is handled in one shot.
+%   The idea is that for lines with no special penalty, the old general
+%   penalty is removed and the new one is added. If there is currently
+%   no shape set, then after adding the general interline value the
+%   generic build system is invoked (in case the
+%   \cs{etex_interlinepenalties:D} has accidentally been cleared).
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \galley_parbreak_set_interline_penalty:n #1
+  {
+    \int_compare:nNnTF { \etex_interlinepenalties:D \c_zero } = \c_zero
       {
-        \cs_set_nopar:Npn \galley_parbreak_save_array_penalty_aux:n ##1
+        \etex_interlinepenalties:D \c_one \int_eval:w #1 \int_eval_end:
+        \galley_parbreak_calc_interline_penalties:
+      }
+      {
+        \cs_set_nopar:Npn \galley_parbreak_set_interline_penalty_aux_ii:n ##1
           {
-            ,
-            \int_use:c { etex_ #1 penalties:D } \int_eval:w ##1 \int_eval_end:
+            \int_eval:w
+              \etex_interlinepenalties:D ##1
+               - \etex_interlinepenalties:D \etex_interlinepenalties:D \c_zero
+               + #1
+            \int_eval_end:  
           }
-        \clist_set:Nx #1
+        \exp_args:Nf \galley_parbreak_set_interline_penalty_aux:nn
+          { \clist_length:N \l_galley_parbreak_line_penalties_clist } {#1}
+      }
+  }
+\cs_new_protected_nopar:Npn \galley_parbreak_set_interline_penalty_aux:nn #1#2
+  { 
+    \etex_interlinepenalties:D
+      \etex_interlinepenalties:D \c_zero
+      \prg_stepwise_function:nnnN \c_one \c_one {#1} 
+        \galley_parbreak_set_interline_penalty_aux_i:n
+      \prg_stepwise_function:nnnN { #1 + \c_one } \c_one
+        { \etex_interlinepenalties:D \c_zero - \c_one }
+        \galley_parbreak_set_interline_penalty_aux_ii:n
+      \int_eval:w #2 \int_eval_end:
+  }
+\cs_new_nopar:Npn \galley_parbreak_set_interline_penalty_aux_i:n #1
+  { \etex_interlinepenalties:D \int_eval:w #1 \int_eval_end: }
+\cs_new_nopar:Npn \galley_parbreak_set_interline_penalty_aux_ii:n #1 { }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% 
+% \begin{macro}[int]{\galley_parbreak_calc_interline_penalties:}
+% \begin{macro}[aux]{\galley_parbreak_calc_interline_penalties_aux:nn}
+% \begin{macro}[aux]
+%   {
+%     \galley_parbreak_calc_interline_penalties_aux_i:n,
+%     \galley_parbreak_calc_interline_penalties_aux_ii:n
+%   }
+%   The underlying interline penalty array has to deal with club penalties,
+%   display club penalties and any special line penalties, and include
+%   the general interline penalty. These requirements lead to a rather
+%   complex requirement on how many lines to deal with. This is needed twice,
+%   so an \texttt{f}-type expansion is used to make life a little less
+%   complex.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \galley_parbreak_calc_interline_penalties:
+  {
+    \exp_args:Nff \galley_parbreak_calc_interline_penalties_aux:nn
+      {
+        \int_eval:n
           {
-            \prg_stepwise_function:nnnN \c_one \c_one
-              { \int_use:c { etex_ #1 penalties:D } \c_zero }
-              \galley_parbreak_save_array_penalty_aux:n
+            \int_max:nn
+              {
+                  \clist_length:N \l_galley_parbreak_club_penalties_clist
+                + \c_one
+              }
+              {
+                \int_max:nn
+                  {
+                      \clist_length:N \l_galley_parbreak_line_penalties_clist
+                    + \c_one
+                  } 
+                  { \etex_clubpenalties:D \c_zero }
+              }
           }
       }
-      { \clist_clear:N #1 }
+      { \clist_length:N \l_galley_parbreak_line_penalties_clist }
   }
-\cs_new_nopar:Npn \galley_parbreak_save_array_penalty:n #1 { }
 %    \end{macrocode}
+%   The idea is now to calculate the correct penalties. Two auxiliary functions
+%   are used: one for any \enquote{special penalty} lines and a second for
+%   normal lines. At the end of the process, the standard interline
+%   penalty is always included.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \galley_parbreak_calc_interline_penalties_aux:nn
+  #1#2
+  {
+    \etex_interlinepenalties:D #1 ~
+      \prg_stepwise_function:nnnN \c_one \c_one {#2}
+        \galley_parbreak_calc_interline_penalties_aux_i:n
+      \prg_stepwise_function:nnnN { #2 + \c_one } \c_one { #1 - \c_one }
+        \galley_parbreak_calc_interline_penalties_aux_ii:n
+      \etex_interlinepenalties:D \etex_interlinepenalties:D \c_zero
+  }
+\cs_new_nopar:Npn \galley_parbreak_calc_interline_penalties_aux_i:n
+  #1
+  {
+    \int_eval:w
+        \clist_item:Nn \l_galley_parbreak_line_penalties_clist { #1 - \c_one }
+      + 0 \clist_item:Nn \l_galley_parbreak_club_penalties_clist
+        { #1 - \c_one }
+      - \etex_clubpenalties:D #1 ~
+    \int_eval_end:
+  }
+\cs_new_nopar:Npn \galley_parbreak_calc_interline_penalties_aux_ii:n
+  #1
+  {
+    \int_eval:w
+        \etex_interlinepenalties:D \etex_interlinepenalties:D \c_zero 
+      + 0 \clist_item:Nn \l_galley_parbreak_club_penalties_clist
+          { #1 - \c_one }
+      - \etex_clubpenalties:D #1 ~
+    \int_eval_end:
+  }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
