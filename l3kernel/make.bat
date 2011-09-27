@@ -85,6 +85,7 @@ rem Makefile for LaTeX3 "expl3" files
   copy /y %SUPPORTDIR%\log2tlg           > nul
   copy /y %VALIDATE%\regression-test.tex > nul
   copy /y %VALIDATE%\pdftex.def          > nul
+  copy /y %VALIDATE%\pdftexcmds.sty      > nul
   copy /y %VALIDATE%\supp-pdf.mkii       > nul
 
   if exist *.fc  del /q *.fc
@@ -209,6 +210,7 @@ rem Makefile for LaTeX3 "expl3" files
   copy /y %SUPPORTDIR%\log2tlg           > nul
   copy /y %VALIDATE%\regression-test.tex > nul
   copy /y %VALIDATE%\pdftex.def          > nul
+  copy /y %VALIDATE%\pdftexcmds.sty      > nul
   copy /y %VALIDATE%\supp-pdf.mkii       > nul
 
   shift
