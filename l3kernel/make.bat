@@ -409,6 +409,7 @@ rem Makefile for LaTeX3 "expl3" files
   if exist *.cls (
     xcopy /q /y *.cls "%INSTALLROOT%\" > nul
   )
+  xcopy /q /y *.def "%INSTALLROOT%\"   > nul
   xcopy /q /y *.sty "%INSTALLROOT%\"   > nul
 
   goto :clean-int

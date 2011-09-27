@@ -488,6 +488,7 @@ localinstall: unpack
 	rm -rf $$TEXMFHOME/makeindex/$(PACKAGE)/* ; \
 	cd $(TESTDIR) ; \
 	cp *.cls $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
+	cp *.def $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp l3doc.ist $$TEXMFHOME/makeindex/$(PACKAGE)
 	texhash > /dev/null
