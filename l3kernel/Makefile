@@ -110,6 +110,7 @@ AUXFILES = \
 
 CLEAN = \
 	cls  \
+	def  \
 	diff \
 	fmt  \
 	gz   \
