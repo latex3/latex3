@@ -140,6 +140,7 @@
 %     of the \LaTeXe{} command \cs{verb}. Thus a \texttt{v}-type argument
 %     is read between two matching tokens, which cannot be any of |%|, |\|,
 %     |#|, |{|, |}|, |^| or \verb*| |.
+%     The verbatim argument can also be enclosed between braces, |{| and |}|.
 %     A command with a verbatim
 %     argument will not work when it appears within an argument of
 %     another function.
@@ -1821,46 +1822,24 @@
 %
 % \begin{macro}{\xparse_grab_v:w}
 % \begin{macro}{\xparse_grab_v_long:w}
+% \begin{macro}{\xparse_grab_v_aux:w}
+% \begin{macro}{\xparse_grab_v_group_end:}
 % \begin{variable}{\l_xparse_v_rest_of_signature_tl}
 % \begin{variable}{\l_xparse_v_arg_tl}
-% \begin{macro}{\xparse_grab_v_aux:nw, \xparse_grab_v_aux_test:nN}
-% \begin{macro}
-%   {
-%     \xparse_grab_v_aux_loop:N,
-%     \xparse_grab_v_aux_loop_ii:NN,
-%     \xparse_grab_v_aux_loop_end:,
-%     \xparse_grab_v_group_end:
-%   }
-% \begin{macro}{\xparse_grab_v_aux_abort:, \xparse_grab_v_aux_abort_ii:w}
-%   The opening delimiter is never read verbatim: if the preceeding
-%   argument was optional and absent, then \TeX{} has already read
+%   The opening delimiter is never read verbatim, for consistency: if the
+%   preceeding argument was optional and absent, then \TeX{} has already read
 %   that token when looking for the optional argument. The first thing
-%   to check is that this delimiter is a character.
-%   Then change category codes, and start reading tokens one by one.
-%   If the verbatim was not nested, we will be grabbing one character
-%   at each step. Unfortunately, it can happen that what follows the
-%   verbatim argument is already tokenized. Thus, we check at each step
-%   that the next token is indeed a \enquote{nice}
-%   character, \emph{i.e.}, is not a character with
-%   category code $1$ (begin-group), $2$ (end-group)
-%   or $6$ (macro parameter), nor the space character,
-%   with category code~$10$ and character code~$32$,
-%   nor a control sequence.
-%   The partially built argument is stored in \cs{g_xparse_v_arg_tl}.
-%   If we ever meet a token which we cannot grab (non-N-type),
-%   or which is not a character according to
-%   \cs{xparse_grab_v_token_if_char:NTF}, then we bail out with
-%   \cs{xparse_grab_v_aux_abort:}. Otherwise, we stop at the first
-%   character matching the delimiter.
+%   to check is that this delimiter is a character, and distinguish the
+%   case of a left brace (in that case, \cs{group_align_safe_end:}
+%   is needed to compensate for the begin-group character that was
+%   just seen).
+%   Then set verbatim catcodes with \cs{xparse_grab_v_aux_catcodes:}.
 %
 %   The group keep catcode changes local, and
 %   \cs{group_align_safe_begin/end:} allow to use a character
 %   with category code $4$ (normally |&|) as the delimiter.
-%
-%   The approach for short verbatim arguments is to make the end-line
-%   character a macro parameter character: this is forbidden by the
-%   rest of the code. Then the error branch can check what caused the
-%   bail out and give the appropriate error message.
+%   It is ended by \cs{xparse_grab_v_group_end:}, which smuggles
+%   the collected argument out of the group.
 %    \begin{macrocode}
 \tl_new:N \l_xparse_v_rest_of_signature_tl
 \tl_new:N \l_xparse_v_arg_tl
@@ -1876,33 +1855,72 @@
   }
 \cs_new_protected:Npn \xparse_grab_v_aux:w #1 \l_xparse_args_tl
   {
+    \tl_set:Nn \l_xparse_v_rest_of_signature_tl {#1}
     \group_begin:
       \group_align_safe_begin:
         \tex_escapechar:D = 92 \scan_stop:
-        \tl_set:Nn \l_xparse_v_rest_of_signature_tl {#1}
         \tl_clear:N \l_xparse_v_arg_tl
         \peek_N_type:TF
           { \xparse_grab_v_aux_test:N }
-          { \xparse_grab_v_aux_abort: }
+          {
+            \peek_meaning_remove:NTF \c_group_begin_token
+              {
+                \group_align_safe_end:
+                \xparse_grab_v_bgroup:
+              }
+              { \xparse_grab_v_aux_abort: }
+          }
   }
+\cs_new_protected_nopar:Npn \xparse_grab_v_group_end:
+  {
+        \tl_set:Nx \l_xparse_tmp_tl
+          {
+            \tl_set:Nn \exp_not:N \l_xparse_v_arg_tl
+              { \exp_not:o \l_xparse_v_arg_tl }
+          }
+      \exp_after:wN \group_align_safe_end:
+    \exp_after:wN \group_end:
+    \l_xparse_tmp_tl
+  }
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\xparse_grab_v_aux_test:N}
+% \begin{macro}
+%   {
+%     \xparse_grab_v_aux_loop:N,
+%     \xparse_grab_v_aux_loop_ii:NN,
+%     \xparse_grab_v_aux_loop_end:
+%   }
+%   Check that the opening delimiter is a character, setup category codes,
+%   then start reading tokens one by one, keeping the delimiter as an argument.
+%   If the verbatim was not nested, we will be grabbing one character
+%   at each step. Unfortunately, it can happen that what follows the
+%   verbatim argument is already tokenized. Thus, we check at each step
+%   that the next token is indeed a \enquote{nice}
+%   character, \emph{i.e.}, is not a character with
+%   category code $1$ (begin-group), $2$ (end-group)
+%   or $6$ (macro parameter), nor the space character,
+%   with category code~$10$ and character code~$32$,
+%   nor a control sequence.
+%   The partially built argument is stored in \cs{l_xparse_v_arg_tl}.
+%   If we ever meet a token which we cannot grab (non-N-type),
+%   or which is not a character according to
+%   \cs{xparse_grab_v_token_if_char:NTF}, then we bail out with
+%   \cs{xparse_grab_v_aux_abort:}. Otherwise, we stop at the first
+%   character matching the delimiter.
+%    \begin{macrocode}
 \cs_new_protected:Npn \xparse_grab_v_aux_test:N #1
   {
     \tl_put_right:Nn \l_xparse_v_arg_tl {#1}
     \xparse_grab_v_token_if_char:NTF #1
       {
-%<*initex>
-        \seq_map_function:NN
-          \c_xparse_special_chars_seq
-          \char_set_catcode_other:N
-%</initex>
-%<*package>
-        \cs_set_eq:NN \do \char_set_catcode_other:N
-        \dospecials
-%</package>
-        \tex_endlinechar:D = `\^^M \scan_stop:
-        \bool_if:NTF \l_xparse_long_bool
-          { \char_set_catcode_other:n { \tex_endlinechar:D } }
-          { \char_set_catcode_parameter:n { \tex_endlinechar:D } }
+        \xparse_grab_v_aux_catcodes:
         \xparse_grab_v_aux_loop:N #1
       }
       { \xparse_grab_v_aux_abort: }
@@ -1933,6 +1951,97 @@
       { \exp_args:No \str_tail:n { \l_xparse_v_arg_tl } }
     \l_xparse_v_rest_of_signature_tl \l_xparse_args_tl
   }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\xparse_grab_v_bgroup:}
+% \begin{macro}
+%   {
+%     \xparse_grab_v_bgroup_loop:,
+%     \xparse_grab_v_bgroup_loop_ii:N
+%   }
+% \begin{variable}{\l_xparse_v_nesting_int}
+%   If the opening delimiter is a left brace, we keep track of
+%   how many left and right braces were encountered so far in
+%   \cs{l_xparse_v_nesting_int} (the methods used for optional
+%   arguments cannot apply here), and stop as soon as it reaches~$0$.
+%
+%   Some care was needed when removing the opening delimiter, which
+%   has already been assigned category code~$1$: using
+%   \cs{peek_meaning_remove:NTF} in the \cs{xparse_grab_v_aux:w}
+%   function would break within alignments. Instead, we first
+%   convert that token to a string, and remove the result as a
+%   normal undelimited argument.
+%    \begin{macrocode}
+\int_new:N \l_xparse_v_nesting_int
+\cs_new_protected_nopar:Npn \xparse_grab_v_bgroup:
+  {
+    \xparse_grab_v_aux_catcodes:
+    \int_set_eq:NN \l_xparse_v_nesting_int \c_one
+    \tl_set:Nx \l_xparse_v_arg_tl { \iow_char:N \{ }
+    \xparse_grab_v_bgroup_loop:
+  }
+\cs_new_protected:Npn \xparse_grab_v_bgroup_loop:
+  {
+    \peek_N_type:TF
+      { \xparse_grab_v_bgroup_loop_ii:N }
+      { \xparse_grab_v_aux_abort: }
+  }
+\cs_new_protected:Npn \xparse_grab_v_bgroup_loop_ii:N #1
+  {
+    \xparse_grab_v_token_if_char:NTF #1
+      {
+        \token_if_eq_charcode:NNTF \c_group_end_token #1
+          {
+            \int_decr:N \l_xparse_v_nesting_int
+            \int_compare:nNnTF \l_xparse_v_nesting_int > \c_zero
+              {
+                \tl_put_right:Nn \l_xparse_v_arg_tl { #1 }
+                \xparse_grab_v_bgroup_loop:
+              }
+              { \xparse_grab_v_aux_loop_end: }
+          }
+          {
+            \token_if_eq_charcode:NNT \c_group_begin_token #1
+              { \int_incr:N \l_xparse_v_nesting_int }
+            \tl_put_right:Nn \l_xparse_v_arg_tl { #1 }
+            \xparse_grab_v_bgroup_loop:
+          }
+      }
+      { \xparse_grab_v_aux_abort: #1 }
+  }
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\xparse_grab_v_aux_catcodes:}
+% \begin{macro}{\xparse_grab_v_aux_abort:, \xparse_grab_v_aux_abort_ii:w}
+%   In a standalone format, the list of special characters is kept
+%   as a sequence, \cs{c_xparse_special_chars_seq}, and we use
+%   \tn{dospecials} in package mode.
+%   The approach for short verbatim arguments is to make the end-line
+%   character a macro parameter character: this is forbidden by the
+%   rest of the code. Then the error branch can check what caused the
+%   bail out and give the appropriate error message.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \xparse_grab_v_aux_catcodes:
+  {
+%<*initex>
+    \seq_map_function:NN
+      \c_xparse_special_chars_seq
+      \char_set_catcode_other:N
+%</initex>
+%<*package>
+    \cs_set_eq:NN \do \char_set_catcode_other:N
+    \dospecials
+%</package>
+    \tex_endlinechar:D = `\^^M \scan_stop:
+    \bool_if:NTF \l_xparse_long_bool
+      { \char_set_catcode_other:n { \tex_endlinechar:D } }
+      { \char_set_catcode_parameter:n { \tex_endlinechar:D } }
+  }
 \cs_new_protected_nopar:Npn \xparse_grab_v_aux_abort:
   {
     \xparse_grab_v_group_end:
@@ -1959,28 +2068,6 @@
       }
   }
 %    \end{macrocode}
-%   Two items need to be smuggled out of the group used by the code.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \xparse_grab_v_group_end:
-  {
-        \tl_set:Nx \l_xparse_tmp_tl
-          {
-            \tl_set:Nn \exp_not:N \l_xparse_v_rest_of_signature_tl
-              { \exp_not:o \l_xparse_v_rest_of_signature_tl }
-            \tl_set:Nn \exp_not:N \l_xparse_v_arg_tl
-              { \exp_not:o \l_xparse_v_arg_tl }
-          }
-      \exp_after:wN \group_align_safe_end:
-    \exp_after:wN \group_end:
-    \l_xparse_tmp_tl
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{variable}
-% \end{variable}
 % \end{macro}
 % \end{macro}
 %
