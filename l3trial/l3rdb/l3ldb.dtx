@@ -1,0 +1,1711 @@
+% \iffalse
+%% File l3ldb.dtx (C) Copyright 2011 Frank Mittelbach, LaTeX3 Project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3c of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the ``l3ldb bundle'' (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %% 
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX Project Team.
+%%
+%% -----------------------------------------------------------------------
+%%
+%<*driver|package|signature>
+\RequirePackage{expl3}
+%</driver|package|signature>
+%\fi
+\GetIdInfo$Id: l3ldb.dtx 2601 2011-08-16 23:20:27Z bruno $
+          {l3ldb}
+%\iffalse
+%<*signature>
+\ProvidesFile{\jobname.tex}
+  [\ExplFileDate\space v\ExplFileVersion\space\ExplFileDescription]
+%</signature>
+%<*driver>
+%\fi
+\ProvidesFile{\ExplFileName.\ExplFileExtension}
+  [\ExplFileDate\space v\ExplFileVersion\space\ExplFileDescription]
+%\iffalse
+\documentclass{l3doc}
+\usepackage{textcomp}
+% \usepackage{xparse,xlists,xlists-samples}
+% \usepackage{ldcdoc}
+
+% next three definitions are big hacks to run the file
+% without the above packages
+%
+\renewcommand\NoValue{\texttt{\textbackslash NoValue}}
+\begin{document}
+\DocInput{l3ldb.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+
+
+
+% 
+% \section{The \LaTeX3 Resource Database}
+% 
+%
+% The \LaTeX3 Resource Database (or Ldb for short) is a system that
+% provide parameter settings depending on the ``context'' where this
+% context is defined by the current nesting and sequencing of structural elements
+% in the document.
+%
+% Rougly speaking certain (but not all) document elements (typically
+% environments) are declared to belong to one or more element
+% classes. Whenever such an element is encountered in the document the
+% LDB is consulted to provide parameter updates due to the changed
+% context.
+%
+% In case of environments both the start and the end of the
+% environment result in a context change so that sequences of begin
+% or end tags  can be specially handled.
+%
+% \subsection{Context}
+%
+% When setting up the database the following conventions are used
+% \begin{description}
+% \item[\texttt{<foo}] denotes the begin tag of class \texttt{foo}.
+% \item[\texttt{foo>}] denotes the end tag of class \texttt{foo}.
+% \item[\texttt{<foo>}] denotes a the occurrence  of a whole
+%    environment for use in sequencing specs. 
+% \item[\texttt{<-}]  is a begin elision tag spec and denotes a possibly empty sequence
+%   of begin tags (not implemented).
+% \item[\texttt{->}]  is an end elision tag spec  (also not implemented).
+% \end{description}
+% 
+% Tags are related through each other through nesting or
+% sequencing. This is denoted by a ``\texttt{.}'' (dot) for direct
+% nesting, ``\texttt{*} (star) for nesting at arbitrary depth, and the
+% absence of a binding denotes sequencing (i.e. when two tags occur
+% with nothing in between).
+%
+% In BNF notation this would be represented as
+%\begin{verbatim}
+%       context	== spec [[binding] spec]*
+%       binding	== "." | "*"
+%       spec	== ["<"] id [">"] | <- | ->
+%\end{verbatim}
+%
+% There are additional restriction on the form of admissible context
+% specifications. The context matching approach requires that we keep
+% a stack of tags to represent the current situation so that we can
+% match it with entries in the database.  The desire to keep the size
+% of this stack under control leads us to formulate a number of
+% restrictions wich will allow us to trim the stack as much and as
+% soon as possible.  Also there are semantic difficulties which also
+% suggest certain restrictions.
+% \begin{enumerate}
+% \item The scope of \texttt{<foo} extends to the end of the context
+%   specification.
+% \item Specs to the right of \texttt{foo>} can only involve sequencing.
+% \item  \texttt{<foo>} occurs right-most, or must be followed by `<baz' or
+%   \texttt{<baz>}.
+% \item  \texttt{<foo>} cannot occur to the right of \texttt{baz>}.
+% \end{enumerate}
+%
+% With these restrictions, we arrive at the following formulation for
+% admissible context specifications.  A context specification has 3
+% parts:
+% \begin{enumerate} 
+% \item The 1st part consists solely of begin tags \texttt{<foo}, begin elision tags
+% \texttt{<-}, and completed tags \texttt{<foo>} interspersed here and there with tight
+% and loose bindings.
+% 
+% \item The 2nd part consists only of a sequence of end tags \texttt{foo>} and end
+% elision tags \texttt{->}.  If both the 1st and the 2nd parts are non-empty,
+% then they must be separated by a loose binding.
+% 
+% \item The 3rd part consists only of a sequence of begin tags \texttt{<foo} and
+% begin elision tags \texttt{<-}.
+% \end{enumerate}
+% 
+% Here is an example in which the 3 parts have been deliberately
+% separated for ease of recognition:
+%\begin{verbatim}
+% 	<A1.<A2><A3><-<A4*<A5   *   B1>B2>->B3>   <C1<-<C2
+%\end{verbatim}
+% The reason we need a loose binding between the 1st and 2nd part is
+% that a context like \texttt{<A.B>A>C>} could never match anything
+% since the scope of \texttt{<A} extends all the way to the right, yet
+% the scope of the environment \texttt{A} doesn't extend past
+% \texttt{A>} (which in this situation must obviously correspond to
+% \texttt{<A}). \texttt{<A*B>A>C>} may match certain situations where
+% we have another environment \texttt{A} indirectly nested in the
+% first one.
+% 
+% The reason end tags can only appear as a sequence in the 2nd part is
+% that, as soon as possible, we want to collapse the sequence
+% \texttt{B1>B2>B3>} into the completed env \texttt{<B3>}.  When we do
+% this, we just throw away \texttt{B1>} and \texttt{B2>} and forget
+% everything about them.  As soon as possible is when we cannot extend
+% the sequence of tags (e.g., because the new tag wasn't in sequence,
+% or because we are in the situation where we found a sequence of end
+% tags followed by a sequence of begin tags and the new tag is an end
+% tag again).
+%
+%
+%
+% \subsection{The issue of specificity}
+% 
+% Whenever there are several LDB entries matching the current situation
+% and proposing different assignments to the same parameter, we must
+% choose the most specific entry.  Here are some rules that govern the
+% issue of specificity:
+% \begin{enumerate}
+% \item  Any spec is more specific than another one to its left.  In other
+%     words, specificity increases from left to right.  In terms of
+%     nesting: specificity decreases from the inside out.
+% 
+% \item  Sequencing is more specific than nesting.
+% 
+% \item  \texttt{<foo} is more specific than \texttt{<-}.
+% 
+% \item  \texttt{foo>} is more specific than \texttt{->} which is more specific than
+%    \texttt{<foo>}.
+% 
+% \item  \texttt{.foo} is more specific than \texttt{*foo}.
+% \end{enumerate}
+%
+% \subsection{Tag classes}
+%
+% The identifier \texttt{foo} in a spec like \texttt{<foo} names a
+% class rather than an environment called \texttt{foo}.  Each
+% environment is associated with a list of classes.  The order is
+% meaningful: it goes from most to least specific.  Typically, the
+% most specific class has the same name as the environment.
+% 
+% The purpose of classes is to allow a form of inheritance.  The idea
+% is that an environment like \texttt{enumerate} is also an instance
+% of a \texttt{list}.  Thus \texttt{enumerate} should be able to
+% inherit the LDB entries for \texttt{list} but also be allowed to
+% have additional and/or overriding entries.  The list of classes for
+% \texttt{enumerate} probably ought to be the list of classes for
+% \texttt{list} augmented at the front with the class
+% \texttt{enumerate}.
+% 
+%
+%
+% \StopEventually{}
+% 
+% 
+% 
+%
+% \section{The LDB (FMi version)}
+%
+% \textbf{WARNING:} This is a more or less straight adaption of code
+% written about 20 years ago. Yes there was some version of expl3 back
+% then but it looked sufficiently different so that it was hard going
+% to get this working without rewriting it from scratch.
+% Consequently a lot of the documentation is wrong or strange as back
+% then we experimented with several versions and traces of this can be
+% found in the code still, e.g., in form of references to commands and
+% variables that no longer exist in the code.
+%
+% \textbf{All of that needs to be rewritten!} These days
+% \texttt{expl3} has much better data and control structures, so that
+% a lot of the manual code could be streamlined (and some of the speed
+% optimizations that make the code very difficult to read and
+% understand aren't that important which much faster processors.
+% \textbf{:WARNING END}
+%
+%
+% \subsection{Package start}
+%
+% Set up certain defaults including to ignore white space
+% within the body of this package.
+%    \begin{macrocode}
+%<*package>
+\RequirePackage{expl3}
+\ProvidesExplPackage
+  {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
+%    \end{macrocode}
+%
+
+
+% \subsection{old code tmp converted}
+%
+%    \begin{macrocode}
+\cs_new:Npn\file_show_lineno: {on~line~ \msg_line_number:}
+%    \end{macrocode}
+%
+
+%    \begin{macrocode}
+\cs_new:Npn \tl_new:Nn #1 {\tl_new:N {#1} \tl_set:Nn #1}
+%    \end{macrocode}
+%
+
+
+
+%    \begin{macrocode}
+\input{l3precom.sty}
+%    \end{macrocode}
+%
+
+% \subsection {Parsing A Context}
+%
+%  this is now done in ldbparse.
+%
+%    \begin{macrocode}
+\input{l3ldbparse.sty}
+%    \end{macrocode}
+%
+
+
+
+
+%
+% \begin{macro}{\LDBenter}
+%    This fixes a bug.
+%    \begin{macrocode}
+\cs_set:Npn\LDBenter{
+  \group_begin:
+  \ExplSyntaxOn
+  \exp_after:wN
+  \group_end:
+  \ldb_enter:nnn
+}
+
+% FMi for testing without env integration
+%
+% This is not the way this should work!
+
+\cs_set:Npn\LDBupdateBegin #1 {\ldb_update_begin:c 
+                                         { env_begin_code_ #1 :}}
+\cs_set:Npn\LDBupdateEnd   #1 {\ldb_update_end:c
+                                         { env_begin_code_ #1 :}}
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \subsection{Building the database}
+%
+%
+% \begin{macro}{\g_ldb_begin_root_prop}
+% \begin{macro}{\g_ldb_end_root_prop}
+%    We allocate property lists for the two roots of the database tree.
+%    \begin{macrocode}
+\prop_new:N\g_ldb_begin_root_prop
+\prop_new:N\g_ldb_end_root_prop
+%<*precompile>
+         \cs_record_name:N\g_ldb_begin_root_prop
+         \cs_record_name:N\g_ldb_end_root_prop
+%</precompile>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\l_ldb_curr_node_tl}
+% \begin{macro}{\l_trace_tl}
+%    The allocation of two token lists which will contain the current
+%    node in the tree and some tracing information.
+%    \begin{macrocode}
+\tl_new:Nn\l_ldb_curr_node_tl{}
+\tl_new:Nn\l_trace_tl{}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%
+%
+% \begin{macro}{\ldb_enter:nnn}
+%    This enters information in the database.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_enter:nnn#1#2#3{
+%    \end{macrocode}
+%    \begin{macrocode}
+   \ldb_parse:n{#1}
+%<*trace>
+   \iow_term:x{{lex:~\tl_to_str:N\g_ldb_triples_tl}}
+   \trace_ldb_internal:n{lex:~...}
+%</trace>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+   \seq_if_in:NnTF\l_ldb_def_parm_seq#2
+     {\tl_set:Nn
+         \l_ldb_parm_tl
+         {
+          \show_def_update:Nn#2{#3}
+         }
+     }
+     {\tl_set:Nn
+        \l_ldb_parm_tl
+        {
+         \show_register_update:Nn#2{#3}
+        }
+     }
+%    \end{macrocode}
+%    Now we move down the tree to put the new assignment into the
+%    database thereby adding new nodes and pointers if necessary. 
+%    this is done by simply calling |\g_ldb_triples_tl| which contains
+%    a function in front of every triple so that we can safely proceed.
+%    \begin{macrocode}
+   \exp_after:wN\ldb_decide_root:nn\g_ldb_triples_tl\c_three\c_zero
+%<*trace>
+   \show_ldb_entry:nnn{#1}{#2}{#3}
+%</trace>
+}
+%    \end{macrocode}
+% \end{macro}
+
+%
+% \begin{macro}{\ldb_decide_root:nn}
+%    \begin{macrocode}
+\cs_new:Npn \ldb_decide_root:nn #1#2 {
+   \if_meaning:w #1\c_zero
+      \if_meaning:w #2\c_zero
+        \tl_set:Nn\l_ldb_curr_node_tl \g_ldb_begin_root_prop
+      \else:
+        \tl_set:Nn\l_ldb_curr_node_tl \g_ldb_end_root_prop
+      \fi:
+   \else:
+      \ERROR % should not happen I think
+   \fi:
+}
+%    \end{macrocode}
+% \end{macro}
+
+%
+% \begin{macro}{\l_ldb_parm_tl}
+%    The |\l_ldb_parm_tl| holds the new assignment that will be added
+%    to the data cell of one node in the tree.
+%    \begin{macrocode}
+\tl_new:Nn\l_ldb_parm_tl{}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_decl_defparm:N}
+%    At the moment, we have to specify that a parameter belongs to the
+%    class of parameters that are set using |\cs_set:Npn|. Of course, this
+%    can be found out without human intervention if we keep a proper
+%    record of all parameters that are set using |\int_new:N|,
+%    |\skip_new:N|, etc., i.e.\ redefining those macros to save their
+%    arguments on some lists which are then examined in |\ldb_enter:nnn|.
+%    But for the moment I thought it is easier to specify the |\cs_set:Npn|
+%    parameters using |\ldb_decl_defparm:N| in the document style.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_decl_defparm:N#1{\seq_put_right:Nn\l_ldb_def_parm_seq#1}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\l_ldb_def_parm_seq}
+%    |\ldb_decl_defparm:N| will write its argument onto a list (sorry sequence)
+%    which is searched for parameter names in |\ldb_enter:nnn|.
+%    \begin{macrocode}
+\seq_new:N\l_ldb_def_parm_seq
+%<*precompile>
+         \cs_record_name:N\l_ldb_def_parm_seq
+%</precompile>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_triple:NNN}
+%    The |\ldb_triple:NNN| function is the heart of the database
+%    generation. 
+%
+%    In |\l_ldb_curr_node_tl| we keep a pointer to the current
+%    node of our data structure as we go along.
+%
+%    The token list pointers |\l_ldb_tight_tl|, |\l_ldb_loose_tl|,
+%    etc., will contain pointers to subtrees, i.e., they are one step
+%    ahead of |\l_ldb_curr_node_tl| (they are also pointers to
+%    nodes not nodes!).  The idea is to
+%    \begin{itemize}
+%    \item
+%      look for the class in |\l_ldb_curr_node_tl|. If it isn't there so
+%      far it will be created in the following process.
+%    \item
+%      Then take a look at the second arg. If we have exhausted the
+%      sequence of classes and bindings (i.e., if the second arg is
+%      |\q_stop|) we update the |\l_ldb_assign_tl| write everything
+%      back into the |\l_ldb_curr_node_tl| and terminate.
+%    \item
+%      Otherwise the second argument is a binding and go down one level
+%      by changing |\l_ldb_curr_plist| to contain the corresponding
+%      plist. However, we first have to allocate a new symbol for this
+%      node in case it is still pointing to |\q_nil|.
+%    \end{itemize}
+%    \begin{macrocode}
+\cs_set:Npn\ldb_triple:NNN#1#2#3{
+%<*trace> 
+   \trace_ldb_internal:n{\string\ldb_triple:NNN  \exp_not:n{{#1}{#2}{#3}}}
+%</trace>
+    \exp_after:wN
+    \ldb_lookup:NN
+       \l_ldb_curr_node_tl
+       #1
+%    \end{macrocode}
+%    Otherwise we check that the pointer to binding or sequencing
+%    is already there; if not we generate it. We then save its name in
+%    |\l_tmpa_tl| for later update of |\l_ldb_curr_node_tl|.
+%    \begin{macrocode}
+      \if_case:w #2
+        \if_case:w #3 % begin
+          \if_meaning:w\l_ldb_sb_tl\q_nil
+              \cs_ggen_prop:N\l_ldb_sb_tl
+          \fi:
+          \tl_set_eq:NN\l_tmpa_tl\l_ldb_sb_tl
+        \or: % end
+          \if_meaning:w\l_ldb_se_tl\q_nil
+              \cs_ggen_prop:N\l_ldb_se_tl
+          \fi:
+          \tl_set_eq:NN\l_tmpa_tl\l_ldb_se_tl
+        \or: % complete
+          \if_meaning:w\l_ldb_sc_tl\q_nil
+              \cs_ggen_prop:N\l_ldb_sc_tl
+          \fi:
+          \tl_set_eq:NN\l_tmpa_tl\l_ldb_sc_tl
+        \fi:
+      \or: % tight binding
+        \if_case:w #3 % begin
+          \if_meaning:w\l_ldb_tb_tl\q_nil
+              \cs_ggen_prop:N\l_ldb_tb_tl
+          \fi:
+          \tl_set_eq:NN\l_tmpa_tl\l_ldb_tb_tl
+        \or: % end
+          \err_latex_bug:n{Not~possible}
+        \or: % complete
+          \if_meaning:w\l_ldb_tc_tl\q_nil
+              \cs_ggen_prop:N\l_ldb_tc_tl
+          \fi:
+          \tl_set_eq:NN\l_tmpa_tl\l_ldb_tc_tl
+        \fi:
+      \or: % loose binding
+        \if_case:w #3 % begin
+          \if_meaning:w\l_ldb_lb_tl\q_nil
+              \cs_ggen_prop:N\l_ldb_lb_tl
+          \fi:
+          \tl_set_eq:NN\l_tmpa_tl\l_ldb_lb_tl
+        \or: % end
+          \if_meaning:w\l_ldb_le_tl\q_nil
+              \cs_ggen_prop:N\l_ldb_le_tl
+          \fi:
+          \tl_set_eq:NN\l_tmpa_tl\l_ldb_le_tl
+        \or: % complete
+          \if_meaning:w\l_ldb_lc_tl\q_nil
+              \cs_ggen_prop:N\l_ldb_lc_tl
+          \fi:
+          \tl_set_eq:NN\l_tmpa_tl\l_ldb_lc_tl
+        \fi:
+      \or: % parsing finished we now update assignments
+%       \trace_ldb_internal:n{qstop~found:~update~parm}
+        \if_meaning:w\l_ldb_assign_tl\q_nil
+%FMi this one really holds tokens not a pointer (which is a prop)
+           \cs_ggen_sym:N\l_ldb_assign_tl
+        \fi:
+        \exp_after:wN
+        \tl_gput_right:No
+            \l_ldb_assign_tl
+            \l_ldb_parm_tl
+      \fi:
+%    \end{macrocode}
+%    Put the node back (in case one have changed from |\q_nil| to a
+%    symbol or the node wasn't present at all before).
+%    \begin{macrocode}
+      \ldb_put_class:N#1
+%    \end{macrocode}
+%    Move down the tree. The use of |\tl_set_eq:NN| results in
+%    \begin{macrocode}
+      \tl_set_eq:NN\l_ldb_curr_node_tl\l_tmpa_tl
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_lookup:NN}
+%    The |\ldb_lookup:NN| function gets a pointer to a class list, a
+%    class, and will return the subtree pointers in the token list
+%    pointers |\l_ldb_loose_tl|, |\l_ldb_tight_tl|, etc.  If the
+%    class isn't present in |#1| |\q_nil| will be written into all
+%    token list pointers.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_lookup:NN#1#2{
+   \prop_get:NnN#1#2\l_tmpa_tl
+%    \end{macrocode}
+%    The |\prop_get:NnN| function will return |\q_no_value| if the
+%    property wasn't found.
+%    \begin{macrocode}
+   \if_meaning:w\l_tmpa_tl\q_no_value
+     \tl_set_eq:NN\l_ldb_sb_tl\q_nil
+     \tl_set_eq:NN\l_ldb_se_tl\q_nil
+     \tl_set_eq:NN\l_ldb_sc_tl\q_nil
+     \tl_set_eq:NN\l_ldb_tb_tl\q_nil
+     \tl_set_eq:NN\l_ldb_tc_tl\q_nil
+     \tl_set_eq:NN\l_ldb_lb_tl\q_nil
+     \tl_set_eq:NN\l_ldb_le_tl\q_nil
+     \tl_set_eq:NN\l_ldb_lc_tl\q_nil
+     \tl_set_eq:NN\l_ldb_assign_tl\q_nil
+   \else:
+     \exp_after:wN\ldb_get_pointers:w\l_tmpa_tl
+        \q_nil\q_nil\q_nil\q_nil\q_nil\q_nil\q_nil\q_nil\q_stop
+   \fi:}
+%    \end{macrocode}
+% \end{macro}
+%
+%  \begin{macro}{\ldb_get_pointers:w}
+%    Routine that separates the pointers.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_get_pointers:w#1#2#3#4#5#6#7#8#9{
+  \tl_set:Nn\l_ldb_assign_tl{#1}
+  \tl_set:Nn\l_ldb_lb_tl{#2}
+  \tl_set:Nn\l_ldb_sb_tl{#3}
+  \tl_set:Nn\l_ldb_tb_tl{#4}
+  \tl_set:Nn\l_ldb_se_tl{#5}
+  \tl_set:Nn\l_ldb_le_tl{#6}
+  \tl_set:Nn\l_ldb_tc_tl{#7}
+  \tl_set:Nn\l_ldb_lc_tl{#8}
+  \tl_set:Nn\l_ldb_sc_tl{#9}
+  \ldb_gobble:w
+}
+\cs_new:Npn\ldb_gobble:w#1\q_stop{}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%
+%  \begin{macro}{\ldb_put_class:N}
+%    Routine that writes a node back into the database using reverse
+%    order.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_put_class:N#1{
+     \tl_clear:N\l_tmpb_tl
+     \ldb_put_class_aux:N\l_ldb_sc_tl
+     \ldb_put_class_aux:N\l_ldb_lc_tl
+     \ldb_put_class_aux:N\l_ldb_tc_tl
+     \ldb_put_class_aux:N\l_ldb_le_tl
+     \ldb_put_class_aux:N\l_ldb_se_tl
+     \ldb_put_class_aux:N\l_ldb_tb_tl
+     \ldb_put_class_aux:N\l_ldb_sb_tl
+     \ldb_put_class_aux:N\l_ldb_lb_tl
+     \ldb_put_class_aux:N\l_ldb_assign_tl
+     \exp_after:wN
+     \prop_gput:Nno
+       \l_ldb_curr_node_tl
+        {#1}
+        \l_tmpb_tl
+}
+
+\cs_new:Npn\ldb_put_class_aux:N#1{
+    \if_meaning:w#1\q_nil
+        \if_meaning:w\l_tmpb_tl\c_empty_tl
+        \else:
+          \tl_put_left:Nn\l_tmpb_tl\q_nil
+        \fi:
+    \else:
+       \tl_put_left:No\l_tmpb_tl#1
+    \fi:
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%  \begin{macro}{\l_ldb_sb_tl}
+%  \begin{macro}{\l_ldb_se_tl}
+%  \begin{macro}{\l_ldb_sc_tl}
+%  \begin{macro}{\l_ldb_tb_tl}
+%  \begin{macro}{\l_ldb_tc_tl}
+%  \begin{macro}{\l_ldb_lb_tl}
+%  \begin{macro}{\l_ldb_le_tl}
+%  \begin{macro}{\l_ldb_lc_tl}
+%  \begin{macro}{\l_ldb_assign_tl}
+%    Somewhere we should define the pointers from above.
+%    \begin{macrocode}
+\tl_new:Nn\l_ldb_sb_tl{}
+\tl_new:Nn\l_ldb_se_tl{}
+\tl_new:Nn\l_ldb_sc_tl{}
+\tl_new:Nn\l_ldb_tb_tl{}
+\tl_new:Nn\l_ldb_tc_tl{}
+\tl_new:Nn\l_ldb_lb_tl{}
+\tl_new:Nn\l_ldb_le_tl{}
+\tl_new:Nn\l_ldb_lc_tl{}
+\tl_new:Nn\l_ldb_assign_tl{}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%
+%
+%
+%  \subsection{Updating parameters}
+%
+%
+%  \begin{macro}{\ldb_update_begin:n}
+%  \begin{macro}{\ldb_update_begin:V}
+%    Routine called to update parameters at the `begin' of some
+%    structure.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_update_begin:n#1{
+  \if_mode_vertical:
+%<*trace>
+  \tl_set:Nn\l_tmpa_tl{#1}
+  \trace_ldb:n{^^JLDB:~Begin~Processing~*****~
+                                   \tl_to_str:N\l_tmpa_tl~
+                                   *****~
+                                   (sequenced)~
+                                   \file_show_lineno:}
+%</trace>
+  \else:
+%<*trace>
+  \tl_set:Nn\l_tmpa_tl{#1}
+  \trace_ldb:n{^^JLDB:~Begin~Processing~*****~
+                                   \tl_to_str:N\l_tmpa_tl~
+                                   *****~
+                                   \file_show_lineno:}
+%</trace>
+    \tl_gclear:N\g_ldb_sbml_tl
+    \tl_gclear:N\g_ldb_seml_tl
+    \tl_gclear:N\g_ldb_next_scml_tl
+  \fi:
+%
+  \tl_set_eq:NN\l_ldb_scml_tl\g_ldb_next_scml_tl
+%  \tl_gclear:N \g_ldb_next_scml_tl
+  \tl_clear:N \l_ldb_new_scml_tl
+%
+  \tl_set_eq:NN\l_ldb_lcml_tl\g_ldb_next_lcml_tl
+  \tl_set_eq:NN\l_ldb_new_lcml_tl\g_ldb_next_lcml_tl
+%
+  \tl_set_eq:NN\l_ldb_tcml_tl\g_ldb_next_tcml_tl
+  \tl_set_eq:NN\l_ldb_new_tcml_tl\g_ldb_next_tcml_tl
+%
+  \tl_set_eq:NN\l_ldb_new_leml_tl\l_ldb_leml_tl
+  \tl_set_eq:NN\l_ldb_new_lbml_tl\l_ldb_lbml_tl
+
+  \tl_clear:N \l_ldb_new_tbml_tl
+  \tl_clear:N \l_ldb_new_sbml_tl
+%    \end{macrocode}
+%    Then we process the new classes in turn one by one.
+%    |\ldb_update_aux:N| will grap only the next token and then call
+%    itself again until it finds the |\q_stop| quark.
+%    \begin{macrocode}
+  \ldb_update_aux:N#1\q_stop
+%    \end{macrocode}
+%    Finally we set the new match candidates. 
+%    \begin{macrocode}
+  \ldb_show_new_mls:
+  \tl_set_eq:NN \l_ldb_lbml_tl \l_ldb_new_lbml_tl
+  \tl_set_eq:NN \l_ldb_tbml_tl \l_ldb_new_tbml_tl
+  \tl_set_eq:NN \l_ldb_leml_tl \l_ldb_new_leml_tl
+
+  \tl_gset_eq:NN \g_ldb_sbml_tl \l_ldb_new_sbml_tl
+%
+  \tl_gset_eq:NN \g_ldb_next_scml_tl \l_ldb_new_scml_tl
+  \tl_gset_eq:NN \g_ldb_next_lcml_tl \l_ldb_new_lcml_tl
+  \tl_gset_eq:NN \g_ldb_next_tcml_tl \l_ldb_new_tcml_tl
+}
+\cs_generate_variant:Nn \ldb_update_begin:n { c, V}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%
+%
+%  \begin{macro}{\ldb_update_aux:N}
+%    A helper function to |\ldb_update_begin:n|.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_update_aux:N#1{
+%<*trace> 
+   \trace_ldb_internal:n{\string\ldb_update_aux:N \exp_not:n{{#1}}}
+%</trace>
+%    \end{macrocode}
+%    If we find |\q_stop| we are done with this set of classes.
+%    \begin{macrocode}
+   \if_meaning:w#1\q_stop
+   \else:
+%    \end{macrocode}
+%    Otherwise we first try to match the class in |#1| looking at the
+%    loose candidates.
+%    \begin{macrocode}
+%<*trace>
+       \show_new_ml:nNn#1l{lb}
+       \tl_set:Nn\l_trace_tl{LBML}
+%</trace>
+       \exp_after:wN
+       \ldb_update_single:NN
+       \exp_after:wN
+          #1
+          \l_ldb_lbml_tl\q_stop
+%    \end{macrocode}
+%    Then we are going to take a look at the tight candidates.
+%    \begin{macrocode}
+%<*speed>
+     \if_meaning:w
+        \l_ldb_tbml_tl
+        \c_empty_tl
+     \else:
+%</speed>
+%<*trace>
+       \show_new_ml:nNn#1l{tb}
+       \tl_set:Nn\l_trace_tl{TBML}
+%</trace>
+       \exp_after:wN
+       \ldb_update_single:NN
+       \exp_after:wN
+         #1
+         \l_ldb_tbml_tl\q_stop
+%<*speed>
+     \fi:
+%</speed>
+%    \end{macrocode}
+%    Next step is to look into begin-sequencing.
+%    \begin{macrocode}
+%<*speed>
+     \if_meaning:w
+        \g_ldb_sbml_tl
+        \c_empty_tl
+     \else:
+%</speed>
+%    \end{macrocode}
+%    Now the non-empty begin-begin match list.
+%    \begin{macrocode}
+%<*trace>
+       \show_new_ml:nNn#1g{sb}
+       \tl_set:Nn\l_trace_tl{SBML}
+%</trace>
+       \exp_after:wN
+       \ldb_update_single:NN
+       \exp_after:wN
+         #1
+         \g_ldb_sbml_tl\q_stop
+%<*speed>
+     \fi:
+%</speed>
+%    \end{macrocode}
+%    Finally we have to recurse.
+%    \begin{macrocode}
+       \exp_after:wN \ldb_update_aux:N
+  \fi:}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%  \begin{macro}{\ldb_update_single:NN}
+%    Undoc
+%    \begin{macrocode}
+\cs_new:Npn\ldb_update_single:NN#1#2{
+%<*trace> 
+   \trace_ldb_internal:n{\string\ldb_update_single:NN \exp_not:n{{#1}{#2}}}
+%</trace>
+   \if_meaning:w#2\q_stop
+   \else:
+%<*trace>
+      \trace_ldb_internal:n{..~looking~for~\token_to_str:N#1~in~
+         \l_trace_tl\space
+         \token_to_str:N#2~containing^^J^^J
+         <<\tl_to_str:N#2>>^^J}
+%</trace>
+      \prop_get:NnN
+        #2
+        #1
+        \l_tmpa_tl
+      \if_meaning:w\l_tmpa_tl\q_no_value      % return if not found
+%<*trace>
+        \trace_ldb_internal:n{...~no~match~found}
+%</trace>
+      \else:
+%<*trace>
+        \trace_ldb_internal:n{...~found~\tl_to_str:N\l_tmpa_tl}
+%</trace>
+        \exp_after:wN\ldb_update_bmls:w\l_tmpa_tl
+          \q_nil\q_nil\q_nil\q_nil\q_nil\q_nil\q_nil\q_nil\q_stop
+      \fi:
+%    \end{macrocode}
+%    Finally we have to recurse.
+%    \begin{macrocode}
+      \exp_after:wN
+      \ldb_update_single:NN
+      \exp_after:wN
+        #1
+   \fi:
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%  \begin{macro}{\ldb_update_bmls:w}
+%    Routine that separates the pointers.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_update_bmls:w#1#2#3#4#5#6#7#8#9{
+%<*trace> 
+   \trace_ldb_internal:n{\string\ldb_update_bmls:w}
+%</trace>
+        \if_meaning:w#1\q_nil\else:
+%<*trace>
+          \trace_ldb:n{...~execute~\string#1}
+          \ldb_show_pointer:N #1
+%</trace>
+          #1                    % execute values
+        \fi:
+        \ldb_add_right:nn
+           #2
+           \l_ldb_new_lbml_tl
+       \ldb_add_right:nn
+           #3
+           \l_ldb_new_sbml_tl
+       \ldb_add_right:nn
+           #4
+           \l_ldb_new_tbml_tl
+%    \end{macrocode}
+%    We shouldn't find se matches with a begin tag since there must be
+%    a |*| between the first and the second part of a spec.
+%    \begin{macrocode}
+       \ldb_check_nil:nN {se} #5 
+       \ldb_add_right:nn
+           #6
+           \l_ldb_new_leml_tl
+%       \ldb_check_nil:nN {tc} #7 
+       \ldb_add_right:nn
+           #7
+           \l_ldb_new_tcml_tl
+       \ldb_add_right:nn
+           #8
+           \l_ldb_new_lcml_tl
+       \ldb_add_right:nn
+           #9
+           \l_ldb_new_scml_tl
+  \ldb_gobble:w
+}
+
+\cs_new:Npn\ldb_check_nil:nN#1#2
+ {
+   \if_meaning:w\q_nil#2
+   \else:
+     \err_latex_bug:n{Not~ nil~ #1:~ \exp_not:N#2~ 
+                      containing:~\tl_to_str:N#2}
+   \fi:
+ }
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%
+%  \begin{macro}{\ldb_update_end:n}
+%  \begin{macro}{\ldb_update_end:V}
+%    Similar beast for the `end'.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_update_end:n#1{
+  \if_mode_vertical:
+%<*trace>
+  \tl_set:Nn\l_tmpa_tl{#1}
+  \trace_ldb:n{^^JLDB:~End~Processing~*****~
+                                 \tl_to_str:N\l_tmpa_tl~
+                                 *****~
+                                 (sequenced)~
+                                 \file_show_lineno:}
+%</trace>
+  \else:
+%<*trace>
+  \tl_set:Nn\l_tmpa_tl{#1}
+  \trace_ldb:n{^^JLDB:~End~Processing~*****~
+                                 \tl_to_str:N\l_tmpa_tl~
+                                 *****~
+                                 \file_show_lineno:}
+%</trace>
+    \tl_gset_eq:NN\g_ldb_sbml_tl\c_empty_tl
+    \tl_gset_eq:NN\g_ldb_seml_tl\c_empty_tl
+    \tl_set_eq:NN \l_ldb_scml_tl\c_empty_tl
+  \fi:
+  \ldb_show_mls:
+%    \end{macrocode}
+%    In the end tag matches in the current sbml list are no longer
+%    valid so we clear them. As a result only new matches involving
+%    this end tag are assigned to |\g_ldb_sbml_tl| below.
+%    \begin{macrocode}
+  \tl_clear:N \l_ldb_new_sbml_tl
+%    \end{macrocode}
+%    We also initialize |\l_ldb_new_seml_tl| to hold the new se
+%    matches with the current end tag.
+%    \begin{macrocode}
+  \tl_clear:N \l_ldb_new_seml_tl
+%    \end{macrocode}
+%    New sc are possible so we clear the |\l_ldb_new_scml_tl|.
+%    \begin{macrocode}
+  \tl_clear:N \l_ldb_new_scml_tl
+%    \end{macrocode}
+%    
+%    \begin{macrocode}
+  \tl_set_eq:NN\l_ldb_new_lcml_tl \l_ldb_lcml_tl
+%    \end{macrocode}
+%    
+%    \begin{macrocode}
+  \tl_clear:N \l_ldb_new_tcml_tl
+%    \end{macrocode}
+%    |\ldb_update_end_aux:N| will grap only the next token and then call
+%    itself again until it finds the |\q_stop| quark.
+%    \begin{macrocode}
+  \ldb_update_end_aux:N#1\q_stop
+%    \end{macrocode}
+%    Finally we set the new match candidates.
+%    \begin{macrocode}
+  \ldb_show_new_mls:
+  \tl_gset_eq:NN \g_ldb_sbml_tl \l_ldb_new_sbml_tl
+  \tl_gset_eq:NN \g_ldb_seml_tl \l_ldb_new_seml_tl
+%
+  \tl_gset_eq:NN \g_ldb_next_scml_tl \l_ldb_new_scml_tl
+  \tl_gset_eq:NN \g_ldb_next_lcml_tl \l_ldb_new_lcml_tl
+  \tl_gset_eq:NN \g_ldb_next_tcml_tl \l_ldb_new_tcml_tl
+}
+\cs_generate_variant:Nn \ldb_update_end:n { c, V}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%
+%
+%  \begin{macro}{\ldb_update_end_aux:N}
+%    Undoc
+%    \begin{macrocode}
+\cs_new:Npn\ldb_update_end_aux:N#1{
+%<*trace> 
+   \trace_ldb_internal:n{\string\ldb_update_end_aux:N  \exp_not:n{{#1}}}
+%</trace>
+%    \end{macrocode}
+%    If we find |\q_stop| we are done with this set of classes.
+%    \begin{macrocode}
+   \if_meaning:w#1\q_stop
+   \else:
+%    \end{macrocode}
+%    Otherwise we first try to match the class in |#1|.
+%    \begin{macrocode}
+%<*trace>
+     \show_new_ml:nNn#1l{le}
+     \tl_set:Nn\l_trace_tl{LEML}
+%</trace>
+%<*speed>
+     \if_meaning:w
+        \l_ldb_leml_tl
+        \c_empty_tl
+     \else:
+%</speed>
+       \exp_after:wN
+        \ldb_update_end_single:NN
+       \exp_after:wN
+           #1
+           \l_ldb_leml_tl\q_stop
+%<*speed>
+     \fi:
+%</speed>
+%<*trace>
+     \show_new_ml:nNn#1g{se}
+     \tl_set:Nn\l_trace_tl{SEML}
+%</trace>
+%<*speed>
+     \if_meaning:w
+        \g_ldb_seml_tl
+        \c_empty_tl
+     \else:
+%</speed>
+       \exp_after:wN
+        \ldb_update_end_single:NN
+       \exp_after:wN
+           #1
+           \g_ldb_seml_tl\q_stop
+%<*speed>
+     \fi:
+%</speed>
+%<*trace>
+     \show_new_ml:nNn#1l{lc}
+     \tl_set:Nn\l_trace_tl{LCML}
+%</trace>
+%<*speed>
+     \if_meaning:w
+        \l_ldb_lcml_tl
+        \c_empty_tl
+     \else:
+%</speed>
+       \exp_after:wN
+        \ldb_update_end_single:NN
+       \exp_after:wN
+           #1
+           \l_ldb_lcml_tl\q_stop
+%<*speed>
+     \fi:
+%</speed>
+%<*trace>
+     \show_new_ml:nNn#1l{tc}
+     \tl_set:Nn\l_trace_tl{TCML}
+%</trace>
+%<*speed>
+     \if_meaning:w
+        \l_ldb_tcml_tl
+        \c_empty_tl
+     \else:
+%</speed>
+       \exp_after:wN
+        \ldb_update_end_single:NN
+       \exp_after:wN
+           #1
+           \l_ldb_tcml_tl\q_stop
+%<*speed>
+     \fi:
+%</speed>
+%<*trace>
+     \show_new_ml:nNn#1l{sc}
+     \tl_set:Nn\l_trace_tl{SCML}
+%</trace>
+%<*speed>
+     \if_meaning:w
+        \l_ldb_scml_tl
+        \c_empty_tl
+     \else:
+%</speed>
+       \exp_after:wN
+        \ldb_update_end_single:NN
+       \exp_after:wN
+           #1
+           \l_ldb_scml_tl\q_stop
+%<*speed>
+     \fi:
+%</speed>
+%    \end{macrocode}
+%    Finally we have to recurse.
+%    \begin{macrocode}
+  \exp_after:wN \ldb_update_end_aux:N
+  \fi:}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%  \begin{macro}{\ldb_update_end_single:NN}
+%    Undoc
+%    \begin{macrocode}
+\cs_new:Npn\ldb_update_end_single:NN#1#2{
+   \if_meaning:w#2\q_stop
+   \else:
+%<*trace>
+      \trace_ldb_internal:n{..~looking~for~\token_to_str:N#1~in~
+         \l_trace_tl\space
+         \token_to_str:N#2~containing^^J^^J
+         <<\tl_to_str:N#2>>^^J}
+%</trace>
+      \prop_get:NnN
+        #2
+        #1
+        \l_tmpa_tl
+      \if_meaning:w\l_tmpa_tl\q_no_value      % return if not found
+%<*trace>
+        \trace_ldb_internal:n{...~no~match~found}
+%</trace>
+      \else:
+%<*trace>
+        \trace_ldb_internal:n{...~found~\tl_to_str:N\l_tmpa_tl}
+%</trace>
+        \exp_after:wN\ldb_update_emls:w\l_tmpa_tl
+          \q_nil\q_nil\q_nil\q_nil\q_nil\q_nil\q_nil\q_nil\q_stop
+      \fi:
+%    \end{macrocode}
+%    Finally we have to recurse.
+%    \begin{macrocode}
+  \exp_after:wN
+      \ldb_update_end_single:NN
+  \exp_after:wN
+        #1
+  \fi:
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%  \begin{macro}{\ldb_update_emls:w}
+%    Routine that separates the pointers.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_update_emls:w#1#2#3#4#5#6#7#8#9{
+        \if_meaning:w#1\q_nil\else:
+%<*trace>
+          \trace_ldb:n{...~execute~\string#1}
+          \ldb_show_pointer:N #1
+%</trace>
+          #1                    % execute values
+        \fi:
+%    \end{macrocode}
+%    Some of the pointers have to be |\q_nil| according to our
+%    restrictions so we could make everything faster and more compact
+%    by providing different data structures both types.
+%    \begin{macrocode}
+       \ldb_check_nil:nN{lb}#2
+       \ldb_add_right:nn
+           #3
+           \l_ldb_new_sbml_tl
+       \ldb_check_nil:nN{tb}#4
+       \ldb_add_right:nn
+           #5
+           \l_ldb_new_seml_tl
+       \ldb_check_nil:nN{le}#6
+       \ldb_check_nil:nN{tc}#7
+       \ldb_check_nil:nN{lc}#8
+       \ldb_add_right:nn
+           #9
+           \l_ldb_new_scml_tl
+  \ldb_gobble:w
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%
+%  \begin{macro}{\ldb_add_right:nn}
+%    Undoc.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_add_right:nn#1#2{
+%<*trace> 
+   \trace_ldb_internal:n{\string\ldb_add_right:nn \exp_not:n{{#1}{#2}}}
+%</trace>
+  \quark_if_nil:nF{#1}
+    {
+    \cs_set:Npn\tmp:w
+        ##1#1##2\tmp:w
+        {\tex_if:D !\exp_not:N##2!
+%<*trace>
+           \trace_ldb_internal:n{... will~add~\token_to_str:N#1~
+                        to~\token_to_str:N#2~containing
+                        ^^J^^J<<\tl_to_str:N#2>>^^J}
+%</trace>
+           \cs_set:Npn#2{##1#1}
+         \else:
+%<*trace>
+           \trace_ldb_internal:n{... will~move~
+                         \token_to_str:N#1~to~the~right~in~
+                         \token_to_str:N#2~containing
+                          ^^J^^J<<\tl_to_str:N#2>>^^J}
+%</trace>
+           \cs_set:Npn#2{##1##2}
+         \fi:
+        }
+    \exp_after:wN \tmp:w#2#1\tmp:w
+   }
+}
+
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+%  \begin{macro}{\ldb_set_classes:nn}
+%    Undoc
+%    \begin{macrocode}
+\cs_new:Npn\ldb_set_classes:nn#1#2{
+  \tl_clear_new:c{l_ldb_cl_#1}
+  \for_clist:Nnn\l_tmpa_tl{#2}
+    {\tl_put_right:cc{l_ldb_cl_#1}{env_begin_code_ 
+                                    \l_tmpa_tl 
+                                    :}
+    }
+}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+% \begin{macro}{\ldb_new_context:n}
+%    The |\ldb_new_context:n| command will flush the current rdb
+%    history and will start fresh with classes given in the argument.
+%    \begin{macrocode}
+%\cs_new:Npn\ldb_new_context:n{
+%  \tl_set_eq:NN\l_ldb_lbml_tl\g_ldb_begin_root_prop
+%  \tl_set_eq:NN\l_ldb_tbml_tl\c_empty_tl
+%  \tl_gset_eq:NN\g_ldb_sbml_tl\c_empty_tl
+%  \ldb_update_begin:n
+%}
+%    \end{macrocode}
+%  \end{macro}
+%
+%
+% \begin{macro}{\l_ldb_lbml_tl}
+% \begin{macro}{\l_ldb_leml_tl}
+% \begin{macro}{\l_ldb_tbml_tl}
+%    Tight and loose match lists are local, they get restored by the
+%    grouping mechanism. The initial value for the loose match list is
+%    the pointer to the root.
+%    \begin{macrocode}
+\tl_new:Nn\l_ldb_lbml_tl{\g_ldb_begin_root_prop}
+\tl_new:Nn\l_ldb_leml_tl{\g_ldb_end_root_prop}
+\tl_new:Nn\l_ldb_tbml_tl{}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%
+% \begin{macro}{\g_ldb_sbml_tl}
+% \begin{macro}{\g_ldb_seml_tl}
+%    `begin-begin' and `end-begin' match lists are global since their
+%    contents is needed between environments. The restoring for them
+%    is therefore done explicitly.
+%    grouping mechanism.
+%    \begin{macrocode}
+\tl_new:Nn\g_ldb_sbml_tl{}
+\tl_new:Nn\g_ldb_seml_tl{}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\g_ldb_next_scml_tl}
+% \begin{macro}{\g_ldb_next_lcml_tl}
+% \begin{macro}{\g_ldb_next_tcml_tl}
+%    More match lists.
+%    \begin{macrocode}
+\tl_new:Nn\g_ldb_next_scml_tl{}
+\tl_new:Nn\g_ldb_next_lcml_tl{}
+\tl_new:Nn\g_ldb_next_tcml_tl{}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%
+%  \begin{macro}{\l_ldb_new_lbml_tl}
+%  \begin{macro}{\l_ldb_new_leml_tl}
+%  \begin{macro}{\l_ldb_new_lceml_tl}
+%  \begin{macro}{\l_ldb_new_tbml_tl}
+%  \begin{macro}{\l_ldb_new_tcml_tl}
+%  \begin{macro}{\l_ldb_new_seml_tl}
+%  \begin{macro}{\l_ldb_new_scml_tl}
+%    Undoc
+%    \begin{macrocode}
+\tl_new:Nn\l_ldb_new_lbml_tl{}
+\tl_new:Nn\l_ldb_new_leml_tl{}
+\tl_new:Nn\l_ldb_new_lcml_tl{}
+\tl_new:Nn\l_ldb_new_tbml_tl{}
+\tl_new:Nn\l_ldb_new_tcml_tl{}
+\tl_new:Nn\l_ldb_new_seml_tl{}
+\tl_new:Nn\l_ldb_new_scml_tl{}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%
+%  \begin{macro}{\l_ldb_scml_tl}
+%  \begin{macro}{\l_ldb_lcml_tl}
+%  \begin{macro}{\l_ldb_tcml_tl}
+%    undoc
+%    \begin{macrocode}
+\tl_new:Nn\l_ldb_scml_tl{}
+\tl_new:Nn\l_ldb_lcml_tl{}
+\tl_new:Nn\l_ldb_tcml_tl{}
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%  \end{macro}
+%
+%
+% \subsection{Tracing the database operations}
+%
+% The code in this section is included only, if we are tracing the
+% mechanism. To keep the other code compact most tracing stuff is packed
+% in separate macros.
+%
+%    \begin{macrocode}
+%<*trace>
+%    \end{macrocode}
+%
+% \begin{macro}{\trace_ldb_internal:n}
+% \begin{macro}{\trace_ldb_internal:n}
+% \begin{macro}{\g_trace_ldb_status}
+%    |\trace_ldb_internal:n| shows some internal infos if requested.
+%    \begin{macrocode}
+\cs_new:Npn\trace_ldb:n#1{
+  \if_num:w\g_trace_ldb_status>\c_zero
+    \iow_term:x{#1}
+  \fi:}
+\cs_new:Npn\trace_ldb_internal:n#1{
+  \if_num:w\g_trace_ldb_status=\c_two
+    \iow_term:x{LDB:~#1}
+  \fi:}
+\int_new:N\g_trace_ldb_status
+%    \end{macrocode}
+%    Default is to show a bit.
+%    \begin{macrocode}
+\int_gincr:N\g_trace_ldb_status
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\show_ldb_entry:nnn}
+%    |\show_ldb_entry:nnn| will take the arguments of |\ldb_enter:nnn| and
+%    displays them on the terminal.
+%    \begin{macrocode}
+\cs_new:Npn\show_ldb_entry:nnn#1#2#3{
+   \tl_gset:Nn\g_tmpa_tl{#3}
+   \trace_ldb:n{Set~\token_to_str:N#2\space~with~value~
+            \tl_to_str:N\g_tmpa_tl
+            \space in~#1}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\show_new_ml:nNn}
+%    Undoc
+%    \begin{macrocode}
+\cs_new:Npn\show_new_ml:nNn#1#2#3{
+  \trace_ldb_internal:n{Updating~parms~with~class~`\cs_to_str:N#1'~
+             using~#3~list:~
+%            \tl_to_str:c{#2_ldb_#3ml_tl}
+%FMi tmp
+             \cs_meaning:c {#2_ldb_#3ml_tl}
+         }
+}
+%</trace>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\show_def_update:Nn}
+%    |\show_def_update:Nn| will show the update of a parameter via
+%    |\cs_set:Npn| by displaying first the old then the new value. To
+%    keep the number of tokens produced in precompiling low, the
+%    actual assignment is also carried out in this macro.
+%    \begin{macrocode}
+\cs_new:Npn\show_def_update:Nn#1#2{
+%<*trace>
+   \tl_gset:Nn\g_tmpa_tl{#2}
+   \trace_ldb:n{.....\token_to_str:N#1:^^J........
+      \tl_to_str:N#1~ ->~ \tl_to_str:N\g_tmpa_tl
+      }
+%</trace>
+   \cs_set:Npn#1{#2}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\show_register_update:Nn}
+%    Same game for normal parameters (counts, skips, etc.).
+%    \begin{macrocode}
+\cs_new:Npn\show_register_update:Nn#1#2{
+%<*trace>
+   \tl_gset:Nn\g_tmpa_tl{#2}
+   \trace_ldb:n{.....\token_to_str:N#1:^^J........
+      \tex_the:D#1~ ->~
+      \tl_to_str:N\g_tmpa_tl
+      }
+%</trace>
+   #1#2\scan_stop:
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_show_pointer:N}
+%    Show the contents of what a pointer is pointing to.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_show_pointer:N#1
+  {
+   \trace_ldb:n{Value~ of~
+         \token_to_str:N#1~containing^^J
+         <<\tl_to_str:N#1>>}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_show_mls:}
+%    Show the matching lists.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_show_mls:
+  {
+   \ldb_show_pointer:N\l_ldb_lcml_tl
+   \ldb_show_pointer:N\l_ldb_tcml_tl
+   \ldb_show_pointer:N\l_ldb_scml_tl
+   \ldb_show_pointer:N\l_ldb_leml_tl
+   \ldb_show_pointer:N\l_ldb_lbml_tl
+   \ldb_show_pointer:N\l_ldb_tbml_tl
+   \ldb_show_pointer:N\g_ldb_sbml_tl
+   \ldb_show_pointer:N\g_ldb_seml_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_show_new_mls:}
+%    Show the new matching lists.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_show_new_mls:
+  {
+   \ldb_show_pointer:N\l_ldb_new_lcml_tl
+   \ldb_show_pointer:N\l_ldb_new_tcml_tl
+   \ldb_show_pointer:N\l_ldb_new_scml_tl
+   \ldb_show_pointer:N\l_ldb_new_leml_tl
+   \ldb_show_pointer:N\l_ldb_new_lbml_tl
+   \ldb_show_pointer:N\l_ldb_new_tbml_tl
+   \ldb_show_pointer:N\l_ldb_new_sbml_tl
+   \ldb_show_pointer:N\l_ldb_new_seml_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\nopointer}
+%    A function to switch off the showing of pointers.
+%    \begin{macrocode}
+\cs_new:Npn\nopointer{\cs_set:Npn\ldb_show_pointer:N##1{}}
+%    \end{macrocode}
+% \end{macro}
+%
+
+
+
+% \subsection{Tracing modules}
+%
+%  \begin{macro}{\traceon}
+%  \begin{macro}{\traceoff}
+%    Turning the tracing of modules on or off. (primitive version).
+%    \begin{macrocode}
+%<*trace>
+\cs_new:Npn\traceon#1{\clist_map_inline:nn{#1}
+         {
+          \cs_if_free:cF{g_trace_ ##1 _status}
+            {\int_gincr:c{g_trace_ ##1 _status}}
+         }}
+\cs_new:Npn\traceoff#1{\clist_map_inline:nn{#1}
+         {
+          \cs_if_free:cF{g_trace_ ##1 _status}
+            {\int_gdecr:c{g_trace_ ##1 _status}}
+         }}
+%</trace>
+%<-trace>\let_new:NN\traceon\use_none:n
+%<-trace>\let_new:NN\traceoff\use_none:n
+%    \end{macrocode}
+%  \end{macro}
+%  \end{macro}
+%
+
+
+
+
+
+
+%    \begin{macrocode}
+%</package>
+%    \end{macrocode}
+%
+%
+
+\endinput
+
+%
+% \subsection{Functions}
+% 
+% \begin{function}{\ldb_enter:nnn}
+% \begin{syntax}
+%   "\ldb_enter:nnn" "{"<class list>"}" "{"<parm>"}" "{"<value>"}"
+% \end{syntax}
+% This function is used to enter values for parameters in a given
+% context. The context is described by <class list> which is a list of
+% class names (character strings) separated by either "." (tight
+% binding), "*" (loose binding), "!" (direct nested "\begin"), or
+% {\tt\string<} (sequence of "\end" followed by "\begin". From left to
+% right the classes represent the order of nesting to which the
+% parameter change should apply, that is the left-most class is the one
+% that was entered last (Denys syntax). To the left and the right there
+% is an implicit "*" assumed which means that the parameter change will
+% apply until overwritten by a more specific entry (left star) and also
+% will apply the first time a specified <class list> matches independent
+% of the fact where in the stack of classes this happens.
+% 
+% <parm> can be either a \TeX{} parameter like a <counter> or a <tlp>,
+% e.g.\ a function with no arguments. This isn't a real restriction
+% since such a token list pointer can of course then held a function
+% with arbitrary arguments as its <value>.
+% At the moment <parm>s that are <tlp> have to be declared but this can
+% be avoided later.
+% 
+% <value> might be any value which is sensible for the corresponding
+% <parm>.
+% 
+%  All assignments done by this function are local so that they restore
+% themselves when a group (e.g.\ an environment) ends.
+% \end{function}
+% 
+% \begin{function}{\ldb_decl_defparm:N}
+% \begin{syntax}
+%  "\ldb_decl_defparm:N" <parm>
+% \end{syntax}
+% <parm> is declared as a parameter that gets its value assigned via a
+% definition routine of \TeX{}, i.e., is not one of \TeX{}'s internal
+% registers. This is a temporary funtion since the type of parameter can
+% be determined by \LaTeX3 itself.
+% \end{function}
+% 
+% \begin{function}{\ldb_set_classes:nn}
+% \begin{syntax}
+% 
+% \end{syntax}
+% \end{function}
+% 
+% \begin{function}{}
+% \begin{syntax}
+% 
+% \end{syntax}
+% \end{function}
+% 
+% \subsection{Internal functions}
+% 
+% Not described, probably of no interest to the implementor of higher
+% level modules.
+% 
+% \subsection{Variables}
+% 
+% \begin{variable}{\l_ldb_lml_tl}
+% Current loose match list holding possible candiates for loose matches
+% with further nested environments.  When a new environment <env> starts
+% the LDB manager looks for loose matches in this list. If a match is
+% found the corresponding pointers are handled in the following way:
+% \begin{itemize}
+% \item
+%   The loose pointer if not nil is added (or moved if already present)
+% to the right in "\l_ldb_curr_lml_tl".
+% \item
+%   The tight pointer if not nil is added (or moved if already present)
+% to the right in "\l_ldb_curr_tml_tl".
+% \item
+%   The begin-begin pointer if not nil is added (or moved if already
+% present) to the right in "\l_ldb_curr_bbml_tl".
+% \item
+%   The end-begin pointer if not nil is added (or moved if already
+% present) to the right in "\l_ldb_curr_ebml_tl".
+% \item
+%   The assign-begin pointer if not nil is evaluated resulting in local
+% assignments to a set of parameters.
+% \end{itemize}
+% When the LDB manager has finished looking for matches (which involves
+% also looking for tight, etc. matches) "\l_ldb_lml_tl" gets assigned
+% the contents of "\l_ldb_curr_lml_tl". This means that the contents of
+% the loose match list will be restored when the environment ends.
+% \end{variable}
+% 
+% \begin{variable}{\l_ldb_tml_tl}
+% Current tight match list holding possible candidates for tight
+% matches. When a new environment starts this list is checked after
+% checking the loose match list. Found matches are handled in the same
+% way as above.  When the LDB manager has finished looking for matches
+% "\l_ldb_tml_tl" gets assigned the contents of "\l_ldb_curr_tml_tl".
+% This means that the contents of the tight match list will be restored
+% when the environment ends.
+% \end{variable}
+% 
+% \begin{variable}{\g_ldb_bbml_tl}
+% Current begin-begin match list holding possible candidates for
+% begin-begin matches. When a new environment starts this list is
+% checked after checking the tight match list. Found matches are handled
+% in the same way as above.  When the LDB manager has finished looking
+% for matches "\g_ldb_bbml_tl" gets globally assigned the contents of
+% "\l_ldb_curr_bbml_tl".  When some environment ends this list is
+% globally cleared.
+% \end{variable}
+% 
+% \begin{variable}{\g_ldb_ebml_tl}
+% Current begin-end match list holding possible candidates for begin-end
+% matches. When a new environment starts this list is checked if the
+% begin-begin match list is empty (only one of both can possibly contain
+% candidates). Found matches are handled in the same way as above.  When
+% the LDB manager has finished looking for matches, "\g_ldb_ebml_tl"
+% gets globally cleared to avoid spurious matches within this
+% environment. When the end tag of this environment is reached the the
+% "\g_ldb_ebml_tl" is checked again for match but this time only
+% pointers to begin-end are processed (i.e. added or moved to the right
+% in "\l_ldb_curr_ebml_tl" (which already holds the matches found at
+% the beginning of the environment)). Then "\g_ldb_ebml_tl" is assigned
+% globally the contents of "\l_ldb_curr_ebml_tl". The reason for
+% checking twice is that the matches found at the beginning are those
+% that come from LDB entries like ``"env1"\string<"env2*env3"'' where
+% "env2" is actually a full environment (begin and end tag). The check
+% at the end then captures entries like
+% ``"env1"\string<"env2"\string<"env3"'' where "env2" stands for an end
+% tag that is directly preceded by the end tag of "env3".
+% \begin{quote}
+%    (Deep breath.) You got that? [\TeX book p.~125]
+% \end{quote}
+% \end{variable}
+% 
+% \begin{variable}{\l_ldb_curr_lml_tl}
+% Temp variable holding found loose matches (candiates for the next
+% environment). Since older loose match candidates are also candidates
+% for further nested environments this variable gets assigned the
+% contents of "\l_ldb_lml_tl" when the LDB starts processing a begin tag.
+% \end{variable}
+% 
+% \begin{variable}{\l_ldb_curr_tml_tl}
+% Temp variable holding found tight matches (candiates for the next
+% environment). Since older tight match candidates are no longer
+% candidates for further nested environments this variable is cleared
+% when the LDB starts processing a begin tag.
+% \end{variable}
+% 
+% \begin{variable}{\l_ldb_curr_bbml_tl}
+% Temp variable holding found begin-begin matches (candiates for the
+% next environment). Since older match candidates are no longer
+% candidates for further nested environments this variable is cleared
+% when the LDB starts processing a begin tag.
+% \end{variable}
+% 
+% \begin{variable}{\l_ldb_curr_ebml_tl}
+% Temp variable holding found begin-end matches (candiates for the next
+% environment). Since older match candidates are no longer candidates
+% for further nested environments this variable is cleared when the LDB
+% starts processing a begin tag. The values of this variable is actually
+% used in the end tag where it is further updated (see
+% "\g_ldb_ebml_tl"). Then its contents is assigned globally to
+% "\g_ldb_ebml_tl" so that it survives the closing group of the end
+% tag.
+% \end{variable}
+% 
+% To interrupt sequencing information the begin of a paragraph
+% (normally) clears "\g_ldb_bbml_tl"  the end (normally) clears
+% "\g_ldb_ebml_tl"  and "\l_ldb_curr_ebml_tl".
+% 
+% \subsection{Tracing infos}
+% 
+% The LDB mechanism is  traced via "rdb".
+% This time two levels of tracing information are provided.
+% 
+% Turning on "rdb" once will trace:
+% \begin{itemize}
+% \item  LDB lookup for begin and end tags,
+% \item the changing of parameter values due to LDB queries.
+% \end{itemize}
+% 
+% Turning on "rdb" twice will additionally trace:
+% \begin{itemize}
+% \item adding new entries to the LDB data structure,
+% \item the internal mechanism of the LDB, e.g., changes of match lists
+% (moving or adding items to a match list) , the search for matches, etc.
+% \end{itemize}
+% 
+% \subsubsection{Functions}
+% 
+% \begin{function}{\trace_rdb:n}
+% \begin{syntax}
+%   "\trace_rdb:n" "{" <text> "}"
+% \end{syntax}
+% \end{function}
+% 
+% \begin{function}{\trace_ldb_internal:n}
+% \begin{syntax}
+%   "\trace_ldb_internal:n" "{" <text> "}"
+% \end{syntax}
+% \end{function}
+% 
+% 
