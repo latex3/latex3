@@ -8,7 +8,17 @@
 %
 %    It might speed up the processing of documents when certain parts
 %    of the document style file are `precompiled' and stored in a
-%    separate file.
+%    separate file. How much of this is still useful these days is
+%    opento some experiments I guess. If a large number of LDB
+%    settings are being used then perhaps this will indeed safe some
+%    considerable time as all the parsing isn't necessary (some
+%    initial test show 1 second extra user time per 1000 additional
+%    LDB entries).
+%
+%    I've largely added it to have \cs{dumpLaTeXstate} available while
+%    debugging the LDB pointer structure.
+%
+%
 %
 %  \begin{macro}{\c_cs_dump_stream}
 %    We need to allocate an output stream in order to be able to write
@@ -26,12 +36,13 @@
 %    This \m{tl} is used to store the name of the file.
 %
 %    \begin{macrocode}
-\tl_new:Nn\g_cs_dump_name_tl{}
+\tl_new:N  \g_cs_dump_name_tl
+\tl_set:Nn \g_cs_dump_name_tl {\jobname -default.dmp}
 %    \end{macrocode}
 %  \end{macro}
 %
 %  \begin{macro}{\g_cs_dump_seq}
-%    While processing the documentstyle we build up a list of
+%    While processing the document class we build up a list of
 %    control sequence names to be dumped. For this purpose
 %    we use the |\g_cs_dump_seq| sequence.
 %
@@ -43,18 +54,20 @@
 %  \begin{macro}{\cs_record_name:N}
 %  \begin{macro}{\cs_record_name:c}
 %    These functions mark a control sequence for dumping into a
-%    precompiled style. 
-%
+%    precompiled class. 
+%    \begin{macrocode}
+\cs_new:Npn\cs_record_name:N#1{
+      \seq_gput_left:Nn
+          \g_cs_dump_seq#1
+%    \end{macrocode}
 %    When the {\sf trace} `module' is included in the code we also write
 %    information about the control sequence into a |.dmp| file.
 %    \begin{macrocode}
-\cs_new:Npn\cs_record_name:N#1{
 %<*trace>
       \seq_gput_left:Nn
           \g_cs_trace_seq#1
 %</trace>
-      \seq_gput_left:Nn
-          \g_cs_dump_seq#1}
+}
 \cs_new:Npn\cs_record_name:c{\exp_args:Nc\cs_record_name:N}
 %    \end{macrocode}
 %  \end{macro}
@@ -62,14 +75,14 @@
 %
 %
 % \begin{macro}{\cs_dump:}
-%    When a document style calls |\cs_dump:| it triggers this code
+%    When a document styleclass calls |\cs_dump:| it triggers this code
 %    to write all the precompilation information out to a file.
 %
 %    Before dumping, we write a message to the terminal informing the
 %    `user' of this fact.
 %    \begin{macrocode}
 \cs_new:Npn\cs_dump:{
-  \typeout{Precompiling~style~into~(\g_cs_dump_name_tl)}
+  \typeout{Precompiling~class~into~(\g_cs_dump_name_tl)}
   \iow_open:Nn\c_cs_dump_stream{\g_cs_dump_name_tl}
 %    \end{macrocode}
 %    The first thing we write on a `dump' file is a command that
@@ -77,25 +90,33 @@
 %    able to write to (and read from) the file internal control
 %    sequences, containing |_| and |:|.
 %    \begin{macrocode}
-  \iow_now:Nx\c_cs_dump_stream
+  \iow_now:Nn\c_cs_dump_stream
     {\group_begin:
-     \char_catcode_array:D`\token_to_str:N\*=11\scan_stop:
-     \token_to_str:N\style_names_start:
+       \char_set_catcode_letter:N \*
+       \ExplSyntaxOn
     }
   \seq_map_inline:Nn
        \g_cs_dump_seq
        {\tex_message:D{.}
         \iow_now:Nx\c_cs_dump_stream
 %    \end{macrocode}
-%    We use a direct |\gdef:Npn| to disable any type of local/global
+%    We use a direct |\cs_gset:Npn| to disable any type of local/global
 %    check on the pointers.
+%
+%    Such dumping should probably enure that the line length is not
+%    going to be too long or else it may not be possible to read such
+%    a file back in (not done).
+%
+%    One other thing: dumping of the LDB doesn't work of course
+%    because dumping of property lists doesn't work (in all cases) as
+%    the keys these days are specially handled and become strings.
 %    \begin{macrocode}
-             {\token_to_str:N\gdef:Npn
+             {\token_to_str:N\cs_gset:Npn
                  \token_to_str:N##1
                  {\tl_to_str:N##1}}
        }
 %    \end{macrocode}
-  \iow_now:Nx
+  \iow_now:Nn
      \c_cs_dump_stream
      {\group_end:}
   \iow_close:N\c_cs_dump_stream
@@ -117,7 +138,8 @@
       {\tl_gset:Nn\g_cs_dump_name_tl{#1.cmp}}
 %</precompile>
 %<-precompile> {\err_tex_message:D{Cannot~ dump~ with~ this~ format}}
-      {\input{#1.cmp}
+      {\typeout{Loading~ precompiled~ format~ in~ #1.cmp ~...}
+       \input{#1.cmp}
        \cs_set_eq:NN\cs_dump:\fi:
        \if_false:}}
 %    \end{macrocode}
@@ -174,18 +196,25 @@
   \exp_after:wN\cs_record_name:N#1
 %</precompile>
   \exp_after:wN\tl_clear_new:N#1}
-
-
-% FMi we really need to allocate property lists these days for nodes
-
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%
+%  \begin{macro}{\cs_ggen_prop:N}
+%    We really need to allocate property lists these days for nodes of
+%    the LDB.
+%    \begin{macrocode}
 \cs_new:Npn\cs_ggen_prop:N#1{
   \cs_ggen_sym:N #1
   \exp_after:wN \prop_clear:N #1
 }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
+%  \end{macro}
 %
+%
+%
+% \subsection{Dumping data structure states for tracing}
 %
 %  \begin{macro}{\g_cs_trace_seq}
 %    A sequence which holds the control sequence names that are to 
