@@ -91,7 +91,7 @@
 % by \enquote{\texttt{is}}. A more complicated example is
 % a pattern to add a comma at the end of each word:
 % \begin{verbatim}
-%   \regex_replace_all:nnN { (\w*) } { \1 , } \l_my_str
+%   \regex_replace_all:nnN { (\w+) } { \1 , } \l_my_str
 % \end{verbatim}
 % The |\w| sequence represents any \enquote{word} character,
 % and |*| indicates that the |\w| sequence should be repeated
@@ -414,29 +414,39 @@
 %
 % \subsection{Bugs, misfeatures, future work, and other possibilities}
 %
-% The following features are likely to be implemented in the future.
+% The following things should preferably be sorted out before
+% shipping the code.
 % \begin{itemize}
-% \item Test "(a(b)c|d(e)f)*" for group numbers.
-% \item Test "(a?)*" for infinite loop.
-% \item Test "[\x{3c}-\x{3e}]".
-% \item Test "\G".
-% \item Test examples in the doc.
+% \item Move submatch tracking to the \tn{toks} registers along-side
+%   with the states of the NFA (a mess, but faster than the current
+%   approach). Understand how to avoid keeping submatch information
+%   around for longer than strictly necessary (no \enquote{memory leak}).
 % \item Bug where mismatched parentheses are wrongly accepted ("a)b(c").
-% \item Stop matching as soon as there is no thread left.
-% \item Optimize simple strings: use less states
-%   (|abcade| should give two states, for |abc| and |ade|).
-% \item Optimize groups with no alternative.
-% \item Make sure that the submatches property list has no
-%   \enquote{memory leak}.
-% \item Implement regex matching on external files.
-% \item The \texttt{\{\}} quantifiers are only half-implemented.
+% \item Better error recovery in the case of missing closing parentheses.
+% \item Check that all initializing steps are correct.
+% \item Actually implement the \texttt{\{\}} quantifiers.
+% \end{itemize}
+%
+% The following need discussion.
+% \begin{itemize}
 % \item Newline conventions are not done.
 %   In particular, |.| should not match newlines.
 %   Also, |\A| should differ from |^|, and |\Z|, |\z| and |$| should
 %   differ.
-% \item Caseless matching.
-% \item |(*..)| and |(?..)| sequences to set some options.
-% \item General look-ahead/behind assertions?
+% \item Caseless matching and more generally
+%   |(*..)| and |(?..)| sequences to set some options.
+% \item General look-ahead/behind assertions.
+% \item Idea of |#| as a synonym of |.*?|.
+% \item Do we need a facility for balanced groups?
+% \end{itemize}
+%
+% The following features are likely to be implemented at some point
+% in the future.
+% \begin{itemize}
+% \item Optimize simple strings: use less states
+%   (|abcade| should give two states, for |abc| and |ade|).
+% \item Optimize groups with no alternative.
+% \item Implement regex matching on external files.
 % \item Conditional subpatterns with look ahead/behind: \enquote{if
 %     what follows is [\ldots{}], then [\ldots{}]}.
 % \item "(?|..|..)" to reset the capturing group number at the start
@@ -731,18 +741,13 @@
 % \end{variable}
 % \end{variable}
 %
-% \begin{variable}{\l_regex_first_step_int}
-% \begin{variable}{\l_regex_last_end_match_step_int}
-%   In the case of multiple matches, \cs{l_regex_first_step_int}
-%   is equal to the position where the currrent match
-%   attempt began. This is equal to the position
-%   \cs{l_regex_last_end_match_step_int} of the end of
-%   the previous match, unless that match was empty.
+% \begin{variable}{\l_regex_start_step_int}
+%   In the case of multiple matches, \cs{l_regex_start_step_int}
+%   is equal to the position where the current match
+%   attempt began.
 %   \begin{macrocode}
-\int_new:N \l_regex_first_step_int
-\int_new:N \l_regex_last_end_match_step_int
+\int_new:N \l_regex_start_step_int
 %    \end{macrocode}
-% \end{variable}
 % \end{variable}
 %
 % \begin{variable}{\l_regex_max_thread_int}
@@ -824,19 +829,26 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_last_match_empty_no:F #1 {#1}
 \cs_new_protected:Npn \regex_last_match_empty_yes:F
-  { \int_compare:nNnF \l_regex_last_end_match_step_int = \l_regex_current_step }
+  { \int_compare:nNnF \l_regex_start_step_int = \l_regex_current_step_int }
 \cs_new_eq:NN \regex_last_match_empty:F \regex_last_match_empty_no:F
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{variable}{\l_regex_success_thread_int}
+% \begin{variable}{\l_regex_success_step_int}
 % \begin{variable}{\l_regex_success_submatches_prop}
+% \begin{variable}{\l_regex_success_empty_bool}
 %   The thread number corresponding to successful thread with highest
-%   priority found so far, and the corresponding submatch information.
+%   priority found so far, the step at which it was successfull, and
+%   the corresponding submatch information.
 %    \begin{macrocode}
 \int_new:N  \l_regex_success_thread_int
+\int_new:N  \l_regex_success_step_int
 \prop_new:N \l_regex_success_submatches_prop
+\bool_new:N \l_regex_success_empty_bool
 %    \end{macrocode}
+% \end{variable}
+% \end{variable}
 % \end{variable}
 % \end{variable}
 %
@@ -844,6 +856,17 @@
 %   Maps threads \texttt{id}s to their submatch information.
 %    \begin{macrocode}
 \prop_new:N \l_regex_submatches_prop
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_regex_fresh_thread_bool}
+%   This boolean marks when the current thread has started from
+%   the beginning of the regular expression at this character,
+%   in other words, it is true if the current thread has matched
+%   an empty string so far (and we only care about this boolean
+%   when a thread succeeds, hence matching an empty string overall).
+%    \begin{macrocode}
+\bool_new:N \l_regex_fresh_thread_bool
 %    \end{macrocode}
 % \end{variable}
 %
@@ -951,6 +974,7 @@
           {
             {-999} {File~not~found}
             {-998} {Unsupported~construct}
+            {-997} {The~regular~expression~is~too~large~(32768~states).}
             {1}  {\iow_char:N\\~at~end~of~pattern }
 %           {2}  {\iow_char:N\\c~at~end~of~pattern }
             {4}  {Numbers~out~of~order~in~\iow_char:N\{\iow_char\}~quantifier.}
@@ -1164,8 +1188,12 @@
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_new_state:
   {
-    \int_incr:N \l_regex_state_max_int
-    \tex_toks:D \l_regex_state_max_int { }
+    \int_compare:nNnTF \l_regex_state_max_int > {32766}
+      { \regex_build_error:n {-997} }
+      {
+        \int_incr:N \l_regex_state_max_int
+        \tex_toks:D \l_regex_state_max_int { }
+      }
     \int_set_eq:NN \l_regex_state_left_int \l_regex_state_right_int
     \int_set_eq:NN \l_regex_state_right_int \l_regex_state_max_int
   }
@@ -1283,7 +1311,6 @@
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_setup:
   {
-    % ^^A todo: check if complete!
     \cs_set_eq:NN \regex_build_control:N \regex_build_default_control:N
     \cs_set_eq:NN \regex_build_raw:N \regex_build_default_raw:N
     \int_set_eq:NN \l_regex_capturing_group_int \c_minus_one
@@ -1291,9 +1318,13 @@
     \int_zero:N \l_regex_state_right_int
     \int_zero:N \l_regex_state_max_int
     \regex_build_new_state:
-    \regex_build_transitions_aux:NNNN
-      \regex_action_free_copy:n \l_regex_state_right_int
-      \regex_action_cost:n      \l_regex_state_left_int
+    \regex_build_new_state:
+    \regex_toks_put_right:Nx \l_regex_state_left_int
+      {
+        \regex_action_start_wildcard:nn
+          { \int_use:N \l_regex_state_left_int }
+          { \int_use:N \l_regex_state_right_int }
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1310,7 +1341,7 @@
         \regex_build_error:n {22}
         \prg_replicate:nn
           { \seq_length:N \l_regex_capturing_group_seq } % (
-          { \use:c { regex_build_): } } %^^A todo: don't look for quantifiers
+          { \use:c { regex_build_): } }
         \prg_do_nothing: \prg_do_nothing:
       }
     \regex_toks_put_right:Nx \l_regex_state_right_int
@@ -1327,7 +1358,7 @@
 % \begin{macro}[aux]{\regex_build_anchor_start:N}
 %   Anchoring at the start corresponds to checking that the current
 %   character is the first in the string. Anchoring to the beginning
-%   of the match attempt uses \cs{l_regex_first_step_int} instead of
+%   of the match attempt uses \cs{l_regex_start_step_int} instead of
 %   \cs{c_zero}.
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { regex_build_^: }
@@ -1335,7 +1366,7 @@
 \cs_new_protected_nopar:Npn \regex_build_A:
   { \regex_build_anchor_start:N \c_zero }
 \cs_new_protected_nopar:Npn \regex_build_G:
-  { \regex_build_anchor_start:N \l_regex_first_step_int }
+  { \regex_build_anchor_start:N \l_regex_start_step_int }
 \cs_new_protected_nopar:Npn \regex_build_anchor_start:N #1
   {
     \regex_build_new_state:
@@ -1774,7 +1805,7 @@
 %   \texttt{\{\meta{int},\}}, or \texttt{\{\meta{int},\meta{int}\}}.
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { regex_build_quantifier_ \c_lbrace_str :w }
-  { \regex_get_digits:nw { \regex_build_quantifier_lbrace:n } } %^^A !!!
+  { \regex_get_digits:nw { \regex_build_quantifier_lbrace:n } }
 \cs_new_protected_nopar:Npn \regex_build_quantifier_lbrace:n #1
   {
     \tl_if_empty:nTF {#1}
@@ -1802,7 +1833,7 @@
       }
   }
 \cs_new_protected_nopar:Npn \regex_build_quantifier_lbrace:nnw #1#2#3
-  { %^^A wrong!
+  {
     \str_if_eq:xxTF { \exp_not:N #3 } { \c_rbrace_str }
       {
         \tl_if_empty:nTF {#2}
@@ -2046,7 +2077,7 @@
 %   \item Build each branch separately, and merge them to the common
 %     end-node.
 %   \item Test for a quantifier, and if needed, transfer the initial
-%     vertex to a new vertex. %^^A todo: check that we have a clean slate.
+%     vertex to a new vertex.
 %   \end{itemize}
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { regex_build_(: } #1#2
@@ -2073,7 +2104,7 @@
   }
 \cs_new_protected_nopar:cpn { regex_build_): }
   {
-    \seq_if_empty:NTF \l_regex_capturing_group_int
+    \seq_if_empty:NTF \l_regex_capturing_group_seq
       { \regex_build_error:n {22} }
       {
         \regex_build_end_alternation:
@@ -2439,8 +2470,6 @@
 % able to safely use integers, which are implemented as \tn{count}
 % registers.
 %
-%^^A error recovery in case we reach 32767 states?
-%
 % \subsubsection{Helpers for running the NFA}
 %
 % \begin{macro}[aux]{\regex_if_state_free:nTF}
@@ -2495,35 +2524,65 @@
 % \subsubsection{Matching: framework}
 %
 % \begin{macro}[int]{\regex_match:n}
-%   First, reset a few variables and store the query
-%   in \cs{l_regex_query_str}.
-%   Then loop over the query string, running the NFA.
+%   Store the query string in \cs{l_regex_query_str}.
+%   Then reset a few variables which should be set only once,
+%   before the first match, even in the case of multiple matches.
+%   Then run the NFA once: in the case of multiple matches, the function
+%   \cs{regex_match_once:} takes care of calling itself again.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_match:n #1
   {
-    \regex_match_initial_setup:
     \tl_set:Nx \l_regex_query_str { \tl_to_other_str:n {#1} }
-    \exp_after:wN \regex_match_loop:N \l_regex_query_str
-    \q_recursion_tail \q_recursion_stop
+    \regex_match_initial_setup:
+    \regex_match_once:
   }
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[int]{\regex_match_once:}
+% \begin{macro}[aux]{\regex_match_once_aux:}
+%   After setting up more variables in \cs{regex_match_setup:},
+%   skip the \cs{l_regex_start_step_int} first characters of the
+%   query string, and loop over it.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_match_once:
+  {
+    \regex_match_setup:
+    \exp_after:wN \regex_match_once_aux: \l_regex_query_str
+      \q_recursion_tail \q_recursion_stop
+    \int_compare:nNnF \l_regex_success_thread_int = \c_zero
+      { \l_regex_every_match_tl }
+  }
+\cs_new_protected_nopar:Npn \regex_match_once_aux:
+  { \str_skip_do:nn { \l_regex_start_step_int } { \regex_match_loop:N } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}[aux]{\regex_match_initial_setup:}
+% \begin{macro}[aux]{\regex_match_loop_setup:}
+% \begin{macro}[aux]{\regex_match_loop_setup_aux:n}
 %   This function holds the setup that should be done
 %   only once for one given pattern matching on a given
 %   string. It is called only once for the whole string.
 %   On the other hand, \cs{regex_match_setup:}
 %   is called for every match in the string in case of
-%   repeated matches (for instance in the context of
-%   \cs{regex_count:nnN}.
+%   repeated matches, and \cs{regex_match_loop_setup:}
+%   is called at every step.
+%   We define \cs{regex_match_loop_setup:} here with
+%   \texttt{x}-expansion to hold an explicit list of
+%   all the dimensions that must be taken to zero at
+%   every character by \cs{regex_match_loop_setup:}. Otherwise,
+%   we would need to expand it at every character, and the
+%   \cs{prg_stepwise_\ldots{}} functions are rather slow.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_match_initial_setup:
   {
-    % ^^A todo: check complete!
     \tl_clear:N \l_regex_look_behind_str
-    \int_set_eq:NN \l_regex_last_end_match_step_int \c_zero
+    \int_set_eq:NN \l_regex_start_step_int \c_minus_one
     \int_set_eq:NN \l_regex_current_step_int \c_zero
+    \int_set_eq:NN \l_regex_success_step_int \c_zero
+    \bool_set_false:N \l_regex_success_empty_bool
     \cs_set_protected_nopar:Npx \regex_match_loop_setup:
       {
         \prg_stepwise_function:nnnN
@@ -2533,47 +2592,39 @@
         \int_incr:N \l_regex_current_step_int
         \cs_set_eq:NN \regex_obsolete_all:F \regex_obsolete_all_no:F
       }
-    \regex_match_setup:
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux]{\regex_match_setup:}
-% \begin{macro}[aux]{\regex_match_loop_setup:}
-% \begin{macro}[aux]{\regex_match_loop_setup_aux:n}
-%   Hopefully, we didn't forget to initialize anything here.
-%   We expand \cs{prg_stepwise_function:nnnN} to an explicit
-%   list of all the dimensions that must be taken to zero at
-%   every character by \cs{regex_match_loop_setup:}. Otherwise,
-%   we would need to expand it at every character, and the
-%   \cs{prg_stepwise_\ldots{}} functions are rather slow.
-%   The memory footprint only lasts until the end of the
-%   regex operation anyways, but to minimize it, we do not
-%   end the dimension assignments safely.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_match_setup:
-  {
-%<trace>    \regex_trace:x { Match~setup... }
-    \prop_clear:N \l_regex_submatches_prop
-    \int_set_eq:NN
-      \l_regex_first_step_int
-      \l_regex_current_step_int
-    \int_decr:N \l_regex_current_step_int
-    \int_zero:N \l_regex_max_index_int
-    \regex_put_thread_in_state:Nn \c_one {1}
-    \int_set_eq:NN \l_regex_max_thread_int \c_one
-    \cs_set_eq:NN \regex_last_match_empty:F \regex_last_match_empty_no:F
   }
 \cs_new_protected_nopar:Npn \regex_match_loop_setup: { }
-\cs_new_protected_nopar:Npn \regex_match_loop_setup_aux:n #1
+\cs_new_nopar:Npn \regex_match_loop_setup_aux:n #1
   { \tex_dimen:D #1 \c_zero pt }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}[aux]{\regex_match_setup:}
+%   Hopefully, we didn't forget to initialize anything here.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_match_setup:
+  {
+%<trace>    \regex_trace:x { Match~setup... }
+    \prop_clear:N \l_regex_submatches_prop
+    \bool_if:NTF \l_regex_success_empty_bool
+      { \cs_set_eq:NN \regex_last_match_empty:F \regex_last_match_empty_yes:F }
+      { \cs_set_eq:NN \regex_last_match_empty:F \regex_last_match_empty_no:F }
+    \int_set_eq:NN \l_regex_start_step_int \l_regex_success_step_int
+    \int_set_eq:NN \l_regex_current_step_int \l_regex_start_step_int
+    \int_decr:N \l_regex_current_step_int
+    \int_zero:N \l_regex_max_index_int
+    \int_set_eq:NN \l_regex_max_thread_int \c_one
+    \int_zero:N \l_regex_success_thread_int
+    \regex_put_thread_in_state:Nn \c_one {1}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[aux]{\regex_match_loop:N}
 % \begin{macro}[aux]{\regex_match_one_index:n}
+% \begin{macro}[aux]{\regex_match_one_index_aux:nn}
 %   Setup what needs to be reset at every character,
 %   then set \cs{l_regex_current_char_int} to the
 %   character code of the character that is read
@@ -2596,13 +2647,13 @@
           \regex_match_one_index:n
       }
     \regex_tmp:w
-    \regex_match_loop_test:NTF #1
-      {
-        \bool_if:NT \l_regex_look_behind_bool
-          { \tl_put_left:Nx \l_regex_look_behind_str {#1} }
-        \regex_match_loop:N
-      }
-      { \regex_match_loop:N #1 }
+    \if_num:w \l_regex_max_index_int = \c_zero
+      \exp_after:wN \use_none_delimit_by_q_recursion_stop:w
+    \fi:
+    \quark_if_recursion_tail_stop:N #1
+    \bool_if:NT \l_regex_look_behind_bool
+      { \tl_put_left:Nx \l_regex_look_behind_str {#1} }
+    \regex_match_loop:N
   }
 \cs_new_nopar:Npn \regex_match_one_index:n #1
   {
@@ -2619,42 +2670,32 @@
     \regex_obsolete_all:F
       { \regex_state_use:N \l_regex_current_state_int }
   }
-\prg_new_protected_conditional:Npnn \regex_match_loop_test:N #1 { TF }
-  {
-    \int_compare:nNnTF \l_regex_max_index_int = \c_zero
-      {
-        \int_compare:nNnF
-            \l_regex_current_step_int
-            = \l_regex_last_end_match_step_int
-          {
-            \l_regex_every_match_tl
-            \int_set_eq:NN
-              \l_regex_last_end_match_step_int
-              \l_regex_current_step_int
-          }
-        \quark_if_recursion_tail_stop:N #1
-        \int_compare:nNnTF
-          \l_regex_first_step_int = \l_regex_current_step_int
-          {
-            \int_incr:N \l_regex_current_step_int
-            \regex_match_setup:
-            \prg_return_true:
-          }
-          {
-            \regex_match_setup:
-            \prg_return_false:
-          }
-      }
-      {
-        \quark_if_recursion_tail_stop:N #1
-        \prg_return_true:
-      }
-  }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
 % \subsubsection{Actions when matching}
+%
+% \begin{macro}[aux]{\regex_action_start_wildcard:nn}
+%   The search is made unanchored at the start by putting
+%   a free transition to the real start of the NFA, and a
+%   costly transition to the same state, waiting for the
+%   next character in the query string. This combination
+%   could be reused (with some changes). We sometimes need
+%   to know that the match for a given thread starts at
+%   this character. For that, we use the boolean
+%   \cs{l_regex_fresh_thread_bool}.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_action_start_wildcard:nn #1#2
+  {
+    \bool_set_true:N \l_regex_fresh_thread_bool
+    \regex_action_free_copy:n {#2}
+    \bool_set_false:N \l_regex_fresh_thread_bool
+    \regex_action_cost:n {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
 %
 % \begin{macro}[aux]{\regex_action_cost:n}
 %    \begin{macrocode}
@@ -2695,6 +2736,10 @@
             \cs_set_eq:NN \regex_obsolete_all:F \regex_obsolete_all_yes:F
             \int_set_eq:NN \l_regex_success_thread_int
               \l_regex_current_thread_int
+            \bool_set_eq:NN \l_regex_success_empty_bool
+              \l_regex_fresh_thread_bool
+            \int_set_eq:NN \l_regex_success_step_int
+              \l_regex_current_step_int
             \regex_if_track_submatches:T
               {
                 \prop_pop:NoNF \l_regex_submatches_prop
@@ -2706,7 +2751,6 @@
               }
           }
       }
-    % ^^A \regex_if_track_submatches:F { \use_none_delimit_by_q_stop:w }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2784,23 +2828,20 @@
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_action_submatch:n #1
   {
-    % \regex_obsolete_all:F
-    %   {
-        \regex_if_track_submatches:T
-          {
-            \prop_pop:NoNF \l_regex_submatches_prop
-              { \int_use:N \l_regex_current_thread_int }
-              \l_regex_tmpa_prop
-              { \prop_clear:N \l_regex_tmpa_prop }
-            \prop_put:Nno \l_regex_tmpa_prop {#1}
-              { \int_use:N \l_regex_current_step_int }
-            \prop_put:Noo \l_regex_submatches_prop
-              { \int_use:N \l_regex_current_thread_int }
-              { \l_regex_tmpa_prop }
+    \regex_if_track_submatches:T
+      {
+        \prop_pop:NoNF \l_regex_submatches_prop
+          { \int_use:N \l_regex_current_thread_int }
+          \l_regex_tmpa_prop
+          { \prop_clear:N \l_regex_tmpa_prop }
+        \prop_put:Nno \l_regex_tmpa_prop {#1}
+          { \int_use:N \l_regex_current_step_int }
+        \prop_put:Noo \l_regex_submatches_prop
+          { \int_use:N \l_regex_current_thread_int }
+          { \l_regex_tmpa_prop }
 %<trace> \regex_trace:x { Submatch:~s=\state,~t=\thread,~m=#1,~c=\charstep. }
 %<trace> \prop_show:N \l_regex_submatches_prop
-          }
-      % }
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2973,8 +3014,7 @@
   {
     \group_begin:
       \cs_set_eq:NN \regex_if_track_submatches:T #1
-      \tl_set:Nn \l_regex_every_match_tl
-        { \use_none_delimit_by_q_recursion_stop:w }
+      \tl_clear:N \l_regex_every_match_tl
       #2
     \group_end:
   }
@@ -3074,7 +3114,10 @@
       {
         \int_gzero:N \g_regex_match_count_int
         \tl_set:Nn \l_regex_every_match_tl
-          { \int_gincr:N \g_regex_match_count_int }
+          {
+            \int_gincr:N \g_regex_match_count_int
+            \regex_match_once:
+          }
         \regex_build:n {#1}
         \regex_match:n {#2}
         \regex_count_after_group:N #3
@@ -3088,7 +3131,10 @@
           {
             \int_gzero:N \g_regex_match_count_int
             \tl_set:Nn \l_regex_every_match_tl
-              { \int_gincr:N \g_regex_match_count_int }
+              {
+                \int_gincr:N \g_regex_match_count_int
+                \regex_match_once:
+              }
             \regex_use:N #1
             \regex_match:n {#2}
             \regex_count_after_group:N #3
@@ -3168,6 +3214,10 @@
 %   Similarly to \cs{regex_count:nnN} functions,
 %   recurse through matches of the pattern. Then we do
 %   something slightly different, extracting submatches.
+%   Submatches are not extracted if the pattern matched
+%   an empty string at the start of the match attempt
+%   (to avoid adding spurious empty items to the resulting
+%   sequence).
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_split:nnN #1#2#3
   {
@@ -3197,28 +3247,39 @@
   }
 \cs_new_protected_nopar:Npn \regex_split_aux:
   {
-    \regex_extract:
-    \seq_pop:NN \g_regex_submatches_seq \l_regex_tmpa_tl
-    \regex_extract_aux:nTF {0}
+    \int_compare:nNnF \l_regex_start_step_int = \l_regex_success_step_int
       {
-        \seq_gput_left:Nx \g_regex_submatches_seq
+        \regex_extract:
+        \seq_pop:NN \g_regex_submatches_seq \l_regex_tmpa_tl
+        \regex_extract_aux:nTF {0}
           {
-            \str_from_to:Nnn \l_regex_query_str
-              { \int_use:N \l_regex_last_end_match_step_int }
-              { \l_regex_tmpa_tl }
+            \seq_gput_left:Nx \g_regex_submatches_seq
+              {
+                \str_from_to:Nnn \l_regex_query_str
+                  { \int_use:N \l_regex_start_step_int }
+                  { \l_regex_tmpa_tl }
+              }
           }
+          { \msg_error:nn { regex } { internal } }
+        \seq_gconcat:NNN \g_regex_split_seq
+          \g_regex_split_seq \g_regex_submatches_seq
       }
-      { \msg_error:nn { regex } { internal } }
-    \seq_gconcat:NNN \g_regex_split_seq
-      \g_regex_split_seq \g_regex_submatches_seq
+    \regex_match_once:
   }
 \cs_new_protected_nopar:Npn \regex_split_after_group:N #1
   {
-    \seq_gput_right:Nx \g_regex_split_seq
+    \int_compare:nNnTF \l_regex_start_step_int = \l_regex_current_step_int
       {
-        \str_from_to:Nnn \l_regex_query_str
-          { \int_use:N \l_regex_last_end_match_step_int }
-          { \int_use:N \l_regex_current_step_int }
+        \bool_if:NF \l_regex_success_empty_bool
+          { \seq_gput_right:Nn \g_regex_split_seq { } }
+      }
+      {
+        \seq_gput_right:Nx \g_regex_split_seq
+          {
+            \str_from_to:Nnn \l_regex_query_str
+              { \int_use:N \l_regex_start_step_int }
+              { \int_use:N \l_regex_current_step_int }
+          }
       }
     \group_insert_after:N \seq_set_eq:NN
     \group_insert_after:N #1
@@ -3297,8 +3358,7 @@
     \group_begin:
       \regex_replace_after_group:N #1
       \cs_set_eq:NN \regex_if_track_submatches:T \use:n
-      \tl_set:Nn \l_regex_every_match_tl
-        { \use_none_delimit_by_q_recursion_stop:w }
+      \tl_clear:N \l_regex_every_match_tl
       #2
       \exp_args:No \regex_match:n {#1}
       \regex_extract:
@@ -3373,7 +3433,7 @@
       \tl_gput_right:Nx \g_regex_replaced_str
         {
           \str_from_to:Nnn \l_regex_query_str
-            { \int_use:N \l_regex_last_end_match_step_int }
+            { \int_use:N \l_regex_start_step_int }
             { \c_max_int }
         }
     \group_end:
@@ -3386,12 +3446,13 @@
         \tl_gput_right:Nx \g_regex_replaced_str
           {
             \str_from_to:Nnn \l_regex_query_str
-              { \int_use:N \l_regex_last_end_match_step_int }
+              { \int_use:N \l_regex_start_step_int }
               { \l_regex_tmpa_tl }
             \l_regex_replacement_tl
           }
       }
       { \msg_error:nn { regex } { internal } }
+    \regex_match_once:
   }
 \cs_new_protected:Npn \regex_replace_all:nnN #1#2#3
   {
@@ -3585,7 +3646,7 @@
 %^^A    (?Cn)     callout with data n
 
 
-
+%^^A % [todo: put that explanation somewhere]
 %^^A % In fact, at each step in the string, we only need to keep
 %^^A % one thread per state in the NFA: since we do not support
 %^^A % back-references, the previous execution will not influence
