@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3trial/l3str
+PACKAGE = l3experimental/l3str
 
 ##############################################################
 # Directory structure for source files                       #
