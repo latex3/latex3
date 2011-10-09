@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3 "l3exprimental" files                    #
+# Makefile for LaTeX3 "l3experimental" files                   #
 ################################################################
 ################################################################
 
@@ -109,7 +109,6 @@ ctan: tds
 	  cp -f *.dtx $(CTANDIR)/ ; \
 	  cp -f *.ins $(CTANDIR)/ ; \
 	  cp -f *.pdf $(CTANDIR)/ ; \
-	  cp -f *.tex $(CTANDIR)/ ; \
 	done
 	cd $(TESTDIR) ; \
 	cp $(PACKAGE).tds.zip $(CTANROOT)/ ; \
@@ -150,7 +149,6 @@ tds: $(TESTDIR)/README.markdown doc unpack
 	  cp -f *.ins $(TDSDIR)/source/$(PACKAGEROOT)/$$I/ ; \
 	  cp -f *.pdf $(TDSDIR)/doc/$(PACKAGEROOT)/$$I/ ; \
 	  cp -f *.sty $(TDSDIR)/tex/$(PACKAGEROOT)/$$I/ ; \
-	  cp -f *.tex $(TDSDIR)/doc/$(PACKAGEROOT)/$$I/ ; \
 	done
 	cd $(TESTDIR) ; \
 	cp -f README.markdown $(TDSDIR)/doc/$(PACKAGEROOT)/ ; \
