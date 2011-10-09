@@ -1,7 +1,7 @@
 The LaTeX3 Development Repository
 =================================
 
-OVERVIEW
+Overview
 --------
 
 The repository contains development material for LaTeX3. This includes
@@ -50,7 +50,6 @@ The repository also contains the directory `xpackages`. This
 contain code which is being moved (broadly) `l3experimental`.
 Over time, `xpackages` is expected to be removed from the repository.
   
-
 Discussion
 ----------
 
@@ -65,7 +64,6 @@ You can subscribe to this list by sending mail to
 with the body containing
 
   subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
-
 
 Bugs
 ----

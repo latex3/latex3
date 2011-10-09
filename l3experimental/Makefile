@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3 "xpackage" files                         #
+# Makefile for LaTeX3 "l3exprimental" files                    #
 ################################################################
 ################################################################
 
@@ -58,8 +58,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-ALLPACKAGES = xcoffins xgalley
-XPACKAGES   = xcoffins
+PACKAGES = l3str xcoffins xgalley
 
 ################################################################
 # File copying: default actions                                #
@@ -83,7 +82,7 @@ $(TESTDIR)/%.markdown: $(SOURCEDIR)/%.markdown
 	unpack
 
 check:
-	for I in $(ALLPACKAGES) ; do \
+	for I in $(PACKAGES) ; do \
 	  cd $$I ; \
 	  make check ; \
 	  cd .. ; \
@@ -94,17 +93,18 @@ clean:
 	rm -rf $(L3TESTDIR)/*
 
 cleanall: clean
-	for I in $(ALLPACKAGES) ; do \
+	for I in $(PACKAGES) ; do \
 	  cd $$I ; \
 	  make cleanall ; \
 	  cd .. ; \
 	done
+	rm -f *.zip
 
 ctan: tds
 	echo "Creating CTAN archive"
 	mkdir -p $(CTANDIR)/
 	rm -rf $(CTANDIR)/*
-	for I in $(XPACKAGES) ; do \
+	for I in $(PACKAGES) ; do \
 	  cd $(TESTDIR)/$$I/ ; \
 	  cp -f *.dtx $(CTANDIR)/ ; \
 	  cp -f *.ins $(CTANDIR)/ ; \
@@ -120,14 +120,14 @@ ctan: tds
 	cp $(CTANROOT)/$(PACKAGE).zip ./
 
 doc:
-	for I in $(XPACKAGES) ; do \
+	for I in $(PACKAGES) ; do \
 	  cd $$I ; \
 	  make doc ; \
 	  cd .. ; \
 	done
 
 localinstall:
-	for I in $(ALLPACKAGES) ; do \
+	for I in $(PACKAGES) ; do \
 	  cd $$I ; \
 	  make localinstall ; \
 	  cd .. ; \
@@ -140,7 +140,7 @@ tds: $(TESTDIR)/README.markdown doc unpack
 	mkdir -p $(TDSDIR)/doc/$(PACKAGEROOT)/
 	mkdir -p $(TDSDIR)/source/$(PACKAGEROOT)/
 	mkdir -p $(TDSDIR)/tex/$(PACKAGEROOT)/
-	for I in $(XPACKAGES) ; do \
+	for I in $(PACKAGES) ; do \
 	  cd $(TDSDIR) ; \
 	  mkdir -p doc/$(PACKAGEROOT)/$$I/ ; \
 	  mkdir -p source/$(PACKAGEROOT)/$$I/ ; \
@@ -161,7 +161,7 @@ tds: $(TESTDIR)/README.markdown doc unpack
 	cp $(TDSDIR)/$(PACKAGE).tds.zip ./
 
 unpack:
-	for I in $(ALLPACKAGES) ; do \
+	for I in $(PACKAGES) ; do \
 	  cd $$I ; \
 	  make unpack ; \
 	  cd .. ; \

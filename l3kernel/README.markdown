@@ -1,42 +1,32 @@
-An Experimental LaTeX3 Programming Convention
-=============================================
+LaTeX3 Programming Conventions
+==============================
 
-   2011/08/22
-
-
-WHERE TO GET IT
----------------
-
-The files in this distribution represent a snapshot of selected files
-from the Subversion (SVN) repository of the LaTeX3 Project.
-
-To obtain current versions of the files, visit
-<http://www.latex-project.org/code.html> which contains further
-instructions.
-
-OVERVIEW
+Overview
 --------
 
-The files of the expl3 bundle provide a low-level API for TeX
-programmers with special syntax conventions, completely separating it
-from document level syntax. Hence, the commands provided are not
-intended for use at the document level nor for use in describing
-design layouts in document class files.
+The files of the `l3kernel` bundle provide a low-level API for TeX programmers
+with special syntax conventions, completely separating it from document level
+syntax. Hence, the commands provided are not intended for use at the document
+level nor for use in describing design layouts in document class files.
 
-This API provides the foundation on which the LaTeX3 kernel and other
-advanced extensions are built. Special care has been taken so that
-they can be used within a LaTeX2e context as regular packages.
+This API provides the foundation on which the LaTeX3 kernel and other advanced
+extensions are built. Special care has been taken so that they can be used
+within a LaTeX2e context as regular packages.
 
-While expl3 is still experimental, the bundle is now regarded as
-broadly stable. The syntax conventions and functions provided are now
-ready for wider use. There may still be changes to some functions, but
-these will be minor when compared to the scope of expl3.
+While `l3kernel` is still experimental, the bundle is now regarded as broadly
+stable. The syntax conventions and functions provided are now ready for wider
+use. There may still be changes to some functions, but these will be minor when
+compared to the scope of `l3kernel`.
 
-REQUIREMENTS
+Programmers making use of `l3kernel` are *strongly* encouraged to subscribe to
+the LaTeX-L mailing list (see below): announcements concerning the deprecation
+or modification of functions are made on the list.
+
+Requirements
 ------------
 
-The expl3 bundle requires the e-TeX extensions and the functionality
-of the \pdfstrcmp primitive. As a result, the bundle will only work
+The `l3kernel` bundle requires the e-TeX extensions and the functionality
+of the `\pdfstrcmp` primitive. As a result, the bundle will only work
 with the following engines:
 
  - pdfTeX v1.30 or later
@@ -44,24 +34,16 @@ with the following engines:
  - LuaTeX v0.40 or later
 
 pdfTeX v1.30 was released in 2005, and so any recent TeX distribution
-will support expl3. Both XeTeX and LuaTeX have developed more
+will support `l3kernel`. Both XeTeX and LuaTeX have developed more
 actively over the past few years, and for this reason only recent
 releases of these engines are supported.
 
-THE GUILTY PERSONS
-------------------
-
-   Frank Mittelbach, Denys Duchier, Johannes Braams, Michael Downes,
-   David Carlisle, Alan Jeffrey, Chris Rowley, Rainer Schoepf,
-   Javier Bezos, Morten Hoegholm, Thomas Lotze, Will Robertson,
-   Joseph Wright, Bruno Le Floch
-
-
-DISCUSSION
+Discussion
 ----------
 
-Discussion concerning the approach, suggestions for improvements,
-changes, additions, etc. should be addressed to the list LaTeX-L.
+Discussion concerning the approach, suggestions for improvements, 
+changes, additions, _etc._ should be addressed to the list
+[LaTeX-L](http://news.gmane.org/group/gmane.comp.tex.latex.latex3). 
 
 You can subscribe to this list by sending mail to
 
@@ -71,18 +53,46 @@ with the body containing
 
   subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
 
-
-BUGS
+Bugs
 ----
 
 The issue tracker for LaTeX3 bugs is currently located at
 
   https://github.com/latex3/svn-mirror/issues
-
+  
 Please report specific issues with LaTeX3 code there. More general
 discussion should be directed to the LaTeX-L lists.
 
-=====================================================================
+The LaTeX3 Project
+------------------
 
-Copyright 1998-2011 The LaTeX3 Project. All rights reserved
+Development of LaTeX3 is carried out by
+[The LaTeX3 Project](http://www.latex-project.org/latex3.html). Currently,
+the team members are
 
+  * Johannes Braams
+  * David Carlisle
+  * Robin Fairbairns
+  * Morten Høgholm
+  * Bruno Le Floch
+  * Thomas Lotze
+  * Frank Mittelbach
+  * Will Robertson
+  * Chris Rowley
+  * Rainer Schöpf
+  * Joseph Wright
+  
+Former members of The LaTeX3 Project team were
+
+  * Michael Downes
+  * Denys Duchier
+  * Alan Jeffrey
+  * Martin Schröder
+  
+The development team can be contacted
+by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
+the [LaTeX-L list](http://news.gmane.org/group/gmane.comp.tex.latex.latex3)
+should be used.
+
+--- Copyright 1998-2011
+    The LaTeX3 Project.  All rights reserved ---

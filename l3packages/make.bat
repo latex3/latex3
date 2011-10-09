@@ -6,13 +6,12 @@ rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 setlocal
 
 set CLEAN=zip
-set CTAN=l3keys2e xfrac xparse xtemplate
 set PACKAGE=l3packages
+set PACKAGES=l3keys2e xfrac xparse xtemplate
 set PATHCOPY=%PATH%
 set TDSROOT=latex\%PACKAGE%
 set TEST=
 set TXT=README
-set XPACKAGES=l3keys2e xfrac xparse xtemplate
 
 :loop
 
@@ -27,7 +26,7 @@ set XPACKAGES=l3keys2e xfrac xparse xtemplate
 
 :clean
 
-  for %%I in (%XPACKAGES%) do (
+  for %%I in (%PACKAGES%) do (
     pushd %%I
     call make clean
     popd
@@ -39,7 +38,7 @@ set XPACKAGES=l3keys2e xfrac xparse xtemplate
   
 :check
 
-  for %%I in (%XPACKAGES%) do (
+  for %%I in (%PACKAGES%) do (
     pushd %%I
     call make check
     popd
@@ -58,7 +57,7 @@ set XPACKAGES=l3keys2e xfrac xparse xtemplate
   if exist temp\*.* rmdir /q /s temp
   if exist tds\*.*  rmdir /q /s tds
 
-  for %%I in (%CTAN%) do (
+  for %%I in (%PACKAGES%) do (
     echo Typesetting
     pushd %%I
     call make unpack
@@ -127,7 +126,7 @@ set XPACKAGES=l3keys2e xfrac xparse xtemplate
 
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
 
-  for %%I in (%XPACKAGES%) do (
+  for %%I in (%PACKAGES%) do (
     echo   %%I
     pushd %%I
     call make unpack
@@ -148,7 +147,7 @@ set XPACKAGES=l3keys2e xfrac xparse xtemplate
 
   if exist tds\*.*  rmdir /q /s tds
 
-  for %%I in (%CTAN%) do (
+  for %%I in (%PACKAGES%) do (
     echo Typesetting
     pushd %%I
     call make unpack
