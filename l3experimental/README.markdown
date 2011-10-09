@@ -28,7 +28,21 @@ are under active development and the interfaces may change.
 
 Currently included in the CTAN release of l3experimental are the following
 bundles:
+ * l3str
  * xcoffins
+ * xgalley
+ 
+l3str
+-----
+
+A 'string' in TeX terms is a token list in which all of the tokens have
+category code 12 ('other'), with the exception of spaces which have the
+category code 10 ('space'). The l3str bundle consists of two parts. The
+first is l3str itself. This is a collection of functions to act on strings,
+including for manipulations such as UTF8 mappings in pdfTeX. The second
+part of the bundle is l3regex, a regular expression search-and-replace
+implementation written in TeX primitives. The regex module works on a string
+basis, ignoring category codes.
     
 xcoffins
 --------
@@ -50,15 +64,6 @@ similar areas on a page. This process is typically asynchronous but
 there are ways to control or change its behaviour. The xgalley module
 provides a mechanism for filling galleys and controlling the spacing,
 hyphenation and justification within them.
-
-xfss
-----
-
-This package is a translation of LaTeX's font selection scheme into expl3.
-Its primary utility is to provide font support when LaTeX3 is built as a
-format, but in time features will be added that will make it useful in 2e
-as well.
-
 
 DISCUSSION
 ----------

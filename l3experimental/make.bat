@@ -6,13 +6,12 @@ rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 setlocal
 
 set CLEAN=zip
-set CTAN=xcoffins
 set PACKAGE=l3experimental
+set PACKAGES=l3str xcoffins xgalley
 set PATHCOPY=%PATH%
 set TDSROOT=latex\%PACKAGE%
 set TEST=
 set TXT=README
-set XPACKAGES=xcoffins xgalley
 
 :loop
 
@@ -47,7 +46,7 @@ set XPACKAGES=xcoffins xgalley
   if exist temp\*.* rmdir /q /s temp
   if exist tds\*.*  rmdir /q /s tds
 
-  for %%I in (%CTAN%) do (
+  for %%I in (%PACKAGES%) do (
     echo Typesetting
     pushd %%I
     call make unpack
@@ -115,7 +114,7 @@ set XPACKAGES=xcoffins xgalley
 
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
 
-  for %%I in (%XPACKAGES%) do (
+  for %%I in (%PACKAGES%) do (
     echo   %%I
     pushd %%I
     call make unpack
@@ -136,7 +135,7 @@ set XPACKAGES=xcoffins xgalley
 
   if exist tds\*.*  rmdir /q /s tds
 
-  for %%I in (%CTAN%) do (
+  for %%I in (%PACKAGES%) do (
     echo Typesetting
     pushd %%I
     call make unpack

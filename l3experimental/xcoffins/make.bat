@@ -5,15 +5,18 @@ rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 
 setlocal
 
-set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
-set CLEAN=fc gz pdf sty
-set EXPL3DIR=..\..\l3kernel
 set PACKAGE=xcoffins
-set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2 \AtBeginDocument{\DisableImplementation}
+set KERNELDIR=l3experimental
+ 
+set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
+set CLEAN=fc gz pdf sty txt
+set EXPL3DIR=..\..\l3kernel
+set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 set SCRIPTDIR=..\..\support
-set TEST=xcoffins-test
 set TESTDIR=testfiles
-set TDSROOT=latex\l3experimental\%PACKAGE%
+set TEST=
+set TDSROOT=latex\%KERNELDIR%\%PACKAGE%
+set UNPACK=%PACKAGE%.ins
 set VALIDATE=..\..\validate
 
 :loop
@@ -229,7 +232,7 @@ set VALIDATE=..\..\validate
 
 :unpack
 
-  for %%I in (*.ins) do (
+  for %%I in (%UNPACK%) do (
     tex %%I > nul
   )
 

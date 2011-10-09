@@ -5,14 +5,18 @@ rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 
 setlocal
 
-set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
-set CLEAN=fc gz pdf sty
-set EXPL3DIR=..\..\l3kernel
 set PACKAGE=xfrac
-set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2 \AtBeginDocument{\DisableImplementation}
+set KERNELDIR=l3packages
+ 
+set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
+set CLEAN=fc gz pdf sty txt
+set EXPL3DIR=..\..\l3kernel
+set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 set SCRIPTDIR=..\..\support
 set TESTDIR=testfiles
-set TDSROOT=latex\l3packages\%PACKAGE%
+set TEST=
+set TDSROOT=latex\%KERNELDIR%\%PACKAGE%
+set UNPACK=%PACKAGE%.ins
 set VALIDATE=..\..\validate
 
 :loop
@@ -23,6 +27,7 @@ set VALIDATE=..\..\validate
   if /i [%1] == [doc]          goto :doc
   if /i [%1] == [localinstall] goto :localinstall
   if /i [%1] == [savetlg]      goto :savetlg
+  if /i [%1] == [test]         goto :test
   if /i [%1] == [unpack]       goto :unpack
 
   goto :help
@@ -133,6 +138,7 @@ set VALIDATE=..\..\validate
   echo  make doc          - typeset all dtx files
   echo  make localinstall - locally install packages
   echo  make savetlg ^<name^> - save test log for ^<name^>
+  echo  make test         - run test doucments
   echo  make unpack       - extract modules
   
   goto :end
@@ -206,9 +212,27 @@ set VALIDATE=..\..\validate
   
   goto :clean-int
 
+:test
+
+  call :all
+
+  for %%I in (%TEST%) do (
+    echo   %%I
+    pdflatex -interaction=batchmode %%I > nul
+    if not [%ERRORLEVEL%] == [0] (
+      echo.
+      echo **********************
+      echo * Compilation failed *
+      echo **********************
+      echo.
+    ) 
+  )
+
+  goto :end
+
 :unpack
 
-  for %%I in (*.ins) do (
+  for %%I in (%UNPACK%) do (
     tex %%I > nul
   )
 

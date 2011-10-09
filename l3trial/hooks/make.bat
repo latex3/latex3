@@ -5,8 +5,8 @@ rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 
 setlocal
 
-set PACKAGE=xtemplate
-set KERNELDIR=l3packages
+set PACKAGE=hooks
+set KERNELDIR=l3trial
  
 set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
 set CLEAN=fc gz pdf sty txt
