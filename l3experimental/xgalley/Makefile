@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = xpackages/xgalley
+PACKAGE = l3experimental/xgalley
 
 ##############################################################
 # Directory structure for source files                       #
