@@ -1,0 +1,565 @@
+%------------------------------------------------------------------------
+% \subsection {Parsing LDB Context Specifications}
+%
+% A context specification consists of 3 segments.  The 1st segment
+% contains begin tags and completed tags only, respectively of the
+% form |<foo| and |<foo>|.  Two consecutive tags can be optionally
+% separated by a tight or loose binding (i.e.\ a dot or a star),
+% except that a completed tag may never be followed by a binding.  The
+% second segment consists of end tags (i.e.\ of the form |foo>|)
+% occurring in sequence; no bindings are allowed.  If both the 1st and
+% 2nd segments are non-empty, then there must be a loose binding
+% between them.  The last segment consists of begin tags occurring in
+% sequence.  There must no binding between the 2nd and 3rd segments.
+%
+% A context specification is parsed as follows: first, abbreviations
+% such as |>...<| are expanded, and various special cases are
+% normalized --- for example, |*<-| is turned into the simpler, but
+% semantically equivalent, |*|.  Then, the context specification is
+% examined and broken into basic constituents, and turned into a list
+% of triples of the form (bdg,type,tag), where tag is the identifier
+% naming the tag, type is 0 (begin), 1 (end), or 2 (completed),
+% and bdg indicates whether this tag was preceded by a tight (1) or a
+% loose binding (2), or by no binding at all (0) (i.e.\ it occurred in
+% sequence).
+%
+% For example, |<A.<B<C><D*E>| is turned into something like:
+% \begin{center}
+%   |(0,0,A)(1,0,B)(0,2,C)(0,0,D)(2,1,E)|
+% \end{center}
+% except that we use the integer constants |\c_zero|, |\c_one| and
+% |\c_two| instead.
+%
+% \begin{macro}{\glet_gtmp:N}
+% \begin{macro}{\gdef_gtmp:n}
+% \begin{macro}{\gdef_gtmp:x}
+%    Very convenient abbreviations for defining a continuation in
+%    |\gtmp:w| for immediate use.
+%    \begin{macrocode}
+\cs_new:Npn\glet_gtmp:N{\cs_gset_eq:NN \gtmp:w}
+\cs_new:Npn\gdef_gtmp:n{\cs_gset:Npn   \gtmp:w}
+\cs_new:Npn\gdef_gtmp:x{\cs_gset:Npx   \gtmp:w}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\g_ldb_spec_tl}
+% \begin{macro}{\g_ldb_triples_tl}
+% \begin{macro}{\g_ldb_tag_tl}
+%    We save the original context specification in |\g_ldb_spec_tl|
+%    and use it when we print an error message.  After parsing this
+%    context specification, the corresponding sequence of triples is
+%    available in |\g_ldb_triples_tl|.  While parsing, whenever we
+%    encounter a tag's identifier, we save it temporarily in
+%    |\g_ldb_tag_tl|.
+%    \begin{macrocode}
+\tl_new:Nn\g_ldb_spec_tl   {}
+\tl_new:Nn\g_ldb_triples_tl{}
+\tl_new:Nn\g_ldb_tag_tl    {}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\g_ldb_mode}
+% \begin{macro}{\g_ldb_type}
+% \begin{macro}{\g_ldb_bdg}
+% \begin{macro}{\g_ldb_segment}
+%    We use these integer variables to keep track of what we have just
+%    parsed and of what part of the context we are in.  |\g_ldb_mode|
+%    encodes the local parsing state, e.g.\ have we just seen a
+%    binding, a |<|, an indentifier\ldots\  |\g_ldb_type| represents
+%    the type of the tag spec.  |\g_ldb_bdg| is the kind of binding
+%    that precedes the tag spec.  |\g_ldb_segment| encodes a more
+%    global parsing state: are we in the main segment of the context,
+%    have we just seen a completed tag, are we now in the sequence of
+%    end tags, or in the final sequence of begin tags?
+%    \begin{center}
+%    \DeleteShortVerb{\|}
+%      \begin{tabular}{|l|l|l|l|l|}
+%        \cline{2-5}
+%          \multicolumn{1}{l}{}          &
+%          \multicolumn{1}{|c}{\bf mode} &
+%          \multicolumn{1}{|c}{\bf type} &
+%          \multicolumn{1}{|c}{\bf bdg}  &
+%          \multicolumn{1}{|c|}{\bf segment}\\
+%        \hline
+%  0 & before bdg       & begin     & sequenced & initial           \\
+%  1 & after  bdg       & end       & tight     & main              \\
+%  2 & after {\tt <}    & completed & loose     & after {\tt <foo>} \\
+%  3 & after {\tt <foo} &           &           & end sequence      \\
+%  4 & after {\tt foo}  &           &           & begin sequence    \\
+%        \hline
+%      \end{tabular}
+%    \MakeShortVerb{\|}
+%    \end{center}
+%    \begin{macrocode}
+\cs_new_eq:NN\g_ldb_mode   \c_zero
+\cs_new_eq:NN\g_ldb_type   \c_zero
+\cs_new_eq:NN\g_ldb_bdg    \c_zero
+\cs_new_eq:NN\g_ldb_segment\c_zero
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\g_ldb_abbrevs_tl}
+%    A list of pairs.  Each pair represents an abbreviation and its
+%    corresponding replacement text.  We also include pairs such as
+%    |{*<-}{*}| for semantic normalization.
+%    \begin{macrocode}
+\tl_new:Nn\g_ldb_abbrevs_tl{
+  {>...<}{>-><-<}   {>...}{>->}   {...<}{<-<}
+  {<-<-} {<-}       {->->}{->}    {*<-*}{*}
+  {*<-.} {*}        {.<-.}{*}     {*<-} {*}
+  {<-*}  {*}        {<-.} {*}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_parse:n}
+%    This is the parser's top-level function.  It takes a context
+%    specification as an argument, parses it, and places the
+%    corresponding triples in |\g_ldb_triples_tl|.  It starts off
+%    with a few initializations.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_parse:n#1{
+  \tl_gset:Nn\g_ldb_spec_tl   {#1}
+  \tl_gclear:N  \g_ldb_triples_tl
+  \tl_gclear:N  \g_ldb_tag_tl    {}
+  \cs_gset_eq:NN\g_ldb_mode   \c_zero
+  \cs_gset_eq:NN\g_ldb_type   \c_zero
+  \cs_gset_eq:NN\g_ldb_bdg    \c_zero
+  \cs_gset_eq:NN\g_ldb_segment\c_zero
+%    \end{macrocode}
+%    Then it proceeds to expand the abbreviations.  The empty pair of
+%    abbreviations marks the end of the list of abbreviations.  The
+%    reason for |\q_mark| is explained later.
+%    \begin{macrocode}
+  \gdef_gtmp:n{\ldb_expand_next:nnn{#1\q_mark}}
+  \exp_after:wN\gtmp:w\g_ldb_abbrevs_tl{}{}
+%    \end{macrocode}
+%    When the abbreviation expansion process is done, it then invokes
+%    the parser proper.  Finally, we arrive here.
+%    |\ldb_parse_finish:| tidies up at the end of the parse, and
+%    finally removes |\q_error| from the input.
+%    \begin{macrocode}
+  \ldb_parse_finish:\q_error}
+%    \end{macrocode}
+%    The purpose of |\q_error| is to make it possible to abort the
+%    current |\ldb_parse:n| computation and proceed with the remainder
+%    of the job.  The error handler uses \TeX's parameter scanning
+%    mechanism to grab and discard everything up to, and including,
+%    the |\q_error| token.  Naturally, in case the computation
+%    completes successfully, it must take care of removing this token.
+% \end{macro}
+%
+% \begin{macro}{\ldb_error:w}
+%    Here is the error handler.  It aborts the current |\ldb_parse:n|
+%    computation by grabbing and discarding everything up to and
+%    including the |\q_error| token.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_error:w#1\q_error{
+  \msg_kernel_error:nn  { ldb } { illegal-context }
+}
+
+\msg_kernel_new:nnnn { ldb } { illegal-context }
+  { Illegal~LDB~context:~\g_ldb_spec_tl.}
+  { This~context~specification~is~illegal~and~
+   will~be~ignored.~See~the~manual. }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_gtmp_error:}
+%    Defines |\gtmp:w| as a continuation that invokes the error
+%    handler.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_gtmp_error:{\glet_gtmp:N\ldb_error:w}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_parse_finish:}
+%    We must put off outputing a triple until we have seen what comes
+%    after a tag identifier, in case it was followed by |>|.  As a
+%    result, we may come to the end of the context and still have a
+%    pending triple to output.  Here, we make sure to flush it out.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_parse_finish:{
+  \if_case:w\g_ldb_mode
+%    \end{macrocode}
+%    If mode=0, we are done, no triple is pending: we just make sure
+%    to remove the |\q_error| token.
+%    \begin{macrocode}
+         \glet_gtmp:N\ldb_parse_done:w
+%    \end{macrocode}
+%    if we have just seen a binding or |<|, then the context is
+%    incomplete and we signal an error.
+%    \begin{macrocode}
+  \or:   \ldb_gtmp_error:
+  \or:   \ldb_gtmp_error:
+%    \end{macrocode}
+%    otherwise, we flush the pending triple and remove the |\q_error|
+%    token.
+%    \begin{macrocode}
+  \else: \gdef_gtmp:n{\ldb_flush:NNN\c_zero\c_zero\c_zero
+                      \ldb_parse_done:w}\fi:
+  \gtmp:w}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_parse_done:w}
+%    Removes the |\q_error| token when parsing successfully completes.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_parse_done:w\q_error{}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_expand_it:w}
+%    This macro is redefined during the process of expanding
+%    abbreviations.  Its purpose is to scan the context for the
+%    current abbreviation.  Let's say the current abbreviation is
+%    |AA|.  Then |\ldb_expand_it:w| is redefined so that's its
+%    parameter text is |#1AA#2\q_stop| and it is essentially invoked
+%    on the context to which we append |AA\q_stop| to guarantee a
+%    match.  We now come to the justification for |\q_mark|.  Suppose
+%    the context has the form |...A|, i.e.\ it ends with |A| and
+%    contains no occurrence of |AA|.  If |\ldb_expand_it:w| was simply
+%    invoked on |...AAA\q_stop| we would find a match where the first
+%    matching |A| is the one at the end of the context proper and the
+%    second one is at the front of the |AA\q_stop| safeguard which we
+%    appended to the context.  This is not a proper match.  In order
+%    to prevent this problem, we insert the token |\q_mark| at the end
+%    of the context.  Thus |\ldb_expand_it:w| is invoked on
+%    |...A\q_mark AA\q_stop| and the spurious match can no longer
+%    happen.  We must use a token that (1) cannot occur in a context,
+%    and (2) is distinct from |\q_stop| (otherwise, if the context
+%    ended with |AA|, we would match the first occurrence of
+%    |AA\q_stop| and leave the second occurrence as trailing garbage).
+%    \begin{macrocode}
+\cs_new:Npn\ldb_expand_it:w{}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_expand_next:nnn}
+%    Grabs the next abbreviation pair (args 2 and~3) and rewrites the
+%    context (1st arg) accordingly.  At this point, we have already
+%    put |\q_mark| at the end of the context.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_expand_next:nnn#1#2#3{
+  \tl_if_empty:nTF{#2}
+%    \end{macrocode}
+%    An empty abbreviation indicates that we have processed all
+%    abbreviations.  We now proceed with the actual parsing task.
+%    \begin{macrocode}
+    {\ldb_parse_it:w#1}
+%    \end{macrocode}
+%    Otherwise, we redefine |\ldb_expand_it:w| to rewrite every
+%    occurrence of the current abbreviation, as described earlier:
+%    whenever we find a legitimate occurrence of |#2|, we replace it
+%    by |#3| and we repeat the process.  When we are done, we proceed
+%    with the next abbreviation pair.
+%    \begin{macrocode}
+    {\cs_gset:Npn\ldb_expand_it:w##1#2##2\q_stop
+       {\tl_if_empty:nTF{##2}
+          {\ldb_expand_next:nnn{##1}}
+          {\ldb_expand_it:w##1#3##2\q_stop}}
+     \ldb_expand_it:w#1#2\q_stop}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_parse_it:w}
+%    The entry point into the actual parser.  Note that we need to
+%    remove the |\q_mark| token.  We then go on to scan for tight
+%    bindings.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_parse_it:w#1\q_mark{\ldb_parse_dot:w#1.\q_stop}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_parse_dot:w}
+%    Scan for a tight binding.  The 1st argument is guaranteed not to
+%    contain any tight binding since \TeX{} scan's for the first
+%    occurrence; therefore we scan for other things starting with
+%    loose bindings.  Then, if the 2nd arg is not empty, we have found
+%    a legitimate occurrence of a tight binding and we call
+%    |\ldb_push_dot:| to record that fact --- When the 2nd arg is
+%    empty, the dot we just found is the one |\ldb_parse_it:w| itself
+%    appended to catch the default case and guarantee a match.
+%    Finally we proceed to look for more tight bindings in the 2nd
+%    arg.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_parse_dot:w#1.#2\q_stop{
+  \tl_if_empty:nF{#1}{\ldb_parse_star:w#1*\q_stop}
+  \tl_if_empty:nF{#2}{\ldb_push_dot:\ldb_parse_dot:w#2\q_stop}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_parse_star:w}
+%    Scan for a loose binding.  In the 1st arg we further look for
+%    occurrences of |<|.  If the 2nd arg is not empty, we record
+%    finding a legitimate loose binding, then proceed to scan the 2nd
+%    arg for more loose bindings.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_parse_star:w#1*#2\q_stop{
+  \tl_if_empty:nF{#1}{\ldb_parse_begin:w#1<\q_stop}
+  \tl_if_empty:nF{#2}{\ldb_push_star:\ldb_parse_star:w#2\q_stop}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_parse_begin:w}
+%    Scan for |<|.  In the 1st arg we further look for occurrences of
+%    |>|.  If the 2nd arg is not empty, we record finding a legitimate
+%    |<|, then proceed to scan the 2nd arg for more occurrences of
+%    |<|.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_parse_begin:w#1<#2\q_stop{
+  \tl_if_empty:nF{#1}{\ldb_parse_end:w#1>\q_stop}
+  \tl_if_empty:nF{#2}{\ldb_push_begin:\ldb_parse_begin:w#2\q_stop}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_parse_end:w}
+%    Scan for |>|.  If the 1st arg is not empty, it must be a tag
+%    identifier, and we record it.  If the 2nd arg is not empty, we
+%    record finding a legitimate |>|, then proceed to scan the 2nd arg
+%    for more occurrences of |>|.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_parse_end:w#1>#2\q_stop{
+  \tl_if_empty:nF{#1}{\ldb_push_tag:n{#1}}
+  \tl_if_empty:nF{#2}{\ldb_push_end:\ldb_parse_end:w#2\q_stop}}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_push_bdg:N}
+%    Takes a constant integer as an argument.  |\c_one| for a tight
+%    binding, |\c_two| for a loose binding.  The only places a binding
+%    is allowed is after |<foo| or |foo|, i.e.\ in mode 3 or~4.  In
+%    that case, we flush the pending triple and reset |\g_ldb_type|
+%    to~0, |\g_ldb_bdg| to the given constant, and |\g_ldb_mode| to~1
+%    to indicate that we have just seen a binding.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_push_bdg:N#1{
+  \if_num:w\g_ldb_mode<\c_three \ldb_gtmp_error:
+  \else: \gdef_gtmp:n{\ldb_flush:NNN\c_zero#1\c_one} \fi:
+  \gtmp:w}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_push_dot:}
+% \begin{macro}{\ldb_push_star:}
+%    Record a tight or a loose binding.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_push_dot: {\ldb_push_bdg:N\c_one}
+\cs_new:Npn\ldb_push_star:{\ldb_push_bdg:N\c_two}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\ldb_push_begin:}
+%    Record finding an occurrence of |<|.  If we are in mode~2, we
+%    have just found two consecutive occurrences of |<|.  This is
+%    illegal and we signal an error.  If we were in mode~0 or~1 (i.e.\
+%    expecting or having just found a binding), then we just make a
+%    note that we found |<| by proceeding to mode~2.  Otherwise, we
+%    must flush the pending triple and then reset |\g_ldb_type| to~0
+%    (a begin tag), |\g_ldb_bdg| to~0 (sequencing: no intervening
+%    binding was found), and |\g_ldb_mode| to~2 (we just found |<|).
+%    \begin{macrocode}
+\cs_new:Npn\ldb_push_begin:{
+  \if_num:w\g_ldb_mode=\c_two \ldb_gtmp_error:
+  \else:
+  \if_num:w\g_ldb_mode<\c_two
+         \gdef_gtmp:n{\cs_gset_eq:NN\g_ldb_mode\c_two}
+  \else: \gdef_gtmp:n{\ldb_flush:NNN\c_zero\c_zero\c_two} \fi:\fi:
+  \gtmp:w}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_push_tag:n}
+%    Record finding a tag identifier (the argument).  If we are in
+%    mode 3 or~4, we just found 2 identifiers in sequence.  This
+%    should not be possible, but we signal an error anyway.
+%    Otherwise, we record the identifier in |\g_ldb_tag_tl|.  If we
+%    are in mode~2, then we proceed to mode~3 to indicate that we have
+%    found something of the form |<foo|.  If we are in mode~0 or~1, we
+%    proceed directly to mode~4 indicating that the identifier was not
+%    preceded by |<|.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_push_tag:n#1{
+  \if_num:w\g_ldb_mode>\c_two \exp_after:wN\ldb_error:w
+  \else: \tl_gset:Nn\g_ldb_tag_tl{#1}
+         \if_num:w\g_ldb_mode=\c_two \cs_gset_eq:NN\g_ldb_mode\c_three
+         \else:                      \cs_gset_eq:NN\g_ldb_mode\c_four
+  \fi:\fi:}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_push_end:}
+%    We have found an occurrence of |>| and we should flush the
+%    pending triple.  If the mode is less than~3, we have not recently
+%    seen an indentifier.  Therefore, we signal an error.  Otherwise,
+%    if the current mode is~4, indicating that we have seen |<foo|,
+%    then we now promote |\g_ldb_type| to~2 to indicate a completed
+%    tag.  If the current mode is~4, then we promote |\g_ldb_type|
+%    to~1 to indicate an end tag.  Finally we flush the pending triple
+%    and reset |\g_ldb_type|, |\g_ldb_bdg| and |\g_ldb_mode| to~0.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_push_end:{
+  \if_num:w\g_ldb_mode<\c_three \ldb_gtmp_error:
+  \else:
+    \if_num:w\g_ldb_mode=\c_three \cs_gset_eq:NN\g_ldb_type\c_two
+    \else:                        \cs_gset_eq:NN\g_ldb_type\c_one \fi:
+    \gdef_gtmp:n{\ldb_flush:NNN\c_zero\c_zero\c_zero} \fi:
+  \gtmp:w}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_flush:NNN}
+%    Flush the pending triple.  Calls to this functions are always
+%    followed by 3 integer constants which |\ldb_reset:NNN| uses to
+%    update the values of |\g_ldb_type|, |\g_ldb_bdg| and
+%    |\g_ldb_mode|.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_flush:NNN{
+%    \end{macrocode}
+%    First, we select the appropriate handler according to whether we
+%    are flushing a begin tag, an end tag, or a completed tag.
+%    \begin{macrocode}
+  \if_case:w\g_ldb_type \glet_gtmp:N\ldb_push_begin_tag:
+  \or:                  \glet_gtmp:N\ldb_push_end_tag:
+  \else:                \glet_gtmp:N\ldb_push_compl_tag:\fi:
+%    \end{macrocode}
+%    A binding, i.e.\ |\g_ldb_bdg|~$\neq$~0, is not allowed after a
+%    completed tag, or in the final end/begin sequences, i.e.\
+%    |\g_ldb_segment|~$>$~1.  If we find such a situation, we must
+%    signal an error since only sequencing is permitted.
+%    \begin{macrocode}
+  \if_num:w\g_ldb_bdg=\c_zero \else:
+  \if_num:w\g_ldb_segment>\c_one \ldb_gtmp_error: \fi:\fi:
+%    \end{macrocode}
+%    Push the pending triple onto |\g_ldb_triples_tl|, execute the
+%    appropriate handler, and reset type, bdg and mode as explained
+%    earlier.  Note that |\gtmp:w| may be the error handler and that
+%    we first push the triple anyway; it doesn't hurt and makes the
+%    code simpler.
+%    \begin{macrocode}
+  \ldb_push:\gtmp:w\ldb_reset:NNN}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_push:}
+%    Push a new triple (bdg,type,tag) onto |\g_ldb_triples_tl|.  We
+%    cannot simply use |\g_ldb_bdg| as the 1st element of the triple
+%    because its value keeps being changed by the parsing algorithm.
+%    We cannot try to expand it, because it is `let' to a non
+%    expandable integer constant.  To get around that problem, we use
+%    an |\if_case:w| to select the appropriate constant.  Another
+%    solution would be to use |\g_ldb_bdg_tl| instead of
+%    |\g_ldb_bdg|, and |\tl_gset:Nn| instead of |\cs_gset_eq:NN|, but that
+%    would be less efficient since every numerical test would have to
+%    expand |\g_ldb_bdg_tl|.  Note the use of |\g_tempa_toks| to
+%    prevent expansion to apply to the tag identifier, just in case it
+%    contains an active character with an expandable definition.
+%    \begin{macrocode}
+%%% FMi need toks for now:
+%\newtoks \g_tmpa_toks
+
+\cs_new:Npn\ldb_push:{
+%  \global\g_tmpa_toks \exp_after:wN 
+%      {
+%        \cs:w  env_begin_code_
+%              \g_ldb_tag_tl
+%              :
+%       \cs_end:
+%      }
+  \tl_gput_right:Nx\g_ldb_triples_tl
+    {
+     \if_case:w\g_ldb_bdg \c_zero\or:\c_one\else:\c_two\fi:
+     \if_case:w\g_ldb_type\c_zero\or:\c_one\else:\c_two\fi:
+     \exp_not:N\ldb_triple:nNN
+%     \the\g_tmpa_toks
+     {\g_ldb_tag_tl}
+    }
+%  \global\g_tmpa_toks{}
+}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_reset:NNN}
+%    Update type, bdg and mode with the given values.
+%    |\ldb_reset:NNN| is called at the very end of |\ldb_flush:NNN|.
+%    This is why every call to |\ldb_flush:NNN| must be followed by 3
+%    integer constants.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_reset:NNN#1#2#3{
+  \cs_gset_eq:NN\g_ldb_type#1
+  \cs_gset_eq:NN\g_ldb_bdg #2
+  \cs_gset_eq:NN\g_ldb_mode#3}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_push_begin_tag:}
+%    We have just flushed a triple involving a begin tag.  If we are
+%    still in the main part of the context, that's where we remain, in
+%    segment~1.  If we are in the end sequence part of the context,
+%    i.e.\ segment~3, we move on to the begin sequence, i.e.\
+%    segment~4.  If we are already in segment~4, that's where we stay.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_push_begin_tag:{
+  \if_num:w\g_ldb_segment<\c_three \cs_gset_eq:NN\g_ldb_segment\c_one
+  \else:                           \cs_gset_eq:NN\g_ldb_segment\c_four\fi:}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\c_ldb_dash_tl}
+%    We use this to compare with |\g_ldb_tag_tl| and determine
+%    whether the tag identifier is |-|.
+%    \begin{macrocode}
+\tl_new:Nn\c_ldb_dash_tl{-}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_push_compl_tag:}
+%    We have just flushed a triple involving a completed tag.  A
+%    completed tag is only allowed in the main part of the context.
+%    Therefore, if we are in segment 3 or~4, we signal an error.  Also
+%    we check if the identifier is |-|.  If yes, we signal an error
+%    because |<->| is illegal.  Otherwise, we simply update
+%    |\g_ldb_segment| to~2 to indicate that we are now right after a
+%    completed tag.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_push_compl_tag:{
+  \if_num:w\g_ldb_segment>\c_two              \ldb_gtmp_error: \else:
+  \if_meaning:w \g_ldb_tag_tl\c_ldb_dash_tl \ldb_gtmp_error: \else:
+    \gdef_gtmp:n{\cs_gset_eq:NN\g_ldb_segment\c_two}              \fi:\fi:
+  \gtmp:w}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\ldb_push_end_tag:}
+%    We have just flushed a triple involving an end tag.  Normally, we
+%    would simply promote |\g_ldb_segment| to~3 to indicate that we
+%    are now in the end sequence of the context.  However, if we are
+%    at the beginning of the context, this end tag should not be
+%    preceded by a binding.  Also, if we are in the main part of the
+%    context, but not at the beginning, the end tag must be preceded
+%    by a loose binding.  On the other hand, if the previous tag was a
+%    completed tag, we must signal an error since a completed tag
+%    cannot be followed by a binding.  If we are in the end sequence,
+%    then only sequencing is allowed, and if we are in the begin
+%    sequence, only begin tags are allowed.
+%    \begin{macrocode}
+\cs_new:Npn\ldb_push_end_tag:{
+  \gdef_gtmp:n{\cs_gset_eq:NN\g_ldb_segment\c_three}
+  \if_case:w\g_ldb_segment
+         \if_num:w\g_ldb_bdg=\c_zero\else: \ldb_gtmp_error: \fi:
+  \or:   \if_num:w\g_ldb_bdg=\c_two \else: \ldb_gtmp_error: \fi:
+  \or:   \ldb_gtmp_error:
+  \or:   \if_num:w\g_ldb_bdg=\c_zero\else: \ldb_gtmp_error: \fi:
+  \else: \ldb_gtmp_error: \fi:
+  \gtmp:w}
+%    \end{macrocode}
+% \end{macro}
+
+
