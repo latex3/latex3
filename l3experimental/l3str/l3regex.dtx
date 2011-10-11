@@ -425,13 +425,13 @@
 % \item Caseless matching and more generally
 %   |(*..)| and |(?..)| sequences to set some options.
 % \item General look-ahead/behind assertions.
-% \item Idea of |#| as a synonym of |.*?|.
 % \item Do we need a facility for balanced groups? (That's non-regular.)
 % \end{itemize}
 %
 % The following features are likely to be implemented at some point
 % in the future.
 % \begin{itemize}
+% \item Reduce the number of epsilon-transitions in alternatives.
 % \item Optimize simple strings: use less states
 %   (|abcade| should give two states, for |abc| and |ade|).
 % \item Optimize groups with no alternative.
@@ -442,15 +442,6 @@
 % \item "(?|..|..)" to reset the capturing group number at the start
 %   of each alternative.
 % \item Todo: check space's catcode in the result of a replacement.
-% \end{itemize}
-%
-% The following features not present in PCRE nor perl (because they can
-% be done in other ways in those languages) might be added.
-% \begin{itemize}
-% \item |#| as a synonym of |.*?|, in a way similar to macro parameters.
-% \item Facility to match balanced groups: this is non-regular, but quite
-%   useful, and it can be implemented without too much performance loss.
-%   (\emph{cf.} callout?)
 % \end{itemize}
 %
 % The following features of PCRE or perl will probably not be implemented.
@@ -596,18 +587,13 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_regex_look_behind_bool}
-% \begin{variable}{\l_regex_look_behind_str}
-%   The boolean \cs{l_regex_look_behind_bool} indicates whether
-%   a look-behind assertion appears within the regular expression
-%   (currently only |\b| or |\B|). When matching, we will keep
-%   track of the part of the string before the current character
-%   in \cs{l_regex_look_behind_str}, stored backwards.
+% \begin{variable}{\l_regex_last_char_int}
+%   The integer \cs{l_regex_last_char_int} holds the character code
+%   of the character in the string which directly preceeds the current
+%   position.
 %    \begin{macrocode}
-\bool_new:N \l_regex_look_behind_bool
-\tl_new:N \l_regex_look_behind_str
+\int_new:N \l_regex_last_char_int
 %    \end{macrocode}
-% \end{variable}
 % \end{variable}
 %
 % \subsubsection{Character classes}
@@ -711,10 +697,10 @@
 %
 % \subsubsection{Variables used when matching}
 %
-% \begin{variable}{\l_regex_query_str}
+% \begin{variable}{\l_regex_query_other_str}
 %   The string that is being matched.
 %    \begin{macrocode}
-\tl_new:N \l_regex_query_str
+\tl_new:N \l_regex_query_other_str
 %    \end{macrocode}
 % \end{variable}
 %
@@ -904,6 +890,31 @@
     \cs_set_nopar:Npx \regex_tmp:w {#2}
     \tex_toks:D #1 \exp_after:wN
       { \tex_the:D \tex_toks:D \exp_after:wN #1 \regex_tmp:w }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsubsection{Unsafe substring extraction}
+%
+% \begin{macro}[int]{\regex_query_from_to:NN}
+% \begin{macro}[aux]{\regex_query_from_to_aux:nnn}
+%   Extracting submatches from the query string is done
+%   in a way similar to \cs{str_from_to:Nnn}, but omitting
+%   most checks, hence faster.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \regex_query_from_to:NN #1#2
+  {
+    \exp_after:wN \regex_query_from_to_aux:NN
+    \exp_after:wN #1
+    \exp_after:wN #2
+    \l_regex_query_other_str
+    \q_stop
+  }
+\cs_new:Npn \regex_query_from_to_aux:NN #1#2
+  {
+    \str_skip_do:nn {#1}
+      { \str_collect_do:nn { #2 - #1 } { \use_i_delimit_by_q_stop:nw } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1375,15 +1386,11 @@
 % \begin{macro}[aux]{\regex_if_word_boundary:TF}
 %   Contrarily to |^| and |$|, which could be implemented without
 %   really knowing what preceeds in the string, this requires
-%   more information. We request it by setting
-%   \cs{l_regex_look_behind_bool}. Then the matching code will
-%   keep store the characters that were already read, backwards,
-%   in \cs{l_regex_look_behind_str}, and we can analyse the first
-%   character of that string.
+%   more information, namely, the knowledge of what preceeds in
+%   the string.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_b:
   {
-    \bool_set_true:N \l_regex_look_behind_bool
     \regex_build_new_state:
     \regex_toks_put_right:Nx \l_regex_left_state_int
       {
@@ -1394,7 +1401,6 @@
   }
 \cs_new_protected_nopar:Npn \regex_build_B:
   {
-    \bool_set_true:N \l_regex_look_behind_bool
     \regex_build_new_state:
     \regex_toks_put_right:Nx \l_regex_left_state_int
       {
@@ -1405,21 +1411,12 @@
   }
 \cs_new_protected_nopar:Npn \regex_if_word_boundary:TF
   {
-    \tl_if_empty:NTF \l_regex_look_behind_str
-      { \c_regex_w_tl }
-      {
-        \group_begin:
-          \cs_set_nopar:Npx \regex_tmp:w
-            {
-              \int_set:Nn \l_regex_current_char_int
-                { ` \str_head:N \l_regex_look_behind_str }
-            }
-          \regex_tmp:w
-          \c_regex_w_tl
-          \regex_break_point:TF
-            { \group_end: \c_regex_W_tl }
-            { \group_end: \c_regex_w_tl }
-      }
+    \group_begin:
+      \int_set_eq:NN \l_regex_current_char_int \l_regex_last_char_int
+      \c_regex_w_tl
+      \regex_break_point:TF
+        { \group_end: \c_regex_W_tl \regex_item_equal:n {-1} }
+        { \group_end: \c_regex_w_tl }
     \regex_break_point:TF
   }
 %    \end{macrocode}
@@ -2518,36 +2515,46 @@
 %
 % \begin{macro}[int]{\regex_store_submatches:n}
 % \begin{macro}[aux]{\regex_store_submatches_aux:Nw}
-% \begin{macro}[aux]{\regex_store_submatches_aux_ii:wnnwwn}
+% \begin{macro}[aux]{\regex_store_submatches_aux_ii:wnnww}
 %   The submatch information pertaining to one given thread is moved
 %   from state to state as we execute the NFA.
+%   We use the \cs{if_false:} \texttt{\{} \cs{fi:} trick rather than
+%   using a stop marker for performance reasons: this way, most of
+%   the \tn{toks} register is not read before being assigned again
+%   to that same register. The speed improvement on very large input
+%   is shockingly large (a factor of $5$ on the overall matching process),
+%   and i don't fully understand it.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_store_submatches:n #1
   {
-    \exp_after:wN \regex_store_submatches_aux:Nw
-    \exp_after:wN \l_regex_current_submatches_prop
-    \tex_the:D \tex_toks:D #1 \scan_stop: \q_stop
-    { #1 }
+    \int_set:Nn \l_regex_tmpa_int {#1}
+    \if_false: { \fi:
+      \exp_after:wN \regex_store_submatches_aux:Nw
+      \exp_after:wN \l_regex_current_submatches_prop
+      \tex_the:D \tex_toks:D \l_regex_tmpa_int
+    }
   }
 \cs_new_protected:Npn \regex_store_submatches_aux:Nw #1 #2 \s_regex_toks
   {
-    \exp_args:No \regex_store_submatches_aux_ii:wnnwwn { #1 }
+    \exp_args:No \regex_store_submatches_aux_ii:wnnww { #1 }
       #2
       \regex_state_submatches:nn { \c_minus_one } { \q_prop }
     \s_regex_toks
   }
-\cs_new_protected:Npn \regex_store_submatches_aux_ii:wnnwwn
-    #1 \regex_state_submatches:nn #2#3 #4 \s_regex_toks #5 \q_stop #6
+\cs_new_protected:Npn \regex_store_submatches_aux_ii:wnnww
+    #1 \regex_state_submatches:nn #2#3 #4 \s_regex_toks
   {
-    \tex_toks:D #6 \exp_after:wN
+    \tex_toks:D \l_regex_tmpa_int \exp_after:wN
       {
         \exp_after:wN \regex_state_submatches:nn \exp_after:wN
-          { \int_value:w \int_eval:w \l_regex_unique_step_int + \c_one }
+          {
+            \int_value:w \int_eval:w
+              \l_regex_unique_step_int + \c_one
+              \if_false: } \fi:
+          }
           { #1 }
         \regex_state_submatches:nn {#2} {#3}
         \s_regex_toks
-        #5
-      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2571,7 +2578,7 @@
 % \subsubsection{Matching: framework}
 %
 % \begin{macro}[int]{\regex_match:n}
-%   Store the query string in \cs{l_regex_query_str}.
+%   Store the query string in \cs{l_regex_query_other_str}.
 %   Then reset a few variables which should be set only once,
 %   before the first match, even in the case of multiple matches.
 %   Then run the NFA (\cs{regex_match_once:} matches multiple times
@@ -2579,7 +2586,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_match:n #1
   {
-    \tl_set:Nx \l_regex_query_str { \tl_to_other_str:n {#1} }
+    \tl_set:Nx \l_regex_query_other_str { \tl_to_other_str:n {#1} }
     \regex_match_initial_setup:
     \regex_match_once:
   }
@@ -2588,6 +2595,7 @@
 %
 % \begin{macro}[int]{\regex_match_once:}
 % \begin{macro}[aux]{\regex_match_once_aux:}
+% \begin{macro}[aux]{\regex_match_once_aux_ii:N}
 %   After setting up more variables in \cs{regex_match_setup:},
 %   skip the \cs{l_regex_start_step_int} first characters of the
 %   query string, and loop over it.
@@ -2597,13 +2605,30 @@
 \cs_new_protected_nopar:Npn \regex_match_once:
   {
     \regex_match_setup:
-    \exp_after:wN \regex_match_once_aux: \l_regex_query_str
+    \exp_after:wN \regex_match_once_aux: \l_regex_query_other_str
       \q_recursion_tail \q_recursion_stop
     \bool_if:NT \l_regex_success_bool { \l_regex_every_match_tl }
   }
 \cs_new_protected_nopar:Npn \regex_match_once_aux:
-  { \str_skip_do:nn { \l_regex_start_step_int } { \regex_match_loop:N } }
+  {
+    \int_compare:nNnTF \l_regex_start_step_int = \c_zero
+      {
+        \int_set_eq:NN \l_regex_last_char_int \c_minus_one
+        \regex_match_loop:N
+      }
+      {
+        \str_skip_do:nn
+          { \l_regex_start_step_int - \c_one }
+          { \regex_match_once_aux_ii:N }
+      }
+  }
+\cs_new_protected_nopar:Npn \regex_match_once_aux_ii:N #1
+  {
+    \int_set:Nn \l_regex_last_char_int { `#1 }
+    \regex_match_loop:N
+  }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -2618,7 +2643,6 @@
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_match_initial_setup:
   {
-    \tl_clear:N \l_regex_look_behind_str
     \prg_stepwise_inline:nnnn {1} {1} { \l_regex_max_state_int }
       { \tex_dimen:D ##1 \c_minus_one sp \scan_stop: }
     \int_set_eq:NN \l_regex_unique_step_int  \c_minus_one
@@ -2705,8 +2729,7 @@
       \exp_after:wN \use_none_delimit_by_q_recursion_stop:w
     \fi:
     \quark_if_recursion_tail_stop:N #1
-    \bool_if:NT \l_regex_look_behind_bool
-      { \tl_put_left:Nx \l_regex_look_behind_str {#1} }
+    \int_set_eq:NN \l_regex_last_char_int \l_regex_current_char_int
     \regex_match_loop:N
   }
 \cs_new_nopar:Npn \regex_match_one_index:n #1
@@ -2839,11 +2862,7 @@
         \regex_extract_aux:nTF { ##1 }
           {
             \seq_gput_right:Nx \g_regex_submatches_seq
-              {
-                \str_from_to:Nnn \l_regex_query_str
-                  { \l_regex_tmpa_tl }
-                  { \l_regex_tmpb_tl }
-              }
+              { \regex_query_from_to:NN \l_regex_tmpa_tl \l_regex_tmpb_tl }
           }
           { \seq_gput_right:Nn \g_regex_submatches_seq { } }
       }
@@ -2918,9 +2937,6 @@
             = \int_use:N \l_regex_max_state_int
           \l_regex_capturing_group_int
             = \int_use:N \l_regex_capturing_group_int
-          \bool_if:NTF \l_regex_look_behind_bool
-            { \bool_set_true:N \l_regex_look_behind_bool }
-            { \bool_set_false:N \l_regex_look_behind_bool }
           \prg_stepwise_function:nnnN
             {1} {1} {\l_regex_max_state_int}
             \regex_set_aux:n
@@ -3231,9 +3247,8 @@
           {
             \seq_gput_left:Nx \g_regex_submatches_seq
               {
-                \str_from_to:Nnn \l_regex_query_str
-                  { \int_use:N \l_regex_start_step_int }
-                  { \l_regex_tmpa_tl }
+                \regex_query_from_to:NN
+                  \l_regex_start_step_int \l_regex_tmpa_tl
               }
           }
           { \msg_error:nn { regex } { internal } }
@@ -3252,9 +3267,8 @@
       {
         \seq_gput_right:Nx \g_regex_split_seq
           {
-            \str_from_to:Nnn \l_regex_query_str
-              { \int_use:N \l_regex_start_step_int }
-              { \int_use:N \l_regex_current_step_int }
+            \regex_query_from_to:NN
+              \l_regex_start_step_int \l_regex_current_step_int
           }
       }
     \group_insert_after:N \seq_set_eq:NN
@@ -3339,15 +3353,16 @@
       \regex_extract:
       \regex_extract_aux:nTF {0}
         {
+          \cs_set_nopar:Npn \regex_tmp:w
+            { \str_skip_do:nn { \l_regex_tmpb_tl } { } }
           \tl_gset:Nx \g_regex_replaced_str
             {
-              \str_from_to:Nnn \l_regex_query_str {0} { \l_regex_tmpa_tl }
+              \regex_query_from_to:NN \c_zero \l_regex_tmpa_tl
               \l_regex_replacement_tl
-              \str_from_to:Nnn \l_regex_query_str
-                { \l_regex_tmpb_tl } { \c_max_int }
+              \exp_after:wN \regex_tmp:w \l_regex_query_other_str
             }
         }
-        { \tl_gset_eq:NN \g_regex_replaced_str \l_regex_query_str }
+        { \tl_gset_eq:NN \g_regex_replaced_str \l_regex_query_other_str }
     \group_end:
   }
 \cs_new_protected:Npn \regex_replace_once:nnN #1#2#3
@@ -3404,12 +3419,10 @@
       \tl_gclear:N \g_regex_replaced_str
       #2
       \exp_args:No \regex_match:n {#1}
+      \cs_set_nopar:Npn \regex_tmp:w
+        { \str_skip_do:nn { \l_regex_start_step_int } { } }
       \tl_gput_right:Nx \g_regex_replaced_str
-        {
-          \str_from_to:Nnn \l_regex_query_str
-            { \int_use:N \l_regex_start_step_int }
-            { \c_max_int }
-        }
+        { \exp_after:wN \regex_tmp:w \l_regex_query_other_str }
     \group_end:
   }
 \cs_new_protected_nopar:Npn \regex_replace_all_aux:
@@ -3419,9 +3432,8 @@
       {
         \tl_gput_right:Nx \g_regex_replaced_str
           {
-            \str_from_to:Nnn \l_regex_query_str
-              { \int_use:N \l_regex_start_step_int }
-              { \l_regex_tmpa_tl }
+            \regex_query_from_to:NN
+              \l_regex_start_step_int \l_regex_tmpa_tl
             \l_regex_replacement_tl
           }
       }
