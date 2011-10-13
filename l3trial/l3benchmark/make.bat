@@ -5,7 +5,7 @@ rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 
 setlocal
 
-set PACKAGE=l3time
+set PACKAGE=l3benchmark
 set KERNELDIR=l3trial
  
 set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
