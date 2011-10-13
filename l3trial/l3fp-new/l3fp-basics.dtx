@@ -116,6 +116,16 @@
 %   the quotient of the two floating point variables, respectively.
 % \end{function}
 %
+% \section{Temporary function for testing}
+%
+% \begin{function}[EXP]{\fp_rem:nn}
+%   \begin{syntax}
+%     \cs{fp_rem:nn} \Arg{fp~expr} \Arg{fp~expr}
+%   \end{syntax}
+%   This computes the remainder of the division of the first argument
+%   by the second.
+% \end{function}
+%
 % \end{documentation}
 %
 % \begin{implementation}
@@ -131,12 +141,22 @@
 %<*initex|package>
 %    \end{macrocode}
 %
-% The algorithms used below end up being quite similar to
+% Some algorithms used below end up being quite similar to
 % some described in \enquote{What Every Computer Scientist
 %   Should Know About Floating Point Arithmetic}, by
 % David Goldberg, which can be found at
 % \texttt{http://cr.yp.to/2005-590/goldberg.pdf}. I need to
 % compare them very carefully.
+%
+% \subsection{Temporary function for testing}
+%
+% \begin{macro}[EXP]{\fp_rem:nn}
+%   \begin{macrocode}
+\cs_new:Npn \fp_rem:nn #1 #2
+  { \exp_args:Nff \fp_rem_aux:nn { \fp_parse:n {#1} } { \fp_parse:n {#2} } }
+\cs_new:Npn \fp_rem_aux:nn #1 #2 { \fp_rem:ww #1 #2 }
+%    \end{macrocode}
+% \end{macro}
 %
 % \subsection{Common to several operations}
 %
@@ -173,8 +193,9 @@
 % \begin{macro}{\fp_basics_return_nan_nan:NNww,
 %     \fp_basics_return_zero:NNww,
 %     \fp_basics_return_inf:NNww,
-%     \fp_basics_return_i:NNww,
-%     \fp_basics_return_ii:NNww}
+%     \fp_basics_return_i:NNNNww,
+%     \fp_basics_return_ii:NNNNww,
+%     \fp_basics_return_nan:NNNNww}
 %   \begin{syntax}
 %     \cs{fp_basics_return_...:NNww}
 %     ~~\meta{sign1} \meta{sign2} \meta{body1} |;| \meta{body2} |;|
@@ -227,6 +248,22 @@
   { \fp_aux_exp_after_fp:wN \s_fp \fp_use:w #1 #3 #5; }
 \cs_new:Npn \fp_basics_return_ii:NNNNww #1#2 #3#4 #5; #6;
   { \fp_aux_exp_after_fp:wN \s_fp \fp_use:w #2 #4 #6; }
+\cs_new:Npn \fp_basics_return_nan:NNNNww #1#2
+  {
+    \if_meaning:w #1 #2
+      \exp_after:wN \fp_basics_return_nan_nan:NNww
+    \else:
+      \if_num:w #1 = \c_three
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \fp_basics_return_i:NNNNww
+      \else:
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \fp_basics_return_ii:NNNNww
+      \fi:
+      \exp_after:wN #1
+      \exp_after:wN #2
+    \fi:
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -295,6 +332,15 @@
 \cs_new:Npn \fp_div:NN { \fp_basics_shuffle:NNN \fp_basics_div_back_cases:NN }
 \cs_new:Npn \fp_div:ww \s_fp \fp_use:w #1 #2 #3 ; \s_fp \fp_use:w #4 #5 #6 ;
   { \fp_basics_div_back_cases:NN #4 #1 #5 #2 #6 ; #3 ; }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\fp_rem:NN, \fp_rem:ww}
+%   See \cs{fp_div:NN} and \cs{fp_div:ww}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_rem:NN { \fp_basics_shuffle:NNN \fp_basics_rem_back_cases:NN }
+\cs_new:Npn \fp_rem:ww \s_fp \fp_use:w #1 #2 #3 ; \s_fp \fp_use:w #4 #5 #6 ;
+  { \fp_basics_rem_back_cases:NN #4 #1 #5 #2 #6 ; #3 ; }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1715,6 +1761,347 @@
   }
 \cs_new:Npn \fp_basics_div_mantissa_large_pack:NNNNNNNNw
     1 #1#2#3#4 #5#6#7#8 #9; { ; {#1#2#3#4} {#5#6#7#8} {#9} }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \subsection{Remainder}
+%
+% This is an exact operation. It is based on the same ideas as division,
+% with some extra exponent check. Also, we need to add some more testing
+% here and there to avoid overflow: contrarily to division, there is no
+% limit on how many divide-and-subtract steps there can be.
+%
+% \subsubsection{Signs, and special numbers}
+%
+% The operands are given to us backwards. In the following we compute
+% \meta{A} \texttt{REM} \meta{Z}, remainder of \meta{A} when divided
+% by \meta{Z}. The result must be exact, and is not affected by the
+% rounding mode.
+%
+% \begin{macro}[EXP,aux]{\fp_basics_rem_back_cases:NN}
+%   \begin{syntax}
+%     \cs{fp_basics_rem_back_cases:NN} \meta{case Z} \meta{case A}
+%     ~~\meta{sign Z} \meta{sign A} \meta{body Z} |;| \meta{body A} |;|
+%   \end{syntax}
+%   \meta{case Z} and \meta{case A} can each be $0$ (for zeroes),
+%   $1$ (for normal numbers), $2$ (for infinities) or $3$ (for nans).
+%   The complicated \cs{int_eval:w} ends before \cs{c_minus_one} in
+%   almost all cases, because this immediately follows another integer.
+%   The only exception is when both numbers are normal, in which case
+%   neither internal \cs{if_case:w} statements gives anything, and
+%   \cs{c_minus_one} is added, yielding an \enquote{outer} case of $0$.
+%   The rest of the table is simply an addition.
+%   \begin{center}
+%     \begin{tabular}{c|cccc}
+%       Z\textbackslash A
+%         & 0 & 1 & 2 & 3  \\ \hline
+%       0 & 2 & 2 & 3 & 5 \\
+%       1 & 1 & * & 2 & 4 \\
+%       2 & 1 & 1 & 2 & 4 \\
+%       3 & 4 & 4 & 5 & 7
+%     \end{tabular}
+%   \end{center}
+%   This allows us to distinguish between (0) normal numbers,
+%   (1) a zero result, (2--3) invalid: \meta{A} is infinity
+%   or \meta{Z} is zero, (\textgreater 3) one of the operands is nan.
+%    \begin{macrocode}
+\cs_new:Npn \fp_basics_rem_back_cases:NN #1 #2
+  {
+    \if_case:w \int_eval:w
+                 \c_one
+                 +
+                 \if_case:w #1 \exp_stop_f:
+                      \c_one
+                 \or:
+                 \or: \c_zero
+                 \or: \c_three
+                 \fi:
+                 \if_case:w #2 \exp_stop_f:
+                      + \c_zero
+                 \or:
+                 \or: + \c_one
+                 \or: + \c_three
+                 \fi:
+                 \c_minus_one
+               \int_eval_end:
+         \exp_after:wN \fp_basics_rem_back_normal:wNNnwnw
+    \or: \exp_after:wN \fp_basics_rem_return_zero:NNNNww
+    \or: \exp_after:wN \fp_basics_rem_snan:NNNNww
+    \or: \exp_after:wN \fp_basics_rem_snan:NNNNww
+    \else:
+      \exp_after:wN \fp_basics_return_nan:NNNNww
+    \fi:
+    #1 #2
+  }
+\cs_new:Npn \fp_basics_rem_return_zero:NNNNww #1#2 #3#4 #5; #6;
+  { \exp_after:wN \fp_aux_zero_fp:N \exp_after:wN #4 }
+\cs_new:Npn \fp_basics_rem_snan:NNNNww #1#2 #3#4 #5; #6;
+  {
+    \exp_after:wN \fp_aux_snan_fp:N
+    \cs:w fp_info: ~ %
+      rem ( \fp_convert_to_str:w \s_fp \fp_use:w #2#4#6; , ~ %
+            \fp_convert_to_str:w \s_fp \fp_use:w #1#3#5; ) ;
+      \exp_after:wN
+    \cs_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Normal (backwards) remainder}
+%
+% In this subsection, we perform the remainder operation.
+% Given \meta{Z} and \meta{A}, find the remainder
+% of $\meta{A}/\meta{Z}$.
+%
+% \begin{macro}{\fp_basics_rem_back_normal:wNNnwnw}
+%   \begin{syntax}
+%     \cs{fp_basics_rem_back_normal:wNNnwnw}
+%     ~~\texttt{1} \texttt{1} \meta{sign Z} \meta{sign A}
+%     ~~\Arg{exp Z} \meta{body Z} |;|
+%     ~~\Arg{exp A} \meta{body A} |;|
+%   \end{syntax}
+%   The sign of \meta{Z} is ignored. Since there is no rounding,
+%   we only need to keep the sign of \meta{A} and multiply at the
+%   end (no need to know in advance the sign of the final result).
+%   If \meta{A} is much smaller than \meta{Z}, nothing has to be done.
+%   If \meta{A} is much bigger than \meta{Z}, however, we need to calculate.
+%   And the calculations are messier than for division: since there can
+%   be arbitrary many divide-and-subtract steps, the bounds that we
+%   could prove for division do not hold anymore, and we cannot shift
+%   by $4$ at each step. Rather, we shift by $2$, but still work with
+%   blocks of $4$ most of the time.
+%    \begin{macrocode}
+\cs_new:Npn \fp_basics_rem_back_normal:wNNnwnw 1 1 #1#2 #3 #4; #5
+  {
+    \if_num:w #3 > #5 \exp_stop_f:
+      \exp_after:wN \fp_basics_rem_back_big_i:Nnwnw
+    \else:
+      \exp_after:wN \fp_basics_rem_back_sanitize:wN
+      \int_use:N \int_eval:w #3
+        \exp_after:wN \fp_basics_rem_back_big_ii:wNnwnw
+        \int_use:N \int_eval:w #5 - #3 + \c_one \exp_after:wN ;
+    \fi:
+    #2 {#3} #4; {#5}
+  }
+\cs_new:Npn \fp_basics_rem_back_big_i:Nnwnw #1 #2;
+  { \fp_aux_exp_after_fp:wN \s_fp \fp_use:w 1 #1 }
+%    \end{macrocode}
+% Initially, shift \meta{A} by $1$ if the difference |#1| in exponents
+% is odd. The trailing zero after |#9| is discarded later or not.
+% We revisite the good ol' \cs{romannumeral} $\meta{integer}\times 1000$
+% method to get a number of characters equal to \emph{half} of the
+% difference in exponents. Note that the representation of $2500$
+% for instance in roman numerals is \texttt{mmd}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_basics_rem_back_big_ii:wNnwnw #1; #2 #3 #4; #5 #6#7#8#9;
+  {
+        \exp_after:wN \fp_basics_rem_back_pre_pack:www
+        \int_value:w 1
+          \if_int_odd:w \int_eval:w #1 \int_eval_end:
+            0
+          \fi:
+          #6
+          \exp_after:wN \fp_aux_use_none_stop_f:N
+          \int_value:w 1 #7 #8
+            \exp_after:wN \fp_aux_use_none_stop_f:N
+            \int_value:w 1 #9 0
+              \exp_after:wN \fp_aux_use_none_semicolon:N
+              \int_to_roman:w \int_eval:w #1*500 \int_eval_end:
+              { \fi: \fp_basics_rem_back_break:w } #2 ;
+        #4 ;
+  }
+\cs_new:Npn \fp_aux_use_none_stop_f:N    #1 { ~ }
+\cs_new:Npn \fp_aux_use_none_semicolon:N #1 { ; }
+%    \end{macrocode}
+%   We'll (roughly) divide the
+%   first block of \meta{A} by the first block of \meta{Z} to get a
+%   piece \meta{Q1} of the quotient. Then subtract
+%   $\meta{Q1}\times\meta{Z}$ from \meta{A}. This should yield a
+%   result roughly $100$ times smaller (\emph{i.e.}, shifted by
+%   $2$ positions) for use as \meta{A}, and we can continue.
+%   End when reaching the weird construction \cs{fi:}
+%   \cs{fp_basics_rem_back_break:w}.
+% \end{macro}
+%
+% \begin{macro}[EXP]{\fp_basics_rem_back_pre_pack:www}
+%   \begin{syntax}
+%     \cs{fp_basics_rem_back_pre_pack:www} \texttt{1}
+%     ~~\meta{shifted A} \texttt{;}
+%     ~~\texttt{m\ldots d} \Arg{break code} \meta{sign A} \texttt{;}
+%     ~~\Arg{Z1} \Arg{Z2} \Arg{Z3} \Arg{Z4} \texttt{;}
+%   \end{syntax}
+%   Here \meta{shifted A} has $17$ or $18$ digits, the last one $0$,
+%   and they should be stored in blocks of $4$ digits, except the first
+%   one, which should be $5$ digits. This time, we'll separate blocks
+%   of \meta{shifted A} with blank spaces, but \meta{Z} is
+%   still stored as four braced groups.
+%    \begin{macrocode}
+\cs_new:Npn \fp_basics_rem_back_pre_pack:www 1 #1#2#3#4#5 #6#7#8#9
+  { \fp_basics_rem_back_pre_pack_ii:nNNNNNNNN { #1#2#3#4#5 ~ #6#7#8#9 } }
+\cs_new:Npn \fp_basics_rem_back_pre_pack_ii:nNNNNNNNN #1 #2#3#4#5 #6#7#8#9
+  { \fp_basics_rem_back_pre_pack_iii:nwww { #1 ~ #2#3#4#5 ~ #6#7#8#9} }
+\cs_new:Npn \fp_basics_rem_back_pre_pack_iii:nwww #1 #2; #3; #4;
+  { \fp_basics_rem_mantissa_loop:wwn #1 ; #4 ; #3 }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\fp_basics_rem_mantissa_loop:wwn}
+%   \begin{syntax}
+%     \cs{fp_basics_rem_mantissa_loop:wwn}
+%     ~~\meta{A'1} \verb*+ + \meta{A'2} \verb*+ + \meta{A'3} \verb*+ + \meta{A'4} \texttt{;}
+%     ~~\Arg{Z1} \Arg{Z2} \Arg{Z3} \Arg{Z4} \texttt{;}
+%     ~~\texttt{m\ldots} \Arg{break code} \meta{sign A}
+%   \end{syntax}
+%   Initially, $-10^5<\meta{A'1}<10^5$, while the other blocks are exactly
+%   $4$ digits. Below, we remove the space between \meta{A'2} and \meta{A'3}
+%   so that \cs{fp_basics_rem_mantissa_loop_ii:wwwwnnnnN} only has $9$
+%   arguments.
+%   Compute the quotient of \meta{A'1} by $\meta{Z1}$\footnote{Bruno: $+1/2$?},
+%   and subtract that many times \meta{Z} from \meta{A'},
+%   then shift by two digits.
+%    \begin{macrocode}
+\cs_new:Npn \fp_basics_rem_mantissa_loop:wwn #1 ~ #2 ~ #3; #4
+  {
+    \exp_after:wN \fp_basics_rem_mantissa_loop_ii:wwwwnnnnN
+    \int_use:N \int_eval:w #1 / #4 ;
+    #1 ~ #2#3 ;
+    {#4}
+  }
+\cs_new:Npn \fp_basics_rem_mantissa_loop_ii:wwwwnnnnN
+    #1; #2 ~ #3 ~ #4; #5#6#7#8; #9
+  {
+    \if_false: #9 #1 \fi: % to end the loop.
+    \exp_after:wN \fp_basics_rem_mantissa_loop:wwn
+    \int_use:N \int_eval:w
+      (- 2 0000 + #2 - #1*#5)*100 +
+      \exp_after:wN \fp_basics_rem_mantissa_pack_last:NNNNNNNw
+      \int_use:N \int_eval:w
+        1 9998 0000 - #1*#6 +
+        \exp_after:wN \fp_basics_rem_mantissa_pack:NNNNNNNw
+        \int_use:N \int_eval:w
+          1 9998 0000 + #3 - #1*#7 +
+          \exp_after:wN \fp_basics_rem_mantissa_pack:NNNNNNNw
+          \int_use:N \int_eval:w
+            2 0000 0000 + #4 - #1*#8
+          \int_eval_end:
+          00 ;;
+    {#5}{#6}{#7}{#8};
+  } % <9d>;{<4d>}{<4d>}{<4d>};;{<4d>}{<4d>}{<4d>}{<4d>};
+\cs_new:Npn \fp_basics_rem_mantissa_pack:NNNNNNNw #1#2#3 #4#5#6#7 #8;
+  {
+    % \fp_trace_assert:nn {#8} {\d\d\d\d}
+    #1#2#3 #4#5 \int_eval_end: #6#7 ; ~ #8
+  }
+\cs_new:Npx \fp_basics_rem_mantissa_pack_last:NNNNNNNw #1#2#3 #4#5#6#7 #8;
+  { #1#2#3 #4#5#6#7 \int_eval_end: \c_space_tl #8 }
+ % \cs_new:Npn \fp_basics_rem_mantissa_loop_half:NNNNNNNwn #1#2#3#4#5#6#7 #8;; #9
+ %   { % 7*<1d> (<2d>;{<4d>}{<4d>}{<4d>};;) (<4d>)
+ %     \exp_after:wN \fp_basics_rem_mantissa_loop_half_ii:wwnnwnnnn
+ %     \int_use:N \int_eval:w
+ %       ( - 5 0000 00 + #1#2#3#4#5#6#7 ) / #9
+ %       \exp_after:wN ;
+ %       \int_use:N \int_eval:w - 5 0000 0000 +
+ %         #1 #2#3#4#5 #6#7 #8 ; %^^A #8 is horrible!
+ %     {#9}
+ %   } % <quot>;<~8d>;{<4d>}{<4d>}{<4d>};{<4d>}{<4d>}{<4d>}{<4d>};
+ % \cs_new:Npn \fp_basics_rem_mantissa_loop_half_ii:wwnnwnnnn
+ %     #1; #2; #3#4#5; #6#7#8#9;
+ %   {
+ %     \exp_after:wN \fp_basics_rem_mantissa_loop:wnnwn
+ %     \int_use:N \int_eval:w - 20 0000
+ %       + #2 - #1*#6 + \exp_after:wN \fp_basics_rem_mantissa_pack:NNNNNNw
+ %       \int_use:N \int_eval:w 19 9980 0000
+ %         + #3 - #1*#7 + \exp_after:wN \fp_basics_rem_mantissa_pack:NNNNNNw
+ %         \int_use:N \int_eval:w 19 9980 0000
+ %           + #4 - #1*#8 + \exp_after:wN \fp_basics_rem_mantissa_pack:NNNNNNw
+ %           \int_use:N \int_eval:w 20 0000 0000
+ %             + #5 - #1*#9 ; ;
+ %     {#6}{#7}{#8}{#9};
+ %   }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+%
+% \begin{macro}{\fp_basics_rem_back_break:w}
+%   \begin{syntax}
+%     \cs{fp_basics_rem_back_break:w} \meta{last quotient} \cs{fi:}
+%     ~~\cs{exp_after:wN} \cs{fp_basics_rem_mantissa_loop:wnnwn}
+%     ~~\meta{calculation} |;| \Arg{junk} |;|
+%     ~~\Arg{Z1} \Arg{Z2} \Arg{Z3} \Arg{Z4} |;| \meta{sign A}
+%   \end{syntax}
+%   Get rid of the first three tokens, and perform the calculation.
+%    \begin{macrocode}
+\cs_new:Npn \fp_basics_rem_back_break:w
+    #1 \fi: \exp_after:wN \fp_basics_rem_mantissa_loop:wwn
+  {
+    \exp_after:wN \fp_basics_rem_back_result_sign:Nwnnw
+  }
+%    \end{macrocode}
+%   After expanding the computation, we get
+%   \begin{syntax}
+%     \cs{fp_basics_rem_back_result_sign:w}
+%     ~~\meta{A'1} \texttt{;} \Arg{A'2} \Arg{A'3} \Arg{junk} \texttt{;}
+%     ~~\Arg{Z1} \Arg{Z2} \Arg{Z3} \Arg{Z4} |;| \meta{sign A}
+%   \end{syntax}
+%    \begin{macrocode}
+\cs_new:Npn \fp_basics_rem_back_result_sign:N #1
+  {
+    \if_meaning:w - #1
+      \exp_after:wN \fp_basics_rem_back_result_neg:w
+      \int_use:N \int_eval:w -
+    \else:
+      \exp_after:wN \fp_basics_rem_back_result_pos:w
+      \int_use:N \int_eval:w
+    \fi:
+    100000000 + #1
+  }
+% \cs_new:Npn \fp_basics_rem_back_result_pos:w 1 #1#2#3#4 #5#6#7#8;
+%   { \fp_basics_rem_back_result_pos_ii:nnnnw {#1#2#3#4} {#5#6#7#8} }
+% % \cs_new:Npn \fp_basics_rem_back_result_pos_ii:nnnnw #1#2#3#4 #5; #6#7#8#9;
+% %   {
+    
+%  % \cs_new:Npn \fp_basics_rem_back_result_neg:w -1 #1#2#3#4 #5#6#7#8;
+%  %   {    
+%  %     \int_use:N \int_eval:w
+%  %       100000000 +
+%  %       #1#2;
+%  %       #3#4;
+%  %   }
+% \cs_new:Npn \fp_basics_rem_back_result_pos:w 1#1#2#3#4#5#6#7#8;
+% \cs_new:Npn \fp_basics_rem_back_result_neg:w - #1;
+%   {
+% %   of the form \meta{$\leq$ 7d} |;| \meta{9d} |;| to
+% %   \cs{fp_basics_sub_back_carry_aux:wwN}. The result is always exact.
+    
+%     \if_num:w #1 < \c_zero
+%       \fp_basics_rem_back
+%     ;
+%     %; {#1}{#2}{#3} ;
+%   }
+%    \end{macrocode}
+% \end{macro}
+% ^^A here
+% in blocks of 4, placing
+%   them \emph{after} the semicolon.
+%   We want to compute the remainder of $A/Z$. Checking for underflow and
+%   overflow is done using the same auxiliary as for multiplication.
+%   As explained just below, we first compute $y$, which is
+%   the $5$ first digits of $Z$, plus $1$, and then compute pieces
+%   of the quotient roughly $4$ digits at a time. Here, |#1| is
+%   a single digit, |#2| and |#7| are the exponents (integers),
+%   |#8| is three brace groups, and all others are each $4$ digits.
+%    \begin{macrocode}
+\cs_new:Npn \fp_basics_rem_back_npos:Nnwnw #1 #2 #3#4#5#6; #7 #8;
+  {
+    \exp_after:wN \fp_basics_mul_sanitize:Nw
+    \exp_after:wN #1
+    \int_use:N \int_eval:w
+      #7 - #2
+      \fp_basics_rem_mantissa_i:wNwnn #3; #4;
+      #8 {#3}{#4}{#5}{#6} #1
+  }
 %    \end{macrocode}
 % \end{macro}
 %

@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3 "l3time" files                           #
+# Makefile for LaTeX3 "l3benchmark" files                           #
 ################################################################
 ################################################################
 
@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3trial/l3time
+PACKAGE = l3trial/l3benchmark
 
 ##############################################################
 # Directory structure for source files                       #
@@ -59,7 +59,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
-UNPACK    = l3time.ins
+UNPACK    = l3benchmark.ins
 
 ##############################################################
 # Files for the check systems                                #
