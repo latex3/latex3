@@ -1,0 +1,567 @@
+% \iffalse meta-comment
+%
+%% File: cs-input.dtx Copyright (C) 2011 The LaTeX3 Project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3c of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the "l3trial bundle" (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %%
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX3 Project.
+%%
+%% -----------------------------------------------------------------------
+%
+%<*driver|package>
+\RequirePackage{expl3,l3str}
+\GetIdInfo$Id$
+  {L3 Experimental input of any list of tokens}
+%</driver|package>
+%<*driver>
+\documentclass[full]{l3doc}
+\usepackage{amsmath}
+ %\usepackage{cs-input}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+%
+% \title{^^A
+%   The \textsf{cs-input} package: inputting arbitrary lists of tokens^^A
+%   \thanks{This file describes v\ExplFileVersion,
+%     last revised \ExplFileDate.}^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released \ExplFileDate}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \begin{function}{\cs_input:nn}
+%   \begin{syntax}
+%     \cs{cs_input:nn} \Arg{code} \Arg{string}
+%   \end{syntax}
+%   The \meta{string} argument is interpreted according to the rules below,
+%   and the result is placed in a brace group following the \meta{code}.
+%   For instance, we can define a function which prints to the terminal
+%   its argument surrounded by three tilde characters on each side.
+%   \begin{verbatim}
+%     \cs_input:nn { \cs_set_protected:Npn \mypkg_show:n #1 }
+%       { \c0{iow_term:n} \c1\{ \~\~\~ #1 \~\~\~ \c2\} }
+%   \end{verbatim}
+% \end{function}
+%
+% Characters in the \meta{string} argument behave mostly as in
+% \cs{str_input:Nn}, except for |#| and the |\c| escape sequence.
+% First, the following rules apply.
+% \begin{itemize}
+%   \item Any non-alphanumeric character can be escaped with a backslash.
+%   \item Unescaped spaces are ignored.
+%   \item Any alphanumeric character stands for itself.
+%   \item |\a|, |\e|, |\f|, |\n|, |\r|, and |\t| stand for the ascii
+%     characters \texttt{07}, \texttt{1B}, \texttt{0C}, \texttt{0A},
+%     \texttt{0D}, and \texttt{09} respectively.
+%   \item |\x| followed by up to two hexadecimal digits,
+%     or a braced string of digits, is converted to the character
+%     with that character code.
+% \end{itemize}
+% Then category codes can be modified as follows.
+% \begin{itemize}
+%   \item |#| stands for a macro parameter character (with character
+%     code $35$).
+%   \item |\c0|\Arg{cs name} gives rise to the control sequence built from
+%     the \meta{cs name} (escaped characters can be used within the
+%     \meta{cs name}, but the |\c0|\Arg{\ldots{}} cannot be nested).
+%   \item |\c|\meta{hex digit}\meta{char} produces the \meta{char} with
+%     the category code given by the \meta{hex digit} if this is a valid
+%     category code for a token (namely, $5$, $9$, $14$, and $15$ are
+%     excluded).
+% \end{itemize}
+% The hexadecimal digits corresponding to each category code are as follows.
+% \begin{itemize}
+%   \item |\c0|\Arg{cs name} produces a control sequence.
+%   \item |\c1|\meta{char} produces a begin-group token.
+%   \item |\c2|\meta{char} produces an end-group token.
+%   \item |\c3|\meta{char} produces a math toggle token.
+%   \item |\c4|\meta{char} produces an alignment token.
+%   \item |\c6|\meta{char} produces a parameter token.
+%   \item |\c7|\meta{char} produces a math superscript token.
+%   \item |\c8|\meta{char} produces a math subscript token.
+%   \item |\ca|\meta{char} or |\cA|\meta{char} produce a blank space token.
+%   \item |\cb|\meta{char} or |\cB|\meta{char} produce a letter token.
+%   \item |\cc|\meta{char} or |\cC|\meta{char} produce a token
+%     with category code \enquote{other} (default).
+%   \item |\cd|\meta{char} or |\cD|\meta{char} produce an active token.
+% \end{itemize}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{cs-input} implementation}
+%
+%    \begin{macrocode}
+%<*package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\ProvidesExplPackage
+  {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
+%    \end{macrocode}
+%
+% \begin{variable}{\l_cs_input_balance_int}
+%   Since the user inputs begin and end group tokens independently
+%   of each other, we need to check that they are as many of each.
+%    \begin{macrocode}
+\int_new:N \l_cs_input_balance_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\cs_input:nn}
+%   We have a three-pass system.
+%   First convert escaped characters such as |\%| to |%|, \emph{etc.}
+%   Then change category codes, leaving each begin and end-group character
+%   in a construction such as |\if_false: { \fi: }|.
+%   In the third pass, expand those constructions and put the user code
+%   in front in \cs{g_str_result_tl}. Finally, run the contents of that
+%   string.
+%    \begin{macrocode}
+\cs_new_protected:Npn \cs_input:nn #1#2
+  {
+    \group_begin:
+      \cs_input_i:n {#2}
+      \cs_input_ii:
+      \cs_input_iii:n {#1}
+    \group_end:
+    \g_str_result_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\cs_input_i:n}
+%   In the first pass, everything is delegated to
+%   \cs{str_aux_escape:NNNn}. Only |#| and |\c| are
+%   treated specially, and we let everything else
+%   be converted to a simple character (with category
+%   code $12$) by \cs{str_aux_escape:NNNn}).
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \cs_input_i:n
+  {
+    \str_aux_escape:NNNn
+      \cs_input_unescaped:N
+      \cs_input_escaped:N
+      \use:n
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\cs_input_unescaped:N}
+%   Among unescaped characters, only |#| is special.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \cs_input_unescaped:N #1
+  {
+    \if_charcode:w ## #1
+      \exp_not:N \cs_input_macro_parameter:N
+    \else:
+      #1
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\cs_input_escaped:N}
+%   Among escaped characters, only |\c| is special
+%   (of course, |\a|, |\e|, |\f|, |\n|, |\r|, |\t| and |\x|
+%   are as well, but that's already treated by \pkg{l3str}).
+%    \begin{macrocode}
+\cs_new_nopar:Npn \cs_input_escaped:N #1
+  {
+    \if_charcode:w c #1
+      \exp_not:N \cs_input_char:NN
+    \else:
+      #1
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\cs_input_ii:}
+%   At the beginning of the second pass, most characters are simply
+%   of category code $12$. The only macros that we can encounter
+%   are \cs{cs_input_macro_parameter:N} and \cs{cs_input_char:NN}.
+%   At this stage,
+%   \begin{itemize}
+%     \item \cs{cs_input_macro_parameter:N} checks the next token
+%       and removes it if it is a second macro parameter;
+%     \item \cs{cs_input_char:NN} \meta{catcode} \meta{character}
+%       is converted to the appropriate token.
+%   \end{itemize}
+%   The trailing \cs{prg_do_nothing:} are inserted to ensure that
+%   \cs{cs_input_char:NN} can safely grab two arguments, even when
+%   the user wrongly ended the input string by |\c|.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \cs_input_ii:
+  {
+    \int_zero:N \l_cs_input_balance_int
+    \tl_gset:Nx \g_str_result_tl
+      { \g_str_result_tl \prg_do_nothing: \prg_do_nothing: }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\cs_input_macro_parameter:N}
+%   When a |#| character was found in the input string,
+%   it is converted to $4$ macro parameter tokens
+%   (hence $8$ |#| characters since this is itself within a definition):
+%   those immediately become only $2$ macro parameter tokens
+%   in the definition of \cs{g_str_result}, and the third pass
+%   cuts down to only one token.
+%   If there were two consecutive |#| characters in the input string
+%   (most common situation), remove the second one.
+%   No error if somehow there was only one |#|.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \cs_input_macro_parameter:N #1
+  {
+    ########
+    \if_meaning:w \cs_input_macro_parameter:N #1
+    \else:
+      \exp_after:wN #1
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\cs_input_char:NN}
+%   Test if the next character is an hexadecimal digit
+%   for a valid category code, and if so, check that the
+%   following token is a character. Otherwise, raise the
+%   appropriate error, and continue expanding, ignoring
+%   the |\c| escape sequence.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \cs_input_char:NN #1#2
+  {
+    \cs_if_exist:cTF { cs_input_ \token_to_str:N #1 :N }
+      {
+        \token_if_cs:NTF #2
+          {
+            \msg_expandable_error:n
+              { \c #1~not~followed~by~a~character. }
+            #2
+          }
+          { \use:c { cs_input_ \token_to_str:N #1 :N } #2 }
+      }
+      {
+        \token_if_cs:NTF #1
+          { \msg_expandable_error:n { \c not~followed~by~a~character. } }
+          { \msg_expandable_error:n { Invalid~category~code~#1! } }
+        #1 #2
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\cs_input_interrupt_lowercase:Nn}
+% \begin{macro}[int]{\cs_input_resume:}
+%   
+%    \begin{macrocode}
+\cs_new_nopar:Npn \cs_input_interrupt_lowercase:Nn #1#2
+  {
+    \if_false: { \fi: }
+    \char_set_lccode:nn { 0 } { `#1 }
+    \tl_to_lowercase:n {#2}
+  }
+\cs_new_protected_nopar:Npn \cs_input_resume:
+  { \tl_gput_right:Nx \g_str_result_tl { \if_false: } \fi: }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% We are going to change the category code of the |^^@| character
+% (character code $0$) for the definitions below. This is done
+% within a group, and function definitions are global.
+%    \begin{macrocode}
+\group_begin:
+%    \end{macrocode}
+%
+% \begin{macro}[aux]
+%   {
+%     \cs_input_3:N, \cs_input_4:N, \cs_input_7:N,
+%     \cs_input_8:N, \cs_input_b:N, \cs_input_c:N
+%   }
+%   For most category codes, check that the following token is a character,
+%   and lowercase |^^@| (character code $0$) with the right category code,
+%   then resume expansion.
+%    \begin{macrocode}
+  \char_set_catcode_math_toggle:n { 0 }
+  \cs_new_nopar:cpn { cs_input_3:N } #1
+    {
+      \cs_input_interrupt_lowercase:Nn #1
+        { \cs_input_resume: ^^@ }
+    }
+  \char_set_catcode_alignment:n { 0 }
+  \cs_new_nopar:cpn { cs_input_4:N } #1
+    {
+      \cs_input_interrupt_lowercase:Nn #1
+        { \cs_input_resume: ^^@ }
+    }
+  \char_set_catcode_math_superscript:n { 0 }
+  \cs_new_nopar:cpn { cs_input_7:N } #1
+    {
+      \cs_input_interrupt_lowercase:Nn #1
+        { \cs_input_resume: ^^@ }
+    }
+  \char_set_catcode_math_subscript:n { 0 }
+  \cs_new_nopar:cpn { cs_input_8:N } #1
+    {
+      \cs_input_interrupt_lowercase:Nn #1
+        { \cs_input_resume: ^^@ }
+    }
+  \char_set_catcode_letter:n { 0 }
+  \cs_new_nopar:Npn \cs_input_b:N #1
+    {
+      \cs_input_interrupt_lowercase:Nn #1
+        { \cs_input_resume: ^^@ }
+    }
+  \char_set_catcode_other:n { 0 }
+  \cs_new_nopar:Npn \cs_input_c:N #1
+    {
+      \cs_input_interrupt_lowercase:Nn #1
+        { \cs_input_resume: ^^@ }
+    }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\cs_input_6:N}
+%   Macro parameter characters must be doubled for the second
+%   and third pass, as well as for the definition of \cs{cs_input_6:}
+%   itself. That's $8$ characters.
+%    \begin{macrocode}
+  \char_set_catcode_parameter:n { 0 }
+  \cs_new_nopar:cpn { cs_input_6:N } #1
+    {
+      \cs_input_interrupt_lowercase:Nn #1
+        { \cs_input_resume: ^^@^^@^^@^^@^^@^^@^^@^^@ }
+    }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\cs_input_d:N}
+%   Active characters must be protected from expansion now,
+%   and for the third pass.
+%    \begin{macrocode}
+  \char_set_catcode_active:n { 0 }
+  \cs_new_nopar:Npn \cs_input_d:N #1
+    {
+      \cs_input_interrupt_lowercase:Nn #1
+        {
+          \cs_input_resume:
+          \exp_not:N \exp_not:N \exp_not:N ^^@
+        }
+    }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\cs_input_a:N}
+%   The case of category code $10$ is a little bit more tricky.
+%   Indeed, it is not possible to produce a |^^@| character with
+%   category code $0$, because \TeX{} ignores an \tn{lccode} value
+%   of $0$, and it converts any catcode-10 character to an explicit
+%   space character token upon input.
+%    \begin{macrocode}
+  \cs_new_nopar:Npx \cs_input_a:N #1
+    {
+      \exp_not:n { \if_false: { \fi: } }
+      \char_set_lccode:nn { 32 } { `#1 }
+      \exp_not:N \int_compare:nNnT { `#1 } = \c_zero
+        { \exp_not:N \msg_error:nn { cs } { impossible-char } }
+      \tl_to_lowercase:n { \exp_not:n { \cs_input_resume: } ~ }
+    }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\cs_input_1:N, \cs_input_2:N}
+%   Begin- and end-group tokens are replaced by an appropriate
+%   |\if_false:| \ldots{} |\fi:| constructionto remain balanced
+%   at this stage. We also increment or decrement the balance
+%   counter: this allows us to avoid problems in the third pass
+%   if the user specified an unbalanced token list.
+%    \begin{macrocode}
+  \char_set_catcode_group_end:n { 0 }
+  \cs_new_nopar:cpn { cs_input_2:N } #1
+    {
+      \cs_input_interrupt_lowercase:Nn #1
+        {
+          \int_decr:N \l_cs_input_balance_int
+          \cs_input_resume:
+          \exp_not:N \if_false: { \exp_not:N \fi: ^^@
+        }
+    }
+  \char_set_catcode_group_begin:n { 0 }
+  \cs_new_nopar:cpn { cs_input_1:N } #1
+    {
+      \cs_input_interrupt_lowercase:Nn #1
+        {
+          \int_incr:N \l_cs_input_balance_int
+          \cs_input_resume:
+          ^^@ \exp_not:N \if_false: } \exp_not:N \fi:
+        }
+    }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]
+%   {
+%     \cs_input_A:N, \cs_input_B:N,
+%     \cs_input_C:N, \cs_input_D:N
+%   }
+%   Copies of the above functions for uppercase hexadecimal digits.
+%    \begin{macrocode}
+  \cs_new_eq:NN \cs_input_A:N \cs_input_a:N
+  \cs_new_eq:NN \cs_input_B:N \cs_input_b:N
+  \cs_new_eq:NN \cs_input_C:N \cs_input_c:N
+  \cs_new_eq:NN \cs_input_D:N \cs_input_d:N
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\cs_input_0:N}
+% \begin{macro}[aux]{\cs_input_cs_collect:N}
+%   If the argument is not a left brace, then we take it to mean
+%   that the user wants a single character control sequence.
+%   If the argument is a left brace, collect characters into
+%   a \cs{cs:w} \ldots{} \cs{cs_end:} construction, until reaching
+%   either a non-character or a right brace.
+%    \begin{macrocode}
+  \cs_new_nopar:cpn { cs_input_0:N } #1
+    {
+      \exp_not:N \exp_not:N
+      \exp_after:wN \exp_not:N \cs:w
+        \int_compare:nNnTF { `#1 } = { 123 } % `\{
+          { \cs_input_cs_collect:N }
+          { #1 \cs_end: }
+    }
+  \char_set_catcode:nn { 0 } { 12 }
+  \char_set_lccode:nn { 0 } { 125 } % `\}
+  \tl_to_lowercase:n
+    {
+      \cs_new_nopar:Npn \cs_input_cs_collect:N #1
+        {
+          \if_catcode:w \scan_stop: \exp_not:N #1
+            \cs_end:
+            \msg_expandable_error:n { Missing~^^@~inserted~in~\c0{...}. }
+            \exp_after:wN \use_i:nn
+          \else:
+            \if_meaning:w ^^@ #1
+              \cs_end:
+              \exp_after:wN \exp_after:wN
+              \exp_after:wN \use_none:nn
+            \fi:
+          \fi:
+          #1
+          \cs_input_cs_collect:N
+        }
+    }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% We are now done with the category code and lowercase code assignments,
+% hence close the group.
+%    \begin{macrocode}
+\group_end:
+%    \end{macrocode}
+%
+%
+% \begin{macro}[int]{\cs_input_iii:n}
+%   The current state is that \cs{g_str_result_tl} contains almost the
+%   token list we want, but with begin and end-group tokens replaced
+%   by an appropriate |\if_false:| construction which expands to what
+%   the user wants. We thus expand \cs{g_str_result_tl} (for this to
+%   work, we also had to insert \cs{exp_not:N} for active characters
+%   and control sequences, and we doubled macro parameter tokens).
+%   If the user has specified a different number of begin and end-group
+%   tokens, we raise an error, and correct by adding left or right braces
+%   to either side of the result.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \cs_input_iii:n #1
+  {
+    \int_compare:nNnF \l_cs_input_balance_int = \c_zero
+      {
+        \msg_error:nnx { cs } { unbalanced-input }
+          { \int_use:N \l_cs_input_balance_int }
+      }
+    \tl_gset:Nx \g_str_result_tl
+      {
+        \exp_not:n {#1}
+          {
+            \if_num:w \l_cs_input_balance_int < \c_zero
+              \prg_replicate:nn { - \l_cs_input_balance_int }
+                { { \if_false: } \fi: }
+            \fi:
+            \g_str_result_tl
+            \if_num:w \l_cs_input_balance_int > \c_zero
+              \prg_replicate:nn { \l_cs_input_balance_int }
+                { \if_false: { \fi: } }
+            \fi:
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% Messages.
+%    \begin{macrocode}
+\msg_new:nnn { cs } { unbalanced-input }
+  {
+    You~asked~for~an~unbalanced~token~list: \\
+    \int_compare:nNnTF {#1} > \c_zero
+      { #1~more }
+      { \int_eval:n {-#1}~less }
+    \ begin~group~tokens~than~end~group~tokens.
+  }
+\msg_new:nnn { cs } { impossible-char }
+  {
+    TeX~cannot~handle~the~character~
+    \iow_char:N \^^@~(number~0)~with~catcode~10.
+  }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex
