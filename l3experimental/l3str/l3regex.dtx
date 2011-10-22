@@ -219,7 +219,7 @@
 %   \item[(?:\ldots{})] Non-capturing group.
 % \end{l3regex-syntax}
 %
-% Options. This option should appear first in the regular expression.
+% Options.
 % \begin{l3regex-syntax}
 %   \item[(?i)] The match becomes case insensitive:
 %     \texttt{A} and \texttt{a}, \texttt{B} and \texttt{b},
@@ -227,6 +227,9 @@
 %     For instance, |(?i)[Y-\\]| matches the characters |Y|, |Z|, |[|,
 %     |\|, and the lower case letters |y| and |z|, while |(?i)[^aeiou]|
 %     matches any character which is not a vowel.
+%     This option is local to the alternative of the group in which
+%     it appears, \emph{i.e.}, \verb"(?i)a|b" matches |a|, |A| and |b|,
+%     but not |B|.
 % \end{l3regex-syntax}
 %
 % In character classes, only |^|, |-|, |]|, |\| and spaces are special,
@@ -430,7 +433,7 @@
 %   In particular, |.| should not match newlines.
 %   Also, |\A| should differ from |^|, and |\Z|, |\z| and |$| should
 %   differ.
-% \item Caseless matching and more generally
+% \item Cancel caseless matching and more generally
 %   |(*..)| and |(?..)| sequences to set some options.
 % \item General look-ahead/behind assertions.
 % \item Do we need a facility for balanced groups? (That's non-regular.)
@@ -565,7 +568,7 @@
 %
 % \begin{variable}{\l_regex_max_state_int}
 % \begin{variable}{\l_regex_left_state_int,\l_regex_right_state_int}
-% \begin{variable}{\l_regex_left_state_seq,\l_regex_right_state_seq}
+% \begin{variable}{\l_regex_group_begin_seq,\l_regex_group_end_seq}
 %   The last state that was allocated is stored in \cs{l_regex_max_state_int},
 %   and \cs{l_regex_left/right_state_int} point to both end-points of the
 %   last group (which any quantifier would repeat). For simple strings of
@@ -574,8 +577,8 @@
 \int_new:N  \l_regex_max_state_int
 \int_new:N  \l_regex_left_state_int
 \int_new:N  \l_regex_right_state_int
-\seq_new:N  \l_regex_left_state_seq
-\seq_new:N  \l_regex_right_state_seq
+\seq_new:N  \l_regex_group_begin_seq
+\seq_new:N  \l_regex_group_end_seq
 %    \end{macrocode}
 % \end{variable}
 % \end{variable}
@@ -646,7 +649,7 @@
 %   are recognized by |\d|, |\D|, |\w|, \emph{etc.}
 %   in regular expressions. Namely, |\d=[0-9]|,
 %   |\w=[0-9A-Z_a-z]|, |\s=[\ \^^I\^^J\^^L\^^M]|,
-%   |\h=[\ \^^I]|, |\v=[\^^J-\^^M]|, and the upper-case
+%   |\h=[\ \^^I]|, |\v=[\^^J-\^^M]|, and the upper case
 %   counterparts match anything that the lower case
 %   does not match.
 %   The order in which the various ranges appear is
@@ -971,6 +974,30 @@
 % \end{macro}
 % \end{macro}
 %
+% \subsubsection{Sequences}
+%
+% \begin{macro}[int]{\regex_seq_pop:N}
+% \begin{macro}[int]{\regex_seq_get:N}
+%   When building the regular expression, some settings are kept
+%   local to capturing groups without any help from \TeX{}'s grouping.
+%   This is done \enquote{by hand}, in sequences whose items contain
+%   instructions such as |\int_set:Nn| \meta{int~var} \Arg{value},
+%   which should be run immediately.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_seq_pop:N #1
+  {
+    \seq_pop:NN #1 \l_regex_tmpa_tl
+    \l_regex_tmpa_tl
+  }
+\cs_new_protected_nopar:Npn \regex_seq_get:N #1
+  {
+    \seq_get:NN #1 \l_regex_tmpa_tl
+    \l_regex_tmpa_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \subsubsection{Interrupting recursions}
 %
 % \begin{macro}[int]{\regex_if_tail_stop:N}
@@ -990,39 +1017,53 @@
 %   the NFA corresponding to a given regular expression
 %   Negative codes are specific to the \LaTeX3 implementation.
 %   Other error codes match with the PCRE codes (not all of
-%   the PCRE errors can occur, since some constructions are
+%   the PCRE errors can occur, since many constructions are
 %   not supported).
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_error:n #1
-  {
-    \msg_error:nnxx { regex } { build-error } { \int_eval:n {#1} }
-      {
-        \prg_case_int:nnn {#1}
-          {
-            {-999} {File~not~found}
-            {-998} {Unsupported~construct}
-            {-997} {The~regular~expression~is~too~large~(32768~states).}
-            {1}  {\iow_char:N\\~at~end~of~pattern }
-%           {2}  {\iow_char:N\\c~at~end~of~pattern }
-            {4}  {Numbers~out~of~order~in~\iow_char:N\{\iow_char\}~quantifier.}
-            {6}  {Missing~terminating~\iow_char:N\]~for~character~class }
-            {7}  {Invalid~escape~sequence~in~character~class}
-            {8}  {Range~out~of~order~in~character~class}
-            {22} {Mismatched~parentheses}
-            {34} {Character~value~in~\iow_char:N\\x{...}~sequence~is~too~large}
-%           {44} {Invalid~UTF-8~string}
-%           {46} {Malformed~\iow_char:N\\P~or\iow_char:N\\p~sequence}
-%           {47} {Unknown~property~after~\iow_char:N\\P~or\iow_char:N\\p}
-%           {68} {\iow_char:N\\c~must~be~followed~by~an~ASCII~character}
-          }
-          { Internal~bug. }
-      }
-  }
+  { \use:x { \msg_error:nn { regex } { \int_eval:n {#1} } } }
 \msg_new:nnn { regex } { build-error } { (error~#1): ~ #2 }
+% \msg_new:nnn { regex } { -999 } { File~not~found }
+\msg_new:nnn { regex } { -998 } { Unsupported~construct }
+\msg_new:nnn { regex } { -997 }
+  { The~regular~expression~is~too~large~(32768~states). }
+\msg_new:nnn { regex } { 1 } { \iow_char:N\\~at~end~of~pattern }
+% \msg_new:nnn { regex } { 2 } { \iow_char:N\\c~at~end~of~pattern }
+\msg_new:nnn { regex } { 4 }
+  { Numbers~out~of~order~in~\iow_char:N\{\iow_char\}~quantifier. }
+\msg_new:nnn { regex } { 6 }
+  { Missing~terminating~\iow_char:N\]~for~character~class }
+\msg_new:nnn { regex } { 7 }
+  { Invalid~escape~sequence~in~character~class }
+\msg_new:nnn { regex } { 8 }
+  { Range~out~of~order~in~character~class }
+\msg_new:nnn { regex } { 22 } { Mismatched~parentheses }
+\msg_new:nnn { regex } { 34 }
+  { Character~value~in~\iow_char:N\\x{...}~sequence~is~too~large }
+% \msg_new:nnn { regex } { 44 } { Invalid~UTF-8~string }
+% \msg_new:nnn { regex } { 46 }
+%   { Malformed~\iow_char:N\\P~or\iow_char:N\\p~sequence }
+% \msg_new:nnn { regex } { 47 }
+%   { Unknown~property~after~\iow_char:N\\P~or\iow_char:N\\p }
+% \msg_new:nnn { regex } { 68 }
+%   { \iow_char:N\\c~must~be~followed~by~an~ASCII~character }
 %    \end{macrocode}
 % \end{macro}
 %
 % \subsubsection{Testing characters}
+%
+% \begin{macro}{\regex_item_dot:T}
+%   The dot meta-character matches any character,
+%   except the end-of-string marker.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_item_dot:T #1
+  {
+    \if_num:w \c_minus_one < \l_regex_current_char_int
+      #1
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
 %
 % \begin{macro}[int]{\regex_break_point:TF}
 % \begin{macro}[int]{\regex_break_true:w,\regex_break_false:w}
@@ -1124,54 +1165,38 @@
 % \begin{macro}{\regex_item_equal:n}
 % \begin{macro}{\regex_item_range:nn}
 % \begin{macro}{\regex_item_geq:n}
-%   By default, matching takes care of the case of letters.
+%   By default, matching takes the letter case into account.
+%   Note that those functions are not protected:
+%   they will expand at the building step, hard-coding which
+%   states take care of caseless versus caseful matching.
 %    \begin{macrocode}
-\cs_new_eq:NN \regex_item_equal:n  \regex_item_caseful_equal:n
-\cs_new_eq:NN \regex_item_range:nn \regex_item_caseful_range:nn
-\cs_new_eq:NN \regex_item_geq:n    \regex_item_caseful_geq:n
+\cs_new:Npn \regex_item_equal:n  { \regex_item_caseful_equal:n }
+\cs_new:Npn \regex_item_range:nn { \regex_item_caseful_range:nn }
+\cs_new:Npn \regex_item_geq:n    { \regex_item_caseful_geq:n }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\regex_item_dot:T}
-%   The dot meta-character matches any character,
-%   except the end-of-string marker.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_item_dot:T #1
-  {
-    \if_num:w \c_minus_one < \l_regex_current_char_int
-      #1
-    \fi:
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\regex_match_loop_caseless_enable:}
-% \begin{macro}{\regex_caseless:,\regex_caseful:}
+% \begin{macro}{\regex_build_caseless:,\regex_build_caseful:}
 %   Switch between caseful and caseless matching.
-%   This can be set within a given automaton run.
+%   This is only done during the building step.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_caseless_enable:
+\cs_new_protected_nopar:Npn \regex_build_caseless:
   {
-    \cs_set_eq:NN \regex_match_loop_case_hook:
-      \regex_match_loop_caseless_hook:
-    \regex_caseless:
+    \bool_set_true:N \l_regex_caseless_bool
+    \cs_set:Npn \regex_item_equal:n  { \regex_item_caseless_equal:n }
+    \cs_set:Npn \regex_item_range:nn { \regex_item_caseless_range:nn }
+    \cs_set:Npn \regex_item_geq:n    { \regex_item_caseless_geq:n }
   }
-\cs_new_protected_nopar:Npn \regex_caseless:
+\cs_new_protected_nopar:Npn \regex_build_caseful:
   {
-    \cs_set_eq:NN \regex_item_equal:n  \regex_item_caseless_equal:n
-    \cs_set_eq:NN \regex_item_range:nn \regex_item_caseless_range:nn
-    \cs_set_eq:NN \regex_item_geq:n    \regex_item_caseless_geq:n
-  }
-\cs_new_protected_nopar:Npn \regex_caseful:
-  {
-    \cs_set_eq:NN \regex_item_equal:n  \regex_item_caseful_equal:n
-    \cs_set_eq:NN \regex_item_range:nn \regex_item_caseful_range:nn
-    \cs_set_eq:NN \regex_item_geq:n    \regex_item_caseful_geq:n
+    \bool_set_false:N \l_regex_caseless_bool
+    \cs_set:Npn \regex_item_equal:n  { \regex_item_caseful_equal:n }
+    \cs_set:Npn \regex_item_range:nn { \regex_item_caseful_range:nn }
+    \cs_set:Npn \regex_item_geq:n    { \regex_item_caseful_geq:n }
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \subsubsection{Grabbing digits}
@@ -1726,7 +1751,7 @@
 \cs_new_protected_nopar:Npn \regex_class_single:N #1
   {
     \tl_put_right:Nx \l_regex_class_tl
-      { \exp_not:N \regex_item_equal:n { \int_value:w `#1 } }
+      { \regex_item_equal:n { \int_value:w `#1 } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1765,9 +1790,9 @@
       \tl_put_right:Nx \l_regex_class_tl
         {
           \if_num:w `#1 = `#2 \exp_stop_f:
-            \exp_not:N \regex_item_equal:n
+            \regex_item_equal:n
           \else:
-            \exp_not:N \regex_item_range:nn { \int_value:w `#1 }
+            \regex_item_range:nn { \int_value:w `#1 }
           \fi:
           { \int_value:w `#2 }
         }
@@ -2164,10 +2189,19 @@
 \cs_new_protected_nopar:Npn \regex_build_open_aux:
   {
     \regex_build_new_state:
-    \seq_push:Nx \l_regex_left_state_seq
-      { \int_use:N \l_regex_left_state_int }
-    \seq_push:Nx \l_regex_right_state_seq
-      { \int_use:N \l_regex_right_state_int }
+    \seq_push:Nx \l_regex_group_begin_seq
+      {
+        \int_set:Nn \l_regex_left_state_int
+          { \int_use:N \l_regex_left_state_int }
+      }
+    \seq_push:Nx \l_regex_group_end_seq
+      {
+        \int_set:Nn \l_regex_right_state_int
+          { \int_use:N \l_regex_right_state_int }
+        \bool_if:NTF \l_regex_caseless_bool
+          { \regex_build_caseless: }
+          { \regex_build_caseful: }
+      }
     \regex_build_begin_alternation:
   }
 \cs_new_protected_nopar:cpn { regex_build_|: }
@@ -2187,10 +2221,8 @@
 \cs_new_protected_nopar:Npn \regex_build_close_aux:
   {
     \regex_build_end_alternation:
-    \seq_pop:NN \l_regex_left_state_seq  \l_regex_tmpa_tl
-    \int_set:Nn \l_regex_left_state_int  \l_regex_tmpa_tl
-    \seq_pop:NN \l_regex_right_state_seq \l_regex_tmpa_tl
-    \int_set:Nn \l_regex_right_state_int \l_regex_tmpa_tl
+    \regex_seq_pop:N \l_regex_group_begin_seq
+    \regex_seq_pop:N \l_regex_group_end_seq
   }
 %    \end{macrocode}
 %   Building each branch.
@@ -2198,16 +2230,16 @@
 \cs_new_protected_nopar:Npn \regex_build_begin_alternation:
   {
     \regex_build_new_state:
-    \seq_get:NN \l_regex_left_state_seq \l_regex_tmpa_tl
-    \int_set:Nn \l_regex_left_state_int \l_regex_tmpa_tl
+    \regex_seq_get:N \l_regex_group_begin_seq
     \regex_toks_put_right:Nx \l_regex_left_state_int
       { \regex_action_free:n { \int_use:N \l_regex_right_state_int } }
   }
 \cs_new_protected_nopar:Npn \regex_build_end_alternation:
   {
-    \seq_get:NN \l_regex_right_state_seq \l_regex_tmpa_tl
-    \regex_toks_put_right:Nx \l_regex_right_state_int
-      { \regex_action_free:n { \l_regex_tmpa_tl } }
+    \int_set_eq:NN \l_regex_left_state_int \l_regex_right_state_int
+    \regex_seq_get:N \l_regex_group_end_seq
+    \regex_toks_put_right:Nx \l_regex_left_state_int
+      { \regex_action_free:n { \int_use:N \l_regex_right_state_int } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2255,10 +2287,9 @@
   {
     \str_if_eq:nnTF { \regex_build_control:N ) } { #1 #2 }
       {
-        \int_compare:nNnF \l_regex_max_state_int = \c_four % document
-          { \msg_warning:nn { regex } { global-option-i } }
-        \bool_set_true:N \l_regex_caseless_bool
-        \regex_caseless_enable:
+        \regex_build_caseless:
+        \cs_set_eq:NN \regex_match_loop_case_hook:
+          \regex_match_loop_caseless_hook:
       }
       {
         \regex_build_error:n { -998 }
@@ -2267,20 +2298,6 @@
         \regex_build_raw:N i
         #1 #2
       }
-  }
-\msg_new:nnn { regex } { global-option-i }
-  { The~option~`(?i)'~is~global.~The~whole~match~will~be~case~insensitive. }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\regex_build_special_group_C:}
-%   This feature is (for the moment) only meant for debugging. %^^A^^S
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_build_special_group_C:
-    \regex_build_control:N )
-  {
-    \regex_toks_put_right:Nx \l_regex_right_state_int
-      { \exp_not:N \msg_expandable_error:n { Enter~your~code! } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3176,7 +3193,13 @@
             = \int_use:N \l_regex_max_state_int
           \l_regex_capturing_group_int
             = \int_use:N \l_regex_capturing_group_int
-          \bool_if:NT \l_regex_caseless_bool { \regex_caseless_enable: }
+          \token_if_eq_meaning:NNT
+            \regex_match_loop_case_hook:
+            \regex_match_loop_caseless_hook:
+            {
+              \cs_set_eq:NN \regex_match_loop_case_hook:
+                \regex_match_loop_caseless_hook:
+            }
           \prg_stepwise_function:nnnN
             {1} {1} {\l_regex_max_state_int}
             \regex_set_aux:n
@@ -3212,11 +3235,6 @@
       \msg_error:nnx { regex } { not-nfa } { \token_to_str:N #1 }
       \prg_return_false:
     \fi:
-  }
-\msg_new:nnn { regex } { not-nfa }
-  {
-    LaTeX~was~expecting~a~regular~expression~variable.\\
-    Instead,~LaTeX~found~'#1'.
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3760,6 +3778,16 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+%
+% \subsection{Messages}
+%
+%    \begin{macrocode}
+\msg_new:nnn { regex } { not-nfa }
+  {
+    LaTeX~was~expecting~a~regular~expression~variable.\\
+    Instead,~LaTeX~found~'#1'.
+  }
+%    \end{macrocode}
 %
 %    \begin{macrocode}
 %</package>
