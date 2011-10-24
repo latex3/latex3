@@ -427,7 +427,8 @@
 %
 % \subsection{Bugs, misfeatures, future work, and other possibilities}
 %
-% The \texttt{\{\}} quantifiers are not implemented.
+% Bug: |\regex_extract_all:nnN { (a?a?)a(ab) } { aaab } \l_foo_seq|.
+% The \texttt{\{\}} quantifiers are only partially implemented.
 %
 % The following need discussion.
 % \begin{itemize}
@@ -435,10 +436,7 @@
 %   In particular, |.| should not match newlines.
 %   Also, |\A| should differ from |^|, and |\Z|, |\z| and |$| should
 %   differ.
-% \item Cancel caseless matching and more generally
-%   |(*..)| and |(?..)| sequences to set some options.
 % \item General look-ahead/behind assertions.
-% \item Do we need a facility for balanced groups? (That's non-regular.)
 % \end{itemize}
 %
 % The following features are likely to be implemented at some point
@@ -455,6 +453,7 @@
 % \item \verb"(?|..|..)" to reset the capturing group number at the start
 %   of each alternative.
 % \item Todo: check space's catcode in the result of a replacement.
+% \item |(*..)| and |(?..)| sequences to set some options.
 % \end{itemize}
 %
 % The following features of PCRE or Perl will probably not be implemented.
@@ -546,7 +545,7 @@
 %
 % \begin{macro}{\regex_tmp:w}
 % \begin{variable}{\g_regex_tmpa_tl, \l_regex_tmpa_tl, \l_regex_tmpb_tl}
-% \begin{variable}{\l_regex_tmpa_int}
+% \begin{variable}{\l_regex_tmpa_int, \l_regex_tmpb_int}
 %   Temporary variables.
 %    \begin{macrocode}
 \cs_new:Npn \regex_tmp:w { }
@@ -554,6 +553,7 @@
 \tl_new:N   \l_regex_tmpa_tl
 \tl_new:N   \l_regex_tmpb_tl
 \int_new:N  \l_regex_tmpa_int
+\int_new:N  \l_regex_tmpb_int
 %    \end{macrocode}
 % \end{variable}
 % \end{variable}
@@ -611,20 +611,21 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{l_regex_current_repetition_int}
-%   Used when to distinguish threads at the same state but with
-%   different repetitions of some quantifiers.
-%    \begin{macrocode}
-\int_new:N  \l_regex_current_repetition_int
-%    \end{macrocode}
-% \end{variable}
-%
 % \begin{variable}{\l_regex_last_char_int}
 %   The integer \cs{l_regex_last_char_int} holds the character code
 %   of the character in the string which directly precedes the current
 %   position.
 %    \begin{macrocode}
 \int_new:N \l_regex_last_char_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{l_regex_current_repetition_int}
+%^^A Unused!
+%   Used when to distinguish threads at the same state but with
+%   different repetitions of some quantifiers.
+%    \begin{macrocode}
+\int_new:N  \l_regex_current_repetition_int
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1350,15 +1351,15 @@
   {
     \regex_build_new_state:
     \regex_toks_put_right:Nx \l_regex_left_state_int
-      { #1 { \int_use:N #2 } }
+      { #1 { \int_eval:n { #2 - \l_regex_left_state_int } } }
   }
 \cs_new_protected_nopar:Npn \regex_build_transitions_aux:NNNN #1#2#3#4
   {
     \regex_build_new_state:
     \regex_toks_put_right:Nx \l_regex_left_state_int
       {
-        #1 { \int_use:N #2 }
-        #3 { \int_use:N #4 }
+        #1 { \int_eval:n { #2 - \l_regex_left_state_int } }
+        #3 { \int_eval:n { #4 - \l_regex_left_state_int } }
       }
   }
 %    \end{macrocode}
@@ -1463,11 +1464,7 @@
     \regex_build_new_state:
     \regex_build_new_state:
     \regex_toks_put_right:Nx \l_regex_left_state_int
-      {
-        \regex_action_start_wildcard:nn
-          { \int_use:N \l_regex_left_state_int }
-          { \int_use:N \l_regex_right_state_int }
-      }
+      { \regex_action_start_wildcard:nn {0} {1} }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1483,7 +1480,7 @@
       {
         \regex_build_error:n {22}
         \prg_replicate:nn
-          { \seq_length:N \l_regex_capturing_group_seq } % (
+          { \seq_length:N \l_regex_capturing_group_seq }
           { \regex_build_close_aux: \regex_build_group_: }
       }
     \regex_toks_put_right:Nx \l_regex_right_state_int
@@ -1515,7 +1512,13 @@
     \regex_toks_put_right:Nx \l_regex_left_state_int
       {
         \exp_not:N \int_compare:nNnT {#1} = \l_regex_current_step_int
-          { \regex_action_free:n { \int_use:N \l_regex_right_state_int } }
+          {
+            \regex_action_free:n
+              {
+                \int_eval:n
+                  { \l_regex_right_state_int - \l_regex_left_state_int }
+              }
+          }
       }
   }
 %    \end{macrocode}
@@ -1536,7 +1539,13 @@
       {
         \exp_not:N \int_compare:nNnT
           \c_minus_one = \l_regex_current_char_int
-          { \regex_action_free:n { \int_use:N \l_regex_right_state_int } }
+          {
+            \regex_action_free:n
+              {
+                \int_eval:n
+                  { \l_regex_right_state_int - \l_regex_left_state_int }
+              }
+          }
       }
   }
 \cs_new_eq:Nc \regex_build_Z: { regex_build_$: } %$
@@ -1560,7 +1569,13 @@
     \regex_toks_put_right:Nx \l_regex_left_state_int
       {
         \exp_not:N \regex_if_word_boundary:TF
-          { \regex_action_free:n { \int_use:N \l_regex_right_state_int } }
+          {
+            \regex_action_free:n
+              {
+                \int_eval:n
+                  { \l_regex_right_state_int - \l_regex_left_state_int }
+              }
+          }
           { }
       }
   }
@@ -1571,7 +1586,13 @@
       {
         \exp_not:N \regex_if_word_boundary:TF
           { }
-          { \regex_action_free:n { \int_use:N \l_regex_right_state_int } }
+          {
+            \regex_action_free:n
+              {
+                \int_eval:n
+                  { \l_regex_right_state_int - \l_regex_left_state_int }
+              }
+          }
       }
   }
 \cs_new_protected_nopar:Npn \regex_if_word_boundary:TF
@@ -1934,7 +1955,7 @@
       { \exp_not:N \regex_build_control:N \c_rbrace_str }
       {
         \tl_if_empty:nTF {#2}
-          { \regex_build_quantifier_aux:nnNN { {#1} { \c_max_int } } { nn } }
+          { \regex_build_quantifier_aux:nnNN { {#1} } { n* } }
           {
             \int_compare:nNnT {#1} > {#2}
               { \regex_build_error:n {4} }
@@ -2072,83 +2093,49 @@
 %   This function is called in case the syntax is
 %   \texttt{\{\meta{int}\}}. Greedy and lazy operators
 %   are identical, since the number of repetitions is fixed.
+%   Simply repeat |#1| times the effect of \cs{regex_build_one_:}.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_one_n: #1
-  {
-    \int_set_eq:NN \l_regex_tmpa_int \l_regex_right_state_int
-    \regex_build_new_state:
-    \regex_build_new_state:
-    \regex_toks_put_right:Nx \l_regex_tmpa_int
-      { %^^A safe \if nesting?
-        \exp_not:N \if_num:w #1 > \l_regex_current_repetition_int
-          \regex_action_repeat_free:n
-            { \int_use:N \l_regex_left_state_int }
-        \exp_not:N \else:
-          \regex_action_no_repeat_free:n
-            { \int_use:N \l_regex_right_state_int }
-        \exp_not:N \fi:
-      }
-    \regex_toks_put_right:Nx \l_regex_left_state_int
-      {
-        \regex_build_tmp_class:n
-          { \int_use:N \l_regex_tmpa_int }
-      }
-  }
+  { \prg_replicate:nn {#1} { \regex_build_one_: } }
 \cs_new_eq:cN { regex_build_one_n?: } \regex_build_one_n:
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\regex_build_one_n*:}
+% \begin{macro}[aux]{\regex_build_one_n*?:}
+%   This function is called in case the syntax is
+%   \texttt{\{\meta{int},\}}.
+%    \begin{macrocode}
+\cs_new_protected_nopar:cpx { regex_build_one_n*: } #1
+  {
+    \exp_not:N \prg_replicate:nn {#1} { \exp_not:N \regex_build_one_: }
+    \exp_not:c { regex_build_one_*: }
+  }
+\cs_new_protected_nopar:cpx { regex_build_one_n*?: } #1
+  {
+    \exp_not:N \prg_replicate:nn {#1} { \exp_not:N \regex_build_one_: }
+    \exp_not:c { regex_build_one_*?: }
+  }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
 % \begin{macro}[aux]{\regex_build_one_nn:}
 % \begin{macro}[aux]{\regex_build_one_nn?:}
-% \begin{macro}[aux]{\regex_build_one_nn_aux:nn}
-%   This function is called when the syntax is either
-%   \texttt{\{\meta{int},\}} or \texttt{\{\meta{int},\meta{int}\}}.
+% \begin{macro}[aux]{\regex_build_one_nn_aux:Nnn}
+%   This function is called when the syntax is
+%   \texttt{\{\meta{int},\meta{int}\}}.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_build_one_nn: #1#2
+\cs_new_protected_nopar:Npn \regex_build_one_nn_aux:Nnn #1#2#3
   {
-    \regex_build_one_nn_aux:nn {#1}
-      {
-        \exp_not:N \if_num:w #2 > \l_regex_current_repetition_int
-          \regex_action_repeat_free:n
-            { \int_use:N \l_regex_left_state_int }
-        \exp_not:N \fi:
-        \regex_action_no_repeat_free:n
-          { \int_use:N \l_regex_right_state_int }
-      }
+    \prg_replicate:nn {#2} { \regex_build_one_: }
+    \prg_replicate:nn {#3-#2} {#1}
   }
-\cs_new_protected_nopar:cpn { regex_build_one_nn?: } #1#2
-  {
-    \regex_build_one_nn_aux:nn {#1}
-      {
-        \regex_action_no_repeat_free:n
-          { \int_use:N \l_regex_right_state_int }
-        \exp_not:N \if_num:w #2 > \l_regex_current_repetition_int
-          \regex_action_repeat_free:n
-            { \int_use:N \l_regex_left_state_int }
-        \exp_not:N \fi:
-      }
-  }
-\cs_new_protected_nopar:Npn \regex_build_one_nn_aux:nn #1#2
-  {
-    \int_set_eq:NN \l_regex_tmpa_int \l_regex_right_state_int
-    \regex_build_new_state:
-    \regex_build_new_state:
-    \regex_toks_put_right:Nx \l_regex_tmpa_int
-      {
-        \exp_not:N \if_num:w #1 > \l_regex_current_repetition_int
-          \regex_action_repeat_free:n
-            { \int_use:N \l_regex_left_state_int }
-        \exp_not:N \else:
-          #2
-        \exp_not:N \fi:
-      }
-    \regex_toks_put_right:Nx \l_regex_left_state_int
-      {
-        \regex_build_tmp_class:n
-          { \int_use:N \l_regex_tmpa_int }
-      }
-  }
+\cs_new_protected_nopar:Npx \regex_build_one_nn:
+  { \regex_build_one_nn_aux:Nnn \exp_not:c { regex_build_one_?: } }
+\cs_new_protected_nopar:cpx { regex_build_one_nn?: }
+  { \regex_build_one_nn_aux:Nnn \exp_not:c { regex_build_one_??: } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -2235,14 +2222,26 @@
     \regex_build_new_state:
     \regex_seq_get:N \l_regex_group_begin_seq
     \regex_toks_put_right:Nx \l_regex_left_state_int
-      { \regex_action_free:n { \int_use:N \l_regex_right_state_int } }
+      {
+        \regex_action_free:n
+          {
+            \int_eval:n
+              { \l_regex_right_state_int - \l_regex_left_state_int }
+          }
+      }
   }
 \cs_new_protected_nopar:Npn \regex_build_end_alternation:
   {
     \int_set_eq:NN \l_regex_left_state_int \l_regex_right_state_int
     \regex_seq_get:N \l_regex_group_end_seq
     \regex_toks_put_right:Nx \l_regex_left_state_int
-      { \regex_action_free:n { \int_use:N \l_regex_right_state_int } }
+      {
+        \regex_action_free:n
+          {
+            \int_eval:n
+              { \l_regex_right_state_int - \l_regex_left_state_int }
+          }
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2385,19 +2384,36 @@
 %   This is done by shifting the current contents of the \cs{tex_toks:D}
 %   \cs{l_regex_tmpa_int} to a new state.
 %    \begin{macrocode}
+\cs_new_nopar:Npn \regex_build_group_shift_aux:n #1
+  {
+    \exp_not:N \regex_action_free:n
+      { \int_eval:n { #1 + \l_regex_tmpa_int - \l_regex_right_state_int } }
+  }
 \cs_new_protected_nopar:Npn \regex_build_group_shift:N #1
   {
     \int_set_eq:NN \l_regex_tmpa_int \l_regex_left_state_int
     \regex_build_new_state:
-    \tex_toks:D \l_regex_right_state_int = \tex_toks:D \l_regex_tmpa_int
-    \use:x
+    \group_begin:
+      \cs_set_eq:NN \regex_action_free:n \regex_build_group_shift_aux:n
+      \cs_set:Npx \regex_tmp:w
+        {
+          \tex_toks:D \l_regex_right_state_int
+            \exp_after:wN { \tex_the:D \tex_toks:D \l_regex_tmpa_int }
+        }
+      \exp_after:wN
+    \group_end:
+    \regex_tmp:w
+    \cs_set:Npx \regex_tmp:w
       {
         \tex_toks:D \l_regex_tmpa_int
-          { \s_regex_toks #1 { \int_use:N \l_regex_right_state_int } }
+          {
+            \s_regex_toks
+            #1 { \int_eval:n { \l_regex_right_state_int - \l_regex_tmpa_int } }
+          }
       }
+    \regex_tmp:w
     \regex_build_group_submatches:NN
       \l_regex_right_state_int \l_regex_left_state_int
-    \int_set_eq:NN \l_regex_right_state_int \l_regex_left_state_int
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2422,9 +2438,13 @@
 \cs_new_protected_nopar:Npn \regex_build_group_qs_aux:NN #1#2
   {
     \regex_build_group_shift:N \regex_action_free:n
+    \int_set_eq:NN \l_regex_right_state_int \l_regex_left_state_int
     \regex_build_transition_aux:NN \regex_action_free:n #1
     #2 \l_regex_tmpa_int
-      { \regex_action_free:n { \int_use:N \l_regex_right_state_int } }
+      {
+        \regex_action_free:n
+          { \int_eval:n { \l_regex_right_state_int - \l_regex_tmpa_int } }
+      }
   }
 \cs_new_protected_nopar:cpn { regex_build_group_?: }
   {
@@ -2481,32 +2501,103 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}[aux,EXP]{\regex_build_repeat_start:n}
+%   The first step for a repeating group is to multiply
+%   the current repetition by \cs{l_regex_max_repetition_int},
+%   in other words, append a $0$ to the array that it represents.
+%   Then put a transition to the state at which the group alternation
+%   starts.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \regex_build_repeat_start:n
+  {
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\regex_build_group_n_aux:n}
+%   The braced quantifiers rely on replicating the states
+%   corresponding to the group that has just been built,
+%   and joining the right state of each copy to the left state
+%   of the next copy. Once this function has been run,
+%   \cs{l_regex_tmpa_int} points to the last copy of the initial
+%   left-most state, \cs{l_regex_left_state_int} has its initial
+%   value, and \cs{l_regex_right_state_int} points to the last
+%   copy of the initial right-most state. Furthermore,
+%   \cs{l_regex_max_state_int} is set appropriately to the largest
+%   allocated \tn{toks} register.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_build_group_n_aux:n #1
+  {
+    \regex_toks_put_right:Nx \l_regex_right_state_int
+      {
+        \regex_action_free:n
+          { \int_eval:n { \l_regex_max_state_int - \l_regex_left_state_int } }
+      }
+    \int_set_eq:NN \l_regex_tmpa_int \l_regex_left_state_int
+    \int_set:Nn \l_regex_tmpb_int { \l_regex_max_state_int + \c_one }
+    \int_set:Nn \l_regex_max_state_int
+      {
+        \l_regex_left_state_int - \c_one
+        + #1 * ( \l_regex_max_state_int - \l_regex_left_state_int + \c_one )
+      }
+    \int_until_do:nNnn \l_regex_tmpb_int > \l_regex_max_state_int
+      {
+        \tex_toks:D \l_regex_tmpb_int = \tex_toks:D \l_regex_tmpa_int
+        \int_incr:N \l_regex_tmpa_int
+        \int_incr:N \l_regex_tmpb_int
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[aux]{\regex_build_group_n:}
 % \begin{macro}[aux]{\regex_build_group_n?:}
 %   These functions are called in case the syntax is
 %   \texttt{\{\meta{int}\}}. Greedy and lazy operators
 %   are identical, since the number of repetitions is fixed.
+%   We only record the submatch information at the last repetition.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_group_n: #1
-  {
-    \regex_build_group_shift:N \regex_action_repeat_free:n
+  { % ^^A todo: catch case #1 <= 0.
+    \regex_build_group_n_aux:n {#1}
     \regex_build_transition_aux:NN
-      \regex_action_free:n \l_regex_tmpa_int
-    \use:x
-      {
-        \tex_toks:D \l_regex_tmpa_int
-          {
-            \s_regex_toks
-            \exp_not:N \if_num:w #1 > \l_regex_current_repetition_int
-              \tex_the:D \tex_toks:D \l_regex_tmpa_int
-            \exp_not:N \else:
-              \regex_action_no_repeat_free:n
-                { \int_use:N \l_regex_right_state_int }
-            \exp_not:N \fi:
-          }
-      }
+      \regex_action_free:n \l_regex_right_state_int
+    \regex_build_group_submatches:NN
+      \l_regex_tmpa_int \l_regex_left_state_int
   }
 \cs_new_eq:cN { regex_build_group_n?: } \regex_build_group_n:
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\regex_build_group_n*:}
+% \begin{macro}[aux]{\regex_build_group_n*?:}
+%   These functions are called in case the syntax is
+%   \texttt{\{\meta{int},\}}. They are somewhat hybrid between
+%   the \texttt{\{\meta{int}\}} and the \texttt{*} quantifiers.
+%   Contrarily to the \texttt{*} quantifier, for which we had
+%   to be careful not to overwrite the submatch information in
+%   case no iteration was made, here, we know that the submatch
+%   information is overwritten in any case.
+%    \begin{macrocode}
+\cs_new_protected_nopar:cpn { regex_build_group_n*: } #1
+  { % ^^A todo: catch case #1 <= 0.
+    \regex_build_group_n_aux:n {#1}
+    \regex_build_transitions_aux:NNNN
+      \regex_action_free:n \l_regex_tmpa_int
+      \regex_action_free:n \l_regex_right_state_int
+    \regex_build_group_submatches:NN
+      \l_regex_tmpa_int \l_regex_left_state_int
+  }
+\cs_new_protected_nopar:cpn { regex_build_group_n*?: } #1
+  { % ^^A todo: catch case #1 <= 0.
+    \regex_build_group_n_aux:n {#1}
+    \regex_build_transitions_aux:NNNN
+      \regex_action_free:n \l_regex_right_state_int
+      \regex_action_free:n \l_regex_tmpa_int
+    \regex_build_group_submatches:NN
+      \l_regex_tmpa_int \l_regex_left_state_int
+  }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -2517,48 +2608,14 @@
 %   \texttt{\{\meta{int},\}} or \texttt{\{\meta{int},\meta{int}\}}.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_group_nn: #1#2
-  {
-    \regex_build_group_shift:N \regex_action_repeat_free:n
-    \regex_build_transition_aux:NN
-      \regex_action_free:n \l_regex_tmpa_int
-    \use:x
-      {
-        \tex_toks:D \l_regex_tmpa_int
-          {
-            \s_regex_toks
-            \exp_not:N \if_num:w #1 > \l_regex_current_repetition_int
-              \tex_the:D \tex_toks:D \l_regex_tmpa_int
-            \exp_not:N \else:
-              \exp_not:N \if_num:w #2 > \l_regex_current_repetition_int
-                \tex_the:D \tex_toks:D \l_regex_tmpa_int
-              \exp_not:N \fi:
-              \regex_action_no_repeat_free:n
-                { \int_use:N \l_regex_right_state_int }
-            \exp_not:N \fi:
-          }
-      }
+  { % ^^A Not Implemented Yet!
+    \msg_expandable_error:n { Quantifier~{m,n}~not~implemented~yet }
+    \use:c { regex_build_group_n*: } {#1}
   }
 \cs_new_protected_nopar:cpn { regex_build_group_nn?: } #1#2
-  {
-    \regex_build_group_shift:N \regex_action_repeat_free:n
-    \regex_build_transition_aux:NN
-      \regex_action_free:n \l_regex_tmpa_int
-    \use:x
-      {
-        \tex_toks:D \l_regex_tmpa_int
-          {
-            \s_regex_toks
-            \exp_not:N \if_num:w #1 > \l_regex_current_repetition_int
-              \tex_the:D \tex_toks:D \l_regex_tmpa_int
-            \exp_not:N \else:
-              \regex_action_no_repeat_free:n
-                { \int_use:N \l_regex_right_state_int }
-              \exp_not:N \if_num:w #2 > \l_regex_current_repetition_int
-                \tex_the:D \tex_toks:D \l_regex_tmpa_int
-              \exp_not:N \fi:
-            \exp_not:N \fi:
-          }
-      }
+  { % ^^A Not Implemented Yet!
+    \msg_expandable_error:n { Quantifier~{m,n}~not~implemented~yet }
+    \use:c { regex_build_group_n*?: } {#1}
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3033,7 +3090,11 @@
 %   A transition which consumes the current character and moves
 %   to state |#1|.
 %    \begin{macrocode}
-\cs_new_eq:NN \regex_action_cost:n \regex_store_state:n
+\cs_new_protected_nopar:Npn \regex_action_cost:n #1
+  {
+    \exp_args:Nf \regex_store_state:n %^^A optimize!
+      { \int_eval:n { \l_regex_current_state_int + #1 } }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -3072,12 +3133,12 @@
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_action_free:n #1
   {
-    \regex_if_state_free:nT {#1}
+    \regex_if_state_free:nT
+      { \int_eval:n { #1 + \l_regex_current_state_int } } %^^A optimize
       {
         \use:x
           {
-            \int_set:Nn \l_regex_current_state_int {#1}
-            \regex_store_submatches:n { \l_regex_current_state_int }
+            \int_add:Nn \l_regex_current_state_int {#1}
             \regex_state_use:
             \int_set:Nn \l_regex_current_state_int
               { \int_use:N \l_regex_current_state_int }
@@ -3090,48 +3151,16 @@
 % \end{macro}
 %
 % \begin{macro}[aux]{\regex_action_submatch:n}
+%   Update the current submatches with the information
+%   from the current step.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_action_submatch:n #1
   {
     \prop_put:Nno \l_regex_current_submatches_prop {#1}
       { \int_use:N \l_regex_current_step_int }
-    \regex_store_submatches:n { \l_regex_current_state_int }
   }
 %    \end{macrocode}
 % \end{macro}
-%
-% \begin{macro}[aux]{\regex_action_repeat_free:n}
-%   This code is similar to \cs{regex_action_free:n}.
-%
-%   To copy a thread, check whether the program state has already
-%   been used at this character. If not, store submatches in the
-%   new state, and insert the instructions for that state in the
-%   input stream.
-%   Then restore the old value of \cs{l_regex_current_state_int}
-%   and of the current submatches.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_action_repeat_free:n #1
-  {
-    \regex_if_state_free:nT {#1}
-      {
-        \use:x
-          {
-            \int_set:Nn \l_regex_current_state_int {#1}
-            \regex_store_submatches:n { \l_regex_current_state_int }
-            \regex_state_use:
-            \int_set:Nn \l_regex_current_state_int
-              { \int_use:N \l_regex_current_state_int }
-            \tl_set:Nn \exp_not:N \l_regex_current_submatches_prop
-              { \exp_not:o \l_regex_current_submatches_prop }
-          }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_action_no_repeat_free:n { \ERROR }
-%    \end{macrocode}
 %
 % \subsection{Submatches, once the correct match is found}
 %
