@@ -24,7 +24,8 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3trial/l3fp-new
+PACKAGE = l3fp-new
+L3DIR   = l3trial
 
 ##############################################################
 # Directory structure for source files                       #
@@ -43,14 +44,14 @@ VALIDATEDIR := $(BASEDIR)/validate
 
 L3TESTDIR  := /tmp/l3test
 SCRIPTDIR  := $(shell test -d $(L3TESTDIR)/scripts || mkdir -p $(L3TESTDIR)/scripts ; cd $(L3TESTDIR)/scripts ; pwd)
-TESTDIR    := $(shell test -d $(L3TESTDIR)/test/$(PACKAGE) || mkdir -p $(L3TESTDIR)/test/$(PACKAGE) ; cd $(L3TESTDIR)/test/$(PACKAGE) ; pwd)
+TESTDIR    := $(shell test -d $(L3TESTDIR)/test/$(L3DIR)/$(PACKAGE) || mkdir -p $(L3TESTDIR)/test/$(L3DIR)/$(PACKAGE) ; cd $(L3TESTDIR)/test/$(L3DIR)/$(PACKAGE) ; pwd)
 TESTAUXDIR := $(shell test -d $(TESTDIR)/testfiles || mkdir -p $(TESTDIR)/testfiles ; cd $(TESTDIR)/testfiles ; pwd)
 
 ##############################################################
 # Data for local installation and TDS construction           #
 ##############################################################
 
-PACKAGEROOT := latex/$(PACKAGE)
+PACKAGEROOT := latex/$(L3DIR)/$(PACKAGE)
 
 ##############################################################
 # Details of source files                                    #
@@ -59,7 +60,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
-UNPACK    = l3fp-new.ins
+UNPACK    = $(PACKAGE).ins
 
 ##############################################################
 # Files for the check systems                                #
@@ -151,7 +152,7 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	cd $(TESTDIR) ; \
 	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	if [ $$? = 0 ] ; then  \
-	  makeindex -s l3doc.ist -o $$NAME.ind $$NAME.idx > /dev/null ; \
+	  makeindex -q -s l3doc.ist -o $$NAME.ind $$NAME.idx > /dev/null ; \
 	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	  if [ `grep 'defined but not documented' $$NAME.log | wc -l` -ne 0 ] ; then \

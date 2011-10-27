@@ -1,25 +1,44 @@
 @echo off
-rem This Windows batch file provides very similar functionality to the
-rem Makefile also available here.  Some of the options provided here 
-rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 
-setlocal
+rem Makefile for LaTeX3 "l3hooks" files 
 
-set PACKAGE=hooks
-set KERNELDIR=l3trial
+  if not [%1] == [] goto :init
  
-set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
-set CLEAN=fc gz pdf sty txt
-set EXPL3DIR=..\..\l3kernel
-set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
-set SCRIPTDIR=..\..\support
-set TESTDIR=testfiles
-set TEST=
-set TDSROOT=latex\%KERNELDIR%\%PACKAGE%
-set UNPACK=%PACKAGE%.ins
-set VALIDATE=..\..\validate
+:help
 
-:loop
+  echo.
+  echo  make all          - extract modules plus expl3
+  echo  make clean        - clean out directory
+  echo  make check        - run automated check system
+  echo  make doc          - typeset all dtx files
+  echo  make localinstall - locally install packages
+  echo  make savetlg ^<name^> - save test log for ^<name^>
+  echo  make test         - run test doucments
+  echo  make unpack       - extract modules
+  
+  goto :end
+  
+:init
+
+  rem Avoid clobbering anyone else's variables
+
+  setlocal
+
+  set PACKAGE=l3hooks
+  set L3DIR=l3trial
+ 
+  set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
+  set CLEAN=fc gz pdf sty txt
+  set EXPL3DIR=..\..\l3kernel
+  set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
+  set SCRIPTDIR=..\..\support
+  set TESTDIR=testfiles
+  set TEST=
+  set TDSROOT=latex\%L3DIR%\%PACKAGE%
+  set UNPACK=%PACKAGE%.ins
+  set VALIDATE=..\..\validate
+
+:main
 
   if /i [%1] == [all]          goto :all
   if /i [%1] == [check]        goto :check
@@ -129,20 +148,6 @@ set VALIDATE=..\..\validate
 
   goto :clean-int
 
-:help
-
-  echo.
-  echo  make all          - extract modules plus expl3
-  echo  make clean        - clean out directory
-  echo  make check        - run automated check system
-  echo  make doc          - typeset all dtx files
-  echo  make localinstall - locally install packages
-  echo  make savetlg ^<name^> - save test log for ^<name^>
-  echo  make test         - run test doucments
-  echo  make unpack       - extract modules
-  
-  goto :end
-
 :localinstall
 
   echo.
@@ -241,4 +246,4 @@ set VALIDATE=..\..\validate
 :end
 
   shift
-  if not [%1] == [] goto :loop
+  if not [%1] == [] goto :main
