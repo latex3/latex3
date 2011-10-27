@@ -76,6 +76,7 @@ VALIDATE   = commands-check.tex regression-test.tex
 AUXFILES = \
 	aux  \
 	cmds \
+	dmp  \
 	glo  \
 	gls  \
 	hd   \

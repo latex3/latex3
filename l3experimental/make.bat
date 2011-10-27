@@ -25,7 +25,7 @@ set TXT=README
 
 :clean
 
-  for %%I in (%XPACKACKAGES%) do (
+  for %%I in (%PACKAGES%) do (
     pushd %%I
     call make clean
     popd
