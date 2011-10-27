@@ -22,7 +22,8 @@ rem Makefile for LaTeX3 files
 
   setlocal
   
-  set INCLUDE=l3kernel l3packages l3experimental
+  set CLEAN=zip
+  set PACKAGES=l3kernel l3packages l3experimental
 
   cd /d "%~dp0"
 
@@ -38,7 +39,7 @@ rem Makefile for LaTeX3 files
   
 :check
 
-  for %%I in (%INCLUDE%) do (
+  for %%I in (%PACKAGES%) do (
     pushd %%I
     call make check
     popd
@@ -48,11 +49,13 @@ rem Makefile for LaTeX3 files
   
 :clean
 
-  for %%I in (%INCLUDE%) do (
+  for %%I in (%PACKAGES%) do (
     pushd %%I
     call make clean
     popd
   )
+  
+  for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
 
   goto :end
   
@@ -60,18 +63,19 @@ rem Makefile for LaTeX3 files
 
   call :clean
   call :localinstall
-  for %%I in (%INCLUDE%) do (
+  
+  for %%I in (%PACKAGES%) do (
     pushd %%I
     call make ctan
     popd
-    copy /q "%%I\%%I.zip" .
+    copy /y "%%I\%%I.zip" . > nul
   )
   
   goto :end
   
 :localinstall
 
-  for %%I in (%INCLUDE%) do (
+  for %%I in (%PACKAGES%) do (
     pushd %%I
     call make localinstall
     popd
@@ -82,4 +86,4 @@ rem Makefile for LaTeX3 files
 :end
 
   shift
-  if not "%1" == "" goto :main
+  if not [%1] == [] goto :main

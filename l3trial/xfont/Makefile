@@ -89,12 +89,12 @@ AUXFILES = \
 	xref
 
 CLEAN = \
+	cfg \
 	cls  \
 	diff \
 	fmt  \
 	gz   \
 	ist  \
-	ltx  \
 	pdf  \
 	sty  \
 	zip 

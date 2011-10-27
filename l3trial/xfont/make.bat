@@ -9,7 +9,7 @@ set PACKAGE=xfont
 set KERNELDIR=l3trial
  
 set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
-set CLEAN=fc gz pdf sty txt
+set CLEAN=cfg fc gz pdf sty txt
 set EXPL3DIR=..\..\l3kernel
 set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 set SCRIPTDIR=..\..\support

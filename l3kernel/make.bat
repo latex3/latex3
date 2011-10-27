@@ -1,8 +1,8 @@
 @echo off
 
-rem Makefile for LaTeX3 "expl3" files
+rem Makefile for LaTeX3 "l3kernel" files
 
-  if not "%1" == "" goto :init
+  if not [%1] == "" goto :init
 
 :help
 
@@ -56,24 +56,24 @@ rem Makefile for LaTeX3 "expl3" files
 
 :main
 
-  if /i "%1" == "check"        goto :check
-  if /i "%1" == "checkcmd"     goto :checkcmd
-  if /i "%1" == "checkcmds"    goto :checkcmds
-  if /i "%1" == "checkdoc"     goto :checkdoc
-  if /i "%1" == "checklvt"     goto :checklvt
-  if /i "%1" == "checktest"    goto :checktest
-  if /i "%1" == "clean"        goto :clean
-  if /i "%1" == "cleanall"     goto :clean
-  if /i "%1" == "ctan"         goto :ctan
-  if /i "%1" == "doc"          goto :doc
-  if /i "%1" == "help"         goto :help
-  if /i "%1" == "format"       goto :format
-  if /i "%1" == "localinstall" goto :localinstall
-  if /i "%1" == "savetlg"      goto :savetlg
-  if /i "%1" == "sourcedoc"    goto :sourcedoc
-  if /i "%1" == "test"         goto :test
-  if /i "%1" == "tds"          goto :tds
-  if /i "%1" == "unpack"       goto :unpack
+  if /i [%1] == [check]        goto :check
+  if /i [%1] == [checkcmd]     goto :checkcmd
+  if /i [%1] == [checkcmds]    goto :checkcmds
+  if /i [%1] == [checkdoc]     goto :checkdoc
+  if /i [%1] == [checklvt]     goto :checklvt
+  if /i [%1] == [checktest]    goto :checktest
+  if /i [%1] == [clean]        goto :clean
+  if /i [%1] == [cleanall]     goto :clean
+  if /i [%1] == [ctan]         goto :ctan
+  if /i [%1] == [doc]          goto :doc
+  if /i [%1] == [help]         goto :help
+  if /i [%1] == [format]       goto :format
+  if /i [%1] == [localinstall] goto :localinstall
+  if /i [%1] == [savetlg]      goto :savetlg
+  if /i [%1] == [sourcedoc]    goto :sourcedoc
+  if /i [%1] == [test]         goto :test
+  if /i [%1] == [tds]          goto :tds
+  if /i [%1] == [unpack]       goto :unpack
 
   goto :help
 
@@ -385,7 +385,7 @@ rem Makefile for LaTeX3 "expl3" files
   echo Making format
 
   shift
-  if not "%1" == "" set ENGINE=%1
+  if not [%1] == "" set ENGINE=%1
 
   tex l3format.ins > nul
   %ENGINE% -etex -ini "*l3format.ltx"
@@ -629,7 +629,7 @@ rem Makefile for LaTeX3 "expl3" files
     echo.
     echo This procedure requires a zip program,
     echo but one could not be found.
-    echo
+    echo.
     echo If you do have a command-line zip program installed,
     echo set ZIPEXE to the full executable path and ZIPFLAG to the
     echo appropriate flag to create an archive.
@@ -641,4 +641,4 @@ rem Makefile for LaTeX3 "expl3" files
 :end
 
   shift
-  if not "%1" == "" goto :main
+  if not [%1] == [] goto :main
