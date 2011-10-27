@@ -1,6 +1,6 @@
 @echo off
 
-rem Makefile for LaTeX3 files
+rem Makefile for LaTeX3 "l3trial" files
 
   if not [%1] == [] goto :init
 
@@ -11,7 +11,7 @@ rem Makefile for LaTeX3 files
   echo.
   echo  make check        - runs the automated test suite
   echo  make clean        - clean out directory tree
-  echo  make ctan         - create CTAN-ready archives
+  each  make doc          - typeset documentation
   echo  make localinstall - install files in local texmf tree
   echo  make unpack       - extract packages
 
@@ -23,8 +23,7 @@ rem Makefile for LaTeX3 files
 
   setlocal
   
-  set CLEAN=zip
-  set PACKAGES=l3kernel l3packages l3experimental l3trial
+  set PACKAGES=l3benchmark l3fp-new l3hooks l3ldb
 
   cd /d "%~dp0"
 
@@ -34,7 +33,9 @@ rem Makefile for LaTeX3 files
   if /i [%1] == [clean]        goto :clean
   if /i [%1] == [cleanall]     goto :clean
   if /i [%1] == [ctan]         goto :ctan
+  if /i [%1] == [doc]          goto :doc
   if /i [%1] == [localinstall] goto :localinstall
+  if /i [%1] == [tds]          goto :tds
   if /i [%1] == [unpack]       goto :unpack
 
   goto :help
@@ -56,23 +57,21 @@ rem Makefile for LaTeX3 files
     call make clean
     popd
   )
-  
-  for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
 
   goto :end
   
 :ctan
 
-  call :clean
-  call :localinstall
+  goto :end
   
+:doc
+
   for %%I in (%PACKAGES%) do (
     pushd %%I
-    call make ctan
+    call make doc
     popd
-    copy /y "%%I\%%I.zip" . > nul
   )
-  
+
   goto :end
   
 :localinstall
@@ -85,6 +84,10 @@ rem Makefile for LaTeX3 files
 
   goto :end
   
+:tds
+
+  goto :end
+  
 :upack
 
   for %%I in (%PACKAGES%) do (
@@ -92,7 +95,6 @@ rem Makefile for LaTeX3 files
     call make unpack
     popd
   )
-
 
 :end
 

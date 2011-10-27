@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3                                          #
+# Makefile for LaTeX3 "l3trial" files                          #
 ################################################################
 ################################################################
 
@@ -12,23 +12,42 @@ help:
 	@echo ""
 	@echo " make check        - runs automated test suite"
 	@echo " make clean        - clean out test directory"
-	@echo " make cleanall     - clean out current and test directory"
-	@echo " make ctan         - create CTAN-ready archives"
+	@echo " make cleanall     - clean out test and current directory"
+	@echo " make doc          - typeset documentation"
 	@echo " make localinstall - install files in local texmf tree"
 	@echo " make unpack       - extract packages"
 	@echo ""
 
 ##############################################################
-# Directories to process                                     #
+# Master package name                                        #
 ##############################################################
 
-INCLUDE = l3kernel l3packages l3experimental l3trial
+PACKAGE = l3trial
+
+##############################################################
+# Directory structure for source files                       #
+##############################################################
+
+SOURCEDIR   := .
+BASEDIR     := ..
 
 ##############################################################
 # Directory structure for test system                        #
 ##############################################################
 
 L3TESTDIR  := /tmp/l3test
+
+##############################################################
+# Data for local installation and TDS construction           #
+##############################################################
+
+PACKAGEROOT := latex/$(PACKAGE)
+
+##############################################################
+# Details of source files                                    #
+##############################################################
+
+PACKAGES = l3benchmark l3fp-new l3hooks l3ldb
 
 ##############################################################
 # Clean-up information                                       #
@@ -45,11 +64,13 @@ CLEAN = zip
 	clean        \
 	cleanall     \
 	ctan         \
+	doc          \
 	localinstall \
+	tds          \
 	unpack
-	
+
 check:
-	for I in $(INCLUDE) ; do \
+	for I in $(PACKAGES) ; do \
 	  cd $$I ; \
 	  make check ; \
 	  cd .. ; \
@@ -60,7 +81,7 @@ clean:
 	rm -rf $(L3TESTDIR)/*
 
 cleanall: clean
-	for I in $(INCLUDE) ; do \
+	for I in $(PACKAGES) ; do \
 	  cd $$I ; \
 	  make cleanall ; \
 	  cd .. ; \
@@ -68,26 +89,28 @@ cleanall: clean
 	for I in $(CLEAN) ; do \
 	  rm -f *.$$I ;\
 	done
-	
-ctan: cleanall localinstall
-	for I in $(INCLUDE) ; do \
+
+ctan:
+
+doc:
+	for I in $(PACKAGES) ; do \
 	  cd $$I ; \
-	  make ctan ; \
+	  make doc ; \
 	  cd .. ; \
-	  cp $$I/$$I.zip ./ ; \
 	done
-	
+
 localinstall:
-	for I in $(INCLUDE) ; do \
+	for I in $(PACKAGES) ; do \
 	  cd $$I ; \
 	  make localinstall ; \
 	  cd .. ; \
 	done
-	
+
+tds:
+
 unpack:
-	for I in $(INCLUDE) ; do \
+	for I in $(PACKAGES) ; do \
 	  cd $$I ; \
 	  make unpack ; \
 	  cd .. ; \
-	  cp $$I/$$I.zip ./ ; \
 	done
