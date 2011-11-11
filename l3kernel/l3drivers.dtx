@@ -193,6 +193,104 @@
 %</pdfmode>
 %</initex>
 %    \end{macrocode}
+%    
+% \subsection{Box clipping}
+% 
+% \begin{macro}{\driver_box_clip:N}
+%   Instructing the driver to clip a box requires a completely different
+%   approach for each of the engines.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_clip:N #1
+  {
+%    \end{macrocode}
+%   For \texttt{dvips} the approach taken is to use PostScript to do the work,
+%   defining a rectangular path then clipping to it. The clipping path is set
+%   up in \TeX{} points, and needs both the depth and total height of the
+%   box. Notice that teh $y$-axis is upside down: for ease of reading, the
+%   sign change operation is left to the driver.
+%    \begin{macrocode}
+%<*dvips>
+    \hbox_set:Nn #1
+      {
+        \tex_special:D
+          {
+            ps:
+              /clipmatrix~matrix~currentmatrix~def~
+              currentpoint~gsave~
+              translate~
+              Resolution~72~div~VResolution~72~div~
+              scale~
+              newpath~
+                0 
+                \dim_eval_unitless:n { - \box_dp:N #1 } ~neg~
+                \dim_eval_unitless:n { \box_wd:N #1 } ~ 
+                \dim_eval_unitless:n { \wod_ht:N #1 + \box_dp:N #1 } ~neg~
+              rectclip~
+              newpath~
+              clipmatrix~setmatrix~
+          }
+        \box_use:N #1
+        \tex_special:D { ps:grestore~ }
+      }
+%</dvips>
+%    \end{macrocode}
+%   In direct PDF mode, life is easy as the PDF specification provides a
+%   build-in method which will do the work. This actually creates a separate
+%   object, so the tracing output on shipout is a little strange. However, it
+%   is easy to implement.
+%    \begin{macrocode}
+%<*pdfmode>
+    \pdf_pdfxform:D #1 
+    \hbox_set:Nn #1 { \tex_pdfrefxform:D \tex_pdflastxform:D }
+%</pdfmode>
+%    \end{macrocode}
+%   For \texttt{xdvipdfmx}, PDF specials are used. The |content| special
+%   inserts |q 1 0 1 0| \texttt{\meta{x} \meta{y}} before the added
+%   \meta{objects}, and |Q| afterwards. This means that is can be used
+%   to save the current position. There is then a rectangular path to set up
+%   (the |re| operator), which clips (|W|) and is a no-op (|n|). The two
+%   scalings are needed to align the position of the clip mask with the
+%   inserted material, hence using a second |content q| to do a second
+%   save of the position.
+%    \begin{macrocode}
+%<*xdvipdfmx>
+    \hbox_set:Nn #1
+      {
+        \tex_special:D { pdf:content~q~ }
+          \tex_special:D
+            {
+              pdf:literal direct
+               0 
+               \driver_dim_in_bp:n { -\box_dp:N #1 }
+               \driver_dim_in_bp:n { \box_wd:N #1 }
+               \driver_dim_in_bp:n { \box_ht:N #1 + \box_dp:N #1 }
+               re
+            }
+          \tex_special:D { pdf:literal~direct~W~ }
+          \tex_special:D { pdf:literal~direct~n~ }
+          \tex_special:D { pdf:literal~direct~-1~0~0~-1~0~0~cm~ }
+            \tex_special:D { pdf:content~q~ }
+              \tex_special:D { pdf:literal~direct~-1~0~0~-1~0~0~cm~ }
+                \box_use:N #1
+          \tex_special:D { pdf:literal~direct~Q~ }
+        \tex_special:D { pdf:literal~direct~Q~ }
+      }
+%</xdvipdfmx>
+  }
+%    \end{macrocode}
+% \end{macro}
+% 
+% \begin{macro}[EXP]{\driver_dim_in_bp:n}
+%   The \texttt{xdvipdfmx} driver needs values converted into \texttt{bp} but
+%   with no units added. That can be achieved using a fixed conversion factor
+%   to actually work things out in \texttt{pt} and drop the unit.
+%    \begin{macrocode}
+%<*xdvipdfmx>
+\cs_new:Npn \driver_dim_in_bp:n #1
+  { \dim_eval_unitless:n { 0.996 26 \dim_eval:w #1 \dim_eval_end: } }
+%</xdvipdfmx>
+%    \end{macrocode}
+% \end{macro}
 %
 % \subsection{Box rotation and scaling}
 %
@@ -223,7 +321,7 @@
 %   that the width of the box in use for the output is set to zero, hence
 %   needing to know where the output is actually stored.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \driver_box_rotate_begin:
+\cs_new_protected:Npn \driver_box_rotate_begin:
   {
 %<*dvips>
     \tex_special:D
@@ -255,7 +353,7 @@
 %    \end{macrocode}
 % The end of a rotation means tidying up the output grouping.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \driver_box_rotate_end:
+\cs_new_protected:Npn \driver_box_rotate_end:
 %<*dvips>
   { \tex_special:D { ps:~currentpoint~grestore~moveto } }
 %</dvips>
@@ -272,7 +370,7 @@
 %   Scaling is not dissimilar to rotation, but the calculations are somewhat
 %   less complex.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \driver_box_scale_begin:
+\cs_new_protected:Npn \driver_box_scale_begin:
   {
 %<*dvips>
     \tex_special:D
@@ -307,7 +405,7 @@
   }
 %    \end{macrocode}
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \driver_box_scale_end:
+\cs_new_protected:Npn \driver_box_scale_end:
 %<*dvips>
    {
      \tex_special:D
@@ -371,7 +469,7 @@
 %   available. In all cases there is a need to reset the colour after
 %   the current group.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \driver_color_ensure_current:
+\cs_new_protected:Npn \driver_color_ensure_current:
   {
 %<*dvips|xdvipdfmx>
     \tex_special:D { color~push~\l_driver_current_color_tl }
@@ -382,7 +480,7 @@
 %</pdfmode>
     \group_insert_after:N \driver_color_reset:
   }
-\cs_new_protected_nopar:Npn \driver_color_reset:
+\cs_new_protected:Npn \driver_color_reset:
 %<*dvips|xdvipdfmx>
   { \tex_special:D { color~pop } }
 %</dvips|xdvipdfmx>
