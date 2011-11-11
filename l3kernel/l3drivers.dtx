@@ -89,14 +89,14 @@
 % 
 % \section{Box clipping}
 % 
-% \begin{function}[added = 2011-11-11]{\driver_box_clip:N}
+% \begin{function}[added = 2011-11-11]{\driver_box_use_clip:N}
 %   \begin{syntax}
-%     \cs{driver_box_clip:N} \meta{box}
+%     \cs{driver_box_use_clip:N} \meta{box}
 %   \end{syntax}
-%   Sets the \meta{box} to a horizontal box where any material outside of the
-%   edge dimensions will not be displayed by the driver. The material in the
-%   \meta{box} is still places in the output stream: the clipping takes place
-%   at a driver level. The \meta{box} is set locally.
+%   Inserts the content of the \meta{box} at the current insertion point
+%   such that any material outside of the bounding box will not be displayed
+%   by the driver. The material in the \meta{box} is still places in the
+%   output stream: the clipping takes place at a driver level.
 % \end{function}
 %
 % \section{Box rotation and scaling}
@@ -206,101 +206,123 @@
 %</initex>
 %    \end{macrocode}
 %    
-% \subsection{Box clipping}
+% \subsection{Driver utility functions}
 % 
-% \begin{macro}{\driver_box_clip:N}
-%   Instructing the driver to clip a box requires a completely different
-%   approach for each of the engines.
+% \begin{macro}[EXP]{\dim_strip_bp:n}
 %    \begin{macrocode}
-\cs_new_protected:Npn \driver_box_clip:N #1
-  {
-%    \end{macrocode}
-%   For \texttt{dvips} the approach taken is to use PostScript to do the work,
-%   defining a rectangular path then clipping to it. The clipping path is set
-%   up in \TeX{} points, and needs both the depth and total height of the
-%   box. Notice that teh $y$-axis is upside down: for ease of reading, the
-%   sign change operation is left to the driver.
-%    \begin{macrocode}
-%<*dvips>
-    \hbox_set:Nn #1
-      {
-        \tex_special:D
-          {
-            ps:
-              /clipmatrix~matrix~currentmatrix~def~
-              currentpoint~gsave~
-              translate~
-              Resolution~72~div~VResolution~72~div~
-              scale~
-              newpath~
-                0 
-                \dim_eval_unitless:n { - \box_dp:N #1 } ~neg~
-                \dim_eval_unitless:n { \box_wd:N #1 } ~ 
-                \dim_eval_unitless:n { \wod_ht:N #1 + \box_dp:N #1 } ~neg~
-              rectclip~
-              newpath~
-              clipmatrix~setmatrix~
-          }
-        \box_use:N #1
-        \tex_special:D { ps:grestore~ }
-      }
-%</dvips>
-%    \end{macrocode}
-%   In direct PDF mode, life is easy as the PDF specification provides a
-%   build-in method which will do the work. This actually creates a separate
-%   object, so the tracing output on shipout is a little strange. However, it
-%   is easy to implement.
-%    \begin{macrocode}
-%<*pdfmode>
-    \pdf_pdfxform:D #1 
-    \hbox_set:Nn #1 { \tex_pdfrefxform:D \tex_pdflastxform:D }
-%</pdfmode>
-%    \end{macrocode}
-%   For \texttt{xdvipdfmx}, PDF specials are used. The |content| special
-%   inserts |q 1 0 1 0| \texttt{\meta{x} \meta{y}} before the added
-%   \meta{objects}, and |Q| afterwards. This means that is can be used
-%   to save the current position. There is then a rectangular path to set up
-%   (the |re| operator), which clips (|W|) and is a no-op (|n|). The two
-%   scalings are needed to align the position of the clip mask with the
-%   inserted material, hence using a second |content q| to do a second
-%   save of the position.
-%    \begin{macrocode}
-%<*xdvipdfmx>
-    \hbox_set:Nn #1
-      {
-        \tex_special:D { pdf:content~q~ }
-          \tex_special:D
-            {
-              pdf:literal direct
-               0 
-               \driver_dim_in_bp:n { -\box_dp:N #1 }
-               \driver_dim_in_bp:n { \box_wd:N #1 }
-               \driver_dim_in_bp:n { \box_ht:N #1 + \box_dp:N #1 }
-               re
-            }
-          \tex_special:D { pdf:literal~direct~W~ }
-          \tex_special:D { pdf:literal~direct~n~ }
-          \tex_special:D { pdf:literal~direct~-1~0~0~-1~0~0~cm~ }
-            \tex_special:D { pdf:content~q~ }
-              \tex_special:D { pdf:literal~direct~-1~0~0~-1~0~0~cm~ }
-                \box_use:N #1
-          \tex_special:D { pdf:literal~direct~Q~ }
-        \tex_special:D { pdf:literal~direct~Q~ }
-      }
-%</xdvipdfmx>
-  }
+%<*pdfmode|xdvipdfmx>
+\cs_new:Npn \dim_strip_bp:n #1
+  { \dim_strip_pt:n { 0.996 26 \dim_eval:w #1 \dim_eval_end: } }
+%</pdfmode|xdvipdfmx>
 %    \end{macrocode}
 % \end{macro}
 % 
-% \begin{macro}[EXP]{\driver_dim_in_bp:n}
-%   The \texttt{xdvipdfmx} driver needs values converted into \texttt{bp} but
-%   with no units added. That can be achieved using a fixed conversion factor
-%   to actually work things out in \texttt{pt} and drop the unit.
+% \begin{macro}{\driver_graphic_state_save:}
+% \begin{macro}{\driver_graphic_state_restore:}
+%   All of the drivers have a stack for saving the graphic state. These
+%   have slightly different interfaces. As \texttt{dvips} does not
+%   automatically save the current location, this is set up here.
 %    \begin{macrocode}
+\cs_new_protected:Npn \driver_graphic_state_save:
+%<*dvips>
+  {
+    \tex_special:D { ps:gsave }
+    \tex_special:D { ps:/savedmatrix~matrix~currentmatrix~def }
+    \tex_special:D { ps:currentpoint~translate }
+  }
+%</dvips>
+%<*pdfmode>
+  { \pdftex_pdfsave:D }
+%</pdfmode>
 %<*xdvipdfmx>
-\cs_new:Npn \driver_dim_in_bp:n #1
-  { \dim_eval_unitless:n { 0.996 26 \dim_eval:w #1 \dim_eval_end: } }
+  { \tex_special:D { pdf:bcontent }
 %</xdvipdfmx>
+\cs_new_protected:Npn \driver_graphic_state_restore:
+%<*dvips>
+  {
+    \tex_special:D { savedmatrix setmatrix }
+    \tex_special:D { ps:grestore }
+  }
+%</dvips>
+%<*pdfmode>
+  { \pdftex_pdfrestore:D }
+%</pdfmode>
+%<*xdvipdfmx>
+  { \tex_special:D { pdf:econtent }
+%</xdvipdfmx>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_literal_direct:n}
+%   Both direct PDF mode and \texttt{xdvipdfmx} make use of direct PDF
+%   special insertion. These are slightly different in the two cases.
+%    \begin{macrocode}
+%</pdfmode|xdvipdfmx>
+\cs_new_protected:Npn \driver_pdf_literal_direct:n #1
+%<*pdfmode>
+  { \pdftex_pdfliteral:D direct {#1} }
+%</pdfmode>
+%<*xdvipdfmx>
+  { \tex_special:D { pdf:literal~direct~ #1 }
+%</xdvipdfmx>
+%</pdfmode|xdvipdfmx>
+%    \end{macrocode}
+% \end{macro}
+%    
+% \subsection{Box clipping}
+% 
+% \begin{macro}{\driver_box_use_clip:N}
+%   The overall logic to clipping a box is the same in all cases. The general
+%   method is to save the current location, define a clipping path equivalent
+%   to the bounding box, then insert the content at the current position
+%   and in a zero width box. The \enquote{real} width is then made up using
+%   a horizontal skip before tidying up. There are other approaches that
+%   can be taken (for example using XForm objects), but the logic here shares
+%   as much code as possible and uses the same conversions (and so same
+%   rounding errors) in all three cases.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_clip:N #1
+  {
+    \driver_graphic_state_save:
+%    \end{macrocode}
+%   The business end of the code sets up the clip box, using the higher-level
+%   rectangle operators rather than the lower level direct line drawing. This
+%   makes sense for a simple rectangular clip. For \texttt{dvips}, the
+%   scale is also set to big points (for consistency with everything else).
+%    \begin{macrocode}
+%<*dvips>
+    \tex_special:D { ps:Resolution~72~div~VResolution~72~div~scale }
+    \tex_special:D
+      {
+        ps:
+        0 ~
+        -\dim_strip_bp:n { \box_dp:N #1 } ~ neg ~
+         \dim_strip_bp:n { \box_wd:N #1 } ~
+         \dim_strip_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~ neg ~
+        rectclip
+      }
+%</dvips>
+%<*pdfmode|xdvipdfmx>
+    \driver_pdf_literal_direct:n
+      {
+        0 ~
+        -\dim_strip_bp:n { \box_dp:N #1 } ~
+         \dim_strip_bp:n { \box_wd:N #1 } ~
+         \dim_strip_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
+        re ~
+        W ~
+        n
+      }
+%</pdfmode|xdvipdfmx>
+%    \end{macrocode}
+%   Insert the material in a box of no width, restore the graphic state
+%   and then insert the necessary \enquote{real} width.
+%    \begin{macrocode}
+    \hbox_overlap_left:n { \box_use:N #1 }
+    \driver_graphic_state_restore:
+    \skip_horizontal:n { \box_wd:N #1 }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
