@@ -225,11 +225,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_graphic_state_save:
 %<*dvips>
-  {
-    \tex_special:D { ps:gsave }
-    \tex_special:D { ps:/savedmatrix~matrix~currentmatrix~def }
-    \tex_special:D { ps:currentpoint~translate }
-  }
+  { \tex_special:D { ps:gsave } }
 %</dvips>
 %<*pdfmode>
   { \pdftex_pdfsave:D }
@@ -239,10 +235,7 @@
 %</xdvipdfmx>
 \cs_new_protected:Npn \driver_graphic_state_restore:
 %<*dvips>
-  {
-    \tex_special:D { savedmatrix setmatrix }
-    \tex_special:D { ps:grestore }
-  }
+  { \tex_special:D { ps:grestore } }
 %</dvips>
 %<*pdfmode>
   { \pdftex_pdfrestore:D }
@@ -254,19 +247,30 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\driver_pdf_literal_direct:n}
+% \begin{macro}{\driver_pdf_literal:n}
 %   Both direct PDF mode and \texttt{xdvipdfmx} make use of direct PDF
 %   special insertion. These are slightly different in the two cases.
 %    \begin{macrocode}
 %<*pdfmode|xdvipdfmx>
-\cs_new_protected:Npn \driver_pdf_literal_direct:n #1
+\cs_new_protected:Npn \driver_pdf_literal:n #1
 %<*pdfmode>
-  { \pdftex_pdfliteral:D direct {#1} } 
+  { \pdftex_pdfliteral:D {#1} } 
 %</pdfmode>
 %<*xdvipdfmx>
-  { \tex_special:D { pdf:literal~direct~ #1 } }
+  { \tex_special:D { pdf:content~ #1 } }
 %</xdvipdfmx>
 %</pdfmode|xdvipdfmx>
+%    \end{macrocode}
+% \end{macro}
+% 
+% \begin{macro}{\driver_ps_literal:n}
+%   The same concept for PostScript: these are \enquote{direct} by default,
+%   but by keeping the same name life should be a little clearer.
+%    \begin{macrocode}
+%<*dvips>
+\cs_new_protected:Npn \driver_ps_literal:n #1
+  { \tex_special:D { ps: #1 } } 
+%</dvips>
 %    \end{macrocode}
 % \end{macro}
 %    
@@ -288,38 +292,52 @@
 %    \end{macrocode}
 %   The business end of the code sets up the clip box, using the higher-level
 %   rectangle operators rather than the lower level direct line drawing. This
-%   makes sense for a simple rectangular clip. For \texttt{dvips}, the
-%   scale is also set to big points (for consistency with everything else).
+%   makes sense for a simple rectangular clip. There are a couple of approaches
+%   for \texttt{dvips}. The approach here is to save the current matrix,
+%   then translate to the current \TeX{} position and switch to big point
+%   measurement. The clip box can then be set up using the same conversion
+%   as for direct PDF output: notice that here the $y$-axis is upside down.
+%   The original matrix is then restored, so that \TeX{} inserts material
+%   in the correct place (there is an offset between the PostScript and
+%   \TeX{} current positions).
 %    \begin{macrocode}
 %<*dvips>
-    \tex_special:D { ps:Resolution~72~div~VResolution~72~div~scale }
-    \tex_special:D
+    \driver_ps_literal:n
       {
-        ps:
-        0 ~
-        -\dim_strip_bp:n { \box_dp:N #1 } ~ neg ~
+        /savedmatrix~matrix~currentmatrix~def~
+        currentpoint~translate~
+        Resolution~72~div~VResolution~72~div~scale
+      }
+    \driver_ps_literal:n
+      {
+        0~
+        -\dim_strip_bp:n { \box_dp:N #1 } ~neg~
          \dim_strip_bp:n { \box_wd:N #1 } ~
-         \dim_strip_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~ neg ~
+         \dim_strip_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~neg~
         rectclip
       }
+    \driver_ps_literal:n { savedmatrix~setmatrix }
 %</dvips>
+%    \end{macrocode}
+%   The PDF box is easier to define as it is automatically in big points and
+%   as the driver deals with the relationship between the \TeX{} and graphics
+%   locations automatically.
+%    \begin{macrocode}
 %<*pdfmode|xdvipdfmx>
-    \driver_pdf_literal_direct:n
+    \driver_pdf_literal:n
       {
         0 ~
         -\dim_strip_bp:n { \box_dp:N #1 } ~
          \dim_strip_bp:n { \box_wd:N #1 } ~
          \dim_strip_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
-        re ~
-        W ~
-        n
+        re~W~n
       }
 %</pdfmode|xdvipdfmx>
 %    \end{macrocode}
 %   Insert the material in a box of no width, restore the graphic state
-%   and then insert the necessary \enquote{real} width.
+%   and then insert the necessary width.
 %    \begin{macrocode}
-    \hbox_overlap_left:n { \box_use:N #1 }
+    \hbox_overlap_right:n { \box_use:N #1 }
     \driver_graphic_state_restore:
     \skip_horizontal:n { \box_wd:N #1 }
   }
@@ -389,7 +407,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_box_rotate_end:
 %<*dvips>
-  { \tex_special:D { ps:~currentpoint~grestore~moveto } }
+  { \tex_special:D { ps:~grestore } }
 %</dvips>
 %<*pdfmode>
   { \pdftex_pdfrestore:D }
@@ -407,6 +425,7 @@
 \cs_new_protected:Npn \driver_box_scale_begin:
   {
 %<*dvips>
+    \driver_graphic_state_save:
     \tex_special:D
       {
         ps:~currentpoint~
@@ -418,16 +437,17 @@
       }
 %</dvips>
 %<*pdfmode>
+    \driver_graphic_state_save:
     \tl_set:Nx \l_driver_box_matrix_tl
       {
         \fp_use:N \l_box_scale_x_fp \c_space_tl
         0 ~ 0 ~
         \fp_use:N \l_box_scale_y_fp
       }
-    \pdftex_pdfsave:D
     \pdftex_pdfsetmatrix:D { \l_driver_box_matrix_tl }
 %</pdfmode>
 %<*xdvipdfmx>
+    \driver_pdf_literal:n { }
     \tex_special:D { x:gsave }
     \tex_special:D
       {
@@ -439,24 +459,11 @@
   }
 %    \end{macrocode}
 %    \begin{macrocode}
-\cs_new_protected:Npn \driver_box_scale_end:
-%<*dvips>
-   {
-     \tex_special:D
-       {
-         ps:~currentpoint~
-         currentpoint~translate~
-         1~\fp_use:N \l_box_scale_x_fp \c_space_tl div~
-         1~\fp_use:N \l_box_scale_y_fp \c_space_tl div~
-         scale~neg~exch~neg~exch~
-         translate
-       }
-   }
-%</dvips>
-%<*pdfmode>
-  { \pdftex_pdfrestore:D }
-%</pdfmode>
+%<*dvips|pdfmode>
+\cs_new_eq:NN \driver_box_scale_end: \driver_graphic_state_restore:
+%</dvips|pdfmode>
 %<*xdvipdfmx>
+\cs_new_protected:Npn \driver_box_scale_end:
   { \tex_special:D { x:grestore } }
 %</xdvipdfmx>
 %    \end{macrocode}
