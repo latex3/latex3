@@ -170,8 +170,7 @@ localinstall: unpack
 	mkdir -p $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
 	cd $(TESTDIR) ; \
-	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
-	texhash > /dev/null
+	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/
 
 unpack: $(foreach FILE,$(DTX) $(TEX) $(UNPACK),$(TESTDIR)/$(FILE))
 	echo "Unpacking files"
