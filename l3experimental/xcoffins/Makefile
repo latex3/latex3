@@ -267,8 +267,7 @@ localinstall: unpack
 	mkdir -p $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
 	cd $(TESTDIR) ; \
-	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
-	texhash > /dev/null
+	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/
 
 savetlg: $(TESTDIR)/$(F).lvt support unpack
 	echo "Creating and copying $(F).tlg"

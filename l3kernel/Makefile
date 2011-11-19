@@ -492,7 +492,6 @@ localinstall: unpack
 	cp *.def $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp l3doc.ist $$TEXMFHOME/makeindex/$(PACKAGE)
-	texhash > /dev/null
 
 savetlg: $(TESTDIR)/$(F).lvt support unpack
 	echo "Creating and copying $(F).tlg"
