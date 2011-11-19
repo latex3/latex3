@@ -22,6 +22,7 @@ help:
 # Directories to process                                     #
 ##############################################################
 
+CTAN    = l3kernel l3packages l3experimental
 INCLUDE = l3kernel l3packages l3experimental l3trial
 
 ##############################################################
@@ -70,7 +71,7 @@ cleanall: clean
 	done
 	
 ctan: cleanall localinstall
-	for I in $(INCLUDE) ; do \
+	for I in $(CTAN) ; do \
 	  cd $$I ; \
 	  make ctan ; \
 	  cd .. ; \
