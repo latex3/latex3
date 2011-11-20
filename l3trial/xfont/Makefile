@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3experimental/xfont
+PACKAGE = l3trial/xfont
 
 ##############################################################
 # Directory structure for source files                       #
