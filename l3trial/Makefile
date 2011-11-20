@@ -47,14 +47,14 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-PACKAGES = l3benchmark l3fp-new l3hooks l3ldb
+PACKAGES = l3benchmark l3fp-new l3hooks l3ldb l3rand
 
 ##############################################################
 # Clean-up information                                       #
 ##############################################################
 
 CLEAN = zip
-	
+
 ################################################################
 # User make options                                            #
 ################################################################

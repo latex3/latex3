@@ -22,8 +22,8 @@ rem Makefile for LaTeX3 "l3trial" files
   rem Avoid clobbering anyone else's variables
 
   setlocal
-  
-  set PACKAGES=l3benchmark l3fp-new l3hooks l3ldb
+
+  set PACKAGES=l3benchmark l3fp-new l3hooks l3ldb l3rand
 
   cd /d "%~dp0"
 
