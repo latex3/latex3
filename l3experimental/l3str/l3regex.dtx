@@ -371,8 +371,6 @@
 %   sequence contains the two items \texttt{Hello} and \texttt{world}.
 % \end{function}
 %
-% \subsection{String splitting}
-%
 % \begin{function}{\regex_split:nnN, \regex_split:NnN}
 %   \begin{syntax}
 %     \cs{regex_split:nnN} \Arg{regular expression} \meta{string} \meta{seq~var}
@@ -424,9 +422,9 @@
 % The following need to be done now.
 % \begin{itemize}
 % \item The \texttt{\{\}} quantifiers are only partially implemented.
-% \item Space's catcode wrong in the result of a replacement!
+% \item Check the catcode of spaces everywhere.
 % \item Newline conventions are not done.
-%   In particular, |.| should not match newlines.
+%   In particular, we should have an option for |.| not to match newlines.
 %   Also, |\A| should differ from |^|, and |\Z|, |\z| and |$| should
 %   differ.
 % \end{itemize}
@@ -452,12 +450,12 @@
 %
 % The following features of PCRE or Perl will probably not be implemented.
 % \begin{itemize}
-% \item Other forms of escapes, and character classes.
-%   |\cx|$\simeq$|\^^x|, |\ddd| (octal \texttt{ddd}).
-%   POSIX character classes.
-%   |\p{..}| and |\P{..}| for having/not having a Unicode property.
-%   |\X| for \enquote{extended} Unicode sequence.
-% \item Callout with |(?C...)|.
+% \item |\cx|, similar to \TeX{}'s own |\^^x|;
+% \item |\ddd|, matching the character with code \texttt{ddd} in octal;
+% \item POSIX character classes |[:alpha:]| \emph{etc.};
+% \item Unicode properties: |\p{..}| and |\P{..}|;
+% \item |\X| which should match any \enquote{extended} Unicode sequence;
+% \item Callout with |(?C...)|;
 % \item Conditional subpatterns (other than with a look-ahead
 %   or look-behind condition): this is non-regular, isn't it?
 % \end{itemize}
@@ -930,30 +928,48 @@
 %
 % \subsection{Helpers}
 %
-% \subsubsection{Toks}
+% \subsubsection{Scan markers}
 %
-% \begin{macro}[int]{\s_regex_toks}
+% \begin{macro}[int]{\s_regex_mark}
+% \begin{macro}[int]{\s_regex_stop}
+%   Two unexpandable markers, which do nothing if they reach \TeX{}'s stomach.
 %   When performing the matching, the \tn{toks} registers hold submatch
 %   information, followed by the instruction for a given state of the NFA.
-%   The two parts are separated by \cs{s_regex_toks}.
+%   The two parts are separated by \cs{s_regex_mark}.
+%   See \cs{regex_break_step:w} and \cs{regex_nfa:Nw} for two uses
+%   of \cs{s_regex_stop}.
 %    \begin{macrocode}
-\cs_new_eq:NN \s_regex_toks \scan_stop:
+\cs_new_eq:NN \s_regex_mark \scan_stop:
+\cs_new_eq:NN \s_regex_stop \scan_stop:
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\regex_break_step:w}
+%   When a thread succeeds, all threads with lower precedence
+%   can be ignored, and the next character should be read.
+%   This is done by skipping to \cs{s_regex_stop}. This marker
+%   does nothing if no thread succeeded at this step.
+%    \begin{macrocode}
+\cs_new:Npn \regex_break_step:w #1 \s_regex_stop { }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Toks}
 %
 % \begin{macro}[int]{\regex_toks_put_left:Nx}
 % \begin{macro}[int]{\regex_toks_put_right:Nx}
 %   During the building phase, every \tn{toks} register starts with
-%   \cs{s_regex_toks}, and we wish to add \texttt{x}-expanded material
+%   \cs{s_regex_mark}, and we wish to add \texttt{x}-expanded material
 %   to those registers. The expansion is done \enquote{by hand} for
 %   optimization (these operations are used quite a lot). When adding
 %   material to the left, we define \cs{regex_tmp:w} to remove the
-%   \cs{s_regex_toks} marker and put it back to the left of the new
+%   \cs{s_regex_mark} marker and put it back to the left of the new
 %   material.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_toks_put_left:Nx #1#2
   {
-    \cs_set_nopar:Npx \regex_tmp:w \s_regex_toks { \s_regex_toks #2 }
+    \cs_set_nopar:Npx \regex_tmp:w \s_regex_mark { \s_regex_mark #2 }
     \tex_toks:D #1 \exp_after:wN \exp_after:wN \exp_after:wN
       { \exp_after:wN \regex_tmp:w \tex_the:D \tex_toks:D #1 }
   }
@@ -1297,7 +1313,7 @@
 % \begin{macro}[int]{\regex_build_new_state:}
 %   Here, we add a new state to the NFA. At the end of the building
 %   phase, we want every \tn{toks} register to start with
-%   \cs{s_regex_toks}, hence initialize the new register appropriately.
+%   \cs{s_regex_mark}, hence initialize the new register appropriately.
 %   Then set \cs{l_regex_left/right_state_int} to their new values.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_new_state:
@@ -1306,7 +1322,7 @@
       { \msg_error:nn { regex } { -997 } }
       {
         \int_incr:N \l_regex_max_state_int
-        \tex_toks:D \l_regex_max_state_int { \s_regex_toks }
+        \tex_toks:D \l_regex_max_state_int { \s_regex_mark }
       }
     \int_set_eq:NN \l_regex_left_state_int \l_regex_right_state_int
     \int_set_eq:NN \l_regex_right_state_int \l_regex_max_state_int
@@ -1595,7 +1611,7 @@
   {
     \cs_set:Npx \regex_build_tmp_class:n ##1
       {
-        \regex_item_equal:n { \int_value:w `#1 }
+        \regex_item_equal:n { \int_value:w `#1 ~ }
         \regex_break_point:TF { \regex_action_cost:n { ##1 } } { }
       }
     \regex_build_one_quantifier:
@@ -2368,7 +2384,7 @@
       {
         \tex_toks:D \l_regex_tmpa_int
           {
-            \s_regex_toks
+            \s_regex_mark
             #1 { \int_eval:n { \l_regex_right_state_int - \l_regex_tmpa_int } }
           }
       }
@@ -2680,7 +2696,7 @@
   { \regex_state_use_aux:n { } }
 \cs_new_protected_nopar:Npn \regex_state_use:
   { \regex_state_use_aux:n { \exp_after:wN \regex_state_use_aux_ii:w } }
-\cs_new_nopar:Npn \regex_state_use_aux_ii:w #1 \s_regex_toks { }
+\cs_new_nopar:Npn \regex_state_use_aux_ii:w #1 \s_regex_mark { }
 \cs_new_protected_nopar:Npn \regex_state_use_aux:n #1
   {
     \if_num:w \tex_dimen:D \l_regex_current_state_int
@@ -2734,15 +2750,15 @@
         \tex_the:D \tex_toks:D #1
       }
   }
-\cs_new_protected:Npn \regex_store_submatches_aux:w #1 \s_regex_toks
+\cs_new_protected:Npn \regex_store_submatches_aux:w #1 \s_regex_mark
   {
     \regex_store_submatches_aux_ii:Nnnw
       #1
       \regex_state_submatches:nn \c_minus_one \q_prop
-    \s_regex_toks
+    \s_regex_mark
   }
 \cs_new_protected:Npn \regex_store_submatches_aux_ii:Nnnw
-    \regex_state_submatches:nn #1 #2 #3 \s_regex_toks
+    \regex_state_submatches:nn #1 #2 #3 \s_regex_mark
   {
     \exp_after:wN \c_zero
     \exp_after:wN \regex_state_submatches:nn \exp_after:wN
@@ -2753,7 +2769,7 @@
       }
       \exp_after:wN { \l_regex_current_submatches_prop }
     \regex_state_submatches:nn {#1} {#2}
-    \s_regex_toks
+    \s_regex_mark
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2873,19 +2889,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int]{\s_regex_step}
-% \begin{macro}[aux]{\regex_break_step:w}
-%   When a thread succeeds, all threads with lower precedence
-%   can be ignored, and the next character should be read.
-%   This is done by skipping to \cs{s_regex_step}. This marker
-%   does nothing if no thread succeeded at this step.
-%    \begin{macrocode}
-\cs_new_eq:NN \s_regex_step \scan_stop:
-\cs_new:Npn \regex_break_step:w #1 \s_regex_step { }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
 % \begin{macro}[aux]{\regex_match_loop:N}
 % \begin{macro}[aux]{\regex_match_one_index:n}
 % \begin{macro}[aux]{\regex_match_one_index_aux:n}
@@ -2908,7 +2911,7 @@
           \regex_match_one_index:n
       }
     \regex_tmp:w
-    \s_regex_step
+    \s_regex_stop
     \if_num:w \l_regex_max_index_int = \c_zero
       \exp_after:wN \use_none_delimit_by_q_recursion_stop:w
     \fi:
@@ -3127,7 +3130,7 @@
 %   \cs{tex_toks:D} 0 \{ \meta{instruction0} \} \\
 %   \ldots{}                              \\
 %   \cs{tex_toks:D} $n$ \{ \meta{instruction$\sb{n}$} \} \\
-%   \cs{regex_nfa_end:}
+%   \cs{s_regex_stop}
 % \end{quote}
 % where $n$ is the number of states in the NFA,
 % and the various \meta{instruction$\sb{i}$} control
@@ -3144,7 +3147,6 @@
 % \begin{macro}[aux]{\regex_set_aux:NNn}
 % \begin{macro}[aux]{\regex_set_aux:n}
 % \begin{macro}[aux]{\regex_nfa:Nw}
-% \begin{macro}[aux]{\regex_nfa_end:}
 %   Within a group, build the NFA corresponding to the given regular
 %   expression, with submatch tracking. Then save the contents of all
 %   relevant \tn{toks} registers into \cs{g_regex_tmpa_tl}, then
@@ -3178,18 +3180,16 @@
           \prg_stepwise_function:nnnN
             {1} {1} {\l_regex_max_state_int}
             \regex_set_aux:n
-          \regex_nfa_end:
+          \s_regex_stop
         }
     \group_end:
     #1 #2 \g_regex_tmpa_tl
   }
 \cs_new_nopar:Npn \regex_set_aux:n #1
   { \tex_toks:D #1 { \tex_the:D \tex_toks:D #1 } }
-\cs_new:Npn \regex_nfa:Nw #1 #2 \regex_nfa_end:
+\cs_new:Npn \regex_nfa:Nw #1 #2 \s_regex_stop
   { \msg_expandable_error:n { Automaton~#1 used~incorrectly. } }
-\cs_new_eq:NN \regex_nfa_end: \scan_stop:
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
