@@ -210,6 +210,10 @@
 %     or \texttt{C}.
 %   \item[(\ldots{})] Capturing group.
 %   \item[(?:\ldots{})] Non-capturing group.
+%   \item[(?\char`|\ldots{})] Non-capturing group which resets
+%     the group number for capturing groups in each alternative.
+%     The following group will be numbered with the first unused
+%     group number.
 % \end{l3regex-syntax}
 %
 % Options can be set with |(?|\meta{option}|)| and
@@ -436,8 +440,6 @@
 % \item Regex matching on external files.
 % \item Conditional subpatterns with look ahead/behind: \enquote{if
 %     what follows is [\ldots{}], then [\ldots{}]}.
-% \item \verb"(?|..|..)" to reset the capturing group number at the start
-%   of each alternative.
 % \item |(*..)| and |(?..)| sequences to set some options.
 % \item Reduce the number of epsilon-transitions in alternatives.
 % \item Optimize simple strings: use less states
@@ -567,19 +569,33 @@
 % \end{variable}
 % \end{variable}
 %
-% \begin{variable}{\l_regex_group_begin_seq, \l_regex_group_end_seq}
+% \begin{variable}{\l_regex_left_state_seq, \l_regex_right_state_seq}
 %   Alternatives are implemented by branching from a state into the
 %   various choices, then merging those into another state. We store
-%   information about those states in two sequences (several can be
-%   active at the same time when nesting groups).
+%   information about those states in two sequences.
 %    \begin{macrocode}
-\seq_new:N  \l_regex_group_begin_seq
-\seq_new:N  \l_regex_group_end_seq
+\seq_new:N  \l_regex_left_state_seq
+\seq_new:N  \l_regex_right_state_seq
 %    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_regex_end_group_seq}
+% \begin{variable}{\l_regex_end_alternation_seq}
+%   These sequences hold actions to be performed at the end of a group,
+%   and at the end of each branch of the alternation, respectively.
+%   Currently, \cs{l_regex_end_group_seq} is used to keep track of
+%   letter case, and \cs{l_regex_end_alternation_seq} is used
+%   for \verb"(?|...)" groups.
+%    \begin{macrocode}
+\seq_new:N  \l_regex_end_group_seq
+\seq_new:N  \l_regex_end_alternation_seq
+%    \end{macrocode}
+% \end{variable}
 % \end{variable}
 %
 % \begin{variable}{\l_regex_capturing_group_int}
 % \begin{variable}{\l_regex_capturing_group_seq}
+% \begin{variable}{\l_regex_capturing_group_max_int}
 %   \cs{l_regex_capturing_group_int} is the ID number of the current
 %   capturing group, starting at $0$ for a group enclosing the full
 %   regular expression, and counting in the order of their left parenthesis.
@@ -589,7 +605,9 @@
 %    \begin{macrocode}
 \int_new:N  \l_regex_capturing_group_int
 \seq_new:N  \l_regex_capturing_group_seq
+\int_new:N  \l_regex_capturing_group_max_int
 %    \end{macrocode}
+% \end{variable}
 % \end{variable}
 % \end{variable}
 %
@@ -1010,20 +1028,44 @@
 %
 % \subsubsection{Sequences}
 %
-% \begin{macro}[int]{\regex_seq_pop:N}
-% \begin{macro}[int]{\regex_seq_get:N}
+% \begin{macro}[int]{\regex_seq_pop_int:NN}
+% \begin{macro}[int]{\regex_seq_get_int:NN}
+% \begin{macro}[int]{\regex_seq_push_int:NN}
+%   When building the regular expression, we keep track of some integers
+%   (pointers to various states) without help from \TeX{}'s grouping.
+%   Here are variants of \cs{seq_pop:NN} and \cs{seq_get:NN} which
+%   assign using \cs{int_set:Nn} rather than \cs{tl_set:Nn}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_seq_pop_int:NN #1#2
+  {
+    \seq_pop:NN #1 \l_regex_tmpa_tl
+    \int_set:Nn #2 \l_regex_tmpa_tl
+  }
+\cs_new_protected:Npn \regex_seq_get_int:NN #1#2
+  {
+    \seq_get:NN #1 \l_regex_tmpa_tl
+    \int_set:Nn #2 \l_regex_tmpa_tl
+  }
+\cs_new_protected:Npn \regex_seq_push_int:NN #1#2
+  { \seq_push:No #1 { \int_use:N #2 } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\regex_seq_pop_use:N}
+% \begin{macro}[int]{\regex_seq_get_use:N}
 %   When building the regular expression, some settings are kept
 %   local to capturing groups without any help from \TeX{}'s grouping.
-%   This is done \enquote{by hand}, in sequences whose items contain
-%   instructions such as |\int_set:Nn| \meta{int~var} \Arg{value},
-%   which should be run immediately.
+%   This is done \enquote{by hand}, in sequences whose items should
+%   be run immediately.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_seq_pop:N #1
+\cs_new_protected_nopar:Npn \regex_seq_pop_use:N #1
   {
     \seq_pop:NN #1 \l_regex_tmpa_tl
     \l_regex_tmpa_tl
   }
-\cs_new_protected_nopar:Npn \regex_seq_get:N #1
+\cs_new_protected_nopar:Npn \regex_seq_get_use:N #1
   {
     \seq_get:NN #1 \l_regex_tmpa_tl
     \l_regex_tmpa_tl
@@ -1383,7 +1425,7 @@
       { #1 }
     \regex_build_open_aux:
       \g_str_result_tl \prg_do_nothing: \prg_do_nothing:
-    \seq_push:Nn \l_regex_capturing_group_seq { 0 }
+    \regex_seq_push_int:NN \l_regex_capturing_group_seq \c_zero
     \regex_build_close_aux: \regex_build_group_:
     \regex_build_end:
   }
@@ -2155,8 +2197,8 @@
       { \regex_build_special_group:NN }
       {
         \int_incr:N \l_regex_capturing_group_int
-        \seq_push:Nx \l_regex_capturing_group_seq
-          { \int_use:N \l_regex_capturing_group_int }
+        \regex_seq_push_int:NN
+          \l_regex_capturing_group_seq \l_regex_capturing_group_int
         \regex_build_open_aux:
         #1 #2
       }
@@ -2164,19 +2206,12 @@
 \cs_new_protected_nopar:Npn \regex_build_open_aux:
   {
     \regex_build_new_state:
-    \seq_push:Nx \l_regex_group_begin_seq
-      {
-        \int_set:Nn \l_regex_left_state_int
-          { \int_use:N \l_regex_left_state_int }
-      }
+    \regex_seq_push_int:NN \l_regex_left_state_seq  \l_regex_left_state_int
+    \regex_seq_push_int:NN \l_regex_right_state_seq \l_regex_right_state_int
     \bool_if:NTF \l_regex_caseless_bool
-      { \seq_push:Nn \l_regex_group_end_seq { \regex_build_caseless: } }
-      { \seq_push:Nn \l_regex_group_end_seq { \regex_build_caseful: } }
-    \seq_push:Nx \l_regex_group_end_seq
-      {
-        \int_set:Nn \l_regex_right_state_int
-          { \int_use:N \l_regex_right_state_int }
-      }
+      { \seq_push:Nn \l_regex_end_group_seq \regex_build_caseless: }
+      { \seq_push:Nn \l_regex_end_group_seq \regex_build_caseful: }
+    \seq_push:Nn \l_regex_end_alternation_seq { }
     \regex_build_begin_alternation:
   }
 \cs_new_protected_nopar:cpn { regex_build_|: }
@@ -2196,9 +2231,10 @@
 \cs_new_protected_nopar:Npn \regex_build_close_aux:
   {
     \regex_build_end_alternation:
-    \regex_seq_pop:N \l_regex_group_begin_seq
-    \regex_seq_pop:N \l_regex_group_end_seq
-    \regex_seq_pop:N \l_regex_group_end_seq
+    \regex_seq_pop_int:NN \l_regex_left_state_seq  \l_regex_left_state_int
+    \regex_seq_pop_int:NN \l_regex_right_state_seq \l_regex_right_state_int
+    \regex_seq_pop_use:N \l_regex_end_group_seq
+    \seq_pop:NN \l_regex_end_alternation_seq \l_regex_tmpa_tl
   }
 %    \end{macrocode}
 %   Building each branch.
@@ -2206,7 +2242,7 @@
 \cs_new_protected_nopar:Npn \regex_build_begin_alternation:
   {
     \regex_build_new_state:
-    \regex_seq_get:N \l_regex_group_begin_seq
+    \regex_seq_get_int:NN \l_regex_left_state_seq \l_regex_left_state_int
     \regex_toks_put_right:Nx \l_regex_left_state_int
       {
         \regex_action_free:n
@@ -2219,7 +2255,7 @@
 \cs_new_protected_nopar:Npn \regex_build_end_alternation:
   {
     \int_set_eq:NN \l_regex_left_state_int \l_regex_right_state_int
-    \regex_seq_get:N \l_regex_group_end_seq
+    \regex_seq_get_int:NN \l_regex_right_state_seq \l_regex_right_state_int
     \regex_toks_put_right:Nx \l_regex_left_state_int
       {
         \regex_action_free:n
@@ -2228,6 +2264,7 @@
               { \l_regex_right_state_int - \l_regex_left_state_int }
           }
       }
+    \regex_seq_get_use:N \l_regex_end_alternation_seq
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2255,14 +2292,58 @@
 %
 % \begin{macro}{\regex_build_special_group_::}
 %   Non-capturing groups are like capturing groups, except that
-%   we set the group id to \texttt{*}, which will then inhibit
+%   we set the group id to \texttt{-1}, which will then inhibit
 %   submatching in \cs{regex_build_group_submatches:NN}.
 %   The group number is not increased.
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { regex_build_special_group_:: }
   {
-    \seq_push:Nx \l_regex_capturing_group_seq { * }
+    \regex_seq_push_int:NN \l_regex_capturing_group_seq \c_minus_one
     \regex_build_open_aux:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}+\regex_build_special_group_|:+
+%   The special group \verb"(?|..|..)" is non-capturing
+%   (hence we set the |capturing_group| to $-1$), and resets
+%   the group number in each branch of the alternation.
+%   We use a variant of \cs{regex_build_open_aux:}, adding
+%   some code to be performed at every alternation, and at
+%   the end of the group. Namely, we keep track of
+%   the maximal value that \cs{l_regex_capturing_group_int}
+%   takes, and restore that value when the group end,
+%   and in every branch, we reset the capturing group number.
+%    \begin{macrocode}
+\cs_new_protected_nopar:cpn { regex_build_special_group_|: }
+  {
+    \regex_seq_push_int:NN \l_regex_capturing_group_seq \c_minus_one
+    \regex_build_new_state:
+    \regex_seq_push_int:NN \l_regex_left_state_seq  \l_regex_left_state_int
+    \regex_seq_push_int:NN \l_regex_right_state_seq \l_regex_right_state_int
+    \seq_push:Nx \l_regex_end_alternation_seq
+      {
+        \exp_not:N \int_compare:nNnT
+          \l_regex_capturing_group_int
+          > \l_regex_capturing_group_max_int
+          {
+            \int_set_eq:NN
+              \l_regex_capturing_group_max_int
+              \l_regex_capturing_group_int
+          }
+        \int_set:Nn \l_regex_capturing_group_int
+          { \int_use:N \l_regex_capturing_group_int }
+      }
+    \seq_push:Nx \l_regex_end_group_seq
+      {
+        \bool_if:NTF \l_regex_caseless_bool
+          \regex_build_caseless:
+          \regex_build_caseful:
+        \int_set_eq:NN
+          \l_regex_capturing_group_int
+          \l_regex_capturing_group_max_int
+      }
+    \regex_build_begin_alternation:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2340,7 +2421,7 @@
 \cs_new_protected_nopar:Npn \regex_build_group_submatches:NN #1#2
   {
     \seq_pop:NN \l_regex_capturing_group_seq \l_regex_tmpa_tl
-    \str_if_eq:xxF { \l_regex_tmpa_tl } { * }
+    \int_compare:nNnF { \l_regex_tmpa_tl } < \c_zero
       {
         \regex_toks_put_left:Nx #1
           { \regex_action_submatch:n { \l_regex_tmpa_tl < } }
