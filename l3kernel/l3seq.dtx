@@ -701,7 +701,8 @@
 %   \meta{comma-list}.
 % \end{function}
 %
-% \begin{function}[added = 2011-11-22]{\seq_reverse:N,\seq_greverse:N}
+% \begin{function}[added = 2011-11-22, updated = 2011-11-24]
+%     {\seq_reverse:N,\seq_greverse:N}
 %   \begin{syntax}
 %     \cs{seq_reverse:N} \meta{sequence}
 %   \end{syntax}
@@ -1773,27 +1774,55 @@
 % \begin{macro}
 %   {\seq_reverse:N, \seq_reverse:c, \seq_greverse:N, \seq_greverse:c}
 % \begin{macro}[aux]{\seq_reverse_aux:NN}
-% \begin{macro}[aux]{\seq_reverse_aux_item:nw}
-%   Define \cs{seq_item:n} to place its argument after a marker,
-%   \cs{prg_do_nothing:}. Then x-expand the sequence.
+% \begin{macro}[aux]{\seq_reverse_aux_item:nwn}
+%   Previously, \cs{seq_reverse:N} was coded by collecting the items
+%   in reverse order after an \cs{exp_stop_f:} marker.
+%   \begin{verbatim}
+%     \cs_new_protected:Npn \seq_reverse:N #1
+%       {
+%         \cs_set_eq:NN \seq_item:n \seq_reverse_aux_item:nw
+%         \tl_set:Nf #2 { #2 \exp_stop_f: }
+%       }
+%     \cs_new:Npn \seq_reverse_aux_item:nw #1 #2 \exp_stop_f:
+%       {
+%         #2 \exp_stop_f:
+%         \seq_item:n {#1}
+%       }
+%   \end{verbatim}
+%   At first, this seems optimal, since we can forget about each item
+%   as soon as it is placed after \cs{exp_stop_f:}. Unfortunately,
+%   \TeX{}'s usual tail recursion does not take place in this case:
+%   since the following \cs{seq_reverse_aux_item:nw} only reads
+%   tokens until \cs{exp_stop_f:}, and never reads the
+%   |\seq_item:n {#1}| left by the previous call, \TeX{} cannot
+%   remove that previous call from the stack, and in particular
+%   must retain the various macro paramters in memory, until the
+%   end of the replacement text is reached. The stack is thus
+%   only flushed after all the \cs{seq_reverse_aux_item:nw} are
+%   expanded. Keeping track of the arguments of all those calls
+%   uses up a memory quadratic in the length of the sequence.
+%   \TeX{} can then not cope with more than a few thousand items.
+%
+%   Instead, we collect the items in the argument
+%   of \cs{exp_not:n}. The previous calls are cleanly removed
+%   from the stack, and the memory consumption becomes linear.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \seq_tmp:w { }
 \cs_new_protected_nopar:Npn \seq_reverse:N
-  { \seq_reverse_aux:NN \tl_set:Nf }
+  { \seq_reverse_aux:NN \tl_set:Nx }
 \cs_new_protected_nopar:Npn \seq_greverse:N
-  { \seq_reverse_aux:NN \tl_gset:Nf }
+  { \seq_reverse_aux:NN \tl_gset:Nx }
 \cs_new_protected_nopar:Npn \seq_reverse_aux:NN #1 #2
   {
     \cs_set_eq:NN \seq_tmp:w \seq_item:n
-    \cs_set_eq:NN \seq_item:n \seq_reverse_aux_item:nw
-    #1 #2 { #2 \exp_stop_f: }
+    \cs_set_eq:NN \seq_item:n \seq_reverse_aux_item:nwn
+    #1 #2 { #2 \exp_not:n { } }
     \cs_set_eq:NN \seq_item:n \seq_tmp:w
   }
-\cs_new:Npn \seq_reverse_aux_item:nw #1 #2 \exp_stop_f:
+\cs_new:Npn \seq_reverse_aux_item:nwn #1 #2 \exp_not:n #3
   {
     #2
-    \exp_stop_f:
-    \seq_item:n {#1}
+    \exp_not:n { \seq_item:n {#1} #3 }
   }
 \cs_generate_variant:Nn \seq_reverse:N  { c }
 \cs_generate_variant:Nn \seq_greverse:N { c }
