@@ -761,6 +761,29 @@
 %   branches according to the result.
 % \end{function}
 %
+% \begin{function}[EXP]{\prg_break_point:n}
+%   \begin{syntax}
+%     \cs{prg_break_point:n} \meta{tokens}
+%   \end{syntax}
+%   Used to mark the end of a recursion or mapping: the functions
+%   \cs{prg_map_break:} and \cs{prg_map_break:n} use this to break out
+%   of the loop. After the loop ends, the \meta{tokens} are inserted into
+%   the input stream. This occurs even if the the break functions are
+%   \emph{not} applied: \cs{prg_break_point:n} is functionally-equivalent
+%   in these cases to \cs{use:n}.
+% \end{function}
+%
+% \begin{function}[EXP]{\prg_map_break:, \prg_map_break:n}
+%   \begin{syntax}
+%     \cs{prg_map_break:n} \Arg{user code}
+%     \ldots{}
+%     \cs{prg_break_point:n} \Arg{ending code}
+%   \end{syntax}
+%   Breaks a recursion in mapping contexts, inserting
+%   in the input stream the \meta{user code} after the
+%   \meta{ending code} for the loop.
+% \end{function}
+%
 % \section{Experimental programmings functions}
 %
 % \begin{function}{\prg_quicksort:n}
@@ -1664,50 +1687,45 @@
 % \end{macro}
 %
 % \begin{macro}{\prg_stepwise_function:nnnN}
-% \begin{macro}[aux]
-%  {\prg_stepwise_function_incr:nnnN, \prg_stepwise_function_decr:nnnN}
-%   Repeating a function by steps fist needs a check on the direction
+% \begin{macro}[aux]{\prg_stepwise_aux:nnnN}
+% \begin{macro}[aux]{\prg_stepwise_aux:NnnnN}
+%   Repeating a function by steps first needs a check on the direction
 %   of the steps. After that, do the function for the start value
-%   then step and loop around.
+%   then step and loop around. It would be more symmetrical to test
+%   for a step size of zero before checking the sign, but we optimize
+%   for the most frequent case (positive step).
 %    \begin{macrocode}
 \cs_new:Npn \prg_stepwise_function:nnnN #1#2#3#4
   {
-    \int_compare:nNnTF {#2} = \c_zero
-      { \msg_expandable_error:n { Zero~step~size~for~stepwise~function. } }
-      {
-        \int_compare:nNnTF {#2} > \c_zero
-          { \exp_args:Nf \prg_stepwise_function_incr:nnnN }
-          { \exp_args:Nf \prg_stepwise_function_decr:nnnN }
-            { \int_eval:n {#1} } {#2} {#3} #4
-      }
+    \prg_stepwise_aux:nnnN {#1} {#2} {#3} #4
+    \prg_break_point:n { }
   }
-\cs_new:Npn \prg_stepwise_function_incr:nnnN #1#2#3#4
+\cs_new:Npn \prg_stepwise_aux:nnnN #1#2#3#4
   {
-    \int_compare:nNnF {#1} > {#3}
+    \int_compare:nNnTF {#2} > \c_zero
+      { \exp_args:NNf \prg_stepwise_aux:NnnnN > }
       {
-        #4 {#1}
-        \exp_args:Nf \prg_stepwise_function_incr:nnnN
-          { \int_eval:n { #1 + #2 } } {#2} {#3} #4
+        \int_compare:nNnTF {#2} = \c_zero
+          {
+            \msg_expandable_kernel_error:nnn { prg } { zero-step } {#4}
+            \prg_map_break:
+          }
+          { \exp_args:NNf \prg_stepwise_aux:NnnnN < }
       }
+      { \int_eval:n {#1} } {#2} {#3} #4
   }
-\cs_new:Npn \prg_stepwise_function_decr:nnnN #1#2#3#4
+\cs_new:Npn \prg_stepwise_aux:NnnnN #1#2#3#4#5
   {
-    \int_compare:nNnF {#1} < {#3}
+    \int_compare:nNnF {#2} #1 {#4}
       {
-        #4 {#1}
-        \exp_args:Nf \prg_stepwise_function_decr:nnnN
-          { \int_eval:n { #1 + #2 } } {#2} {#3} #4
+        #5 {#2}
+        \exp_args:NNf \prg_stepwise_aux:NnnnN
+          #1 { \int_eval:n { #2 + #3 } } {#3} {#4} #5
       }
   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
-%
-% \begin{macro}[aux]{\g_prg_stepwise_level_int}
-%   For nesting, the usual approach of using a counter.
-%    \begin{macrocode}
-\int_new:N \g_prg_stepwise_level_int
-%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\prg_stepwise_inline:nnnn}
@@ -1722,13 +1740,13 @@
   {
     \exp_args:NNc \prg_stepwise_aux:NNnnnn
       \cs_gset_nopar:Npn
-      { g_prg_stepwise_ \int_use:N \g_prg_stepwise_level_int :n }
+      { g_prg_stepwise_ \int_use:N \g_prg_map_int :n }
   }
 \cs_new_protected:Npn \prg_stepwise_variable:nnnNn #1#2#3#4#5
   {
     \exp_args:NNc \prg_stepwise_aux:NNnnnn
       \cs_gset_nopar:Npx
-      { g_prg_stepwise_ \int_use:N \g_prg_stepwise_level_int :n }
+      { g_prg_stepwise_ \int_use:N \g_prg_map_int :n }
       {#1}{#2}{#3}
       {
         \tl_set:Nn \exp_not:N #4 {##1}
@@ -1738,9 +1756,9 @@
 \cs_new_protected:Npn \prg_stepwise_aux:NNnnnn #1#2#3#4#5#6
   {
     #1 #2 ##1 {#6}
-    \int_gincr:N \g_prg_stepwise_level_int
-    \prg_stepwise_function:nnnN {#3}{#4}{#5} #2
-    \int_gdecr:N \g_prg_stepwise_level_int
+    \int_gincr:N \g_prg_map_int
+    \prg_stepwise_aux:nnnN {#3} {#4} {#5} #2
+    \prg_break_point:n { \int_gdecr:N \g_prg_map_int }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1905,6 +1923,22 @@
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{variable}{\g_prg_map_int}
+%   A nesting counter for mapping.
+%    \begin{macrocode}
+\int_new:N \g_prg_map_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\prg_break_point:n}
+% \begin{macro}{\prg_map_break:}
+% \begin{macro}{\prg_map_break:n}
+%   These are all defined in \pkg{l3basics}, as they are needed
+%   \enquote{early}. This is just a reminder that that is the case!
 % \end{macro}
 % \end{macro}
 % \end{macro}
