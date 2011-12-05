@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3 "l3str" files                           #
+# Makefile for LaTeX3 "l3str" files                            #
 ################################################################
 ################################################################
 
@@ -16,7 +16,7 @@ help:
 	@echo " make cleanall         - clean out test and current directory"
 	@echo " make doc              - typeset documentation"
 	@echo " make localinstall     - install files in local texmf tree"
-	@echo " make savetlg F=<name> - save test log for <name>"  
+	@echo " make savetlg F=<name> - save test log for <name>"
 	@echo " make unpack           - extract packages"
 	@echo ""
 
@@ -24,7 +24,8 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3experimental/l3str
+PACKAGE = l3str
+L3DIR   = l3experimental
 
 ##############################################################
 # Directory structure for source files                       #
@@ -43,14 +44,14 @@ VALIDATEDIR := $(BASEDIR)/validate
 
 L3TESTDIR  := /tmp/l3test
 SCRIPTDIR  := $(shell test -d $(L3TESTDIR)/scripts || mkdir -p $(L3TESTDIR)/scripts ; cd $(L3TESTDIR)/scripts ; pwd)
-TESTDIR    := $(shell test -d $(L3TESTDIR)/test/$(PACKAGE) || mkdir -p $(L3TESTDIR)/test/$(PACKAGE) ; cd $(L3TESTDIR)/test/$(PACKAGE) ; pwd)
+TESTDIR    := $(shell test -d $(L3TESTDIR)/test/$(L3DIR)/$(PACKAGE) || mkdir -p $(L3TESTDIR)/test/$(L3DIR)/$(PACKAGE) ; cd $(L3TESTDIR)/test/$(L3DIR)/$(PACKAGE) ; pwd)
 TESTAUXDIR := $(shell test -d $(TESTDIR)/testfiles || mkdir -p $(TESTDIR)/testfiles ; cd $(TESTDIR)/testfiles ; pwd)
 
 ##############################################################
 # Data for local installation and TDS construction           #
 ##############################################################
 
-PACKAGEROOT := latex/$(PACKAGE)
+PACKAGEROOT := latex/$(L3DIR)/$(PACKAGE)
 
 ##############################################################
 # Details of source files                                    #
@@ -59,7 +60,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
-UNPACK    = l3str.ins
+UNPACK    = $(PACKAGE).ins
 
 ##############################################################
 # Files for the check systems                                #
@@ -97,7 +98,7 @@ CLEAN = \
 	ltx  \
 	pdf  \
 	sty  \
-	zip 
+	zip
 
 ################################################################
 # Document settings                                            #
@@ -173,11 +174,11 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 
 .PHONY = \
 	expl3 \
-	support 
+	support
 
 expl3:
 	cd $(EXPL3DIR) ; \
-	make localinstall 
+	make localinstall
 
 support: \
 	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
@@ -267,6 +268,7 @@ localinstall: unpack
 	mkdir -p $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
 	cd $(TESTDIR) ; \
+	cp *.def $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/
 
 savetlg: $(TESTDIR)/$(F).lvt support unpack

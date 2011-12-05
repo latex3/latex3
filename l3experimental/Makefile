@@ -145,6 +145,7 @@ tds: $(TESTDIR)/README.markdown doc unpack
 	  mkdir -p source/$(PACKAGEROOT)/$$I/ ; \
 	  mkdir -p tex/$(PACKAGEROOT)/$$I/ ; \
 	  cd $(TESTDIR)/$$I/ ; \
+	  cp -f *.def $(TDSDIR)/tex/$(PACKAGEROOT)/$$I/ ; \
 	  cp -f *.dtx $(TDSDIR)/source/$(PACKAGEROOT)/$$I/ ; \
 	  cp -f *.ins $(TDSDIR)/source/$(PACKAGEROOT)/$$I/ ; \
 	  cp -f *.pdf $(TDSDIR)/doc/$(PACKAGEROOT)/$$I/ ; \
