@@ -543,6 +543,18 @@
 %   \meta{fn3}. The result is assigned globally to \cs{g_str_result_tl}.
 % \end{function}
 %
+% \begin{function}
+%   {
+%     \str_aux_convert_to_native:n,
+%     \str_aux_convert_to_native_step:n
+%   }
+%   \begin{syntax}
+%     \cs{str_aux_convert_to_native:n} \Arg{loop code}
+%   \end{syntax}
+%   Used in \pkg{l3regex}.
+%^^A todo: document.
+% \end{function}
+%
 % \section{Possibilities}
 %
 % \begin{itemize}
@@ -619,7 +631,7 @@
   { \int_const:Nn \c_max_char_int { 255 } }
   { \int_const:Nn \c_max_char_int { 1114111 } }
 %    \end{macrocode}
-% \end{macro}
+% \end{variable}
 %
 % \begin{variable}{\c_str_replacement_char_int}
 %   When converting, invalid bytes are replaced by the Unicode
@@ -674,6 +686,7 @@
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \str_tmp:w { }
 \tl_new:N \l_str_tmpa_tl
+\int_new:N \l_str_tmpa_int
 %    \end{macrocode}
 % \end{variable}
 % \end{macro}
@@ -1408,6 +1421,7 @@
 %
 % \begin{variable}{\c_str_byte_0_tl}
 % \begin{variable}{\c_str_byte_-1_tl}
+% \begin{variable}{\c_str_positive_bytes_tl}
 %   For each integer $N$ in the range $[0,255]$, we create
 %   a constant token list which holds three character tokens
 %   with category code other: the character with character
@@ -1415,8 +1429,11 @@
 %   two hexadecimal digits.
 %   The value $-1$ is given a default token list which ensures
 %   that later functions give an empty result for the input $-1$.
+%   Simultaneously, we build a list of all bytes (from which we
+%   remove the null byte) in \cs{c_str_positive_bytes_tl}.
 %    \begin{macrocode}
 \group_begin:
+  \tl_clear:N \l_str_tmpa_tl
   \char_set_catcode_other:n { \c_zero }
   \tl_gset:Nx \g_str_result_tl { \tl_to_str:n { 0123456789ABCDEF } }
   \tl_map_inline:Nn \g_str_result_tl
@@ -1425,18 +1442,22 @@
     {
       \tl_map_inline:Nn \g_str_result_tl
         {
-          \char_set_lccode:nn { \c_zero } {"##1#1}
+          \char_set_lccode:nn { \c_zero } {"#1##1}
           \tl_to_lowercase:n
             {
               \tl_const:cx
-                { c_str_byte_ \int_eval:n {"##1#1} _tl }
-                { ^^@ ##1 #1 }
+                { c_str_byte_ \int_eval:n {"#1##1} _tl }
+                { ^^@ #1 ##1 }
+              \tl_put_right:Nn \l_str_tmpa_tl { ^^@ }
             }
         }
     }
+  \tl_const:Nx \c_str_positive_bytes_tl
+    { \exp_after:wN \use_none:n \l_str_tmpa_tl }
 \group_end:
 \tl_const:cn { c_str_byte_-1_tl } { { } \use_none:n { } }
 %    \end{macrocode}
+% \end{variable}
 % \end{variable}
 % \end{variable}
 %
@@ -2211,43 +2232,97 @@
 %
 % \begin{macro}[int]{\str_convert_to_native:}
 % \begin{macro}[aux]{\str_convert_to_native_aux:w}
-%   Convert the string from the given encoding
-%   to the internal format. We grab integers
-%   from the internal string using the low-level
-%   method to assign integers.
-%   Except at the end of the loop, the function
-%   \cs{str_convert_to_native_aux:w} is followed by a
-%   comma, hence its argument is empty.
-%   We are making heavy use of \TeX{} primitives here,
-%   because the function can become very slow for large
-%   strings.
+%   This function is based on the internal functions
+%   \cs{str_aux_convert_to_native:n} and
+%   \cs{str_aux_convert_to_native_step:n}.
+%   Loop through the comma-list, and call
+%   \cs{str_aux_convert_to_native_step:n}
+%   with the relevant integer argument.
+%   We need to store \cs{g_str_result_tl} in a temporary
+%   token list, because that global \enquote{result} is
+%   cleared silently by \cs{str_aux_convert_to_native:n}.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \str_convert_to_native:
   {
     \tl_set_eq:NN \l_str_tmpa_tl \g_str_result_tl
+    \str_aux_convert_to_native:n
+      {
+        \exp_after:wN \str_convert_to_native_aux:w
+        \l_str_tmpa_tl { \q_stop \prg_map_break: } ,
+      }
+  }
+\cs_new_protected_nopar:Npn \str_convert_to_native_aux:w #1 ,
+  {
+    \use_none_delimit_by_q_stop:w #1 \q_stop
+    \str_aux_convert_to_native_step:n {#1}
+    \str_convert_to_native_aux:w
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\str_aux_convert_to_native:n}
+% \begin{macro}[int]{\str_aux_convert_to_native_step:n}
+% \begin{macro}[aux]{\str_aux_convert_to_native_flush:}
+% \begin{macro}[aux, rEXP]{\str_aux_convert_to_native_filter:N}
+%^^A todo: document.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \str_aux_convert_to_native:n #1
+  {
+    \tex_lccode:D \c_zero \c_zero
+    \int_zero:N \l_str_tmpa_int
     \tl_gclear:N \g_str_result_tl
-    \tex_afterassignment:D \str_convert_to_native_aux:w
-    \l_str_char_int = \l_str_tmpa_tl \c_zero \prg_map_break: ,
-    \prg_break_point:n { }
+    #1
+    \prg_break_point:n { \str_aux_convert_to_native_flush: }
+  }
+\cs_new_protected_nopar:Npn \str_aux_convert_to_native_step:n #1
+  {
+    \if_num:w \l_str_tmpa_int = \c_two_hundred_fifty_five
+      \str_aux_convert_to_native_flush:
+      \l_str_tmpa_int \c_zero
+    \fi:
+    \tex_advance:D \l_str_tmpa_int \c_one
+    \if_int_compare:w #1 > \c_max_char_int
+      \msg_kernel_error:nnx { str } { overflow } {#1}
+      \tex_lccode:D \l_str_tmpa_int \c_str_replacement_char_int
+    \else:
+      \tex_lccode:D \l_str_tmpa_int \int_eval:w #1 \int_eval_end:
+    \fi:
+  }
+\cs_new_protected_nopar:Npn \str_aux_convert_to_native_flush:
+  {
+    \use:x
+      {
+        \tl_to_lowercase:n
+          {
+            \tl_gput_right:Nx \exp_not:N \g_str_result_tl
+              {
+                \exp_after:wN \str_aux_convert_to_native_filter:N
+                  \c_str_positive_bytes_tl
+                  { ? = \c_zero \fi: \prg_map_break: }
+                \prg_break_point:n { }
+              }
+          }
+      }
   }
 \group_begin:
-  \char_set_catcode_other:n { `\^^@ }
-  \cs_new_protected_nopar:Npn \str_convert_to_native_aux:w #1 ,
+  \char_set_catcode_other:n { 0 }
+  \cs_new:Npn \str_aux_convert_to_native_filter:N #1
     {
-      #1
-      \if_int_compare:w \l_str_char_int > \c_max_char_int
-        \msg_kernel_error:nnx { str } { overflow }
-          { \int_use:N \l_str_char_int }
-      \else:
-        \tex_lccode:D \c_zero \l_str_char_int
-        \tl_to_lowercase:n
-          { \tex_xdef:D \g_str_result_tl { \g_str_result_tl ^^@ } }
+      \if_num:w `#1 > \l_str_tmpa_int
+        \exp_after:wN \prg_map_break:
       \fi:
-      \tex_afterassignment:D \str_convert_to_native_aux:w
-      \l_str_char_int =
+      \if_num:w \tex_lccode:D `#1 = \c_zero
+        ^^@
+      \else:
+        #1
+      \fi:
+      \str_aux_convert_to_native_filter:N
     }
 \group_end:
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
