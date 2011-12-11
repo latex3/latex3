@@ -1,0 +1,902 @@
+% \iffalse meta-comment
+%
+%% File: l3tl-convert.dtx Copyright (C) 2011 The LaTeX3 Project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3c of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the "l3experimental bundle" (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %%
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX3 Project.
+%%
+%% -----------------------------------------------------------------------
+%
+%<*driver|package>
+\RequirePackage{expl3}
+\GetIdInfo$Id: l3tl-convert.dtx 3039 2011-12-08 09:22:35Z bruno $
+  {L3 Experimental Token-List Conversion}
+%</driver|package>
+%<*driver>
+\documentclass[full]{l3doc}
+\usepackage{amsmath}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+%
+% \title{^^A
+%   The \textsf{l3tl-convert} package: analysing and building token lists^^A
+%   \thanks{This file describes v\ExplFileVersion,
+%     last revised \ExplFileDate.}^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released \ExplFileDate}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \section{\pkg{l3tl-convert} documentation}
+%
+% This module moslty provides internal functions for use
+% in the \pkg{l3regex} module. However, it provides as a
+% side-effect a user debugging function, very similar to
+% the \cs{ShowTokens} macro from the \pkg{ted} package.
+%
+% \begin{function}{\tl_display:N, \tl_display:n}
+%   \begin{syntax}
+%     \cs{tl_display:n} \Arg{token list}
+%   \end{syntax}
+%   Displays to the terminal the detailed decomposition of
+%   the \meta{token list} into tokens,
+%   showing the category code of each character token,
+%   and the meaning of control sequences and active characters.
+% \end{function}
+%
+% \subsection{Internal}
+%
+% \begin{function}{\tl_convert:n}
+%   \begin{syntax}
+%     \cs{tl_convert:n} \Arg{token list}
+%   \end{syntax}
+%   This function analyses each token in the \meta{token list},
+%   converting each \meta{token} to
+%   \begin{quote}
+%     \Arg{tokens} \cs{s_tl_convert} \meta{catcode} \meta{char code} |,|
+%   \end{quote}
+%   where \meta{tokens} expands in one step to the \meta{token},
+%   and \meta{catcode} and \meta{char code} are the category code
+%   and character code of the token if it is a character token,
+%   and otherwise are $0$ and $-1$ respectively.
+%   The result of the conversion is then stored in
+%   \cs{g_tl_convert_result_tl}.
+% \end{function}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3tl-convert} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\ProvidesExplPackage
+  {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
+\RequirePackage{l3str}
+%    \end{macrocode}
+%
+% \subsection{Variables and helper functions}
+%
+% \begin{variable}{\l_tl_convert_normal_int}
+%   The number of normal (\texttt{N}-type argument) tokens
+%   since the last special token.
+%    \begin{macrocode}
+\int_new:N \l_tl_convert_normal_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_tl_convert_index_int}
+%   During the first pass, this is the index in the array being built.
+%   During the second pass, it is equal to the maximum index in the
+%   array from the first pass.
+%    \begin{macrocode}
+\int_new:N \l_tl_convert_index_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_tl_convert_nesting_int}
+%   Nesting depth of explicit begin-group and end-group characters
+%   during the first pass. This lets us detect the end of the token
+%   list without a reserved end-marker.
+%    \begin{macrocode}
+\int_new:N \l_tl_convert_nesting_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_tl_convert_char_int}
+%   Holds the character code of the token currently considered,
+%   in cases where it is a character.
+%    \begin{macrocode}
+\int_new:N \l_tl_convert_char_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_tl_convert_type_int}
+%   When encountering special characters, we record their \enquote{type}
+%   in this integer.
+%    \begin{macrocode}
+\int_new:N \l_tl_convert_type_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\s_tl_convert}
+%   A non-expandable marker.
+%    \begin{macrocode}
+\cs_new_eq:NN \s_tl_convert \scan_stop:
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_tl_convert_result_tl}
+%   The result of the conversion is stored in this token list,
+%   with a succession of items of the form
+%   \begin{quote}
+%     \meta{tokens} \cs{s_tl_convert} \meta{catcode} \meta{char code} |,|
+%   \end{quote}
+%    \begin{macrocode}
+\tl_new:N \g_tl_convert_result_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}[int]{\tl_convert_extract_charcode:}
+% \begin{macro}[aux]{\tl_convert_extract_charcode_aux:w}
+%   Extracting the character code from the meaning of \cs{l_tl_convert_token}.
+%   This has no error checking, and should only be assumed to work
+%   for begin-group and end-group tokens.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \tl_convert_extract_charcode:
+  {
+    \exp_after:wN \tl_convert_extract_charcode_aux:w
+      \token_to_meaning:N \l_tl_convert_token
+  }
+\cs_new_protected_nopar:Npn \tl_convert_extract_charcode_aux:w #1 ~ #2 ~ { ` }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\tl_convert_cs_space_count:NN}
+% \begin{macro}[aux]{\tl_convert_cs_space_count:w}
+% \begin{macro}[aux]{\tl_convert_cs_space_count_end:w}
+%   Counts the number of spaces in the string representation of its
+%   second argument, as well as the number of characters following
+%   the last space in that representation, and feeds the two numbers
+%   as semicolon-delimited arguments to the first argument.
+%    \begin{macrocode}
+\cs_new:Npn \tl_convert_cs_space_count:NN #1 #2
+  {
+    \exp_after:wN #1
+    \int_value:w \int_eval:w \c_zero
+      \exp_after:wN \tl_convert_cs_space_count:w
+        \token_to_str:N #2
+        \fi: \tl_convert_cs_space_count_end:w ; ~ !
+  }
+\cs_new:Npn \tl_convert_cs_space_count:w #1 ~
+  {
+    \if_false: #1 #1 \fi:
+    + \c_one
+    \tl_convert_cs_space_count:w
+  }
+\cs_new:Npn \tl_convert_cs_space_count_end:w ; #1 \fi: #2 !
+  { \exp_after:wN ; \int_value:w \str_length_ignore_spaces:n {#1} ; }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Plan of attack}
+%
+% Our goal is to produce a token list of the form roughly
+% \begin{quote}
+%   \Arg{token 1} \cs{s_tl_convert} \meta{catcode 1} \meta{char code 1} |,| \\
+%   \Arg{token 2} \cs{s_tl_convert} \meta{catcode 2} \meta{char code 2} |,| \\
+%   \ldots{}
+%   \Arg{token N} \cs{s_tl_convert} \meta{catcode N} \meta{char code N} |,|
+% \end{quote}
+% Most but not all tokens can be grabbed as an undelimited
+% (\texttt{N}-type) argument by \TeX{}.
+% The plan is to have a two pass system. In the first pass,
+% locate special tokens, and store them in various \tn{toks} registers.
+% In the second pass, which is done within an \texttt{x}-expanding
+% assignment, normal tokens are taken in as \texttt{N}-type
+% arguments, and special tokens are retrieved from the \tn{toks}
+% registers, and removed from the input stream by some means.
+%
+% To ease the difficult first pass, we first do some setup
+% with \cs{tl_convert_i_setup:n}.
+% Active characters set equal to non-active characters
+% cause trouble, so we disable all active characters by
+% setting them equal to \texttt{undefined}.
+% We also set there the escape character to be printable
+% (backslash, but this later changes to a forward slash):
+% this makes it possible to distinguish characters from
+% control sequences.
+%
+% A token has two characteristics: its \tn{meaning},
+% and what it looks like for \TeX{} when it is in
+% scanning mode (\emph{e.g.}, when capturing parameters
+% for a macro).
+% For our purposes, the token's meaning can be
+% \begin{itemize}
+% \item a begin-group token (category code $1$),
+%   either space (character code $32$), or non-space;
+% \item an end-group token (category code $2$),
+%   either space (character code $32$), or non-space;
+% \item a space token (category code $10$, character code $32$);
+%^^A \item a character with category code $3$, $4$, $6$, $7$, $8$, $11$,
+%^^A   or $12$, or with category code $10$ but character code $\neq 32$;
+%^^A \item a non-character (primitive, macro, register, font,
+%^^A   undefined, \emph{etc.}).
+% \item anything else (then the token is always an \texttt{N}-type argument).
+% \end{itemize}
+% The token itself can \enquote{look like} one of the following
+% \begin{itemize}
+% \item a non-active character, in which case its meaning
+%   is automatically that associated to its character code
+%   and category code, we call it \enquote{true} character;
+% \item an active character;
+% \item a control sequence.
+% \end{itemize}
+% The only tokens which are not valid \texttt{N}-type arguments are
+% true begin-group characters, true end-group characters, and true spaces.
+% We will detect those characters by scanning ahead with \tn{futurelet},
+% then distinguishing true characters from tokens set equal to them
+% using the \tn{string} representation.
+%
+% The second pass is a simple exercise in expandable loops.
+%
+% \begin{macro}[int]{\tl_convert:n}
+%   Everything is done within a group, and all definitions will be local.
+%   We use \cs{group_align_safe_begin/end:} to avoid problems in case
+%   \cs{tl_convert:n} is used within an alignment and its argument
+%   contains alignment tab tokens.
+%    \begin{macrocode}
+\cs_new_protected:Npn \tl_convert:n #1
+  {
+    \group_begin:
+      \group_align_safe_begin:
+        \tl_convert_setup:n {#1}
+        \tl_convert_i:n {#1}
+        \tl_convert_ii:n {#1}
+      \group_align_safe_end:
+    \group_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Setup}
+%
+% \begin{macro}[int]{\tl_convert_setup:n}
+% \begin{macro}[aux]{\tl_convert_disable_loop:N}
+%   Active characters can cause problems later on in the processing,
+%   so the first step is to disable them, by setting them to
+%   \texttt{undefined}. Since Unicode contains too many characters
+%   to loop over all of them, we instead loop over the input token
+%   list as a string: any active character in the token list
+%   must appear in its string representation.
+%   ^^A todo: ask LuaTeX list for an \ifx\undefined <active char>
+%   ^^A which does not add the <active char> in memory.
+%    \begin{macrocode}
+\cs_new_protected:Npn \tl_convert_setup:n #1
+  {
+    \int_set:Nn \tex_escapechar:D { 92 }
+    \exp_after:wN \tl_convert_disable_loop:N
+      \tl_to_str:n {#1} { ~ } { ? ~ \prg_map_break: }
+    \prg_break_point:n { }
+  }
+\group_begin:
+  \char_set_catcode_active:N \^^@
+  \cs_new_protected_nopar:Npn \tl_convert_disable_loop:N #1
+    {
+      \tex_lccode:D \c_zero `#1 ~
+      \tl_to_lowercase:n { \tex_let:D ^^@ } \c_undefined:D
+      \tl_convert_disable_loop:N
+    }
+\group_end:
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{First pass}
+%
+% The goal of this pass is to detect special (non-\texttt{N}-type) tokens,
+% and count how many \texttt{N}-type tokens lie between special tokens.
+% Also, we wish to store some representation of each special token
+% in a \tn{toks} register.
+%
+% After the setup step, we have $11$ types of tokens:
+% \begin{itemize}
+% \item[1] a true non-space begin-group character;
+% \item[2] a true space begin-group character;
+% \item[3] a true non-space end-group character;
+% \item[4] a true space end-group character;
+% \item[5] a true space blank space character;
+% \item[6] an undefined active character;
+% \item[7] any other true character;
+% \item[8] a control sequence equal to a begin-group token (category code $1$);
+% \item[9] a control sequence equal to an end-group token (category code $2$);
+% \item[10] a control sequence equal to a space token
+%   (character code $32$, category code $10$);
+% \item[11] any other control sequence.
+% \end{itemize}
+% Our first tool is \tn{futurelet}. This cannot distinguish
+% cases $1$ and $2$ from $8$, nor cases $3$ and $4$ from $9$,
+% nor case $5$ from case $10$. Those cases will be distinguished
+% by applying the \tn{string} primitive to the following token,
+% after possibly changing the escape character to ensure that
+% a control sequence's string representation cannot be mistaken
+% for the true character.
+%
+% In cases $6$, $7$, and $11$, the following token is a valid
+% \texttt{N}-type argument, so we grab it and distinguish the case
+% of a character from a control sequence: in the latter case,
+% \cs{str_tail:n} \Arg{token} is non-empty, because the
+% escape character is printable.
+%
+% \begin{macro}{\tl_convert_i:n}
+%   We read tokens one by one using \tn{futurelet}.
+%   While performing the loop, we keep track of the number of
+%   true begin-group characters minus the number of
+%   true end-group characters in \cs{l_tl_convert_nesting_int}.
+%   This reaches $-1$ when we read the closing brace.
+%    \begin{macrocode}
+\cs_new_protected:Npn \tl_convert_i:n #1
+  {
+    \int_zero:N \l_tl_convert_normal_int
+    \int_zero:N \l_tl_convert_index_int
+    \int_zero:N \l_tl_convert_nesting_int
+    \if_false: { \fi: \tl_convert_i_loop:w #1 }
+    \int_decr:N \l_tl_convert_index_int
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\tl_convert_i_loop:w}
+%   Read one character and check its type.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \tl_convert_i_loop:w
+  { \tex_futurelet:D \l_tl_convert_token \tl_convert_i_type:w }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\tl_convert_i_type:w}
+%   At this point, \cs{l_tl_convert_token} holds the meaning of the following
+%   token. We store in \cs{l_tl_convert_type_int} the meaning of the token ahead:
+%   \begin{itemize}
+%   \item[0] space token;
+%   \item[1] begin-group token;
+%   \item[-1] end-group token;
+%   \item[2] other.
+%   \end{itemize}
+%   The values $0$, $1$, $-1$ correspond to how much a true such character
+%   changes the nesting level ($2$ is used only here, and is irrelevant later).
+%   Then call the auxiliary for each case.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \tl_convert_i_type:w
+  {
+    \l_tl_convert_type_int =
+      \if_meaning:w \l_tl_convert_token \c_space_token
+        \c_zero
+      \else:
+        \if_catcode:w \exp_not:N \l_tl_convert_token \c_group_begin_token
+          \c_one
+        \else:
+          \if_catcode:w \exp_not:N \l_tl_convert_token \c_group_end_token
+            \c_minus_one
+          \else:
+            \c_two
+          \fi:
+        \fi:
+      \fi:
+    \if_case:w \l_tl_convert_type_int
+         \exp_after:wN \tl_convert_i_space:w
+    \or: \exp_after:wN \tl_convert_i_bgroup:w
+    \or: \exp_after:wN \tl_convert_i_safe:N
+    \else: \exp_after:wN \tl_convert_i_egroup:w
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\tl_convert_i_safe:N}
+% \begin{macro}[aux]{\tl_convert_i_cs:ww}
+%   The upcoming token is safe: we can simply grab it in a second pass.
+%   Since other branches of the code must pass their tokens through
+%   \tn{string}, we do it here as well. It's been optimized in an evil way,
+%   sorry.
+%^^A todo: document
+%    \begin{macrocode}
+\cs_new_protected:Npn \tl_convert_i_safe:N #1
+  {
+    \if_charcode:w
+        \scan_stop:
+        \exp_after:wN \use_none:n \token_to_str:N #1 \prg_do_nothing:
+        \scan_stop:
+      \int_incr:N \l_tl_convert_normal_int
+    \else:
+      \tl_convert_cs_space_count:NN \tl_convert_i_cs:ww #1
+    \fi:
+    \tl_convert_i_loop:w
+  }
+\cs_new_protected:Npn \tl_convert_i_cs:ww #1; #2;
+  {
+    \if_num:w #1 > \c_zero
+      \tex_skip:D \l_tl_convert_index_int
+        = \int_eval:w \l_tl_convert_normal_int + \c_one sp \scan_stop:
+      \tex_advance:D \l_tl_convert_index_int #1 \exp_stop_f:
+      \l_tl_convert_normal_int #2 \exp_stop_f:
+    \else:
+      \tex_advance:D \l_tl_convert_normal_int #2 \exp_stop_f:
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\tl_convert_i_space:w}
+% \begin{macro}[aux]{\tl_convert_i_space_test:w}
+%   In this branch, the following token's meaning is a blank space.
+%   Apply \tn{string} to that token: if it is a control sequence
+%   the result starts with the escape character; otherwise it is
+%   a true blank space, whose string representation is also a blank space.
+%   We test for that in \cs{tl_convert_i_space_test:w},
+%   after grabbing the first character of the string representation
+%   as \cs{l_tl_convert_token}.
+%   Also, since \cs{tl_convert_i_store:} expects the special token to be
+%   stored in the relevant \tn{toks} register, we do that. The extra
+%   \cs{exp_not:n} is unnecessary of course, but it makes the treatment
+%   of all tokens more homogeneous.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \tl_convert_i_space:w
+  {
+    \tex_afterassignment:D \tl_convert_i_space_test:w
+    \exp_after:wN \cs_set_eq:NN
+    \exp_after:wN \l_tl_convert_token
+    \token_to_str:N
+  }
+\cs_new_protected_nopar:Npn \tl_convert_i_space_test:w
+  {
+    \if_meaning:w \l_tl_convert_token \c_space_token
+      \tex_toks:D \l_tl_convert_index_int { \exp_not:n { ~ } }
+      \tl_convert_i_store:
+    \else:
+      \int_incr:N \l_tl_convert_normal_int
+    \fi:
+    \tl_convert_i_loop:w
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\tl_convert_i_bgroup:w}
+% \begin{macro}[int]{\tl_convert_i_egroup:w}
+% \begin{macro}[aux]{\tl_convert_i_group:nw}
+% \begin{macro}[aux]{\tl_convert_i_group_test:w}
+%   The token might be either a true character token with
+%   catcode $1$ or $2$, or it could be a control sequence.
+%   The only tricky case is if the character code happens
+%   to be equal to the escape character: then we change
+%   the escape character, so that the string representation
+%   of the true character and of a control sequence set equal
+%   to it start differently.
+%    \begin{macrocode}
+\group_begin:
+  \char_set_catcode_group_begin:N \^^@
+  \char_set_catcode_group_end:N \^^E
+  \cs_new_protected_nopar:Npn \tl_convert_i_bgroup:w
+    { \tl_convert_i_group:nw { \exp_after:wN ^^@ \if_false: ^^E \fi: } }
+  \char_set_catcode_group_begin:N \^^B
+  \char_set_catcode_group_end:N \^^@
+  \cs_new_protected_nopar:Npn \tl_convert_i_egroup:w
+    { \tl_convert_i_group:nw { \if_false: ^^B \fi: ^^@ } }
+\group_end:
+\cs_new_protected_nopar:Npn \tl_convert_i_group:nw #1
+  {
+    \l_tl_convert_char_int = \tl_convert_extract_charcode: \scan_stop:
+    \tex_lccode:D \c_zero \l_tl_convert_char_int
+    \tl_to_lowercase:n { \tex_toks:D \l_tl_convert_index_int {#1} }
+    \if_num:w \l_tl_convert_char_int = \tex_escapechar:D
+      \int_set:Nn \tex_escapechar:D { 139 - \tex_escapechar:D }
+    \fi:
+    \tex_afterassignment:D \tl_convert_i_group_test:w
+    \exp_after:wN \cs_set_eq:NN
+    \exp_after:wN \l_tl_convert_token
+    \token_to_str:N
+  }
+\cs_new_protected_nopar:Npn \tl_convert_i_group_test:w
+  {
+    \if_num:w \tl_convert_extract_charcode: = \l_tl_convert_char_int
+      \tl_convert_i_store:
+    \else:
+      \int_incr:N \l_tl_convert_normal_int
+    \fi:
+    \tl_convert_i_loop:w
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\tl_convert_i_store:}
+%   This function is called each time we meet a special token,
+%   and the value of \cs{l_tl_convert_type_int} indicates which case
+%   we are in:
+%   \begin{itemize}
+%   \item[-1] end-group character;
+%   \item[0] space character;
+%   \item[1] begin-group character.
+%   \end{itemize}
+%   We need to distinguish further the case of a space character
+%   (code $32$) from other character codes, because those will
+%   behave differently in the second pass. Namely, we change the
+%   cases above to
+%   \begin{itemize}
+%   \item[-2] space end-group character;
+%   \item[-1] non-space end-group character;
+%   \item[0] space blank space character;
+%   \item[1] non-space begin-group character;
+%   \item[2] space begin-group character.
+%   \end{itemize}
+%   This has the property that non-space characters correspond to odd
+%   values of \cs{l_tl_convert_type_int}.
+%   Also, the \tn{toks} register number \cs{l_tl_convert_index_int}
+%   holds a token list which expands to the given special token.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \tl_convert_i_store:
+  {
+    \tex_advance:D \l_tl_convert_nesting_int \l_tl_convert_type_int
+    \if_num:w \l_tl_convert_char_int = \c_thirty_two
+      \tex_multiply:D \l_tl_convert_type_int \c_two
+    \fi:
+    \tex_skip:D \l_tl_convert_index_int
+      = \l_tl_convert_normal_int sp plus \l_tl_convert_type_int sp \scan_stop:
+    \int_incr:N \l_tl_convert_index_int
+    \int_zero:N \l_tl_convert_normal_int
+    \if_num:w \l_tl_convert_nesting_int = \c_minus_one
+      \cs_set_eq:NN \tl_convert_i_loop:w \scan_stop:
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Second pass}
+%
+% The second pass is an exercise in expandable loops.
+%
+% \begin{macro}[int]{\tl_convert_ii:n}
+% \begin{macro}[aux]{\tl_convert_ii_loop:w}
+%   Start the loop with the index $0$. No need for an end-marker:
+%   the loop will stop by itself when the last index is read.
+%   We will repeatedly oscillate between reading long stretches
+%   of normal tokens, and reading special tokens.
+%    \begin{macrocode}
+\cs_new_protected:Npn \tl_convert_ii:n #1
+  {
+    \tl_gset:Nx \g_tl_convert_result_tl
+      {
+        \tl_convert_ii_loop:w 0; #1
+        \prg_break_point:n { }
+      }
+  }
+\cs_new:Npn \tl_convert_ii_loop:w #1;
+  {
+    \exp_after:wN \tl_convert_ii_normals:ww
+      \int_value:w \tex_skip:D #1 ; #1 ;
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\tl_convert_ii_normals:ww}
+% \begin{macro}[aux]{\tl_convert_ii_normal:wwN}
+%   The first argument is the number of normal tokens which remain
+%   to be read, and the second argument is the index in the array
+%   produced in the first step.
+%   A character's string representation is always one character long,
+%   while a control sequence is always longer (we have set the escape
+%   character to a printable value). In both cases, we leave
+%   \cs{exp_not:n} \Arg{token} \cs{s_tl_convert} in the input stream
+%   (after \texttt{x}-expansion).
+%    \begin{macrocode}
+\cs_new:Npn \tl_convert_ii_normals:ww #1;
+  {
+    \if_num:w #1 = \c_zero
+      \tl_convert_ii_special:w
+    \fi:
+    \tl_convert_ii_normal:wwN #1;
+  }
+\cs_new:Npn \tl_convert_ii_normal:wwN #1; #2; #3
+  {
+    \exp_not:n { \exp_not:n { #3 } } \s_tl_convert
+    \if_charcode:w
+        \scan_stop:
+        \exp_after:wN \use_none:n \token_to_str:N #3 \prg_do_nothing:
+        \scan_stop:
+      \exp_after:wN \tl_convert_ii_char:Nww
+    \else:
+      \exp_after:wN \tl_convert_ii_cs:Nww
+    \fi:
+    #3 #1; #2;
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\tl_convert_ii_char:Nww}
+%   If the normal token we grab is a character, leave
+%   \meta{catcode} \meta{charcode} followed by a comma
+%   in the input stream, and call \cs{tl_convert_ii_normals:ww}
+%   with its first argument decremented.
+%    \begin{macrocode}
+\cs_new:Npn \tl_convert_ii_char:Nww #1
+  {
+    \if_meaning:w #1 \c_undefined:D            D \else:
+    \if_catcode:w #1 \c_catcode_other_token    C \else:
+    \if_catcode:w #1 \c_catcode_letter_token   B \else:
+    \if_catcode:w #1 \c_math_toggle_token      3 \else:
+    \if_catcode:w #1 \c_alignment_token        4 \else:
+    \if_catcode:w #1 \c_math_superscript_token 7 \else:
+    \if_catcode:w #1 \c_math_subscript_token   8 \else:
+      6
+    \fi: \fi: \fi: \fi: \fi: \fi: \fi:
+    \int_value:w `#1 ,
+    \exp_after:wN \tl_convert_ii_normals:ww
+      \int_use:N \int_eval:w \c_minus_one +
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\tl_convert_ii_cs:Nww}
+%   If the token we grab is a control sequence, leave
+%   |0-1,| (as category code and character code) in the input stream,
+%   and call \cs{tl_convert_ii_normals:ww} with updated arguments.
+%    \begin{macrocode}
+\cs_new:Npn \tl_convert_ii_cs:Nww #1
+  {
+    0 -1 ,
+    \tl_convert_cs_space_count:NN \tl_convert_ii_cs_test:ww #1
+  }
+\cs_new:Npn \tl_convert_ii_cs_test:ww #1 ; #2 ; #3; #4;
+  {
+    \exp_after:wN \tl_convert_ii_normals:ww
+    \int_use:N \int_eval:w
+    \if_num:w #1 = \c_zero
+      #3
+    \else:
+      \tex_skip:D \int_eval:w #4 + #1 \int_eval_end:
+    \fi:
+    - #2
+    \exp_after:wN ;
+    \int_use:N \int_eval:w #4 + #1;
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\tl_convert_ii_special:w}
+% \begin{macro}[aux]{\tl_convert_ii_special_char:wN}
+% \begin{macro}[aux]{\tl_convert_ii_special_space:w}
+%   Here, |#1| is the current index in the array built in the first pass.
+%   Check whether we reached the end (we shouldn't insert the trailing
+%   end-group character that marked the end of the token list in the
+%   first pass).
+%   Unpack the \tn{toks} register: when \texttt{x}-expanding again,
+%   we will get the special token.
+%   Then leave the category code in the input stream, followed by
+%   the character code, and call \cs{tl_convert_ii_loop:w} with the next index.
+%    \begin{macrocode}
+\cs_new:Npn \tl_convert_ii_special:w \fi: \tl_convert_ii_normal:wwN 0; #1;
+  {
+    \fi:
+    \if_num:w #1 = \l_tl_convert_index_int
+      \exp_after:wN \prg_map_break:
+    \fi:
+    \tex_the:D \tex_toks:D #1 \s_tl_convert
+    \if_case:w \etex_gluestretch:D \tex_skip:D #1 \exp_stop_f:
+           A
+    \or:   1
+    \or:   1
+    \else: 2
+    \fi:
+    \if_int_odd:w \etex_gluestretch:D \tex_skip:D #1 \exp_stop_f:
+      \exp_after:wN \tl_convert_ii_special_char:wN \int_use:N
+    \else:
+      \exp_after:wN \tl_convert_ii_special_space:w \int_use:N
+    \fi:
+    \int_eval:w \c_one + #1 \exp_after:wN ;
+    \token_to_str:N
+  }
+\cs_new:Npn \tl_convert_ii_special_char:wN #1 ; #2
+  {
+    \int_value:w `#2 ,
+    \tl_convert_ii_loop:w #1 ;
+  }
+\cs_new:Npn \tl_convert_ii_special_space:w #1 ; ~
+  {
+    32 ,
+    \tl_convert_ii_loop:w #1 ;
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Showing the results}
+%
+% \begin{macro}{\tl_display:N}
+% \begin{macro}{\tl_display:n}
+%   Add to \cs{tl_convert:n} a third pass to display tokens to the terminal.
+%    \begin{macrocode}
+\cs_new_protected:Npn \tl_display:N #1
+  {
+    \exp_args:No \tl_convert:n {#1}
+    \msg_aux_show:Nnx #1
+      { tl-display }
+      {
+        \exp_after:wN \tl_display_loop:wNw \g_tl_convert_result_tl
+          \s_tl_convert { ? \prg_map_break: } ,
+        \prg_break_point:n { }
+      }
+  }
+\cs_new_protected:Npn \tl_display:n #1
+  {
+    \tl_set:Nn \l_tl_tmpa_tl {#1}
+    \tl_display:N \l_tl_tmpa_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\tl_display_loop:wNw}
+%   Here, |#1| \texttt{o}-expands to the token;
+%   |#2| is the category code (one hexadecimal digit),
+%   $0$ for control sequences;
+%   |#3| is the character code, which we ignore.
+%   In the cases of control sequences and active characters,
+%   the meaning may overflow one line, and we want to truncate
+%   it. Those cases are thus separated out.
+%    \begin{macrocode}
+\cs_new:Npn \tl_display_loop:wNw #1 \s_tl_convert #2 #3,
+  {
+    \use_none:n #2
+    \iow_newline: > \c_space_tl \c_space_tl
+    \if_num:w "#2 = \c_zero
+      \exp_after:wN \tl_display_cs:n
+    \else:
+      \if_num:w "#2 = \c_thirteen
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \tl_display_active:n
+      \else:
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \tl_display_normal:n
+      \fi:
+    \fi:
+    {#1}
+    \tl_display_loop:wNw
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\tl_display_normal:n}
+%   Non-active characters are a simple matter of printing
+%   the character, and its meaning. One can check that
+%   begin-group and end-group characters do not mess up
+%   \TeX{}'s alignment status.
+%    \begin{macrocode}
+\cs_new:Npn \tl_display_normal:n #1
+  {
+    \exp_after:wN \token_to_str:N #1 ~
+    ( \exp_after:wN \token_to_meaning:N #1 )
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\tl_display_cs:n}
+% \begin{macro}[aux]{\tl_display_active:n}
+% \begin{macro}[aux]{\tl_display_long:nn}
+% \begin{macro}[aux]{\tl_display_long_aux:nnn}
+%   Control sequences and active characters are printed in the same way,
+%   making sure not to go beyond the \cs{l_iow_line_length_int}. In case
+%   of an overflow, we replace the last characters by
+%   \cs{c_tl_display_etc_str}.
+%    \begin{macrocode}
+\cs_new:Npn \tl_display_cs:n #1
+  { \exp_args:No \tl_display_long:nn {#1} { control~sequence= } }
+\cs_new:Npn \tl_display_active:n #1
+  { \exp_args:No \tl_display_long:nn {#1} { active~character= } }
+\cs_new:Npn \tl_display_long:nn #1
+  {
+    \exp_args:Noo \tl_display_long_aux:nnn
+      { \token_to_str:N #1 }
+      { \token_to_meaning:N #1 }
+  }
+\cs_new_nopar:Npn \tl_display_long_aux:nnn #1#2#3
+  {
+    \int_compare:nNnTF
+      { \str_length:n { >>> #1 ~ ( #3 #2 ) } }
+      > { \l_iow_line_length_int }
+      {
+        \str_substr:nnn { >>> #1 ~ ( #3 #2 ) } \c_three
+          { \l_iow_line_length_int - \str_length:N \c_tl_display_etc_str }
+        \c_tl_display_etc_str
+      }
+      {#1~(#3#2)}
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{variable}{\c_tl_display_etc_str}
+%   When a control sequence (or active character)
+%   and its meaning are too long to fit in one line
+%   of the terminal, the end is replaced by this token list.
+%    \begin{macrocode}
+\str_const:Nx \c_tl_display_etc_str % (
+  { \iow_char:N \\ETC. ) }
+%    \end{macrocode}
+% \end{variable}
+%
+%    \begin{macrocode}
+\msg_kernel_new:nnn { tl-display } { show }
+  {
+    Token~list~
+    \str_if_eq:nnF {#1} { \l_tl_tmpa_tl } { \token_to_str:N #1~}
+    \tl_if_empty:NTF #1
+      { is~empty }
+      { contains~the~tokens: }
+  }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex
