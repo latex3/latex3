@@ -271,6 +271,61 @@
 %   See also \cs{dt_get:NnnN}.
 % \end{function}
 % 
+% \section{Mapping to data tables}
+%
+% \begin{function}{\dt_map_variables:Nnn, \dt_map_variable:cnn}
+%   \begin{syntax}
+%     \cs{dt_map_variables:Nnn} \meta{data table} \Arg{key--variable mapping} \Arg{code}
+%   \end{syntax}
+%   Applies the \meta{code} to each \meta{row} of the \meta{data table}. The
+%   \meta{keys} of the \meta{data table} are mapped to variables by the
+%   \meta{key--variable mapping}, which should be a key--value list of the form
+%   \begin{verbatim}
+%     key-a = \l_a_tl ,
+%     key-b = \l_b_tl
+%     ...
+%   \end{verbatim}
+%   It is not necessary to map all of the \meta{keys} in a \meta{data table}
+%   to variables. If there is not \meta{value} for a \meta{key} in a row,
+%   the variable will contain the marker \cs{q_no_value}. Assignment of the
+%   \meta{variables} is local to the current \TeX{} group. The mapping
+%   to rows is ordered.
+% \end{function}
+% 
+% \begin{variable}{\g_dt_map_level_int}
+%   The nesting level of the data table mapping is available as
+%   \cs{g_dt_map_level_int}. Within a mapping, the \texttt{int} variable
+%   \cs{l_dt_map_\meta{level}_row_int} is available so that the row
+%   number being operated on is available. Thus
+%   \begin{verbatim}
+%     \int_use:c { l_dt_map_ \int_use:N \g_dt_map_level_int _row_int }
+%   \end{verbatim}
+%   will give the current row for the current mapping.
+% \end{variable}
+%
+% \begin{function}[rEXP]{\dt_map_break:, \dt_map_break:n}
+%   \begin{syntax}
+%     \cs{dt_map_break:}
+%     \cs{dt_map_break:n} \Arg{tokens}
+%   \end{syntax}
+%   Used to terminate a \cs{dt_map_\ldots} function before all
+%   entries in the \meta{data table} have been processed. This will
+%   normally take place within a conditional statement, for example
+%   \begin{verbatim}
+%     \dt_map_variables:Nn \l_my_dt { a = \l_my_tl }
+%       {
+%         \str_if_eq:VnTF \l_my_tl { bingo }
+%           { \dt_map_break: }
+%           {
+%             % Do something useful
+%           }
+%       }
+%   \end{verbatim}
+%   The \texttt{:n} variant will insert the \meta{tokens} into the input stream
+%   after the mapping terminates. Use outside of a \cs{dt_map_\ldots} scenario
+%   will lead low level \TeX{} errors.
+% \end{function}
+% 
 % \section{Data table conditionals}
 %
 % \begin{function}[EXP, pTF]{\dt_if_empty:N, \dt_if_empty:c}
@@ -1030,6 +1085,83 @@
 \cs_generate_variant:Nn \dt_get:NnNT  { c }
 \cs_generate_variant:Nn \dt_get:NnNF  { c }
 \cs_generate_variant:Nn \dt_get:NnNTF { c }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% 
+% \subsection{Mapping to data tables}
+% 
+% \begin{variable}{\g_dt_map_level_int}
+%   Unlike other mappings, the mapping level here has to be available
+%   and so linked to the module.
+%    \begin{macrocode}
+\int_new:N \g_dt_map_level_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\dt_map_variables:Nnn, \dt_map_variables:cnn}
+% \begin{macro}[aux]{\dt_map_variables_key:nn}
+% \begin{macro}[aux]{\dt_map_variables_aux:nnn}
+% \begin{macro}[aux]{\dt_map_variables_aux:nNNw}
+% \begin{macro}[aux]{\dt_map_variables_aux:nnw}
+%   Mapping across a data table is more complex than other cases as there
+%   are two \enquote{dimensions} to worry about: the rows and the keys.
+%   The first stage of the mapping is to convert the key--variable mapping
+%   into a sequence that can be used later. This is done with the assumption
+%   that any key without a variable can simply be dropped entirely. The
+%   header of the table is then split from the body.
+%    \begin{macrocode}
+\cs_new_protected:Npn \dt_map_variables:Nnn #1#2#3
+  {
+    \int_gincr:N \g_dt_map_level_int
+    \seq_gclear_new:c { g_dt_map_ \int_use:N \g_dt_map_level_int _seq } 
+    \keyval_parse:NNn \use_none:n \dt_map_variables_key:nn {#2}
+    \dt_split_header:NT #1 { \dt_map_variables_aux:nnn {#3} }
+  }
+\cs_generate_variant:Nn \dt_map_variables:Nnn { c }
+\cs_new_protected:Npn \dt_map_variables_key:nn #1#2
+  {
+    \seq_gput_right:cn { g_dt_map_ \int_use:N \g_dt_map_level_int _seq }
+      { {#1} #2 }
+  }
+%    \end{macrocode}
+%   As \cs{dt_split_header:NT} will leave a couple of tokens at the front
+%   of the body part of the split, there is a quick piece of tidying up
+%   to remove them.
+%    \begin{macrocode}
+\cs_new_protected:Npn \dt_map_variables_aux:nnn #1#2#3
+  { \dt_map_variables_aux:nNNw {#1} #3 \q_stop }
+\cs_new_protected:Npn \dt_map_variables_aux:nNNw
+  #1 \q_dt_header \q_dt_row #2 \q_stop
+  {
+    \int_zero_new:c { l_dt_map_ \int_use:N \g_dt_map_level_int _row_int }
+    \dt_map_variables_aux:nnw {#1} #2 { } \q_recursion_tail \q_dt_row
+      \prg_break_point:n { \int_gdecr:N \g_dt_map_level_int }
+  }
+\cs_new_protected:Npn \dt_map_variables_aux:nnw #1#2#3#4 \q_dt_row
+  {
+    \if_meaning:w \q_recursion_tail #3
+      \exp_after:wN \dt_map_break:
+    \fi:
+    \int_incr:c { l_dt_map_ \int_use:N \g_dt_map_level_int _row_int }
+    \seq_map_inline:cn { g_dt_map_ \int_use:N \g_dt_map_level_int _seq }
+      { \dt_get_aux:nNnnn ##1 { } {#3#4} { } }
+    #1
+    \dt_map_variables_aux:nnw {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% 
+% \begin{macro}[rEXP]{\dt_map_break:}
+% \begin{macro}[rEXP]{\dt_map_break:n}
+%   The break statements are simply copies.
+%    \begin{macrocode}
+\cs_new_eq:NN \dt_map_break:  \prg_map_break:
+\cs_new_eq:NN \dt_map_break:n \prg_map_break:n
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
