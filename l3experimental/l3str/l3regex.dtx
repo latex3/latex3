@@ -495,7 +495,7 @@
 %    \begin{macrocode}
 \ProvidesExplPackage
   {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
-\RequirePackage{l3str}
+\RequirePackage{l3str, l3tl-convert}
 %    \end{macrocode}
 %
 % Most regex engines use backtracking. This allows to provide very
@@ -712,11 +712,16 @@
 %
 % \subsubsection{Variables used when matching}
 %
+% \begin{variable}{\l_regex_query_tl}
 % \begin{variable}{\l_regex_query_length_int}
-%   The length of the string that is being matched.
+%   The string that is being tested is converted to
+%   a token list with some nice properties, and its
+%   length is measured.
 %    \begin{macrocode}
+\tl_new:N \l_regex_query_tl
 \int_new:N \l_regex_query_length_int
 %    \end{macrocode}
+% \end{variable}
 % \end{variable}
 %
 % \begin{variable}{\l_regex_current_step_int}
@@ -751,6 +756,7 @@
 % \end{variable}
 %
 % \begin{variable}{\l_regex_current_char_int}
+% \begin{variable}{\l_regex_current_catcode_int}
 % \begin{variable}{\l_regex_last_char_int}
 % \begin{variable}{\l_regex_case_changed_char_int}
 %   The character codes of the character at the current position
@@ -762,9 +768,11 @@
 %   is used in the regex.
 %    \begin{macrocode}
 \int_new:N \l_regex_current_char_int
+\int_new:N \l_regex_current_catcode_int
 \int_new:N \l_regex_last_char_int
 \int_new:N \l_regex_case_changed_char_int
 %    \end{macrocode}
+% \end{variable}
 % \end{variable}
 % \end{variable}
 % \end{variable}
@@ -929,7 +937,7 @@
 %
 % \subsection{Helpers}
 %
-% \subsubsection{Scan markers}
+% \subsubsection{Scan marker}
 %
 % \begin{macro}[int]{\s_regex_stop}
 %   Unexpandable markers, which does nothing if it reaches \TeX{}'s stomach.
@@ -973,30 +981,51 @@
 % \subsubsection{Unsafe substring extraction}
 %
 % \begin{macro}[int]{\regex_query_set_substr:NNN}
-% \begin{macro}[aux]{\regex_query_set_substr_aux:}
-%   Extracting submatches from the query string.
-%   This is based on \cs{str_convert_to_native:}.
+% \begin{macro}[aux]{\regex_query_set_substr_drop:www}
+% \begin{macro}[aux]{\regex_query_set_substr_switch:ww}
+% \begin{macro}[aux]{\regex_query_set_substr_keep:www}
+%^^A todo: benchmark
+%^^A todo: fix \cs{str_convert_to_native:} doc.
+%^^A todo: linearize by using \toks after the end of the matching.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_query_set_substr:NNN #1#2#3
   {
-    \group_begin:
-      \int_set_eq:NN \l_regex_tmpa_int #2
-      \int_set_eq:NN \l_regex_tmpb_int #3
-      \str_aux_convert_to_native:n { \regex_query_set_substr_aux: }
-    \group_end:
-    \tl_set_eq:NN #1 \g_str_result_tl
+    \int_set:Nn \l_regex_tmpb_int { #3 - #2 }
+    \tl_set:Nx #1
+      {
+        \exp_after:wN \regex_query_set_substr_drop:www
+        \int_use:N \int_eval:w #2 \exp_after:wN ;
+        \l_regex_query_tl \q_mark ,
+        \prg_break_point:n { }
+      }
   }
-\cs_new_protected:Npn \regex_query_set_substr_aux:
+\cs_new:Npn \regex_query_set_substr_drop:www #1; #2 \q_mark #3,
   {
-    \if_num:w \l_regex_tmpa_int = \l_regex_tmpb_int
+    \if_num:w #1 = \c_zero
+      \regex_query_set_substr_switch:ww
+    \fi:
+    \use_none:n {#2}
+    \exp_after:wN \regex_query_set_substr_drop:www
+    \int_use:N \int_eval:w #1 - \c_one ;
+  }
+\cs_new:Npn \regex_query_set_substr_switch:ww \fi: \use_none:n #1 #2;
+  {
+    \fi:
+    \exp_after:wN \regex_query_set_substr_keep:www
+    \int_use:N \l_regex_tmpb_int ; #1 \q_mark ,
+  }
+\cs_new:Npn \regex_query_set_substr_keep:www #1 ; #2 \q_mark #3 ,
+  {
+    \if_num:w #1 = \c_zero
       \exp_after:wN \prg_map_break:
     \fi:
-    \str_aux_convert_to_native_step:n
-      { \etex_mutoglue:D \tex_muskip:D \l_regex_tmpa_int }
-    \tex_advance:D \l_regex_tmpa_int \c_one
-    \regex_query_set_substr_aux:
+    #2
+    \exp_after:wN \regex_query_set_substr_keep:www
+    \int_use:N \int_eval:w #1 - \c_one ;
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -1048,6 +1077,32 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}[int]{\regex_seq_item:Nn}
+% \begin{macro}[int]{\regex_seq_item_aux:wNn}
+%    \begin{macrocode}
+\cs_new:Npn \regex_seq_item:Nn #1#2
+  {
+    \exp_after:wN \regex_seq_item_aux:wNn
+    \int_use:N \int_eval:w #2 \exp_after:wN ;
+    #1 { ? \prg_map_break: } { }
+    \prg_break_point:n { }
+  }
+\cs_new:Npn \regex_seq_item_aux:wNn #1; #2#3
+  {
+    \use_none:n #2
+    \if_num:w #1 = \c_zero
+      \exp_after:wN \prg_map_break:n
+    \else:
+      \exp_after:wN \use_none:n
+    \fi:
+    { \exp_not:n {#3} }
+    \exp_after:wN \regex_seq_item_aux:wNn
+    \int_use:N \int_eval:w #1 - \c_one ;
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \subsubsection{Testing characters}
 %
 % \begin{macro}{\regex_item_dot:T}
@@ -1055,7 +1110,7 @@
 %   except the end-of-string marker.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_item_dot:T
-  { \int_compare:nNnF \l_regex_current_char_int = \c_minus_one }
+  { \int_compare:nNnF \l_regex_current_char_int < \c_minus_one }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1191,6 +1246,27 @@
     \cs_set:Npn \regex_item_geq:n    { \regex_item_caseful_geq:n }
   }
 %    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\regex_item_catcode:n}
+% \begin{macro}[int]{\regex_item_catcode_neq:n}
+%   Checking the category code is quite straightforward.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_item_catcode:n #1
+  {
+    \if_num:w #1 = \l_regex_current_catcode_int
+      \exp_after:wN \regex_break_true:w
+    \fi:
+  }
+\cs_new_protected_nopar:Npn \regex_item_catcode_neq:n #1
+  {
+    \if_num:w #1 = \l_regex_current_catcode_int
+    \else:
+      \exp_after:wN \regex_break_true:w
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \subsubsection{Grabbing digits}
@@ -1532,7 +1608,7 @@
 % \begin{macro}[aux]{\regex_build_Z:}
 % \begin{macro}[aux]{\regex_build_z:}
 % \begin{macro}[aux]+\regex_build_$:+
-%   This matches the end of the string, marked by a character code of $-1$.
+%   This matches the end of the string, marked by a character code of $-2$.
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { regex_build_$: } % $
   {
@@ -1540,7 +1616,7 @@
     \regex_toks_put_right:Nx \l_regex_left_state_int
       {
         \exp_not:N \int_compare:nNnT
-          \c_minus_one = \l_regex_current_char_int
+          \l_regex_current_char_int < \c_minus_one
           {
             \regex_action_free:n
               {
@@ -1603,7 +1679,7 @@
       \int_set_eq:NN \l_regex_current_char_int \l_regex_last_char_int
       \c_regex_w_tl
       \regex_break_point:TF
-        { \group_end: \c_regex_W_tl \regex_item_equal:n { -1 } }
+        { \group_end: \c_regex_W_tl \regex_item_equal:n { -2 } }
         { \group_end: \c_regex_w_tl }
     \regex_break_point:TF
   }
@@ -1648,11 +1724,11 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux]{\regex_build_d:,\regex_build_D}
-% \begin{macro}[aux]{\regex_build_h:,\regex_build_H}
-% \begin{macro}[aux]{\regex_build_s:,\regex_build_S}
-% \begin{macro}[aux]{\regex_build_v:,\regex_build_V}
-% \begin{macro}[aux]{\regex_build_w:,\regex_build_W}
+% \begin{macro}[aux]{\regex_build_d:,\regex_build_D:}
+% \begin{macro}[aux]{\regex_build_h:,\regex_build_H:}
+% \begin{macro}[aux]{\regex_build_s:,\regex_build_S:}
+% \begin{macro}[aux]{\regex_build_v:,\regex_build_V:}
+% \begin{macro}[aux]{\regex_build_w:,\regex_build_W:}
 % \begin{macro}[aux]{\regex_build_N:}
 % \begin{macro}[aux]{\regex_build_char_type:N}
 %   The constants \cs{c_regex_d_tl}, \emph{etc.} hold
@@ -1683,6 +1759,51 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\regex_build_c:,\regex_build_C:}
+% \begin{macro}[aux]{\regex_build_c_aux:nnNN}
+%   ^^A todo: document that catcode cannot be 5, 9, E, F.
+%   ^^A todo: document \regex_check_hexadecimal_catcode:NNTF used elsewhere.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_build_c:
+  { \regex_build_c_aux:nnNN { } { { } } }
+\cs_new_protected_nopar:Npn \regex_build_C:
+  { \regex_build_c_aux:nnNN { { } } { } }
+\prg_new_protected_conditional:Npnn
+    \regex_check_hexadecimal_catcode:NN #1#2 { TF }
+  {
+    \int_set:Nn \l_regex_current_catcode_int
+      {
+        " \str_aux_hexadecimal_use:NTF #2 { }
+            { 0 - \c_one }
+      }
+    \token_if_eq_meaning:NNF #1 \regex_build_raw:N
+      { \int_set_eq:NN \l_regex_current_catcode_int \c_minus_one }
+    \if_num:w \l_regex_current_catcode_int = \c_minus_one
+      \msg_expandable_error:n { Ignoring~\c escape~sequence! }
+      \prg_return_false:
+    \else:
+      \prg_return_true:
+    \fi:
+  }
+\cs_new_protected_nopar:Npn \regex_build_c_aux:nnNN #1#2#3#4
+  {
+    \regex_check_hexadecimal_catcode:NNTF #3#4
+      {
+        \cs_set:Npx \regex_build_tmp_class:n ##1
+          {
+            \exp_not:N \regex_item_catcode:n
+              { \int_use:N \l_regex_current_catcode_int }
+            \exp_not:N \regex_break_point:TF
+              #1 { \exp_not:N \regex_action_cost:n {##1} } #2
+          }
+        \regex_build_one_quantifier:
+      }
+      { #3 #4 }
+  }
+%    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
@@ -1850,6 +1971,25 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\regex_class_c:, \regex_class_C:}
+%
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_class_c:
+  { \regex_class_c_aux:NNN \regex_item_catcode:n }
+\cs_new_protected_nopar:Npn \regex_class_C:
+  { \regex_class_c_aux:NNN \regex_item_catcode_neq:n }
+\cs_new_protected_nopar:Npn \regex_class_c_aux:nnNN #1#2#3
+  {
+    \regex_check_hexadecimal_catcode:NNTF #2#3
+      {
+        \tl_put_right:Nx \l_regex_class_tl
+          { \exp_not:N #1 { \int_use:N \l_regex_current_catcode_int } }
+      }
+      { #2 #3 }
+  }
+%    \end{macrocode}
 % \end{macro}
 %
 % \subsubsection{Quantifiers}
@@ -2710,6 +2850,7 @@
 %
 % The current approach means that stretch and shrink components
 % of \tn{skip} registers,
+%^^A todo: update
 % as well as all \tn{muskip} registers are unused. It could seem that
 % \tn{count} registers are also free for use, but we still want to be
 % able to safely use integers, which are implemented as \tn{count}
@@ -2847,7 +2988,7 @@
 %
 % \subsubsection{Matching: framework}
 %
-% \begin{macro}[int]{\regex_match:n}
+% \begin{macro}[int]{\regex_match:x}
 %^^A todo: update doc.
 %   Then reset a few variables which should be set only once,
 %   before the first match, even in the case of multiple matches.
@@ -2856,22 +2997,32 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_match:n #1
   {
-    \str_aux_gset_other:Nn \g_str_result_tl {#1}
-    \int_zero:N \l_regex_current_step_int
-    \exp_after:wN \regex_match_store_string:N
-      \g_str_result_tl { ? sp \scan_stop: \prg_map_break: }
-    \prg_break_point:n { }
-    \int_set_eq:NN \l_regex_query_length_int \l_regex_current_step_int
+    \tl_convert:n {#1}
+    \tl_set_eq:NN \l_regex_query_tl \g_tl_convert_result_tl
+    \int_set:Nn \l_regex_query_length_int
+      {
+        \c_zero
+        \exp_after:wN \regex_match_length:ww
+          \l_regex_query_tl
+          \q_mark ? \q_stop \prg_map_break: ,
+        \prg_break_point:n { }
+      }
     \regex_match_initial_setup:
     \regex_match_once:
   }
- \cs_new_protected_nopar:Npn \regex_match_store_string:N #1
-   {
-     \tex_muskip:D \l_regex_current_step_int
-       = \etex_gluetomu:D `#1 sp \scan_stop:
-     \int_incr:N \l_regex_current_step_int
-     \regex_match_store_string:N
-   }
+\cs_generate_variant:Nn \regex_match:n { x } % todo: fix
+\cs_new:Npn \regex_match_length:ww #1 \q_mark #2 ,
+  {
+    \use_none_delimit_by_q_stop:w #2 \q_stop
+    + \c_one
+    \regex_match_length:ww
+  }
+\cs_new_nopar:Npn \regex_match_string_charcodes:N #1
+  {
+    \use_none:n #1
+    \token_to_str:N #1 \exp_not:N \q_mark 0 \int_value:w `#1 ,
+    \regex_match_string_charcodes:N
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2883,17 +3034,25 @@
 \cs_new_protected_nopar:Npn \regex_match_once:
   {
     \regex_match_setup:
-    \int_compare:nNnTF \l_regex_start_step_int = \c_zero
-      { \int_set_eq:NN \l_regex_current_char_int \c_minus_one }
-      {
-        \int_set:Nn \l_regex_current_char_int
-          {
-            \etex_mutoglue:D \tex_muskip:D
-              \int_eval:w \l_regex_start_step_int - \c_one \int_eval_end:
-          }
-      }
-    \regex_match_loop:
+    \int_set_eq:NN \l_regex_tmpa_int \l_regex_start_step_int
+    \exp_after:wN \regex_match_once_aux:
+      \l_regex_query_tl
+      \q_mark { 0 - 1 } -2 ,
+    \prg_break_point:n { }
     \bool_if:NT \l_regex_success_bool { \l_regex_every_match_tl }
+  }
+\cs_new_protected_nopar:Npn \regex_match_once_aux:
+  { \regex_match_once_aux:ww \q_mark 0 -1 , }
+\cs_new_protected_nopar:Npn \regex_match_once_aux:ww #1 \q_mark #2 #3 ,
+  {
+    \if_num:w \l_regex_tmpa_int = \c_zero
+      \int_set:Nn \l_regex_current_catcode_int {"#2}
+      \int_set:Nn \l_regex_current_char_int {#3}
+      \exp_after:wN \regex_match_loop:ww
+    \else:
+      \int_decr:N \l_regex_tmpa_int
+      \exp_after:wN \regex_match_once_aux:ww
+    \fi:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2904,7 +3063,7 @@
 %   string. It is called only once for the whole string.
 %   On the other hand, \cs{regex_match_setup:}
 %   is called for every match in the string in case of
-%   repeated matches, and \cs{regex_match_loop_setup:}
+%   repeated matches, and \cs{regex_match_loop_setup:Nn}
 %   is called at every step.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_match_initial_setup:
@@ -2940,7 +3099,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux]{\regex_match_loop:}
+% \begin{macro}[aux]{\regex_match_loop:ww}
 % \begin{macro}[aux]{\regex_match_one_index:n}
 % \begin{macro}[aux]{\regex_match_one_index_aux:n}
 %   Setup what needs to be reset at every character,
@@ -2951,23 +3110,25 @@
 %   There are a couple of tests to stop reading the string
 %   when no active state is left, or when the end is reached.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_match_loop:
+\cs_new_protected_nopar:Npn \regex_match_loop:ww #1 \q_mark #2#3 ,
   {
-    \regex_match_loop_setup:
+    \regex_match_loop_setup:nn {#2} {#3}
     \cs_set_nopar:Npx \regex_tmp:w
       {
         \int_zero:N \l_regex_max_index_int
         \prg_stepwise_function:nnnN
           {1} {1} { \l_regex_max_index_int }
           \regex_match_one_index:n
+        \exp_not:N \prg_break_point:n { }
       }
-    \regex_tmp:w \prg_break_point:n { }
-    \if_num:w \l_regex_current_char_int > \c_minus_one
-      \if_num:w \l_regex_max_index_int > \c_zero
-        \exp_after:wN \exp_after:wN
-        \exp_after:wN \regex_match_loop:
-      \fi:
+    \regex_tmp:w
+    \if_num:w \l_regex_current_char_int < \c_minus_one
+      \exp_after:wN \prg_map_break:
     \fi:
+    \if_num:w \l_regex_max_index_int = \c_zero
+      \exp_after:wN \prg_map_break:
+    \fi:
+    \regex_match_loop:ww
   }
 \cs_new_nopar:Npn \regex_match_one_index:n #1
   {
@@ -2985,24 +3146,20 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[aux]{\regex_match_loop_setup:}
+% \begin{macro}[aux]{\regex_match_loop_setup:nn}
 %   This is called for every character in the string.
 %   At every step in reading the query string, we store the character
 %   code of the current character in \cs{l_regex_current_char_int},
 %   unless the end was reached: then we store $-1$.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_match_loop_setup:
+\cs_new_protected_nopar:Npn \regex_match_loop_setup:nn #1#2
   {
     \int_incr:N \l_regex_current_step_int
     \int_incr:N \l_regex_unique_step_int
     \bool_set_false:N \l_regex_fresh_thread_bool
     \int_set_eq:NN \l_regex_last_char_int \l_regex_current_char_int
-    \if_num:w \l_regex_current_step_int = \l_regex_query_length_int
-      \int_set_eq:NN \l_regex_current_char_int \c_minus_one
-    \else:
-      \int_set:Nn \l_regex_current_char_int
-        { \etex_mutoglue:D \tex_muskip:D \l_regex_current_step_int }
-    \fi:
+    \int_set:Nn \l_regex_current_catcode_int {"#1}
+    \int_set:Nn \l_regex_current_char_int {#2}
     \regex_match_loop_case_hook:
   }
 %    \end{macrocode}
@@ -3352,24 +3509,24 @@
 %
 % \subsubsection{Matching}
 %
-% \begin{macro}[TF]{\regex_match:nn}
-% \begin{macro}[TF]{\regex_match:Nn}
+% \begin{macro}[TF]{\regex_match:nn, \regex_match:nx}
+% \begin{macro}[TF]{\regex_match:Nn, \regex_match:Nx}
 %   We don't track submatches. Then either build the NFA corresponding
 %   to the regular expression, or use a precompiled pattern. Then match,
-%   using the internal \cs{regex_match:n}. Finally return the result
+%   using the internal \cs{regex_match:x}. Finally return the result
 %   after closing the group.
 %    \begin{macrocode}
-\prg_new_protected_conditional:Npnn \regex_match:nn #1#2 { T , F , TF }
+\prg_new_protected_conditional:Npnn \regex_match:nx #1#2 { T , F , TF }
   {
     \regex_user_aux:n
       {
         \regex_disable_submatches:
         \regex_build:n {#1}
-        \regex_match:n {#2}
+        \regex_match:x {#2}
         \regex_return_after_group:
       }
   }
-\prg_new_protected_conditional:Npnn \regex_match:Nn #1#2 { T , F , TF }
+\prg_new_protected_conditional:Npnn \regex_match:Nx #1#2 { T , F , TF }
   {
     \regex_check_nfa:NTF #1
       {
@@ -3377,23 +3534,35 @@
           {
             \regex_disable_submatches:
             \regex_use:N #1
-            \regex_match:n {#2}
+            \regex_match:x {#2}
             \regex_return_after_group:
           }
       }
       { \prg_return_false: }
   }
+\cs_new_protected:Npn \regex_match:nnTF #1#2
+  { \regex_match:nxTF {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_match:nnT #1#2
+  { \regex_match:nxT {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_match:nnF #1#2
+  { \regex_match:nxF {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_match:NnTF #1#2
+  { \regex_match:NxTF {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_match:NnT #1#2
+  { \regex_match:NxT {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_match:NnF #1#2
+  { \regex_match:NxF {#1} { \exp_not:n {#2} } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\regex_count:nnN}
-% \begin{macro}{\regex_count:NnN}
+% \begin{macro}{\regex_count:nnN, \regex_count:nxN}
+% \begin{macro}{\regex_count:NnN, \regex_count:NxN}
 %   Instead of aborting once the first \enquote{best match} is found,
 %   we repeat the search. The code is such that the search will not
 %   start on the same character, hence avoiding infinite loops.
 %    \begin{macrocode}
-\cs_new_protected:Npn \regex_count:nnN #1#2#3
+\cs_new_protected:Npn \regex_count:nxN #1#2#3
   {
     \regex_user_aux:n
       {
@@ -3405,11 +3574,13 @@
             \regex_match_once:
           }
         \regex_build:n {#1}
-        \regex_match:n {#2}
+        \regex_match:x {#2}
         \regex_count_after_group:N #3
       }
   }
-\cs_new_protected:Npn \regex_count:NnN #1#2#3
+\cs_new_protected:Npn \regex_count:nnN #1#2
+  { \regex_count:nxN {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_count:NxN #1#2#3
   {
     \regex_check_nfa:NT #1
       {
@@ -3423,55 +3594,57 @@
                 \regex_match_once:
               }
             \regex_use:N #1
-            \regex_match:n {#2}
+            \regex_match:x {#2}
             \regex_count_after_group:N #3
           }
       }
   }
+\cs_new_protected:Npn \regex_count:NnN #1#2
+  { \regex_count:NxN #1 { \exp_not:n {#2} } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
 % \subsubsection{Submatch extraction}
 %
-% \begin{macro}{\regex_extract_once:nnN}
-% \begin{macro}{\regex_extract_once:NnN}
-% \begin{macro}[TF]{\regex_extract_once:nnN}
-% \begin{macro}[TF]{\regex_extract_once:NnN}
+% \begin{macro}{\regex_extract_once:nnN, \regex_extract_once:nxN}
+% \begin{macro}{\regex_extract_once:NnN, \regex_extract_once:NxN}
+% \begin{macro}[TF]{\regex_extract_once:nnN, \regex_extract_once:nxN}
+% \begin{macro}[TF]{\regex_extract_once:NnN, \regex_extract_once:NxN}
 %    \begin{macrocode}
-\cs_new_protected:Npn \regex_extract_once:nnN #1#2#3
+\cs_new_protected:Npn \regex_extract_once:nxN #1#2#3
   {
     \regex_user_aux:n
       {
         \regex_build:n {#1}
-        \regex_match:n {#2}
+        \regex_match:x {#2}
         \regex_extract_after_group:N #3
       }
   }
-\prg_new_protected_conditional:Npnn \regex_extract_once:nnN #1#2#3
+\prg_new_protected_conditional:Npnn \regex_extract_once:nxN #1#2#3
   { T , F , TF }
   {
     \regex_user_aux:n
       {
         \regex_build:n {#1}
-        \regex_match:n {#2}
+        \regex_match:x {#2}
         \regex_extract_after_group:N #3
         \regex_return_after_group:
       }
   }
-\cs_new_protected:Npn \regex_extract_once:NnN #1#2#3
+\cs_new_protected:Npn \regex_extract_once:NxN #1#2#3
   {
     \regex_check_nfa:NT #1
       {
         \regex_user_aux:n
           {
             \regex_use:N #1
-            \regex_match:n {#2}
+            \regex_match:x { \tl_to_str:n {#2} }
             \regex_extract_after_group:N #3
           }
       }
   }
-\prg_new_protected_conditional:Npnn \regex_extract_once:NnN #1#2#3
+\prg_new_protected_conditional:Npnn \regex_extract_once:NxN #1#2#3
   { T , F , TF }
   {
     \regex_check_nfa:NTF #1
@@ -3479,21 +3652,37 @@
         \regex_user_aux:n
           {
             \regex_use:N #1
-            \regex_match:n {#2}
+            \regex_match:x {#2}
             \regex_extract_after_group:N #3
             \regex_return_after_group:
           }
       }
       { \prg_return_false: }
   }
+\cs_new_protected:Npn \regex_extract_once:nnN #1#2
+  { \regex_extract_once:nxN {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_extract_once:nnNT #1#2
+  { \regex_extract_once:nxNT {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_extract_once:nnNF #1#2
+  { \regex_extract_once:nxNF {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_extract_once:nnNTF #1#2
+  { \regex_extract_once:nxNTF {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_extract_once:NnN #1#2
+  { \regex_extract_once:NxN {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_extract_once:NnNT #1#2
+  { \regex_extract_once:NxNT {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_extract_once:NnNF #1#2
+  { \regex_extract_once:NxNF {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_extract_once:NnNTF #1#2
+  { \regex_extract_once:NxNTF {#1} { \exp_not:n {#2} } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\regex_extract_all:nnN}
-% \begin{macro}{\regex_extract_all:NnN}
+% \begin{macro}{\regex_extract_all:nnN, \regex_extract_all:nxN}
+% \begin{macro}{\regex_extract_all:NnN, \regex_extract_all:NxN}
 % \begin{macro}[aux]{\regex_extract_all_aux:}
 % \begin{macro}[aux]{\regex_extract_all_after_group:N}
 %   Similarly to \cs{regex_count:nnN} functions,
@@ -3504,18 +3693,18 @@
 %   (to avoid adding spurious empty items to the resulting
 %   sequence).
 %    \begin{macrocode}
-\cs_new_protected:Npn \regex_extract_all:nnN #1#2#3
+\cs_new_protected:Npn \regex_extract_all:nxN #1#2#3
   {
     \regex_user_aux:n
       {
         \seq_gclear:N \g_regex_extract_all_seq
         \tl_set:Nn \l_regex_every_match_tl { \regex_extract_all_aux: }
         \regex_build:n {#1}
-        \regex_match:n {#2}
+        \regex_match:x {#2}
         \regex_extract_all_after_group:N #3
       }
   }
-\cs_new_protected:Npn \regex_extract_all:NnN #1#2#3
+\cs_new_protected:Npn \regex_extract_all:NxN #1#2#3
   {
     \regex_check_nfa:NT #1
       {
@@ -3524,7 +3713,7 @@
             \seq_gclear:N \g_regex_extract_all_seq
             \tl_set:Nn \l_regex_every_match_tl { \regex_extract_all_aux: }
             \regex_use:N #1
-            \regex_match:n {#2}
+            \regex_match:x {#2}
             \regex_extract_all_after_group:N #3
           }
       }
@@ -3546,6 +3735,10 @@
         \group_insert_after:N \g_regex_extract_all_seq
       }
   }
+\cs_new_protected:Npn \regex_extract_all:nnN #1#2
+  { \regex_extract_all:nxN {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_extract_all:NnN #1#2
+  { \regex_extract_all:NxN #1 { \exp_not:n {#2} } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -3554,8 +3747,8 @@
 %
 % \subsubsection{Splitting a string by matches of a regex}
 %
-% \begin{macro}{\regex_split:nnN}
-% \begin{macro}{\regex_split:NnN}
+% \begin{macro}{\regex_split:nnN, \regex_split:nxN}
+% \begin{macro}{\regex_split:NnN, \regex_split:NxN}
 % \begin{macro}[aux]{\regex_split_aux:}
 % \begin{macro}[aux]{\regex_split_after_group:N}
 %   Similarly to \cs{regex_count:nnN} functions,
@@ -3566,18 +3759,20 @@
 %   (to avoid adding spurious empty items to the resulting
 %   sequence).
 %    \begin{macrocode}
-\cs_new_protected:Npn \regex_split:nnN #1#2#3
+\cs_new_protected:Npn \regex_split:nxN #1#2#3
   {
     \regex_user_aux:n
       {
         \seq_gclear:N \g_regex_split_seq
         \tl_set:Nn \l_regex_every_match_tl { \regex_split_aux: }
         \regex_build:n {#1}
-        \regex_match:n {#2}
+        \regex_match:x {#2}
         \regex_split_after_group:N #3
       }
   }
-\cs_new_protected:Npn \regex_split:NnN #1#2#3
+\cs_new_protected:Npn \regex_split:nnN #1#2
+  { \regex_split:nxN {#1} { \exp_not:n {#2} } }
+\cs_new_protected:Npn \regex_split:NxN #1#2#3
   {
     \regex_check_nfa:NT #1
       {
@@ -3586,11 +3781,13 @@
             \seq_gclear:N \g_regex_split_seq
             \tl_set:Nn \l_regex_every_match_tl { \regex_split_aux: }
             \regex_use:N #1
-            \regex_match:n {#2}
+            \regex_match:x { \tl_to_str:n {#2} }
             \regex_split_after_group:N #3
           }
       }
   }
+\cs_new_protected:Npn \regex_split:NnN #1#2
+  { \regex_split:NxN #1 { \exp_not:n {#2} } }
 \cs_new_protected_nopar:Npn \regex_split_aux:
   {
     \int_compare:nNnF \l_regex_start_step_int = \l_regex_success_step_int
@@ -3654,7 +3851,7 @@
     \regex_token_if_other_digit:NTF #1
       {
         \exp_not:n
-          { \exp_not:n { \seq_item:Nn \g_regex_submatches_seq } } {#1}
+          { \exp_not:n { \regex_seq_item:Nn \g_regex_submatches_seq } } {#1}
       }
       {
         \token_if_eq_charcode:NNTF g #1
@@ -3668,7 +3865,7 @@
       { \regex_replacement_submatch_aux:nN { } }
       {
         \regex_token_if_other_digit:NTF #1
-          { \exp_not:n { \seq_item:Nn \g_regex_submatches_seq } }
+          { \exp_not:n { \regex_seq_item:Nn \g_regex_submatches_seq } }
           { \msg_expandable_kernel_error:nn { regex } { g-misused } }
         #1
       }
@@ -3678,7 +3875,7 @@
     \regex_token_if_other_digit:NTF #2
       { \regex_replacement_submatch_aux:nN {#1#2} }
       {
-        \exp_not:n { \seq_item:Nn \g_regex_submatches_seq } {#1}
+        \exp_not:n { \regex_seq_item:Nn \g_regex_submatches_seq } {#1}
         \exp_after:wN \token_if_eq_meaning:NNF \c_rbrace_str #2
           {
             \msg_expandable_kernel_error:nn { regex } { g-misused }
@@ -3721,12 +3918,10 @@
       \regex_replace_after_group:N #1
       \tl_clear:N \l_regex_every_match_tl
       #2
-      \exp_args:No \regex_match:n {#1}
+      \regex_match:x { \tl_to_str:N #1 }
       \regex_extract:
       \regex_extract_aux:nTF {0}
         {
-          \cs_set_nopar:Npn \regex_tmp:w
-            { \str_skip_do:nn { \l_regex_tmpb_tl } { } }
           \regex_query_set_substr:NNN \l_regex_tmpa_tl
             \c_zero \l_regex_tmpa_tl
           \regex_query_set_substr:NNN \l_regex_tmpb_tl
@@ -3742,7 +3937,7 @@
         { %^^A todo: optimize
           \regex_query_set_substr:NNN \l_regex_tmpa_tl
             \c_zero \l_regex_query_length_int
-          \tl_gset_eq:NN \g_regex_replaced_str \l_regex_tmpa_tl
+          \tl_gset:Nx \g_regex_replaced_str { \l_regex_tmpa_tl }
         }
     \group_end:
   }
@@ -3799,7 +3994,7 @@
       \tl_set:Nn \l_regex_every_match_tl { \regex_replace_all_aux: }
       \tl_gclear:N \g_regex_replaced_str
       #2
-      \exp_args:No \regex_match:n {#1}
+      \regex_match:x { \tl_to_str:N #1 }
       \regex_query_set_substr:NNN \l_regex_tmpa_tl %^^A todo: optimize
         \l_regex_start_step_int \l_regex_query_length_int
       \tl_gput_right:Nx \g_regex_replaced_str { \l_regex_tmpa_tl }
