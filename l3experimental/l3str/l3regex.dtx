@@ -612,6 +612,16 @@
 % \end{variable}
 % \end{variable}
 %
+% \begin{variable}{\l_regex_build_or_class_tl}
+%   The actions of various escape sequences and special characters
+%   are different within a class and outside a class. Rather than
+%   using a boolean, we store either \texttt{build} or \texttt{class}
+%   in this token list.
+%    \begin{macrocode}
+\tl_new:N \l_regex_build_or_class_tl
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_regex_one_or_group_tl}
 %   When looking for quantifiers, this variable holds either
 %   \enquote{one} or \enquote{group} depending on whether the
@@ -619,6 +629,22 @@
 %   (\emph{i.e.}, is a character or character class), or is a group.
 %    \begin{macrocode}
 \tl_new:N   \l_regex_one_or_group_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_regex_in_csname_bool}
+%   This boolean is true when building the regular expression
+%   for a given csname.
+%    \begin{macrocode}
+\bool_new:N \l_regex_in_csname_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_regex_tmpa_regex_tl}
+%   This holds a temporary pre-compiled regular expression
+%   when matching a control sequence name.
+%    \begin{macrocode}
+\tl_new:N \l_regex_tmpa_regex_tl
 %    \end{macrocode}
 % \end{variable}
 %
@@ -860,16 +886,22 @@
 % \end{macro}
 %
 % \begin{variable}{\g_regex_success_bool}
+% \begin{variable}{\l_regex_saved_success_bool}
 % \begin{variable}{\l_regex_success_match_bool}
 %   The boolean \cs{g_regex_success_bool} is true if there was
 %   at least one match, and \cs{l_regex_success_match_bool} is
 %   true if the current match attempt was successful.
 %   The variable \cs{g_regex_success_bool} is the only global
-%   variable in this whole module.
+%   variable in this whole module. When nesting \cs{regex}
+%   functions internally, the value of \cs{g_regex_success_bool}
+%   is saved into \cs{l_regex_saved_success_bool}, which is local,
+%   hence not affected by the changes due to inner regex functions.
 %    \begin{macrocode}
 \bool_new:N \g_regex_success_bool
+\bool_new:N \l_regex_saved_success_bool
 \bool_new:N \l_regex_success_match_bool
 %    \end{macrocode}
+% \end{variable}
 % \end{variable}
 % \end{variable}
 %
@@ -909,14 +941,6 @@
 \bool_new:N \l_regex_fresh_thread_bool
 %    \end{macrocode}
 % \end{variable}
-% \end{variable}
-%
-% \begin{variable}{\l_regex_tmpa_regex_tl}
-%   This holds a temporary pre-compiled regular expression
-%   when matching a control sequence name.
-%    \begin{macrocode}
-\tl_new:N \l_regex_tmpa_regex_tl
-%    \end{macrocode}
 % \end{variable}
 %
 % \subsubsection{Variables used for user functions}
@@ -1284,6 +1308,30 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}[int]{\regex_item_cs:n}
+%   Match a control sequence (the argument is a pre-compiled regex).
+%   First test the catcode of the current token to be zero.
+%   Then perform the matching test, and break if the csname
+%   indeed matches. The three \cs{exp_after:wN} expand the contents
+%   of \cs{l_regex_current_token_tl} (of the form \cs{exp_not:n}
+%   \Arg{control sequence}) to \meta{control sequence}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_item_cs:n #1
+  {
+    \int_compare:nNnT \l_regex_current_catcode_int = \c_zero
+      {
+        \tl_set:Nn \l_regex_tmpa_regex_tl {#1}
+        \exp_args:NNx \regex_match:NnT \l_regex_tmpa_regex_tl
+          {
+            \exp_after:wN \exp_after:wN
+            \exp_after:wN \cs_to_str:N \l_regex_current_token_tl
+          }
+          { \regex_break_true:w }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Grabbing digits}
 %
 % \begin{macro}[int]{\regex_get_digits:nw}
@@ -1413,57 +1461,6 @@
 % \end{macro}
 % \end{macro}
 %
-% \subsubsection{Catcode-related escape sequences}
-%
-% The |\c| and |\C| escape sequences are used both in the
-% regex and the replacement texts. They can be followed either
-% by a hexadecimal digit (upper or lower case), or by a left
-% brace (in the case of |\c| only).
-%
-% \begin{macro}{\regex_aux_c_test:NTF}
-%   If the first argument is a known catcode identifier
-%   (capital letters listed below), then
-%   \cs{l_regex_current_catcode_int} is set to the relevant
-%   catcode value (between $0$ for cs and $13$ for active chars),
-%   and the \texttt{true} branch is taken.
-%   Otherwise, the \texttt{false} branch is taken,
-%   and the current catcode is set to $-1$.
-%    \begin{macrocode}
-\cs_new_protected:Npn \regex_aux_c_test:NTF #1
-  {
-    \int_set:Nn \l_regex_current_catcode_int
-      {
-        \if_case:w \int_eval:w `#1 - `A \int_eval_end:
-             \c_thirteen % Active
-        \or: \c_one      % Begin-group
-        \or: \c_zero     % Control sequence
-        \or: \c_eight    % Down (subscript)
-        \or: \c_two      % End-group
-        \else:
-          \if_case:w \int_eval:w `#1 - `L \int_eval_end:
-               \c_eleven    % Letter
-          \or: \c_three     % Math toggle
-          \or: \c_minus_one
-          \or: \c_twelve    % Other
-          \or: \c_six       % Parameter
-          \or: \c_minus_one
-          \or: \c_minus_one
-          \or: \c_ten       % Space
-          \or: \c_four      % Tab (alignment)
-          \or: \c_seven     % Up (superscript)
-          \else: \c_minus_one
-          \fi:
-        \fi:
-      }
-    \if_num:w \l_regex_current_catcode_int = \c_minus_one
-      \exp_after:wN \use_ii:nn
-    \else:
-      \exp_after:wN \use_i:nn
-    \fi:
-  }
-%    \end{macrocode}
-% \end{macro}
-%
 % \subsection{Building}
 %
 % \subsubsection{Helpers for building an NFA}
@@ -1538,6 +1535,7 @@
       \regex_build_i_escaped:N
       \regex_build_i_raw:N
       { #1 }
+    \bool_set_false:N \l_regex_in_csname_bool
     \regex_build:w
       \g_str_result_tl \prg_do_nothing: \prg_do_nothing:
     \regex_build_end:
@@ -1577,18 +1575,25 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[aux]{\regex_build_default_control:N}
-%   If the control character has a particular meaning in regular expressions,
-%   the corresponding function is used. Otherwise, it is interpreted as a raw
-%   character. The \cs{regex_build_default_raw:N} function is defined later.
+% \begin{macro}[aux]{\regex_build_control:N}
+%   If the control character has a particular meaning in regexes,
+%   the corresponding function is used. Otherwise, it is interpreted
+%   as a raw character. The \cs{regex_build/class_default_raw:N}
+%   functions are defined later.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_build_default_control:N #1
+\cs_new_protected_nopar:Npn \regex_build_control:N #1
   {
-    \cs_if_exist_use:cF { regex_build_#1: }
-      { \regex_build_default_raw:N #1 }
+    \cs_if_exist_use:cF { regex_ \l_regex_build_or_class_tl _#1: }
+      { \use:c { regex_ \l_regex_build_or_class_tl _default_raw:N } #1 }
   }
 %    \end{macrocode}
 % \end{macro}
+%
+%^^A todo: update
+%   This function is similar to \cs{regex_build_control:N}. If the control
+%   character has a meaning in character classes, call the corresponding
+%   function, otherwise, treat it as a raw character, with the
+%   \cs{regex_class_default_raw:N} function, defined later.
 %
 % \begin{macro}[int]{\regex_build:w}
 %   Hopefully, we didn't forget to initialize anything here.
@@ -1598,8 +1603,8 @@
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build:w
   {
-    \cs_set_eq:NN \regex_build_control:N \regex_build_default_control:N
     \cs_set_eq:NN \regex_build_raw:N \regex_build_default_raw:N
+    \tl_set:Nn \l_regex_build_or_class_tl { build }
     \int_set_eq:NN \l_regex_capturing_group_int \c_zero
     \int_zero:N \l_regex_max_state_int
     \regex_build_new_state:
@@ -1756,6 +1761,23 @@
 %
 % \subsubsection{Normal character, and simple character classes}
 %
+% \begin{macro}[int]{\regex_build_one:n, \regex_build_one:x}
+%
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_build_one:n #1
+  { \regex_build_one:x { \exp_not:n {#1} } }
+\cs_new_protected:Npn \regex_build_one:x #1
+  {
+    \cs_set_nopar:Npx \regex_build_tmp_class:n ##1
+      {
+        \exp_not:N \exp_not:n {#1}
+        \regex_break_point:TF { \regex_action_cost:n {##1} } { }
+      }
+    \regex_build_one_quantifier:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[aux]{\regex_build_default_raw:N}
 %   A normal alphanumeric or an escaped non-alphanumeric
 %   (actually, any unknown combination) will match itself
@@ -1766,14 +1788,7 @@
 %   yet what this will be before checking for quantifiers.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_default_raw:N #1
-  {
-    \cs_set:Npx \regex_build_tmp_class:n ##1
-      {
-        \regex_item_equal:n { \int_value:w `#1 ~ }
-        \regex_break_point:TF { \regex_action_cost:n { ##1 } } { }
-      }
-    \regex_build_one_quantifier:
-  }
+  { \regex_build_one:x { \regex_item_equal:n { \int_value:w `#1 ~ } } }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1796,28 +1811,15 @@
 % \begin{macro}[aux]{\regex_build_v:,\regex_build_V:}
 % \begin{macro}[aux]{\regex_build_w:,\regex_build_W:}
 % \begin{macro}[aux]{\regex_build_N:}
-% \begin{macro}[aux]{\regex_build_char_type:N}
 %   The constants \cs{c_regex_d_tl}, \emph{etc.} hold
 %   a list of tests which match the corresponding character
 %   class, and jump to the \cs{regex_break_point:TF} marker.
 %   As for a normal character, we check for quantifiers.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_build_char_type:N #1
-  {
-    \cs_set:Npn \regex_build_tmp_class:n ##1
-      {
-        \exp_not:N #1
-        \regex_break_point:TF { \regex_action_cost:n {##1} } { }
-      }
-    \regex_build_one_quantifier:
-  }
 \tl_map_inline:nn { dDhHsSvVwWN }
   {
     \cs_new_protected_nopar:cpx { regex_build_#1: }
-      {
-        \exp_not:N \regex_build_char_type:N
-        \exp_not:c { c_regex_#1_tl }
-      }
+      { \regex_build_one:n \exp_not:c { c_regex_#1_tl } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1825,79 +1827,20 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[aux]{\regex_build_c:}
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_build_c: #1#2
-  {
-    \token_if_eq_meaning:NNTF #1 \regex_build_raw:N
-      {
-        \regex_aux_c_test:NTF #2
-          {
-            \cs_set:Npx \regex_build_tmp_class:n ##1
-              {
-                \exp_not:N \regex_item_catcode:n
-                  { \int_use:N \l_regex_current_catcode_int }
-                \exp_not:N \regex_break_point:TF
-                  { \exp_not:N \regex_action_cost:n {##1} } { }
-              }
-            \regex_build_one_quantifier:
-          }
-          {
-            \msg_kernel_error:nn { regex } { build-c } { #2 }
-            #1 #2
-          }
-      }
-      {
-        \exp_after:wN \token_if_eq_charcode:NNTF \c_lbrace_str #2
-          {
-            \group_begin:
-            \regex_build:w
-            \cs_set_protected:cpn { regex_build_ \c_rbrace_str : }
-              {
-                \regex_build_end:
-                \use:x { \regex_build_c_rbrace:n { \regex_set_aux:N ? } }
-              }
-          }
-          {
-            \msg_kernel_error:nn { regex } { build-c } { #2 }
-            #1 #2
-          }
-      }
-  }
-\cs_new_protected:Npn \regex_build_c_rbrace:n #1
-  {
-    \group_end:
-    \cs_set:Npn \regex_build_tmp_class:n ##1
-      {
-        \exp_not:n
-          {
-            \if_num:w \l_regex_current_catcode_int = \c_zero
-            \else:
-              \exp_after:wN \regex_break_false:w
-            \fi:
-            \tl_set:Nn \l_regex_tmpa_regex_tl {#1}
-            \exp_args:NNx \regex_match:NnTF
-              \l_regex_tmpa_regex_tl
-              {
-                \exp_after:wN \exp_after:wN
-                \exp_after:wN \cs_to_str:N
-                \l_regex_current_token_tl
-              }
-              { \regex_break_true:w }
-              { }
-          }
-        \exp_not:N \regex_break_point:TF
-          { \exp_not:N \regex_action_cost:n {##1} } { }
-      }
-    \regex_build_one_quantifier:
-  }
-%    \end{macrocode}
 % \end{macro}
 %
 % \subsubsection{Character classes}
+%
+% \begin{macro}[aux]{\regex_class_one:n, \regex_class_one:x}
+%   This is the function used to add material
+%   to the class.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_class_one:n
+  { \tl_put_right:Nn \l_regex_class_tl }
+\cs_new_protected:Npn \regex_class_one:x
+  { \tl_put_right:Nx \l_regex_class_tl }
+%    \end{macrocode}
+% \end{macro}
 %
 % \begin{macro}[aux]{\regex_build_[:}
 %   This starts a class. The code for the class is collected
@@ -1906,23 +1849,9 @@
 \cs_new_protected_nopar:cpn { regex_build_[: }
   {
     \tl_clear:N \l_regex_class_tl
-    \cs_set_eq:NN \regex_build_control:N \regex_class_control:N
-    \cs_set_eq:NN \regex_build_raw:N \regex_class_raw:N
+    \cs_set_eq:NN \regex_build_raw:N \regex_class_default_raw:N
+    \tl_set:Nn \l_regex_build_or_class_tl { class }
     \regex_class_first:NN
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux]{\regex_class_control:N}
-%   This function is similar to \cs{regex_build_control:N}. If the control
-%   character has a meaning in character classes, call the corresponding
-%   function, otherwise, treat it as a raw character, with the
-%   \cs{regex_class_raw:N} function, defined later.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_class_control:N #1
-  {
-    \cs_if_exist_use:cF { regex_class_#1: }
-      { \regex_class_raw:N #1 }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1931,16 +1860,15 @@
 %   If \texttt{]} appears as the first item of a class, then
 %   it doesn't end the class. Otherwise, it's the end,
 %   act just as for a single character, but with a more
-%   complicated test. And restore \cs{regex_build_control:N}
-%   and \cs{regex_build_raw:N}.
+%   complicated test. And restore \cs{regex_build_raw:N}.
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { regex_class_]: }
   {
     \tl_if_empty:NTF \l_regex_class_tl %[
-      { \regex_class_raw:N ] }
+      { \regex_class_default_raw:N ] }
       {
-        \cs_set_eq:NN \regex_build_control:N \regex_build_default_control:N
         \cs_set_eq:NN \regex_build_raw:N  \regex_build_default_raw:N
+        \tl_set:Nn \l_regex_build_or_class_tl { build }
         \cs_set:Npn \regex_build_tmp_class:n ##1
           {
             \exp_not:o \l_regex_class_tl
@@ -1970,12 +1898,12 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux]{\regex_class_raw:N}
+% \begin{macro}[aux]{\regex_class_default_raw:N}
 % \begin{macro}[aux]{\regex_class_single:N}
 %   Most characters are treated here. We look ahead for an unescaped dash.
 %   If there is none, then the character matches itself.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_class_raw:N #1#2#3
+\cs_new_protected_nopar:Npn \regex_class_default_raw:N #1#2#3
   {
     \str_if_eq:nnTF {#2#3} { \regex_build_control:N - }
       { \regex_class_range:Nw #1 }
@@ -1985,10 +1913,7 @@
       }
   }
 \cs_new_protected_nopar:Npn \regex_class_single:N #1
-  {
-    \tl_put_right:Nx \l_regex_class_tl
-      { \regex_item_equal:n { \int_value:w `#1 } }
-  }
+  { \regex_class_one:x { \regex_item_equal:n { \int_value:w `#1 } } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -2023,7 +1948,7 @@
     \if_num:w `#1 > `#2 \exp_stop_f:
       \msg_error:nn { regex } {8}
     \else:
-      \tl_put_right:Nx \l_regex_class_tl
+      \regex_class_one:x
         {
           \if_num:w `#1 = `#2 \exp_stop_f:
             \regex_item_equal:n
@@ -2051,10 +1976,7 @@
 \tl_map_inline:nn { dDhHsSvVwWN }
   {
     \cs_new_protected_nopar:cpx { regex_class_#1: }
-      {
-        \tl_put_right:Nn \exp_not:N \l_regex_class_tl
-          { \exp_not:c { c_regex_#1_tl } }
-      }
+      { \regex_class_one:n \exp_not:c { c_regex_#1_tl } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2063,26 +1985,116 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\regex_class_c:}
+% \subsubsection{Catcodes and csnames}
+%
+% \begin{macro}[aux]{\regex_build_c:}
+% \begin{macro}[aux]{\regex_class_c:}
+% \begin{macro}[aux]{\regex_aux_c:nnNN}
 %
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_class_c: #1#2
+\cs_new_protected_nopar:Npn \regex_build_c:
+  { \regex_aux_c:nnNN { \regex_build_one:x } { build-c } }
+\cs_new_protected_nopar:Npn \regex_class_c:
+  { \regex_aux_c:nnNN { \regex_class_one:x } { class-c } }
+\cs_new_protected:Npn \regex_aux_c:nnNN #1#2#3#4
   {
-    \token_if_eq_meaning:NNTF #1 \regex_build_raw:N
+    \token_if_eq_meaning:NNTF #3 \regex_build_raw:N
       {
-        \regex_aux_c_test:NTF #2
+        \regex_aux_c_test:NTF #4
           {
-            \tl_put_right:Nx \l_regex_class_tl
+            #1
               {
                 \regex_item_catcode:n
                   { \int_use:N \l_regex_current_catcode_int }
               }
-            \use_none:nn
           }
-          { \msg_kernel_error:nn { regex } { class-c } { #2 } }
+          { \msg_kernel_error:nn { regex } { #2 } { #4 } #3#4 }
       }
-      { \msg_kernel_error:nn { regex } { class-c } { #2 } }
-    #1 #2
+      {
+        \exp_after:wN \token_if_eq_charcode:NNTF \c_lbrace_str #4
+          {
+            \group_begin:
+              \bool_set_eq:NN \l_regex_saved_success_bool \g_regex_success_bool
+              \bool_set_true:N \l_regex_in_csname_bool
+              \regex_build:w
+          }
+          { \msg_kernel_error:nn { regex } { #2 } { #4 } #3#4 }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% The |\c| and |\C| escape sequences are used both in the
+% regex and the replacement texts. They can be followed either
+% by a hexadecimal digit (upper or lower case), or by a left
+% brace (in the case of |\c| only).
+%
+% \begin{macro}{\regex_aux_c_test:NTF}
+%   If the first argument is a known catcode identifier
+%   (capital letters listed below), then
+%   \cs{l_regex_current_catcode_int} is set to the relevant
+%   catcode value (between $0$ for cs and $13$ for active chars),
+%   and the \texttt{true} branch is taken.
+%   Otherwise, the \texttt{false} branch is taken,
+%   and the current catcode is set to $-1$.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_aux_c_test:NTF #1
+  {
+    \int_set:Nn \l_regex_current_catcode_int
+      {
+        \if_case:w \int_eval:w `#1 - `A \int_eval_end:
+             \c_thirteen % Active
+        \or: \c_one      % Begin-group
+        \or: \c_zero     % Control sequence
+        \or: \c_eight    % Down (subscript)
+        \or: \c_two      % End-group
+        \else:
+          \if_case:w \int_eval:w `#1 - `L \int_eval_end:
+               \c_eleven    % Letter
+          \or: \c_three     % Math toggle
+          \or: \c_minus_one
+          \or: \c_twelve    % Other
+          \or: \c_six       % Parameter
+          \or: \c_minus_one
+          \or: \c_minus_one
+          \or: \c_ten       % Space
+          \or: \c_four      % Tab (alignment)
+          \or: \c_seven     % Up (superscript)
+          \else: \c_minus_one
+          \fi:
+        \fi:
+      }
+    \if_num:w \l_regex_current_catcode_int = \c_minus_one
+      \exp_after:wN \use_ii:nn
+    \else:
+      \exp_after:wN \use_i:nn
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% ^^A{
+% \begin{macro}+\regex_build}:+
+%   Non-escaped right braces are only special if they appear
+%   when building the regular expression for a csname. Otherwise,
+%   replace the brace with an escaped brace.
+%    \begin{macrocode}
+\cs_new_protected:cpn { regex_build_ \c_rbrace_str : }
+  {
+    \bool_if:NTF \l_regex_in_csname_bool
+      {
+        \regex_build_end:
+        \use:x
+          {
+            \group_end:
+              \bool_gset_eq:NN \g_regex_success_bool \l_regex_saved_success_bool
+              \exp_not:n { \use:c { regex_ \l_regex_build_or_class_tl _one:n } }
+              { \regex_item_cs:n { \regex_set_aux:N ? } }
+          }
+      }
+      { \exp_after:wN \regex_build_raw:N \c_rbrace_str }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3133,7 +3145,7 @@
       }
   }
 \cs_new_protected_nopar:Npn \regex_match_once_aux:
-  { \regex_match_once_aux:ww \q_mark 0 -1 , }
+  { \regex_match_once_aux:ww \q_mark 0 -2 , }
 \cs_new_protected_nopar:Npn \regex_match_once_aux:ww #1 \q_mark #2 #3 ,
   {
     \tl_set:Nn \l_regex_current_token_tl {#1}
@@ -3389,9 +3401,7 @@
       \regex_replacement_escaped:N
       \prg_do_nothing:
       {#1}
-    \tl_set_eq:NN \l_regex_replacement_tl \g_str_result_tl
-    \tl_set:Nx \l_regex_replacement_tl
-      { \l_regex_replacement_tl \prg_do_nothing: }
+    \tl_set:Nx \l_regex_replacement_tl { \g_str_result_tl \prg_do_nothing: }
   }
 \cs_new_nopar:Npn \regex_replacement_escaped:N #1
   {
