@@ -18,8 +18,8 @@ rem Makefile for LaTeX3 "l3kernel" files
   echo  make clean           - delete all generated files
   echo  make ctan            - create an archive ready for CTAN
   echo  make doc ^<name^>      - typesets ^<name^>.dtx
-  echo  make format          - create a format file using pdfTeX
-  echo  make format ^<engine^> - creates a format file using ^<engine^>
+  echo  make format          - create a format file for pdfTeX
+  echo  make format ^<engine^> - creates a format file for ^<engine^>
   echo  make localinstall    - extract packages
   echo  make savetlg ^<name^>  - save test log for ^<name^>
   echo  make sourcedoc       - typeset expl3 and source3
