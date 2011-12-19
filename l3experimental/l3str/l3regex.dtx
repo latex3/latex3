@@ -76,9 +76,10 @@
 % The \pkg{l3regex} package provides regular expression testing,
 % extraction of submatches, splitting, and replacement, all acting
 % on token lists. The syntax of regular expressions is mostly a subset
-% of the PCRE syntax (and very close to POSIX). For performance
-% reasons, only a limited set of features are implemented. Notably,
-% back-references are not supported.
+% of the PCRE syntax (and very close to POSIX), with some additions
+% due to the fact that we act on lists of tokens rather than characters.
+% For performance reasons, only a limited set of features are implemented.
+% Notably, back-references are not supported.
 %
 % Let us give a few examples. After
 % \begin{verbatim}
@@ -99,12 +100,27 @@
 % input token list. In the replacement text, |\0| denotes the full match
 % (here, a word).
 %
+% If a regular expression is to be used several times,
+% it can be compiled once, and stored in a token list
+% variable using \cs{regex_const:Nn}. For example,
+% \begin{verbatim}
+%    \regex_const:Nn \l_foo_regex_tl { \c{begin} \cB (\CB*?) \cE }
+% \end{verbatim}
+% stores in \cs{l_foo_regex_tl} a regular expression which matches
+% the starting marker for an environment: \cs{begin}, followed
+% by a begin-group token (|\cB|), then tokens which are not
+% begin-group characters (|\CB|), as few as possible (|*?|),
+% followed by an end-group token (|\cE|). As explained in the
+% next section, the parentheses \enquote{capture} the result of
+% |\CB*?|, giving us access to the name of the environment
+% when doing replacements.
+%
 % \subsection{Syntax of regular expressions}
 %
 % Most characters match exactly themselves,
 % with an arbitrary category code. Some characters are
 % special and must be escaped with a backslash (\emph{e.g.}, |\*|
-% matches an explicit star character). Some escape sequences of
+% matches a star character). Some escape sequences of
 % the form backslash--letter also have a special meaning
 % (for instance |\d| matches any digit). As a rule,
 % \begin{itemize}
@@ -114,7 +130,7 @@
 %   |\A|, |\B|, \ldots{} have special meanings;
 % \item non-alphanumeric printable ascii characters can (and should)
 %   always be escaped: many of them have special meanings (\emph{e.g.},
-%   |(|, |)|, |?|, |.|);
+%   use |\(|, |\)|, |\?|, |\.|);
 % \item spaces should always be escaped (even in character
 %   classes);
 % \item any other character may be escaped or not, without any
@@ -122,12 +138,11 @@
 % \end{itemize}
 % Note that these rules play nicely with the fact that many
 % non-alphanumeric characters are difficult to input into \TeX{}
-% under normal category codes. For instance, |\$\%\^\\abc\#|
-% matches the characters |$%^\abc#| (with arbitrary category codes).
-% \begin{texnote}
-%   When converting the regular expression to a string,
-%   the value of the escape character is set to be a backslash.
-% \end{texnote}
+% under normal category codes. For instance, |\\abc\%|
+% matches the characters |\abc%| (with arbitrary category codes),
+% but does not match the control sequence |\abc| followed by a
+% percent character. Matching control sequences can be done
+% using the |\c|\Arg{regex} syntax (see below).
 %
 % Any special character which appears at a place where its special
 % behaviour cannot apply matches itself instead (for instance,
@@ -147,8 +162,7 @@
 %
 % Character types.
 % \begin{l3regex-syntax}
-%   \item[.] A single period matches any token, including
-%     control sequences, as well as begin-group and end-group tokens.
+%   \item[.] A single period matches any token.
 %   \item[\\d] Any decimal digit.
 %   \item[\\h] Any horizontal space character,
 %     equivalent to |[\ \^^I]|: space and tab.
@@ -159,24 +173,27 @@
 %     but not a space, for compatibility with Perl.
 %   \item[\\w] Any word character, \emph{i.e.},
 %     alpha-numerics and underscore, equivalent to |[A-Za-z0-9\_]|.
-%   \item[\\D] Any character not matched by |\d|.
-%   \item[\\H] Any character not matched by |\h|.
-%   \item[\\N] Any character other than the |\n| character (hex 0A).
-%   \item[\\S] Any character not matched by |\s|.
-%   \item[\\V] Any character not matched by |\v|.
-%   \item[\\W] Any character not matched by |\w|.
+%   \item[\\D] Any token not matched by |\d|.
+%   \item[\\H] Any token not matched by |\h|.
+%   \item[\\N] Any token other than the |\n| character (hex 0A).
+%   \item[\\S] Any token not matched by |\s|.
+%   \item[\\V] Any token not matched by |\v|.
+%   \item[\\W] Any token not matched by |\w|.
 % \end{l3regex-syntax}
-% Of those, |\D|, |\H|, |\N|, |\S|, |\V|, and |\W| will match arbitrary
+% Of those, |.|, |\D|, |\H|, |\N|, |\S|, |\V|, and |\W| will match arbitrary
 % control sequences.
 %
 % Character classes match exactly one character in the subject string.
 % \begin{l3regex-syntax}
 %   \item[{[\ldots{}]}] Positive character class.
-%     Matches any of the specified characters.
+%     Matches any of the specified tokens.
 %   \item[{[\char`\^\ldots{}]}] Negative character class.
-%     Matches any character other than the specified characters.
+%     Matches any token other than the specified characters.
 %   \item[{[x-y]}] Range (can be used with escaped characters).
 % \end{l3regex-syntax}
+% For instance, |[a-oq-z\cC]| matches any lowercase latin letter
+% except |p|, as well as control sequences (see below for a description
+% of |\c|).
 %
 % Quantifiers (repetition).
 % \begin{l3regex-syntax}
@@ -195,12 +212,15 @@
 %
 % Anchors and simple assertions.
 % \begin{l3regex-syntax}
-%   \item[\\b] Word boundary.
-%   \item[\\B] Not a word boundary.
+%   \item[\\b] Word boundary: either the previous token is matched by
+%     |\w| and the next by |\W|, or the opposite. For this purpose,
+%     the ends of the token list are considered as |\W|.
+%   \item[\\B] Not a word boundary: between two |\w| tokens
+%     or two |\W| tokens (including the boundary).
 %   \item[\char`^ \textrm{or} \\A]
-%     Start of the subject string.
+%     Start of the subject token list.
 %   \item[\char`$\textrm{,} \\Z \textrm{or} \\z]
-%     End of the subject string.
+%     End of the subject token list.
 %   \item[\\G] Start of the current match. This is only different from |^|
 %     in the case of multiple matches: for instance
 %     |\regex_count:nnN { \G a } { aaba } \l_tmpa_int| yields $2$, but
@@ -218,6 +238,30 @@
 %     the group number for capturing groups in each alternative.
 %     The following group will be numbered with the first unused
 %     group number.
+% \end{l3regex-syntax}
+%
+% Each catcode is represented by a single uppercase letter:
+% |C| for control sequences;
+% |B| for begin-group tokens;
+% |E| for end-group tokens;
+% |M| for math shift;
+% |T| for alignment tab tokens;
+% |P| for macro parameter tokens;
+% |U| for superscript tokens (up);
+% |D| for subscript tokens (down);
+% |S| for spaces;
+% |L| for letters;
+% |O| for others; and
+% |A| for active characters.
+% \begin{l3regex-syntax}
+% \item[\\cX] Any character token with catcode |X|,
+%   where |X| can be any of |CBEMTPUDSLOA|.
+% \item[\\CX] Any token with catcode different from |X|,
+%   where |X| can be any of |CBEMTPUDSLOA|.
+% \item[\\c\Arg{regex}] A control sequence whose csname matches
+%   the \meta{regex}, anchored at the beginning and end,
+%   so that |\c{begin}| matches exactly \cs{begin}, and nothing
+%   else.
 % \end{l3regex-syntax}
 %
 % Options can be set with |(?|\meta{option}|)| and
@@ -238,7 +282,7 @@
 % In character classes, only |^|, |-|, |]|, |\| and spaces are special,
 % and should be escaped. Other non-alphanumeric characters can
 % still be escaped without harm. The escape sequences |\d|,
-% |\D|, |\w|, |\W| are also supported in character classes.
+% |\D|, etc. are also supported in character classes.
 % If the first character is |^|, then the meaning of the character
 % class is inverted. Ranges of characters can be expressed using
 % |-|, for instance, |[\D 0-5]| is equivalent to |[^6-9]|.
@@ -265,6 +309,20 @@
 % \end{verbatim}
 % results in \cs{l_my_tl} holding |H(ell--el)(o,--o) w(or--o)(ld--l)!|
 %
+% The characters inserted by the replacement have category code $12$
+% (other) by default. The escape sequence |\c| allows to insert characters
+% with arbitrary category codes, as well as control sequences.
+% \begin{l3regex-syntax}
+% \item[\\cXY] Produces the character |Y| (which can be given as
+%   an escape sequence such as |\t| for tab) with category code |X|,
+%   which must be one of |CBEMTPUDSLOA|.
+% \item[\\c\Arg{text}] Produces the control sequence with csname
+%   \meta{text}. The \meta{text} may contain references to the submatches
+%   |\0|, |\1| \emph{etc.} As an experimental feature, |\c{...}| can be
+%   nested, but the behaviour is not yet fully specified. Use at own risks.
+%^^A todo: decide what the right behaviour should be.
+% \end{l3regex-syntax}
+%
 % \subsection{Precompiling regular expressions}
 %
 % If a regular expression is to be used several times,
@@ -289,11 +347,28 @@
 %   The assignment is local for \cs{regex_set:Nn} and global for
 %   \cs{regex_gset:Nn}. Use \cs{regex_const:Nn} for precompiled expressions
 %   which will never change.
-%   \begin{texnote}
-%     Precompiled regular expressions can be safely written to a file
-%     and read when the \LaTeX3 syntax is active (as triggered by
-%     \cs{ExplSyntaxOn}).
-%   \end{texnote}
+% \end{function}
+%
+% \begin{function}{\regex_to_str:N}
+%   \begin{syntax}
+%     \cs{regex_to_str:N} \meta{regex var}
+%   \end{syntax}
+%   Converts the \meta{regex var}, previously defined using
+%   \cs{regex_(g)set:Nn}, to a string, which can be safely
+%   read back when the \LaTeX3 syntax is active
+%   (as triggered by \cs{ExplSyntaxOn}).
+%   Line breaks are inserted at various places, to \emph{try}
+%   and keep the line length short.
+%   For instance, if \cs{l_my_stream} is an open stream for writing,
+%   and \cs{l_regex_tl} is a regex variable, you can its definition
+%   using
+%   \begin{verbatim}
+%     \iow_now:Nx \l_my_stream
+%       {
+%         \tl_to_str:n { \tl_set:Nn \l_my_regex_tl }
+%           { \regex_to_str:N \l_my_regex_tl }
+%       }
+%   \end{verbatim}
 % \end{function}
 %
 % \subsection{Matching}
@@ -327,6 +402,9 @@
 %   respecting greedy and ungreedy operators. Then the search
 %   starts again from the character following the last character
 %   of the previous match, until reaching the end of the token list.
+%   Infinite loops are prevented in the case where the regular expression
+%   can match an empty string: then we count one match between each
+%   pair of characters.
 %   For instance,
 %   \begin{verbatim}
 %     \int_new:N \l_foo_int
@@ -985,6 +1063,10 @@
 %
 % \subsection{Helpers}
 %
+%    \begin{macrocode}
+\cs_generate_internal_variant:n { NNx }
+%    \end{macrocode}
+%
 % \subsubsection{Toks}
 %
 % When performing the matching, the \tn{toks} registers hold submatch
@@ -1058,7 +1140,7 @@
     \if_num:w #1 = \c_zero
       \exp_after:wN \prg_map_break:
     \fi:
-    #2
+    \exp_not:n {#2}
     \exp_after:wN \regex_query_set_substr_keep:www
     \int_use:N \int_eval:w #1 - \c_one ;
   }
@@ -1116,8 +1198,8 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[int]{\regex_seq_item:Nn}
-% \begin{macro}[int]{\regex_seq_item_aux:wNn}
+% \begin{macro}[int, EXP]{\regex_seq_item:Nn}
+% \begin{macro}[aux, EXP]{\regex_seq_item_aux:wNn}
 %    \begin{macrocode}
 \cs_new:Npn \regex_seq_item:Nn #1#2
   {
@@ -1321,12 +1403,17 @@
     \int_compare:nNnT \l_regex_current_catcode_int = \c_zero
       {
         \tl_set:Nn \l_regex_tmpa_regex_tl {#1}
-        \exp_args:NNx \regex_match:NnT \l_regex_tmpa_regex_tl
+        \bool_set_eq:NN \l_regex_saved_success_bool \g_regex_success_bool
+        \exp_args:NNx \regex_match:NnTF \l_regex_tmpa_regex_tl
           {
             \exp_after:wN \exp_after:wN
             \exp_after:wN \cs_to_str:N \l_regex_current_token_tl
           }
-          { \regex_break_true:w }
+          {
+            \bool_gset_eq:NN \g_regex_success_bool \l_regex_saved_success_bool
+            \regex_break_true:w
+          }
+          { \bool_gset_eq:NN \g_regex_success_bool \l_regex_saved_success_bool }
       }
   }
 %    \end{macrocode}
@@ -1522,6 +1609,9 @@
 %   First, reset a few variables. Then use the generic framework defined
 %   in \pkg{l3str} to parse the regular expression once, recognizing
 %   which characters are raw characters, and which have special meanings.
+%   The search is not anchored: to achieve that, we insert state(s)
+%   responsible for repeating the match attempt on every token
+%   in the token list.
 %   The result is stored in \cs{g_str_result_tl}, and can be run directly.
 %   The trailing \cs{prg_do_nothing:} ensure that the look-ahead done by
 %   some of the operations is harmless.
@@ -1537,6 +1627,10 @@
       { #1 }
     \bool_set_false:N \l_regex_in_csname_bool
     \regex_build:w
+    \regex_build_new_state:
+    \regex_toks_put_right:Nx \l_regex_left_state_int
+      { \regex_action_start_wildcard:nn {0} {1} }
+    \regex_build_open_aux:
       \g_str_result_tl \prg_do_nothing: \prg_do_nothing:
     \regex_build_end:
   }
@@ -1597,9 +1691,6 @@
 %
 % \begin{macro}[int]{\regex_build:w}
 %   Hopefully, we didn't forget to initialize anything here.
-%   The search is not anchored: to achieve that, we insert state(s)
-%   responsible for repeating the match attempt on every token
-%   in the token list.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build:w
   {
@@ -1608,10 +1699,6 @@
     \int_set_eq:NN \l_regex_capturing_group_int \c_zero
     \int_zero:N \l_regex_max_state_int
     \regex_build_new_state:
-    \regex_build_new_state:
-    \regex_toks_put_right:Nx \l_regex_left_state_int
-      { \regex_action_start_wildcard:nn {0} {1} }
-    \regex_build_open_aux:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1988,40 +2075,50 @@
 % \subsubsection{Catcodes and csnames}
 %
 % \begin{macro}[aux]{\regex_build_c:}
+% \begin{macro}[aux]{\regex_build_C:}
 % \begin{macro}[aux]{\regex_class_c:}
+% \begin{macro}[aux]{\regex_class_C:}
 % \begin{macro}[aux]{\regex_aux_c:nnNN}
 %
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_c:
-  { \regex_aux_c:nnNN { \regex_build_one:x } { build-c } }
-\cs_new_protected_nopar:Npn \regex_class_c:
-  { \regex_aux_c:nnNN { \regex_class_one:x } { class-c } }
-\cs_new_protected:Npn \regex_aux_c:nnNN #1#2#3#4
+  { \regex_aux_c:NNNN \regex_item_catcode:n \use_ii:nnn }
+\cs_new_protected_nopar:Npn \regex_build_C:
+  { \regex_aux_c:NNNN \regex_item_catcode_neq:n \use_iii:nnn }
+\cs_new_eq:NN \regex_class_c: \regex_build_c:
+\cs_new_eq:NN \regex_class_C: \regex_build_C:
+\cs_new_protected:Npn \regex_aux_c:NNNN #1#2#3#4
   {
     \token_if_eq_meaning:NNTF #3 \regex_build_raw:N
       {
         \regex_aux_c_test:NTF #4
-          {
-            #1
-              {
-                \regex_item_catcode:n
-                  { \int_use:N \l_regex_current_catcode_int }
-              }
-          }
-          { \msg_kernel_error:nn { regex } { #2 } { #4 } #3#4 }
+          { \use_i:nnn } { \use_iii:nnn }
       }
       {
-        \exp_after:wN \token_if_eq_charcode:NNTF \c_lbrace_str #4
-          {
-            \group_begin:
-              \bool_set_eq:NN \l_regex_saved_success_bool \g_regex_success_bool
-              \bool_set_true:N \l_regex_in_csname_bool
-              \regex_build:w
-          }
-          { \msg_kernel_error:nn { regex } { #2 } { #4 } #3#4 }
+        \if_charcode:w \c_lbrace_str \exp_not:N #4
+          \exp_after:wN #2
+        \else:
+          \exp_after:wN \use_iii:nnn
+        \fi:
       }
+    {
+      \use:c { regex_ \l_regex_build_or_class_tl _one:x }
+        { #1 { \int_use:N \l_regex_current_catcode_int } }
+    }
+    {
+      \group_begin:
+        \bool_set_true:N \l_regex_in_csname_bool
+        \regex_build:w
+    }
+    {
+      \msg_kernel_error:nnx
+        { regex } { \l_regex_build_or_class_tl -c } { #4 }
+      #3 #4
+    }
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -2085,11 +2182,12 @@
   {
     \bool_if:NTF \l_regex_in_csname_bool
       {
-        \regex_build_end:
+        \regex_build_Z:
+        \regex_toks_put_right:Nx \l_regex_right_state_int
+          { \regex_action_success: }
         \use:x
           {
             \group_end:
-              \bool_gset_eq:NN \g_regex_success_bool \l_regex_saved_success_bool
               \exp_not:n { \use:c { regex_ \l_regex_build_or_class_tl _one:n } }
               { \regex_item_cs:n { \regex_set_aux:N ? } }
           }
@@ -3394,51 +3492,188 @@
 % \begin{macro}[aux]{\regex_replacement_submatch:w}
 % \begin{macro}[aux]{\regex_replacement_submatch_aux:nN}
 %    \begin{macrocode}
+\int_new:N \l_regex_replacement_int
+\int_new:N \l_regex_replacement_csnames_int
 \cs_new_protected:Npn \regex_replacement:n #1
   {
     \str_aux_escape:NNNn
-      \prg_do_nothing:
+      \regex_replacement_unescaped:N
       \regex_replacement_escaped:N
-      \prg_do_nothing:
+      \regex_replacement_put:n
       {#1}
-    \tl_set:Nx \l_regex_replacement_tl { \g_str_result_tl \prg_do_nothing: }
-  }
-\cs_new_nopar:Npn \regex_replacement_escaped:N #1
-  {
-    \regex_token_if_other_digit:NTF #1
+    \int_zero:N \l_regex_replacement_int
+    \g_str_result_tl \prg_do_nothing: \prg_do_nothing:
+    \int_decr:N \l_regex_replacement_int
+    \tl_set:Nx \l_regex_replacement_tl
       {
-        \exp_not:n
-          { \exp_not:n { \regex_seq_item:Nn \l_regex_submatches_seq } } {#1}
-      }
-      {
-        \token_if_eq_charcode:NNTF g #1
-          { \exp_not:N \regex_replacement_submatch:w }
-          { #1 }
+        \prg_stepwise_function:nnnN
+          \c_zero \c_one \l_regex_replacement_int
+          \regex_replacement_aux:N
       }
   }
-\cs_new_nopar:Npn \regex_replacement_submatch:w #1
+\cs_new:Npn \regex_replacement_aux:N #1
+  { \tex_the:D \tex_toks:D #1 \exp_stop_f: }
+\cs_new_protected:Npn \regex_replacement_put:n #1
   {
-    \exp_after:wN \token_if_eq_meaning:NNTF \c_lbrace_str #1
-      { \regex_replacement_submatch_aux:nN { } }
-      {
-        \regex_token_if_other_digit:NTF #1
-          { \exp_not:n { \regex_seq_item:Nn \l_regex_submatches_seq } }
-          { \msg_expandable_kernel_error:nn { regex } { g-misused } }
-        #1
-      }
+    \tex_toks:D \l_regex_replacement_int {#1}
+    \int_incr:N \l_regex_replacement_int
   }
-\cs_new_nopar:Npn \regex_replacement_submatch_aux:nN #1 #2
+\cs_new_protected:Npn \regex_replacement_unescaped:N #1
   {
-    \regex_token_if_other_digit:NTF #2
-      { \regex_replacement_submatch_aux:nN {#1#2} }
+    \if_charcode:w \c_rbrace_str #1
+      \if_num:w \l_regex_replacement_csnames_int > \c_zero
+        \regex_replacement_put:n \cs_end:
+      \else:
+        \regex_replacement_put:n #1
+      \fi:
+    \else:
+      \regex_replacement_put:n #1
+    \fi:
+  }
+\cs_new_protected:Npn \regex_replacement_escaped:N #1
+  {
+    \if_charcode:w c #1
+      \exp_after:wN \regex_replacement_c:w
+    \else:
+      \if_charcode:w g #1
+        \exp_after:wN \exp_after:wN \exp_after:wN \regex_replacement_g:w
+      \else:
+        \if_num:w \c_one < 1#1 \exp_stop_f:
+          \regex_replacement_put:n
+            { \regex_seq_item:Nn \l_regex_submatches_seq {#1} }
+        \else:
+          \regex_replacement_put:n #1
+        \fi:
+      \fi:
+    \fi:
+  }
+\cs_new_protected:Npn \regex_replacement_error:NNN #1#2#3
+  {
+    \msg_kernel_error:nn { regex } { replacement-#1 }
+    #2 #3
+  }
+\cs_new_protected:Npn \regex_replacement_g:w #1#2
+  {
+    \str_if_eq:xxTF
+      { \exp_not:n { #1#2 } }
+      { \regex_replacement_unescaped:N \c_lbrace_str }
       {
-        \exp_not:n { \regex_seq_item:Nn \l_regex_submatches_seq } {#1}
-        \exp_after:wN \token_if_eq_meaning:NNF \c_rbrace_str #2
-          {
-            \msg_expandable_kernel_error:nn { regex } { g-misused }
-            #2
-          }
+        \int_zero:N \l_regex_tmpa_int
+        \regex_replacement_g_digits:NN
       }
+      { \regex_replacement_error:NNN g #1 #2 }
+  }
+\cs_new_protected:Npn \regex_replacement_g_digits:NN #1#2
+  {
+    \token_if_eq_meaning:NNTF #1 \regex_replacement_unescaped:N
+      {
+        \if_num:w \c_one < 1#2 \exp_stop_f:
+          \int_set:Nn \l_regex_tmpa_int { \c_ten * \l_regex_tmpa_int + #2 }
+          \exp_after:wN \use_i:nnn
+          \exp_after:wN \regex_replacement_g_digits:NN
+        \else:
+          \if_charcode:w \c_rbrace_str #2
+            \use:x
+              {
+                \regex_replacement_put:n
+                  {
+                    \exp_not:n { \regex_seq_item:Nn \l_regex_submatches_seq }
+                      { \int_use:N \l_regex_tmpa_int }
+                  }
+              }
+            \exp_after:wN \exp_after:wN \exp_after:wN \use_none:nn
+          \else:
+            \exp_after:wN \exp_after:wN
+            \exp_after:wN \regex_replacement_error:NNN
+            \exp_after:wN \exp_after:wN \exp_after:wN g
+          \fi:
+        \fi:
+      }
+      { \regex_replacement_error:NNN g }
+    #1 #2
+  }
+\cs_new_protected_nopar:Npn \regex_replacement_c:w #1#2
+  {
+    \token_if_eq_meaning:NNTF #1 \regex_replacement_unescaped:N
+      {
+        \cs_if_exist_use:cF { regex_replacement_c_#2:w }
+          { \regex_replacement_error:NNN c #1#2 }
+      }
+      { \regex_replacement_error:NNN c #1#2 }
+  }
+\cs_new_protected_nopar:cpn { regex_replacement_c_ \c_lbrace_str :w }
+  {
+    \int_incr:N \l_regex_replacement_csnames_int
+    \regex_replacement_put:n
+      { \exp_not:n { \exp_after:wN \regex_replacement_exp_not:N \cs:w } }
+  }
+\cs_new_nopar:Npn \regex_replacement_exp_not:N #1 { \exp_not:n {#1} }
+\group_begin:
+
+  \char_set_catcode_math_superscript:N \^^@
+  \cs_new_protected_nopar:Npn \regex_replacement_c_U:w
+    { \regex_replacement_char:nNN { ^^@ } }
+
+  \char_set_catcode_alignment:N \^^@
+  \cs_new_protected_nopar:Npn \regex_replacement_c_T:w
+    { \regex_replacement_char:nNN { ^^@ } }
+
+  \cs_new_protected_nopar:Npn \regex_replacement_c_S:w #1#2
+    {
+      \token_if_eq_meaning:NNTF #1 \regex_replacement_unescaped:N
+        {
+          \int_compare:nNnTF { `#2 } = \c_zero
+            { \regex_replacement_error:NNN c #1#2 }
+            {
+              \char_set_lccode:nn {32} { `#2 }
+              \tl_to_lowercase:n { \regex_replacement_put:n {~} }
+            }
+        }
+        { \regex_replacement_error:NNN c #1#2 }
+    }
+
+  \char_set_catcode_parameter:N \^^@
+  \cs_new_protected_nopar:Npn \regex_replacement_c_P:w
+    { \regex_replacement_char:nNN { ^^@^^@ } }
+
+  \char_set_catcode_other:N \^^@
+  \cs_new_protected_nopar:Npn \regex_replacement_c_O:w
+    { \regex_replacement_char:nNN { ^^@ } }
+
+  \char_set_catcode_math_toggle:N \^^@
+  \cs_new_protected_nopar:Npn \regex_replacement_c_M:w
+    { \regex_replacement_char:nNN { ^^@ } }
+
+  \char_set_catcode_letter:N \^^@
+  \cs_new_protected_nopar:Npn \regex_replacement_c_L:w
+    { \regex_replacement_char:nNN { ^^@ } }
+
+  \char_set_catcode_group_end:N \^^@
+  \cs_new_protected_nopar:Npn \regex_replacement_c_E:w
+    { \regex_replacement_char:nNN { \if_false: { \fi:  ^^@ } }
+
+  \char_set_catcode_math_subscript:N \^^@
+  \cs_new_protected_nopar:Npn \regex_replacement_c_D:w
+    { \regex_replacement_char:nNN { ^^@ } }
+
+  \char_set_catcode_group_begin:N \^^@
+  \cs_new_protected_nopar:Npn \regex_replacement_c_B:w
+    { \regex_replacement_char:nNN { \exp_after:wN ^^@ \if_false: } \fi: } }
+
+  \char_set_catcode_active:N \^^@
+  \cs_new_protected_nopar:Npn \regex_replacement_c_A:w
+    { \regex_replacement_char:nNN { \exp_not:N ^^@ } }
+
+\group_end:
+
+\cs_new_protected_nopar:Npn \regex_replacement_char:nNN #1#2#3
+  {
+    \token_if_eq_meaning:NNTF #2 \regex_replacement_unescaped:N
+      {
+        \char_set_lccode:nn \c_zero { `#3 }
+        \tl_to_lowercase:n { \regex_replacement_put:n { \exp_not:n {#1} } }
+      }
+      { \regex_replacement_error:NNN c #2#3 }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3787,7 +4022,8 @@
       #1 {#2} {#3}
       \regex_extract:
       \if_meaning:w \c_true_bool \g_regex_success_bool
-        \exp_args:NNNo \group_end:
+        \cs_set_eq:NN \seq_item:n \scan_stop:
+        \exp_args:NNNx \group_end:
         \tl_set:Nn #4 \l_regex_submatches_seq
       \else:
         \group_end:
@@ -3816,7 +4052,8 @@
         }
       #1 {#2} {#3}
       \if_meaning:w \c_true_bool \g_regex_success_bool
-        \exp_args:NNNo \group_end:
+        \cs_set_eq:NN \seq_item:n \scan_stop:
+        \exp_args:NNNx \group_end:
         \tl_set:Nn #4 { \l_regex_result_seq }
       \else:
         \group_end:
@@ -3872,7 +4109,8 @@
           \l_regex_start_step_int \l_regex_current_step_int
         \seq_put_right:No \l_regex_result_seq { \l_regex_tmpc_tl }
       \fi:
-    \exp_args:NNNo \group_end:
+      \cs_set_eq:NN \seq_item:n \scan_stop:
+    \exp_args:NNNx \group_end:
     \tl_set:Nn #4 \l_regex_result_seq
   }
 %    \end{macrocode}
@@ -3905,15 +4143,15 @@
             \l_regex_tmpb_tl \l_regex_query_length_int
           \tl_set:Nx \l_regex_replaced_tl
             {
-              \l_regex_tmpa_tl
+              \exp_not:o \l_regex_tmpa_tl
               \l_regex_replacement_tl
-              \l_regex_tmpb_tl
+              \exp_not:o \l_regex_tmpb_tl
             }
         }
         { }
       \if_meaning:w \c_true_bool \g_regex_success_bool
         \exp_args:NNNo \group_end:
-        \tl_set:Nn #4 { \l_regex_replaced_tl }
+        \tl_set:Nx #4 \l_regex_replaced_tl
       \else:
         \group_end:
       \fi:
@@ -3939,7 +4177,7 @@
                 \l_regex_start_step_int \l_regex_tmpa_tl
               \tl_put_right:Nx \l_regex_replaced_tl
                 {
-                  \l_regex_tmpc_tl
+                  \exp_not:o \l_regex_tmpc_tl
                   \l_regex_replacement_tl
                 }
             }
@@ -3951,9 +4189,9 @@
       \exp_args:Nno #1 {#2} #4
       \regex_query_set_substr:NNN \l_regex_tmpa_tl
         \l_regex_start_step_int \l_regex_query_length_int
-      \tl_put_right:Nx \l_regex_replaced_tl { \l_regex_tmpa_tl }
+      \tl_put_right:No \l_regex_replaced_tl { \l_regex_tmpa_tl }
     \exp_args:NNNo \group_end:
-    \tl_set:Nn #4 \l_regex_replaced_tl
+    \tl_set:Nx #4 \l_regex_replaced_tl
   }
 %    \end{macrocode}
 % \end{macro}
