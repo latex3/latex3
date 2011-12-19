@@ -722,11 +722,13 @@
 %   characters with category code $12$ (other), except spaces,
 %   of category code $10$. The sequence will \emph{not} include
 %   the current escape token, \emph{cf.}~\cs{token_to_str:N}.
-%   Full expansion of this function requires a variable number
-%   of expansion steps (either 3 or 4), and so an
-%   \texttt{f}- or \texttt{x}-type expansion will be required to
+%   Full expansion of this function requires exactly $2$ expansion
+%   steps, and so an \texttt{x}-type expansion, or two
+%   \texttt{o}-type expansions will be required to
 %   convert the \meta{control sequence} to a sequence of characters
-%   in the input stream.
+%   in the input stream. In most cases, an \texttt{f}-expansion
+%   will be correct as well, but this loses a space at the start
+%   of the result.
 % \end{function}
 %
 % \section{Using or removing tokens and arguments}
@@ -1399,6 +1401,46 @@
 % \end{macro}
 % \end{macro}
 %
+% \subsection{Defining some constants}
+%
+% \begin{macro}{\c_minus_one, \c_zero, \c_sixteen}
+% \begin{macro}{\c_six, \c_seven, \c_twelve}
+%    We need the constants |\c_minus_one| and |\c_sixteen| now for
+%    writing information to the log and the terminal and |\c_zero|
+%    which is used by some functions in the \textsf{l3alloc} module. The
+%    rest are defined in the \textsf{l3int} module -- at least for the
+%    ones that can be defined with |\tex_chardef:D| or
+%    |\tex_mathchardef:D|. For other constants the \textsf{l3int} module is
+%    required but it can't be used until the allocation has been set
+%    up properly! The actual allocation mechanism is in
+%    \textsf{l3alloc} and as \TeX{} wants to reserve count registers
+%    0--9, the first available one is~10 so we use that for
+%    |\c_minus_one|.
+%    \begin{macrocode}
+%<*package>
+\tex_let:D \c_minus_one \m@ne
+%</package>
+%<*initex>
+\tex_countdef:D \c_minus_one = 10 ~
+\c_minus_one = -1 ~
+%</initex>
+\tex_chardef:D \c_sixteen = 16~
+\tex_chardef:D \c_zero    = 0~
+\tex_chardef:D \c_six     = 6~
+\tex_chardef:D \c_seven   = 7~
+\tex_chardef:D \c_twelve  = 12~
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\c_max_register_int}
+%   This is here as this particular integer is needed both in package
+%   mode and to bootstrap \pkg{l3alloc}
+%    \begin{macrocode}
+\tex_mathchardef:D \c_max_register_int = 32 767 \scan_stop:
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Defining functions}
 %
 % We start by providing functions for the typical definition
@@ -1948,6 +1990,7 @@
 % \subsection{Dissecting a control sequence}
 %
 % \begin{macro}{\cs_to_str:N}
+% \begin{macro}[aux]{\cs_to_str_aux:N}
 % \begin{macro}[aux]{\cs_to_str_aux:w}
 %   This converts a control sequence into the character string of its
 %   name, removing the leading escape character. This turns out to be
@@ -1968,41 +2011,37 @@
 %   lost in the process of converting to a string. So the approach adopted is
 %   a little more intricate still. When the escape character is printable,
 %   \verb*|\token_to_str:N \ | yields the escape character itself and a space.
-%   The escape sequence will terminate the expansion started by
-%   \cs{int_to_roman:w}, which is a negative number and so will not
-%   gobble the escape character even if it's a number. The \cs{if:w}
-%   test will then be \texttt{false}, and the na\"ive approach of gobbling
-%   the first character of the \cs{token_to_str:N} version of the control
-%   sequence will work, even if the first character is a space.
-%   The second case is that the escape character is itself a space. In this
-%   case, the escape character space is consumed terminating the first
-%   \cs{int_to_roman:w}, and \cs{cs_to_str_aux:w} is expanded. This
-%   inserts a space, making the \cs{if:w} test \texttt{true}. The
-%   second \cs{int_to_roman:w} will then execute the \cs{token_to_str:N},
-%   with the escape-character space being consumed by the
-%   \cs{int_to_roman:w}, and thus leaving the control sequence name in the
-%   input stream. The final case is where the escape character is not
-%   printable.
-%   The flow here starts with the \verb*|\token_to_str:N \ |  giving just a
-%   space, which terminates the first \cs{int_to_roman:w} but leaves no
-%   token for the \cs{if:w} test. This means that the \cs{int_to_roman:w}
-%   is executed before the test is finished. The result is that the
-%   \cs{fi:}, expanded before the \cs{if:w} is finished, becomes
-%   \cs{scan_stop:} \cs{fi:}, and the \cs{scan_stop:} is then used in
-%   the \cs{if:w} test.
-%   In this case, \cs{token_to_str:N} is therefore used with no gobbling at
-%   all, which is exactly what is needed in this case.
+%   The character codes are different, thus the \cs{if:w} test is false,
+%   and \TeX{} reads \cs{cs_to_str_aux:N} after turning the following
+%   control sequence into a string; this auxiliary removes the escape
+%   character, and stops the expansion of the initial \cs{int_to_roman:w}.
+%   The second case is that the escape character is not printable. Then
+%   the \cs{if:w} test is unfinished after reading a the space from
+%   \verb*|\token_to_str:N \ |, and the auxiliary \cs{cs_to_str_aux:w}
+%   is expanded, feeding |-| as a second character for the test;
+%   the test is false, and \TeX{} skips to \cs{fi:}, then performs
+%   \cs{token_to_str:N}, and stops the \cs{int_to_roman:w} with \cs{c_zero}.
+%   The last case is that the escape character is itself a space. In this
+%   case, the \cs{if:w} test is true, and the auxiliary \cs{cs_to_str_aux:w}
+%   comes into play, inserting |-\int_value:w|, which expands \cs{c_zero}
+%   to the character |0|. The initial \cs{int_to_roman:w} then sees
+%   |0|, which is not a terminated number, followed by the escape character,
+%   a space, which is removed, terminating the argument of
+%   \cs{int_to_roman:w}.
+%   In all three cases, \cs{cs_to_str:N} takes two expansion steps
+%   to be fully expanded.
 %    \begin{macrocode}
 \cs_set_nopar:Npn \cs_to_str:N
   {
-    \if:w \int_to_roman:w - `0 \token_to_str:N \ %
-      \cs_to_str_aux:w
-    \fi:
-    \exp_after:wN \use_none:n \token_to_str:N
- }
-\cs_set_nopar:Npn \cs_to_str_aux:w #1 \use_none:n
-  { ~ \int_to_roman:w - `0 \fi: }
+    \int_to_roman:w
+      \if:w \token_to_str:N \ \cs_to_str_aux:w \fi:
+      \exp_after:wN \cs_to_str_aux:N \token_to_str:N
+  }
+\cs_set_nopar:Npn \cs_to_str_aux:N #1 { \c_zero }
+\cs_set_nopar:Npn \cs_to_str_aux:w #1 \cs_to_str_aux:N
+  { - \int_value:w \fi: \exp_after:wN \c_zero }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -2030,14 +2069,15 @@
   {
     \group_end:
 %    \end{macrocode}
-%   First ensure that we actually get a properly evaluated str as we
-%   don't know how many expansions |\cs_to_str:N| requires.  Insert
+%   First ensure that we actually get a properly evaluated str
+%   by expanding |\cs_to_str:N| twice.  Insert
 %   extra colon to catch the error cases.
 %    \begin{macrocode}
     \cs_set:Npn \cs_split_function:NN #1#2
       {
+        \exp_after:wN \exp_after:wN
         \exp_after:wN \cs_split_function_aux:w
-          \int_to_roman:w - `\q \cs_to_str:N #1 @ a \q_stop #2
+          \cs_to_str:N #1 @ a \q_stop #2
       }
 %    \end{macrocode}
 %   If no colon in the name, |#2| is |a| with catcode 11 and |#3| is
@@ -2199,44 +2239,6 @@
 % \end{macro}
 %
 % \subsection{Defining and checking (new) functions}
-%
-% \begin{macro}{\c_minus_one, \c_zero, \c_sixteen}
-% \begin{macro}{\c_six, \c_seven, \c_twelve}
-%    We need the constants |\c_minus_one| and |\c_sixteen| now for
-%    writing information to the log and the terminal and |\c_zero|
-%    which is used by some functions in the \textsf{l3alloc} module. The
-%    rest are defined in the \textsf{l3int} module -- at least for the
-%    ones that can be defined with |\tex_chardef:D| or
-%    |\tex_mathchardef:D|. For other constants the \textsf{l3int} module is
-%    required but it can't be used until the allocation has been set
-%    up properly! The actual allocation mechanism is in
-%    \textsf{l3alloc} and as \TeX{} wants to reserve count registers
-%    0--9, the first available one is~10 so we use that for
-%    |\c_minus_one|.
-%    \begin{macrocode}
-%<*package>
-\tex_let:D \c_minus_one \m@ne
-%</package>
-%<*initex>
-\tex_countdef:D \c_minus_one = 10 ~
-\c_minus_one = -1 ~
-%</initex>
-\tex_chardef:D \c_sixteen = 16~
-\tex_chardef:D \c_zero    = 0~
-\tex_chardef:D \c_six     = 6~
-\tex_chardef:D \c_seven   = 7~
-\tex_chardef:D \c_twelve  = 12~
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\c_max_register_int}
-%   This is here as this particular integer is needed both in package
-%   mode and to bootstrap \pkg{l3alloc}
-%    \begin{macrocode}
-\tex_mathchardef:D \c_max_register_int = 32 767 \scan_stop:
-%    \end{macrocode}
-% \end{macro}
 %
 %    We provide two kinds of functions that can be used to define
 %    control sequences. On the one hand we have functions that check
