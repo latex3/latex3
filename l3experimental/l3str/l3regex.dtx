@@ -360,13 +360,14 @@
 %   Line breaks are inserted at various places, to \emph{try}
 %   and keep the line length short.
 %   For instance, if \cs{l_my_stream} is an open stream for writing,
-%   and \cs{l_regex_tl} is a regex variable, you can its definition
+%   and \cs{l_regex_tl} is a regex variable, you can save its definition
 %   using
 %   \begin{verbatim}
 %     \iow_now:Nx \l_my_stream
 %       {
-%         \tl_to_str:n { \tl_set:Nn \l_my_regex_tl }
-%           { \regex_to_str:N \l_my_regex_tl }
+%         \tl_to_str:n { \tl_set:Nn \l_my_regex_tl } { \iow_newline:
+%             \regex_to_str:N \l_my_regex_tl
+%           }
 %       }
 %   \end{verbatim}
 % \end{function}
@@ -426,7 +427,7 @@
 %   items are the contents of capturing groups, in the order
 %   of their opening parenthesis. The \meta{seq~var}
 %   is assigned locally. If there is no match,
-%   the \meta{seq~var} is not altered.
+%   the \meta{seq~var} is cleared.
 %   The testing versions insert the \meta{true code} into the input
 %   stream if a match was found, and the \meta{false code} otherwise.
 %   For instance, assume that you type
@@ -452,7 +453,7 @@
 %   in a single sequence (concatenating the results of
 %   multiple \cs{regex_extract_once:nnN} calls).
 %   The \meta{seq~var} is assigned locally. If there is no match,
-%   the \meta{seq~var} is not altered.
+%   the \meta{seq~var} is cleared.
 %   The testing versions insert the \meta{true code} into the input
 %   stream if a match was found, and the \meta{false code} otherwise.
 %   For instance, assume that you type
@@ -523,15 +524,29 @@
 %
 % The following need to be done now.
 % \begin{itemize}
-% \item Check that braces are balanced before the final expansion.
 % \item The \texttt{\{\}} quantifiers are only partially implemented.
+% \item Clean up the use of messages.
 % \item Add tests for every user function, and for every regex
 %   and replacement feature.
-% \item Check the catcode of spaces everywhere.
-% \item Newline conventions are not done.
-%   In particular, we should have an option for |.| not to match newlines.
-%   Also, |\A| should differ from |^|, and |\Z|, |\z| and |$| should
-%   differ.
+% \item Make sure the documentation is correct, and the code comments
+%   are as well.
+% \end{itemize}
+%
+% Code improvements to come.
+% \begin{itemize}
+% \item Test for the maximum register \cs{c_max_register_int}.
+% \item Use \tn{dimen} registers rather than \cs{l_regex_nesting_tl}
+%   to build \cs{regex_nesting:n}.
+% \item Reduce the number of epsilon-transitions in alternatives.
+% \item Merge the \texttt{build} and \texttt{class} functions where possible.
+% \item Improve nesting of |\c| in the replacement text.
+% \item Move the \enquote{reconstruction} part of \pkg{l3regex}
+%   to \pkg{l3tl-analysis}.
+% \item Optimize regexes for csnames when the regex is a simple string.
+% \item Optimize simple strings: use less states
+%   (|abcade| should give two states, for |abc| and |ade|).
+% \item Optimize groups with no alternative.
+% \item Optimize the use of \cs{prg_stepwise_...} functions.
 % \end{itemize}
 %
 % The following features are likely to be implemented at some point
@@ -541,25 +556,26 @@
 % \item Regex matching on external files.
 % \item Conditional subpatterns with look ahead/behind: \enquote{if
 %     what follows is [\ldots{}], then [\ldots{}]}.
-% \item |(*..)| and |(?..)| sequences to set some options.
-% \item Abuse \tn{toks} once more to make the final expansion step linear.
-% \item Reduce the number of epsilon-transitions in alternatives.
-% \item Optimize regexes for csnames when the regex is a simple string.
-% \item Optimize simple strings: use less states
-%   (|abcade| should give two states, for |abc| and |ade|).
-% \item Optimize groups with no alternative.
-% \item Optimize the use of \cs{prg_stepwise_...} functions.
+% \item |(*..)| and |(?..)| sequences to set some options
+%   (partially implemented).
 % \item |\K| for resetting the beginning of the match.
 % \item UTF-8 mode for pdf\TeX{}.
+% \item Newline conventions are not done.
+%   In particular, we should have an option for |.| not to match newlines.
+%   Also, |\A| should differ from |^|, and |\Z|, |\z| and |$| should
+%   differ.
+% \item Unicode properties: |\p{..}| and |\P{..}|;
+%   |\X| which should match any \enquote{extended} Unicode sequence.
+%   This requires to manipulate a lot of data, hence a lot of optimization
+%   ahead.
 % \end{itemize}
 %
 % The following features of PCRE or Perl will probably not be implemented.
 % \begin{itemize}
 % \item |\ddd|, matching the character with code \texttt{ddd} in octal;
-% \item POSIX character classes |[:alpha:]| \emph{etc.};
-% \item Unicode properties: |\p{..}| and |\P{..}|;
-% \item |\X| which should match any \enquote{extended} Unicode sequence;
-% \item Callout with |(?C...)|;
+% \item POSIX character classes |[:alpha:]| \emph{etc.}, this is redundant;
+% \item Callout with |(?C...)|, we cannot run arbitrary user code during
+%   the matching, because the regex code uses registers in an unsafe way;
 % \item Conditional subpatterns (other than with a look-ahead
 %   or look-behind condition): this is non-regular, isn't it?
 % \end{itemize}
@@ -597,7 +613,7 @@
 %    \begin{macrocode}
 \ProvidesExplPackage
   {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
-\RequirePackage{l3str, l3tl-analysis}
+\RequirePackage{l3str, l3tl-analysis, l3flag}
 %    \end{macrocode}
 %
 % Most regex engines use backtracking. This allows to provide very
@@ -636,6 +652,17 @@
 % \end{variable}
 % \end{variable}
 % \end{macro}
+%
+% \begin{variable}{\l_regex_group_begin_flag}
+% \begin{variable}{\l_regex_group_end_flag}
+%   Those flags are raised to indicate extra begin-group
+%   or end-group tokens when extracting submatches.
+%    \begin{macrocode}
+\flag_new:N \l_regex_group_begin_flag
+\flag_new:N \l_regex_group_end_flag
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
 %
 % \subsubsection{Variables used while building}
 %
@@ -866,9 +893,10 @@
 % \begin{variable}{\l_regex_current_step_int}
 % \begin{variable}{\l_regex_start_step_int}
 % \begin{variable}{\l_regex_success_step_int}
-%   While reading through the query token list, \cs{l_regex_current_step_int}
-%   is the position in the token list, off-set by \cs{l_regex_max_state_int}.
-%^^A +1?
+%   While reading through the query token list,
+%   \cs{l_regex_current_step_int} is the position in the
+%   token list, starting at \cs{l_regex_min_step_int} for
+%   the left-most token.
 %   Each match begins at the position
 %   given by \cs{l_regex_start_step_int}. Whenever an execution thread
 %   succeeds, the corresponding step is stored into
@@ -1066,13 +1094,6 @@
 %
 % \subsubsection{Variables used for user functions}
 %
-% \begin{variable}{\l_regex_submatches_seq}
-%   This holds temporarily a sequence of submatches.
-%    \begin{macrocode}
-\seq_new:N  \l_regex_submatches_seq
-%    \end{macrocode}
-% \end{variable}
-%
 % \begin{variable}{\l_regex_match_count_int}
 %   The number of matches found so far is stored
 %   in \cs{l_regex_match_count_int}. This is only used
@@ -1082,33 +1103,7 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_regex_result_seq}
-%   The \cs{regex_extract_all:nnN} and \cs{regex_split:nnN}
-%   functions store their result in that sequence variable
-%   before assigning it to the variable provided by the user.
-%    \begin{macrocode}
-\seq_new:N \l_regex_result_seq
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{variable}{\l_regex_replacement_tl}
-% \begin{variable}{\l_regex_replaced_tl}
-%   The replacement code stores a processed version
-%   of the user's argument in \cs{l_regex_replacement_tl}.
-%   The result of the replacement is stored in \cs{l_regex_replaced_tl},
-%   global to exit the group.
-%    \begin{macrocode}
-\tl_new:N \l_regex_replacement_tl
-\tl_new:N \l_regex_replaced_tl
-%    \end{macrocode}
-% \end{variable}
-% \end{variable}
-%
 % \subsection{Helpers}
-%
-%    \begin{macrocode}
-\cs_generate_internal_variant:n { NNx }
-%    \end{macrocode}
 %
 % \subsubsection{Toks}
 %
@@ -1142,9 +1137,11 @@
 % \end{macro}
 % \end{macro}
 %
-% \subsubsection{Unsafe substring extraction}
+% \subsubsection{Extracting parts of the query token list}
 %
 % \begin{macro}[int]{\regex_query_substr:nn}
+% \begin{macro}[int]{\regex_query_submatch:nn}
+% \begin{macro}[int]{\regex_query_submatch:w}
 %   The token list is stored in \tn{toks} registers:
 %   the first is \cs{l_regex_min_step_int}, the last is (we don't care yet).
 %    \begin{macrocode}
@@ -1154,20 +1151,22 @@
       \str_aux_toks_range:nn {#1} {#2}
     \fi:
   }
-\cs_new:Npn \regex_query_submatch:n #1
+\cs_new:Npn \regex_query_submatch:nn #1#2
   {
-    \exp_after:wN \regex_query_submatch:w
-    \int_use:N \int_eval:w \l_regex_submatch_start_int + #1 ;
+    \if_num:w #1 < \l_regex_capturing_group_int
+      \exp_after:wN \regex_query_submatch:w
+      \int_use:N \int_eval:w #1 + #2 ;
+    \fi:
   }
 \cs_new:Npn \regex_query_submatch:w #1 ;
   {
-    \if_num:w #1 < \l_regex_submatch_int
-      \regex_query_substr:nn
-        { \tex_skip:D #1 }
-        { \etex_gluestretch:D \tex_skip:D #1 }
-    \fi:
+    \regex_query_substr:nn
+      { \tex_skip:D #1 }
+      { \etex_gluestretch:D \tex_skip:D #1 }
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 % \subsubsection{Sequences}
@@ -1583,9 +1582,7 @@
     \tex_toks:D \l_regex_max_state_int { \s_stop }
     \int_set_eq:NN \l_regex_left_state_int \l_regex_right_state_int
     \int_set_eq:NN \l_regex_right_state_int \l_regex_max_state_int
-    \int_compare:nNnTF \l_regex_max_state_int < { 32767 }
-      { \int_incr:N \l_regex_max_state_int }
-      { \msg_error:nn { regex } { -997 } }
+    \int_incr:N \l_regex_max_state_int
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1738,6 +1735,7 @@
       }
     \regex_toks_put_right:Nx \l_regex_right_state_int
       { \regex_action_success: }
+    \int_incr:N \l_regex_capturing_group_int
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2202,6 +2200,7 @@
         \regex_build_Z:
         \regex_toks_put_right:Nx \l_regex_right_state_int
           { \regex_action_success: }
+        \int_incr:N \l_regex_capturing_group_int
         \use:x
           {
             \group_end:
@@ -3520,6 +3519,18 @@
 %
 % \subsection{Replacement}
 %
+% \begin{macro}[rEXP]{\regex_submatch_nesting_aux:n}
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_submatch_nesting_aux:n #1
+  {
+    + \etex_glueshrink:D \etex_mutoglue:D \etex_muexpr:D
+        \tex_muskip:D \etex_gluestretch:D \tex_skip:D #1
+        - \tex_muskip:D \tex_skip:D #1
+    \scan_stop:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[int]{\regex_replacement:n}
 %   Our goal here is to analyse the replacement text. First take care
 %   of detecting escaped and non-escaped characters using
@@ -3529,17 +3540,31 @@
 %   where \meta{fn $i$} is one of the three functions, and \meta{char $i$}
 %   a character in the string |#1|.
 %    \begin{macrocode}
+\cs_new:Npn \regex_nesting:n #1 { } %^^A move. Rename?
+\tl_new:N \l_regex_nesting_tl
 \cs_new_protected:Npn \regex_replacement:n #1
   {
     \int_zero:N \l_regex_replacement_int
+    \int_zero:N \l_regex_nesting_int
+    \tl_clear:N \l_regex_nesting_tl
     \str_escape_use:NNNn
       \regex_replacement_unescaped:N
       \regex_replacement_escaped:N
       \regex_replacement_raw:N
       {#1}
     \prg_do_nothing: \prg_do_nothing:
-    \tl_set:Nx \l_regex_replacement_tl
-      { \str_aux_toks_range:nn \c_zero \l_regex_replacement_int }
+    \cs_set_nopar:Npx \regex_nesting:n ##1
+      {
+        + \int_use:N \l_regex_nesting_int
+        \l_regex_nesting_tl
+        - \regex_submatch_nesting_aux:n {##1}
+      }
+    \use:x
+      {
+        \exp_not:n { \cs_set_nopar:Npn \regex_replacement_tl:n ##1 }
+          { \str_aux_toks_range:nn \c_zero \l_regex_replacement_int }
+      }
+      % ^^A rename! Careful with \cP\#.
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3587,12 +3612,24 @@
         \exp_after:wN \exp_after:wN \exp_after:wN \regex_replacement_g:w
       \else:
         \if_num:w \c_one < 1#1 \exp_stop_f:
-          \regex_replacement_put:n
-            { \regex_query_submatch:n {#1} }
+          \regex_replacement_put_submatch:n {#1}
         \else:
           \regex_replacement_put:n #1
         \fi:
       \fi:
+    \fi:
+  }
+\cs_new_protected:Npn \regex_replacement_put_submatch:n #1
+  {
+    \regex_replacement_put:n
+      { \regex_query_submatch:nn {#1} {##1} }
+    \if_num:w \l_regex_replacement_csnames_int = \c_zero
+      \tl_put_right:Nn \l_regex_nesting_tl
+        {
+          \exp_not:N \if_num:w #1 < \l_regex_capturing_group_int
+            \regex_submatch_nesting_aux:n { \int_eval:w #1+##1 \int_eval_end: }
+          \exp_not:N \fi:
+        }
     \fi:
   }
 \cs_new_protected:Npn \regex_replacement_error:NNN #1#2#3
@@ -3621,11 +3658,8 @@
           \exp_after:wN \regex_replacement_g_digits:NN
         \else:
           \if_charcode:w \c_rbrace_str #2
-            \use:x
-              {
-                \regex_replacement_put:n
-                  { \regex_query_submatch:n { \int_use:N \l_regex_tmpa_int } }
-              }
+            \exp_args:No \regex_replacement_put_submatch:n
+              { \int_use:N \l_regex_tmpa_int }
             \exp_after:wN \exp_after:wN \exp_after:wN \use_none:nn
           \else:
             \exp_after:wN \exp_after:wN
@@ -3838,6 +3872,29 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[int, rEXP]{\regex_to_str:N}
+% \begin{macro}[int, rEXP]{\regex_to_str_aux:w}
+%   Of course, we could simply set \cs{regex_to_str:N} equal
+%   to \cs{tl_to_str:N}. After all, regex variables are in particular
+%   token list variables. We do some more processing to start each
+%   line with \cs{tex_toks:D} instead of a single very long line.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \regex_to_str:N #1
+  {
+    \exp_after:wN \regex_to_str_aux:Nw #1
+    \tex_toks:D \q_stop \prg_map_break: \tex_toks:D
+    \prg_break_point:n { }
+  }
+\cs_new_nopar:Npn \regex_to_str_aux:Nw #1#2\tex_toks:D
+  {
+    \use_none_delimit_by_q_stop:w #2 \q_stop
+    \tl_to_str:n {#1#2} \iow_newline:
+    \regex_to_str_aux:Nw \tex_toks:D
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \subsubsection{Generic auxiliary functions}
 %
 % Most of \pkg{l3regex}'s work is done within a group.
@@ -3955,75 +4012,91 @@
 % \subsubsection{Submatches, once the correct match is found}
 %
 % \begin{macro}[int]{\regex_extract:}
-% \begin{macro}[aux]{\regex_extract_aux:nTF}
+% \begin{macro}[aux]{\regex_extract_aux_b:wn}
+% \begin{macro}[aux]{\regex_extract_aux_e:wn}
 %
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_extract:
   {
     \int_set_eq:NN \l_regex_submatch_start_int \l_regex_submatch_int
     \if_meaning:w \c_true_bool \g_regex_success_bool
-      \prg_stepwise_inline:nnnn
-        {0} {1} { \l_regex_capturing_group_int }
+      \prg_replicate:nn \l_regex_capturing_group_int
         {
-          \regex_extract_aux:nTF { ##1 }
-            {
-              \tex_skip:D \l_regex_submatch_int
-                = \l_regex_tmpa_tl sp plus \l_regex_tmpb_tl sp \scan_stop:
-            }
-            { \tex_skip:D \l_regex_submatch_int \c_zero sp \scan_stop: }
+          \tex_skip:D \l_regex_submatch_int \c_zero sp \scan_stop:
           \int_incr:N \l_regex_submatch_int
+        }
+      \prop_map_inline:Nn \l_regex_success_submatches_prop
+        {
+          \if_num:w ##1 \c_max_int
+            \exp_after:wN \regex_extract_aux_b:wn \int_use:N
+          \else:
+            \exp_after:wN \regex_extract_aux_e:wn \int_use:N
+          \fi:
+          \int_eval:w \l_regex_submatch_start_int + ##1 {##2}
         }
     \fi:
   }
-\cs_new_protected_nopar:Npn \regex_extract_seq:
-  { %^^A todo: use flags
-    \tl_set:Nx \l_regex_submatches_seq
-      {
-        \prg_stepwise_function:nnnN
-          \l_regex_submatch_start_int
-          \c_one
-          { \l_regex_submatch_int - \c_one }
-          \regex_extract_aux:n
-      }
-  }
-\cs_new_nopar:Npn \regex_extract_aux:n #1
+\cs_new_protected_nopar:Npn \regex_extract_aux_b:wn #1 < #2
   {
-    \exp_not:N \seq_item:n
-      {
-        \exp_after:wN \regex_extract_aux:ww
-        \int_use:N \int_eval:w
-          \etex_glueshrink:D \etex_mutoglue:D \tex_muskip:D
-             \tex_skip:D #1 -
-          \etex_glueshrink:D \etex_mutoglue:D \tex_muskip:D
-              \etex_gluestretch:D \tex_skip:D #1
-        ; #1;
-      }
+    \tex_skip:D #1 = #2 sp
+      plus \etex_gluestretch:D \tex_skip:D #1 \scan_stop:
   }
-\cs_new_nopar:Npn \regex_extract_aux:ww #1; #2;
+\cs_new_protected_nopar:Npn \regex_extract_aux_e:wn #1 > #2
   {
-    \if_num:w #1 > \c_zero
-      \msg_expandable_error:n { BOOM ! }
-      \prg_replicate:nn {#1} { \exp_not:n { { \if_false: } \fi: } }
-    \fi:
-    \regex_query_submatch:w #2;
-    \if_num:w #1 < \c_zero
-      \msg_expandable_error:n { BOOM ! }
-      \prg_replicate:nn {-#1} { \exp_not:n { \if_false: { \fi: } } }
-    \fi:
-  }
-\cs_new_protected_nopar:Npn \regex_extract_aux:nTF #1#2#3
-  {
-    \prop_get:NnNTF \l_regex_success_submatches_prop
-      { #1 < } \l_regex_tmpa_tl
-      {
-        \prop_get:NnNTF \l_regex_success_submatches_prop
-          { #1 > } \l_regex_tmpb_tl
-          {#2}
-          {#3}
-      }
-      {#3}
+    \tex_skip:D #1
+      = 1 \tex_skip:D #1 plus #2 sp \scan_stop:
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\regex_group_end_extract_seq:N}
+% \begin{macro}[aux]{\regex_extract_seq_aux:n}
+% \begin{macro}[aux]{\regex_extract_seq_aux:ww}
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_group_end_extract_seq:N #1
+  {
+      \cs_set_eq:NN \seq_item:n \scan_stop:
+      \flag_lower:N \l_regex_group_begin_flag
+      \flag_lower:N \l_regex_group_end_flag
+      \tl_set:Nx \l_regex_tmpa_tl
+        {
+          \prg_stepwise_function:nnnN
+            \l_regex_max_state_int
+            \c_one
+            { \l_regex_submatch_int - \c_one }
+            \regex_extract_seq_aux:n
+        }
+      \flag_test:NF \l_regex_group_begin_flag
+        { \flag_test:NF \l_regex_group_end_flag { \use_none:nnn } }
+      \msg_kernel_error:nn { regex } { sequence-unbalanced }
+      \tl_set:Nx \l_regex_tmpa_tl { \l_regex_tmpa_tl }
+    \exp_args:NNNo \group_end:
+    \tl_set:Nn #1 \l_regex_tmpa_tl
+  }
+\cs_new_nopar:Npn \regex_extract_seq_aux:n #1
+  {
+    \seq_item:n
+      {
+        \exp_after:wN \regex_extract_seq_aux:ww
+        \int_value:w \regex_submatch_nesting_aux:n {#1} ; #1;
+      }
+  }
+\cs_new_nopar:Npn \regex_extract_seq_aux:ww #1; #2;
+  { %^^A todo: use flags
+    \if_num:w #1 < \c_zero
+      \flag_raise:N \l_regex_group_end_flag
+      \prg_replicate:nn {-#1} { \exp_not:n { { \if_false: } \fi: } }
+    \fi:
+    \regex_query_submatch:w #2;
+    \if_num:w #1 > \c_zero
+      \flag_raise:N \l_regex_group_begin_flag
+      \prg_replicate:nn {#1} { \exp_not:n { \if_false: { \fi: } } }
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -4099,28 +4172,22 @@
 %   Since we only want one match, \cs{l_regex_every_match_tl}
 %   is empty, and does not trigger the matching code again.
 %   After matching, \cs{regex_extract:} extracts submatches
-%   into \cs{l_regex_submatches_seq}. The user's variable
-%   is only affected if there was a match.
+%   into various \tn{skip} registers, and those are then concatenated
+%   into a sequence by \cs{regex_group_end_extract_seq:N}. That function
+%   is also responsible for closing the group.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_extract_once_aux:NnnN #1#2#3#4
   {
     \group_begin:
-      \tl_clear:N \l_regex_every_match_tl
+      \tl_set:Nn \l_regex_every_match_tl { \regex_extract: }
       #1 {#2} {#3}
-      \regex_extract:
-      \regex_extract_seq:
-      \if_meaning:w \c_true_bool \g_regex_success_bool
-        \cs_set_eq:NN \seq_item:n \scan_stop:
-        \exp_args:NNNx \group_end:
-        \tl_set:Nn #4 \l_regex_submatches_seq
-      \else:
-        \group_end:
-      \fi:
+      \regex_group_end_extract_seq:N #4
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[aux]{\regex_extract_all_aux:NnnN}
+%^^A todo: update doc
 %   The set of submatches will be built progressively
 %   in \cs{l_regex_result_seq}. For each match, extract
 %   the submatches, and concatenate that to the right of
@@ -4130,23 +4197,10 @@
 \cs_new_protected:Npn \regex_extract_all_aux:NnnN #1#2#3#4
   {
     \group_begin:
-      \seq_clear:N \l_regex_result_seq
       \tl_set:Nn \l_regex_every_match_tl
-        {
-          \regex_extract:
-          \regex_extract_seq:
-          \seq_concat:NNN \l_regex_result_seq
-            \l_regex_result_seq \l_regex_submatches_seq
-          \regex_match_once:
-        }
+        { \regex_extract: \regex_match_once: }
       #1 {#2} {#3}
-      \if_meaning:w \c_true_bool \g_regex_success_bool
-        \cs_set_eq:NN \seq_item:n \scan_stop:
-        \exp_args:NNNx \group_end:
-        \tl_set:Nn #4 \l_regex_result_seq
-      \else:
-        \group_end:
-      \fi:
+      \regex_group_end_extract_seq:N #4
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4155,62 +4209,44 @@
 %
 % \begin{macro}[aux]{\regex_split_aux:NnnN}
 %   Recurse through the matches, and for each, do the following.
-%   Extract the submatches, remove the whole submatch, which
-%   should not be kept in the final result (only capturing groups
-%   should produce output for that function). Then add to the
-%   left of the sequence \cs{l_regex_submatches_seq} the part
-%   of the token list before the match. We then add all the items
-%   of \cs{l_regex_submatches_seq} in the result sequence.
+%   Extract the submatches into various \tn{skip} registers,
+%   then replace the match |\0|, which should not be kept in the
+%   final result, and replace it by the part of the token list
+%   before the match.
 %   This process must be inhibited to avoid creating empty items
 %   if the regex matched an empty token list at the place where
 %   the match attempt started.
 %   After the last successful match, we need to add to the result
 %   the part of the token list after the last match, unless the
 %   last match was empty and at the very end.
+%   Finally, \cs{regex_group_end_extract_seq:N} builds a sequence
+%   from all the \tn{skip} registers, and assigns it to |#4|
+%   after closing the group.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_split_aux:NnnN #1#2#3#4
   {
     \group_begin:
-      \seq_clear:N \l_regex_result_seq
       \tl_set:Nn \l_regex_every_match_tl
         {
           \if_num:w \l_regex_start_step_int < \l_regex_success_step_int
             \regex_extract:
-            \regex_extract_aux:nTF {0}
-              {
-                \tex_skip:D \l_regex_submatch_start_int
-                  = \l_regex_start_step_int sp
-                    plus \l_regex_tmpa_tl sp \scan_stop:
-              }
-              { \msg_kernel_error:nn { regex } { internal } }
-            \regex_extract_seq:
-            \seq_concat:NNN \l_regex_result_seq
-              \l_regex_result_seq \l_regex_submatches_seq
+            \tex_skip:D \l_regex_submatch_start_int
+              = \l_regex_start_step_int sp
+                plus \tex_skip:D \l_regex_submatch_start_int \scan_stop:
           \fi:
           \regex_match_once:
         }
       #1 {#2} {#3}
+      \tex_skip:D \l_regex_submatch_int
+        = \l_regex_start_step_int sp
+          plus \l_regex_current_step_int sp \scan_stop:
+      \int_incr:N \l_regex_submatch_int
       \if_num:w \l_regex_start_step_int = \l_regex_current_step_int
-        \bool_if:NF \l_regex_success_empty_bool
-          {
-            \seq_put_right:Nn \l_regex_result_seq { }
-            \tex_skip:D \l_regex_submatch_int = \c_zero sp \scan_stop:
-            \int_incr:N \l_regex_submatch_int
-          }
-      \else:
-        \seq_put_right:Nx \l_regex_result_seq
-          {
-            \regex_query_substr:nn
-              \l_regex_start_step_int \l_regex_current_step_int
-          }
-        \tex_skip:D \l_regex_submatch_int
-          = \l_regex_start_step_int sp
-            plus \l_regex_current_step_int sp \scan_stop:
-        \int_incr:N \l_regex_submatch_int
+        \if_meaning:w \c_true_bool \l_regex_success_empty_bool
+          \int_decr:N \l_regex_submatch_int
+        \fi:
       \fi:
-      \cs_set_eq:NN \seq_item:n \scan_stop:
-    \exp_args:NNNx \group_end:
-    \tl_set:Nn #4 \l_regex_result_seq
+      \regex_group_end_extract_seq:N #4
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4219,13 +4255,12 @@
 %
 % \begin{macro}[aux]{\regex_replace_once_aux:NnnN}
 %   The replacement text is analysed by \cs{regex_replacement:n},
-%   which defines \cs{l_regex_replacement_tl} to expand to the
+%   which defines \cs{regex_replacement_tl:n} to expand to the
 %   replaced token list, assuming that submatches are stored in
-%   \cs{l_regex_submatches_seq}. If there is a match, we grab
-%   the parts before and after it in \cs{l_regex_tmpa_tl} and
-%   \cs{l_regex_tmpb_tl}, and get the result by \texttt{x}-expansion
-%   as \cs{l_regex_replaced_tl}. If there is no match,
-%   don't change the user's variable.
+%   various \tn{skip} registers, as done by \cs{regex_extract:}.
+%   If there is a match, we grab
+%   the parts before and after it, and get the result
+%   by \texttt{x}-expanding twice.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_replace_once_aux:NnnN #1#2#3#4
   {
@@ -4233,23 +4268,42 @@
       \tl_clear:N \l_regex_every_match_tl
       \regex_replacement:n {#3}
       \exp_args:Nno #1 {#2} #4
-      \regex_extract:
-      \regex_extract_aux:nTF {0}
-        {
-          \tl_set:Nx \l_regex_replaced_tl
-            {
-              \regex_query_substr:nn \l_regex_min_step_int \l_regex_tmpa_tl
-              \l_regex_replacement_tl
-              \regex_query_substr:nn \l_regex_tmpb_tl \l_regex_max_step_int
-            }
-        }
-        { }
       \if_meaning:w \c_true_bool \g_regex_success_bool
-        \exp_args:NNNx \group_end:
-        \tl_set:Nn #4 \l_regex_replaced_tl
+        \regex_extract:
+        \int_set:Nn \l_regex_tmpa_int
+          { \regex_nesting:n { \l_regex_submatch_start_int } }
+        \if_num:w \l_regex_tmpa_int = \c_zero
+        \else:
+          \msg_kernel_error:nnx { regex } { replace-unbalanced }
+            { \l_regex_tmpa_int }
+        \fi:
+        \tl_set:Nx \l_regex_tmpa_tl
+          {
+            \if_num:w \l_regex_tmpa_int < \c_zero
+              \prg_replicate:nn { - \l_regex_tmpa_int }
+                { \exp_not:n { { \if_false: } \fi: } }
+            \fi:
+            \regex_query_substr:nn
+              { \l_regex_min_step_int }
+              { \tex_skip:D \l_regex_submatch_start_int }
+            \regex_replacement_tl:n { \l_regex_submatch_start_int }
+            \regex_query_substr:nn
+              { \etex_gluestretch:D \tex_skip:D \l_regex_submatch_start_int }
+              { \l_regex_max_step_int }
+            \if_num:w \l_regex_tmpa_int > \c_zero
+              \prg_replicate:nn { \l_regex_tmpa_int }
+                { \exp_not:n { \if_false: { \fi: } } }
+            \fi:
+          }
+        \tl_set:Nx \l_regex_tmpa_tl { \l_regex_tmpa_tl }
+        \exp_args:NNNo \group_end:
+        \tl_set:Nn #4 \l_regex_tmpa_tl
       \else:
         \group_end:
       \fi:
+  }
+\cs_new_protected_nopar:Npn \regex_replace_once_aux:w #1;
+  {
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4266,33 +4320,97 @@
       \tl_set:Nn \l_regex_every_match_tl
         {
           \regex_extract:
-          \regex_extract_aux:nTF {0}
-            {
-              \tl_put_right:Nx \l_regex_replaced_tl
-                {
-                  \regex_query_substr:nn
-                    \l_regex_start_step_int \l_regex_tmpa_tl
-                  \l_regex_replacement_tl
-                }
-            }
-            { \msg_kernel_error:nn { regex } { internal } }
+          \tex_skip:D \l_regex_submatch_start_int
+            = \tex_the:D \tex_skip:D \l_regex_submatch_start_int
+              minus \l_regex_start_step_int sp \scan_stop:
           \regex_match_once:
         }
-      \tl_clear:N \l_regex_replaced_tl
       \regex_replacement:n {#3}
       \exp_args:Nno #1 {#2} #4
-      \tl_put_right:Nx \l_regex_replaced_tl
+      \int_set:Nn \l_regex_tmpa_int
         {
+          \prg_stepwise_function:nnnN
+            \l_regex_max_state_int
+            \l_regex_capturing_group_int
+            { \l_regex_submatch_int - \c_one }
+            \regex_nesting:n
+        }
+      \if_num:w \l_regex_tmpa_int = \c_zero
+      \else:
+        \msg_kernel_error:nnx { regex } { replace-unbalanced }
+          { \l_regex_tmpa_int }
+      \fi:
+      \tl_set:Nx \l_regex_tmpa_tl
+        {
+          \if_num:w \l_regex_tmpa_int < \c_zero
+            \prg_replicate:nn { - \l_regex_tmpa_int }
+              { \exp_not:n { { \if_false: } \fi: } }
+          \fi:
+          \prg_stepwise_function:nnnN
+            \l_regex_max_state_int
+            \l_regex_capturing_group_int
+            { \l_regex_submatch_int - \c_one }
+            \regex_replace_all_aux:n
           \regex_query_substr:nn
             \l_regex_start_step_int \l_regex_max_step_int
+          \if_num:w \l_regex_tmpa_int > \c_zero
+            \prg_replicate:nn { \l_regex_tmpa_int }
+              { \exp_not:n { \if_false: { \fi: } } }
+          \fi:
         }
-    \exp_args:NNNx \group_end:
-    \tl_set:Nn #4 \l_regex_replaced_tl
+      \tl_set:Nx \l_regex_tmpa_tl { \l_regex_tmpa_tl }
+    \exp_args:NNNo \group_end:
+    \tl_set:Nn #4 \l_regex_tmpa_tl
+  }
+\cs_new_nopar:Npn \regex_replace_all_aux:n #1
+  {
+    \regex_query_substr:nn
+      { \etex_glueshrink:D \tex_skip:D #1 } { \tex_skip:D #1 }
+    \regex_replacement_tl:n {#1}
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Messages}
+%
+%    \begin{macrocode}
+\msg_kernel_new:nnnn { regex } { sequence-unbalanced }
+  {
+    Missing~
+    \flag_test:NTF \l_regex_group_end_flag
+      {
+        left~
+        \flag_test:NTF \l_regex_group_begin_flag
+          { and~right~braces } { brace }
+      }
+      { right~brace }
+    \ inserted~in~extracted~match.
+  }
+  {
+    LaTeX~was~asked~to~extract~submatches~or~split~a~token~list~
+    according~to~a~given~regular~expression,~but~some~of~the~resulting~
+    items~were~not~balanced.
+  }
+\msg_kernel_new:nnnn { regex } { replace-unbalanced }
+  { The~result~of~a~replacement~does~not~have~balanced~braces. }
+  {
+    LaTeX~was~asked~to~do~some~regular~expression~replacement,~
+    and~the~resulting~token~list~would~not~have~the~same~number~
+    of~begin-group~and~end-group~tokens. \\ \\
+    \ \ \ \
+    \prg_case_int:nnn {#1}
+      {
+        { -1 } { A~left~brace~was }
+        {  1 } { A~right~brace~was }
+      }
+      {
+        \int_abs:n {#1} ~
+        \int_compare:nNnTF {#1} < \c_zero { left } { right } ~
+        braces ~ were
+      }
+    \ inserted.
+  }
+%    \end{macrocode}
 %
 % Negative codes are specific to the \LaTeX3 implementation.
 % Other error codes match with the PCRE codes (not all of
