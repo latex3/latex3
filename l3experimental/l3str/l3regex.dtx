@@ -526,8 +526,7 @@
 % \begin{itemize}
 % \item The \texttt{\{\}} quantifiers are only partially implemented.
 % \item Clean up the use of messages.
-% \item Add tests for every user function, and for every regex
-%   and replacement feature.
+% \item Add tests for every regex and replacement feature.
 % \item Make sure the documentation is correct, and the code comments
 %   are as well.
 % \end{itemize}
@@ -1728,7 +1727,8 @@
     \regex_build_close_aux: \regex_build_group_:
     \seq_if_empty:NF \l_regex_capturing_group_seq
       {
-        \msg_error:nn { regex } {22}
+        \msg_kernel_error:nnx { regex } { missing-rparen }
+          { \seq_length:N \l_regex_capturing_group_seq }
         \prg_replicate:nn
           { \seq_length:N \l_regex_capturing_group_seq }
           { \regex_build_close_aux: \regex_build_group_: }
@@ -2048,7 +2048,7 @@
 \cs_new_protected_nopar:Npn \regex_class_range_put:NN #1#2
   {
     \if_num:w `#1 > `#2 \exp_stop_f:
-      \msg_error:nn { regex } {8}
+      \msg_kernel_error:nnxx { regex } { backwards-range } {#1} {#2}
     \else:
       \regex_class_one:x
         {
@@ -2097,9 +2097,9 @@
 %
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_build_c:
-  { \regex_aux_c:NNNN \regex_item_catcode:n \use_ii:nnn }
+  { \regex_aux_c:NNNN \regex_item_catcode:n \use_i:nn }
 \cs_new_protected_nopar:Npn \regex_build_C:
-  { \regex_aux_c:NNNN \regex_item_catcode_neq:n \use_iii:nnn }
+  { \regex_aux_c:NNNN \regex_item_catcode_neq:n \use_ii:nn }
 \cs_new_eq:NN \regex_class_c: \regex_build_c:
 \cs_new_eq:NN \regex_class_C: \regex_build_C:
 \cs_new_protected:Npn \regex_aux_c:NNNN #1#2#3#4
@@ -2107,29 +2107,31 @@
     \token_if_eq_meaning:NNTF #3 \regex_build_raw:N
       {
         \regex_aux_c_test:NTF #4
-          { \use_i:nnn } { \use_iii:nnn }
+          {
+            \use:c { regex_ \l_regex_build_or_class_tl _one:x }
+              { #1 { \int_use:N \l_regex_current_catcode_int } }
+          }
+          {
+            \msg_kernel_error:nnx { regex } { build-c } { #4 }
+            #3 #4
+          }
       }
       {
         \if_charcode:w \c_lbrace_str \exp_not:N #4
           \exp_after:wN #2
         \else:
-          \exp_after:wN \use_iii:nnn
+          \exp_after:wN \use_ii:nn
         \fi:
+        {
+          \group_begin:
+            \bool_set_true:N \l_regex_in_csname_bool
+            \regex_build:w
+        }
+        {
+          \msg_kernel_error:nnx { regex } { build-c } { #4 }
+          #3 #4
+        }
       }
-    {
-      \use:c { regex_ \l_regex_build_or_class_tl _one:x }
-        { #1 { \int_use:N \l_regex_current_catcode_int } }
-    }
-    {
-      \group_begin:
-        \bool_set_true:N \l_regex_in_csname_bool
-        \regex_build:w
-    }
-    {
-      \msg_kernel_error:nnx
-        { regex } { \l_regex_build_or_class_tl -c } { #4 }
-      #3 #4
-    }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2319,12 +2321,8 @@
       {
         \tl_if_empty:nTF {#2}
           { \regex_build_quantifier_aux:nnNN { {#1} } { n* } }
-          {
-            \int_compare:nNnT {#1} > {#2}
-              { \msg_error:nn { regex } {4} }
-            \regex_build_quantifier_aux:nnNN { {#1} {#2} } { nn }
-          }
-      }
+          { \regex_build_quantifier_aux:nnNN { {#1} {#2} } { nn } }
+      } %^^A todo: catch the case m>n
       {
         \regex_build_quantifier_end:n { }
         \use:x
@@ -2557,7 +2555,7 @@
 \cs_new_protected_nopar:cpn { regex_build_): }
   {
     \seq_if_empty:NTF \l_regex_capturing_group_seq
-      { \msg_error:nn { regex } { 22 } }
+      { \msg_kernel_error:nn { regex } { extra-rparen } }
       {
         \regex_build_close_aux:
         \regex_build_group_quantifier:
@@ -2616,7 +2614,8 @@
   {
     \cs_if_exist_use:cF { regex_build_special_group_\token_to_str:N #2 : }
       {
-        \msg_error:nn { regex } { -998 }
+        \msg_kernel_error:nnx { regex } { unsupported }
+          { (? \token_to_str:N #2 } %)
         \regex_build_control:N ( % )
         \regex_build_raw:N ?
         #1 #2
@@ -3699,16 +3698,12 @@
 
   \cs_new_protected_nopar:Npn \regex_replacement_c_S:w #1#2
     {
-      \token_if_eq_meaning:NNTF #1 \regex_replacement_unescaped:N
-        {
-          \int_compare:nNnTF { `#2 } = \c_zero
-            { \regex_replacement_error:NNN c #1#2 }
-            {
-              \char_set_lccode:nn {32} { `#2 }
-              \tl_to_lowercase:n { \regex_replacement_put:n {~} }
-            }
-        }
+      \int_compare:nNnTF { `#2 } = \c_zero
         { \regex_replacement_error:NNN c #1#2 }
+        {
+          \char_set_lccode:nn {32} { `#2 }
+          \tl_to_lowercase:n { \regex_replacement_put:n {~} }
+        }
     }
 
   \char_set_catcode_parameter:N \^^@
@@ -3753,13 +3748,9 @@
 
 \cs_new_protected_nopar:Npn \regex_replacement_char:nNN #1#2#3
   {
-    \token_if_eq_meaning:NNTF #2 \regex_replacement_unescaped:N
-      {
-        \char_set_lccode:nn \c_zero { `#3 }
-        \tl_to_lowercase:n
-          { \regex_replacement_put:n { \exp_not:n {#1} } }
-      }
-      { \regex_replacement_error:NNN c #2#3 }
+    \char_set_lccode:nn \c_zero { `#3 }
+    \tl_to_lowercase:n
+      { \regex_replacement_put:n { \exp_not:n {#1} } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4329,6 +4320,7 @@
       \exp_args:Nno #1 {#2} #4
       \int_set:Nn \l_regex_tmpa_int
         {
+          0
           \prg_stepwise_function:nnnN
             \l_regex_max_state_int
             \l_regex_capturing_group_int
@@ -4412,28 +4404,56 @@
   }
 %    \end{macrocode}
 %
-% Negative codes are specific to the \LaTeX3 implementation.
-% Other error codes match with the PCRE codes (not all of
-% the PCRE errors can occur, since many constructions are
-% not supported).
 %    \begin{macrocode}
-% \msg_new:nnn { regex } { -999 } { File~not~found }
-\msg_new:nnn { regex } { -998 } { Unsupported~construct }
-\msg_new:nnn { regex } { -997 }
-  { The~regular~expression~is~too~large~(32768~states). }
-\msg_new:nnn { regex } { 1 } { \iow_char:N\\~at~end~of~pattern }
+\msg_kernel_new:nnnn { regex } { missing-rparen }
+  { Missing~right~parenthesis~added~in~regular~expression. }
+  {
+    LaTeX~was~given~a~regular~expression~with~\int_eval:n{#1}~
+    more~left~parenthes\int_compare:nTF{#1=1}{i}{e}s~than~right~
+    parenthes\int_compare:nTF{#1=1}{i}{e}s.
+  }
+\msg_kernel_new:nnnn { regex } { extra-rparen }
+  { Extra~right~parenthesis~ignored~in~regular~expression. }
+  {
+    LaTeX~came~across~a~closing~parenthesis~when~no~submatch~group~
+    was~open.~The~parenthesis~will~be~ignored.
+  }
+\msg_kernel_new:nnnn { regex } { backwards-range }
+  { Range~[#1-#2]~out~of~order~in~character~class. }
+  {
+    In~ranges~of~characters~[x-y]~appearing~in~character~classes,~
+    the~first~character~code~must~not~be~larger~than~the~second.~
+    Here,~#1~has~character~code~\int_eval:n {`#1},~while~#2~has~
+    character~code~\int_eval:n {`#2}.
+  }
+\msg_kernel_new:nnnn { regex } { unsupported }
+  { Unsupported~construction~`#1'. }
+  {
+    The~construction~`#1'~is~not~supported~by~the~LaTeX~
+    regular~expression~module.~Perhaps~some~character~should~
+    have~been~escaped?
+  }
+\msg_kernel_new:nnnn { regex } { not-nfa }
+  { This~is~not~a~regular~expression~variable. }
+  {
+    LaTeX~was~expecting~`#1'~to~be~a~regular~expression~variable.\\
+    This~control~sequence~is~not~a~regex~variable.~It's~current~meaning~
+    is~\\\\
+    \ \ \ \ \token_to_str:N #1 = \token_to_meaning:N #1 .
+  }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+% \msg_new:nnn { regex } { 1 } { \iow_char:N\\~at~end~of~pattern }
 % \msg_new:nnn { regex } { 2 } { \iow_char:N\\c~at~end~of~pattern }
-\msg_new:nnn { regex } { 4 }
-  { Numbers~out~of~order~in~\iow_char:N\{\iow_char\}~quantifier. }
-\msg_new:nnn { regex } { 6 }
-  { Missing~terminating~\iow_char:N\]~for~character~class }
-\msg_new:nnn { regex } { 7 }
-  { Invalid~escape~sequence~in~character~class }
-\msg_new:nnn { regex } { 8 }
-  { Range~out~of~order~in~character~class }
-\msg_new:nnn { regex } { 22 } { Mismatched~parentheses }
-\msg_new:nnn { regex } { 34 }
-  { Character~value~in~\iow_char:N\\x{...}~sequence~is~too~large }
+% \msg_new:nnn { regex } { 4 }
+%   { Numbers~out~of~order~in~\iow_char:N\{\iow_char\}~quantifier. }
+% \msg_new:nnn { regex } { 6 }
+%   { Missing~terminating~\iow_char:N\]~for~character~class }
+% \msg_new:nnn { regex } { 7 }
+%   { Invalid~escape~sequence~in~character~class }
+% \msg_new:nnn { regex } { 34 }
+%   { Character~value~in~\iow_char:N\\x{...}~sequence~is~too~large }
 % \msg_new:nnn { regex } { 44 } { Invalid~UTF-8~string }
 % \msg_new:nnn { regex } { 46 }
 %   { Malformed~\iow_char:N\\P~or\iow_char:N\\p~sequence }
@@ -4444,18 +4464,46 @@
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-\msg_new:nnn { regex } { not-nfa }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\msg_kernel_new:nnnn { regex } { build-c }
+  { Misused~\iow_char:N\\c~or\iow_char:N\\C~command~in~regular~expression. }
   {
-    LaTeX~was~expecting~a~regular~expression~variable.\\
-    Instead,~LaTeX~found~'#1'.
+    The~\iow_char:N\\C~escape~sequence~can~be~followed~by~
+    one~of~the~letters~ABCDELMOPSTU.~The~\iow_char:N\\c~
+    escape~sequence~can~also~be~followed~by~a~brace~group.
+  }
+\msg_kernel_new:nnnn { regex } { unknown-option }
+  { Unknown~option~`#1'~for~regular~expressions. }
+  {
+    LaTeX~came~across~something~like~`(?#1)'~in~a~regular~expression,~
+    but~the~option~`#1'~is~not~known.~It~will~be~ignored.
+  }
+\msg_kernel_new:nnnn { regex } { invalid-in-option }
+  { Invalid~character~in~option~of~a~regular~expression. }
+  {
+    The~character~or~escape~sequence~`#1'~is~not~defined~
+    as~an~option~within~regular~expressions.
+  }
+\msg_kernel_new:nnnn { regex } { replacement-g }
+  { Missing~brace~for~the~\iow_char:N\\g~construction~in~a~replacement~text. }
+  {
+    In~the~replacement~text~for~a~regular~expression~search,~
+    submatches~are~represented~either~as~\iow_char:N \\g{dd..d},~
+    or~\\d,~where~`d'~are~single~digits.~Here,~a~brace~is~missing.
+  }
+\msg_kernel_new:nnnn { regex } { replacement-c }
+  { Something~is~wrong~with~the~replacement~text. }
+  {
+    The~\iow_char:N\\c~escape~sequence~can~only~be~followed~by~
+    ABCDELMN~or~by~a~brace.
   }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
 \msg_kernel_new:nnn { regex } { nfa-misused }
   { Automaton~#1 used~incorrectly. }
-\msg_kernel_new:nnn { regex } { g-misused }
-  { \g misused~in~replacement~text. }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
