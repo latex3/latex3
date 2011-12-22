@@ -388,7 +388,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   if not [%1] == [] set ENGINE=%1
 
   tex l3format.ins > nul
-  %ENGINE% -etex -ini "*l3format.ltx"
+  %ENGINE% -etex -ini "l3format.ltx"
 
   goto :end
 
