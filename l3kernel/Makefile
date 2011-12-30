@@ -334,7 +334,7 @@ check: \
 	    rm -f $$I.$$J ; \
 	  done ; \
 	done ; \
-	if (test `ls *.diff |wc -l` -gt 0) ; then \
+	if [ `ls -1 *.diff 2>/dev/null | wc -l` != 0 ] ; then \
 	  echo "  Check failed with difference files" ; \
 	  for I in *.diff ; do \
 	    echo "  - " `pwd`"/$$I" ; \

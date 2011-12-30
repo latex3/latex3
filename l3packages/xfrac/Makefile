@@ -189,12 +189,10 @@ support: \
 
 .PHONY = \
 	check        \
-	checklvt     \
 	clean        \
 	cleanall     \
 	doc          \
 	localinstall \
-	savetlg      \
 	test         \
 	unpack
 
@@ -207,57 +205,7 @@ cleanall: clean
 	  rm -f *.$$I ; \
 	done
 
-check: \
-	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).lvt) \
-	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).tlg) \
-	expl3 support unpack
-	echo "Running checks on"
-	cd $(TESTDIR) ; \
-	for I in $(AUXFILES) diff ; do \
-	  rm -f *.$$I ; \
-	done ; \
-	for I in $(CHECKFILES) ; do \
-	  echo "  $$I" ; \
-	  pdflatex $$I.lvt > /dev/null ; \
-	  pdflatex $$I.lvt > /dev/null ; \
-	  perl $(SCRIPTDIR)/log2tlg $$I < $$I.log > $$I.new.log ; \
-	  if !(cmp -s $$I.tlg $$I.new.log) ; then \
-	    diff -c $$I.tlg $$I.new.log > $$I.diff ; \
-	  fi ; \
-	  for J in $(AUXFILES) lvt tlg ; do \
-	    rm -f $$I.$$J ; \
-	  done ; \
-	done ; \
-	if (ls *.diff > /dev/null) ; then \
-	  echo "  Check failed with difference files" ; \
-	  for I in *.diff ; do \
-	    echo "  - " `pwd`"/$$I" ; \
-	  done ; \
-	else \
-	  echo "  All checks passed" ; \
-	fi
-
-checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
-	echo "Running checks on $(F)"
-	cd $(TESTDIR) ; \
-	for I in $(AUXFILES) diff ; do \
-	  rm -f *.$$I ; \
-	done ; \
-	pdflatex $(F).lvt ; \
-	pdflatex $(F).lvt > /dev/null ; \
-	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).new.log ; \
-	if !(cmp -s $(F).tlg $(F).new.log) ; then \
-	  diff -c $(F).new.log $(F).tlg > $(F).diff ; \
-	fi ; \
-	for I in $(AUXFILES) lvt pdf tlg ; do \
-	  rm -f $(F).$$I ; \
-	done ; \
-	if (test -f $(F).diff) ; then \
-	  echo "  Check failed" ; \
-	  more `pwd`/$(F).diff ; \
-	else \
-	  echo "  Check passed" ; \
-	fi
+check:
 
 doc: unpack $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf)
 
@@ -267,19 +215,7 @@ localinstall: unpack
 	mkdir -p $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
 	cd $(TESTDIR) ; \
-	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/
-
-savetlg: $(TESTDIR)/$(F).lvt support unpack
-	echo "Creating and copying $(F).tlg"
-	cd $(TESTDIR) ; \
-	for I in $(AUXFILES) diff ; do \
-	  rm -f *.$$I ; \
-	done ; \
-	pdflatex $(F).lvt > /dev/null ; \
-	pdflatex $(F).lvt > /dev/null ; \
-	rm -f $$I.pdf ; \
-	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).tlg
-	cp -f $(TESTDIR)/$(F).tlg $(TESTFILEDIR)/$(F).tlg
+	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)
 
 unpack: $(foreach FILE,$(DTX) $(TEX) $(UNPACK),$(TESTDIR)/$(FILE))
 	echo "Unpacking files"
