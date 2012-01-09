@@ -1440,7 +1440,7 @@
 %
 % \subsection{Grabbing arguments}
 %
-% \begin{macro}{\xparse_add_arg:n, \xparse_add_arg:V}
+% \begin{macro}{\xparse_add_arg:n, \xparse_add_arg:V, \xparse_add_arg:o}
 % \begin{macro}[aux]{\xparse_add_arg_aux:n, \xparse_add_arg_aux:V}
 %   The argument-storing system provides a single point for interfacing
 %   with processors. They are done in a loop, counting downward. In this
@@ -1463,7 +1463,7 @@
           { \xparse_add_arg_aux:n {#1} }
       }
   }
-\cs_generate_variant:Nn \xparse_add_arg:n { V }
+\cs_generate_variant:Nn \xparse_add_arg:n { V , o }
 \cs_new_protected:Npn \xparse_add_arg_aux:n #1
   {
     \tl_set_eq:NN \ProcessedArgument \l_xparse_arg_tl
@@ -1535,13 +1535,9 @@
 %   nested optional argument tokens (\texttt{[[...]]} and so on) the
 %   argument needs to be grabbed without removing any braces at all. If
 %   this is not done, then cases like |[{[}]| fail. So after testing for
-%   an optional argument, it is collected piece-wise. First, the opening
-%   token is removed, then a check is made for a group. If it looks like
-%   the entire argument is a group, then an extra set of braces are
-%   added back in. The closing token is then used to collect everything
-%   else. There is then a test to see if there is nesting, by looking
-%   for a \enquote{spare} open-argument token. If that is found, things hand
-%   off to a loop to deal with that.
+%   an optional argument, it is collected piece-wise. Inserting a quark
+%   prevents loss of braces, and there is then a test to see if there are
+%   nested delimiters to handle.
 %    \begin{macrocode}
 \cs_new_protected:Npn \xparse_grab_D_aux:NNnnNn #1#2#3#4#5#6
   {
@@ -1557,37 +1553,16 @@
   {
     \cs_set_protected_nopar:Npn \xparse_grab_arg:w #1
       {
-        \peek_meaning:NTF \c_group_begin_token
+        #4 { \l_xparse_function_tl \c_space_tl arg } ####1 #2
           {
-            #4 { \l_xparse_function_tl \c_space_tl arg } ####1
+            \tl_if_in:nnTF {####1} {#1}
+              { \xparse_grab_D_nested:NNnnN #1 #2 {####1} {#3} #4 }
               {
-                #4 { \l_xparse_function_tl \c_space_tl arg } ########1 #2
-                  {
-                    \tl_if_in:nnTF {########1} {#1}
-                      { \xparse_grab_D_nested:NNnnN #1 #2 {########1} {#3} #4 }
-                      {
-                        \xparse_add_arg:n {########1}
-                        #3 \l_xparse_args_tl
-                      }
-                  }
-                \peek_charcode:NTF #2
-                  { \use:c { \l_xparse_function_tl \c_space_tl arg } { {####1} } }
-                  { \use:c { \l_xparse_function_tl \c_space_tl arg } {####1} }
-              }
-            \use:c { \l_xparse_function_tl \c_space_tl arg }
+                \xparse_add_arg:o { \use_none:n ####1 }
+                #3 \l_xparse_args_tl
+              }  
           }
-          {
-            #4 { \l_xparse_function_tl \c_space_tl arg } ####1 #2
-              {
-                \tl_if_in:nnTF {####1} {#1}
-                  { \xparse_grab_D_nested:NNnnN #1 #2 {####1} {#3} #4 }
-                  {
-                    \xparse_add_arg:n {####1}
-                    #3 \l_xparse_args_tl
-                  }
-              }
-            \use:c { \l_xparse_function_tl \c_space_tl arg }
-          }
+        \use:c { \l_xparse_function_tl \c_space_tl arg } \q_nil
       }
   }
 %    \end{macrocode}
@@ -1598,6 +1573,7 @@
 % \end{macro}
 % \end{macro}
 % \begin{macro}[aux]{\xparse_grab_D_nested:NNnnN}
+% \begin{macro}[aux]{\xparse_grab_D_nested:w}
 % \begin{macro}{\l_xparse_nesting_a_tl}
 % \begin{macro}{\l_xparse_nesting_b_tl}
 % \begin{macro}{\q_xparse}
@@ -1614,7 +1590,9 @@
 %   material is added to the output as a single argument. The only tricky part
 %   here is ensuring that any grabbing function that might run away is named
 %   after the function currently being parsed and not after \pkg{xparse}. That
-%   leads to some rather complex nesting!
+%   leads to some rather complex nesting! There is also a need to prevent the
+%   loss of any braces, hence the insertion and removal of quarks along the
+%   way.
 %    \begin{macrocode}
 \tl_new:N \l_xparse_nesting_a_tl
 \tl_new:N \l_xparse_nesting_b_tl
@@ -1625,18 +1603,19 @@
     \tl_clear:N \l_xparse_nesting_b_tl
     #5 { \l_xparse_function_tl \c_space_tl arg } ##1 #1 ##2 \q_xparse ##3 #2
       {
-        \tl_put_right:Nn \l_xparse_nesting_a_tl { ##1 #1 }
+        \tl_put_right:No \l_xparse_nesting_a_tl { \use_none:n ##1 #1 }
         \tl_put_right:Nn \l_xparse_nesting_b_tl { #2 ##3 }
         \tl_if_in:nnTF {##2} {#1}
-          { \use:c { \l_xparse_function_tl \c_space_tl arg } ##2 \q_xparse }
+          { \use:c { \l_xparse_function_tl \c_space_tl arg } \q_nil ##2 \q_xparse }
           {
-            \tl_put_right:Nn \l_xparse_nesting_a_tl {##2}
+            \tl_put_right:Nx \l_xparse_nesting_a_tl
+              { \xparse_grab_D_nested:w \q_nil ##2 \q_stop }
             \tl_if_in:NnTF \l_xparse_nesting_b_tl {#1}
               {
                 \tl_set_eq:NN \l_xparse_tmp_tl \l_xparse_nesting_b_tl
                 \tl_clear:N \l_xparse_nesting_b_tl
                 \use:c { \l_xparse_function_tl \c_space_tl arg \exp_after:wN }
-                  \l_xparse_tmp_tl \q_xparse
+                  \exp_after:wN \q_nil \l_xparse_tmp_tl \q_nil \q_xparse
               }
               {
                 \tl_put_right:No \l_xparse_nesting_a_tl
@@ -1646,9 +1625,12 @@
               }
           }
       }
-    \use:c { \l_xparse_function_tl \c_space_tl arg } #3 \q_xparse
+    \use:c { \l_xparse_function_tl \c_space_tl arg } #3 \q_nil \q_xparse
   }
+\cs_new:Npn \xparse_grab_D_nested:w #1 \q_nil \q_stop
+  { \exp_not:o { \use_none:n #1 } }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
