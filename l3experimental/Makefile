@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3 "l3experimental" files                   #
+# Makefile for LaTeX3 "l3packages" files                       #
 ################################################################
 ################################################################
 
@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3experimental
+PACKAGE = l3packages
 
 ##############################################################
 # Directory structure for source files                       #
@@ -58,7 +58,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-PACKAGES = l3str xcoffins xgalley
+PACKAGES = l3keys2e xfrac xparse xtemplate
 
 ################################################################
 # File copying: default actions                                #
@@ -98,7 +98,7 @@ cleanall: clean
 	  make cleanall ; \
 	  cd .. ; \
 	done
-	rm -f *.zip
+	rm -rf *.zip
 
 ctan: tds
 	echo "Creating CTAN archive"
@@ -145,7 +145,6 @@ tds: $(TESTDIR)/README.markdown doc unpack
 	  mkdir -p source/$(PACKAGEROOT)/$$I/ ; \
 	  mkdir -p tex/$(PACKAGEROOT)/$$I/ ; \
 	  cd $(TESTDIR)/$$I/ ; \
-	  cp -f *.def $(TDSDIR)/tex/$(PACKAGEROOT)/$$I/ ; \
 	  cp -f *.dtx $(TDSDIR)/source/$(PACKAGEROOT)/$$I/ ; \
 	  cp -f *.ins $(TDSDIR)/source/$(PACKAGEROOT)/$$I/ ; \
 	  cp -f *.pdf $(TDSDIR)/doc/$(PACKAGEROOT)/$$I/ ; \

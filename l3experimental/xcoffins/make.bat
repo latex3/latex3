@@ -14,7 +14,6 @@ set EXPL3DIR=..\..\l3kernel
 set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
 set SCRIPTDIR=..\..\support
 set TESTDIR=testfiles
-set TEST=
 set TDSROOT=latex\%KERNELDIR%\%PACKAGE%
 set UNPACK=%PACKAGE%.ins
 set VALIDATE=..\..\validate
@@ -211,24 +210,6 @@ set VALIDATE=..\..\validate
   copy /y %1.tlg %TESTDIR%\%1.tlg > nul
   
   goto :clean-int
-
-:test
-
-  call :all
-
-  for %%I in (%TEST%) do (
-    echo   %%I
-    pdflatex -interaction=batchmode %%I > nul
-    if not [%ERRORLEVEL%] == [0] (
-      echo.
-      echo **********************
-      echo * Compilation failed *
-      echo **********************
-      echo.
-    ) 
-  )
-
-  goto :end
 
 :unpack
 
