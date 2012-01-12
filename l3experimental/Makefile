@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3 "l3packages" files                       #
+# Makefile for LaTeX3 "l3experimental" files                   #
 ################################################################
 ################################################################
 
@@ -24,7 +24,7 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = l3packages
+PACKAGE = l3experimental
 
 ##############################################################
 # Directory structure for source files                       #
@@ -58,7 +58,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-PACKAGES = l3keys2e xfrac xparse xtemplate
+PACKAGES = l3str xcoffins xgalley
 
 ################################################################
 # File copying: default actions                                #
