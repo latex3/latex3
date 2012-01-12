@@ -1,28 +1,61 @@
 @echo off
-rem This Windows batch file provides very similar functionality to the
-rem Makefile also available here.  Some of the options provided here 
-rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 
-setlocal
+rem Makefile for LaTeX3 "l3experimental" files
 
-set CLEAN=zip
-set PACKAGE=l3experimental
-set PACKAGES=l3str xcoffins xgalley
-set PATHCOPY=%PATH%
-set TDSROOT=latex\%PACKAGE%
-set TEST=
-set TXT=README
+  if not [%1] == [] goto :init
 
-:loop
+:help
 
+  rem Default with no target is to give help
+
+  echo.
+  echo  make check        - runs the automated test suite
+  echo  make clean        - clean out directory tree
+  echo  make ctan         - create an archive ready for CTAN
+  each  make doc          - typeset documentation
+  echo  make localinstall - install files in local texmf tree
+  echo  make tds          - 
+  echo  make unpack       - extract packages
+
+  goto :EOF
+
+:init
+
+  rem Avoid clobbering anyone else's variables
+
+  setlocal
+
+  set CLEAN=zip
+  set PACKAGE=l3package
+  set PACKAGES=l3str xcoffins xgalley
+  set TDSROOT=latex\%PACKAGE%
+  set TXT=README
+
+  cd /d "%~dp0"
+
+:main
+
+  if /i [%1] == [check]        goto :check
   if /i [%1] == [clean]        goto :clean
+  if /i [%1] == [cleanall]     goto :clean
   if /i [%1] == [ctan]         goto :ctan
+  if /i [%1] == [doc]          goto :doc
   if /i [%1] == [localinstall] goto :localinstall
   if /i [%1] == [tds]          goto :tds
-  if /i [%1] == [test]         goto :test
+  if /i [%1] == [unpack]       goto :unpack
 
   goto :help
+  
+:check
 
+  for %%I in (%PACKAGES%) do (
+    pushd %%I
+    call make check
+    popd
+  )
+
+  goto :end
+  
 :clean
 
   for %%I in (%PACKAGES%) do (
@@ -31,9 +64,9 @@ set TXT=README
     popd
   )
 
-  for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
-
   goto :end
+  
+  for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
 
 :ctan
 
@@ -91,15 +124,14 @@ set TXT=README
 
   goto :end
 
-:help
+:doc
 
-  echo.
-  echo  make clean        - clean out all directories
-  echo  make ctan         - create a zip file ready to go to CTAN
-  echo  make localinstall - install the .sty files in your home texmf tree
-  echo  make tds          - creates a TDS-ready zip of CTAN packages
-  echo  make test         - set up and run all test documents
-  
+  for %%I in (%PACKAGES%) do (
+    pushd %%I
+    call make doc
+    popd
+  )
+
   goto :end
 
 :localinstall
@@ -168,18 +200,6 @@ set TXT=README
 
   rmdir /q /s tds
   
-  goto :end
-
-:test
-  
-  for %%I in (%TEST%) do (
-    echo.
-    echo Testing %%I
-    pushd %%I
-    call make test clean
-    popd
-  )
-
   goto :end
 
 :zip 

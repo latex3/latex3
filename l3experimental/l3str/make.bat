@@ -13,7 +13,6 @@ rem Makefile for LaTeX3 "l3str" files
   echo  make doc          - typeset all dtx files
   echo  make localinstall - locally install packages
   echo  make savetlg ^<name^> - save test log for ^<name^>
-  echo  make test         - run test doucments
   echo  make unpack       - extract modules
 
   goto :end
@@ -28,12 +27,11 @@ rem Makefile for LaTeX3 "l3str" files
   set L3DIR=l3experimental
 
   set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
-  set CLEAN=fc gz pdf sty txt
+  set CLEAN=def fc gz pdf sty txt
   set EXPL3DIR=..\..\l3kernel
   set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
   set SCRIPTDIR=..\..\support
   set TESTDIR=testfiles
-  set TEST=
   set TDSROOT=latex\%L3DIR%\%PACKAGE%
   set UNPACK=%PACKAGE%.ins
   set VALIDATE=..\..\validate
@@ -217,24 +215,6 @@ rem Makefile for LaTeX3 "l3str" files
   copy /y %1.tlg %TESTDIR%\%1.tlg > nul
 
   goto :clean-int
-
-:test
-
-  call :all
-
-  for %%I in (%TEST%) do (
-    echo   %%I
-    pdflatex -interaction=batchmode %%I > nul
-    if not [%ERRORLEVEL%] == [0] (
-      echo.
-      echo **********************
-      echo * Compilation failed *
-      echo **********************
-      echo.
-    )
-  )
-
-  goto :end
 
 :unpack
 
