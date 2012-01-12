@@ -154,7 +154,10 @@ rem Makefile for LaTeX3 "xmetadata" files
   echo Installing files
 
   if not defined TEXMFHOME (
-    set TEXMFHOME=%USERPROFILE%\texmf
+    for /f "delims=" %%I in ('kpsewhich --var-value=TEXMFHOME') do @set TEXMFHOME=%%I
+    if [%TEXMFHOME%] == [] (
+      set TEXMFHOME=%USERPROFILE%\texmf
+    )
   )
   set INSTALLROOT=%TEXMFHOME%\tex\%TDSROOT%
 
