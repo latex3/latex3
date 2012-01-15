@@ -525,7 +525,7 @@
 %   category code $13$ (active) \meta{token} will be replaced
 %   before the split takes place.
 % \end{function}
-% 
+%
 % \begin{function}[EXP]{\ProcessList}
 %   \begin{syntax}
 %     \cs{ProcessList} \Arg{list} \Arg{function}
@@ -538,7 +538,7 @@
 %       { > { \SplitList { ; } } m }
 %       { \ProcessList {#1} { \SomeDocumentFunction } }
 %   \end{verbatim}
-%   
+%
 %   \textbf{This function is experimental.}
 % \end{function}
 %
@@ -564,35 +564,6 @@
 %   \TeX{} conversion of multiple spaces to a single space does not apply.
 %
 %   \textbf{This function is experimental.}
-% \end{function}
-%
-% \subsection{Separating interface and implementation}
-%
-% One \emph{experimental} idea implemented in \pkg{xparse} is to
-% separate out document command interfaces (the argument specification)
-% from the implementation (code).  This is carried out using a
-% pair of functions, \cs{DeclareDocumentCommandInterface} and
-% \cs{DeclareDocumentCommandImplementation}
-%
-% \begin{function}{\DeclareDocumentCommandInterface}
-%   \begin{syntax}
-%     \cs{DeclareDocumentCommandInterface} \meta{function}
-%     ~~~~\Arg{implementation} \Arg{arg spec}
-%   \end{syntax}
-%   This declares a \meta{function}, which will take arguments as detailed
-%   in the \meta{arg spec}. When executed, the \meta{function} will look for
-%   code stored as an \meta{implementation}.
-% \end{function}
-%
-% \begin{function}{\DeclareDocumentCommandImplementation}
-%   \begin{syntax}
-%     \cs{DeclareDocumentCommandImplementation}
-%     ~~~~\Arg{implementation} \meta{args} \Arg{code}
-%   \end{syntax}
-%   Declares the \meta{implementation} for a function to accept \meta{args}
-%   arguments and expand to \meta{code}. An implementation must take the
-%   same number of arguments as a linked interface, although this is not
-%   enforced by the code.
 % \end{function}
 %
 % \subsection{Fully-expandable document commands}
@@ -624,8 +595,8 @@
 %   available:
 %   \begin{itemize}
 %     \item The last argument (if any are present) must be one of the
-%       mandatory types \texttt{m} or \texttt{u}. (Type \texttt{l} is
-%       not available.)
+%       mandatory types \texttt{m} or \texttt{r}. (Types \texttt{l} and
+%       \texttt{u} are not available.)
 %     \item All arguments are either short or long: it is not possible
 %       to mix short and long argument types.
 %     \item The \enquote{optional group} argument types \texttt{g} and
@@ -719,26 +690,19 @@
 %   Maybe |$| or |&| will have to be added later.
 %    \begin{macrocode}
 %<*initex>
+\seq_new:N \c_xparse_special_chars_seq
 \seq_set_from_clist:Nn \c_xparse_special_chars_seq
   { \  , \\ , \{ , \} , \# , \^ , \_ , \% , \~ }
 %</initex>
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_xparse_arg_tl}
-%   Token list variable for single grabbed argument when post-processing.
+% \begin{variable}{\l_xparse_all_long_bool}
+%   For expandable commands, all arguments have the same long status, but this
+%   needs to be checked. A flag is therefore needed to track whether arguments
+%   are long at all.
 %    \begin{macrocode}
-\tl_new:N \l_xparse_arg_tl
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{variable}
-%   {\l_xparse_command_arg_specs_prop, \l_xparse_environment_arg_specs_prop}
-%   The argument specification for ever document command and environment
-%   are stored here.
-%    \begin{macrocode}
-\prop_new:N \l_xparse_command_arg_specs_prop
-\prop_new:N \l_xparse_environment_arg_specs_prop
+\bool_new:N \l_xparse_all_long_bool
 %    \end{macrocode}
 % \end{variable}
 %
@@ -749,13 +713,59 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_xparse_command_arg_specs_prop}
+%   Used to record all document commands created, and the argument
+%   specifications that go with these.
+%    \begin{macrocode}
+\prop_new:N \l_xparse_command_arg_specs_prop
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_xparse_current_arg_int}
+%   The number of the current argument being set up: this is used for creating
+%   the expandable auxiliary functions, and also to indicate if all arguments
+%   are \texttt{m}-type.
+%    \begin{macrocode}
+\int_new:N \l_xparse_current_arg_int
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_xparse_environment_bool}
-%   Generating environments uses the same mechanism as generating
-%   functions. However, full processing of arguments is always needed
-%   for environments, and so the function-generating code needs to
-%   know this.
+%   Generating environments uses the same mechanism as generating functions.
+%   However, full processing of arguments is always needed for environments,
+%   and so the function-generating code needs to know this.
 %    \begin{macrocode}
 \bool_new:N \l_xparse_environment_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_xparse_environment_arg_specs_prop}
+%   Used to record all document environment created, and the argument
+%   specifications that go with these.
+%    \begin{macrocode}
+\prop_new:N \l_xparse_environment_arg_specs_prop
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_xparse_expandable_bool}
+%   Used to indicate if an expandable command is begin generated, as this
+%   affects both the acceptable argument types and how they are implemented.
+%    \begin{macrocode}
+\bool_new:N \l_xparse_expandable_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_xparse_expandable_aux_tl}
+%   Used to create pretty-printing names for the auxiliaries: although the
+%   immediate definition does not vary, the full expansion does and so it
+%   does not count as a constant.
+%    \begin{macrocode}
+\tl_new:N \l_xparse_expandable_aux_tl
+\tl_set:Nn \l_xparse_expandable_aux_tl
+  {
+    \l_xparse_function_tl \c_space_tl
+    ( arg~ \int_use:N \l_xparse_current_arg_int )
+  }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -768,65 +778,46 @@
 % \end{variable}
 %
 % \begin{variable}{\l_xparse_function_tl}
-%   When creating functions, the current function name needs to be passed
-%   along.
+%   Holds the control sequence name of the function currently being
+%   defined: used to avoid passing this as an argument and to avoid repeated
+%   use of \cs{cs_to_str:N}.
 %    \begin{macrocode}
 \tl_new:N \l_xparse_function_tl
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_xparse_last_arg_tl}
-%   Used when creating expandable arguments.
-%    \begin{macrocode}
-\tl_new:N \l_xparse_last_arg_tl
-%    \end{macrocode}
-% \end{variable}
-%
 % \begin{variable}{\l_xparse_long_bool}
-%   A flag for \cs{long} arguments.
+%   Used to indicate that an argument is long: this is used on a per-argument
+%   basis for non-expandable functions, or for the entire set of arguments
+%   when working expandably.
 %    \begin{macrocode}
 \bool_new:N \l_xparse_long_bool
 %    \end{macrocode}
 % \end{variable}
 %
 % \begin{variable}{\l_xparse_m_args_int}
-%   The number of simple \texttt{m} arguments is tracked so they can be
-%   dumped \emph{en masse}.
+%   The number of \texttt{m} arguments: if this is the same as the total
+%   number of arguments, then a short-cut can be taken in the creation of
+%   the grabber code.
 %    \begin{macrocode}
 \int_new:N \l_xparse_m_args_int
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_xparse_m_only_bool}
-%   A flag to indicate that only \texttt{m} arguments have been found.
-%    \begin{macrocode}
-\bool_new:N \l_xparse_m_only_bool
-%    \end{macrocode}
-% \end{variable}
-%
 % \begin{variable}{\l_xparse_mandatory_args_int}
-%   So that trailing optional arguments can be picked up, a count has to
-%   be taken of all mandatory arguments. This is then decreased as
-%   mandatory arguments are added to the signature, so will be zero
-%   only if there are no more mandatory arguments to add.
+%   Holds the total number of mandatory arguments for a function, which is
+%   needed to tell whether further mandatory arguments follow an optional
+%   one.
 %    \begin{macrocode}
 \int_new:N \l_xparse_mandatory_args_int
 %    \end{macrocode}
 % \end{variable}
 %
 % \begin{variable}{\l_xparse_processor_bool}
-%   When reading through the argument specifier, a flag is needed to
-%   show that a processor has been found for the current argument. This
-%   is used when checking how to handle \texttt{m} arguments.
+%   Indicates that the current argument will be followed by one or more
+%   processors.
 %    \begin{macrocode}
 \bool_new:N \l_xparse_processor_bool
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{variable}{\l_xparse_processors_bool}
-%   An overall flag for the use of any processors.
-%    \begin{macrocode}
-\bool_new:N \l_xparse_processors_bool
 %    \end{macrocode}
 % \end{variable}
 %
@@ -840,66 +831,387 @@
 % \end{variable}
 %
 % \begin{variable}{\l_xparse_signature_tl}
-%   Token list variable for constructing signatures.
+%   Used when constructing the signature (code for argument grabbing) to
+%   hold what will become the implementation of the main function.
 %    \begin{macrocode}
 \tl_new:N \l_xparse_signature_tl
 %    \end{macrocode}
-%\end{variable}
+% \end{variable}
 %
 % \begin{variable}{\l_xparse_tmp_tl}
-%   A general purpose token list variable.
+%   Scratch space.
 %    \begin{macrocode}
 \tl_new:N \l_xparse_tmp_tl
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_xparse_total_args_int}
-%   The total number of arguments is used to create the internal function
-%   which has a fixed number of arguments.
-%    \begin{macrocode}
-\int_new:N \l_xparse_total_args_int
-%    \end{macrocode}
-% \end{variable}
+% \subsection{Declaring commands and environments}
 %
-% \subsection{Turning the argument specifier into grabbers}
-%
-% \begin{macro}{\xparse_add_grabber_mandatory:N}
-% \begin{macro}{\xparse_add_grabber_optional:N}
-%   To keep the various checks needed in one place, adding the grabber to
-%   the signature is done here. For mandatory arguments, the only question
-%   is whether to add a long grabber. For optional arguments, there is
-%   also a check to see if any mandatory arguments are still to be added.
-%   This is used to determine whether to skip spaces or not where
-%   searching for the argument.
+% \begin{macro}{\xparse_declare_cmd:Nnn, \xparse_declare_expandable_cmd:Nnn}
+% \begin{macro}[aux]{\xparse_declare_cmd_aux:Nnn}
+% \begin{macro}[int]
+%   {\xparse_declare_cmd_internal:Nnn, \xparse_declare_cmd_internal:cnx}
+%   The main functions for creating commands set the appropriate flag then
+%   use the same internal code to do the definition.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \xparse_add_grabber_mandatory:N #1
+\cs_new_protected_nopar:Npn \xparse_declare_cmd:Nnn
   {
-    \tl_put_right:Nx \l_xparse_signature_tl
-      {
-        \exp_not:c
-          { xparse_grab_ #1 \bool_if:NT \l_xparse_long_bool { _long } :w }
-      }
-    \bool_set_false:N \l_xparse_long_bool
-    \int_decr:N \l_xparse_mandatory_args_int
+    \bool_set_false:N \l_xparse_expandable_bool
+    \xparse_declare_cmd_aux:Nnn
   }
-\cs_new_protected_nopar:Npn \xparse_add_grabber_optional:N #1
+\cs_new_protected_nopar:Npn \xparse_declare_expandable_cmd:Nnn
   {
-    \tl_put_right:Nx \l_xparse_signature_tl
+    \bool_set_true:N \l_xparse_expandable_bool
+    \xparse_declare_cmd_aux:Nnn
+  }
+%    \end{macrocode}
+%  The first stage is to log information, both for the user in the log and
+%  for programmatic use in a property list of all declared commands.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_declare_cmd_aux:Nnn #1#2
+  {
+    \cs_if_exist:NTF #1
       {
-        \exp_not:c
+        \msg_kernel_warning:nnxx { xparse } { redefine-command }
+          { \token_to_str:N #1 } { \tl_to_str:n {#2} }
+      }
+      {
+        \msg_kernel_info:nnxx { xparse } { define-command }
+          { \token_to_str:N #1 } { \tl_to_str:n {#2} }
+      }
+    \prop_put:Nnn \l_xparse_command_arg_specs_prop {#1} {#2}
+    \bool_set_false:N \l_xparse_environment_bool
+    \xparse_declare_cmd_internal:Nnn #1 {#2}
+  }
+%    \end{macrocode}
+%   The real business of defining a document command starts with setting up
+%   the appropriate name, then counting up the number of mandatory arguments.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_declare_cmd_internal:Nnn #1#2#3
+  {
+    \tl_set:Nx \l_xparse_function_tl { \cs_to_str:N #1 }
+    \xparse_count_mandatory:n {#2}
+    \xparse_prepare_signature:n {#2}
+    \int_compare:nNnTF \l_xparse_current_arg_int = \l_xparse_m_args_int
+      {
+        \bool_if:NTF \l_xparse_environment_bool
+          { \xparse_declare_cmd_mixed:Nn #1 {#3} }
+          { \xparse_declare_cmd_all_m:Nn #1 {#3} }
+      }
+      { \xparse_declare_cmd_mixed:Nn #1 {#3} }
+  }
+\cs_generate_variant:Nn \xparse_declare_cmd_internal:Nnn { cnx }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\xparse_declare_cmd_all_m:Nn, \xparse_declare_cmd_mixed:Nn}
+% \begin{macro}[aux]
+%   {\xparse_declare_cmd_mixed_aux:Nn, \xparse_declare_cmd_mixed_expandable:Nn}
+%   When all of the arguments to grab are simple \texttt{m}-type, a short
+%   cut can be taken to provide only a single function. In the case of
+%   expandable commands, this can also happen for \texttt{+m} (as all arguments
+%   in this case must be long).
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_declare_cmd_all_m:Nn #1#2
+  {
+    \cs_generate_from_arg_count:Ncnn #1
+      {
+        cs_set
+        \bool_if:NF \l_xparse_expandable_bool { _protected }
+        \bool_if:NF \l_xparse_all_long_bool { _nopar }
+        :Npn
+      }
+      \l_xparse_current_arg_int {#2}
+  }
+%    \end{macrocode}
+%   In the case of mixed arguments, any remaining \texttt{m}-type ones are
+%   first added to the signature, then the appropriate auxiliary is called.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_declare_cmd_mixed:Nn
+  {
+    \bool_if:NTF \l_xparse_expandable_bool
+      { \xparse_declare_cmd_mixed_expandable:Nn }
+      { \xparse_declare_cmd_mixed_aux:Nn }
+   }
+%    \end{macrocode}
+%   Creating standard functions with mixed arg.~specs sets up the main function
+%   to zero the number of processors, set the name of the function (for the
+%   grabber) and clears the list of grabbed arguments.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_declare_cmd_mixed_aux:Nn #1#2
+  {
+    \xparse_flush_m_args:
+    \cs_generate_from_arg_count:cNnn
+      { \l_xparse_function_tl \c_space_tl code }
+      \cs_set_protected:Npn \l_xparse_current_arg_int {#2}
+    \cs_set_protected_nopar:Npx #1
+      {
+        \tl_set:Nn \exp_not:N \l_xparse_args_tl
+          { \exp_not:c { \l_xparse_function_tl \c_space_tl code } }
+        \tl_set:Nn \exp_not:N \l_xparse_fn_tl
+          { \exp_not:c { \l_xparse_function_tl \c_space_tl } }
+        \exp_not:o \l_xparse_signature_tl
+        \exp_not:N \l_xparse_args_tl
+      }
+  }
+\cs_new_protected:Npn \xparse_declare_cmd_mixed_expandable:Nn #1#2
+  {
+    \cs_generate_from_arg_count:cNnn
+      { \l_xparse_function_tl \c_space_tl code }
+      \cs_set:Npn \l_xparse_current_arg_int {#2}
+    \cs_set_nopar:Npx #1
+      {
+        \exp_not:o \l_xparse_signature_tl
+        \exp_not:N \xparse_grab_expandable_end:wN
+        \exp_not:c { \l_xparse_function_tl \c_space_tl code }
+        \exp_not:N \q_xparse
+        \exp_not:c { \l_xparse_function_tl \c_space_tl }
+      }
+    \use:c { cs_set \bool_if:NF \l_xparse_long_bool { _nopar } : cpx }
+      { \l_xparse_function_tl \c_space_tl } ##1##2 { ##1 {##2} }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\xparse_declare_env:nnnn}
+% \begin{macro}[int]{\xparse_declare_env_internal:nnnn}
+%   The lead-off to creating an environment is much the same as that for
+%   creating a command: issue the appropriate message, store the argument
+%   specification then hand off to an internal function.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_declare_env:nnnn #1#2
+  {
+    \cs_if_exist:cTF {#1}
+      {
+        \msg_kernel_warning:nnxx { xparse } { redefine-environment }
+          { \tl_to_str:n {#1} } { \tl_to_str:n {#2} }
+      }
+      {
+        \msg_kernel_info:nnxx { xparse } { define-environment }
+          { \tl_to_str:n {#1} } { \tl_to_str:n {#2} }
+      }
+    \prop_put:Nnn \l_xparse_environment_arg_specs_prop {#1} {#2}
+    \bool_set_true:N \l_xparse_environment_bool
+    \xparse_declare_env_internal:nnnn {#1} {#2}
+  }
+%    \end{macrocode}
+%   Creating a document environment requires a few more steps than creating
+%   a single command. In order to pass the arguments of the command to the
+%   end of the function, it is necessary to store the grabbed arguments.
+%   To do that, the function used at the end of the environment has to be
+%   redefined to contain the appropriate information. To minimize the amount
+%   of expansion at point of use, the code here is expanded now as well as
+%   when used.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_declare_env_internal:nnnn #1#2#3#4
+  {
+    \xparse_declare_cmd_internal:cnx { environment~#1 } {#2}
+      {
+        \group_begin:
+          \cs_set_protected_nopar:Npx \exp_not:c { environment_ #1 _end_aux: }
+            {
+              \exp_not:c { environment_ #1 _end_aux:w }
+              \exp_not:n
+                {
+                  \exp_args:No \exp_not:o
+                    { \exp_after:wN \use_none:n \l_xparse_args_tl }
+                  \exp_not:n
+                    {
+                      \if@endpe
+                        \exp_after:wN \group_end:
+                        \cs:w @endpetrue \exp_after:wN \cs_end:
+                      \else
+                        \exp_after:wN \group_end:
+                      \fi
+                    }
+                }
+            }
+        \exp_not:n {#3}
+      }
+    \cs_set_protected_nopar:cpx { environment~ #1 ~end }
+      { \exp_not:c { environment_ #1 _end_aux: } }
+    \cs_generate_from_arg_count:cNnn
+      { environment_ #1 _end_aux:w } \cs_set_protected:Npn
+      \l_xparse_current_arg_int {#4}
+%<*package>
+    \cs_set_eq:cc {#1}       { environment~ #1 }
+    \cs_set_eq:cc { end #1 } { environment~ #1 ~end }
+%</package>
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Counting mandatory arguments}
+%
+% \begin{macro}{\xparse_count_mandatory:n}
+% \begin{macro}{\xparse_count_mandatory:N}
+% \begin{macro}[aux]{\xparse_count_mandatory:N}
+%   To count up mandatory arguments before the main parsing run, the same
+%   approach is used. First, check if the current token is a short-cut for
+%   another argument type. If it is, expand it and loop again. If not, then
+%   look for a \enquote{counting} function to check the argument type. No error
+%   is raised here if one is not found as one will be raised by later code.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_count_mandatory:n #1
+  {
+    \int_zero:N \l_xparse_mandatory_args_int
+    \xparse_count_mandatory:N #1 \q_nil
+  }
+\cs_new_protected:Npn \xparse_count_mandatory:N #1
+  {
+    \quark_if_nil:NF #1
+      {
+        \prop_get:NnNTF \c_xparse_shorthands_prop {#1} \l_xparse_tmp_tl
+          { \exp_after:wN \xparse_count_mandatory:N \l_xparse_tmp_tl }
+          { \xparse_count_mandatory_aux:N #1 }
+      }
+  }
+\cs_new_protected:Npn \xparse_count_mandatory_aux:N #1
+  {
+    \cs_if_free:cTF { xparse_count_type_ #1 :w }
+      { \xparse_count_type_m:w }
+      { \use:c { xparse_count_type_ #1 :w } }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     \xparse_count_type_>:w,
+%     \xparse_count_type_+:w,
+%     \xparse_count_type_d:w,
+%     \xparse_count_type_D:w,
+%     \xparse_count_type_g:w,
+%     \xparse_count_type_G:w,
+%     \xparse_count_type_m:w,
+%     \xparse_count_type_t:w,
+%     \xparse_count_type_u:w
+%   }
+%   For counting the mandatory arguments, a function is provided for each
+%   argument type that will mop any extra arguments and call the loop function.
+%   Only the counting functions for mandatory arguments actually do anything:
+%   the rest are simply there to ensure the loop continues correctly. There are
+%   no count functions for \texttt{l} or \texttt{v} argument types as they are
+%   exactly the same as \texttt{m}, and so a little code can be saved.
+%    \begin{macrocode}
+\cs_new_protected:cpn { xparse_count_type_>:w } #1
+  { \xparse_count_mandatory:N }
+\cs_new_protected_nopar:cpn { xparse_count_type_+:w }
+  { \xparse_count_mandatory:N }
+\cs_new_protected:Npn \xparse_count_type_d:w #1#2
+  { \xparse_count_mandatory:N }
+\cs_new_protected:Npn \xparse_count_type_D:w #1#2#3
+  { \xparse_count_mandatory:N }
+\cs_new_protected_nopar:Npn \xparse_count_type_g:w
+  { \xparse_count_mandatory:N }
+\cs_new_protected:Npn \xparse_count_type_G:w #1
+  { \xparse_count_mandatory:N }
+\cs_new_protected_nopar:Npn \xparse_count_type_m:w
+  {
+    \int_incr:N \l_xparse_mandatory_args_int
+    \xparse_count_mandatory:N
+  }
+\cs_new_protected:Npn \xparse_count_type_r:w #1#2
+  {
+    \int_incr:N \l_xparse_mandatory_args_int
+    \xparse_count_mandatory:N
+  }
+\cs_new_protected:Npn \xparse_count_type_R:w #1#2#3
+  {
+    \int_incr:N \l_xparse_mandatory_args_int
+    \xparse_count_mandatory:N
+  }
+\cs_new_protected:Npn \xparse_count_type_t:w #1
+  { \xparse_count_mandatory:N }
+\cs_new_protected:Npn \xparse_count_type_u:w #1
+  {
+    \int_incr:N \l_xparse_mandatory_args_int
+    \xparse_count_mandatory:N
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Preparing the signature: general mechanism}
+%
+% \begin{macro}{\xparse_prepare_signature:n}
+% \begin{macro}{\xparse_prepare_signature:N}
+% \begin{macro}{\xparse_prepare_signature_bypass:N}
+% \begin{macro}[aux]{\xparse_prepare_signature_add:N}
+%   Actually creating the signature uses the same loop approach as counting
+%   up mandatory arguments. There are first a number of variables which need
+%   to be set to track what is going on.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_prepare_signature:n #1
+  {
+    \bool_set_false:N \l_xparse_all_long_bool
+    \int_zero:N \l_xparse_current_arg_int
+    \bool_set_false:N \l_xparse_long_bool
+    \int_zero:N \l_xparse_m_args_int
+    \bool_set_false:N \l_xparse_processor_bool
+    \tl_clear:N \l_xparse_signature_tl
+    \xparse_prepare_signature:N #1 \q_nil
+  }
+%    \end{macrocode}
+%  The main looping function does not take an argument,but carries out the
+%  reset on the processor boolean. This is split off from the rest of the
+%  process so that when actually setting up processors the flag-reset can
+%  be bypassed.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \xparse_prepare_signature:N
+  {
+    \bool_set_false:N \l_xparse_processor_bool
+    \xparse_prepare_signature_bypass:N
+  }
+\cs_new_protected:Npn \xparse_prepare_signature_bypass:N #1
+  {
+    \quark_if_nil:NF #1
+      {
+        \prop_get:NnNTF \c_xparse_shorthands_prop {#1} \l_xparse_tmp_tl
+          { \exp_after:wN \xparse_prepare_signature:N \l_xparse_tmp_tl }
           {
-            xparse_grab_ #1
-            \bool_if:NT \l_xparse_long_bool { _long }
-            \int_compare:nNnF \l_xparse_mandatory_args_int > \c_zero
-              { _trailing }
-            :w
+            \int_incr:N \l_xparse_current_arg_int
+            \xparse_prepare_signature_add:N #1
           }
       }
-    \bool_set_false:N \l_xparse_long_bool
+  }
+%    \end{macrocode}
+%  For each known argument type there is an appropriate function to actually
+%  do the addition to the signature. These are separate for expandable and
+%  standard functions, as the approaches are different. Of course, if the type
+%  is not known at all then a fall-back is needed.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_prepare_signature_add:N #1
+  {
+    \cs_if_exist_use:cF
+      {
+         xparse_add
+         \bool_if:NT \l_xparse_expandable_bool { _expandable }
+         _type_ #1 :w
+      }
+      {
+        \msg_kernel_error:nnx { xparse } { unknown-argument-type }
+          { \tl_to_str:n {#1} }
+        \use:c
+          {
+            xparse_add
+            \bool_if:NT \l_xparse_expandable_bool { _expandable }
+            _type_m:w
+          }
+      }
   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Setting up a standard signature}
 %
 % All of the argument-adding functions work in essentially the same
 % way, except the one for \texttt{m} arguments. Any collected \texttt{m}
@@ -909,59 +1221,46 @@
 % functions then call the loop function \cs{xparse_prepare_signature:N}.
 %
 % \begin{macro}{\xparse_add_type_+:w}
-%   Making the next argument \cs{long} means setting the flag and
-%   knocking one back off the total argument count. The \texttt{m}
-%   arguments are recorded here as this has to be done for every case
-%   where there is then a \cs{long} argument.
+%   Making the next argument long means setting the flag and knocking one back
+%   off the total argument count. The \texttt{m} arguments are recorded here as
+%   this has to be done for every case where there is then a long argument.
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { xparse_add_type_+:w }
   {
     \xparse_flush_m_args:
     \bool_set_true:N \l_xparse_long_bool
-    \bool_set_false:N \l_xparse_m_only_bool
-    \int_decr:N \l_xparse_total_args_int
+    \int_decr:N \l_xparse_current_arg_int
     \xparse_prepare_signature:N
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\xparse_add_type_>:w}
-%   When a processor is found, the function \cs{xparse_process_arg:n}
-%   is added to the signature along with the processor code itself. When
-%   the signature is used, the code will be added to an execution list by
+%   When a processor is found, the function \cs{xparse_process_arg:n} is added
+%   to the signature along with the processor code itself. When the signature
+%   is used, the code will be added to an execution list by
 %   \cs{xparse_process_arg:n}. Here, the loop calls
-%   \cs{xparse_prepare_signature_aux:N} rather than
+%   \cs{xparse_prepare_signature_bypass:N} rather than
 %   \cs{xparse_prepare_signature:N} so that the flag is not reset.
 %    \begin{macrocode}
 \cs_new_protected:cpn { xparse_add_type_>:w } #1
   {
     \bool_set_true:N \l_xparse_processor_bool
-    \bool_set_true:N \l_xparse_processors_bool
     \xparse_flush_m_args:
-    \int_decr:N \l_xparse_total_args_int
+    \int_decr:N \l_xparse_current_arg_int
     \tl_put_right:Nn \l_xparse_signature_tl { \xparse_process_arg:n {#1} }
-    \xparse_prepare_signature_aux:N
+    \xparse_prepare_signature_bypass:N
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\xparse_add_type_d:w}
-%   To save on repeated code, \texttt{d} is actually turned into
-%   the same grabber as is used by \texttt{D}, by putting the
-%   \cs{NoValue} default in the correct place. So there is some
-%   simple argument re-arrangement to do. Remember that |#1| and |#2|
-%   should be single tokens.
+% \begin{macro}{\xparse_add_type_d:w, \xparse_add_type_D:w}
+%   To save on repeated code, \texttt{d} is actually turned into the same
+%   grabber as is used by \texttt{D}, by putting the \cs{NoValue} default in
+%   the correct place.
 %    \begin{macrocode}
 \cs_new_protected:Npn \xparse_add_type_d:w #1#2
   { \xparse_add_type_D:w #1 #2 { \NoValue } }
-%    \end{macrocode}
-%\end{macro}
-%
-% \begin{macro}{\xparse_add_type_D:w}
-%   All of the optional delimited arguments are handled internally by
-%   the \texttt{D} type. At this stage, the two delimiters are stored
-%   along with the default value.
-%    \begin{macrocode}
 \cs_new_protected:Npn \xparse_add_type_D:w #1#2#3
   {
     \xparse_flush_m_args:
@@ -973,8 +1272,8 @@
 % \end{macro}
 %
 % \begin{macro}{\xparse_add_type_g:w}
-%   The \texttt{g} type is simply an alias for \texttt{G} with the
-%   correct default built-in.
+%   The \texttt{g} type is simply an alias for \texttt{G} with the correct
+%   default built-in.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \xparse_add_type_g:w
   { \xparse_add_type_G:w { \NoValue } }
@@ -982,8 +1281,8 @@
 % \end{macro}
 %
 % \begin{macro}{\xparse_add_type_G:w}
-%   For the \texttt{G} type, the grabber and the default are added to
-%   the signature.
+%   For the \texttt{G} type, the grabber and the default are added to the
+%   signature.
 %    \begin{macrocode}
 \cs_new_protected:Npn \xparse_add_type_G:w #1
   {
@@ -1039,15 +1338,15 @@
   {
     \xparse_flush_m_args:
     \xparse_add_grabber_mandatory:N R
-    \tl_put_right:Nn \l_xparse_signature_tl { #1#2 {#3} }
+    \tl_put_right:Nn \l_xparse_signature_tl { #1 #2 {#3} }
     \xparse_prepare_signature:N
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\xparse_add_type_t:w}
-%   Setting up a \texttt{t} argument means collecting one token for the
-%   test, and adding it along with the grabber to the signature.
+%   Setting up a \texttt{t} argument means collecting one token for the test,
+%   and adding it along with the grabber to the signature.
 %    \begin{macrocode}
 \cs_new_protected:Npn \xparse_add_type_t:w #1
   {
@@ -1071,7 +1370,7 @@
     \xparse_prepare_signature:N
   }
 %    \end{macrocode}
-%\end{macro}
+% \end{macro}
 %
 % \begin{macro}{\xparse_add_type_v:w}
 %   At this stage, the \texttt{v} argument is identical to \texttt{l}.
@@ -1085,300 +1384,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\xparse_check_and_add:N}
-%   This function checks if the argument type actually exists and gives
-%   an error if it doesn't.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \xparse_check_and_add:N #1
-  {
-    \cs_if_free:cTF { xparse_add_type_ #1 :w }
-      {
-        \msg_error:nnx { xparse } { unknown-argument-type }
-          { \tl_to_str:n {#1} }
-        \xparse_add_type_m:w
-      }
-      { \use:c { xparse_add_type_ #1 :w } }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_count_mandatory:n}
-% \begin{macro}{\xparse_count_mandatory:N}
-% \begin{macro}[aux]{\xparse_count_mandatory_aux:N}
-%   To count up mandatory arguments before the main parsing run, the
-%   same approach is used. First, check if the current token is a
-%   short-cut for another argument type. If it is, expand it and loop
-%   again. If not, then look for a `counting' function to check the
-%   argument type. No error is raised here if one is not found as one
-%   will be raised by later code.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_count_mandatory:n #1
-  {
-    \int_zero:N \l_xparse_mandatory_args_int
-    \xparse_count_mandatory:N #1 \q_nil
-  }
-\cs_new_protected:Npn \xparse_count_mandatory:N #1
-  {
-    \quark_if_nil:NF #1
-      {
-        \prop_get:NnNTF \c_xparse_shorthands_prop {#1} \l_xparse_tmp_tl
-          { \exp_last_unbraced:NV \xparse_count_mandatory:N \l_xparse_tmp_tl }
-          { \xparse_count_mandatory_aux:N #1 }
-      }
-  }
-\cs_new_protected:Npn \xparse_count_mandatory_aux:N #1
-  {
-    \cs_if_free:cTF { xparse_count_type_ #1 :w }
-      { \xparse_count_type_m:w }
-      { \use:c { xparse_count_type_ #1 :w } }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}
-%   {
-%     \xparse_count_type_>:w,
-%     \xparse_count_type_+:w,
-%     \xparse_count_type_d:w,
-%     \xparse_count_type_D:w,
-%     \xparse_count_type_g:w,
-%     \xparse_count_type_G:w,
-%     \xparse_count_type_l:w,
-%     \xparse_count_type_m:w,
-%     \xparse_count_type_t:w,
-%     \xparse_count_type_u:w,
-%     \xparse_count_type_v:w
-%   }
-%   For counting the mandatory arguments, a function is provided for
-%   each argument type that will mop any extra arguments and call the
-%   loop function. Only the counting functions for mandatory arguments
-%   actually do anything: the rest are simply there to ensure the loop
-%   continues correctly.
-%    \begin{macrocode}
-\cs_new_protected:cpn { xparse_count_type_>:w } #1
-  { \xparse_count_mandatory:N }
-\cs_new_protected_nopar:cpn { xparse_count_type_+:w }
-  { \xparse_count_mandatory:N }
-\cs_new_protected:Npn \xparse_count_type_d:w #1#2
-  { \xparse_count_mandatory:N }
-\cs_new_protected:Npn \xparse_count_type_D:w #1#2#3
-  { \xparse_count_mandatory:N }
-\cs_new_protected_nopar:Npn \xparse_count_type_g:w
-  { \xparse_count_mandatory:N }
-\cs_new_protected:Npn \xparse_count_type_G:w #1
-  { \xparse_count_mandatory:N }
-\cs_new_protected_nopar:Npn \xparse_count_type_l:w
-  {
-    \int_incr:N \l_xparse_mandatory_args_int
-    \xparse_count_mandatory:N
-  }
-\cs_new_protected_nopar:Npn \xparse_count_type_m:w
-  {
-    \int_incr:N \l_xparse_mandatory_args_int
-    \xparse_count_mandatory:N
-  }
-\cs_new_protected:Npn \xparse_count_type_r:w #1#2
-  {
-    \int_incr:N \l_xparse_mandatory_args_int
-    \xparse_count_mandatory:N
-  }
-\cs_new_protected:Npn \xparse_count_type_R:w #1#2#3
-  {
-    \int_incr:N \l_xparse_mandatory_args_int
-    \xparse_count_mandatory:N
-  }
-\cs_new_protected:Npn \xparse_count_type_t:w #1
-  { \xparse_count_mandatory:N }
-\cs_new_protected:Npn \xparse_count_type_u:w #1
-  {
-    \int_incr:N \l_xparse_mandatory_args_int
-    \xparse_count_mandatory:N
-  }
-\cs_new_protected_nopar:Npn \xparse_count_type_v:w
-  {
-    \int_incr:N \l_xparse_mandatory_args_int
-    \xparse_count_mandatory:N
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_declare_cmd:Nnn}
-% \begin{macro}[aux]{\xparse_declare_cmd_aux:Nnn}
-% \begin{macro}[aux]{\xparse_declare_cmd_aux:cnn}
-% \begin{macro}[aux]{\xparse_declare_cmd_all_m:Nn}
-% \begin{macro}[aux]{\xparse_declare_cmd_mixed:Nn}
-%   First, the signature is set up from the argument specification. There
-%   is then a check: if only \texttt{m} arguments are needed (which
-%   includes functions with no arguments at all) then the definition is
-%   simple. On the other hand, if the signature is more complex then an
-%   internal function actually contains the code with the user function
-%   as a simple wrapper.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_declare_cmd:Nnn #1#2
-  {
-    \cs_if_exist:NTF #1
-      {
-        \msg_warning:nnxx { xparse } { redefine-command }
-          { \token_to_str:N #1 } { \tl_to_str:n {#2} }
-      }
-      {
-        \msg_info:nnxx { xparse } { define-command }
-          { \token_to_str:N #1 } { \tl_to_str:n {#2} }
-      }
-    \prop_put:Nnn \l_xparse_command_arg_specs_prop {#1} {#2}
-    \xparse_declare_cmd_aux:Nnn #1 {#2}
-  }
-\cs_new_protected:Npn \xparse_declare_cmd_aux:Nnn #1#2#3
-  {
-    \tl_set:Nx \l_xparse_function_tl { \cs_to_str:N #1 }
-    \xparse_count_mandatory:n {#2}
-    \xparse_prepare_signature:n {#2}
-    \bool_if:NTF \l_xparse_m_only_bool
-      { \xparse_declare_cmd_all_m:Nn #1 {#3} }
-      { \xparse_declare_cmd_mixed:Nn #1 {#3} }
-  }
-\cs_generate_variant:Nn \xparse_declare_cmd_aux:Nnn { cnn }
-\cs_new_protected:Npn \xparse_declare_cmd_all_m:Nn #1#2
-  {
-    \cs_generate_from_arg_count:NNnn
-      #1 \cs_set_protected_nopar:Npn \l_xparse_total_args_int {#2}
-  }
-\cs_new_protected:Npn \xparse_declare_cmd_mixed:Nn #1#2
-  {
-    \cs_set_protected_nopar:Npx #1
-      {
-        \bool_if:NT \l_xparse_processors_bool
-          { \int_zero:N \exp_not:N \l_xparse_processor_int }
-        \tl_set:Nn \exp_not:N \l_xparse_args_tl
-          { \exp_not:c { \l_xparse_function_tl \c_space_tl code } }
-        \tl_set:Nn \exp_not:N \l_xparse_fn_tl
-          { \exp_not:c { \l_xparse_function_tl \c_space_tl } }
-        \exp_not:o \l_xparse_signature_tl
-        \exp_not:N \l_xparse_args_tl
-      }
-    \cs_generate_from_arg_count:cNnn
-      { \l_xparse_function_tl \c_space_tl code }
-      \cs_set:Npn \l_xparse_total_args_int {#2}
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%\end{macro}
-%\end{macro}
-%\end{macro}
-%
-% \begin{macro}{\xparse_declare_cmd_implementation:nNn}
-%   Creating a stand-alone implementation using the \enquote{two-part}
-%   mechanism is quite easy as this is just a wrapper for
-%   \cs{cs_generate_from_arg_count:cNnn}.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_declare_cmd_implementation:nNn #1#2#3
-  {
-    \cs_generate_from_arg_count:cNnn { implementation_ #1 :w }
-      \cs_set:Npn {#2} {#3}
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_declare_cmd_interface:Nnn}
-% \begin{macro}[aux]{\xparse_declare_cmd_interface_all_m:Nn}
-% \begin{macro}[aux]{\xparse_declare_cmd_interface_mixed:Nn}
-%   As with the basic function \cs{xparse_declare_cmd:Nnn}, there are
-%   three things to do here. First, generate a signature from the
-%   argument specification. Then use that to create a function which
-%   will call the implementation part. Finally, a holder implementation
-%   is created. As before, there is a short-cut for functions which only
-%   have \texttt{m} type arguments.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_declare_cmd_interface:Nnn #1#2#3
-  {
-    \xparse_prepare_signature:n {#3}
-    \bool_if:NTF \l_xparse_m_only_bool
-      { \xparse_declare_cmd_interface_all_m:Nn #1 {#2} }
-      { \xparse_declare_cmd_interface_mixed:Nn #1 {#2} }
-    \cs_generate_from_arg_count:cNnn { implementation_ #2 :w }
-      \cs_set:Npn \l_xparse_total_args_int  { '#2' }
-  }
-\cs_new_protected:Npn \xparse_declare_cmd_interface_all_m:Nn #1#2
-  {
-    \cs_generate_from_arg_count:NNnn
-      #1 \cs_set_protected_nopar:Npn \l_xparse_total_args_int
-      { \use:c { implementation_ #2 :w } }
-  }
-\cs_new_protected:Npn \xparse_declare_cmd_interface_mixed:Nn #1#2
-  {
-    \cs_set_protected_nopar:Npx #1
-      {
-        \exp_not:n
-          {
-            \int_zero:N \l_xparse_processor_int
-            \tl_set:Nn \l_xparse_args_tl
-          }
-            { \exp_not:c { \token_to_str:N #1 } }
-        \exp_not:o \l_xparse_signature_tl
-        \exp_not:N \l_xparse_args_tl
-      }
-    \cs_generate_from_arg_count:cNnn
-      { \token_to_str:N #1 } \cs_set:Npn \l_xparse_total_args_int
-      { \use:c { implementation_ #2 :w } }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\xparse_declare_env:nnnn}
-%   The idea here is to make sure that the end of the environment has the
-%   same arguments available as the beginning.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_declare_env:nnnn #1#2#3#4
-  {
-    \bool_set_true:N \l_xparse_environment_bool
-    \cs_if_exist:cTF {#1}
-      {
-        \msg_warning:nnxx { xparse } { redefine-environment }
-          { \tl_to_str:n {#1} } { \tl_to_str:n {#2} }
-      }
-      {
-        \msg_info:nnxx { xparse } { define-environment }
-          { \tl_to_str:n {#1} } { \tl_to_str:n {#2} }
-      }
-    \prop_put:Nnn \l_xparse_environment_arg_specs_prop {#1} {#2}
-    \xparse_declare_cmd_aux:cnn { environment~#1 } {#2}
-      {
-        \group_begin:
-          \cs_set_protected_nopar:cpx { environment_end_ #1 :w }
-            {
-                \exp_not:c { environment_end_ #1 _aux:N }
-                \exp_not:o \l_xparse_args_tl
-                \exp_not:n
-                  {
-                    \if@endpe
-                      \exp_after:wN \group_end:
-                      \cs:w @endpetrue \exp_after:wN \cs_end:
-                    \else
-                      \exp_after:wN \group_end:
-                    \fi
-                  }
-            }
-          #3
-      }
-   \cs_set_protected_nopar:cpx { environment_end_ #1 : }
-     { \exp_not:c { environment_end_ #1 :w } }
-    \bool_set_false:N \l_xparse_environment_bool
-    \cs_set_nopar:cpx { environment_end_ #1 _aux:N } ##1
-      { \exp_not:c { environment_end_ #1 _aux :w } }
-    \cs_generate_from_arg_count:cNnn
-      { environment_end_ #1 _aux :w } \cs_set:Npn
-      \l_xparse_total_args_int {#4}
-    \cs_set_eq:cc {#1} { environment~#1 }
-    \cs_set_eq:cc { end #1 } { environment_end_ #1 : }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
 % \begin{macro}{\xparse_flush_m_args:}
 %   As \texttt{m} arguments are simply counted, there is a need to add
 %   them to the token register in a block. As this function can only
@@ -1388,7 +1393,7 @@
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \xparse_flush_m_args:
   {
-    \cs_if_exist:cT { xparse_grab_m_ \int_use:N \l_xparse_m_args_int :w }
+    \int_compare:nNnT \l_xparse_m_args_int > \c_zero
       {
         \tl_put_right:Nx \l_xparse_signature_tl
            { \exp_not:c { xparse_grab_m_ \int_use:N \l_xparse_m_args_int :w } }
@@ -1396,124 +1401,295 @@
           { \l_xparse_mandatory_args_int - \l_xparse_m_args_int }
       }
     \int_zero:N \l_xparse_m_args_int
-    \bool_set_false:N \l_xparse_m_only_bool
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[TF]{\xparse_if_no_value:n}
-%   Tests for \cs{NoValue}.
+% \begin{macro}{\xparse_add_grabber_mandatory:N}
+% \begin{macro}{\xparse_add_grabber_optional:N}
+%   To keep the various checks needed in one place, adding the grabber to
+%   the signature is done here. For mandatory arguments, the only question
+%   is whether to add a long grabber. For optional arguments, there is
+%   also a check to see if any mandatory arguments are still to be added.
+%   This is used to determine whether to skip spaces or not where
+%   searching for the argument.
 %    \begin{macrocode}
-\prg_new_conditional:Npnn \xparse_if_no_value:n #1 { T ,  F , TF }
-  { \str_if_eq:nnTF {#1} { \NoValue } \prg_return_true: \prg_return_false: }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_prepare_signature:n}
-%   Creating the signature is a case of working through the input and
-%   turning into the output in \cs{l_xparse_signature_tl}. A track is
-%   also kept of the total number of arguments. This function sets
-%   everything up then hands off to the parser.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_prepare_signature:n #1
+\cs_new_protected_nopar:Npn \xparse_add_grabber_mandatory:N #1
   {
-    \bool_set_false:N \l_xparse_long_bool
-    \int_zero:N \l_xparse_m_args_int
-    \bool_if:NTF \l_xparse_environment_bool
-      { \bool_set_false:N \l_xparse_m_only_bool }
-      { \bool_set_true:N \l_xparse_m_only_bool }
-    \bool_set_false:N \l_xparse_processor_bool
-    \bool_set_false:N \l_xparse_processors_bool
-    \tl_clear:N \l_xparse_signature_tl
-    \int_zero:N \l_xparse_total_args_int
-    \xparse_prepare_signature:N #1 \q_nil
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_prepare_signature:N}
-% \begin{macro}[aux]{\xparse_prepare_signature_aux:N}
-%   The main signature-preparation loop is in two parts, to keep the code
-%   a little clearer. Most of the checks here is pretty clear, with a key
-%   point to watch what is next on the stack so that the loop continues
-%   correctly.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_prepare_signature:N #1
-  {
-    \bool_set_false:N \l_xparse_processor_bool
-    \xparse_prepare_signature_aux:N #1
-  }
-\cs_new_protected:Npn \xparse_prepare_signature_aux:N #1
-  {
-    \quark_if_nil:NTF #1
-      { \bool_if:NF \l_xparse_m_only_bool { \xparse_flush_m_args: } }
+    \tl_put_right:Nx \l_xparse_signature_tl
       {
-        \prop_get:NnNTF \c_xparse_shorthands_prop {#1} \l_xparse_tmp_tl
-          { \exp_after:wN \xparse_prepare_signature:N \l_xparse_tmp_tl }
+        \exp_not:c
+          { xparse_grab_ #1 \bool_if:NT \l_xparse_long_bool { _long } :w }
+      }
+    \bool_set_false:N \l_xparse_long_bool
+    \int_decr:N \l_xparse_mandatory_args_int
+  }
+\cs_new_protected_nopar:Npn \xparse_add_grabber_optional:N #1
+  {
+    \tl_put_right:Nx \l_xparse_signature_tl
+      {
+        \exp_not:c
           {
-            \int_incr:N \l_xparse_total_args_int
-            \xparse_check_and_add:N #1
+            xparse_grab_ #1
+            \bool_if:NT \l_xparse_long_bool { _long }
+            \int_compare:nNnF \l_xparse_mandatory_args_int > \c_zero
+              { _trailing }
+            :w
           }
+      }
+    \bool_set_false:N \l_xparse_long_bool
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Setting up expandable types}
+%
+% The approach here is not dissimilar to that for standard types, although
+% types which are not supported in expandable functions give an error. There is
+% also a need to define the per-function auxiliaries: this is done here, while
+% the general grabbers are dealt with later.
+%
+% \begin{macro}{\xparse_add_expandable_type_+:w}
+%   Check that a plus is given only if it occurs for every argument.
+%    \begin{macrocode}
+\cs_new_protected_nopar:cpn { xparse_add_expandable_type_+:w }
+  {
+    \bool_set_true:N \l_xparse_long_bool
+    \int_compare:nNnTF \l_xparse_current_arg_int = \c_one
+      { \bool_set_true:N \l_xparse_all_long_bool }
+      {
+        \bool_if:NF \l_xparse_all_long_bool
+          { \msg_kernel_error:nn { xparse } { inconsistent-long } }
+      }
+    \int_decr:N \l_xparse_current_arg_int
+    \xparse_prepare_signature:N
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_add_expandable_type_>:w}
+%   No processors in expandable arguments, so this issues an error.
+%    \begin{macrocode}
+\cs_new_protected:cpn { xparse_add_expandable_type_>:w } #1
+  {
+    \msg_kernel_error:nnx { xparse } { processor-in-expandable }
+      { \token_to_str:c { \l_xparse_function_tl } }
+    \int_decr:N \l_xparse_current_arg_int
+    \xparse_prepare_signature:N
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_add_expandable_type_d:w}
+% \begin{macro}{\xparse_add_expandable_type_D:w}
+% \begin{macro}{\xparse_add_expandable_type_D_aux:NNn}
+% \begin{macro}{\xparse_add_expandable_type_D_aux:Nn}
+%   The set up for \texttt{d}- and \texttt{D}-type arguments is the same,
+%   and involves constructing a rather complex auxiliary which is used
+%   repeatedly when grabbing. There is an auxiliary here so that the
+%   \texttt{R}-type can share code readily.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_add_expandable_type_d:w #1#2
+  { \xparse_add_expandable_type_D:w #1 #2 { \NoValue } }
+\cs_new_protected:Npn \xparse_add_expandable_type_D:w #1#2
+  {
+    \token_if_eq_meaning:NNTF #1 #2
+      {
+        \xparse_add_expandable_grabber_optional:n { D_alt }
+        \xparse_add_expandable_type_D_aux:Nn #1
+      }
+      {
+        \xparse_add_expandable_grabber_optional:n { D }
+        \xparse_add_expandable_type_D_aux:NNn #1#2
+      }
+  }
+\cs_new_protected:Npn \xparse_add_expandable_type_D_aux:NNn #1#2#3
+  {
+    \use:c { cs_set \bool_if:NF \l_xparse_long_bool { _nopar } :cpx }
+      { \l_xparse_expandable_aux_tl } ##1 ##2 #1 ##3 \q_xparse ##4 #2
+      { ##1 {##2} {##3} {##4} }
+    \tl_put_right:Nx \l_xparse_signature_tl
+      {
+        \exp_not:c  { \l_xparse_expandable_aux_tl }
+        \exp_not:n { #1 #2 {#3} }
+      }
+    \bool_set_false:N \l_xparse_long_bool
+    \xparse_prepare_signature:N
+  }
+%    \end{macrocode}
+%  This route is needed if the two delimiting tokens are identical: in
+%  contrast to the non-expandable route, the grabber here has to act
+%  differently for this case.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_add_expandable_type_D_aux:Nn #1#2
+  {
+    \use:c { cs_set \bool_if:NF \l_xparse_long_bool { _nopar } :cpx }
+      { \l_xparse_expandable_aux_tl } ##1 #1 ##2 #1
+      { ##1 {##2} }
+    \tl_put_right:Nx \l_xparse_signature_tl
+      {
+        \exp_not:c  { \l_xparse_expandable_aux_tl }
+        \exp_not:n { #1 {#2} }
+      }
+    \bool_set_false:N \l_xparse_long_bool
+    \xparse_prepare_signature:N
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\xparse_add_expandable_type_g:w}
+% \begin{macro}{\xparse_add_expandable_type_G:w}
+%   These are not allowed at all, so there is a complaint and a fall-back.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \xparse_add_expandable_type_g:w
+  {
+    \msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type } { g }
+    \xparse_add_expandable_type_m:w
+  }
+\cs_new_protected_nopar:Npn \xparse_add_expandable_type_G:w #1
+  {
+    \msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type } { G }
+    \xparse_add_expandable_type_m:w
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\xparse_add_expandable_type_l:w}
+%   Invalid in expandable contexts (as the next left brace may have been
+%   inserted by \pkg{xparse} due to a failed search for an optional argument).
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \xparse_add_expandable_type_l:w
+  {
+    \msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type } { l }
+    \xparse_add_expandable_type_m:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_add_expandable_type_m:w}
+%   Unlike the standard case, when working expandably each argument is always
+%   grabbed separately unless the function takes only \texttt{m}-type
+%   arguments. To deal with the latter case, the value of
+%   \cs{l_xparse_m_args_int} needs to be increased appropriately.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \xparse_add_expandable_type_m:w
+  {
+    \int_incr:N \l_xparse_m_args_int
+    \xparse_add_expandable_grabber_mandatory:n { m }
+    \bool_set_false:N \l_xparse_long_bool
+    \xparse_prepare_signature:N
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_add_expandable_type_r:w}
+% \begin{macro}{\xparse_add_expandable_type_R:w}
+%   The \texttt{r}- and \texttt{R}-types are very similar to \texttt{D}-type
+%   arguments, and so the same internals are used.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_add_expandable_type_r:w #1#2
+  { \xparse_add_expandable_type_R:w #1 #2 { \NoValue } }
+\cs_new_protected:Npn \xparse_add_expandable_type_R:w #1#2
+  {
+    \token_if_eq_meaning:NNTF #1 #2
+      {
+        \xparse_add_expandable_grabber_optional:n { R_alt }
+        \xparse_add_expandable_type_D_aux:Nn #1
+      }
+      {
+        \xparse_add_expandable_grabber_optional:n { R }
+        \xparse_add_expandable_type_D_aux:NNn #1#2
       }
   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\xparse_process_arg:n}
-%   Processors are saved for use later during the grabbing process.
+% \begin{macro}{\xparse_add_expandable_type_t:w}
 %    \begin{macrocode}
-\cs_new_protected:Npn \xparse_process_arg:n #1
+\cs_new_protected_nopar:Npn \xparse_add_expandable_type_t:w #1
   {
-    \int_incr:N \l_xparse_processor_int
-    \cs_set:cpn { xparse_processor_ \int_use:N \l_xparse_processor_int :n } ##1
-      { #1 {##1} }
+    \xparse_add_expandable_grabber_optional:n { t }
+    \use:c { cs_set \bool_if:NF \l_xparse_long_bool { _nopar } :cpn }
+      { \l_xparse_expandable_aux_tl } ##1 #1 {##1}
+    \tl_put_right:Nx \l_xparse_signature_tl
+      {
+        \exp_not:c  { \l_xparse_expandable_aux_tl }
+        \exp_not:N #1
+      }
+    \bool_set_false:N \l_xparse_long_bool
+    \xparse_prepare_signature:N
   }
 %    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_add_expandable_type_u:w}
+%   Invalid in an expandable context as any preceding optional argument may
+%   wrap part of the delimiter up in braces.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \xparse_add_expandable_type_u:w #1
+  {
+    \msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type } { u }
+    \xparse_add_expandable_type_m:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\xparse_add_expandable_type_v:w}
+%  Another forbidden type.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \xparse_add_expandable_type_v:w
+  {
+    \msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type } { v }
+    \xparse_add_expandable_type_m:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     \xparse_add_expandable_grabber_mandatory:n,
+%     \xparse_add_expandable_grabber_optional:n
+%   }
+% \begin{macro}[aux]{\xparse_add_expandable_long_check:}
+%   Adding a grabber to the signature is very simple here, with only a test to
+%   ensure that optional arguments still have mandatory ones to follow. This
+%   is also a good place to check on the consistency of the long status of
+%   arguments.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \xparse_add_expandable_grabber_mandatory:n #1
+  {
+    \xparse_add_expandable_long_check:
+    \tl_put_right:Nx \l_xparse_signature_tl
+      { \exp_not:c { xparse_expandable_grab_ #1 :w } }
+    \bool_set_false:N \l_xparse_long_bool
+    \int_decr:N \l_xparse_mandatory_args_int
+  }
+\cs_new_protected_nopar:Npn \xparse_add_expandable_grabber_optional:n #1
+  {
+    \xparse_add_expandable_long_check:
+    \int_compare:nNnF
+      { \l_xparse_mandatory_args_int - \l_xparse_m_args_int } > \c_zero
+      { \msg_kernel_error:nn { xparse } { expandable-ending-optional } }
+    \tl_put_right:Nx \l_xparse_signature_tl
+      { \exp_not:c { xparse_expandable_grab_ #1 :w } }
+    \bool_set_false:N \l_xparse_long_bool
+  }
+\cs_new_protected_nopar:Npn \xparse_add_expandable_long_check:
+  {
+    \bool_if:nT { \l_xparse_all_long_bool && ! ( \l_xparse_long_bool ) }
+      { \msg_kernel_error:nn { xparse } { inconsistent-long } }
+  }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \subsection{Grabbing arguments}
-%
-% \begin{macro}{\xparse_add_arg:n, \xparse_add_arg:V, \xparse_add_arg:o}
-% \begin{macro}[aux]{\xparse_add_arg_aux:n, \xparse_add_arg_aux:V}
-%   The argument-storing system provides a single point for interfacing
-%   with processors. They are done in a loop, counting downward. In this
-%   way, the processor which was found last is executed first. The result
-%   is that processors apply from right to left, as intended. Notice that
-%   a set of braces are added back around the result of processing so that
-%   the internal function will correctly pick up one argument for each
-%   input argument.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_add_arg:n #1
-  {
-    \int_compare:nNnTF \l_xparse_processor_int = \c_zero
-      { \tl_put_right:Nn \l_xparse_args_tl { {#1} } }
-      {
-        \xparse_if_no_value:nTF {#1}
-          {
-            \int_zero:N \l_xparse_processor_int
-            \tl_put_right:Nn \l_xparse_args_tl { {#1} }
-          }
-          { \xparse_add_arg_aux:n {#1} }
-      }
-  }
-\cs_generate_variant:Nn \xparse_add_arg:n { V , o }
-\cs_new_protected:Npn \xparse_add_arg_aux:n #1
-  {
-    \tl_set_eq:NN \ProcessedArgument \l_xparse_arg_tl
-    \use:c { xparse_processor_ \int_use:N \l_xparse_processor_int :n } {#1}
-    \int_decr:N \l_xparse_processor_int
-    \int_compare:nNnTF \l_xparse_processor_int = \c_zero
-      {
-        \tl_put_right:Nx \l_xparse_args_tl
-          { { \exp_not:V \ProcessedArgument } }
-      }
-      { \xparse_add_arg_aux:V \ProcessedArgument }
-}
-\cs_generate_variant:Nn \xparse_add_arg_aux:n { V }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
 %
 % All of the grabbers follow the same basic pattern. The initial
 % function sets up the appropriate information to define
@@ -1578,7 +1754,10 @@
     \xparse_grab_D_aux:NNnN #1#2 {#4} #5
     \use:c { peek_meaning_remove #6 :NTF } #1
       { \xparse_grab_arg:w }
-      { \xparse_grab_arg:w #3 #2 }
+      {
+        \xparse_add_arg:n {#3}
+        #4 \l_xparse_args_tl
+      }
   }
 \cs_new_protected:Npn \xparse_grab_D_aux:NNnN #1#2#3#4
   {
@@ -1670,7 +1849,7 @@
         \tl_if_in:nnTF {##2} {#1}
           {
             \l_xparse_fn_tl
-              \q_nil ##2 \q_xparse \q_nil
+              \q_nil ##2 \q_xparse \ERROR
           }
           {
             \tl_put_right:Nx \l_xparse_nesting_a_tl
@@ -1680,7 +1859,7 @@
                 \tl_set_eq:NN \l_xparse_tmp_tl \l_xparse_nesting_b_tl
                 \tl_clear:N \l_xparse_nesting_b_tl
                 \exp_after:wN \l_xparse_fn_tl \exp_after:wN
-                  \q_nil \l_xparse_tmp_tl \q_nil \q_xparse \q_nil
+                  \q_nil \l_xparse_tmp_tl \q_nil \q_xparse \ERROR
               }
               {
                 \tl_put_right:No \l_xparse_nesting_a_tl
@@ -1690,7 +1869,7 @@
               }
           }
       }
-    \l_xparse_fn_tl #3 \q_nil \q_xparse \q_nil
+    \l_xparse_fn_tl #3 \q_nil \q_xparse \ERROR
   }
 \cs_new:Npn \xparse_grab_D_nested:w #1 \q_nil \q_stop
   { \exp_not:o { \use_none:n #1 } }
@@ -1731,7 +1910,10 @@
       }
     \use:c { peek_meaning #4 :NTF } \c_group_begin_token
       { \l_xparse_fn_tl }
-      { \l_xparse_fn_tl {#1} }
+      {
+        \xparse_add_arg:n {#1}
+        #2 \l_xparse_args_tl
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1912,7 +2094,8 @@
       {
         \msg_kernel_error:nnxx { xparse } { missing-required }
           { \token_to_str:N #1 } { \tl_to_str:n {#3} }
-        \xparse_grab_arg:w #3 #2
+        \xparse_add_arg:n {#3}
+        #4 \l_xparse_args_tl
       }
   }
 %    \end{macrocode}
@@ -2121,11 +2304,8 @@
 % \end{macro}
 %
 % \begin{macro}{\xparse_grab_v_bgroup:}
-% \begin{macro}
-%   {
-%     \xparse_grab_v_bgroup_loop:,
-%     \xparse_grab_v_bgroup_loop_ii:N
-%   }
+% \begin{macro}{\xparse_grab_v_bgroup_loop:}
+% \begin{macro}{\xparse_grab_v_bgroup_loop_ii:N}
 % \begin{variable}{\l_xparse_v_nesting_int}
 %   If the opening delimiter is a left brace, we keep track of
 %   how many left and right braces were encountered so far in
@@ -2180,9 +2360,11 @@
 % \end{variable}
 % \end{macro}
 % \end{macro}
+% \end{macro}
 %
 % \begin{macro}{\xparse_grab_v_aux_catcodes:}
-% \begin{macro}{\xparse_grab_v_aux_abort:, \xparse_grab_v_aux_abort_ii:w}
+% \begin{macro}{\xparse_grab_v_aux_abort:}
+% \begin{macro}{\xparse_grab_v_aux_abort_ii:w}
 %   In a standalone format, the list of special characters is kept
 %   as a sequence, \cs{c_xparse_special_chars_seq}, and we use
 %   \tn{dospecials} in package mode.
@@ -2220,19 +2402,20 @@
     \tl_to_lowercase:n
       { \group_end: \peek_meaning_remove:NTF ## }
       {
-        \msg_error:nnxx { xparse } { verbatim-newline }
-          { \cs_to_str:N #1 }
+        \msg_kernel_error:nnxx { xparse } { verbatim-newline }
+          { \token_to_str:N #1 }
           { \tl_to_str:N \l_xparse_v_arg_tl }
         \l_xparse_v_rest_of_signature_tl \l_xparse_args_tl
       }
       {
-        \msg_error:nnxx { xparse } { verbatim-already-tokenized }
-          { \cs_to_str:N #1 }
+        \msg_kernel_error:nnxx { xparse } { verbatim-already-tokenized }
+          { \token_to_str:N #1 }
           { \tl_to_str:N \l_xparse_v_arg_tl }
         \l_xparse_v_rest_of_signature_tl \l_xparse_args_tl
       }
   }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -2249,7 +2432,304 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\xparse_add_arg:n, \xparse_add_arg:V, \xparse_add_arg:o}
+% \begin{macro}[aux]{\xparse_add_arg_aux:n, \xparse_add_arg_aux:V}
+%   The argument-storing system provides a single point for interfacing
+%   with processors. They are done in a loop, counting downward. In this
+%   way, the processor which was found last is executed first. The result
+%   is that processors apply from right to left, as intended. Notice that
+%   a set of braces are added back around the result of processing so that
+%   the internal function will correctly pick up one argument for each
+%   input argument.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_add_arg:n #1
+  {
+    \int_compare:nNnTF \l_xparse_processor_int = \c_zero
+      { \tl_put_right:Nn \l_xparse_args_tl { {#1} } }
+      {
+        \tl_clear:N \ProcessedArgument
+        \xparse_if_no_value:nTF {#1}
+          {
+            \int_zero:N \l_xparse_processor_int
+            \tl_put_right:Nn \l_xparse_args_tl { {#1} }
+          }
+          { \xparse_add_arg_aux:n {#1} }
+      }
+  }
+\cs_generate_variant:Nn \xparse_add_arg:n { V , o }
+\cs_new_protected:Npn \xparse_add_arg_aux:n #1
+  {
+    \use:c { xparse_processor_ \int_use:N \l_xparse_processor_int :n } {#1}
+    \int_decr:N \l_xparse_processor_int
+    \int_compare:nNnTF \l_xparse_processor_int = \c_zero
+      {
+        \tl_put_right:Nx \l_xparse_args_tl
+          { { \exp_not:V \ProcessedArgument } }
+      }
+      { \xparse_add_arg_aux:V \ProcessedArgument }
+}
+\cs_generate_variant:Nn \xparse_add_arg_aux:n { V }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Grabbing arguments expandably}
+%
+% \begin{macro}[EXP]{\xparse_expandable_grab_D:w}
+% \begin{macro}[EXP, aux]{\xparse_expandable_grab_D_i:NNNnwN}
+% \begin{macro}[EXP, aux]{\xparse_expandable_grab_D_ii:NNNwNnnn}
+% \begin{macro}[EXP, aux]{\xparse_expandable_grab_D_iii:Nw}
+% \begin{macro}[EXP, aux]{\xparse_expandable_grab_D_iv:nnNNNwN}
+%   The first step is to grab the first token or group. The generic grabber
+%   \cs{\meta{function}}\verb*| | is just after \cs{q_xparse}, we go and find
+%   it.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_expandable_grab_D:w #1 \q_xparse #2
+  { #2 { \xparse_expandable_grab_D_i:NNNnwNn #1 \q_xparse #2 } }
+%    \end{macrocode}
+%   We then wish to test whether |#7|, which we just grabbed, is exactly |#2|.
+%   Expand the only grabber function we have, |#1|, once: the two strings below
+%   are equal if and only if |#7| matches |#2| exactly.\footnote{It is obvious
+%   that if \texttt{\#7} matches \texttt{\#2} then the strings are equal. We
+%   must check the converse. The right-hand-side of \cs{str_if_eq:onTF} does
+%   not end with \texttt{\#3}, implying that the grabber function took
+%   everything as its arguments. The first brace group can only be empty if
+%   \texttt{\#7} starts with \texttt{\#2}, otherwise the brace group preceding
+%   \texttt{\#7} would not vanish. The third brace group is empty, thus the
+%   \cs{q_xparse} that was used by our grabber \texttt{\#1} must be the one
+%   that we inserted (not some token in \texttt{\#7}), hence the second brace
+%   group contains the end of \texttt{\#7} followed by \texttt{\#2}. Since this
+%   is \texttt{\#2} on the right-hand-side, and no brace can be lost there,
+%   \texttt{\#7} must contain nothing else than its leading \texttt{\#2}.} If
+%   |#7| does not match |#2|, then the optional argument is missing, we use the
+%   default |#4|, and put back the argument |#7| in the input stream.
+%   %^^A There is probably a bug similar to the non-expandable O{\par} bug.
+%
+%   If it does match, then interesting things need to be done. We will grab the
+%   argument piece by piece, with the following pattern:
+%   \begin{quote}
+%     \meta{grabber} \Arg{tokens} \\
+%     ~~\cs{q_nil} \Arg{piece 1} \meta{piece 2} \cs{ERROR} \cs{q_xparse}\\
+%     ~~\cs{q_nil} \meta{input stream}
+%   \end{quote}
+%   The \meta{grabber} will find an opening delimiter in \meta{piece 2}, take
+%   the \cs{q_xparse} as a second delimiter, and find more material delimited
+%   by the closing delimiter in the \meta{input stream}. We then move the part
+%   before the opening delimiter from \meta{piece 2} to \meta{piece 1}, and the
+%   material taken from the \meta{input stream} to the \meta{piece 2}. Thus,
+%   the argument moves gradually from the \meta{input stream} to the
+%   \meta{piece 2}, then to the \meta{piece 1} when we have made sure to find
+%   all opening and closing delimiters. This two-step process ensures that
+%   nesting works: the number of opening delimiters minus closing delimiters in
+%   \meta{piece 1} is always equal to the number of closing delimiters in
+%   \meta{piece 2}. We stop grabbing arguments once the \meta{piece 2} contains
+%   no opening delimiter any more, hence the balance is reached, and the final
+%   argument is \meta{piece 1} \meta{piece 2}.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_expandable_grab_D_i:NNNnwNn #1#2#3#4#5 \q_xparse #6#7
+  {
+    \str_if_eq:onTF
+      { #1 { } { } #7 #2 \q_xparse #3 }
+      { { } { #2 } { } }
+      {
+        #1
+          { \xparse_expandable_grab_D_ii:NNNwNnnn #1#2#3#5 \q_xparse #6 }
+          \q_nil { } #2 \ERROR \q_xparse \ERROR
+      }
+      { #5 {#4} \q_xparse #6 {#7} }
+  }
+%    \end{macrocode}
+%   At this stage, |#6| is \cs{q_nil} \Arg{piece 1} \meta{more for piece 1},
+%   and we want to concatenate all that, removing \cs{q_nil}, and keeping the
+%   opening delimiter |#2|. Simply use \cs{use_ii:nn}. Also, |#7| is
+%   \meta{remainder of piece 2} \cs{ERROR}, and |#8| is \cs{ERROR} \meta{more
+%   for piece 2}. We concatenate those, replacing the two \cs{ERROR} by the
+%   closing delimiter |#3|.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_expandable_grab_D_ii:NNNwNnnn #1#2#3#4 \q_xparse #5#6#7#8
+  {
+    \exp_args:Nof \xparse_expandable_grab_D_iv:nnNNNwN
+      { \use_ii:nn #6 #2 }
+      { \xparse_expandable_grab_D_iii:Nw #3 \exp_stop_f: #7 #8 }
+    #1#2#3 #4 \q_xparse #5
+  }
+\cs_new:Npn \xparse_expandable_grab_D_iii:Nw #1#2 \ERROR \ERROR { #2 #1 }
+%    \end{macrocode}
+%   Armed with our two new \meta{pieces}, we are ready to loop. However, we
+%   must first see if \meta{piece 2} (here |#2|) contains any opening
+%   delimiter |#4|. Again, we expand |#3|, this time removing its whole output
+%   with \cs{use_none:nnn}. The test is similar to \cs{tl_if_in:nnTF}. The
+%   token list is empty if and only if |#2| does not contain the opening
+%   delimiter. In that case, we are done, and put the argument (from which we
+%   remove a spurious pair of delimiters coming from how we started the loop).
+%   Otherwise, we go back to looping with
+%   \cs{xparse_expandable_grab_D_ii:NNNwNnnn}.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_expandable_grab_D_iv:nnNNNwN #1#2#3#4#5#6 \q_xparse #7
+  {
+    \exp_args:No \tl_if_empty:oTF
+      { #3 { \use_none:nnn } #2 \q_xparse #5 #4 \q_xparse #5 }
+      {
+        \xparse_put_arg_expandable:ow { \use_none:nn #1#2 }
+          #6 \q_xparse #7
+      }
+      {
+        #3
+          { \xparse_expandable_grab_D_ii:NNNwNnnn #3#4#5#6 \q_xparse #7 }
+          \q_nil {#1} #2 \ERROR \q_xparse \ERROR
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\xparse_expandable_grab_D_alt:w}
+% \begin{macro}]EXP]{\xparse_expandable_grab_D_alt_i:NNnwNn}
+% \begin{macro}]EXP]{\xparse_expandable_grab_D_alt_ii:Nw}
+%   When the delimiters are identical, nesting is not possble and a simplified
+%   approach is used. The test concept here is the same as for the case where
+%   the delimiters are different.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_expandable_grab_D_alt:w #1 \q_xparse #2
+  { #2 { \xparse_expandable_grab_D_alt_i:NNnwNn #1 \q_xparse #2 } }
+\cs_new:Npn \xparse_expandable_grab_D_alt_i:NNnwNn #1#2#3#4 \q_xparse #5#6
+  {
+    \str_if_eq:onTF
+      { #1 { } #6 #2 #2 }
+      { { } #2 }
+      {
+        #1
+          { \xparse_expandable_grab_D_alt_ii:Nwn #5 #4 \q_xparse }
+          #6 \ERROR
+      }
+      { #4 {#3} \q_xparse #5 {#6} }
+  }
+\cs_new:Npn \xparse_expandable_grab_D_alt_ii:Nwn #1#2 \q_xparse #3
+  { \xparse_put_arg_expandable:ow { \use_none:n #3 } #2 \q_xparse #1 }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\xparse_expandable_grab_m:w}
+% \begin{macro}[EXP, aux]{\xparse_expandable_grab_m_aux:wNn}
+%   The mandatory case is easy: find the auxiliary after the \cs{q_xparse}, and
+%   use it directly to grab the argument.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_expandable_grab_m:w #1 \q_xparse #2
+  { #2 { \xparse_expandable_grab_m_aux:wNn #1 \q_xparse #2 } }
+\cs_new:Npn \xparse_expandable_grab_m_aux:wNn #1 \q_xparse #2#3
+  { #1 {#3} \q_xparse #2 }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\xparse_expandable_grab_R:w}
+% \begin{macro}[EXP, aux]{\xparse_expandable_grab_R_aux:NNwn}
+%   Much the same as for the \texttt{D}-type argument, with only the lead-off
+%   function varying.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_expandable_grab_R:w #1 \q_xparse #2
+  { #2 { \xparse_expandable_grab_R_aux:NNNnwNn #1 \q_xparse #2 } }
+\cs_new:Npn \xparse_expandable_grab_R_aux:NNNnwNn #1#2#3#4#5 \q_xparse #6#7
+  {
+    \str_if_eq:onTF
+      { #1 { } { } #7 #2 \q_xparse #3 }
+      { { } { #2 } { } }
+      {
+        #1
+          { \xparse_expandable_grab_D_ii:NNNwNnnn #1#2#3#5 \q_xparse #6 }
+          \q_nil { } #2 \ERROR \q_xparse \ERROR
+      }
+      {
+        \msg_expandable_kernel_error:nnn
+          { xparse } { missing-required } {#2}
+        #5 {#4} \q_xparse #6 {#7}
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\xparse_expandable_grab_R_alt:w}
+% \begin{macro}]EXP]{\xparse_expandable_grab_R_alt_aux:NNnwNn}
+%   When the delimiters are identical, nesting is not possble and a simplified
+%   approach is used. The test concept here is the same as for the case where
+%   the delimiters are different.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_expandable_grab_R_alt:w #1 \q_xparse #2
+  { #2 { \xparse_expandable_grab_R_alt_aux:NNnwNn #1 \q_xparse #2 } }
+\cs_new:Npn \xparse_expandable_grab_R_alt_aux:NNnwNn #1#2#3#4 \q_xparse #5#6
+  {
+    \str_if_eq:onTF
+      { #1 { } #6 #2 #2 }
+      { { } #2 }
+      {
+        #1
+          { \xparse_expandable_grab_D_alt_ii:Nwn #5 #4 \q_xparse }
+          #6 \ERROR
+      }
+      {
+        \msg_expandable_kernel_error:nnn
+          { xparse } { missing-required } {#2}
+        #4 {#3} \q_xparse #5 {#6}
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\xparse_expandable_grab_t:w}
+% \begin{macro}[EXP, aux]{\xparse_expandable_grab_t_aux:NNwn}
+%   As for a \texttt{D}-type argument, here we compare the grabbed tokens using
+%   the only parser we have in order to work out if |#2| is exactly equal to
+%   the output of the grabber.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_expandable_grab_t:w #1 \q_xparse #2
+  { #2 { \xparse_expandable_grab_t_aux:NNwn #1 \q_xparse #2 } }
+\cs_new:Npn \xparse_expandable_grab_t_aux:NNwn #1#2#3 \q_xparse #4#5
+  {
+    \str_if_eq:onTF { #1 { } #5 #2 } { #2 }
+      { #3 { \BooleanTrue } \q_xparse #4 }
+      { #3 { \BooleanFalse } \q_xparse #4 {#5} }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]
+%   {\xparse_put_arg_expandable:nw, \xparse_put_arg_expandable:ow}
+%   A useful helper, to store arguments when they are ready.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_put_arg_expandable:nw #1#2 \q_xparse { #2 {#1} \q_xparse }
+\cs_generate_variant:Nn \xparse_put_arg_expandable:nw { o }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\xparse_grab_expandable_end:wN}
+%   For the end of the grabbing sequence: get rid of the generic grabber and
+%   insert the code function followed by its arguments.
+%    \begin{macrocode}
+\cs_new:Npn \xparse_grab_expandable_end:wN #1 \q_xparse #2 {#1}
+%    \end{macrocode}
+%\end{macro}
+%
 % \subsection{Argument processors}
+%
+% \begin{macro}{\xparse_process_arg:n}
+%   Processors are saved for use later during the grabbing process.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xparse_process_arg:n #1
+  {
+    \int_incr:N \l_xparse_processor_int
+    \cs_set:cpn { xparse_processor_ \int_use:N \l_xparse_processor_int :n } ##1
+      { #1 {##1} }
+  }
+%    \end{macrocode}
+% \end{macro}
 %
 % \begin{macro}{\xparse_process_to_str:n}
 %   A basic argument processor: as much an example as anything else.
@@ -2303,7 +2783,7 @@
         {
           \IfNoValueF {##1}
             {
-              \msg_error:nnxxx { xparse } { split-excess-tokens }
+              \msg_kernel_error:nnxxx { xparse } { split-excess-tokens }
                 { \tl_to_str:n {#2} } { \tl_to_str:n {#1} }
                 { \tl_to_str:n {#3} }
             }
@@ -2393,557 +2873,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsection{Creating expandable functions}
-%
-% The trick here is to pass each grabbed argument along a chain of
-% auxiliary functions. Each one ultimately calls the next in the chain,
-% so that all of the arguments are passed along delimited using
-% \cs{q_xparse}. At the end of the chain, the marker is removed
-% so that the user-supplied code can be passed the correct number
-% of arguments. All of this is done by expansion!
-%
-% \begin{macro}[aux]{\xparse_exp_arg:n}
-%   Used to create pretty-printing names for the auxiliaries.
-%    \begin{macrocode}
-\cs_new:Npn \xparse_exp_arg:n #1 { ~( arg~ #1 ) }
-%    \end{macrocode}
-%\end{macro}
-%
-% \begin{macro}{\xparse_exp_add_type_d:w}
-%   As in the standard case, the trick here is to slot in the default
-%   and treat as type \texttt{D}.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_exp_add_type_d:w #1#2
-  { \xparse_exp_add_type_D:w #1 #2 { \NoValue } }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_exp_add_type_D:w}
-% \begin{macro}[aux]{\xparse_exp_add_type_D_aux:nnNNn}
-%   The most complex argument to grab in an expandable manner is the
-%   general delimited one. Life gets so complicated here that the first thing
-%   to do is to expand the name of the current function and the current
-%   argument number so that a slightly less complex auxiliary can be employed.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_exp_add_type_D:w #1#2#3
-  {
-    \exp_args:NVV \xparse_exp_add_type_D_aux:nnNNn
-      \l_xparse_function_tl \l_xparse_total_args_int #1 #2 {#3}
-    \xparse_exp_prepare_function:N
-  }
-%    \end{macrocode}
-%  The general idea here is to use the same strategy as is employed in the
-%  non-expandable code, using a grabbed argument plus string test in place
-%  of \cs{peek_...} and employing a stack approach for the nesting part.
-%  Unlike the non-expandable code, all of the nesting here requires that
-%  the tests are set up in advance, which includes a dedicated copy of the
-%  \cs{tl_if_in:nnTF} auxiliary for the optional opening token. Several
-%  of the internal functions are also built with expansion as this is
-%  needed so that at point of use the number of expansions required is known.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_exp_add_type_D_aux:nnNNn #1#2#3#4#5
-  {
-%    \end{macrocode}
-%   The initial grabber starts by finding the next thing in the input stream.
-%   The string-based test will ensure that only the \emph{text} expected is
-%   there (and therefore a single token), while the meaning test deals with
-%   category code.
-%    \begin{macrocode}
-    \xparse_exp_set:cpx { #1 \xparse_exp_arg:n { #2 } } ##1 \q_xparse ##2
-      {
-        \exp_not:N \str_if_eq:nnTF {##2} { \exp_not:N #3 }
-          {
-            \exp_not:N \token_if_eq_meaning:NNTF ##2 \exp_not:N #3
-              {
-                \exp_not:c { #1 \xparse_exp_arg:n { #2 ,~helper } }
-                  ##1 \exp_not:N \q_xparse \exp_not:N \ERROR
-              }
-              {
-                \exp_not:c { #1 \xparse_exp_arg:n { #2 ,~helper } }
-                  ##1 \exp_not:N \q_xparse \exp_not:N \ERROR #5 #4 {##2}
-              }
-          }
-          {
-            \exp_not:c { #1 \xparse_exp_arg:n { #2 ,~helper } }
-              ##1 \exp_not:N \q_xparse \exp_not:N \ERROR #5 #4 {##2}
-          }
-      }
-%    \end{macrocode}
-%  The first real grabber picks up every to the first closing token. It then
-%  uses a built-in version of the \cs{tl_if_in:nnTF} test to check for nesting.
-%  The logic of the test is reversed, so the \texttt{true} branch here applies
-%  is there is no nesting.
-%    \begin{macrocode}
-    \xparse_exp_set:cpx { #1 \xparse_exp_arg:n { #2 ,~helper } }
-      ##1 \q_xparse ##2 #4
-      {
-        \exp_not:N \tl_if_empty:oTF
-          {
-            \exp_not:c { #1 \xparse_exp_arg:n { #2 ,~test } }
-              ##2 { } { } #3
-          }
-          {
-            \exp_not:N \xparse_exp_D_next:nNw {##2}
-              \exp_not:c
-                { #1 \xparse_exp_arg:n { \int_eval:n { #2 + \c_one } } }
-              ##1\exp_not:N \q_xparse
-          }
-          {
-            \exp_not:c { #1 \xparse_exp_arg:n  { #2 ,~nested } }
-              ##1 \exp_not:N \q_xparse { } { } ##2
-               \exp_not:N \q_nil \exp_not:N \q_xparse
-          }
-      }
-%    \end{macrocode}
-%   A short auxiliary mirroring one in \cs{tl_if_empty:nnTF}. This is always
-%   long, as it never absorbs anything from the user.
-%    \begin{macrocode}
-    \cs_set:cpn { #1 \xparse_exp_arg:n  { #2 ,~test } } ##1 #3 { }
-%    \end{macrocode}
-%  Dealing with nesting is done in essentially the same way as the
-%  non-expandable code, except everything is on the stack (as |##2| and |##3|).
-%  That makes the entire thing rather hard to read. This is made even more the
-%  case by the need to prvent brace stripping, which requires a series of
-%  token additions.
-%    \begin{macrocode}
-    \xparse_exp_set:cpx { #1 \xparse_exp_arg:n  { #2 ,~nested } }
-      ##1 \q_xparse ##2##3 ##4 #3 ##5 \q_xparse ##6 #4
-      {
-        \exp_not:N \tl_if_empty:oTF
-          {
-            \exp_not:c { #1 \xparse_exp_arg:n { #2 ,~test } }
-              ##5 { } { } #3
-          }
-          {
-            \exp_not:N \tl_if_empty:oTF
-              {
-                \exp_not:c { #1 \xparse_exp_arg:n { #2 ,~test } }
-                  ##3 #4 ##6 { } { } #3
-              }
-              {
-                \exp_not:N \xparse_exp_D_next:nnnnNw
-                  { ##4 #3 } {##5} {##2} { #4 ##6 }
-                  \exp_not:c
-                    { #1 \xparse_exp_arg:n { \int_eval:n { #2 + \c_one } } }
-                    ##1 \exp_not:N \q_xparse
-              }
-              {
-                \exp_not:N \xparse_exp_D_loop:nnnNw { ##4 #3 } {##5} {##2}
-                  \exp_not:c { #1 \xparse_exp_arg:n { #2 ,~nested } }
-                  ##1 \exp_not:N \q_xparse { }
-                   \exp_not:N \q_nil ##3 #4 ##6
-                   \exp_not:N \q_nil \exp_not:N \q_xparse
-              }
-          }
-          {
-            \exp_not:N \xparse_exp_D_loop:nnNw { ##4 #3 } {##2}
-              \exp_not:c { #1 \xparse_exp_arg:n { #2 ,~nested } }
-              ##1 \exp_not:N \q_xparse
-              { ##3 #4 ##6 }
-              \exp_not:N \q_nil ##5 \exp_not:N \q_xparse
-          }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \begin{macro}[aux]{\xparse_exp_D_next:nNw, \xparse_exp_D_next_aux:nNw}
-% \begin{macro}[aux]
-%   {
-%     \xparse_exp_D_next:nnnnNw,
-%     \xparse_exp_D_next_aux_i:nnnnNw,
-%     \xparse_exp_D_next_aux_ii:nnnnNw,
-%     \xparse_exp_D_next_aux_iii:nnnnNw
-%   }
-% \begin{macro}[aux]{\xparse_exp_D_loop:nnNw, \xparse_exp_D_loop_aux:nnNw}
-% \begin{macro}[aux]
-%   {
-%     \xparse_exp_D_loop:nnnNw,
-%     \xparse_exp_D_loop_aux_i:nnnNw,
-%     \xparse_exp_D_loop_aux_ii:nnnNw,
-%     \xparse_exp_D_loop_aux_iii:nnnNw
-%   }
-%   A series of auxiliary functions to remove quarks (used to prevent brace
-%   loss) and to reorder arguments. All rather tedious!
-%    \begin{macrocode}
-\cs_new:Npn \xparse_exp_D_next:nNw #1
-  {
-    \exp_after:wN \xparse_exp_D_next_aux:nNw
-      \exp_after:wN { \use_none:n #1 }
-  }
-\cs_new:Npn \xparse_exp_D_next_aux:nNw #1#2#3 \q_xparse
-  { #2 #3 {#1} \q_xparse }
-\cs_new:Npn \xparse_exp_D_next:nnnnNw #1
-  {
-    \exp_after:wN \xparse_exp_D_next_aux_i:nnnnNw
-      \exp_after:wN { \use_none:n #1 }
-  }
-\cs_new:Npn \xparse_exp_D_next_aux_i:nnnnNw #1#2
-  { \xparse_exp_D_next_aux_ii:nnnnNw \q_nil #2 \q_stop {#1} }
-\cs_new:Npn \xparse_exp_D_next_aux_ii:nnnnNw #1 \q_nil \q_stop
-  {
-    \exp_after:wN \xparse_exp_D_next_aux_iii:nnnnNw
-      \exp_after:wN { \use_none:n #1 }
-  }
-\cs_new:Npn \xparse_exp_D_next_aux_iii:nnnnNw #1#2#3#4#5#6 \q_xparse
-  { #5 #6 { #3 #2 #1 #4 } \q_xparse }
-\cs_new:Npn \xparse_exp_D_loop:nnNw #1
-  {
-    \exp_after:wN \xparse_exp_D_loop_aux:nnNw
-      \exp_after:wN { \use_none:n #1 }
-  }
-\cs_new:Npn \xparse_exp_D_loop_aux:nnNw #1#2#3#4 \q_xparse
-  { #3 #4 \q_xparse { #2 #1 } }
-\cs_new:Npn \xparse_exp_D_loop:nnnNw #1
-  {
-    \exp_after:wN \xparse_exp_D_loop_aux_i:nnnNw
-      \exp_after:wN { \use_none:n #1 }
-  }
-\cs_new:Npn \xparse_exp_D_loop_aux_i:nnnNw #1#2
-  { \xparse_exp_D_loop_aux_ii:nnnNw \q_nil #2 \q_stop {#1} }
-\cs_new:Npn \xparse_exp_D_loop_aux_ii:nnnNw #1 \q_nil \q_stop
-  {
-    \exp_after:wN \xparse_exp_D_loop_aux_iii:nnnNw
-      \exp_after:wN { \use_none:n #1 }
-  }
-\cs_new:Npn \xparse_exp_D_loop_aux_iii:nnnNw #1#2#3#4#5 \q_xparse
-  { #4 #5 \q_xparse { #3 #2 #1 } }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\xparse_exp_add_type_m:w}
-%   The grabber for the current argument is created to simply get the
-%   necessary argument and pass it along with any others through to the
-%   next function in the chain.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \xparse_exp_add_type_m:w
-  {
-    \int_incr:N \l_xparse_m_args_int
-    \xparse_exp_set:cpx
-      {
-        \l_xparse_function_tl
-       \xparse_exp_arg:n { \int_use:N \l_xparse_total_args_int }
-      }
-      ##1 \q_xparse ##2
-      {
-        \exp_not:c
-          {
-            \l_xparse_function_tl
-            \xparse_exp_arg:n
-              { \int_eval:n { \l_xparse_total_args_int + \c_one } }
-          }
-          ##1 {##2} \exp_not:N \q_xparse
-      }
-    \xparse_exp_prepare_function:N
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_exp_add_type_r:w}
-% \begin{macro}{\xparse_exp_add_type_R:w}
-% \begin{macro}[aux]{\xparse_exp_add_type_R_aux:nnNNn}
-%   Grabbing a mandatory delimited argument is essentially the same as
-%   grabing a \texttt{D}-type one. So the bulk of the expandable code is
-%   actually set up using the auxiliary for the \texttt{D}-type. The
-%   \enquote{lead-off} is then altered so that there is an error message
-%   if the argument is not found.
-%    \begin{macrocode}
- \cs_new_protected:Npn \xparse_exp_add_type_r:w #1#2
-  { \xparse_exp_add_type_R:w #1 #2 { \NoValue } }
-\cs_new_protected:Npn \xparse_exp_add_type_R:w #1#2#3
-  {
-    \exp_args:NVV \xparse_exp_add_type_D_aux:nnNNn
-      \l_xparse_function_tl \l_xparse_total_args_int #1 #2 {#3}
-    \exp_args:NVV \xparse_exp_add_type_R_aux:nnNNn
-      \l_xparse_function_tl \l_xparse_total_args_int #1 #2 {#3}
-    \xparse_exp_prepare_function:N
-  }
-\cs_new_protected:Npn \xparse_exp_add_type_R_aux:nnNNn #1#2#3#4#5
-  {
-    \xparse_exp_set:cpx { #1 \xparse_exp_arg:n {#2} } ##1 \q_xparse ##2
-      {
-        \exp_not:N \str_if_eq:nnTF {##2} { \exp_not:N #3 }
-          {
-            \exp_not:N \token_if_eq_meaning:NNTF ##2 \exp_not:N #3
-              {
-                \exp_not:c { #1 \xparse_exp_arg:n { #2 ,~helper } }
-                  ##1 \exp_not:N \q_xparse \exp_not:N \ERROR
-              }
-              {
-                \exp_not:N \msg_expandable_kernel_error:nnn
-                  { xparse } { missing-required }  {#3}
-                \exp_not:c { #1 \xparse_exp_arg:n { #2 ,~helper } }
-                  ##1 \exp_not:N \q_xparse \exp_not:N \ERROR #5 #4 {##2}
-              }
-          }
-          {
-            \exp_not:N \msg_expandable_kernel_error:nnn
-              { xparse } { missing-required }  {#3}
-            \exp_not:c { #1 \xparse_exp_arg:n { #2 ,~helper } }
-              ##1 \exp_not:N \q_xparse \exp_not:N \ERROR #5 #4 {##2}
-          }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\xparse_exp_add_type_t:w}
-%   Looking for a single token is a simpler version of the \texttt{D}
-%   code. The same idea of picking up one argument is used, but there is
-%   no need for a second function as there is no closing token to find. So
-%   either \cs{BooleanTrue} or \cs{BooleanFalse} are added to the list of
-%   arguments. In the later case, the grabber argument must be
-%   \enquote{recycled}.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_exp_add_type_t:w #1
-  {
-    \xparse_exp_set:cpx
-      {
-        \l_xparse_function_tl
-        \xparse_exp_arg:n { \int_use:N \l_xparse_total_args_int }
-      }
-      ##1 \q_xparse ##2
-      {
-        \exp_not:N \tl_if_head_eq_meaning:nNTF {##2} \exp_not:N #1
-          {
-            \exp_not:c
-              {
-                \l_xparse_function_tl
-                \xparse_exp_arg:n
-                  { \int_eval:n { \l_xparse_total_args_int + \c_one } }
-              }
-            ##1 \exp_not:n { { \BooleanTrue } \q_xparse }
-          }
-          {
-            \exp_not:c
-              {
-                \l_xparse_function_tl
-                \xparse_exp_arg:n
-                  { \int_eval:n { \l_xparse_total_args_int + \c_one } }
-              }
-            ##1 \exp_not:n { { \BooleanFalse } \q_xparse } {##2}
-          }
-      }
-    \xparse_exp_prepare_function:N
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_exp_add_type_u:w}
-%   Setting up for a \texttt{u} argument is a case of defining the
-%   grabber for the current argument in a delimited fashion. The rest of
-%   the process is as the other grabbers: add to the chain and call the
-%   next function.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_exp_add_type_u:w #1
-  {
-    \xparse_exp_set:cpx
-      {
-        \l_xparse_function_tl
-        \xparse_exp_arg:n { \int_use:N \l_xparse_total_args_int }
-      }
-      ##1 \q_xparse ##2 #1
-      {
-        \exp_not:c
-          {
-            \l_xparse_function_tl
-            \xparse_exp_arg:n
-              { \int_eval:n { \l_xparse_total_args_int + \c_one } }
-          }
-          ##1 {##2} \exp_not:N \q_xparse
-    }
-    \xparse_exp_prepare_function:N
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_exp_check_and_add:N}
-%   Virtually identical to the normal version, except calling the
-%   expandable \texttt{add} functions rather than the standard versions.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \xparse_exp_check_and_add:N #1
-  {
-    \cs_if_free:cTF { xparse_exp_add_type_ #1 :w }
-      {
-        \msg_error:nnx { xparse }
-          { unknown-expandable-argument-type }
-          { \tl_to_str:n {#1} }
-        \tl_set:Nn \l_xparse_last_arg_tl { m }
-        \xparse_exp_add_type_m:w
-      }
-      {
-        \tl_set:Nn \l_xparse_last_arg_tl {#1}
-        \use:c { xparse_exp_add_type_ #1 :w }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\xparse_exp_declare_cmd:Nnn}
-% \begin{macro}[aux]{\xparse_exp_declare_cmd_all_m:Nn}
-% \begin{macro}[aux]{\xparse_exp_declare_cmd_mixed:Nn}
-% \begin{macro}[aux]{\xparse_exp_declare_cmd_mixed_aux:Nn}
-%   The overall scheme here is very different from the standard method.
-%   For each argument, an internal function is created to grab an argument
-%   and pass along previous ones. Each \enquote{daisy chains} to call the next
-%   one in the sequence. Thus at the end of the chain, an extra
-%   \enquote{argument} function is included to unwind the chain and pass data
-%   to the the internal function containing the actual code. If all of the
-%   arguments are type \texttt{m}, then the same tick is used as in the
-%   standard version. The \texttt{x} in the lead-off and mop-up functions makes
-%   sure that the braces around the first argument are not lost.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_exp_declare_cmd:Nnn #1#2#3
-  {
-    \cs_if_exist:NTF #1
-      {
-        \msg_warning:nnxx { xparse } { redefine-command }
-          { \token_to_str:N #1 } { \tl_to_str:n {#2} }
-      }
-      {
-        \msg_info:nnxx { xparse } { define-command }
-          { \token_to_str:N #1 } { \tl_to_str:n {#2} }
-      }
-    \tl_set:Nx \l_xparse_function_tl { \cs_to_str:N #1 }
-    \xparse_exp_prepare_function:n {#2}
-    \int_compare:nNnTF \l_xparse_total_args_int = \l_xparse_m_args_int
-      { \xparse_exp_declare_cmd_all_m:Nn #1 {#3} }
-      { \xparse_exp_declare_cmd_mixed:Nn #1 {#3} }
-  }
-\cs_new_protected:Npn \xparse_exp_declare_cmd_all_m:Nn #1#2
-  {
-    \bool_if:NTF \l_xparse_long_bool
-      {
-        \cs_generate_from_arg_count:NNnn
-          #1 \cs_set:Npn \l_xparse_total_args_int {#2}
-      }
-      {
-        \cs_generate_from_arg_count:NNnn
-          #1 \cs_set_nopar:Npn \l_xparse_total_args_int {#2}
-      }
-  }
-\cs_new_protected:Npn \xparse_exp_declare_cmd_mixed:Nn #1#2
-  {
-    \tl_if_in:noTF { l r m u } \l_xparse_last_arg_tl
-      { \xparse_exp_declare_cmd_mixed_aux:Nn #1 {#2} }
-      { \msg_error:nn { xparse } { expandable-ending-optional } }
-  }
-\cs_new_protected:Npn \xparse_exp_declare_cmd_mixed_aux:Nn #1#2
-  {
-    \cs_set_nopar:Npx #1
-      {
-        \exp_not:c { \l_xparse_function_tl \xparse_exp_arg:n { 1 } }
-          \exp_not:N \q_nil \exp_not:N \q_xparse
-      }
-    \cs_set_nopar:cpx
-      {
-        \l_xparse_function_tl
-        \xparse_exp_arg:n
-          { \int_eval:n { \l_xparse_total_args_int + \c_one } }
-      }
-      \q_nil ##1 \q_xparse
-      { \exp_not:c { \l_xparse_function_tl \c_space_tl code } ##1 }
-    \cs_generate_from_arg_count:cNnn
-      { \l_xparse_function_tl \c_space_tl code }
-      \cs_set:Npn \l_xparse_total_args_int {#2}
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\xparse_exp_prepare_function:n}
-% \begin{macro}[aux]{\xparse_exp_prepare_function_aux:n}
-%   Processors are forbidden in expandable functions.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_exp_prepare_function:n #1
-  {
-    \tl_if_in:nnTF {#1} { > }
-      {
-        \msg_error:nnxx { xparse } { processor-in-expandable }
-          { \tl_to_str:n {#1} }
-      }
-      { \xparse_exp_prepare_function_aux:n {#1} }
-  }
-\cs_new_protected:Npn \xparse_exp_prepare_function_aux:n #1
-  {
-    \cs_set_eq:NN \xparse_prepare_next:w \xparse_exp_prepare_function:N
-    \cs_set_eq:NN \xparse_exp_set:cpx \cs_set_nopar:cpx
-    \bool_set_false:N \l_xparse_long_bool
-    \int_zero:N \l_xparse_m_args_int
-    \int_zero:N \l_xparse_total_args_int
-    \tl_if_in:nnT {#1} { + }
-      {
-        \bool_set_true:N \l_xparse_long_bool
-        \cs_set_eq:NN \xparse_exp_set:cpx \cs_set:cpx
-      }
-    \xparse_exp_prepare_function:N #1 \q_nil
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\xparse_exp_prepare_function:N}
-% \begin{macro}[aux]{\xparse_exp_prepare_function_long:N}
-% \begin{macro}[aux]{\xparse_exp_prepare_function_short:N}
-%   Preparing functions is a case of reading the signature, as in the
-%   normal case. However, everything has to be either short or long, and
-%   so there is an extra step to make sure that once one \texttt{+} has
-%   been seen everything has one. That detour then takes us back to
-%   a standard looping concept.
-%    \begin{macrocode}
-\cs_new_protected:Npn \xparse_exp_prepare_function:N #1
-  {
-    \bool_if:NTF \l_xparse_long_bool
-      { \xparse_exp_prepare_function_long:N #1 }
-      { \xparse_exp_prepare_function_short:N #1 }
-}
-\cs_new_protected:Npn \xparse_exp_prepare_function_long:N #1
-  {
-    \quark_if_nil:NF #1
-      {
-        \str_if_eq:nnTF {#1} { + }
-          { \xparse_exp_prepare_function_short:N }
-          {
-            \msg_error:nn { xparse } { inconsistent-long }
-            \xparse_exp_prepare_function_short:N #1
-          }
-      }
-  }
-\cs_new_protected:Npn \xparse_exp_prepare_function_short:N #1
-  {
-    \quark_if_nil:NF #1
-      {
-        \prop_get:NnNTF \c_xparse_shorthands_prop {#1} \l_xparse_tmp_tl
-          {
-            \bool_if:NT \l_xparse_long_bool
-              { \tl_put_left:Nn \l_xparse_tmp_tl { + }  }
-            \exp_after:wN \xparse_exp_prepare_function:N \l_xparse_tmp_tl
-          }
-          {
-            \int_incr:N \l_xparse_total_args_int
-            \xparse_exp_check_and_add:N #1
-          }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\xparse_exp_set:cpx}
-%   A short-cut to save constantly re-testing \cs{l_xparse_long_bool}.
-%    \begin{macrocode}
-\cs_new_eq:NN \xparse_exp_set:cpx \cs_set_nopar:cpx
-%    \end{macrocode}
-% \end{macro}
-%
 % \subsection{Access to the argument specification}
 %
 % \begin{macro}{\xparse_get_arg_spec:N}
@@ -2957,7 +2886,7 @@
     \prop_get:NnNF \l_xparse_command_arg_specs_prop {#1}
       \ArgumentSpecification
       {
-        \msg_error:nnx { xparse } { unknown-document-command }
+        \msg_kernel_error:nnx { xparse } { unknown-document-command }
           { \token_to_str:N #1 }
       }
   }
@@ -2966,7 +2895,7 @@
     \prop_get:NnNF \l_xparse_environment_arg_specs_prop {#1}
       \ArgumentSpecification
       {
-        \msg_error:nnx { xparse } { unknown-document-environment }
+        \msg_kernel_error:nnx { xparse } { unknown-document-environment }
           { \tl_to_str:n {#1} }
       }
   }
@@ -2988,7 +2917,7 @@
       \ArgumentSpecification
       { \tl_show:N \ArgumentSpecification }
       {
-        \msg_error:nnx { xparse } { unknown-document-command }
+        \msg_kernel_error:nnx { xparse } { unknown-document-command }
           { \token_to_str:N #1 }
       }
   }
@@ -2998,7 +2927,7 @@
       \ArgumentSpecification
       { \tl_show:N \ArgumentSpecification }
       {
-        \msg_error:nnx { xparse } { unknown-document-environment }
+        \msg_kernel_error:nnx { xparse } { unknown-document-environment }
           { \tl_to_str:n {#1} }
       }
   }
@@ -3006,52 +2935,64 @@
 % \end{macro}
 % \end{macro}
 %
+% \subsection{Utilities}
+%
+% \begin{macro}[TF]{\xparse_if_no_value:n}
+%   Tests for \cs{NoValue}.
+%    \begin{macrocode}
+\prg_new_conditional:Npnn \xparse_if_no_value:n #1 { T ,  F , TF }
+  { \str_if_eq:nnTF {#1} { \NoValue } \prg_return_true: \prg_return_false: }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Messages}
+%
 %\subsection{Messages}
 %
 % Some messages intended as errors.
 %    \begin{macrocode}
-\msg_new:nnnn { xparse } { command-already-defined }
+\msg_kernel_new:nnnn { xparse } { command-already-defined }
   { Command~'#1'~already~defined! }
   {
     You~have~used~\NewDocumentCommand
     with~a~command~that~already~has~a~definition. \\
     The~existing~definition~of~'#1'~will~be~overwritten.
   }
-\msg_new:nnnn { xparse } { command-not-yet-defined }
+\msg_kernel_new:nnnn { xparse } { command-not-yet-defined }
   { Command ~'#1'~not~yet~defined! }
   {
     You~have~used~\RenewDocumentCommand
     with~a~command~that~was~never~defined.\\
     A~new~command~'#1'~will~be~created.
   }
-\msg_new:nnnn { xparse } { environment-already-defined }
+\msg_kernel_new:nnnn { xparse } { environment-already-defined }
   { Environment~'#1'~already~defined! }
   {
     You~have~used~\NewDocumentEnvironment
     with~an~environment~that~already~has~a~definition.\\
     The~existing~definition~of~'#1'~will~be~overwritten.
   }
-\msg_new:nnnn { xparse } { environment-mismatch }
+\msg_kernel_new:nnnn { xparse } { environment-mismatch }
   { Mismatch~between~start~and~end~of~environment. }
   {
     The~current~environment~is~called~'#1',~but~you~have~tried~to~
     end~one~called~'#2'.~Environments~have~to~be~properly~nested.
   }
-\msg_new:nnnn { xparse } { environment-not-yet-defined }
+\msg_kernel_new:nnnn { xparse } { environment-not-yet-defined }
   { Environment~'#1'~not~yet~defined! }
   {
     You~have~used~\RenewDocumentEnvironment
     with~an~environment~that~was~never~defined.\\
     A~new~environment~'#1'~will~be~created.
   }
-\msg_new:nnnn { xparse } { environment-unknown }
+\msg_kernel_new:nnnn { xparse } { environment-unknown }
   { Environment~'#1'~undefined. }
   {
     You~have~tried~to~start~an~environment~called~'#1',~
     but~this~has~never~been~defined.\\
     The~command~will~be~ignored.
   }
-\msg_new:nnnn { xparse } { expandable-ending-optional }
+\msg_kernel_new:nnnn { xparse } { expandable-ending-optional }
   { Signature~for~expandable~command~ends~with~optional~argument. }
   {
     \c_msg_coding_error_text_tl
@@ -3059,12 +3000,21 @@
     (or~no~arguments~at~all).~You~cannot~have~a~terminal~optional~
     argument~with~expandable~commands.
   }
-\msg_new:nnnn { xparse } { inconsistent-long }
+\msg_kernel_new:nnnn { xparse } { inconsistent-long }
   { Inconsistent~long~arguments~for~expandable~command. }
   {
     \c_msg_coding_error_text_tl
     The~arguments~for~an~expandable~command~must~either~all~be~
     short~or~all~be~long.~You~have~tried~to~mix~the~two~types.
+  }
+\msg_kernel_new:nnnn { xparse } { invalid-expandable-argument-type }
+  { Unknown~argument~type~'#1'~replaced~by~'m'. }
+  {
+    \c_msg_coding_error_text_tl
+    The~letter~'#1'~does~not~specify~an~argument~type~which~can~be~used~
+    in~an~expandable~function.
+    \\ \\
+    LaTeX~will~assume~you~want~a~standard~mandatory~argument~(type~'m').
   }
 \msg_kernel_new:nnnn { xparse } { missing-required }
   { Failed~to~find~required~argument~starting~with~'#1'. }
@@ -3073,80 +3023,76 @@
     '#1'.~LaTeX~did~not~find~it,~and~will~insert~'#2'~as~the~value~to~be~
     processed.
   }
-\msg_new:nnnn { xparse } { processor-in-expandable }
+\msg_kernel_new:nnnn { xparse } { processor-in-expandable }
   { Argument~processors~cannot~be~used~with~expandable~functions. }
   {
     \c_msg_coding_error_text_tl
-    Argument~specification~'#1'~contains~a~processor~function:~
+    The~argument~specification~for~#1~contains~a~processor~function:~
     this~is~only~supported~for~standard~robust~functions.
   }
-\msg_new:nnnn { xparse } { split-excess-tokens }
+\msg_kernel_new:nnnn { xparse } { split-excess-tokens }
   { Too~many~'#1'~tokens~when~trying~to~split~argument. }
   {
     LaTeX~was~asked~to~split~the~input~'#3'~
     at~each~occurrence~of~the~token~'#1',~up~to~a~maximum~of~#2~parts.~
     There~were~too~many~'#1'~tokens.
   }
-\msg_new:nnnn { xparse } { unknown-argument-type }
+\msg_kernel_new:nnnn { xparse } { unknown-argument-type }
   { Unknown~argument~type~'#1'~replaced~by~'m'. }
   {
     \c_msg_coding_error_text_tl
     The~letter~'#1'~does~not~specify~a~known~argument~type.~
     LaTeX~will~assume~you~want~a~standard~mandatory~argument~(type~'m').
   }
-\msg_new:nnnn { xparse } { unknown-document-command }
+\msg_kernel_new:nnnn { xparse } { unknown-document-command }
   { Unknown~document~command~'#1'. }
   {
     You~have~asked~for~the~argument~specification~for~a~command~'#1',~
     but~this~is~not~a~document~command.
   }
-\msg_new:nnnn { xparse } { unknown-document-environment }
+\msg_kernel_new:nnnn { xparse } { unknown-document-environment }
   { Unknown~document~environment~'#1'. }
   {
     You~have~asked~for~the~argument~specification~for~a~command~'#1',~
     but~this~is~not~a~document~environment.
   }
-\msg_new:nnnn { xparse } { unknown-expandable-argument-type }
-  { Unknown~argument~type~'#1'~replaced~by~'m'. }
-  {
-    \c_msg_coding_error_text_tl
-    The~letter~'#1'~does~not~specify~an~argument~type~which~can~be~used~
-    in~an~expandable~function.
-    LaTeX~will~assume~you~want~a~standard~mandatory~argument~(type~'m').
-  }
-\msg_new:nnnn { xparse } { verbatim-newline }
+\msg_kernel_new:nnnn { xparse } { verbatim-newline }
   { Verbatim~argument~of~#1~ended~by~end~of~line. }
   {
-    Short~verbatim~arguments~cannot~contain~newlines.~
-    I~suspect~you've~forgotten~the~closing~delimiter~of~#1.
-    I~will~ignore~'#2'.
+    The~verbatim~argument~of~#1~cannot~contain~more~than~one~line,~but~the~end~
+    of~the~current~line~has~been~reached.~You~have~probably~forgotten~the~
+    closing~delimiter.
+    \\ \\
+    LaTeX~will~ignored~'#2'.
   }
-\msg_new:nnnn { xparse } { verbatim-already-tokenized }
+\msg_kernel_new:nnnn { xparse } { verbatim-already-tokenized }
   { Verbatim~command~#1~illegal~in~command~argument. }
   {
     The~command~#1~takes~a~verbatim~argument.~It~may~not~appear~within~
-    the~argument~of~another~function.~I~will~ignore~'#2'.
+    the~argument~of~another~function.
+    \\ \\
+    LaTeX~will~ignore~'#2'.
   }
 %    \end{macrocode}
 %
 % Intended more for information.
 %    \begin{macrocode}
-\msg_new:nnn { xparse } { define-command }
+\msg_kernel_new:nnn { xparse } { define-command }
   {
     Defining~document~command~#1~
     with~arg.~spec.~'#2'~\msg_line_context:.
   }
-\msg_new:nnn { xparse } { define-environment }
+\msg_kernel_new:nnn { xparse } { define-environment }
   {
     Defining~document~environment~'#1'~
     with~arg.~spec.~'#2'~\msg_line_context:.
   }
-\msg_new:nnn { xparse } { redefine-command }
+\msg_kernel_new:nnn { xparse } { redefine-command }
   {
     Redefining~document~command~#1~
     with~arg.~spec.~'#2'~\msg_line_context:.
   }
-\msg_new:nnn { xparse } { redefine-environment }
+\msg_kernel_new:nnn { xparse } { redefine-environment }
   {
     Redefining~document~environment~'#1'~
     with~arg.~spec.~'#2'~\msg_line_context:.
@@ -3180,7 +3126,7 @@
   {
     \cs_if_exist:NTF #1
       {
-        \msg_error:nnx { xparse } { command-already-defined }
+        \msg_kernel_error:nnx { xparse } { command-already-defined }
           { \token_to_str:N #1 }
       }
       { \xparse_declare_cmd:Nnn #1 {#2} {#3} }
@@ -3188,9 +3134,9 @@
 \cs_new_protected:Npn \RenewDocumentCommand #1#2#3
   {
     \cs_if_exist:NTF #1
-      { \xparse_declare_cmd_aux:Nnn #1 {#2} {#3} }
+      { \xparse_declare_cmd:Nnn #1 {#2} {#3} }
       {
-        \msg_error:nnx { xparse } { command-not-yet-defined }
+        \msg_kernel_error:nnx { xparse } { command-not-yet-defined }
           { \token_to_str:N #1 }
       }
   }
@@ -3199,19 +3145,6 @@
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\DeclareDocumentCommandImplementation}
-% \begin{macro}{\DeclareDocumentCommandInterface}
-%   The separate implementation/interface system is again pretty simple
-%   to create at the outer layer.
-%    \begin{macrocode}
-\cs_new_protected:Npn \DeclareDocumentCommandImplementation #1#2#3
-  { \xparse_declare_cmd_implementation:nNn {#1} #2 {#3} }
-\cs_new_protected:Npn \DeclareDocumentCommandInterface #1#2#3
-  { \xparse_declare_cmd_interface:Nnn #1 {#2} {#3} }
-%    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
@@ -3226,14 +3159,14 @@
 \cs_new_protected:Npn \NewDocumentEnvironment #1#2#3#4
   {
     \cs_if_exist:cTF {#1}
-      { \msg_error:nnx { xparse } { environment-already-defined } {#1} }
+      { \msg_kernel_error:nnx { xparse } { environment-already-defined } {#1} }
       { \xparse_declare_env:nnnn {#1} {#2} {#3} {#4} }
 }
 \cs_new_protected:Npn \RenewDocumentEnvironment #1#2#3#4
   {
     \cs_if_exist:cTF {#1}
       { \xparse_declare_env:nnnn {#1} {#2} {#3} {#4} }
-      { \msg_error:nnx { xparse } { environment-not-yet-defined } {#1} }
+      { \msg_kernel_error:nnx { xparse } { environment-not-yet-defined } {#1} }
   }
 \cs_new_protected:Npn \ProvideDocumentEnvironment #1#2#3#4
   { \cs_if_exist:cF { #1 } { \xparse_declare_env:nnnn {#1} {#2} {#3} {#4} } }
@@ -3247,7 +3180,7 @@
 %   The expandable version of the basic function is essentially the same.
 %    \begin{macrocode}
 \cs_new_protected:Npn \DeclareExpandableDocumentCommand #1#2#3
-  { \xparse_exp_declare_cmd:Nnn #1 {#2} {#3} }
+  { \xparse_declare_expandable_cmd:Nnn #1 {#2} {#3} }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -3296,22 +3229,16 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\ReverseBoolean}
-%    A processor to reverse the logic for token detection.
+% \begin{macro}{\ReverseBoolean, \SplitArgument, \SplitList, \TrimSpaces}
+%   Simple copies.
 %    \begin{macrocode}
 \cs_new_eq:NN \ReverseBoolean \xparse_bool_reverse:N
+\cs_new_eq:NN \SplitArgument  \xparse_split_argument:nnn
+\cs_new_eq:NN \SplitList      \xparse_split_list:nn
+\cs_new_eq:NN \TrimSpaces     \xparse_trim_spaces:n
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\SplitArgument, \SplitList, \TrimSpaces}
-%   Simple copies
-%    \begin{macrocode}
-\cs_new_eq:NN \SplitArgument \xparse_split_argument:nnn
-\cs_new_eq:NN \SplitList     \xparse_split_list:nn
-\cs_new_eq:NN \TrimSpaces    \xparse_trim_spaces:n
-%    \end{macrocode}
-% \end{macro}
-% 
 % \begin{macro}{\ProcessList}
 %   To support \cs{SplitList}.
 %    \begin{macrocode}
