@@ -14,7 +14,7 @@ rem Makefile for LaTeX3 "l3experimental" files
   echo  make ctan         - create an archive ready for CTAN
   each  make doc          - typeset documentation
   echo  make localinstall - install files in local texmf tree
-  echo  make tds          - 
+  echo  make tds          - creates a TDS-ready zip of CTAN packages
   echo  make unpack       - extract packages
 
   goto :EOF
@@ -45,7 +45,7 @@ rem Makefile for LaTeX3 "l3experimental" files
   if /i [%1] == [unpack]       goto :unpack
 
   goto :help
-  
+
 :check
 
   for %%I in (%PACKAGES%) do (
@@ -55,7 +55,7 @@ rem Makefile for LaTeX3 "l3experimental" files
   )
 
   goto :end
-  
+
 :clean
 
   for %%I in (%PACKAGES%) do (
@@ -64,9 +64,9 @@ rem Makefile for LaTeX3 "l3experimental" files
     popd
   )
 
-  goto :end
-  
   for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
+
+  goto :end
 
 :ctan
 
@@ -153,13 +153,13 @@ rem Makefile for LaTeX3 "l3experimental" files
     echo   %%I
     pushd %%I
     call make unpack
-    xcopy /q /y *.sty "%INSTALLROOT%\%%I\"   > nul 
+    xcopy /q /y *.sty "%INSTALLROOT%\%%I\"   > nul
     call make clean
     popd
   )
 
   goto :end
-  
+
 :tds
 
   call :zip
@@ -202,10 +202,10 @@ rem Makefile for LaTeX3 "l3experimental" files
   xcopy /q /y tds\%PACKAGE%.tds.zip > nul
 
   rmdir /q /s tds
-  
+
   goto :end
 
-:zip 
+:zip
 
   set PATHCOPY=%PATH%
 
@@ -221,7 +221,7 @@ rem Makefile for LaTeX3 "l3experimental" files
     set PATHCOPY=%%J;%%K
   )
   if not "%PATHCOPY%" == ";" goto :zip-loop
-  
+
   if not defined ZIPEXE (
     echo.
     echo This procedure requires a zip program,
