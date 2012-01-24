@@ -25,7 +25,7 @@ help:
 ##############################################################
 
 PACKAGE = l3dt
-L3DIR   = l3trial
+L3DIR   = l3experimental
 
 ##############################################################
 # Directory structure for source files                       #
