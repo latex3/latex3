@@ -27,7 +27,7 @@ rem Makefile for LaTeX3 "l3experimental" files
 
   set CLEAN=zip
   set PACKAGE=l3experimental
-  set PACKAGES=l3str xcoffins xgalley
+  set PACKAGES=l3dt l3str xcoffins xgalley
   set TDSROOT=latex\%PACKAGE%
   set TXT=README
 

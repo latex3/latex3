@@ -25,7 +25,7 @@ rem Makefile for LaTeX3 "l3dt" files
   setlocal
 
   set PACKAGE=l3dt
-  set L3DIR=l3trial
+  set L3DIR=l3experimental
 
   set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
   set CLEAN=fc gz pdf sty txt
