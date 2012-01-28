@@ -388,8 +388,7 @@
 %
 % \begin{function}{\str_set_convert:Nnnn,\str_gset_convert:Nnnn}
 %   \begin{syntax}
-%     \cs{str_set_convert:Nnnn} \meta{str~var} \Arg{string}
-%     ~~\Arg{name~1} \Arg{name~2}
+%     \cs{str_set_convert:Nnnn} \meta{str~var} \Arg{string} \Arg{name~1} \Arg{name~2}
 %   \end{syntax}
 %   This function converts the \meta{string} from the encoding given by
 %   \meta{name~1} to the encoding given by \meta{name~2}, and stores the
@@ -423,6 +422,19 @@
 %   by either the replacement character \hexnum{FFFD} if it exists in
 %   the \meta{encoding~2}, or an encoding-specific replacement
 %   character, or the question mark character.
+% \end{function}
+%
+% \begin{function}[TF]{\str_set_convert:Nnnn,\str_gset_convert:Nnnn}
+%   \begin{syntax}
+%     \cs{str_set_convert:NnnnTF} \meta{str~var} \Arg{string} \Arg{name~1} \Arg{name~2} \Arg{true code} \Arg{false code}
+%   \end{syntax}
+%   As \cs{str_set_convert:Nnnn}, converts the \meta{string} from the
+%   encoding given by \meta{name~1} to the encoding given by
+%   \meta{name~2}, and assigns the result to \meta{str~var}. Contrarily
+%   to \cs{str_set_convert:Nnnn}, the conditional variant does not raise
+%   errors in case the \meta{string} is not valid according to the
+%   \meta{name~1} encoding, or cannot be expressed in the \meta{name~2}
+%   encoding. Instead, the \meta{false code} is performed.
 % \end{function}
 %
 % \section{Internal string functions}
@@ -718,7 +730,17 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_str_byte_flag,\l_str_error_flag}
+% \begin{variable}{\g_str_error_bool}
+%   In conversion functions with a built-in conditional, errors are not
+%   reported directly to the user, but the information is collected in
+%   this boolean, used at the end to decide on which branch of the
+%   conditional to take.
+%    \begin{macrocode}
+\bool_new:N \g_str_error_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{str_byte, str_error}
 %   Conversions from one \meta{encoding}/\meta{escaping} pair to another
 %   are done within \texttt{x}-expanding assignments. Errors are
 %   signalled by raising the relevant flag.
@@ -1464,6 +1486,44 @@
 % \end{macro}
 % \end{macro}
 %
+% \subsubsection{Error-reporting during conversion}
+%
+% \begin{macro}[int]{\str_if_flag_error:nnx}
+% \begin{macro}[aux]{\str_if_flag_no_error:nnx}
+%   When converting using the function \cs{str_set_convert:Nnnn}, errors
+%   should be reported to the user after each step in the
+%   conversion. Errors are signalled by raising some flag (typically
+%   \texttt{str_error}), so here we test that flag: if it is raised,
+%   give the user an error, otherwise remove the arguments. On the other
+%   hand, in the conditional functions \cs{str_set_convert:NnnnTF},
+%   errors should be suppressed. This is done by changing
+%   \cs{str_if_flag_error:nnx} into \cs{str_if_flag_no_error:nnx}
+%   locally.
+%    \begin{macrocode}
+\cs_new_protected:Npn \str_if_flag_error:nnx #1
+  {
+    \flag_test:nTF {#1}
+      { \msg_kernel_error:nnx { str } }
+      { \use_none:nn }
+  }
+\cs_new_protected:Npn \str_if_flag_no_error:nnx #1#2#3
+  { \flag_test:nT {#1} { \bool_gset_true:N \g_str_error_bool } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\str_if_flag_times:nT}
+%   At the end of each conversion step, we raise all relevant errors as
+%   one error message, built on the fly. The height of each flag
+%   indicates how many times a given error was encountered. This
+%   function prints |#2| followed by the number of occurrences of an
+%   error if it occurred, nothing otherwise.
+%    \begin{macrocode}
+\cs_new_protected:Npn \str_if_flag_times:nT #1#2
+  { \flag_test:nT {#1} { #2~(x \flag_height:n {#1} ) } }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Framework for conversions}
 %
 % Most functions in this module expect to be working with
@@ -1498,39 +1558,61 @@
 % string to the next step.
 %
 % \begin{macro}{\str_set_convert:Nnnn, \str_gset_convert:Nnnn}
-% \begin{macro}[aux]{\str_convert_aux_i:NNnnn}
+% \begin{macro}[TF]{\str_set_convert:Nnnn, \str_gset_convert:Nnnn}
+% \begin{macro}[aux]{\str_convert_aux_i:nNNnnn}
 %   The input string is stored in \cs{g_str_result_tl}, then we:
 %   unescape and decode; encode and escape; exit the group and store the
 %   result in the user's variable. The various conversion functions all
-%   act on \cs{g_str_result_tl}.
+%   act on \cs{g_str_result_tl}. Errors are silenced for the conditional
+%   functions by redefining \cs{str_if_flag_error:nnx} locally.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \str_set_convert:Nnnn
-  { \str_convert_aux_i:NNnnn \tl_set_eq:NN }
+  { \str_convert_aux_i:nNNnnn { } \tl_set_eq:NN }
 \cs_new_protected_nopar:Npn \str_gset_convert:Nnnn
-  { \str_convert_aux_i:NNnnn \tl_gset_eq:NN }
-\cs_new_protected:Npn \str_convert_aux_i:NNnnn #1#2#3#4#5
+  { \str_convert_aux_i:nNNnnn { } \tl_gset_eq:NN }
+\prg_new_protected_conditional:Npnn
+    \str_set_convert:Nnnn #1#2#3#4 { T , F , TF }
+  {
+    \bool_gset_false:N \g_str_error_bool
+    \str_convert_aux_i:nNNnnn
+      { \cs_set_eq:NN \str_if_flag_error:nnx \str_if_flag_no_error:nnx }
+      \tl_set_eq:NN #1 {#2} {#3} {#4}
+    \bool_if:NTF \g_str_error_bool \prg_return_false: \prg_return_true:
+  }
+\prg_new_protected_conditional:Npnn
+    \str_gset_convert:Nnnn #1#2#3#4 { T , F , TF }
+  {
+    \bool_gset_false:N \g_str_error_bool
+    \str_convert_aux_i:nNNnnn
+      { \cs_set_eq:NN \str_if_flag_error:nnx \str_if_flag_no_error:nnx }
+      \tl_gset_eq:NN #1 {#2} {#3} {#4}
+    \bool_if:NTF \g_str_error_bool \prg_return_false: \prg_return_true:
+  }
+\cs_new_protected:Npn \str_convert_aux_i:nNNnnn #1#2#3#4#5#6
   {
     \group_begin:
-      \str_gset_other:Nn \g_str_result_tl {#3}
+      #1
+      \str_gset_other:Nn \g_str_result_tl {#4}
       \exp_after:wN \str_convert_aux_ii:wwwnn
-        \tl_to_str:n {#4} /// \q_stop
+        \tl_to_str:n {#5} /// \q_stop
         { decode } { unescape }
         \prg_do_nothing:
         \str_convert_decode_:
       \exp_after:wN \str_convert_aux_ii:wwwnn
-        \tl_to_str:n {#5} /// \q_stop
+        \tl_to_str:n {#6} /// \q_stop
         { encode } { escape }
         \use_ii_i:nn
         \str_convert_encode_:
     \group_end:
-    #1 #2 \g_str_result_tl
+    #2 #3 \g_str_result_tl
   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
+% \end{macro}
 %
 % \begin{macro}[aux]{\str_convert_aux_ii:wwwnn}
-% \begin{macro}[aux]{\str_convert_aux_iii:NNnNN, \str_convert_aux_iii:ccnNN}
+% \begin{macro}[aux]{\str_convert_aux_iii:NNnNN}
 %   The task of \cs{str_convert_aux_ii:wwwnn} is to split
 %   \meta{encoding}/\meta{escaping} pairs into their components, |#1|
 %   and |#2|. Calls to \cs{str_convert_aux_iv:nnn} ensure that the
@@ -1558,7 +1640,7 @@
   {
     \str_convert_aux_iv:nnn {enc} {#4} {#1}
     \str_convert_aux_iv:nnn {esc} {#5} {#2}
-    \str_convert_aux_iii:ccnNN
+    \exp_args:Ncc \str_convert_aux_iii:NNnNN
       { str_convert_#4_#1: } { str_convert_#5_#2: } {#2}
   }
 \cs_new_protected:Npn \str_convert_aux_iii:NNnNN #1#2#3#4#5
@@ -1571,7 +1653,6 @@
       #4 #2 #1
     \fi:
   }
-\cs_generate_variant:Nn \str_convert_aux_iii:NNnNN { cc }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -1766,8 +1847,7 @@
         \flag_clear:n { str_byte }
         \tl_gset:Nx \g_str_result_tl
           { \exp_args:No \str_filter_bytes:n \g_str_result_tl }
-        \flag_test:nT { str_byte }
-          { \msg_kernel_error:nnx { str } { non-byte } { bytes } }
+        \str_if_flag_error:nnx { str_byte } { non-byte } { bytes }
       }
   }
 \cs_new_eq:NN \str_convert_unescape_bytes: \str_convert_unescape_:
@@ -1822,8 +1902,8 @@
         {
           \flag_clear:n { str_error }
           \str_convert_gmap_internal:N \str_encode_native_char:n
-          \flag_test:nT { str_error }
-            { \msg_kernel_error:nn { str } { pdfTeX-native-overflow } }
+          \str_if_flag_error:nnx { str_error }
+            { pdfTeX-native-overflow } { }
         }
       \cs_new:Npn \str_encode_native_char:n #1
         {
@@ -1983,8 +2063,7 @@
       \prg_break_point:n { }
       \flag_clear:n { str_error }
       \str_convert_gmap:N \str_decode_eight_bit_char:N
-      \flag_test:nT { str_error }
-        { \msg_kernel_error:nnx { str } { decode-8-bit } {#1} }
+      \str_if_flag_error:nnx { str_error } { decode-8-bit } {#1}
     \group_end:
   }
 \cs_new_protected:Npn \str_decode_eight_bit_load:nn #1#2
@@ -2038,8 +2117,7 @@
       \prg_break_point:n { }
       \flag_clear:n { str_error }
       \str_convert_gmap_internal:N \str_encode_eight_bit_char:n
-      \flag_test:nT { str_error }
-        { \msg_kernel_error:nnx { str } { encode-8-bit } {#1} }
+      \str_if_flag_error:nnx { str_error } { encode-8-bit } {#1}
     \group_end:
   }
 \cs_new_protected:Npn \str_encode_eight_bit_load:nn #1#2
@@ -2188,7 +2266,6 @@
 \cs_new_protected_nopar:Npn \str_convert_unescape_hex:
   {
     \group_begin:
-      \flag_clear:n { str_byte }
       \flag_clear:n { str_error }
       \int_set:Nn \tex_escapechar:D { 92 }
       \tl_gset:Nx \g_str_result_tl
@@ -2199,10 +2276,7 @@
             0 { ? 0 - \c_one \prg_map_break: }
           \prg_break_point:n { \str_output_end: }
         }
-      \flag_test:nT { str_byte }
-        { \msg_kernel_error:nnx { str } { non-byte } { hex } }
-      \flag_test:nT { str_error }
-        { \msg_kernel_error:nn { str } { unescape-hex } }
+      \str_if_flag_error:nnx { str_error } { unescape-hex } { }
     \group_end:
   }
 \cs_new:Npn \str_unescape_hex_i:N #1
@@ -2280,10 +2354,8 @@
                 #1 ? { ? \prg_map_break: }
               \prg_break_point:n { }
             }
-          \flag_test:nT { str_byte }
-            { \msg_kernel_error:nnx { str } { non-byte } { #2 } }
-          \flag_test:nT { str_error }
-            { \msg_kernel_error:nn { str } { unescape-#2 } }
+          \str_if_flag_error:nnx { str_byte } { non-byte } { #2 }
+          \str_if_flag_error:nnx { str_error } { unescape-#2 } { }
         \group_end:
       }
     \cs_new:Npn #3 ##1#1##2##3
@@ -2351,6 +2423,7 @@
 %   If followed by an end-of-line character, the backslash and the
 %   end-of-line are ignored. If followed by anything else, the backslash
 %   is ignored, raising the error flag.
+%^^A Be paranoid: \tl_to_lowercase:n is unsafe.
 %    \begin{macrocode}
 %<*string>
 \group_begin:
@@ -2377,10 +2450,8 @@
                   \g_str_result_tl * ?? { ? \prg_map_break: }
                 \prg_break_point:n { }
               }
-            \flag_test:nT { str_byte }
-              { \msg_kernel_error:nnx { str } { non-byte } { string } }
-            \flag_test:nT { str_error }
-              { \msg_kernel_error:nn { str } { unescape-string } }
+            \str_if_flag_error:nnx { str_byte } { non-byte } { string }
+            \str_if_flag_error:nnx { str_error } { unescape-string } { }
           \group_end:
         }
       \cs_new:Npn \str_unescape_string_loop:wNNN #1 *#2#3#4
@@ -2715,10 +2786,10 @@
 \msg_kernel_new:nnnn { str } { utf8-decode }
   {
     Invalid~UTF-8~string: \exp_last_unbraced:Nf \use_none:n
-    \flag_test:nT { str_missing }  { ,~missing~continuation~byte }
-    \flag_test:nT { str_extra }    { ,~extra~continuation~byte }
-    \flag_test:nT { str_overlong } { ,~overlong~form }
-    \flag_test:nT { str_overflow } { ,~code~point~too~large }
+    \str_if_flag_times:nT { str_missing }  { ,~missing~continuation~byte }
+    \str_if_flag_times:nT { str_extra }    { ,~extra~continuation~byte }
+    \str_if_flag_times:nT { str_overlong } { ,~overlong~form }
+    \str_if_flag_times:nT { str_overflow } { ,~code~point~too~large }
     .
   }
   {
@@ -2838,8 +2909,7 @@
           { \prg_map_break: \str_decode_utf_viii_end: }
         \prg_break_point:n { }
       }
-    \flag_test:nT { str_error }
-      { \msg_kernel_error:nn { str } { utf8-decode } }
+    \str_if_flag_error:nnx { str_error } { utf8-decode } { }
   }
 \cs_new:Npn \str_decode_utf_viii_start:N #1
   {
@@ -2984,8 +3054,7 @@
       \flag_clear:n { str_error }
       \cs_set_eq:NN \str_tmp:w #1
       \str_convert_gmap_internal:N \str_encode_utf_xvi_char:n
-      \flag_test:nT { str_error }
-        { \msg_kernel_error:nn { str } { utf16-encode } }
+      \str_if_flag_error:nnx { str_error } { utf16-encode } { }
     }
   \cs_new:Npn \str_encode_utf_xvi_char:n #1
     {
@@ -3038,9 +3107,9 @@
   \msg_kernel_new:nnnn { str } { utf16-decode }
     {
       Invalid~UTF-16~string: \exp_last_unbraced:Nf \use_none:n
-      \flag_test:nT { str_missing }  { ,~missing~trail~surrogate }
-      \flag_test:nT { str_extra }    { ,~extra~trail~surrogate }
-      \flag_test:nT { str_end }      { ,~odd~number~of~bytes }
+      \str_if_flag_times:nT { str_missing }  { ,~missing~trail~surrogate }
+      \str_if_flag_times:nT { str_extra }    { ,~extra~trail~surrogate }
+      \str_if_flag_times:nT { str_end }      { ,~odd~number~of~bytes }
       .
     }
     {
@@ -3131,8 +3200,7 @@
             #2 \q_nil \q_nil
           \prg_break_point:n { }
         }
-      \flag_test:nT { str_error }
-        { \msg_kernel_error:nn { str } { utf16-decode } }
+      \str_if_flag_error:nnx { str_error } { utf16-decode } { }
     }
 %    \end{macrocode}
 % \end{macro}
@@ -3314,8 +3382,7 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{variable}{\l_str_overflow_flag}
-% \begin{variable}{\l_str_end_flag}
+% \begin{variable}{str_overflow, str_end}
 %   There can be no error when encoding in \textsc{utf-32}. When
 %   decoding, the string may not have length $4n$, or it may contain
 %   code points larger than \hexnum{10FFFF}. The latter case often
@@ -3327,8 +3394,8 @@
   \msg_kernel_new:nnnn { str } { utf32-decode }
     {
       Invalid~UTF-32~string: \exp_last_unbraced:Nf \use_none:n
-      \flag_test:nT { str_overflow } { ,~code~point~too~large }
-      \flag_test:nT { str_end }      { ,~truncated~string }
+      \str_if_flag_times:nT { str_overflow } { ,~code~point~too~large }
+      \str_if_flag_times:nT { str_end }      { ,~truncated~string }
       .
     }
     {
@@ -3349,7 +3416,6 @@
         }
     }
 %    \end{macrocode}
-% \end{variable}
 % \end{variable}
 %
 % \begin{macro}[int]
@@ -3406,6 +3472,8 @@
     }
   \cs_new_protected:Npn \str_decode_utf_xxxii:Nw #1#2 \s_stop
     {
+      \flag_clear:n { str_overflow }
+      \flag_clear:n { str_end }
       \flag_clear:n { str_error }
       \cs_set:Npn \str_tmp:w ##1 ##2 { ` ## #1 }
       \tl_gset:Nx \g_str_result_tl
@@ -3414,10 +3482,7 @@
             #2 \s_stop \s_stop \s_stop \s_stop
           \prg_break_point:n { }
         }
-      \int_compare:nNnF
-        { \flag_value:n { str_overflow } + \flag_value:n { str_end } }
-        = \c_zero
-        { \msg_kernel_error:nn { str } { utf32-decode } }
+      \str_if_flag_error:nnx { str_error } { utf32-decode } { }
     }
   \cs_new:Npn \str_decode_utf_xxxii_loop:NNNN #1#2#3#4
     {
@@ -3427,10 +3492,12 @@
       #1#2#3#4 \s_tl
       \if_num:w \str_tmp:w #1#4 > \c_zero
         \flag_raise:n { str_overflow }
+        \flag_raise:n { str_error }
         \int_use:N \c_str_replacement_char_int
       \else:
         \if_num:w \str_tmp:w #2#3 > \c_sixteen
           \flag_raise:n { str_overflow }
+          \flag_raise:n { str_error }
           \int_use:N \c_str_replacement_char_int
         \else:
           \int_eval:n
@@ -3445,6 +3512,7 @@
       \tl_if_empty:nF {#1}
         {
           \flag_raise:n { str_end }
+          \flag_raise:n { str_error }
           #1 \s_tl
           \int_use:N \c_str_replacement_char_int \s_tl
         }
