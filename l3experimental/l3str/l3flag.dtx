@@ -69,38 +69,40 @@
 %
 % \begin{documentation}
 %
-% Flags are the only data structure on which \TeX{} can perform
+% Flags are the only data-type on which \TeX{} can perform
 % assignments in expansion-only contexts. This module is meant mostly
 % for kernel use: in almost all cases, booleans or integers should be
 % preferred to flags, because they are faster.
 %
-% A flag can hold any non-negative value. In expansion-only contexts,
-% this value can only be increased. The value can also be queried
-% expandably. However, it can only be decreased or set to zero
-% non-expandably.
+% A flag can hold any non-negative value, which we call its
+% \meta{height}. In expansion-only contexts, a flag can only be
+% \enquote{raised}: this normally increases the \meta{height} by $1$,
+% but can be configured by defining specific traps. The \meta{height}
+% can also be queried expandably. However, decreasing it, or setting it
+% to zero requires non-expandable assignments.
 %
 % Flag variables are always local. They are referenced by a \meta{name}
 % of the form \meta{package}\texttt{_}\meta{flag name}, for instance,
 % \texttt{str_missing}.
 %
-% \section{Non-expandable flag commands}
+% \section{Setting up flags}
 %
 % \begin{function}{\flag_new:n}
 %   \begin{syntax}
 %     \cs{flag_new:n} \Arg{flag name}
 %   \end{syntax}
-%   Creates a new \meta{flag} with a name given by converting the
-%   \meta{flag name} to a string (through \cs{tl_to_str:n}), or raises
-%   an error if the name is already taken. The declaration is global,
-%   but flags are always local variables.  The \meta{flag} will
-%   initially hold the value $0$.
+%   Creates a new \meta{flag} with a name given by \meta{flag name}, or
+%   raises an error if the name is already taken. The \meta{flag name}
+%   must consist of character tokens only. The declaration is global,
+%   but flags are always local variables. The \meta{flag} will initially
+%   have zero height.
 % \end{function}
 %
 % \begin{function}{\flag_clear:n}
 %   \begin{syntax}
 %     \cs{flag_clear:n} \Arg{flag name}
 %   \end{syntax}
-%   The \meta{flag} is set to zero. The assignment is local.
+%   The \meta{flag}'s height is set to zero. The assignment is local.
 % \end{function}
 %
 % \begin{function}{\flag_clear_new:n}
@@ -109,7 +111,20 @@
 %   \end{syntax}
 %   Ensures that the \meta{flag} exists globally by applying
 %   \cs{flag_new:n} if necessary, then applies \cs{flag_zero:n}, setting
-%   the \meta{flag} locally to zero.
+%   the height to zero locally.
+% \end{function}
+%
+% \begin{function}{\flag_set_trap:nn}
+%   \begin{syntax}
+%     \cs{flag_set_trap:nn} \Arg{flag name} \Arg{inline function}
+%   \end{syntax}
+%   Changes the action that is taken when the \meta{flag} is raised
+%   using \cs{flag_raise:n}. Instead of the default action which is to
+%   increase the \meta{flag}'s height by $1$, the \meta{inline function}
+%   will be called, receiving the current flag's height as |#1|. The
+%   \meta{inline function} should expand to nothing; \emph{e.g.}, it
+%   could call \cs{msg_expandable_error:n}. This function is very
+%   experimental.
 % \end{function}
 %
 % \section{Expandable flag commands}
@@ -127,23 +142,26 @@
 %   \begin{syntax}
 %     \cs{flag_test:n} \Arg{flag name}
 %   \end{syntax}
-%   This function returns \texttt{true} if the \meta{flag} is non-zero,
-%   and \texttt{false} if the \meta{flag} is zero.
+%   This function returns \texttt{true} if the \meta{flag} has non-zero
+%   height, and \texttt{false} if the \meta{flag} has zero height.
 % \end{function}
 %
 % \begin{function}[EXP]{\flag_height:n}
 %   \begin{syntax}
 %     \cs{flag_height:n} \Arg{flag name}
 %   \end{syntax}
-%   Expands to the value of the \meta{flag} as an integer denotation.
+%   Expands to the height of the \meta{flag} as an integer denotation.
 % \end{function}
 %
 % \begin{function}[EXP]{\flag_raise:n}
 %   \begin{syntax}
 %     \cs{flag_raise:n} \Arg{flag name}
 %   \end{syntax}
-%   The \meta{flag} is increased by $1$. The assignment is local.
-%   This function is expandable, despite being an assignment.
+%   The \meta{flag}'s trap is performed, taking the current height as
+%   its argument. The default behaviour is to increase the \meta{flag}'s
+%   height by $1$ locally. This function is expandable, as long as the
+%   trap is expandable (the default trap is expandable, despite being an
+%   assignment).
 % \end{function}
 %
 % \end{documentation}
@@ -161,32 +179,18 @@
   {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
 %    \end{macrocode}
 %
-% \subsection{Variables}
-%
-% \begin{variable}{\l_flag_internal_int}
-%   Integer used for various scratch purposes.
-%    \begin{macrocode}
-\int_new:N \l_flag_internal_int
-%    \end{macrocode}
-% \end{variable}
-%
 % \subsection{Non-expandable flag commands}
 %
 % \begin{macro}{\flag_new:n}
-% \begin{macro}[aux]{\flag_new_aux:w}
-%   For each flag, we define a \enquote{trap} function, which currently
+%   For each flag, we define a \enquote{trap} function, which by default
 %   simply increases the flag by $1$.
 %   \begin{macrocode}
 \cs_new_protected:Npn \flag_new:n #1
-  { \exp_after:wN \flag_new_aux:w \tl_to_str:n {#1} \q_stop }
-\cs_new_protected:Npn \flag_new_aux:w #1 \q_stop
   {
-    \cs_new:cpn { flag_trap_#1:n } ##1
+    \cs_new:cpn { flag_trap_#1:w } ##1 ;
       { \exp_after:wN \use_none:n \cs:w l_#1_##1_flag \cs_end: }
-    \cs_new_eq:cN { l_#1_0_flag } \c_undefined:D
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\flag_clear:n}
@@ -195,13 +199,7 @@
 %   until reaching an undefined control sequence.
 %    \begin{macrocode}
 \cs_new_protected:Npn \flag_clear:n #1
-  {
-    \int_zero:N \l_flag_internal_int
-    \exp_after:wN \flag_clear_aux:ww
-    \exp_after:wN 0
-    \exp_after:wN ;
-    \tl_to_str:n {#1} \q_stop
-  }
+  { \flag_clear_aux:ww 0 ; #1 \q_stop }
 \cs_new_protected:Npn \flag_clear_aux:ww #1 ; #2 \q_stop
   {
     \if_cs_exist:w l_#2_#1_flag \cs_end:
@@ -225,6 +223,14 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\flag_set_trap:nn}
+%   Should that \pkg{l3flag} function check whether the flag exists?
+%    \begin{macrocode}
+\cs_new_protected:Npn \flag_set_trap:nn #1#2
+  { \cs_set:cpn { flag_trap_#1:w } ##1 ; {#2} }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Expandable flag commands}
 %
 % \begin{macro}[EXP, pTF]{\flag_if_exist:n}
@@ -233,7 +239,7 @@
 %    \begin{macrocode}
 \prg_new_conditional:Npnn \flag_if_exist:n #1 { p , T , F , TF }
   {
-    \cs_if_exist:cTF { flag_trap_ \tl_to_str:n {#1} :n }
+    \cs_if_exist:cTF { flag_trap_#1:w }
       { \prg_return_true: } { \prg_return_false: }
   }
 %    \end{macrocode}
@@ -258,13 +264,7 @@
 %   Extract the value of the flag by going through all of the
 %   |_|\meta{integer} control sequences starting from $0$.
 %    \begin{macrocode}
-\cs_new:Npn \flag_height:n #1
-  {
-    \exp_after:wN \flag_height_loop:ww
-    \exp_after:wN 0
-    \exp_after:wN ;
-    \tl_to_str:n {#1} \q_stop
-  }
+\cs_new:Npn \flag_height:n #1 { \flag_height_loop:ww 0; #1 \q_stop }
 \cs_new:Npn \flag_height_loop:ww #1 ; #2 \q_stop
   {
     \if_cs_exist:w l_#2_#1_flag \cs_end:
@@ -280,34 +280,14 @@
 % \end{macro}
 %
 % \begin{macro}[EXP]{\flag_raise:n}
-% \begin{macro}[EXP, aux]{\flag_raise_loop:ww, \flag_raise_end:ww}
-%   Raising a flag expandably relies on the fact that \TeX{}
-%   automatically lets undefined control sequences to \tn{relax}
-%   when building an unknown csname. We build such a csname, then
-%   remove it with \cs{use_none:n}, essentially doing
-%   \cs{use_none:c}, but optimized slightly.
-%^^A todo: update comments, since that's hidden inside the "trap".
+%   Simply apply the trap to the height, after expanding the latter.
 %    \begin{macrocode}
 \cs_new:Npn \flag_raise:n #1
   {
-    \exp_after:wN \flag_raise_loop:ww
-    \exp_after:wN 0
-    \exp_after:wN ;
-    \tl_to_str:n {#1} \q_stop
+    \cs:w flag_trap_#1:w \exp_after:wN \cs_end:
+    \int_value:w \flag_height:n {#1} ;
   }
-\cs_new:Npn \flag_raise_loop:ww #1 ; #2 \q_stop
-  {
-    \if_cs_exist:w l_#2_#1_flag \cs_end:
-      \exp_after:wN \flag_raise_loop:ww \int_use:N \int_eval:w \c_one +
-    \else:
-      \exp_after:wN \flag_raise_end:ww
-    \fi:
-    #1 ; #2 \q_stop
-  }
-\cs_new:Npn \flag_raise_end:ww #1 ; #2 \q_stop
-  { \cs:w flag_trap_#2:n \cs_end: {#1} }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 %    \begin{macrocode}
