@@ -778,6 +778,19 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\c_regex_._tl}
+%   The dot meta-character matches any character, except the end marker,
+%   whose character code is $-2$.
+%    \begin{macrocode}
+\tl_const:cn { c_regex_._tl }
+  {
+    \if_num:w \l_regex_current_char_int > - \c_two
+      \exp_after:wN \regex_break_true:w
+    \fi:
+  }
+%    \end{macrocode}
+% \end{variable}
+%
 % \subsubsection{Variables used while building}
 %
 % \begin{variable}{\l_regex_build_mode_int}
@@ -1436,19 +1449,6 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[int]{\regex_item_dot:}
-%   The dot meta-character matches any character,
-%   except the end marker.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_item_dot:
-  {
-    \if_num:w \l_regex_current_char_int > - \c_two
-      \exp_after:wN \regex_break_true:w
-    \fi:
-  }
-%    \end{macrocode}
-% \end{macro}
-%
 % \begin{macro}[int]{\regex_item_caseful_equal:n}
 % \begin{macro}[int]{\regex_item_caseful_range:nn}
 % \begin{macro}[int]{\regex_item_caseful_geq:n}
@@ -1673,7 +1673,7 @@
       \tl_set:Nx \l_regex_internal_a_tl
         {
           \exp_after:wN \regex_escape_loop:N \g_regex_internal_tl
-          \q_recursion_tail \q_recursion_stop
+          { break } \prg_break_point:n { }
         }
       \use:x
         {
@@ -1726,12 +1726,13 @@
 %   Spaces are ignored, and |\a|, |\e|, |\f|, |\n|, |\r|, |\t| take
 %   their meaning here.
 %    \begin{macrocode}
-\cs_new_eq:cN
-  { regex_escape_ \c_backslash_str q_recursion_tail :w }
-  \use_none_delimit_by_q_recursion_stop:w
-\cs_new_eq:cN
-  { regex_escape_ / \c_backslash_str q_recursion_tail :w }
-  \use_none_delimit_by_q_recursion_stop:w
+\cs_new_eq:NN \regex_escape_break:w \prg_map_break:
+\cs_new_nopar:cpn { regex_escape_/break:w }
+  {
+    \if_false: { \fi: }
+    \msg_kernel_error:nn { regex } { trailing-backslash }
+    \exp_after:wN \use_none:n \exp_after:wN { \if_false: } \fi:
+  }
 \cs_new_nopar:cpn { regex_escape_~:w } { }
 \cs_new_nopar:cpx { regex_escape_/a:w }
   { \exp_not:N \regex_escape_raw:N \iow_char:N \^^G }
@@ -1821,7 +1822,8 @@
     \exp_not:N \token_if_eq_charcode:NNTF \c_rbrace_str #1
       { \exp_not:N \regex_escape_x_end: }
       {
-        \msg_kernel_error:nn { str } { x-missing-brace }
+        \msg_kernel_error:nnx { regex } { x-missing-rbrace }
+          { \int_use:N \l_regex_current_char_int }
         \exp_not:N \regex_escape_x_end: #1
       }
   }
@@ -1829,8 +1831,14 @@
   \char_set_catcode_other:N \^^@
   \cs_new_protected_nopar:Npn \regex_escape_x_end:
     {
-      \tex_lccode:D \c_zero \l_regex_current_char_int
-      \tl_to_lowercase:n
+      \if_num:w \l_regex_current_char_int > \c_max_char_int
+        \msg_kernel_error:nnx { regex } { x-overflow }
+          { \int_use:N \l_regex_current_char_int }
+        \exp_after:wN \use:n
+      \else:
+        \tex_lccode:D \c_zero \l_regex_current_char_int
+        \exp_after:wN \tl_to_lowercase:n
+      \fi:
         {
           \tl_set:Nx \l_regex_internal_a_tl
             { \if_false: } \fi:
@@ -1980,6 +1988,25 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\regex_build_if_assertions_forbidden:TF}
+%   Assertions are only allowed in modes $0$, $-2$, and $-6$,
+%   \emph{i.e.}, even, non-positive modes.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \regex_build_if_assertions_forbidden:TF
+  {
+    \if_int_odd:w \l_regex_build_mode_int
+      \exp_after:wN \use_i:nn
+    \else:
+      \if_int_compare:w \l_regex_build_mode_int > \c_zero
+        \exp_after:wN \exp_after:wN \exp_after:wN \use_i:nn
+      \else:
+        \exp_after:wN \exp_after:wN \exp_after:wN \use_ii:nn
+      \fi:
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Helpers for building an NFA}
 %
 % \begin{macro}[int]{\regex_build_new_state:}
@@ -2024,8 +2051,8 @@
 %
 % \subsubsection{From regex to NFA: framework}
 %
-% \begin{macro}[int]{\regex_build:w}
-% \begin{macro}[int]{\regex_build_end:}
+% \begin{macro}[int]{\regex_build:w, \regex_build_end:}
+% \begin{macro}[int]{\regex_build_exit_class:, \regex_build_exit_groups:}
 %   There are two situations where we want to convert a regular
 %   expression given as a string to an NFA. The first case is when the
 %   regex is given directly by the user, as an \texttt{n} argument to
@@ -2053,12 +2080,23 @@
   }
 \cs_new_protected_nopar:Npn \regex_build_end:
   {
+    \regex_build_exit_class:
+    \regex_build_exit_groups:
+    \regex_toks_put_right:Nx \l_regex_right_state_int
+      { \regex_action_success: }
+    \int_incr:N \l_regex_capturing_group_int
+  }
+\cs_new_protected_nopar:Npn \regex_build_exit_class:
+  {
     \regex_build_if_in_class:TF
       {
         \msg_kernel_error:nn { regex } { missing-rbrack }
         \use:c { regex_build_]: }
       }
       { }
+  }
+\cs_new_protected_nopar:Npn \regex_build_exit_groups:
+  {
     \seq_if_empty:NF \l_regex_capturing_group_seq
       {
         \msg_kernel_error:nnx { regex } { missing-rparen }
@@ -2067,9 +2105,6 @@
           { \seq_length:N \l_regex_capturing_group_seq }
           { \regex_build_close_aux: \regex_build_group_: }
       }
-    \regex_toks_put_right:Nx \l_regex_right_state_int
-      { \regex_action_success: }
-    \int_incr:N \l_regex_capturing_group_int
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2116,6 +2151,11 @@
           { #1 }
         \prg_do_nothing: \prg_do_nothing:
         \prg_do_nothing: \prg_do_nothing:
+      \int_compare:nNnT \l_regex_build_mode_int < \c_zero
+        {
+          \msg_kernel_error:nn { regex } { c-missing-rbrace }
+          \exp_after:wN \regex_build_special:N \c_rbrace_str
+        }
       \seq_put_right:Nn \l_regex_capturing_group_seq {0}
       \regex_build_close_aux: \regex_build_group_:
     \regex_build_end:
@@ -2190,14 +2230,20 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \subsubsection{Raw characters}
+%
 % \begin{macro}[int]{\regex_build_raw_error:N}
-%   Within character classes, some escaped alphanumeric sequences do not
-%   have any meaning. They are replaced by a raw character, after
-%   spitting out an error.^^A todo: add customization: error/warning
+%   Within character classes, some escaped alphanumeric sequences such
+%   as |\b| do not have any meaning. They are replaced by a raw
+%   character, after spitting out an error.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_build_raw_error:N #1
   {
-    \msg_kernel_error:nnx { regex } { class-bad-escape } { #1 }
+    \if_int_odd:w \l_regex_build_mode_int
+      \msg_kernel_error:nnx { regex } { class-bad-escape } {#1}
+    \else:
+      \msg_kernel_error:nnx { regex } { catcode-bad-escape } {#1}
+    \fi:
     \regex_build_raw:N #1
   }
 %    \end{macrocode}
@@ -2235,8 +2281,8 @@
     \token_if_eq_meaning:NNTF #2 \regex_build_escaped:N % [
       { \use_i:nn } { \str_if_eq:nnTF { #2#3 } { \regex_build_special:N ] } }
       {
-        \msg_kernel_warning:nnx { regex } { end-range-missing } % [
-          { #1 - \if_meaning:w #3 ] \else: \c_backslash_str \fi: #3 }
+        \msg_kernel_warning:nnxx { regex } { range-missing-end } % [
+          {#1} { \token_if_eq_charcode:NNF #3 ] { \c_backslash_str } #3 }
         \tl_put_right:Nx \l_regex_tests_tl
           {
             \regex_item_equal:n { \int_value:w `#1 ~ }
@@ -2246,7 +2292,7 @@
       }
       {
         \if_num:w `#1 > `#3 \exp_stop_f:
-          \msg_kernel_error:nnxx { regex } { backwards-range } {#1} {#3}
+          \msg_kernel_error:nnxx { regex } { range-backwards } {#1} {#3}
         \else:
           \tl_put_right:Nx \l_regex_tests_tl
             {
@@ -2267,14 +2313,14 @@
 %
 % \begin{macro}[aux]{\regex_build_.:}
 %   In a class, the dot has no special meaning. Outside, insert
-%   \cs{regex_item_dot:}, which matches any character or control
+%   \cs{c_regex_._tl}, which matches any character or control
 %   sequence, and refuses $-2$, which marks the end of the token list.
 %    \begin{macrocode}
-\cs_new_protected_nopar:cpn { regex_build_.: }
+\cs_new_protected_nopar:cpx { regex_build_.: }
   {
-    \regex_build_if_in_class:TF
+    \exp_not:N \regex_build_if_in_class:TF
       { \regex_build_raw:N . }
-      { \regex_build_one:x \regex_item_dot: }
+      { \regex_build_one:n \exp_not:c { c_regex_._tl } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2306,15 +2352,17 @@
 % \subsubsection{Anchoring and simple assertions}
 %
 % \begin{macro}[aux]{\regex_build_simple_assertion:nn}
-%   Assertions are not allowed within character classes: the raw
-%   character |#1| is inserted instead.  Otherwise, use the test |#2|;
-%   if the assertion is successful, move from the \texttt{left} state to
-%   the \texttt{right} state.
+%   Assertions are only allowed in modes $0$, $-2$ and $-6$. In
+%   character classes, or immediately following a category code test,
+%   escaped letters cause errors, while the meaning of special
+%   characters is ignored: |#1| is used instead. In modes where the
+%   assertion is allowed, we insert the test |#2|; if the assertion is
+%   successful, move from the \texttt{left} state to the \texttt{right}
+%   state.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_build_simple_assertion:nn #1#2
   {
-    \regex_build_if_in_class:TF
-      { #1 }
+    \regex_build_if_assertions_forbidden:TF {#1}
       {
         \regex_build_new_state:
         \regex_toks_put_right:Nx \l_regex_left_state_int
@@ -2328,7 +2376,7 @@
                   }
               }
           }
-        %^^A \regex_assertion_quantifier:
+        %^^A todo: add \regex_assertion_quantifier:
       }
   }
 %    \end{macrocode}
@@ -2403,7 +2451,7 @@
 \cs_new_protected_nopar:cpn { regex_build_/B: }
   {
     \regex_build_simple_assertion:nn { \regex_build_raw_error:N B }
-      { \regex_if_word_boundary:F }
+      { \regex_if_word_boundary:TF { } }
   }
 \cs_new_protected_nopar:Npn \regex_if_word_boundary:TF
   {
@@ -2415,8 +2463,6 @@
         { \group_end: \c_regex_w_tl }
     \regex_break_point:TF
   }
-\cs_new_protected_nopar:Npn \regex_if_word_boundary:F
-  { \regex_if_word_boundary:TF { } }
 \cs_new_protected_nopar:Npn \regex_if_word_boundary:T
   { \regex_if_word_boundary:TF \use:n \use_none:n }
 %    \end{macrocode}
@@ -2558,7 +2604,7 @@
       }
       { \cs_if_exist_use:cF { regex_build_c_#3: } }
           {
-            \msg_kernel_error:nnx { regex } { build-c } {#3}
+            \msg_kernel_error:nnx { regex } { c-missing-category } {#3}
             #2 #3
           }
   }
@@ -2580,11 +2626,12 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux]{\regex_build_c_[:} ^^A]
+% \begin{macro}[aux]{\regex_build_c_[:}
 % \begin{macro}[aux]{\regex_build_c_lbrack_loop:NN}
 % \begin{macro}[aux]{\regex_build_c_lbrack_end:}
 % \begin{macro}[aux]{\regex_build_add:N}
-%
+%   When encountering |\c[|, the task is to collect uppercase letters
+%   representing character categories.
 %    \begin{macrocode}
 \cs_new_protected:cpn { regex_build_c_[: } #1#2
   {
@@ -2616,8 +2663,7 @@
           { \regex_build_c_lbrack_end: }
       }
           {
-            \msg_kernel_error:nnxx { regex } { c-command }
-              { regular-expression } { #2 }
+            \msg_kernel_error:nnx { regex } { c-missing-rbrack } {#2}
             \regex_build_c_lbrack_end:
           }
   }
@@ -2644,22 +2690,30 @@
 % \end{macro}
 %
 % ^^A{
-% \begin{macro}+\regex_build}:+
-%   Non-escaped right braces are only special if they appear
-%   when building the regular expression for a csname. Otherwise,
+% \begin{macro}+\regex_build_}:+
+%   Non-escaped right braces are only special if they appear when
+%   building the regular expression for a csname. In that case, make
+%   sure that any character class and group is closed, anchor the match
+%   at the end, add the code for making the match successful, and expand
+%   the contents of the regular expression we just built.  Otherwise,
 %   replace the brace with an escaped brace.
 %    \begin{macrocode}
 \cs_new_protected:cpn { regex_build_ \c_rbrace_str : }
-  { %^^A incorrect recovery for \c{...(...[...} with missing ) or ].
+  {
     \int_compare:nNnTF \l_regex_build_mode_int < \c_zero
       {
-        \use:c { regex_build_/Z: }
+        \regex_build_exit_class:
+        \regex_build_exit_groups:
+        \regex_build_escaped:N Z
         \regex_build_end:
         \use:x
           {
             \group_end:
               \regex_build_one:n
-                { \regex_item_cs:n { \regex_set_aux:N \l_regex_internal_regex } }
+                {
+                  \regex_item_cs:n
+                    { \regex_set_aux:N \l_regex_internal_regex }
+                }
           }
       }
       { \exp_after:wN \regex_build_raw:N \c_rbrace_str }
@@ -3083,7 +3137,7 @@
   {
     \cs_if_exist_use:cF { regex_build_special_group_\token_to_str:N #2 : }
       {
-        \msg_kernel_error:nnx { regex } { unsupported }
+        \msg_kernel_error:nnx { regex } { special-group-unknown }
           { (? \token_to_str:N #2 } %)
         \regex_build_special:N ( % )
         \regex_build_raw:N ?
@@ -3173,7 +3227,7 @@
     \token_if_eq_meaning:NNTF \regex_build_raw:N #2
       {
         \cs_if_exist_use:cF { regex_build_option_#1#3: }
-          { \msg_error:nnx { regex } { unknown-option } { #3 } }
+          { \msg_kernel_error:nnx { regex } { unknown-option } { #3 } }
         \regex_build_options:NNN #1
       }
       {
@@ -3182,7 +3236,7 @@
             { ) } { }
             { - } { \regex_build_options:NNN - }
           }
-          { \msg_error:nnx { regex } { invalid-in-option } { #3 } }
+          { \msg_kernel_error:nnx { regex } { invalid-in-option } { #3 } }
       }
   }
 \cs_new_protected_nopar:cpn { regex_build_option_+i: }
@@ -3474,55 +3528,89 @@
 %
 % \subsubsection{Matching raw token lists with \cs{u}}
 %
-% \begin{macro}[aux]{\regex_build_/u:}
+%^^A todo: document interactions between caselessness and |\u{...}|
+%^^A todo: clarify when l_regex_catcodes_int is reset.
 %
+% \begin{macro}[aux]{\regex_build_/u:}
+% \begin{macro}[aux]{\regex_build_u_loop:NN}
+%   The |\u| escape is invalid in classes nad directly following a
+%   catcode test. Otherwise, it must be followed by a left brace. We
+%   then collect the characters for the argument of |\u| within an
+%   \texttt{x}-expanding assignment. In principle we could just wait to
+%   encounter a right brace, but this is unsafe: if the right brace is
+%   missing, then we will reach the end-markers of the regex, and
+%   continue, leading to obscure fatal errors. Instead, we only allow
+%   raw and special characters, and stop when encountering a special
+%   right brace.
 %    \begin{macrocode}
 \cs_new_protected:cpn { regex_build_/u: } #1#2
   {
-    \str_if_eq:xxTF {#1#2} { \regex_build_special:N \c_lbrace_str }
+    \regex_build_if_assertions_forbidden:TF
+      { \regex_build_raw_error:N u #1#2 }
       {
-        \tl_set:Nx \l_regex_internal_a_tl { \if_false: } \fi:
-        \regex_build_u_loop:NN
-      }
-      {
-        \msg_kernel_error:nn { regex } { u-no-lbrace }
-        #1#2
+        \str_if_eq:xxTF {#1#2} { \regex_build_special:N \c_lbrace_str }
+          {
+            \tl_set:Nx \l_regex_internal_a_tl { \if_false: } \fi:
+            \regex_build_u_loop:NN
+          }
+          {
+            \msg_kernel_error:nn { regex } { u-missing-lbrace }
+            #1#2
+          }
       }
   }
 \cs_new:Npn \regex_build_u_loop:NN #1#2
   {
-    \str_if_eq:xxTF {#1#2} { \regex_build_special:N \c_rbrace_str }
-      { \if_false: { \fi: } \regex_build_u_end: }
+    \token_if_eq_meaning:NNTF #1 \regex_build_raw:N
+      { #2 \regex_build_u_loop:NN }
       {
-        \token_if_eq_meaning:NNTF \regex_build_escaped:N #1
+        \token_if_eq_meaning:NNTF #1 \regex_build_special:N
+          {
+            \exp_after:wN \token_if_eq_charcode:NNTF \c_rbrace_str #2
+              { \if_false: { \fi: } \regex_build_u_end: }
+              { #2 \regex_build_u_loop:NN }
+          }
           {
             \if_false: { \fi: }
-            \msg_kernel_error:nn { regex } { u-no-rbrace }
+            \msg_kernel_error:nnx { regex } { u-missing-rbrace } {#2}
             \regex_build_u_end:
             #1#2
           }
-          { #2 \regex_build_u_loop:NN }
       }
   }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\regex_build_u_end:}
+%   Once we have extracted the variable's name, we store the contents of
+%   that variable in \cs{l_regex_internal_a_tl}. The behaviour of |\u|
+%   then depends on whether we are within a |\c{...}| escape (in this
+%   case, the variable is turned to a string), or not. Afterwards, clean
+%   up the value of \cs{l_regex_tests_tl}, but not
+%   \cs{l_regex_tests_bool}, because this is guaranteed to be
+%   \texttt{true} at the start, and is not affected by anything we do
+%   here.
+%    \begin{macrocode}
 \cs_new_protected:Npn \regex_build_u_end:
   {
-    \regex_build_if_in_class:TF
-      { \msg_kernel_error:nnx { regex } { class-bad-escape } { u } }
-      {
-        \int_compare:nNnTF \l_regex_build_mode_int > \c_zero
-          { \msg_kernel_error:nnx { regex } { catcode-bad-escape } { u } }
-          {
-            \tl_set:Nv \l_regex_internal_a_tl \l_regex_internal_a_tl
-            \bool_set_true:N \l_regex_tests_bool
-            \int_compare:nNnTF \l_regex_build_mode_int < \c_zero
-              { \regex_build_u_in_cs: }
-              { \regex_build_u_not_cs: }
-            \tl_clear:N \l_regex_tests_tl
-            \int_set_eq:NN \l_regex_catcodes_int \l_regex_catcodes_default_int
-            %^^A todo: ?
-          }
-      }
+    \tl_set:Nv \l_regex_internal_a_tl \l_regex_internal_a_tl
+    \if_num:w \l_regex_build_mode_int = \c_zero
+      \regex_build_u_not_cs:
+    \else:
+      \regex_build_u_in_cs:
+    \fi:
+    \tl_clear:N \l_regex_tests_tl
   }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\regex_build_u_in_cs:}
+%   When |\u| appears within a control sequence, the variable is
+%   converted to a string, and we add to the NFA one state per
+%   character. We use \cs{regex_build_one_:} directly, as this avoids
+%   having to search for a quantifier.
+%    \begin{macrocode}
 \cs_new_protected:Npn \regex_build_u_in_cs:
   {
     \exp_args:NNo \str_gset_other:Nn \g_regex_internal_tl
@@ -3533,22 +3621,34 @@
         \regex_build_one_:
       }
   }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\regex_build_u_not_cs:}
+%   In mode $0$, the |\u| escape adds one state to the NFA for each
+%   token in \cs{l_regex_internal_a_tl}. The tests corresponding to a
+%   given \meta{token} are: first test the category, then, if the
+%   \meta{token} is a control sequence, compare the string
+%   representations, otherwise compare the character codes. We could
+%   compare the string representations in all cases, but that doesn't
+%   interact well with caseless matching.
+%    \begin{macrocode}
 \cs_new_protected:Npn \regex_build_u_not_cs:
   {
     \exp_args:No \tl_analysis_map_inline:nn { \l_regex_internal_a_tl }
       {
-        \int_set:Nn \l_regex_current_catcode_int { "##2 }
         \tl_set:Nx \l_regex_tests_tl
           {
-            \regex_item_catcode:nT { \int_value:w \regex_item_catcode_aux: }
+            \exp_not:N \int_compare:nNnT
+              \l_regex_current_catcode_int = { \int_value:w "##2 }
               {
-                \if_num:w \l_regex_current_catcode_int = \c_zero
-                  \exp_not:n
-                    { \str_if_eq:xxT { \l_regex_current_token_tl } {##1} }
-                    { \regex_break_true:w }
-                \else:
-                  \regex_item_equal:n {##3}
-                \fi:
+                \int_compare:nNnTF { "##2 } = \c_zero
+                  {
+                    \exp_not:n
+                      { \str_if_eq:xxT { \l_regex_current_token_tl } {##1} }
+                      { \regex_break_true:w }
+                  }
+                  { \regex_item_equal:n {##3} }
               }
           }
         \regex_build_one_:
@@ -4883,6 +4983,144 @@
 %
 % \subsection{Messages}
 %
+% Messages for the preparsing phase.
+%    \begin{macrocode}
+\msg_kernel_new:nnnn { regex } { trailing-backslash }
+  { Trailing~escape~character~\iow_char:N\\. }
+  {
+    A~regular~expression~or~its~replacement~text~ends~with~
+    the~escape~character~\iow_char:N\\.~It~will~be~ignored.
+  }
+\msg_kernel_new:nnnn { regex } { x-missing-rbrace }
+  { Missing~closing~brace~in~\iow_char:N\\x~hexadecimal~sequence. }
+  {
+    You~wrote~something~like~
+    `\iow_char:N\\x\{\int_to_hexadecimal:n{#1}'.~
+    The~closing~brace~is~missing.
+  }
+\msg_kernel_new:nnnn { regex } { x-overflow }
+  { Character~code~'#1'~too~large~in~\iow_char:N\\x~hexadecimal~sequence. }
+  {
+    You~wrote~something~like~
+    `\iow_char:N\\x\{\int_to_hexadecimal:n{#1}\}'.~
+    The~character~code~'#1'~is~larger~than~\int_use:N \c_max_char_int.
+  }
+%    \end{macrocode}
+%
+% Messages for missing or extra closing brackets and parentheses, with
+% some fancy singular/plural handling for the case of parentheses.
+%    \begin{macrocode}
+\msg_kernel_new:nnnn { regex } { missing-rbrack }
+  { Missing~right~bracket~inserted~in~regular~expression. }
+  {
+    LaTeX~was~given~a~regular~expression~where~a~character~class~
+    was~started~with~'[',~but~the~matching~']'~is~missing.
+  }
+\msg_kernel_new:nnnn { regex } { missing-rparen }
+  {
+    Missing~right~parenthes\int_compare:nTF{#1=1}{i}{e}s~
+    inserted~in~regular~expression.
+  }
+  {
+    LaTeX~was~given~a~regular~expression~with~\int_eval:n{#1}~
+    more~left~parenthes\int_compare:nTF{#1=1}{i}{e}s~than~right~
+    parenthes\int_compare:nTF{#1=1}{i}{e}s.
+  }
+\msg_kernel_new:nnnn { regex } { extra-rparen }
+  { Extra~right~parenthesis~ignored~in~regular~expression. }
+  {
+    LaTeX~came~across~a~closing~parenthesis~when~no~submatch~group~
+    was~open.~The~parenthesis~will~be~ignored.
+  }
+%    \end{macrocode}
+%
+% Sometimes escaped alphanumerics are not allowed everywhere.
+%    \begin{macrocode}
+\msg_kernel_new:nnnn { regex } { class-bad-escape }
+  { Invalid~escape~\c_backslash_str #1~in~character~class. }
+  {
+    The~escape~sequence~\iow_char:N\\#1~may~not~appear~within~
+    a~character~class.~For~instance,~assertions~(which~match~zero~
+    characters)~would~not~make~sense~there.
+  }
+\msg_kernel_new:nnnn { regex } { catcode-bad-escape }
+  { Invalid~escape~\c_backslash_str #1~following~category~test. }
+  {
+    The~escape~sequence~\iow_char:N\\#1~may~not~appear~following~
+    a~category~test~such~as~\iow_char:N\\cL~or~
+    \iow_char:N\\c[\iow_char:N\^BE].
+  }
+%    \end{macrocode}
+%
+% Range errors.
+%    \begin{macrocode}
+\msg_kernel_new:nnnn { regex } { range-missing-end }
+  { Invalid~end-point~for~range~'#1-#2'~in~character~class. }
+  {
+    The~end-point~'#2'~of~the~range~'#1-#2'~may~not~serve~as~an~
+    end-point~for~a~range:~alphanumeric~characters~should~not~be~
+    escaped,~and~non-alphanumeric~characters~should~be~escaped.
+  }
+\msg_kernel_new:nnnn { regex } { range-backwards }
+  { Range~[#1-#2]~out~of~order~in~character~class. }
+  {
+    In~ranges~of~characters~[x-y]~appearing~in~character~classes,~
+    the~first~character~code~must~not~be~larger~than~the~second.~
+    Here,~#1~has~character~code~\int_eval:n {`#1},~while~#2~has~
+    character~code~\int_eval:n {`#2}.
+  }
+%    \end{macrocode}
+%
+% Errors related to |\c| and |\u|.
+%    \begin{macrocode}
+\msg_kernel_new:nnnn { regex } { c-bad-mode }
+  { Invalid~nested~\iow_char:N\\c~escape~in~regular~expression. }
+  {
+    The~\iow_char:N\\c~escape~cannot~be~used~within~
+    a~control~sequence~test~'\iow_char:N\\c{...}'.~
+    To~combine~several~category~tests,~use~'\iow_char:N\\c[...]'.
+  }
+\msg_kernel_new:nnnn { regex } { c-missing-rbrace }
+  { Missing~right~brace~inserted~for~\iow_char:N\\c~escape. }
+  {
+    LaTeX~was~given~a~regular~expression~where~a~
+    '\iow_char:N\\c\iow_char:N\{...'~construction~was~not~ended~
+    with~a~closing~brace~'\iow_char:N\}'.
+  }
+\msg_kernel_new:nnnn { regex } { c-missing-rbrack }
+  { Missing~right~bracket~inserted~for~\iow_char:N\\c~escape. }
+  {
+    A~construction~'\iow_char:N\\c[...'~appears~in~a~
+    regular~expression,~but~the~closing~']'~is~not~present.
+  }
+\msg_kernel_new:nnnn { regex } { c-missing-category }
+  { Invalid~character~'#1'~following~\iow_char\\c~escape. }
+  {
+    In~regular~expressions,~the~\iow_char:N\\c~escape~sequence~
+    may~only~be~followed~by~a~left~brace,~a~left~bracket,~or~a~
+    capital~letter~representing~a~character~category,~namely~
+    one~of~ABCDELMOPSTU.
+  }
+\msg_kernel_new:nnnn { regex } { u-missing-lbrace }
+  { Missing~left~brace~following~\iow_char:N\\u~escape. }
+  {
+    The~\iow_char:N\\u~escape~sequence~must~be~followed~by~
+    a~brace~group~with~the~name~of~the~variable~to~use.
+  }
+\msg_kernel_new:nnnn { regex } { u-missing-rbrace }
+  { Missing~right~brace~inserted~for~\iow_char:N\\u~escape. }
+  {
+    LaTeX~
+    \tl_if_empty:xTF {#2}
+      { reached~the~end~of~the~string~ }
+      { encountered~an~escaped~alphanumeric~character '\iow_char:N\\#2'~ }
+    when~parsing~the~argument~of~an~'\iow_char:N\\u\iow_char:N\{...\}'~escape.
+  }
+%    \end{macrocode}
+%
+% In various cases, the result of a \pkg{l3regex} operation can leave us
+% with an unbalanced token list, which we must re-balance by adding
+% begin-group or end-group character tokens.
 %    \begin{macrocode}
 \msg_kernel_new:nnnn { regex } { sequence-unbalanced }
   {
@@ -4922,35 +5160,8 @@
   }
 %    \end{macrocode}
 %
+% Messages related to NFA variables.
 %    \begin{macrocode}
-\msg_kernel_new:nnnn { regex } { missing-rparen }
-  { Missing~right~parenthesis~added~in~regular~expression. }
-  {
-    LaTeX~was~given~a~regular~expression~with~\int_eval:n{#1}~
-    more~left~parenthes\int_compare:nTF{#1=1}{i}{e}s~than~right~
-    parenthes\int_compare:nTF{#1=1}{i}{e}s.
-  }
-\msg_kernel_new:nnnn { regex } { extra-rparen }
-  { Extra~right~parenthesis~ignored~in~regular~expression. }
-  {
-    LaTeX~came~across~a~closing~parenthesis~when~no~submatch~group~
-    was~open.~The~parenthesis~will~be~ignored.
-  }
-\msg_kernel_new:nnnn { regex } { backwards-range }
-  { Range~[#1-#2]~out~of~order~in~character~class. }
-  {
-    In~ranges~of~characters~[x-y]~appearing~in~character~classes,~
-    the~first~character~code~must~not~be~larger~than~the~second.~
-    Here,~#1~has~character~code~\int_eval:n {`#1},~while~#2~has~
-    character~code~\int_eval:n {`#2}.
-  }
-\msg_kernel_new:nnnn { regex } { unsupported }
-  { Unsupported~construction~`#1'. }
-  {
-    The~construction~`#1'~is~not~supported~by~the~LaTeX~
-    regular~expression~module.~Perhaps~some~character~should~
-    have~been~escaped?
-  }
 \msg_kernel_new:nnnn { regex } { not-nfa }
   { This~is~not~a~regular~expression~variable. }
   {
@@ -4959,39 +5170,8 @@
     is~\\\\
     \ \ \ \ \token_to_str:N #1 = \token_to_meaning:N #1 .
   }
-%    \end{macrocode}
-%
-%    \begin{macrocode}
-\msg_kernel_new:nnnn { str } { x-missing-brace }
-  { Missing~closing~brace~in~ \token_to_str:N \x ~byte~sequence. }
-  {
-    You~wrote~something~like~
-    `\iow_char:N\\x\{ \int_to_hexadecimal:n { \l_str_char_int }'.~
-    The~closing~brace~is~missing.
-  }
-%    \end{macrocode}
-%
-%    \begin{macrocode}
-% \msg_new:nnn { regex } { 1 } { \iow_char:N\\~at~end~of~pattern }
-% \msg_new:nnn { regex } { 2 } { \iow_char:N\\c~at~end~of~pattern }
-% \msg_new:nnn { regex } { 4 }
-%   { Numbers~out~of~order~in~\iow_char:N\{\iow_char\}~quantifier. }
-% \msg_new:nnn { regex } { 6 }
-%   { Missing~terminating~\iow_char:N\]~for~character~class }
-% \msg_new:nnn { regex } { 7 }
-%   { Invalid~escape~sequence~in~character~class }
-% \msg_new:nnn { regex } { 34 }
-%   { Character~value~in~\iow_char:N\\x{...}~sequence~is~too~large }
-% \msg_new:nnn { regex } { 44 } { Invalid~UTF-8~string }
-% \msg_new:nnn { regex } { 46 }
-%   { Malformed~\iow_char:N\\P~or\iow_char:N\\p~sequence }
-% \msg_new:nnn { regex } { 47 }
-%   { Unknown~property~after~\iow_char:N\\P~or\iow_char:N\\p }
-% \msg_new:nnn { regex } { 68 }
-%   { \iow_char:N\\c~must~be~followed~by~an~ASCII~character }
-%    \end{macrocode}
-%
-%    \begin{macrocode}
+\msg_kernel_new:nnn { regex } { nfa-misused }
+  { Automaton~#1 used~incorrectly. }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
@@ -5024,17 +5204,21 @@
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-\msg_kernel_new:nnn { regex } { nfa-misused }
-  { Automaton~#1 used~incorrectly. }
-%    \end{macrocode}
-%
-%    \begin{macrocode}
 %</package>
 %    \end{macrocode}
 %
 % \end{implementation}
 %
 % \endinput
+%^^A
+%^^A \msg_new:nnn { regex } { 4 }
+%^^A   { Numbers~out~of~order~in~\iow_char:N\{\iow_char\}~quantifier. }
+%^^A \msg_new:nnn { regex } { 44 } { Invalid~UTF-8~string }
+%^^A \msg_new:nnn { regex } { 46 }
+%^^A   { Malformed~\iow_char:N\\P~or\iow_char:N\\p~sequence }
+%^^A \msg_new:nnn { regex } { 47 }
+%^^A   { Unknown~property~after~\iow_char:N\\P~or\iow_char:N\\p }
+%^^A
 %^^A NOT IMPLEMENTED
 %^^A    \cx        "control-x", where x is any ASCII character
 %^^A    \C         one byte, even in UTF-8 mode (best avoided)
