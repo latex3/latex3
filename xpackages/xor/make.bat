@@ -8,6 +8,7 @@ set AUXFILES=aux dvi fpl log lof lot toc
 set CLEAN=pdf sty
 set EXPL3DIR=..\..\l3in2e
 set NEXT=end
+set REVERT=xo-balance.pdf xo-pfloat.pdf template-doc.sty
 set TEST=xo-pfloat
 set XBASEDIR=..\xbase
 
@@ -71,6 +72,7 @@ set XBASEDIR=..\xbase
 :clean-int
 
   for %%I in (%AUXFILES%) do if exist *.%%I del /q *.%%I
+  for %%I in (%REVERT%) do svn revert %%I
   
   if exist l3in2e.err del l3in2e.err
   

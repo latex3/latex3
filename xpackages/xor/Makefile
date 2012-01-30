@@ -94,12 +94,15 @@ CLEAN = \
 	cls  \
 	diff \
 	fmt  \
+	fpl  \
 	gz   \
 	ist  \
 	ltx  \
 	pdf  \
 	sty  \
 	zip 
+	
+REVERT = xo-balance.pdf xo-pfloat.pdf template-doc.sty
 
 ################################################################
 # Document settings                                            #
@@ -207,6 +210,9 @@ clean:
 cleanall: clean
 	for I in $(AUXFILES) $(CLEAN) ; do \
 	  rm -f *.$$I ; \
+	done ; \
+	for I in $(REVERT) ; do \
+	  svn revert $$I ; \
 	done
 
 check: \
