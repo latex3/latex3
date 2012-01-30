@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3 "xor" files                            #
+# Makefile for LaTeX3 "xor" files                              #
 ################################################################
 ################################################################
 
@@ -11,13 +11,12 @@
 help:
 	@echo ""
 	@echo " make check            - runs automated test suite"
-	@echo " make checklvt F=<name>   - runs automated test on <name>"
+	@echo " make checklvt F=<name> - runs automated test on <name>"
 	@echo " make clean            - clean out test directory"
 	@echo " make cleanall         - clean out test and current directory"
 	@echo " make doc              - typeset documentation"
 	@echo " make localinstall     - install files in local texmf tree"
-	@echo " make savetlg F=<name> - save test log for <name>"  
-	@echo " make test             - typeset test files"
+	@echo " make savetlg F=<name> - save test log for <name>"
 	@echo " make unpack           - extract packages"
 	@echo ""
 
@@ -25,7 +24,8 @@ help:
 # Master package name                                        #
 ##############################################################
 
-PACKAGE = xpackages/xor
+PACKAGE = xor
+L3DIR   = xpackages
 
 ##############################################################
 # Directory structure for source files                       #
@@ -33,7 +33,7 @@ PACKAGE = xpackages/xor
 
 SOURCEDIR   := .
 BASEDIR     := ../..
-EXPL3DIR    := $(BASEDIR)/l3in2e
+EXPL3DIR    := $(BASEDIR)/l3kernel
 SUPPORTDIR  := $(BASEDIR)/support
 TESTFILEDIR := $(SOURCEDIR)/testfiles
 VALIDATEDIR := $(BASEDIR)/validate
@@ -44,14 +44,14 @@ VALIDATEDIR := $(BASEDIR)/validate
 
 L3TESTDIR  := /tmp/l3test
 SCRIPTDIR  := $(shell test -d $(L3TESTDIR)/scripts || mkdir -p $(L3TESTDIR)/scripts ; cd $(L3TESTDIR)/scripts ; pwd)
-TESTDIR    := $(shell test -d $(L3TESTDIR)/test/$(PACKAGE) || mkdir -p $(L3TESTDIR)/test/$(PACKAGE) ; cd $(L3TESTDIR)/test/$(PACKAGE) ; pwd)
+TESTDIR    := $(shell test -d $(L3TESTDIR)/test/$(L3DIR)/$(PACKAGE) || mkdir -p $(L3TESTDIR)/test/$(L3DIR)/$(PACKAGE) ; cd $(L3TESTDIR)/test/$(L3DIR)/$(PACKAGE) ; pwd)
 TESTAUXDIR := $(shell test -d $(TESTDIR)/testfiles || mkdir -p $(TESTDIR)/testfiles ; cd $(TESTDIR)/testfiles ; pwd)
 
 ##############################################################
 # Data for local installation and TDS construction           #
 ##############################################################
 
-PACKAGEROOT := latex/$(PACKAGE)
+PACKAGEROOT := latex/$(L3DIR)/$(PACKAGE)
 
 ##############################################################
 # Details of source files                                    #
@@ -59,7 +59,6 @@ PACKAGEROOT := latex/$(PACKAGE)
 
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
-TESTFILES = template-test template-test2 tprestrict-test xparse-test
 TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
 UNPACK    = xotrace.ins
 
@@ -78,6 +77,7 @@ VALIDATE   = commands-check.tex regression-test.tex
 AUXFILES = \
 	aux  \
 	cmds \
+	fpl  \
 	glo  \
 	gls  \
 	hd   \
@@ -94,14 +94,13 @@ CLEAN = \
 	cls  \
 	diff \
 	fmt  \
-	fpl  \
 	gz   \
 	ist  \
 	ltx  \
 	pdf  \
 	sty  \
-	zip 
-	
+	zip
+
 REVERT = xo-balance.pdf xo-pfloat.pdf template-doc.sty
 
 ################################################################
@@ -151,12 +150,12 @@ $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 ################################################################
 
 $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
-	NAME=`basename $< .dtx` ; \
+	@NAME=`basename $< .dtx` ; \
 	echo "Typesetting $$NAME" ; \
 	cd $(TESTDIR) ; \
 	pdflatex -draftmode -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	if [ $$? = 0 ] ; then  \
-	  makeindex -s l3doc.ist -o $$NAME.ind $$NAME.idx > /dev/null ; \
+	  makeindex -q -s l3doc.ist -o $$NAME.ind $$NAME.idx > /dev/null ; \
 	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	  pdflatex -interaction=nonstopmode "$(PDFSETTINGS) \input $<" > /dev/null ; \
 	  if [ `grep 'defined but not documented' $$NAME.log | wc -l` -ne 0 ] ; then \
@@ -178,11 +177,11 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 
 .PHONY = \
 	expl3 \
-	support 
+	support
 
 expl3:
 	cd $(EXPL3DIR) ; \
-	make localinstall 
+	make localinstall
 
 support: \
 	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
@@ -204,8 +203,9 @@ support: \
 	unpack
 
 clean:
-	echo "Cleaning up"
-	rm -rf $(TESTDIR)/*.*
+	@echo "Cleaning up"
+	rm -rf $(TESTDIR)/*
+
 
 cleanall: clean
 	for I in $(AUXFILES) $(CLEAN) ; do \
@@ -219,8 +219,8 @@ check: \
 	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).lvt) \
 	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).tlg) \
 	expl3 support unpack
-	echo "Running checks on"
-	cd $(TESTDIR) ; \
+	@echo "Running checks on"
+	@cd $(TESTDIR) ; \
 	for I in $(AUXFILES) diff ; do \
 	  rm -f *.$$I ; \
 	done ; \
@@ -237,7 +237,7 @@ check: \
 	    rm -f $$I.$$J ; \
 	  done ; \
 	done ; \
-	if (ls *.diff > /dev/null) ; then \
+	if [ `ls -1 *.diff 2>/dev/null | wc -l` != 0 ] ; then \
 	  echo "  Check failed with difference files" ; \
 	  for I in *.diff ; do \
 	    echo "  - " `pwd`"/$$I" ; \
@@ -247,8 +247,8 @@ check: \
 	fi
 
 checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
-	echo "Running checks on $(F)"
-	cd $(TESTDIR) ; \
+	@echo "Running checks on $(F)"
+	@cd $(TESTDIR) ; \
 	for I in $(AUXFILES) diff ; do \
 	  rm -f *.$$I ; \
 	done ; \
@@ -269,20 +269,19 @@ checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 	  echo "  Check passed" ; \
 	fi
 
-doc: $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf)
+doc: unpack $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf)
 
 localinstall: unpack
-	echo "Installing files"
-	TEXMFHOME=`kpsewhich --var-value=TEXMFHOME` ; \
+	@echo "Installing files"
+	@TEXMFHOME=`kpsewhich --var-value=TEXMFHOME` ; \
 	mkdir -p $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
 	cd $(TESTDIR) ; \
-	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
-	texhash > /dev/null
+	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/
 
 savetlg: $(TESTDIR)/$(F).lvt support unpack
-	echo "Creating and copying $(F).tlg"
-	cd $(TESTDIR) ; \
+	@echo "Creating and copying $(F).tlg"
+	@cd $(TESTDIR) ; \
 	for I in $(AUXFILES) diff ; do \
 	  rm -f *.$$I ; \
 	done ; \
@@ -293,19 +292,9 @@ savetlg: $(TESTDIR)/$(F).lvt support unpack
 	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).tlg
 	cp -f $(TESTDIR)/$(F).tlg $(TESTFILEDIR)/$(F).tlg
 
-test: \
-	$(foreach FILE,$(TESTFILES),$(TESTDIR)/$(FILE).tex) \
-	expl3 unpack 
-	echo "Testing files"
-	cd $(TESTDIR) ;\
-	for I in $(TESTFILES) ; do \
-	  echo " $$I" ; \
-	  pdflatex  $$I ; \
-	done
-
 unpack: $(foreach FILE,$(DTX) $(TEX) $(UNPACK),$(TESTDIR)/$(FILE))
-	echo "Unpacking files"
-	cd $(TESTDIR) ; \
+	@echo "Unpacking files"
+	@cd $(TESTDIR) ; \
 	for I in $(UNPACK) ; do \
 	  tex $$I > /dev/null ; \
 	done
