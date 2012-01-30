@@ -5,7 +5,7 @@ setlocal
 set INSFILES=xotrace.ins
 
 set AUXFILES=aux dvi fpl log lof lot toc
-set CLEAN=pdf sty
+set CLEAN=gz pdf sty
 set EXPL3DIR=..\..\l3in2e
 set NEXT=end
 set REVERT=xo-balance.pdf xo-pfloat.pdf template-doc.sty
