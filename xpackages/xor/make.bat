@@ -1,120 +1,235 @@
 @echo off
 
-setlocal
+rem Makefile for LaTeX3 "xor" files
 
-set INSFILES=xotrace.ins
+  if not [%1] == [] goto :init
 
-set AUXFILES=aux dvi fpl log lof lot toc
-set CLEAN=gz pdf sty
-set EXPL3DIR=..\..\l3in2e
-set NEXT=end
-set REVERT=xo-balance.pdf xo-pfloat.pdf template-doc.sty
-set TEST=xo-pfloat
-set XBASEDIR=..\xbase
+:help
 
-:loop
+  echo.
+  echo  make all          - extract modules plus expl3
+  echo  make clean        - clean out directory
+  echo  make check        - run automated check system
+  echo  make doc          - typeset all dtx files
+  echo  make localinstall - locally install packages
+  echo  make savetlg ^<name^> - save test log for ^<name^>
+  echo  make test         - run test doucments
+  echo  make unpack       - extract modules
 
-  if /i "%1" == "all"    goto :all
-  if /i "%1" == "check"  goto :check
-  if /i "%1" == "clean"  goto :clean
-  if /i "%1" == "doc"    goto :doc
-  if /i "%1" == "test"   goto :test
-  if /i "%1" == "unpack" goto :unpack
+  goto :end
+
+:init
+
+  rem Avoid clobbering anyone else's variables
+
+  setlocal
+
+  set PACKAGE=xor
+  set L3DIR=xpackages
+
+  set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
+  set CLEAN=fc gz pdf sty txt
+  set EXPL3DIR=..\..\l3kernel
+  set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
+  set REVERT=xo-balance.pdf xo-pfloat.pdf template-doc.sty
+  set SCRIPTDIR=..\..\support
+  set TESTDIR=testfiles
+  set TEST=
+  set TDSROOT=latex\%L3DIR%\%PACKAGE%
+  set UNPACK=xotrace.ins
+  set VALIDATE=..\..\validate
+
+:main
+
+  if /i [%1] == [all]          goto :all
+  if /i [%1] == [check]        goto :check
+  if /i [%1] == [clean]        goto :clean
+  if /i [%1] == [doc]          goto :doc
+  if /i [%1] == [localinstall] goto :localinstall
+  if /i [%1] == [savetlg]      goto :savetlg
+  if /i [%1] == [test]         goto :test
+  if /i [%1] == [unpack]       goto :unpack
 
   goto :help
-  
+
 :all
 
-  set NEXT=end
-
-:all-int 
- 
   pushd %EXPL3DIR%
-  tex l3.ins > temp.log
+  call make unpack
   popd
-  copy /y %EXPL3DIR%\*.sty > temp.log
+  xcopy /q /y %EXPL3DIR%\*.sty > nul
   pushd %EXPL3DIR%
-  del /q *.sty *.log
-  popd
-  
-  pushd %XBASEDIR%
-  tex xbase.ins > temp.log
-  popd
-  copy /y %XBASEDIR%\*.sty > temp.log
-  pushd %XBASEDIR%
-  del /q *.sty *.log
+  call make clean
   popd
 
-  goto :unpack-int
+  goto :unpack
+
 
 :check
 
-  set NEXT=check-return
-  goto :all-int
-  
-:check-return
+  call :unpack
+  call :perl
 
-  set NEXT=clean
-  goto :test-int
+  xcopy /q /y %SCRIPTDIR%\log2tlg            > nul
+  xcopy /q /y %VALIDATE%\regression-test.tex > nul
+
+  if exist *.fc  del /q *.fc
+  if exist *.lvt del /q *.lvt
+  if exist *.tlg del /q *.tlg
+  for %%I in (%TESTDIR%\*.tlg) do (
+    if exist %TESTDIR%\%%~nI.lvt (
+      xcopy /q /y %TESTDIR%\%%~nI.lvt > nul
+      xcopy /q /y %TESTDIR%\%%~nI.tlg > nul
+    )
+  )
+
+  echo.
+  echo Running checks on
+
+  for %%I in (*.tlg) do (
+    echo   %%~nI
+    pdflatex %%~nI.lvt > nul
+    pdflatex %%~nI.lvt > nul
+    %PERLEXE% log2tlg %%~nI < %%~nI.log > %%~nI.new.log
+    del /q %%~nI.log > nul
+    ren %%~nI.new.log %%~nI.log > nul
+    fc /n  %%~nI.log %%~nI.tlg > %%~nI.fc
+  )
+
+  for %%I in (*.fc) do (
+    for /f "skip=1 tokens=1" %%J in (%%~nI.fc) do (
+      if "%%J" == "FC:" (
+        del /q %%I
+      )
+    )
+  )
+
+  echo.
+  if exist *.fc (
+    echo   Checks fails for
+    for %%I in (*.fc) do (
+      echo   - %%~nI
+    )
+  ) else (
+    echo   All checks passed
+  )
+
+  for %%I in (*.tlg) do (
+    if exist %%~nI.pdf del /q %%~nI.pdf
+  )
+
+  goto :clean-int
 
 :clean
 
-  ren template-doc.sty template-doc.xxx > temp.log
-  ren xo-balance.pdf xo-balance.xxx > temp.log
-  ren xo-pfloat.pdf xo-pfloat.xxx > temp.log
-
   for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
-  
-  ren template-doc.xxx template-doc.sty > temp.log
-  ren xo-balance.xxx xo-balance.pdf > temp.log
-  ren xo-pfloat.xxx xo-pfloat.pdf > temp.log
+  for %%I in (%REVERT%) do svn revert %%I
 
 :clean-int
 
   for %%I in (%AUXFILES%) do if exist *.%%I del /q *.%%I
-  for %%I in (%REVERT%) do svn revert %%I
-  
-  if exist l3in2e.err del l3in2e.err
-  
+
+  if exist log2tlg del /q log2tlg
+  if exist regression-test.tex del /q regression-test.tex
+
   goto :end
-  
+
 :doc
 
   for %%I in (*.dtx) do (
     echo   %%I
-    pdflatex -interaction=nonstopmode %%I > temp.log
-    if ERRORLEVEL 0 (
-      pdflatex -interaction=nonstopmode %%I > temp.log
+    pdflatex -interaction=nonstopmode -draftmode "%PDFSETTINGS% \input %%I" > nul
+    if not ERRORLEVEL 1 (
+      if exist %%~nI.idx (
+        makeindex -q -s l3doc.ist -o %%~nI.ind %%~nI.idx > nul
+      )
+      pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %%I" > nul
+      pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %%I" > nul
     )
   )
 
-  goto :clean-int  
-  
-:help
+  goto :clean-int
+
+:localinstall
 
   echo.
-  echo. make all                - extract modules plus expl3
-  echo  make clean              - clean out directory
-  echo  make check              - set up and run all test files
-  echo  make doc                - typeset all dtx files
-  echo  make test               - run all test files
-  echo  make unpack             - extract modules
-  echo.
-  echo  make help               - show this help text
-  echo  make
-  
+  echo Installing files
+
+  if not defined TEXMFHOME (
+    for /f "delims=" %%I in ('kpsewhich --var-value=TEXMFHOME') do @set TEXMFHOME=%%I
+    if [%TEXMFHOME%] == [] (
+      set TEXMFHOME=%USERPROFILE%\texmf
+    )
+  )
+  set INSTALLROOT=%TEXMFHOME%\tex\%TDSROOT%
+
+  if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
+
+  call make unpack
+  xcopy /q /y *.sty "%INSTALLROOT%\"   > nul
+  call make clean
+
   goto :end
-  
+
+:perl
+
+  set PATHCOPY=%PATH%
+
+:perl-loop
+
+  if defined PERLEXE goto :EOF
+
+  for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
+    if exist %%I\perl.exe set PERLEXE=perl
+    set PATHCOPY=%%J;%%K
+  )
+
+  if defined PERLEXE goto :EOF
+
+  if not "%PATHCOPY%"==";" goto :perl-loop
+
+  if exist %SYSTEMROOT%\Perl\bin\perl.exe set PERLEXE=%SYSTEMROOT%\Perl\bin\perl
+  if exist %ProgramFiles%\Perl\bin\perl.exe set PERLEXE=%ProgramFiles%\Perl\bin\perl
+  if exist %SYSTEMROOT%\strawberry\Perl\bin\perl.exe set PERLEXE=%SYSTEMROOT%\strawberry\Perl\bin\perl
+
+  if defined PERL goto :EOF
+
+  echo.
+  echo  This procedure requires Perl, but it could not be found.
+
+  goto :EOF
+
+:savetlg
+
+  shift
+  if [%1] == [] goto :help
+  if not exist %TESTDIR%\%1.lvt goto :no-lvt
+
+  call :perl
+  call :unpack
+
+  xcopy /q /y %SCRIPTDIR%\log2tlg > nul
+  xcopy /q /y %VALIDATE%\regression-test.tex > nul
+  xcopy /q /y %TESTDIR%\%1.lvt > nul
+
+  echo.
+  echo Creating and copying %1.tlg
+
+  pdflatex %1.lvt > nul
+  pdflatex %1.lvt > nul
+  %PERLEXE% log2tlg %1 < %1.log > %1.tlg
+  copy /y %1.tlg %TESTDIR%\%1.tlg > nul
+
+  goto :clean-int
+
 :test
 
-  set NEXT=clean-int
-
-:test-int
+  call :all
 
   for %%I in (%TEST%) do (
     echo   %%I
-    latex -interaction=batchmode %%I > temp.log
-    if not ERRORLEVEL 0 (
+    pdflatex -interaction=batchmode %%I > nul
+    if not [%ERRORLEVEL%] == [0] (
       echo.
       echo **********************
       echo * Compilation failed *
@@ -123,25 +238,18 @@ set XBASEDIR=..\xbase
     )
   )
 
-  goto :%NEXT%  
+  goto :end
 
-:unpack  
+:unpack
 
-  set NEXT=end
-
-:unpack-int
-
-  for %%I in (%INSFILES%) do (
-    tex %%I > temp.log
+  for %%I in (%UNPACK%) do (
+    tex %%I > nul
   )
-  
-  del /q *.log
 
-  goto :%NEXT%
-  
+  goto :end
+
 :end
 
   shift
-  if not "%1" == "" goto :loop
-  
+  if not [%1] == [] goto :main
   endlocal
