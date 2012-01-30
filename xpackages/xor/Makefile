@@ -228,6 +228,7 @@ check: \
 	  echo "  $$I" ; \
 	  pdflatex $$I.lvt > /dev/null ; \
 	  pdflatex $$I.lvt > /dev/null ; \
+	  pdflatex $$I.lvt > /dev/null ; \
 	  perl $(SCRIPTDIR)/log2tlg $$I < $$I.log > $$I.new.log ; \
 	  if !(cmp -s $$I.tlg $$I.new.log) ; then \
 	    diff -c $$I.tlg $$I.new.log > $$I.diff ; \
