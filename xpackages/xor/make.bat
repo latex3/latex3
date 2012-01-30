@@ -218,6 +218,7 @@ rem Makefile for LaTeX3 "xor" files
 
   pdflatex %1.lvt > nul
   pdflatex %1.lvt > nul
+  pdflatex %1.lvt > nul
   %PERLEXE% log2tlg %1 < %1.log > %1.tlg
   copy /y %1.tlg %TESTDIR%\%1.tlg > nul
 

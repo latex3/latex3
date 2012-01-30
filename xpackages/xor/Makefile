@@ -254,6 +254,7 @@ checklvt: $(TESTDIR)/$(F).lvt $(TESTDIR)/$(F).tlg support unpack
 	done ; \
 	pdflatex $(F).lvt ; \
 	pdflatex $(F).lvt > /dev/null ; \
+	pdflatex $(F).lvt > /dev/null ; \
 	perl $(SCRIPTDIR)/log2tlg $(F) < $(F).log > $(F).new.log ; \
 	if !(cmp -s $(F).tlg $(F).new.log) ; then \
 	  diff -c $(F).new.log $(F).tlg > $(F).diff ; \
@@ -285,6 +286,7 @@ savetlg: $(TESTDIR)/$(F).lvt support unpack
 	for I in $(AUXFILES) diff ; do \
 	  rm -f *.$$I ; \
 	done ; \
+	pdflatex $(F).lvt > /dev/null ; \
 	pdflatex $(F).lvt > /dev/null ; \
 	pdflatex $(F).lvt > /dev/null ; \
 	rm -f $$I.pdf ; \
