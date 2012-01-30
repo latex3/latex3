@@ -90,6 +90,7 @@ rem Makefile for LaTeX3 "xor" files
     echo   %%~nI
     pdflatex %%~nI.lvt > nul
     pdflatex %%~nI.lvt > nul
+    pdflatex %%~nI.lvt > nul
     %PERLEXE% log2tlg %%~nI < %%~nI.log > %%~nI.new.log
     del /q %%~nI.log > nul
     ren %%~nI.new.log %%~nI.log > nul
