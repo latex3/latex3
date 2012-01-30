@@ -27,8 +27,8 @@ rem Makefile for LaTeX3 "xor" files
   set PACKAGE=xor
   set L3DIR=xpackages
 
-  set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
-  set CLEAN=fc gz pdf sty txt
+  set AUXFILES=aux cmds fpl glo hd idx ilg ind log lvt tlg toc out
+  set CLEAN=fc gz pdf sty
   set EXPL3DIR=..\..\l3kernel
   set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
   set REVERT=xo-balance.pdf xo-pfloat.pdf template-doc.sty
