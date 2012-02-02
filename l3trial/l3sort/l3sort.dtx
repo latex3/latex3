@@ -1,0 +1,575 @@
+% \iffalse
+% 
+%% File l3sort.dtx (C) Copyright 2012 The LaTeX3 Project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3c of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the "l3trial bundle" (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %%
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX Project Team.
+%%
+%% -----------------------------------------------------------------------
+%%
+%
+%<*driver|package>
+\RequirePackage{expl3}
+\GetIdInfo$Id$
+  {L3 Experimental sorting functions}
+%</driver|package>
+%<*driver>
+\documentclass[full]{l3doc}
+\usepackage{amsmath}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \pkg{l3sort} package\\ Sorting lists^^A
+%   \thanks{This file describes v\ExplFileVersion,
+%      last revised \ExplFileDate.}^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released \ExplFileDate}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \section{\pkg{l3sort} documentation}
+%
+% \LaTeX3 comes with a function to sort list variables (sequences,
+% token lists, or comma-lists) according to some user-defined
+% comparison. For instance,
+% \begin{verbatim}
+%   \clist_set:Nn \l_foo_clist { 3 , 01 , -2 , 5 , +1 }
+%   \clist_sort:Nn \l_foo_clist
+%     {
+%       \int_compare:nNnTF { #1 } > { #2 }
+%         { \sort_reversed: }
+%         { \sort_ordered: }
+%     }
+% \end{verbatim}
+% will result in \cs{l_foo_clist} holding the values
+% |{ -2 , 01 , +1 , 3 , 5 }| sorted in non-decreasing order.
+%
+% The code defining the comparison should perform
+% \cs{sort_reversed:} if the two items given as |#1|
+% and |#2| are not in the correct order, and otherwise it
+% should call \cs{sort_ordered:} to indicate that
+% the order of this pair of items should not be changed.
+%
+% For instance, a \meta{comparison code} consisting only
+% of \cs{sort_ordered:} with no test will yield a trivial
+% sort: the final order is identical to the original order.
+% Conversely, using a \meta{comparison code} consisting only
+% of \cs{sort_reversed:} will reverse the list (in a fairly
+% inefficient way).
+%
+% \begin{texnote}
+%   Internally, the code from \pkg{l3sort} stores items in \tn{toks}
+%   registers. Thus, the \meta{comparison code} should not alter the
+%   contents of any \tn{toks} register, nor assume that they hold a
+%   given value.
+% \end{texnote}
+%
+% \begin{function}{\seq_sort:Nn, \seq_gsort:Nn}
+%   \begin{syntax}
+%     \cs{seq_sort:Nn} \meta{sequence} \Arg{comparison code}
+%   \end{syntax}
+%   Sorts the items in the \meta{sequence} according to the
+%   \meta{comparison code}, and assigns the result to
+%   \meta{sequence}, locally or globally according to the
+%   variant chosen.
+% \end{function}
+%
+% \begin{function}{\tl_sort:Nn, \tl_gsort:Nn}
+%   \begin{syntax}
+%     \cs{tl_sort:Nn} \meta{tl var} \Arg{comparison code}
+%   \end{syntax}
+%   Sorts the items in the \meta{tl var} according to the
+%   \meta{comparison code}, and assigns the result to
+%   \meta{tl var}, locally or globally according to the
+%   variant chosen.
+% \end{function}
+%
+% \begin{function}{\clist_sort:Nn, \clist_gsort:Nn}
+%   \begin{syntax}
+%     \cs{clist_sort:Nn} \meta{clist var} \Arg{comparison code}
+%   \end{syntax}
+%   Sorts the items in the \meta{clist var} according to the
+%   \meta{comparison code}, and assigns the result to
+%   \meta{clist var}, locally or globally according to the
+%   variant chosen.
+% \end{function}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3sort} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*package>
+\ProvidesExplPackage
+  {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
+\package_check_loaded_expl:
+%</package>
+%    \end{macrocode}
+%
+% \subsection{Variables}
+%
+% \begin{variable}{\c_sort_max_length_int}
+%   The maximum length of a sequence which will not overflow
+%   the available registers depends on which engine is in use.
+%   For $2^N$ registers, it is $3\cdot 2^{N-2}$: for that number
+%   of items, at the last step the block size will be $2^{N-1}$,
+%   and the two blocks to merge will be of sizes $2^{N-1}$ and
+%   $2^{N-2}$ respectively. When merging, one of the blocks must
+%   be copied to temporary registers; here, the smallest block,
+%   of size $2^{N-2}$, will fill up exactly the $2^{N-2}$ free
+%   registers, totalling $2^{N-1}+2^{N-2}+2^{N-2}=2^N$ registers.
+%    \begin{macrocode}
+\int_const:Nn \c_sort_max_length_int
+  { \luatex_if_engine:TF { 49152 } { 24576 } }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_sort_length_int}
+%   Length of the sequence which is being sorted.
+%    \begin{macrocode}
+\int_new:N \l_sort_length_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_sort_block_int}
+%   Merge sort is done in several passes. In each pass, blocks of size
+%   \cs{l_sort_block_int} are merged in pairs. The block size starts
+%   at $1$, and, for a length in the range $[2^k+1,2^{k+1}]$, reaches
+%   $2^k$ in the last pass.
+%    \begin{macrocode}
+\int_new:N \l_sort_block_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_sort_begin_int}
+% \begin{variable}{\l_sort_end_int}
+%   When merging two blocks, \cs{l_sort_begin_int} marks the lowest
+%   index in the two blocks, and \cs{l_sort_end_int} marks the
+%   highest index, plus $1$.
+%    \begin{macrocode}
+\int_new:N \l_sort_begin_int
+\int_new:N \l_sort_end_int
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
+%
+% \begin{variable}{\l_sort_A_int}
+% \begin{variable}{\l_sort_B_int}
+% \begin{variable}{\l_sort_C_int}
+%   When merging two blocks (whose end-points are \texttt{beg}
+%   and \texttt{end}), $A$ starts from the high end of the low
+%   block, and decreases until reaching \texttt{beg}. The index
+%   $B$ starts from the top of the range and marks the register
+%   in which a sorted item should be put. Finally, $C$ points
+%   to the copy of the high block in the interval of registers
+%   starting at \cs{l_sort_length_int}, upwards. $C$ starts
+%   from the upper limit of that range.
+%    \begin{macrocode}
+\int_new:N \l_sort_A_int
+\int_new:N \l_sort_B_int
+\int_new:N \l_sort_C_int
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+%
+% \subsection{User commands}
+%
+% \begin{macro}{\sort_aux:NNnNn}
+%   Sorting happens in three steps. First store items
+%   in \tn{toks} registers ranging from $0$ to the length
+%   of the list, while checking that the list is not too
+%   long. If we reach the maximum length, all further
+%   items are entirely ignored after raising an error.
+%   Secondly, sort the array of \tn{toks} registers,
+%   using the user-defined sorting function, |#5|.
+%   Finally, unpack the \tn{toks} registers (now sorted)
+%   into a variable of the right type, by \texttt{x}-expanding
+%   the code in |#3|, specific to each type of list.
+%    \begin{macrocode}
+\cs_new_protected:Npn \sort_aux:NNnNn #1#2#3#4#5
+  {
+    \group_begin:
+      \l_sort_length_int \c_zero
+      #2 #4
+        {
+          \if_num:w \l_sort_length_int = \c_sort_max_length_int
+            \sort_too_long_error:Nw #4
+          \fi:
+          \tex_toks:D \l_sort_length_int {##1}
+          \tex_advance:D \l_sort_length_int \c_one
+        }
+      \cs_set:Npn \sort_compare:nn ##1 ##2 { #5 }
+      \l_sort_block_int \c_one
+      \sort_level:
+      \use:x
+        {
+          \group_end:
+          #1 \exp_not:N #4 {#3}
+        }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\seq_sort:Nn, \seq_gsort:Nn}
+%   The first argument to \cs{sort_aux:NNnNn} is the final
+%   assignment function used, either \cs{tl_set:Nn} or
+%   \cs{tl_gset:Nn} to control local versus global results.
+%   The second argument is what mapping function is used
+%   when storing items to \tn{toks} registers. The third
+%   is used to build back the correct kind of list from the
+%   contents of the \tn{toks} registers. Fourth and fifth
+%   arguments are the variable to sort, and the sorting method
+%   as inline code.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \seq_sort:Nn
+  {
+    \sort_aux:NNnNn \tl_set:Nn
+      \seq_map_inline:Nn
+      { \sort_toks:NNw \exp_not:N \seq_item:n 0 ; }
+  }
+\cs_new_protected_nopar:Npn \seq_gsort:Nn
+  {
+    \sort_aux:NNnNn \tl_gset:Nn
+      \seq_map_inline:Nn
+      { \sort_toks:NNw \exp_not:N \seq_item:n 0 ; }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\tl_sort:Nn, \tl_gsort:Nn}
+%   Again, use \cs{tl_set:Nn} or \cs{tl_gset:Nn} to control
+%   the scope of the assignment. Mapping through the token
+%   list is done with \cs{tl_map_inline:Nn}, and producing
+%   the token list is very similar to sequences, removing
+%   \cs{seq_item:Nn}.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \tl_sort:Nn
+  {
+    \sort_aux:NNnNn \tl_set:Nn
+      \tl_map_inline:Nn
+      { \sort_toks:NNw \prg_do_nothing: \prg_do_nothing: 0 ; }
+  }
+\cs_new_protected_nopar:Npn \tl_gsort:Nn
+  {
+    \sort_aux:NNnNn \tl_gset:Nn
+      \tl_map_inline:Nn
+      { \sort_toks:NNw \prg_do_nothing: \prg_do_nothing: 0 ; }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\clist_sort:Nn, \clist_gsort:Nn}
+% \begin{macro}[aux]{\clist_sort_aux:NNn}
+%   The case of empty comma-lists is a little bit special as usual,
+%   and filtered out: there is nothing to sort in that case.
+%   Otherwise, the input is done with \cs{clist_map_inline:Nn},
+%   and the output requires some more elaborate processing than
+%   for sequences and token lists. The first comma must be removed.
+%   An item must be wrapped in an extra set of braces if it contains
+%   either the space or the comma characters. This is taken care of
+%   by \cs{clist_wrap_item:n}, but \cs{sort_toks:NNw} would simply
+%   feed \cs{tex_the:D} \cs{tex_toks:D} \meta{number} as an
+%   argument to that function; hence we need to expand this argument
+%   once to unpack the register.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \clist_sort:Nn
+  { \clist_sort_aux:NNn \tl_set:Nn }
+\cs_new_protected_nopar:Npn \clist_gsort:Nn
+  { \clist_sort_aux:NNn \tl_gset:Nn }
+\cs_new_protected:Npn \clist_sort_aux:NNn #1#2#3
+  {
+    \clist_if_empty:NF #2
+      {
+        \sort_aux:NNnNn #1
+          \clist_map_inline:Nn
+          {
+            \exp_last_unbraced:Nf \use_none:n
+              { \sort_toks:NNw \exp_args:No \clist_wrap_item:n 0 ; }
+          }
+          #2 {#3}
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\sort_toks:NNw}
+%   Unpack the various \tn{toks} registers, from $0$ to the length
+%   of the list. The functions |#1| and |#2| allow us to treat the
+%   three data structures in a unified way:
+%   \begin{itemize}
+%   \item for sequences, they are \cs{exp_not:N} \cs{seq_item:n},
+%     expanding to the \cs{seq_item:n} separator, as expected;
+%   \item for token lists, they expand to nothing;
+%   \item for comma lists, they expand to \cs{exp_args:No}
+%     \cs{clist_wrap_item:n}, taking care of unpacking the register
+%     before letting the undocumented internal \pkg{clist} function
+%     \cs{clist_wrap_item:n} do the work of putting a comma and possibly
+%     braces.
+%   \end{itemize}
+%    \begin{macrocode}
+\cs_new:Npn \sort_toks:NNw #1#2#3 ;
+  {
+    \if_num:w #3 < \l_sort_length_int
+      #1 #2 { \tex_the:D \tex_toks:D #3 }
+      \exp_after:wN \sort_toks:NNw \exp_after:wN #1 \exp_after:wN #2
+      \int_use:N \int_eval:w #3 + \c_one \exp_after:wN ;
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Sorting itself}
+%
+% \begin{macro}[int]{\sort_level:}
+%   This function is called once blocks of size \cs{l_sort_block_int}
+%   (initially $1$) are each sorted. If the whole list fits in one
+%   block, then we are done (this also takes care of the case of an
+%   empty list or a list with one item). Otherwise, go through pairs
+%   of blocks starting from $0$, then double the block size, and repeat.
+%    \begin{macrocode}
+\cs_new_protected:Npn \sort_level:
+  {
+    \if_num:w \l_sort_block_int < \l_sort_length_int
+      \l_sort_end_int \c_zero
+      \sort_merge_blocks:
+      \tex_multiply:D \l_sort_block_int \c_two
+      \exp_after:wN \sort_level:
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\sort_merge_blocks:}
+%   This function is called to merge a pair of blocks, starting at
+%   the last value of \cs{l_sort_end_int} (end-point of the previous
+%   pair of blocks). If shifting by one block to the right we reach
+%   the end of the list, then this pass has ended: this end of the
+%   list is sorted already. Store the result of that shift in $A$,
+%   which will index the first block starting from the top end.
+%   Then locate the end-point (maximum) of the upper block: shift
+%   \texttt{end} upwards by one more block, checking that we don't
+%   go beyond the length of the list. Copy this upper block of \tn{toks}
+%   registers in registers above \texttt{length}, indexed by $C$:
+%   this is covered by \cs{sort_copy_block:}. Once this is done we
+%   are ready to do the actual merger using \cs{sort_merge_blocks_aux:},
+%   after shifting $A$, $B$ and $C$ so that they point to the largest
+%   index in their respective ranges rather than pointing just beyond
+%   those ranges. Of course, once that pair of blocks is merged,
+%   move on to the next pair.
+%    \begin{macrocode}
+\cs_new_protected:Npn \sort_merge_blocks:
+  {
+    \l_sort_begin_int \l_sort_end_int
+    \tex_advance:D \l_sort_end_int \l_sort_block_int
+    \if_num:w \int_eval:w \l_sort_end_int < \l_sort_length_int
+      \l_sort_A_int \l_sort_end_int
+      \tex_advance:D \l_sort_end_int \l_sort_block_int
+      \if_num:w \l_sort_end_int > \l_sort_length_int
+        \l_sort_end_int \l_sort_length_int
+      \fi:
+      \l_sort_B_int \l_sort_A_int
+      \l_sort_C_int \l_sort_length_int
+      \sort_copy_block:
+      \tex_advance:D \l_sort_A_int \c_minus_one
+      \tex_advance:D \l_sort_B_int \c_minus_one
+      \tex_advance:D \l_sort_C_int \c_minus_one
+      \sort_merge_blocks_aux:
+      \exp_after:wN \sort_merge_blocks:
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\sort_copy_block:}
+%   We wish to store a copy of the \enquote{upper} block of
+%   \tn{toks} registers, ranging between the initial value of
+%   \cs{l_sort_B_int} (included) and \cs{l_sort_end_int}
+%   (excluded) into a new range starting at the initial value
+%   of \cs{l_sort_C_int}, namely \cs{l_sort_length_int}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \sort_copy_block:
+  {
+    \tex_toks:D \l_sort_C_int \tex_toks:D \l_sort_B_int
+    \tex_advance:D \l_sort_C_int \c_one
+    \tex_advance:D \l_sort_B_int \c_one
+    \if_num:w \l_sort_B_int = \l_sort_end_int
+      \use_i:nn
+    \fi:
+    \sort_copy_block:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\sort_merge_blocks_aux:}
+%   At this stage, the first block starts at \cs{l_sort_begin_int},
+%   and ends at \cs{l_sort_A_int}, and the second block starts at
+%   \cs{l_sort_length_int} and ends at \cs{l_sort_C_int}. The result
+%   of the merger is stored at positions indexed by \cs{l_sort_B_int},
+%   which starts at $\cs{l_sort_end_int}-1$ and decreases down to
+%   \cs{l_sort_begin_int}, covering the full range of the two blocks.
+%   In other words, we are building the merger starting with the
+%   largest values.
+%   The comparison function is defined to return either
+%   \texttt{reversed} or \texttt{ordered}. Of course, this
+%   means the arguments need to be given in the order they
+%   appear originally in the list.
+%    \begin{macrocode}
+\cs_new_protected:Npn \sort_merge_blocks_aux:
+  {
+    \exp_after:wN \sort_compare:nn \exp_after:wN
+      { \tex_the:D \tex_toks:D \exp_after:wN \l_sort_A_int \exp_after:wN }
+      \exp_after:wN { \tex_the:D \tex_toks:D \l_sort_C_int }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\sort_ordered:}
+%   If the comparison function returns \texttt{ordered},
+%   then the second argument fed to \cs{sort_compare:nn}
+%   should remain to the right of the other one. Since
+%   we build the merger starting from the right, we copy
+%   that \tn{toks} register into the allotted range, then
+%   shift the pointers $B$ and $C$, and go on to do one
+%   more step in the merger, unless the second block has
+%   been exhausted: then the remainder of the first block
+%   is already in the correct register and we are done
+%   with merging those two blocks.
+%    \begin{macrocode}
+\cs_new_protected:Npn \sort_ordered:
+  {
+    \tex_toks:D \l_sort_B_int \tex_toks:D \l_sort_C_int
+    \tex_advance:D \l_sort_B_int \c_minus_one
+    \tex_advance:D \l_sort_C_int \c_minus_one
+    \if_num:w \l_sort_C_int < \l_sort_length_int
+      \use_i:nn
+    \fi:
+    \sort_merge_blocks_aux:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\sort_reversed:}
+%   If the comparison function returns \texttt{reversed},
+%   then the next item to add to the merger is the first
+%   argument, contents of the \tn{toks} register $A$.
+%   Then shift the pointers $A$ and $B$ to the left, and
+%   go for one more step fo the merger, unless the left
+%   block was exhausted ($A$ goes below the threshold).
+%   In that case, all remaining \tn{toks} registers in
+%   the second block, indexed by $C$, should be copied
+%   to the merger (see \cs{sort_merge_blocks_end:}).
+%    \begin{macrocode}
+\cs_new_protected:Npn \sort_reversed:
+  {
+    \tex_toks:D \l_sort_B_int \tex_toks:D \l_sort_A_int
+    \tex_advance:D \l_sort_B_int \c_minus_one
+    \tex_advance:D \l_sort_A_int \c_minus_one
+    \if_num:w \l_sort_A_int < \l_sort_begin_int
+      \sort_merge_blocks_end: \use_i:nn
+    \fi:
+    \sort_merge_blocks_aux:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\sort_merge_blocks_end:}
+%   This function's task is to copy the \tn{toks} registers
+%   in the block indexed by $C$ to the merger indexed by $B$.
+%   The end can equally be detected by checking when $B$ reaches
+%   the threshold \texttt{begin}, or when $C$ reaches
+%   \texttt{length}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \sort_merge_blocks_end:
+  {
+    \tex_toks:D \l_sort_B_int \tex_toks:D \l_sort_C_int
+    \tex_advance:D \l_sort_B_int \c_minus_one
+    \tex_advance:D \l_sort_C_int \c_minus_one
+    \if_num:w \l_sort_B_int < \l_sort_begin_int
+      \use_i:nn
+    \fi:
+    \sort_merge_blocks_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Messages}
+%
+% \begin{macro}{\sort_too_long_error:Nw}
+%   When there are too many items in a sequence, this is an error,
+%   and we clean up properly the mapping over items in the list.
+%   This relies on the fact that the breaking code for all mappings
+%   is unified.
+%    \begin{macrocode}
+\cs_new_protected:Npn \sort_too_long_error:Nw #1 \fi:
+  {
+    \fi:
+    \msg_kernel_error:nnx { sort } { too-large } { \token_to_str:N #1 }
+    \prg_map_break:
+  }
+\msg_kernel_new:nnnn { sort } { too-large }
+  { The~list~#1~is~too~long~to~be~sorted~by~TeX. }
+  {
+    TeX~has~\int_use:N \c_max_register_int \ registers~available:~
+    this~only~allows~to~sorts~with~up~to~\int_use:N \c_sort_max_length_int \
+    items.~All~extra~items~will~be~ignored.
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex
