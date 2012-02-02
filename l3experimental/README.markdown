@@ -29,7 +29,7 @@ are under active development and the interfaces may change.
 Currently included in the CTAN release of l3experimental are the following
 bundles:
  * l3dt
- * l3srot
+ * l3sort
  * l3str
  * xcoffins
  * xgalley
