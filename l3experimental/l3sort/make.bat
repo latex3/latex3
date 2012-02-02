@@ -1,6 +1,6 @@
 @echo off
 
-rem Makefile for LaTeX3 "hooks" files
+rem Makefile for LaTeX3 "l3sort" files
 
   if not [%1] == [] goto :init
 
@@ -25,7 +25,7 @@ rem Makefile for LaTeX3 "hooks" files
   setlocal
 
   set PACKAGE=l3sort
-  set L3DIR=l3trial
+  set L3DIR=l3experimental
 
   set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
   set CLEAN=fc gz pdf sty txt
