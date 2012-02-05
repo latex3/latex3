@@ -23,7 +23,7 @@ rem Makefile for LaTeX3 "l3trial" files
 
   setlocal
 
-  set PACKAGES=l3benchmark l3fp-new l3hooks l3ldb l3rand xmetadata
+  set PACKAGES=l3benchmark l3fp-new l3hooks l3ldb l3rand
 
   cd /d "%~dp0"
 
@@ -99,4 +99,4 @@ rem Makefile for LaTeX3 "l3trial" files
 :end
 
   shift
-  if not [%1] == [] goto :main
+  if not [%1] == [] goto :mai
