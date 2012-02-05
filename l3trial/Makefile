@@ -47,7 +47,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-PACKAGES = l3benchmark l3fp-new l3hooks l3ldb l3rand xmetadata
+PACKAGES = l3benchmark l3fp-new l3hooks l3ldb l3rand
 
 ##############################################################
 # Clean-up information                                       #
