@@ -166,11 +166,17 @@
 %</package>
 %    \end{macrocode}
 %
-% \begin{variable}{\l_marks_tmpa_tl}
+% \begin{variable}{\l_marks_tmp_int}
+% \begin{variable}{\l_marks_tmp_prop}
+% \begin{variable}{\l_marks_tmp_tl}
 %   Scratch space.
 %    \begin{macrocode}
-\tl_new:N \l_marks_tmpa_tl
+\int_new:N  \l_marks_tmp_int
+\prop_new:N \l_marks_tmp_prop
+\tl_new:N   \l_marks_tmp_tl
 %    \end{macrocode}
+% \end{variable}
+% \end{variable}
 % \end{variable}
 %
 % \subsection{Creating mark types}
@@ -194,7 +200,7 @@
 %   A mark type is created by initialising a number of data structures.
 %   First, the mark information itself (a token list variable) is set up
 %   with empty entries: this allows for the case where information retrieval
-%   is attempted before \cs{xmark_update_structure:} has been used. A sequence
+%   is attempted before \cs{marks_update_structure:} has been used. A sequence
 %   is then set up, which will hold each mark entry for the type being created.
 %   A copy of this sequence is also created so that the save code will not
 %   attempt to use a non-existent variable.
@@ -285,12 +291,12 @@
 %<*trace>
     \trace_marks:n { set~#1~<-~ \tl_to_str:n {#2} }
 %</trace>
-    \prop_get:NnNF \g_marks_current_prop {#1} \l_marks_tmpa_tl
+    \prop_get:NnNF \g_marks_current_prop {#1} \l_marks_tmp_tl
       {
         \msg_kernel_error:nnx { marks } { unknown-type } { \tl_to_str:n {#1} }
       }
     \prop_gput:Nnx \g_marks_current_prop {#1}
-      { \int_eval:n { \l_marks_tmpa_tl + \c_one } }
+      { \int_eval:n { \l_marks_tmp_tl + \c_one } }
 %<*trace>
       \trace_marks_internal:n
         { Setting~mark~ \marks_trace_store:N \g_marks_current_prop }
@@ -300,6 +306,121 @@
   }
 \cs_generate_variant:Nn \marks_put:nn { x }
 %    \end{macrocode}
+% \end{macro}
+% 
+% \begin{macro}{\marks_update_structure:}
+% \begin{macro}[aux]{\marks_update_structure_aux:nn}
+% \begin{macro}[aux]
+%   {\marks_update_structure_no_change:n, \marks_update_structure_one_mark:n}
+% \begin{macro}[aux]{\marks_update_structure_marks:nn}
+%   This function is for use in output routines to initialize the marks
+%   at the beginning. It is only useful after \TeX{} internally has
+%   updated \tn{botmark}.  We map a function over all keys in
+%   \cs{g_marks_last_prop}, in other words over all types of marks. This
+%   routine will set the marks for all types. Finally we set
+%   \cs{g_marks_last_prop} to the data that was stored in \tn{botmark},
+%   \emph{i.e.}, to the info-numbers from this page.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \marks_update_structure:
+  {
+    \prop_map_function:NN \g_marks_last_prop \marks_update_structure_aux:nn
+    \marks_read:N \g_marks_last_prop
+  }
+%    \end{macrocode}
+%   The loop over mark types does a comparison between the reference number
+%   in the \TeX{} mark structure and the one in the stored property list.
+%   There are then three cases: the two numbers are the same, the numbers
+%   differ by exactly one and the numbers differ by more than one.
+%    \begin{macrocode}
+\cs_new_protected:Npn \marks_update_structure_aux:nn #1#2
+  {
+%<*trace>
+    \trace_marks_internal:n
+      { queue~for~#1~before:~' \tl_to_str:c { g_xmark_ #1 _seq } ' }
+%</trace>
+     \marks_read:N \l_marks_tmp_prop
+%<*trace>
+     \trace_marks_internal:n
+       { picking~up~from~output~ \marks_trace_store:N \l_marks_tmp_prop }
+%</trace>
+     \prop_get:NnNF \l_marks_tmp_prop {#1} \l_marks_tmp_tl
+      {
+        \msg_kernel_error:nnx { marks } { unknown-type } { \tl_to_str:n {#1} }
+      }
+%<*trace>
+    \trace_marks_internal:n
+      {
+        found~ \int_eval:n { \l_marks_tmp_tl - #2 } ~entries~for~#1~
+        (new~ \l_marks_tmp_tl ;~old~#2)
+      }
+%</trace>
+    \prg_case_int:nnn
+      { \l_marks_tmp_tl - #2 }
+      {
+        { 0 } { \marks_update_structure_no_change:n {#1} }
+        { 1 } { \marks_update_structure_one_mark:n {#1} }
+      }
+      { \marks_update_structure_marks:nn {#1} {#2} }
+%<*trace>
+    \trace_marks:n { in~output:~#1~->~ \tl_to_str:c{ g_marks_ #1 _tl } }
+    \trace_marks_internal:n
+      { queue~for~#1~after:~' \tl_to_str:c { g_xmark_#1_seq } ' }
+%</trace>
+  }
+%    \end{macrocode}
+%   No change to the marks: recover the top one and reuse it for all three
+%   entries.
+%    \begin{macrocode}
+\cs_new_protected:Npn \marks_update_structure_no_change:n #1
+  {
+    \seq_get_left:cN { g_xmark_ #1 _seq } \l_marks_tmp_tl
+    \tl_gset:cx { g_marks_ #1 _tl }
+      {
+        { \exp_not:V \l_marks_tmp_tl }
+        { \exp_not:V \l_marks_tmp_tl }
+        { \exp_not:V \l_marks_tmp_tl }
+      }
+  }
+%    \end{macrocode}
+%  A difference of exactly one means that the last mark we had is now the
+%  one on the previous page, while the two on this page are the same.
+%    \begin{macrocode}
+\cs_new_protected:Npn \marks_update_structure_one_mark:n #1
+  {
+    \seq_gpop:cN { g_xmark_ #1 _seq } \l_marks_tmp_tl
+    \tl_gset:cx { g_marks_ #1 _tl } { { \exp_not:V \l_marks_tmp_tl } }
+    \seq_get_left:cN { g_xmark_ #1 _seq } \l_marks_tmp_tl
+    \tl_gput_right:cx { g_marks_ #1 _tl }
+      {
+        { \exp_not:V \l_marks_tmp_tl }
+        { \exp_not:V \l_marks_tmp_tl }
+      }
+  }
+%    \end{macrocode}
+%   The most complex case is where two or more new marks have been seen.
+%   First, the previous mark is popped off the sequence. The left-most entry
+%   is then the first mark on the page, while finding the last mark requires
+%   a loop to remove the intermediate values (which are thrown away).
+%    \begin{macrocode}
+\cs_new_protected:Npn \marks_update_structure_marks:nn #1#2
+  {
+    \int_set:Nn \l_marks_tmp_int { \l_marks_tmp_tl - #2 }
+    \seq_gpop:cN { g_xmark_ #1 _seq } \l_marks_tmp_tl
+    \tl_gset:cx { g_marks_ #1 _tl } { { \exp_not:V \l_marks_tmp_tl } }
+    \seq_get_left:cN { g_xmark_ #1 _seq } \l_marks_tmp_tl
+    \tl_gput_right:cx { g_marks_ #1 _tl } { { \exp_not:V \l_marks_tmp_tl } }
+    \int_while_do:nNnn \l_marks_tmp_int > \c_one
+      {
+        \int_decr:N \l_marks_tmp_int
+        \seq_gpop:cN { g_xmark_ #1 _seq } \l_marks_tmp_tl
+      }
+    \seq_get_left:cN { g_xmark_ #1 _seq} \l_marks_tmp_tl
+    \tl_gput_right:cx { g_marks_ #1 _tl } { { \exp_not:V \l_marks_tmp_tl } }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[EXP]
@@ -447,86 +568,6 @@
 %    \end{macrocode}
 %  \end{macro}
 %
-%
-%  \begin{macro}{\xmark_OR_restore_state:n}
-%    |\xmark_OR_restore_state:n| will restore the state of the mark
-%    mechanism to the one saved by |\marks_save_state:|. It has to be
-%    called inside an output routine and as it needs an output routine
-%    of its own to restore the |\xmark| status of the bottom mark (so
-%    that \TeX{} correctly updates the mark registers in case it
-%    doesn't find a mark in box 255) it has an argument which is
-%    executed inside that output routine to regain control.
-%
-%    The code in the argument has to set |\output| to a new output
-%    routine! If not you are in trouble.
-%
-%    \begin{macrocode}
-\cs_new_nopar:Npn \xmark_OR_restore_state:n#1{%
-%<*trace>
-  \trace_push:n{xmark_OR_restore_state:n}
-%</trace>
-%    \end{macrocode}
-%    We first restore the external data structures by calling
-%    |\g_xmark_restore_state_internal_tl|. Then we have to ensure that \TeX's
-%    idea of what the current |\botmark| is, corresponds to what it
-%    was when we saved the state. Back then it was the contents of
-%    |\g_marks_last_prop| so we are now adding an empty box and then
-%    mark with is contents
-%    onto the MVL followed by a penalty that ensures we trigger the
-%    output routine and then specify a tiny little output routine
-%    whose sole purpose is to get that mark processed.
-%    \begin{macrocode}
-      \g_xmark_restore_state_internal_tl
-      \hbox{}%
-%    \end{macrocode}
-%    We have to protect |\g_marks_last_prop| from expanding too far
-%    inside the |\xmark| so we first put it into a token register
-%    before applying |\mark|.
-%    \begin{macrocode}
-%%FMi fix: this is badly using implementation details of plists
-%<*trace>
-      \trace_marks_internal:n
-        { restoring~botmark~ \marks_trace_store:N \g_marks_last_prop }
-%</trace>
-      \marks_store:N \g_marks_last_prop
-      \penalty-20203\relax
-%    \end{macrocode}
-%    We are not setting |\vsize| assuming its positive. So the moment
-%    we return from the current output routine (we are hopefully in
-%    right now) we should very very soon find the above penalty and
-%    then trigger the output routine we are about to define now.
-%
-%    In that output routine we have a quick test for the
-%    |\outputpenalty| just to ensure that we really grabbed what we
-%    are supposed to grab. Then we throw away the contents of box 255
-%    since all we wanted todo is to get |\botmark| set back to the
-%    value of our mark above. Finally we execute whatever got passed
-%    along as argument one to regain control. Since current |\output|
-%    has a rather funny definition the code in that argument better
-%    changes that back to something that does a little bit more
-%    typesetting.
-%    \begin{macrocode}
-      \global\output{%
-%<*trace>
-  \trace_push:n{xmark_restore_state_or~(inline~code)}
-%</trace>
-         \int_compare:nNnF{-20203}=\outputpenalty {\ERROR }
-         \box_gclear:N \c_two_hundred_fifty_five
-         #1%
-%<*trace>
-  \trace_pop:n{xmark_OR_restore_state:n~(inline~code)}
-%</trace>
-        }%
-%<*trace>
-  \trace_pop:n{xmark_OR_restore_state:n}
-%</trace>
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-%
-%
-%
 %  \begin{macro}{\xmark_OR_restore_state:nn}
 %    The |\xmark_OR_restore_state:nn| works like |\xmark_OR_restore_state:n|
 %    but uses two output routine calls to restore the mark. Why? Because the
@@ -602,133 +643,6 @@
 %    \end{macrocode}
 %  \end{macro}
 %
-%
-%
-%
-%  \begin{macro}{\xmark_update_structure:}
-%    This function is for use in output routines to initialize the marks
-%    at the beginning. It is only useful after \TeX{} internally has
-%    updated |\botmark|.
-%    \begin{macrocode}
-\cs_new_nopar:Npn \xmark_update_structure:{
-%    \end{macrocode}
-%    We map a function over all keys in |\g_marks_last_prop|, in other
-%    words over all types of marks. This routine will set the marks for
-%    all types. Finally we set the plist |\g_marks_last_prop| to the
-%    plist that was stored in |\botmark|, i.e., to the
-%    info-numbers from this page.
-%    \begin{macrocode}
-  \prop_map_function:NN\g_marks_last_prop\xmark_retrieve_single:nn
-%%FMi fix: this is badly using implementation details of plists
-  \marks_read:N \g_marks_last_prop
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-%
-%
-%  \begin{macro}{\xmark_retrieve_single:nn}
-%    This function will be mapped over the plist containing the info-numbers
-%    from the last page. This means that |#1| will be the key (which is
-%    simply our type token list variable and |#2| is the value, i.e. the
-%    info-number from the last page for this type.
-%    \begin{macrocode}
-\cs_new_nopar:Npn \xmark_retrieve_single:nn#1#2{
-%<*trace>
-   \trace_marks_internal:n
-       {queue~for~#1~ before:~`\tl_to_str:c{ g_xmark_#1_seq}'}
-%</trace>
-%    \end{macrocode}
-%    We retrieve the info number for this type from |\botmark|
-%    and store the difference in |\l_tmpa_int|.
-%    \begin{macrocode}
-%%FMi fix: this is badly using implementation details of plists
-   \marks_read:N \next
-%<*trace>
-   \trace_marks_internal:n
-     { picking~up~from~output~ \marks_trace_store:N \next }
-%</trace>
-   \prop_get:NnN \next {#1}\l_tmpa_tl
-%<*debug>
-   \quark_if_no_value:NT \l_tmpa_tl \ERROR
-%</debug>
-   \int_set:Nn \l_tmpa_int \l_tmpa_tl
-   \int_sub:Nn \l_tmpa_int {#2}
-%<*trace>
-   \trace_marks_internal:n
-       {found~\int_use:N \l_tmpa_int\space entries~ for~ #1~
-        (new~\l_tmpa_tl;~old~#2)}
-%</trace>
-%    \end{macrocode}
-%    Then we decide what to do depending on its value.
-%    We use |\l_tmpa_tl|, |\l_tmpb_tl|, and |\l_tmpc_tl| to
-%    temporarily hold the previous, first and last mark for this type.
-%    \begin{macrocode}
-   \tex_ifcase:D \l_tmpa_int
-%    \end{macrocode}
-%    If there haven't been any new marks we leave the queue alone,
-%    peeking only at its top element and using it for all three marks.
-%    \begin{macrocode}
-     \seq_get_left:cN{ g_xmark_#1_seq}\l_tmpa_tl
-     \cs_set_eq:NN \l_tmpb_tl\l_tmpa_tl
-     \cs_set_eq:NN \l_tmpc_tl\l_tmpa_tl
-   \tex_or:D
-%    \end{macrocode}
-%    When there was one mark of this type, we pop one item for the
-%    previous mark of this type, and use the remaining item for first
-%    and last mark.
-%    \begin{macrocode}
-     \seq_gpop:cN{ g_xmark_#1_seq}\l_tmpa_tl
-     \seq_get_left:cN { g_xmark_#1_seq}\l_tmpb_tl
-     \cs_set_eq:NN \l_tmpc_tl\l_tmpb_tl
-   \else:
-%    \end{macrocode}
-%    If we had more than one mark for this type we pop one mark for the
-%    previous mark of this type, then pop another mark for the first
-%    mark of this type, then pop all but the last item and use the last
-%    item as the last mark of this type, keeping it as before on the
-%    queue.
-%    \begin{macrocode}
-     \seq_gpop:cN{ g_xmark_#1_seq}\l_tmpa_tl
-     \seq_get_left:cN { g_xmark_#1_seq}\l_tmpb_tl
-     \int_while_do:nNnn \l_tmpa_int>\c_one
-     {
-      \int_decr:N \l_tmpa_int
-      \seq_gpop:cN{ g_xmark_#1_seq}
-      \l_tmpc_tl
-     }
-     \seq_get_left:cN{ g_xmark_#1_seq}\l_tmpc_tl
-   \fi:
-%    \end{macrocode}
-%    After this process all values for previous, first and last mark for
-%    this type are found so that we can store them in the tl var.\
-%    representing this type for further processing.
-%    \begin{macrocode}
-   \@temptokena\exp_after:wN{\l_tmpa_tl}
-   \@temptokenb\exp_after:wN{\l_tmpb_tl}
-   \@temptokenc\exp_after:wN{\l_tmpc_tl}
-   \cs_set:cpx { g_marks_ #1 _tl } {{\the\@temptokena}{\the\@temptokenb}{\the\@temptokenc}}
-%<*trace>
-   \trace_marks:n {in~output:~#1~->~\tl_to_str:c{ g_marks_ #1 _tl }}
-%    \end{macrocode}
-%    At this point the queue should show only one item.
-%    \begin{macrocode}
-   \trace_marks_internal:n
-       {queue~ for~#1~after:~`\tl_to_str:c{ g_xmark_#1_seq}'}
-%</trace>
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-%  \begin{macro}{\@temptokenb}
-%  \begin{macro}{\@temptokenc}
-%    \begin{macrocode}
-\newtoks\@temptokenb
-\newtoks\@temptokenc
-%    \end{macrocode}
-%  \end{macro}
-%  \end{macro}
-%  
 % \subsection{Support for \LaTeXe{} internals}
 % 
 %    \begin{macrocode}
@@ -754,10 +668,10 @@
       \cs_set_eq:NN \label    \scan_stop:
       \cs_set_eq:NN \index    \scan_stop:
       \cs_set_eq:NN \glossary \scan_stop:
-      \unrestored@protected@xdef \l_marks_tmpa_tl {#1}
-      \exp_args:NV \@markleft \l_marks_tmpa_tl
-      \unrestored@protected@xdef \l_marks_tmpa_tl {#2}
-      \exp_args:NV \@markright \l_marks_tmpa_tl
+      \unrestored@protected@xdef \l_marks_tmp_tl {#1}
+      \exp_args:NV \@markleft \l_marks_tmp_tl
+      \unrestored@protected@xdef \l_marks_tmp_tl {#2}
+      \exp_args:NV \@markright \l_marks_tmp_tl
     \group_end:
     \if@nobreak
       \mode_if_vertical:T { \nobreak }
@@ -769,8 +683,8 @@
       \cs_set_eq:NN \label    \scan_stop:
       \cs_set_eq:NN \index    \scan_stop:
       \cs_set_eq:NN \glossary \scan_stop:
-      \unrestored@protected@xdef \l_marks_tmpa_tl {#1}
-      \exp_args:NV \@markright \l_marks_tmpa_tl
+      \unrestored@protected@xdef \l_marks_tmp_tl {#1}
+      \exp_args:NV \@markright \l_marks_tmp_tl
     \group_end:
     \if@nobreak
       \mode_if_vertical:T { \nobreak }
