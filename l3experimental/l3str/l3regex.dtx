@@ -643,27 +643,31 @@
 % which accepts precisely those token lists matching that regular
 % expression. Then loop through the query token list one token (one
 % \enquote{index}) at a time, exploring in parallel every possible path
-% through the NFA. We keep track of an array of the states currently
-% \enquote{active}, which are to be considered in order when the next
-% token is read.
+% through the NFA. When performing this matching, we keep track of an
+% array of the states currently \enquote{active}, which are to be
+% considered in order when the next token is read.
 %
 % We use the following vocabulary in the code comments (and in variable
 % names).
 % \begin{itemize}
-%   \item \emph{Query}: the token list to which we apply the regular
-%     expression.
+%   \item \emph{Group}: index of the capturing group, $-1$ for
+%     non-capturing groups.
 %   \item \emph{Index}: each token in the query is labelled by an integer
 %     \meta{index}, with $\cs{l_regex_min_index_int} - 1 \leq \meta{index}
 %     \leq \cs{l_regex_max_index_int}$. The lowest and highest indexes
 %     correspond to imaginary begin and end markers (with inacessible
 %     category code and character code).
-%   \item \emph{Step}:^^A todo: fill
+%   \item \emph{Query}: the token list to which we apply the regular
+%     expression.
 %   \item \emph{State}: each state of the NFA is labelled by an integer
 %     \meta{state} with $0 \leq \meta{state} <
 %     \cs{l_regex_max_state_int}$.
 %   \item \emph{Active state}: state of the NFA that is reached when
 %     reading the query string for the matching. Those states are
 %     ordered according to the greediness of quantifiers.
+%   \item \emph{Step}: used when matching, starts at $0$, incremented
+%     every time a character is read, and is not reset when searching
+%     for repeated matches.
 % \end{itemize}
 %
 % To acheive a good performance, we abuse \TeX{}'s registers in two
@@ -672,32 +676,37 @@
 % functions. And we store integers in \tn{dimen} registers in scaled
 % points (\texttt{sp}), using \TeX{}'s implicit conversion from
 % dimensions to integers in some contexts. Specifically, the registers
-% are used as follows.
+% are used as follows. When building,
 % \begin{itemize}
-%   \item \tn{toks}\meta{state} has two parts: a property list which
-%     holds the submatch information, followed by the tests and actions
-%     to perform in the \meta{state} of the NFA.
-%   \item \tn{dimen}\meta{state} is equal to the last step in which
-%     the \meta{state} was active.
+%   \item \tn{toks}\meta{state} has two parts separated by \cs{s_stop}:
+%     a property list which holds the submatch information, followed by
+%     the tests and actions to perform in the \meta{state} of the NFA.
+%   \item \tn{skip}$i$ has the form \meta{group} \texttt{plus}
+%     \meta{left state} \texttt{minus} \meta{right state}.
+%     ^^A todo: not done yet.
+% \end{itemize}
+% When matching,
+% \begin{itemize}
+%   \item \tn{dimen}\meta{state} is equal to the last \meta{step} in
+%     which the \meta{state} was active.
 %   \item \tn{skip}$i$ holds the \meta{state} number corresponding to
-%     the $i$-th active \meta{state} (in order of precedence: smaller is
-%     more important) and has no shrink or stretch components.
+%     the $i$-th active \meta{state} (smaller $i$ is higher precendence)
+%     and has no shrink or stretch components.
 %   \item \tn{toks}\meta{index} holds \meta{tokens} which \texttt{o}-
 %     and \texttt{x}-expand to the \meta{index}-th token in the query.
 % \end{itemize}
 % \tn{count} registers are not abused, which means that we can safely
-% use named integers.
+% use named integers in this module.
 %
 % The code is structured as follows. Variables, constants and various
 % helper functions are introduced first, to limit the clutter in later
 % parts. Then functions pertaining to parsing the regular expression are
 % defined: that part is rather long because of the many bells and
 % whistles of the regex notation. The next subsection takes care of
-% running the NFA. Finally, user functions.
+% running the NFA. Thereafter, we give tools for the replacements.
+% Finally, user functions.
 %
 % \subsection{Constants and variables}
-%
-% \subsubsection{Generic}
 %
 % \begin{macro}{\regex_tmp:w}
 % \begin{variable}
@@ -718,6 +727,8 @@
 % \end{variable}
 % \end{variable}
 % \end{macro}
+%
+% \subsubsection{Character properties}
 %
 % \begin{variable}
 %   {
@@ -802,12 +813,12 @@
 %
 % \begin{variable}{\l_regex_max_state_int}
 % \begin{variable}{\l_regex_left_state_int, \l_regex_right_state_int}
-%   The end-point states of the last group (which any quantifier
-%   would repeat) are stored as \cs{l_regex_left/right_state_int}.
-%   For simple strings of characters, the left and right pointers
-%   only differ by one.
 %   The last state that was allocated is $\cs{l_regex_max_state_int}-1$,
 %   so that \cs{l_regex_max_state_int} always points to a free state.
+%   The starting state and end state of the last group (which any
+%   quantifier would act on) are stored as
+%   \cs{l_regex_left/right_state_int}.  In almost all cases, the left
+%   and right pointers only differ by~$1$.
 %    \begin{macrocode}
 \int_new:N  \l_regex_max_state_int
 \int_new:N  \l_regex_left_state_int
@@ -2071,6 +2082,7 @@
     \int_set_eq:NN \l_regex_catcodes_default_int \c_regex_catcodes_all_int
     \int_set_eq:NN \l_regex_catcodes_int \l_regex_catcodes_default_int
     \int_set_eq:NN \l_regex_capturing_group_int \c_zero
+    \seq_clear:N \l_regex_capturing_group_seq
     \tl_clear:N \l_regex_tests_tl
     \bool_set_true:N \l_regex_tests_bool
     \int_zero:N \l_regex_max_state_int
@@ -3962,7 +3974,7 @@
     \int_set_eq:NN \l_regex_step_int \c_minus_one
     \prg_stepwise_inline:nnnn
       \c_zero \c_one { \l_regex_max_state_int - \c_one }
-      { \tex_dimen:D ##1 \l_regex_step_int sp \scan_stop: }
+      { \tex_dimen:D ##1 \l_regex_step_int sp }
     \int_set:Nn \l_regex_start_index_int
       { \l_regex_min_index_int - \c_one }
     \int_set_eq:NN \l_regex_current_index_int \l_regex_min_index_int
@@ -4948,9 +4960,6 @@
       \else:
         \group_end:
       \fi:
-  }
-\cs_new_protected:Npn \regex_replace_once_aux:w #1;
-  {
   }
 %    \end{macrocode}
 % \end{macro}
