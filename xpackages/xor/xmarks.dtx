@@ -165,9 +165,16 @@
   {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
 %</package>
 %    \end{macrocode}
-%    
+%
+% \begin{variable}{\l_marks_tmpa_tl}
+%   Scratch space.
+%    \begin{macrocode}
+\tl_new:N \l_marks_tmpa_tl
+%    \end{macrocode}
+% \end{variable}
+%
 % \subsection{Creating mark types}
-%    
+%
 % \begin{variable}{\g_marks_current_prop, \g_marks_last_prop}
 %    The two property lists used to hold the mark information.
 %    \begin{macrocode}
@@ -175,14 +182,14 @@
 \prop_new:N \g_marks_last_prop
 %    \end{macrocode}
 % \end{variable}
-% 
+%
 % \begin{variable}{\g_marks_types_seq}
 %   A list of all of the mark types in use.
 %    \begin{macrocode}
 \seq_new:N \g_marks_types_seq
 %    \end{macrocode}
 % \end{variable}
-% 
+%
 % \begin{macro}{\marks_new:n}
 %   A mark type is created by initialising a number of data structures.
 %   First, the mark information itself (a token list variable) is set up
@@ -216,18 +223,86 @@
 %    now equal and also puts a \TeX{} mark into the galley with the
 %    additional type present.
 %    \begin{macrocode}
-  \xmark_put:nn {#1} { }
+  \marks_put:nn {#1} { }
 %    \end{macrocode}
-%   STILL NEEDS ATTENTION! 
+%   STILL NEEDS ATTENTION!
 %    \begin{macrocode}
   \tl_gput_right:Nn \g_xmark_restore_state_internal_tl
     { \seq_gset_eq:cc { g_xmark_ #1 _seq } { g_xmark_saved_ #1 _seq } }
 }
 %    \end{macrocode}
 % \end{macro}
-% 
+%
+% \subsection{Adding and recovering mark information}
+%
+% \begin{macro}[int]{\marks_store:N}
+% \begin{macro}[aux, EXP]{\marks_store_aux:nn}
+% \begin{macro}[int]{\marks_read:N}
+% \begin{macro}[aux]{\marks_read_aux:nN}
+% \begin{macro}[aux]{\marks_read_aux:Nnnn}
+%   The aim here is to provide a method for placing the property list
+%   information into the \TeX{} mark system and to recover it. This should not
+%   rely on the implementation of property lists (which has changed over the
+%   years), and so is set up to convert into a format which is both readable
+%   and reasonably efficient for the job in hand. The idea is to set up the
+%   mark such that when reading back loop termination can be achieved by
+%   a correctly-placed \cs{use_none:nn} rather than a slower test for an end
+%   marker. This does assume that there is at least one piece of information
+%   in the mark list.
+%    \begin{macrocode}
+\cs_new_protected:Npn \marks_store:N #1
+  { \tex_mark:D { \prop_map_function:NN #1 \marks_store_aux:nn } }
+\cs_new:Npn \marks_store_aux:nn #1#2 { \exp_not:n { { } {#1} {#2} } }
+\cs_new_protected_nopar:Npn \marks_read:N
+  { \exp_after:wN \marks_read_aux:nN \exp_after:wN { \tex_botmark:D } }
+\cs_new_protected:Npn \marks_read_aux:nN #1#2
+  {
+    \prop_gclear:N #2
+    \exp_after:wN \marks_read_aux:Nnnn
+      \exp_after:wN #2 \use_none:n #1 \use_none:nn
+  }
+\cs_new_protected:Npn \marks_read_aux:Nnnn #1#2#3#4
+  {
+    \prop_gput:Nnn #1 {#2} {#3}
+    #4 \marks_read_aux:Nnnn #1
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\marks_put:nn}
+%   To put a mark into the current horizontal or vertical \TeX{} list
+%   we first update \cs{g_marks_current_prop} and then put the reference number
+%   onto the main vertical list. The reference number is simply stepped by one
+%   to do this. The mark information itself is also added to the appropriate
+%   sequence.
+%    \begin{macrocode}
+\cs_new_protected:Npn \marks_put:nn #1#2
+  {
+%<*trace>
+    \trace_marks:n { set~#1~<-~ \tl_to_str:n {#2} }
+%</trace>
+    \prop_get:NnNF \g_marks_current_prop {#1} \l_marks_tmpa_tl
+      {
+        \msg_kernel_error:nnx { marks } { unknown-type } { \tl_to_str:n {#1} }
+      }
+    \prop_gput:Nnx \g_marks_current_prop {#1}
+      { \int_eval:n { \l_marks_tmpa_tl + \c_one } }
+%<*trace>
+      \trace_marks_internal:n
+        { Setting~mark~ \marks_trace_store:N \g_marks_current_prop }
+%</trace>
+    \marks_store:N \g_marks_current_prop
+    \seq_gput_right:cn { g_xmark_ #1 _seq } {#2}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Saving and restoring marks}
-% 
+%
 % \begin{variable}{\g_marks_saved_current_prop, \g_marks_saved_last_prop}
 %    Storage for the saved versions of the two property lists: notice that
 %    there is only a single save level available.
@@ -282,6 +357,31 @@
 %</trace>
 %    \end{macrocode}
 % \end{macro}
+%
+% \begin{macro}[int, EXP]{\marks_trace_store:N}
+% \begin{macro}[aux, EXP]{\marks_trace_store_aux:nn}
+%   For pretty-printing marks when tracing.
+%    \begin{macrocode}
+%<*trace>
+\cs_new:Npn \marks_trace_store:N #1
+  { \prop_map_function:NN #1 \marks_trace_store_aux:nn }
+\cs_new:Npn \marks_trace_store_aux:nn #1#2 { \exp_not:n { { #1 = #2 } } }
+%</trace>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Messages}
+%
+%    \begin{macrocode}
+\msg_kernel_new:nnnn { marks } { unknown-type }
+  { Unknown~mark~type~'#1'. }
+  {
+    \c_msg_coding_error_text_tl
+    LaTeX~was~asked~to~manipulate~a~mark~of~type~'#1',~but~this~type~of~mark~
+    does~not~exist.
+  }
+%    \end{macrocode}
 %
 % \subsection{Commands for manipulating marks}
 %
@@ -341,9 +441,10 @@
 %    \begin{macrocode}
 %%FMi fix: this is badly using implementation details of plists
 %<*trace>
-      \trace_marks_internal:n{restoring~ botmark~ \exp_not:o\g_marks_last_prop}%
+      \trace_marks_internal:n
+        { restoring~botmark~ \marks_trace_store:N \g_marks_last_prop }
 %</trace>
-      \mark {\exp_not:o\g_marks_last_prop}
+      \marks_store:N \g_marks_last_prop
       \penalty-20203\relax
 %    \end{macrocode}
 %    We are not setting |\vsize| assuming its positive. So the moment
@@ -421,10 +522,10 @@
 %    \begin{macrocode}
 %%FMi fix: this is badly using implementation details of plists
 %<*trace>
-      \trace_marks_internal:n{restoring~ botmark~ \exp_not:o\g_marks_last_prop}%
+      \trace_marks_internal:n
+        { restoring~botmark~ \marks_trace_store:N \g_marks_last_prop }
 %</trace>
-      \mark
-         {\exp_not:o\g_marks_last_prop}
+      \marks_store:N \g_marks_last_prop
       \penalty-20203\relax
       \global\output{%
 %<*trace>
@@ -458,67 +559,6 @@
 %  \end{macro}
 %
 %
-%  \begin{macro}{\xmark_put:nn}
-%    To put a mark into the current horizontal or vertical \TeX{} list
-%    we first update |\g_marks_current_prop| and then put its value into the
-%    mark without any further expansion. (The code could be
-%    optimized!)
-%    \begin{macrocode}
-%<-trace>\cs_new_nopar:Npn \xmark_put:nn#1{%    % wtest hack }
-%<*trace>
-\cs_new_nopar:Npn \xmark_put:nn#1#2{
-   \trace_marks:n { set~#1~<-~\tl_to_str:n{#2} }
-%</trace>
-%    \end{macrocode}
-%    First we have to update the current info number for this type. The
-%    code is a bit complicated because we have to get the number from the
-%    the plist update it and then put it back. If we  would keep the numbers
-%    differently this could be improved, probably at the cost of more macro
-%    names.
-%    \begin{macrocode}
-   \prop_get:NnN \g_marks_current_prop {#1}\l_tmpa_tl
-%<*debug>
-    \quark_if_no_value:NT \l_tmpa_tl \ERROR
-%</debug>
-   \int_set:Nn \l_tmpa_int \l_tmpa_tl
-   \int_incr:N \l_tmpa_int
-   \prop_gput:Nno \g_marks_current_prop {#1}
-                  {\int_use:N \l_tmpa_int}
-%    \end{macrocode}
-%    Now we want to put this plist into a \TeX{} mark. We need a
-%    one-level expansion, otherwise our pkeys would expand which would
-%    produce chaos. So we save it in a toks register.
-%    \begin{macrocode}
-%%FMi fix: this is badly using implementation details of plists
-%<*trace>
-      \trace_marks_internal:n{Setting~ mark~ \exp_not:o\g_marks_current_prop}%
-%</trace>
-   \mark {\exp_not:o\g_marks_current_prop}
-%    \end{macrocode}
-%   Finally we shouldn't forget to put the info at the right of the
-%   corresponding queue.
-%   Without tracing we can omit the second argument to
-%   this function.
-%    \begin{macrocode}
-%<*trace>
-   \seq_gput_right:cn{g_xmark_#1_seq}{#2}
-%</trace>
-%<-trace>   \seq_gput_right:cn{g_xmark_#1_seq}%
-}
-%    \end{macrocode}
-%  \end{macro}
-%
-%
-%
-%
-%  \begin{macro}{\xmark_put:nnn}
-%    \begin{macrocode}
-%\cs_new_nopar:Npn \xmark_put:nnn#1#2#3{
-%   \xmark_put:nn{#1}{#2#3}}
-%    \end{macrocode}
-%  \end{macro}
-%
-%
 %
 %
 %  \begin{macro}{\xmark_update_structure:}
@@ -536,7 +576,7 @@
 %    \begin{macrocode}
   \prop_map_function:NN\g_marks_last_prop\xmark_retrieve_single:nn
 %%FMi fix: this is badly using implementation details of plists
-  \tl_gset:No \g_marks_last_prop {\botmark}
+  \marks_read:N \g_marks_last_prop
 }
 %    \end{macrocode}
 %  \end{macro}
@@ -559,9 +599,10 @@
 %    and store the difference in |\l_tmpa_int|.
 %    \begin{macrocode}
 %%FMi fix: this is badly using implementation details of plists
-   \tl_set:No \next {\botmark}
+   \marks_read:N \next
 %<*trace>
-   \trace_marks_internal:n{picking~ up~ from~ output~ \exp_not:o\next}%
+   \trace_marks_internal:n
+     { picking~up~from~output~ \marks_trace_store:N \next }
 %</trace>
    \prop_get:NnN \next {#1}\l_tmpa_tl
 %<*debug>
@@ -711,7 +752,7 @@
 %     a tl variable containing ``floats'' and that is how xor used the interface.
 %     In other words the above test now tests for the wrong thing, therefore we
 %     expand the arg out for now:
-   \exp_args:Nx\xmark_put:nn {mark_#1}}
+   \exp_args:Nx\marks_put:nn {mark_#1}}
 %    \end{macrocode}
 %  \end{macro}
 %
