@@ -571,7 +571,7 @@
 %    \begin{macrocode}
 \ProvidesExplPackage
   {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
-\RequirePackage{l3tl-analysis,l3flag}
+\RequirePackage{l3tl-analysis,l3tl-build,l3flag}
 %    \end{macrocode}
 %
 % The following string-related functions are currently defined in
@@ -1943,67 +1943,33 @@
 % \begin{macro}[aux, rEXP]{\str_encode_native_filter:N}
 %   In Unicode-aware engines, since building particular characters
 %   cannot be done expandably in \TeX{}, we cannot hope to get a
-%   linear-time function. However, we get quite close by building the
-%   result one block of $255$ characters at a time. Set the lowercase
-%   code of the \textsc{ascii} character $1$ to the first character code
-%   in the block, \emph{etc.}, then lowercase the contents of
-%   \cs{c_str_positive_bytes_tl}.  Unfortunately, this is complicated by
-%   the fact that \TeX{} won't lowercase a character to the null
-%   character, thus the need for filtering: whenever the lowercase code
-%   of a given character is zero, it is replaced \enquote{by hand} by
-%   the null character.  Unicode-aware engines will never incur an
-%   overflow because the internal string is guaranteed to only contain
-%   code points in $[0,\hexnum{10FFFF}]$.
+%   linear-time function. However, we get quite close using the
+%   \pkg{l3tl-build} module, which abuses \tn{toks} to reach an almost
+%   linear time. Use the standard lowercase trick to produce an
+%   arbitrary character from the null character, and add that character
+%   to the end of the token list being built. At the end of the loop,
+%   put the token list together with \cs{tl_build_end:}. Note that we
+%   use an \texttt{x}-expanding assignment because it is slightly
+%   faster. Unicode-aware engines will never incur an overflow because
+%   the internal string is guaranteed to only contain code points in
+%   $[0,\hexnum{10FFFF}]$.
 %    \begin{macrocode}
     {
       \cs_new_protected_nopar:Npn \str_convert_encode_:
         {
-          \tex_lccode:D \c_zero \c_zero
-          \int_zero:N \l_str_internal_int
-          \tl_set_eq:NN \l_str_internal_tl \g_str_result_tl
-          \tl_gclear:N \g_str_result_tl
-          \exp_after:wN \str_encode_native_loop:w
-            \l_str_internal_tl \s_tl { \q_stop \prg_map_break: } \s_tl
-          \prg_break_point:n { \str_encode_native_flush: }
+          \int_zero:N \l_tl_build_offset_int
+          \tl_gset_build_x:Nw \g_str_result_tl
+            \exp_after:wN \str_encode_native_loop:w
+              \g_str_result_tl \s_tl { \q_stop \prg_map_break: } \s_tl
+            \prg_break_point:n { }
+          \tl_build_end:
         }
       \cs_new_protected:Npn \str_encode_native_loop:w #1 \s_tl #2 \s_tl
         {
           \use_none_delimit_by_q_stop:w #2 \q_stop
-          \if_num:w \l_str_internal_int = \c_two_hundred_fifty_five
-            \str_encode_native_flush:
-            \l_str_internal_int \c_zero
-          \fi:
-          \tex_advance:D \l_str_internal_int \c_one
           \tex_lccode:D \l_str_internal_int \int_eval:w #2 \int_eval_end:
+          \tl_to_lowercase:n { \tl_build_one:n { ^^@ } }
           \str_encode_native_loop:w
-        }
-      \cs_new_protected_nopar:Npn \str_encode_native_flush:
-        {
-          \use:x
-            {
-              \tl_to_lowercase:n
-                {
-                  \tl_gput_right:Nx \exp_not:N \g_str_result_tl
-                    {
-                      \exp_after:wN \str_encode_native_filter:N
-                        \c_str_positive_bytes_tl
-                        { ? = \c_zero \fi: \prg_map_break: }
-                      \prg_break_point:n { }
-                    }
-                }
-            }
-        }
-      \cs_new:Npn \str_encode_native_filter:N #1
-        {
-          \if_num:w `#1 > \l_str_internal_int
-            \exp_after:wN \prg_map_break:
-          \fi:
-          \if_num:w \tex_lccode:D `#1 = \c_zero
-            ^^@
-          \else:
-            #1
-          \fi:
-          \str_encode_native_filter:N
         }
     }
 %    \end{macrocode}
@@ -3044,7 +3010,8 @@
 %       character;
 %     \item $[\hexnum{E000}, \hexnum{FFFF}]$: converted to two bytes;
 %     \item $[\hexnum{10000}, \hexnum{10FFFF}]$: converted to a pair of
-%       surrogates, each two bytes.
+%       surrogates, each two bytes. The magic \hexnum{D7C0} is
+%       $\hexnum{D800}-\hexnum{10000}/\hexnum{400}$.
 %   \end{itemize}
 %   For the duration of this operation, \cs{str_tmp:w} is defined as a
 %   function to convert a number in the range $[0, \hexnum{FFFF}]$ to a
@@ -3083,7 +3050,7 @@
             \str_tmp:w {#1}
           \fi:
         \else:
-          \exp_args:Nf \str_tmp:w { \int_div_truncate:nn {#1} {"400} + "D800 }
+          \exp_args:Nf \str_tmp:w { \int_div_truncate:nn {#1} {"400} + "D7C0 }
           \exp_args:Nf \str_tmp:w { \int_mod:nn {#1} {"400} + "DC00 }
         \fi:
       \fi:
@@ -3257,6 +3224,10 @@
 %   looping with \cs{str_decode_utf_xvi_pair:NN}. Otherwise, of course,
 %   complain about the missing surrogate.
 %
+%   The magic number \hexnum{D7F7} is such that
+%   $\hexnum{D7F7}*\hexnum{400} = \hexnum{D800}*\hexnum{400} +
+%   \hexnum{DC00} - \hexnum{10000}$.
+%
 %   Every time we read a pair of bytes, we test for the end-marker
 %   \cs{q_nil}. When reaching the end, we additionally check that the
 %   string had an even length. Also, if the end is reached when
@@ -3292,8 +3263,8 @@
         #1 #2 #4 #5 \s_tl
         \int_eval:n
           {
-            ( "100 * \str_tmp:w #1#2 + \str_tmp:w #2#1 - "D800 ) * "400
-            + "100 * \str_tmp:w #4#5 + \str_tmp:w #5#4 - "DC00
+            ( "100 * \str_tmp:w #1#2 + \str_tmp:w #2#1 - "D7F7 ) * "400
+            + "100 * \str_tmp:w #4#5 + \str_tmp:w #5#4
           }
         \s_tl
         \exp_after:wN \use_i:nnn
