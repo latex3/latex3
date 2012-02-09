@@ -102,7 +102,10 @@
 % \subsection{Internal functions}
 %
 % \begin{function}
-%   {\tl_set_build:Nw, \tl_gset_build:Nw, \tl_build_one:n, \tl_build_end:}
+%   {
+%     \tl_set_build:Nw, \tl_gset_build:Nw,
+%     \tl_set_build_x:Nw, \tl_gset_build_x:Nw
+%   }
 %   \begin{syntax}
 %     \cs{tl_set_build:Nw} \meta{tl~var} \texttt{\ldots{}}
 %     \cs{tl_build_one:n} \Arg{tokens1} \texttt{\ldots{}}
@@ -115,22 +118,24 @@
 %   to be more efficient than repeatedly using \cs{tl_put_right:Nn}. The
 %   code in \enquote{\texttt{\ldots{}}} does not need to be
 %   expandable. The commands \cs{tl_set_build:Nw} and \cs{tl_build_end:}
-%   start and end a group, and the assignment to the \meta{tl~var}
-%   occurs just after the end of that group, locally.
+%   start and end a group. The assignment to the \meta{tl~var} occurs
+%   just after the end of that group, using \cs{tl_set:Nn},
+%   \cs{tl_gset:Nn}, \cs{tl_set:Nx}, or \cs{tl_gset:Nx}.
 % \end{function}
 %
-% \begin{function}{\tl_set_build_x:Nw, \tl_gset_build_x:Nw}
-%   This function is used with the same syntax as \cs{tl_set_build:Nw},
-%   but it additionally \texttt{x}-expands the resulting token list when
-%   storing it into the \meta{tl~var}, outside the group.
+% \begin{function}{\tl_build_one:n, \tl_build_one:o}
+%   \begin{syntax}
+%     \cs{tl_build_one:n} \Arg{tokens}
+%   \end{syntax}
+%   This function may only be used within the scope of a
+%   \cs{tl_set_build:Nw} function. It adds the \meta{tokens} on the
+%   right of the current token list.
 % \end{function}
 %
-% \begin{variable}{\l_tl_build_offset_int}
-%   The \cs{tl_set_build:Nw} function uses \tn{toks} internally. This
-%   integer variable is used as the number of the first \tn{toks} to
-%   use. The \pkg{l3regex} package changes this value to avoid
-%   interactions with other (ab)uses of \tn{toks}.
-% \end{variable}
+% \begin{function}{\tl_build_end:}
+%   Ends the scope started by \cs{tl_set_build:Nw}, and performs the
+%   relevant assignment.
+% \end{function}
 %
 % \end{documentation}
 %
@@ -149,17 +154,10 @@
 %
 % \subsection{Variables and helper functions}
 %
-% \begin{variable}{\l_tl_build_offset_int}
-%   This integer is the first \tn{toks} to use when building.
-%    \begin{macrocode}
-\int_new:N \l_tl_build_offset_int
-%    \end{macrocode}
-% \end{variable}
-%
 % \begin{variable}{\l_tl_build_start_index_int, \l_tl_build_index_int}
-%   Integers pointing to the starting index (snapshot of the
-%   \texttt{offset} at \cs{tl_set_build:Nw} time), and the current
-%   index. The corresponding \tn{toks} are accessed directly by number.
+%   Integers pointing to the starting index (currently always starts at
+%   zero), and the current index. The corresponding \tn{toks} are
+%   accessed directly by number.
 %    \begin{macrocode}
 \int_new:N \l_tl_build_start_index_int
 \int_new:N \l_tl_build_index_int
@@ -221,8 +219,7 @@
 %   Similar to what is done for coffins: redefine some command, here
 %   \cs{tl_build_end_aux:n} to hold the relevant assignment (see
 %   \cs{tl_build_end:} for details). Then initialize the start index and
-%   the current index to be a snapshot of the user's \texttt{offset},
-%   and empty the \texttt{result} token list.
+%   the current index at zero, and empty the \texttt{result} token list.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \tl_set_build:Nw
   { \tl_set_build_aux:NNw \tl_set:Nn }
@@ -237,9 +234,9 @@
     \group_begin:
       \cs_set_nopar:Npn \tl_build_end_assignment:n
         { \group_end: #1 #2 }
-      \int_set_eq:NN \l_tl_build_start_index_int \l_tl_build_offset_int
-      \int_set_eq:NN \l_tl_build_index_int       \l_tl_build_offset_int
-      \tl_clear:N    \l_tl_build_result_tl
+      \int_zero:N \l_tl_build_start_index_int
+      \int_zero:N \l_tl_build_index_int
+      \tl_clear:N \l_tl_build_result_tl
   }
 %    \end{macrocode}
 % \end{macro}
@@ -266,7 +263,7 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\tl_build_one:n}
+% \begin{macro}{\tl_build_one:n, \tl_build_one:o}
 %   Store the tokens in a free \tn{toks}, then move the pointer to the
 %   next one. If we overflow, unpack the current \tn{toks}, and reset
 %   the current index, preparing to fill more \tn{toks}.  This could be
@@ -275,6 +272,15 @@
 \cs_new_protected:Npn \tl_build_one:n #1
   {
     \tex_toks:D \l_tl_build_index_int {#1}
+    \tex_advance:D \l_tl_build_index_int \c_one
+    \if_num:w \l_tl_build_index_int > \c_max_register_int
+      \tl_build_unpack:
+      \l_tl_build_index_int \l_tl_build_start_index_int
+    \fi:
+  }
+\cs_new_protected:Npn \tl_build_one:o #1
+  {
+    \tex_toks:D \l_tl_build_index_int \exp_after:wN {#1}
     \tex_advance:D \l_tl_build_index_int \c_one
     \if_num:w \l_tl_build_index_int > \c_max_register_int
       \tl_build_unpack:
