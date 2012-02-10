@@ -1,0 +1,468 @@
+% \iffalse
+%
+%% File l3trace.dtx (C) Copyright 2012 The LaTeX3 Project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3c of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the "l3trial bundle" (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %%
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX Project Team.
+%%
+%% -----------------------------------------------------------------------
+%%
+%
+%<*driver|package>
+\RequirePackage{expl3}
+\GetIdInfo$Id: l3trace.dtx 3177 2012-01-11 02:11:43Z bruno $
+  {L3 Experimental tracing of higher-level modules}
+%</driver|package>
+%<*driver>
+\documentclass[full]{l3doc}
+\usepackage{amsmath}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \pkg{l3trace} package\\ Tracing higher-level modules^^A
+%   \thanks{This file describes v\ExplFileVersion,
+%      last revised \ExplFileDate.}^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released \ExplFileDate}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \section{\pkg{l3trace} documentation}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3trace} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*package>
+\ProvidesExplPackage
+  {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
+%</package>
+%    \end{macrocode}
+%
+% \subsection{Helpers which should be moved}
+%
+% \begin{macro}[rEXP]{\seq_to_str:N, \seq_to_str:c}
+% \begin{macro}[aux, rEXP]{\seq_to_str_aux:n, \seq_to_str_end:w}
+%    \begin{macrocode}
+\cs_new:Npn \seq_to_str:N #1
+  {
+    \seq_if_empty:NF #1
+      {
+        \exp_last_unbraced:Nf \seq_to_str_end:w
+          { \seq_map_function:NN #1 \seq_to_str_aux:n }
+      }
+  }
+\cs_new:Npn \seq_to_str_aux:n #1 { , ~ \tl_to_str:n {#1} }
+\cs_new:Npn \seq_to_str_end:w , ~ { }
+\cs_generate_variant:Nn \seq_to_str:N { c }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Variables and keys}
+%
+% \begin{variable}{\g_trace_nesting_seq}
+%   The items of this sequence are module names, one for each
+%   \cs{trace_push:nnn} currently active.
+%    \begin{macrocode}
+\seq_new:N \g_trace_nesting_seq
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_trace_default_int}
+%   This is the level of tracing used when a key is given with no
+%   associated value: $1$ within \cs{trace_on:n}, and $0$ within
+%   \cs{trace_off:n}.
+%    \begin{macrocode}
+\int_new:N \g_trace_default_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \subsection{Declaring modules to trace}
+%
+% \begin{macro}{\trace_declare_module:n}
+%   This declares a module.
+%    \begin{macrocode}
+\cs_new_protected:Npn \trace_declare_module:n #1
+  {
+    \int_new:c  { g_trace_ \tl_to_str:n {#1} _level_int }
+    \tl_new:c   { g_trace_ \tl_to_str:n {#1} _symbol_tl }
+    \tl_gset:cn { g_trace_ \tl_to_str:n {#1} _symbol_tl } { - }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\trace_chk_module_declared:nT, \trace_chk_module_declared:VT}
+%   At several places in the code we make sure that a given module is
+%   declared to have tracing information. This catches typos, for
+%   instance.
+%    \begin{macrocode}
+\prg_new_protected_conditional:Npnn \trace_chk_module_declared:n #1 { T }
+  {
+    \cs_if_exist:cTF { g_trace_ \tl_to_str:n {#1} _level_int }
+      { \prg_return_true: }
+      {
+        \msg_kernel_error:nnx { trace } { module-not-declared }
+          { \tl_to_str:n {#1} }
+        \prg_return_false:
+      }
+  }
+\cs_generate_variant:Nn \trace_chk_module_declared:nT { V }
+\msg_kernel_new:nnnn { trace } { module-not-declared }
+  { The~module~#1~does~not~provide~tracing~information. }
+  {
+    Either~there~is~no~module~called~#1,~or~it~was~not~declared~
+    to~the~trace~module.~Modules~are~declared~using~
+    \iow_char:N\\trace_declare_module:n .
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Code-level functions}
+%
+% \begin{macro}{\trace_push:nnn}
+%   The arguments are: the \meta{module} name, the \meta{level} of
+%   tracing (positive), and the function to be pushed. We only trace if
+%   the \meta{module} is declared and if the \meta{level} is at most the
+%   \meta{module}'s current tracing level.
+%    \begin{macrocode}
+\cs_new_protected:Npn \trace_push:nnn #1#2#3
+  {
+    \trace_chk_module_declared:nT {#1}
+      {
+        \int_compare:nNnF {#2} >
+          { \int_use:c { g_trace_ \tl_to_str:n {#1} _level_int } }
+          {
+            \trace_display:n { entering~#3 }
+            \seq_gput_right:Nx \g_trace_nesting_seq { \tl_to_str:n {#1} }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\trace_pop:nnn}
+%   Under the same conditions as \cs{trace_push:nnn}, we leave the
+%   function. Maybe we shouldn't record this in the case where the
+%   \meta{level} is equal to the module's current tracing level:
+%   presumably, at this level of tracing, there aren't too many
+%   functions nested within that particular function, and indentation
+%   (coming from the symbols) should be enough to see that it was
+%   closed.
+%    \begin{macrocode}
+\tl_new:N \l_trace_internal_a_tl
+\tl_new:N \l_trace_internal_b_tl
+\cs_new_protected:Npn \trace_pop:nnn #1#2#3
+  {
+    \trace_chk_module_declared:nT {#1}
+      {
+        \int_compare:nNnF {#2} >
+          { \int_use:c { g_trace_ \tl_to_str:n {#1} _level_int } }
+          {
+            \seq_gpop_right:NN \g_trace_nesting_seq \l_trace_internal_a_tl
+            \tl_set:Nx \l_trace_internal_b_tl { \tl_to_str:n {#1} }
+            \tl_if_eq:NNF \l_trace_internal_a_tl \l_trace_internal_b_tl
+              {
+                \msg_kernel_error:nn { trace } { mismatched-pop }
+                  { \tl_to_str:N \l_trace_internal_a_tl }
+                  { \tl_to_str:N \l_trace_internal_b_tl }
+              }
+            \trace_display:n { leaving~#3 }
+          }
+      }
+  }
+ % \msg_kernel_new:nnn { trace } { mismatched-pop } { }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\trace_display:n}
+%    This macro unconditionally displays some tracing information on the
+%    screen.
+%    In case we want to show the content of some sequence we locally redefine
+%    their data structures (may have to be done for other types as well).
+%    \begin{macrocode}
+\cs_new_nopar:Npn \trace_display:n #1
+  {
+    \seq_push_item_def:n { ##1 \space }
+    \typeout
+      {
+        :~
+        \seq_map_function:NN \g_trace_nesting_seq \trace_aux_symbol:n
+        \c_space_tl
+        #1
+      }
+    \seq_pop_item_def:
+  }
+\cs_new:Npn \trace_aux_symbol:n #1
+  { \tl_to_str:c { g_trace_ \tl_to_str:n {#1} _symbol_tl } }
+%    \end{macrocode}
+%  \end{macro}
+%
+%  \begin{macro}{\traceonly}
+%    Tracing only some (at the moment exactly one) function and its subcomponents.
+%    \begin{macrocode}
+ % \cs_new_nopar:Npn \traceonly #1
+ %   {
+ %     \notrace
+ %     \tl_set:Nn \l_trace_only_tl {#1}
+%    \end{macrocode}
+%    |\trace_push:n| is redefined to compare the current function on the stack
+%    (its argument) with the function to be traced. If the desired function is
+%    entered the current |\g_trace_prefix_tl| is stored away in
+%    |\g_trace_this_prefix_tl| and tracing is started.\footnote{fix this is
+%    rubbish ... the idea should be to allow for recursive entering the same
+%    function  ... fix some other time :-) }
+%    \begin{macrocode}
+     % \cs_gset_nopar:Npn \trace_push:n ##1
+     %   {
+     %     \tl_set:Nn \l_trace_this_only_tl {##1}
+     %     \token_if_eq_meaning:NNT
+     %       \l_trace_this_only_tl \l_trace_only_tl
+     %       {
+     %         \tl_gset_eq:NN \g_trace_this_prefix_tl \g_trace_prefix_tl
+     %         \tracefloats
+     %         \trace:n {entering~##1}
+     %       }
+     %     \tl_gset:Nn \g_trace_prefix_tl {-\g_trace_prefix_tl}
+     %   }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+   %   \cs_set_nopar:Npn \trace_pop:n ##1
+   %     {
+   %       \trace:n {leaving~##1}
+   %       \tl_gset:Nx \g_trace_prefix_tl { \tl_tail:N \g_trace_prefix_tl }
+   %       \token_if_eq_meaning:NNT
+   %         \g_trace_this_prefix_tl \g_trace_prefix_tl
+   %         {
+   %           \tl_gset_eq:NN \g_trace_this_prefix_tl \c_empty_tl
+   %           \notrace
+   %         }
+   %     }
+   % }
+%    \end{macrocode}
+% \end{macro}
+%
+%
+% \subsection{User functions and keys}
+%
+% \begin{macro}{\trace_on:n, \trace_off:n}
+%   The two functions only differ by the default value when a key is
+%   given without value.
+%    \begin{macrocode}
+\cs_new_protected:Npn \trace_on:n #1
+  {
+    \int_gset_eq:NN \g_trace_default_int \c_one
+    \keys_set:nn { trace } { #1 }
+  }
+\cs_new_protected:Npn \trace_off:n #1
+  {
+    \int_gset_eq:NN \g_trace_default_int \c_zero
+    \keys_set:nn { trace } { #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\trace_symbols:n}
+%   This function lets us change what symbol is used for nestings coming
+%   from different modules.
+%    \begin{macrocode}
+\cs_new_protected:Npn \trace_symbols:n #1
+  { \keys_set:nn { trace-symbols } {#1} }
+%    \end{macrocode}
+% \end{macro}
+%
+% We introduce the keys for the package.
+%    \begin{macrocode}
+\int_new:N \l_trace_internal_int
+\keys_define:nn { trace }
+  {
+    unknown .code:n =
+      {
+        \trace_chk_module_declared:VT \l_keys_key_tl
+          {
+            \int_set:Nn \l_trace_internal_int
+              { \tl_if_empty:nTF {#1} { \g_trace_default_int } {#1} }
+            \int_gset_eq:cN
+              { g_trace_ \l_keys_key_tl _level_int }
+              \l_trace_internal_int
+            \int_compare:nNnT \l_trace_internal_int > \c_zero
+              {
+                \group_begin:
+                  \cs_set_eq:NN \chk_if_free_cs:N \use_none:n
+                  \cs_set_eq:NN \chk_if_free_msg:nn \use_none:nn
+                  \file_if_exist:nTF { \l_keys_key_tl -trace.sty }
+                    { \RequirePackage { \l_keys_key_tl -trace } }
+                    { \RequirePackage { l3 \l_keys_key_tl -trace } }
+                \group_end:
+              }
+          }
+      }
+  }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\keys_define:nn { trace-symbols }
+  {
+    unknown .default:n = {-} ,
+    unknown .code:n =
+      {
+        \trace_chk_module_declared:VT \l_keys_key_tl
+          { \tl_gset:cn { g_trace_ \l_keys_key_tl _symbol_tl } {#1} }
+      }
+  }
+%    \end{macrocode}
+%
+% \begin{macro}{\traceon, \traceoff, \tracesymbols}
+%    \begin{macrocode}
+\cs_new_eq:NN \traceon \trace_on:n
+\cs_new_eq:NN \traceoff \trace_off:n
+\cs_new_eq:NN \tracesymbols \trace_symbols:n
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Showing misc stuff}
+%
+% \begin{macro}{\trace_aux_show:nw}
+%    \begin{macrocode}
+\cs_new:Npn \trace_aux_show:nw #1
+  {
+    \iow_newline: > \c_space_tl \c_space_tl \exp_not:n {#1}
+    \c_space_tl \c_space_tl => \c_space_tl \c_space_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\trace_show_marks:}
+%    Show the current meaning of the different marks on the page.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \trace_show_marks:
+  {
+    \msg_aux_use:nn { trace } { show-marks }
+    \msg_aux_show:x
+      {
+        \trace_aux_show:nw { topmark   } \exp_not:V \tex_topmark:D
+        \trace_aux_show:nw { firstmark } \exp_not:V \tex_firstmark:D
+        \trace_aux_show:nw { botmark   } \exp_not:V \tex_botmark:D
+      }
+  }
+\msg_kernel_new:nnn { trace } { show-marks }
+  { The~marks~on~this~page~are }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\trace_show_float_lists:}
+%   The \texttt{_area} function shows the contents of a single area for
+%   debugging purposes.
+%    \begin{macrocode}
+\cs_new_protected:Npn \trace_show_float_lists:
+  {
+    \msg_aux_use:nn { trace } { show-float-lists }
+    \msg_aux_show:x
+      {
+        \trace_show_float_list_aux:n { free }
+        \trace_show_float_list_aux:n { active }
+        \trace_show_float_list_aux:n { mvl }
+        \trace_show_float_list_aux:n { defer }
+        \trace_show_float_list_aux:n { here }
+        \clist_map_function:NN \g_xor_areas_used_clist
+          \trace_show_float_area_aux:n
+        \trace_aux_show:nw { currbox } \tl_to_str:N \g_xor_curr_float_box_tl
+        \trace_aux_show:nw { this@float } \tl_to_str:N \g_xor_this_float_box_tl
+      }
+  }
+\cs_new:Npn \trace_show_float_list_aux:n #1
+  {
+    \trace_aux_show:nw { #1 }
+    \exp_args:Nc \seq_to_str:N { g_or_float_#1_seq }
+  }
+\cs_new:Npn \trace_show_float_area_aux:n #1
+  {
+    \cs_if_exist:cT { g_xor_area_#1_float_seq }
+      {
+        \seq_if_empty:cF { g_xor_area_#1_float_seq }
+          {
+            \trace_aux_show:nw { #1 }
+              \seq_to_str:c { g_xor_area_#1_float_seq }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\showmarks}
+%    Show the current meaning of the different marks on the page.
+%    \begin{macrocode}
+\cs_new_eq:NN \showmarks \trace_show_marks:
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\showfloatlists}
+%    \begin{macrocode}
+\cs_new_eq:NN \showfloatlists \trace_show_float_list:
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Declare modules}
+%
+% Eventually, this should be done in each individual module.
+%    \begin{macrocode}
+\trace_declare_module:n { regex }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex
