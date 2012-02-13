@@ -590,6 +590,7 @@
 %     end-marker leads to bugs.
 %   \item Does |\K| really need a new state for itself?
 % \end{itemize}
+% ^^A todo: check that \regex_set:Nn \A { [ } and friends don't break. ^^A]
 %
 % Code improvements to come.
 % \begin{itemize}
@@ -2181,6 +2182,7 @@
         {
           \msg_kernel_error:nn { regex } { missing-rbrack }
           \use:c { regex_compile_]: }
+          \prg_do_nothing: \prg_do_nothing:
         }
         { }
       \if_num:w \l_regex_group_level_int > \c_zero
@@ -2188,7 +2190,15 @@
           { \int_use:N \l_regex_group_level_int }
         \prg_replicate:nn
           { \l_regex_group_level_int }
-          { \tl_build_one:n { \if_false: { \fi: } { 1 } { 1 } } }
+          {
+              \tl_build_one:n
+                {
+                  \if_false: { \fi: }
+                  \if_false: { \fi: } { 1 } { 0 } \c_true_bool
+                }
+            \tl_build_end:
+            \tl_build_one:o \l_regex_internal_regex
+          }
       \fi:
       \tl_build_one:n { \if_false: { \fi: } }
     \tl_build_end:
@@ -2514,8 +2524,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% ^^A todo: check that \regex_set:Nn \A { [ } and friends don't break. ^^A]
-%
 % \begin{macro}[aux]{\regex_compile_range:Nw, \regex_if_end_range:NNTF}
 %   We have just read a raw character followed by a dash; this should be
 %   followed by an end-point for the range. Valid end-points are: any
@@ -2689,14 +2697,13 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsubsection{Entering and exiting character classes}
+% \subsubsection{Character classes}
 %
-%^^A \begin{todo}{update}
 % \begin{macro}[aux]{\regex_compile_[:}
 %   In a class, left brackets might introduce a \textsc{posix} character
-%   class, otherwise they mean nothing. Outside a class, a left bracket
-%   starts a class whose first characters may have a special
-%   meaning. Update the mode by appending $3$ to it. \ldots{}
+%   class, or mean nothing. Outside a class, update the mode by
+%   appending $3$ to it, then examine the first two characters (special
+%   in the case |[^]...| for instance.
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { regex_compile_[: }
   {
@@ -2705,24 +2712,34 @@
       {
         \l_regex_mode_int = \int_value:w \l_regex_mode_int 3 \exp_stop_f:
         \int_compare:nNnTF \l_regex_mode_int > \c_sixteen
-          {
-            \tl_build_one:x
-              {
-                \if_int_compare:w \l_regex_mode_int < \c_thirty_two
-                  \regex_class:NnnnN \c_true_bool
-                  \exp_not:n { { \if_false: } \fi: }
-                \fi:
-                \exp_not:N \exp_not:n
-                  {
-                    \regex_item_catcode:nNT
-                      { \int_use:N \l_regex_catcodes_int }
-                  }
-              }
-            \int_set_eq:NN  \l_regex_catcodes_int \c_regex_all_catcodes_int
-            \regex_compile_class:nNNNN { }
-          }
+          { \regex_compile_class_nested:w }
           { \regex_compile_class:nNNNN { \regex_class:NnnnN } }
       }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\regex_compile_]:}
+%   Outside a class, right brackets have no meaning. In a class, change
+%   the mode ($m\to (m-15)/13$, truncated) to reflect the fact that we
+%   are leaving the class. Look for quantifiers, unless we are still in
+%   a class after leaving one (the case of |[...\cL[...]...]|).
+%   quantifiers.
+%    \begin{macrocode}
+\cs_new_protected:cpn { regex_compile_]: }
+  {
+    \regex_if_in_class:TF
+      {
+        \if_num:w \l_regex_mode_int > \c_sixteen
+          \tl_build_one:n { \if_false: { \fi: } }
+        \fi:
+        \tex_advance:D \l_regex_mode_int - \c_fifteen
+        \tex_divide:D \l_regex_mode_int \c_thirteen
+        \if_int_odd:w \l_regex_mode_int \else:
+          \exp_after:wN \regex_compile_quantifier:w
+        \fi:
+      }
+      { \regex_compile_raw:N ] }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2734,13 +2751,13 @@
 %     \regex_compile_class_posix_loop:w,
 %     \regex_compile_class_posix_end:w
 %   }
-%   There we check for a syntax such as |[:alpha:]|. We also detect |[=|
+%   Here we check for a syntax such as |[:alpha:]|. We also detect |[=|
 %   and |[.| which have a meaning in \textsc{posix} regular expressions,
-%   but are not implemented. In case we see |[:|, grab raw characters
-%   until hopefully reaching |:]|. If that's missing, or the
-%   \textsc{posix} class is unknown, abort. If all is right, add it to
-%   the current class. For negative classes we add
-%   \cs{regex_item_reverse:n} to the test.
+%   but are not implemented in \pkg{l3regex}. In case we see |[:|, grab
+%   raw characters until hopefully reaching |:]|. If that's missing, or
+%   the \textsc{posix} class is unknown, abort. If all is right, add the
+%   test to the current class, with an extra \cs{regex_item_reverse:n}
+%   for negative classes.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_compile_class_posix_test:w #1#2
   {
@@ -2809,27 +2826,26 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux]{\regex_compile_]:}
-%   Outside a class, right brackets have no meaning. In a class, change
-%   the mode ($m\to (m-15)/13$, truncated) to reflect the fact that we
-%   are leaving the class. Look for quantifiers, unless we are still in
-%   a class after leaving one (the case of |[...\cL[...]...]|).
-%   quantifiers.
+%^^A \begin{todo}{update}
+% \begin{macro}[aux]{\regex_compile_class_nested:w}
+%
 %    \begin{macrocode}
-\cs_new_protected:cpn { regex_compile_]: }
+\cs_new_protected_nopar:Npn \regex_compile_class_nested:w
   {
-    \regex_if_in_class:TF
+    \tl_build_one:x
       {
-        \if_num:w \l_regex_mode_int > \c_sixteen
-          \tl_build_one:n { \if_false: { \fi: } }
+        \if_int_compare:w \l_regex_mode_int < \c_thirty_two
+          \regex_class:NnnnN \c_true_bool
+          \exp_not:n { { \if_false: } \fi: }
         \fi:
-        \tex_advance:D \l_regex_mode_int - \c_fifteen
-        \tex_divide:D \l_regex_mode_int \c_thirteen
-        \if_int_odd:w \l_regex_mode_int \else:
-          \exp_after:wN \regex_compile_quantifier:w
-        \fi:
+        \exp_not:N \exp_not:n
+          {
+            \regex_item_catcode:nNT
+              { \int_use:N \l_regex_catcodes_int }
+          }
       }
-      { \regex_compile_raw:N ] }
+    \int_set_eq:NN  \l_regex_catcodes_int \c_regex_all_catcodes_int
+    \regex_compile_class:nNNNN { }
   }
 %    \end{macrocode}
 % \end{macro}
