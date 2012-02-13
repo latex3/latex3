@@ -312,7 +312,8 @@
 % |i| option. Characters within ranges and classes are affected
 % individually: |(?i)[Y-\\]| is equivalent to |[YZ\[\\yz]|, and
 % |(?i)[^aeiou]| matches any character which is not a vowel. Neither
-% |\c{...}| nor |\u{...}| are affected by the |i| option.
+% character properties, nor |\c{...}| nor |\u{...}| are affected by the
+% |i| option.
 %
 % In character classes, only |[|, |^|, |-|, |]|, |\| and spaces are
 % special, and should be escaped. Other non-alphanumeric characters can
@@ -581,9 +582,9 @@
 %   \item Clean up the use of messages.
 %   \item Code comments.
 %   \item Rewrite the documentation in a more ordered way, perhaps a BNF?
-%   \item Document interaction between caseless matching and |\c| and |\u|.
 %   \item Quantifiers for |\u| and assertions.
 %   \item Clarify expansion of |\u| in regex versus replacement.
+%   \item Document that groups don't capture within regexes; optimize for that.
 % \end{itemize}
 %
 % Code improvements to come.
@@ -763,8 +764,7 @@
 % \subsection{Constants and variables}
 %
 % \begin{macro}{\regex_tmp:w}
-%   Temporary function used for expansion in
-%   \cs{regex_toks_put_left/right:Nx}.
+%   Temporary function used for various short-term purposes.
 %    \begin{macrocode}
 \cs_new:Npn \regex_tmp:w { }
 %    \end{macrocode}
@@ -1174,45 +1174,7 @@
 %
 % \subsection{Helpers}
 %
-% \subsubsection{Expansion}
-%
-% \begin{macro}[int, EXP]{\regex_exp_after:Nf}
-%   Similar to \cs{exp_last_unbraced:Nf}, but without grabbing the
-%   second argument.
-%    \begin{macrocode}
-\cs_new:Npn \regex_exp_after:Nf #1
-  { \exp_after:wN #1 \tex_romannumeral:D -`0 }
-%    \end{macrocode}
-% \end{macro}
-%
 % \subsubsection{Toks}
-%
-% Two unrelated sets of functions for manipulating \tn{toks} registers.
-%
-% \begin{macro}[int]{\regex_toks_put_left:Nx}
-% \begin{macro}[int]{\regex_toks_put_right:Nx}
-%   During the building phase, every \tn{toks} register starts with
-%   \cs{s_stop}, and we wish to add \texttt{x}-expanded material to
-%   those registers. The expansion is done \enquote{by hand} for
-%   optimization (these operations are used quite a lot). When adding
-%   material to the left, we define \cs{regex_tmp:w} to remove the
-%   \cs{s_stop} marker and put it back to the left of the new material.
-%    \begin{macrocode}
-\cs_new_protected:Npn \regex_toks_put_left:Nx #1#2
-  {
-    \cs_set_nopar:Npx \regex_tmp:w \s_stop { \s_stop #2 }
-    \tex_toks:D #1 \exp_after:wN \exp_after:wN \exp_after:wN
-      { \exp_after:wN \regex_tmp:w \tex_the:D \tex_toks:D #1 }
-  }
-\cs_new_protected:Npn \regex_toks_put_right:Nx #1#2
-  {
-    \cs_set_nopar:Npx \regex_tmp:w {#2}
-    \tex_toks:D #1 \exp_after:wN
-      { \tex_the:D \tex_toks:D \exp_after:wN #1 \regex_tmp:w }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
 %
 %^^A \begin{todo}{update}
 % \begin{macro}[int, rEXP]{\regex_toks_range:nn}
@@ -1278,76 +1240,6 @@
 % \end{macro}
 %^^A \end{todo}
 %
-% \subsubsection{Sequences}
-%
-% \begin{macro}[int]{\regex_seq_pop_int:NN}
-% \begin{macro}[int]{\regex_seq_get_int:NN}
-% \begin{macro}[int]{\regex_seq_push_int:NN}
-%   When building the regular expression, we keep track of some integers
-%   (pointers to various states) without help from \TeX{}'s grouping.
-%   Here are variants of \cs{seq_pop:NN} and \cs{seq_get:NN} which
-%   assign using \cs{int_set:Nn} rather than \cs{tl_set:Nn}.
-%    \begin{macrocode}
-\cs_new_protected:Npn \regex_seq_pop_int:NN #1#2
-  {
-    \seq_pop:NN #1 \l_regex_internal_a_tl
-    \int_set:Nn #2 \l_regex_internal_a_tl
-  }
-\cs_new_protected:Npn \regex_seq_get_int:NN #1#2
-  {
-    \seq_get:NN #1 \l_regex_internal_a_tl
-    \int_set:Nn #2 \l_regex_internal_a_tl
-  }
-\cs_new_protected:Npn \regex_seq_push_int:NN #1#2
-  { \seq_push:No #1 { \int_use:N #2 } }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \subsubsection{Grabbing digits}
-%
-% \begin{macro}[int]{\regex_get_digits:NTFw}
-% \begin{macro}[aux, rEXP]{\regex_get_digits_loop:w}
-%   If followed by some raw digits, collect them one by one in the
-%   integer variable |#1|, and take the \texttt{true} branch. Otherwise,
-%   take the \texttt{false} branch.
-%    \begin{macrocode}
-\cs_new_protected:Npn \regex_get_digits:NTFw #1#2#3#4#5
-  {
-    \regex_if_raw_digit:NNTF #4 #5
-      { #1 = #5 \regex_get_digits_loop:nw {#2} }
-      { #3 #4 #5 }
-  }
-\cs_new:Npn \regex_get_digits_loop:nw #1#2#3
-  {
-    \regex_if_raw_digit:NNTF #2 #3
-      { #3 \regex_get_digits_loop:nw {#1} }
-      { \scan_stop: #1 #2 #3 }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[aux, EXP]{\regex_if_raw_digit:NNTF}
-%   Test used when grabbing digits for the |{m,n}| quantifier.
-%   It only accepts non-escaped digits.
-%    \begin{macrocode}
-\prg_new_conditional:Npnn \regex_if_raw_digit:NN #1#2 { TF }
-  {
-    \if_meaning:w \regex_compile_raw:N #1
-      \if_int_compare:w \c_one < 1 #2 \exp_stop_f:
-        \prg_return_true:
-      \else:
-        \prg_return_false:
-      \fi:
-    \else:
-      \prg_return_false:
-    \fi:
-  }
-%    \end{macrocode}
-% \end{macro}
-%
 % \subsubsection{Testing characters}
 %
 % \begin{macro}[int]{\regex_break_point:TF}
@@ -1409,14 +1301,18 @@
 %   {\regex_item_caseless_equal:n, \regex_item_caseless_range:nn}
 %   For caseless matching, we perform the test both on
 %   \cs{l_regex_current_char_int} and on
-%   \cs{l_regex_case_changed_char_int}.
+%   \cs{l_regex_case_changed_char_int}. Before doing the second set of
+%   tests, we check that the \texttt{case_changed} character has been
+%   computed.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_item_caseless_equal:n #1
   {
     \if_num:w #1 = \l_regex_current_char_int
       \exp_after:wN \regex_break_true:w
     \fi:
-    \regex_match_loop_case_hook:
+    \if_num:w \l_regex_case_changed_char_int = \c_max_int
+      \regex_compute_case_changed_char:
+    \fi:
     \if_num:w #1 = \l_regex_case_changed_char_int
       \exp_after:wN \regex_break_true:w
     \fi:
@@ -1428,7 +1324,9 @@
         \exp_after:wN \exp_after:wN \exp_after:wN \regex_break_true:w
       \fi:
     \fi:
-    \regex_match_loop_case_hook:
+    \if_num:w \l_regex_case_changed_char_int = \c_max_int
+      \regex_compute_case_changed_char:
+    \fi:
     \reverse_if:N \if_num:w #1 > \l_regex_case_changed_char_int
       \reverse_if:N \if_num:w #2 < \l_regex_case_changed_char_int
         \exp_after:wN \exp_after:wN \exp_after:wN \regex_break_true:w
@@ -1438,33 +1336,32 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% ^^A \begin{todo}{update}
-% \begin{macro}{\regex_match_loop_case_hook:}
-%   ^^A todo: only compute the case-changed char when needed.
-%   Set \cs{l_regex_case_changed_char_int} properly.
+% \begin{macro}{\regex_compute_case_changed_char:}
+%   This function is called when \cs{l_regex_case_changed_char_int} has
+%   not yet been computed (or rather, it was set to the marker value
+%   \cs{c_max_int}. If the current character code is in the range
+%   $[65,90]$ (upper-case), then add $32$, making it lowercase. If it is
+%   in the lower-case letter range $[97,122]$, subtract $32$.
 %    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_match_loop_case_hook:
+\cs_new_protected_nopar:Npn \regex_compute_case_changed_char:
   {
-    \if_num:w \l_regex_case_changed_char_int = \c_max_int
-      \int_set_eq:NN \l_regex_case_changed_char_int \l_regex_current_char_int
-      \if_num:w \l_regex_current_char_int < \c_ninety_one
-        \if_num:w \l_regex_current_char_int < \c_sixty_five
-        \else:
-          \int_add:Nn \l_regex_case_changed_char_int { \c_thirty_two }
-        \fi:
+    \int_set_eq:NN \l_regex_case_changed_char_int \l_regex_current_char_int
+    \if_num:w \l_regex_current_char_int < \c_ninety_one
+      \if_num:w \l_regex_current_char_int < \c_sixty_five
       \else:
-        \if_num:w \l_regex_current_char_int < \c_one_hundred_twenty_three
-          \if_num:w \l_regex_current_char_int < \c_ninety_seven
-          \else:
-            \int_sub:Nn \l_regex_case_changed_char_int { \c_thirty_two }
-          \fi:
+        \int_add:Nn \l_regex_case_changed_char_int { \c_thirty_two }
+      \fi:
+    \else:
+      \if_num:w \l_regex_current_char_int < \c_one_hundred_twenty_three
+        \if_num:w \l_regex_current_char_int < \c_ninety_seven
+        \else:
+          \int_sub:Nn \l_regex_case_changed_char_int { \c_thirty_two }
         \fi:
       \fi:
     \fi:
   }
 %    \end{macrocode}
 % \end{macro}
-% ^^A \end{todo}
 %
 % \begin{macro}[int]{\regex_item_equal:n, \regex_item_range:nn}
 %   Those must always be defined to expand to a \texttt{caseful}
@@ -1578,7 +1475,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux, TF]{\regex_if_word_boundary:}
+% \begin{macro}[aux]{\regex_item_b:, \regex_item_B:}
 %   This conditional is used by the |\b| and |\B| escape. Check if the
 %   last character was a word character or not, and do the same to the
 %   current character. The boundaries of the string are word boundaries.
@@ -1841,7 +1738,6 @@
 %   turned into a byte and fed to \cs{regex_escape_raw:N}. Otherwise,
 %   interrupt the assignment, and either produce an error, or use a
 %   standard \tn{lowercase} trick depending on the precise value.
-%   ^^A todo: check what Perl does to \x{12345678}.
 %    \begin{macrocode}
 \cs_new:cpn { regex_escape_/x:w } \regex_escape_loop:N
   {
@@ -1950,7 +1846,7 @@
               { \regex_escape_loop:N }
               {
                 \if_false: { \fi: }
-                \tl_build:o \l_regex_internal_b_tl
+                \tl_build_one:o \l_regex_internal_b_tl
                 \msg_kernel_error:nn { regex } { x-missing-rbrace } {#1}
                 \tl_set:Nx \l_regex_internal_b_tl
                   { \if_false: } \fi: \regex_escape_loop:N #1
@@ -2039,9 +1935,53 @@
 % \enquote{compiled} regular expression. This compiled expression is
 % then turned into states of an automaton in the building phase.
 %
+% \subsubsection{Generic helpers used when compiling}
+%
+% \begin{macro}[int]{\regex_get_digits:NTFw}
+% \begin{macro}[aux, rEXP]{\regex_get_digits_loop:w}
+%   If followed by some raw digits, collect them one by one in the
+%   integer variable |#1|, and take the \texttt{true} branch. Otherwise,
+%   take the \texttt{false} branch.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_get_digits:NTFw #1#2#3#4#5
+  {
+    \regex_if_raw_digit:NNTF #4 #5
+      { #1 = #5 \regex_get_digits_loop:nw {#2} }
+      { #3 #4 #5 }
+  }
+\cs_new:Npn \regex_get_digits_loop:nw #1#2#3
+  {
+    \regex_if_raw_digit:NNTF #2 #3
+      { #3 \regex_get_digits_loop:nw {#1} }
+      { \scan_stop: #1 #2 #3 }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\regex_if_raw_digit:NNTF}
+%   Test used when grabbing digits for the |{m,n}| quantifier.
+%   It only accepts non-escaped digits.
+%    \begin{macrocode}
+\prg_new_conditional:Npnn \regex_if_raw_digit:NN #1#2 { TF }
+  {
+    \if_meaning:w \regex_compile_raw:N #1
+      \if_int_compare:w \c_one < 1 #2 \exp_stop_f:
+        \prg_return_true:
+      \else:
+        \prg_return_false:
+      \fi:
+    \else:
+      \prg_return_false:
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Mode}
 % \label{sec:regex-modes}
 %^^A todo: find better magic numbers.
+%^^A todo: \c{} starts a group, so modes within can be = mode outside.
 %
 % When compiling the \textsc{nfa} corresponding to a given regex string, we can
 % be in ten distinct modes, which we label by some magic numbers:
@@ -2183,7 +2123,7 @@
 %   group (with \texttt{x}-expansion at the outset), and set a few
 %   variables (group level, catcodes), then start the first branch. At
 %   the end, make sure there are no dangling classes nor groups, close
-%   the last branch: we are done building \cs{l_regex_internal_regex}
+%   the last branch: we are done building \cs{l_regex_internal_regex}.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_compile:w
   {
@@ -2285,7 +2225,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-%^^A todo: \c{} starts a group, so modes within can be = mode outside.
 % \begin{macro}[int]{\regex_compile_one:x}
 %   This is used after finding one \enquote{test}, such as |\d|, or a
 %   raw character. If that followed a catcode test (\emph{e.g.}, |\cL|),
@@ -3150,26 +3089,28 @@
 %
 % \begin{macro}+\regex_compile_c_{:+
 %   The case of a left brace is easy, based on what we have done so far:
-%   in a group, build the regular expression, after changing the mode to
-%   forbid nesting |\c|.
+%   in a group, compile the regular expression, after changing the mode
+%   to forbid nesting |\c|. Additionally, disable submatch tracking
+%   since groups don't escape the scope of |\c{...}|.
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { regex_compile_c_ \c_lbrace_str :w }
   {
     \regex_compile:w
+      \regex_disable_submatches:
       \l_regex_mode_int
         = - \if_case:w \l_regex_mode_int \c_two \else: \c_six \fi:
   }
 %    \end{macrocode}
 % \end{macro}
 %
-%^^A todo: document that groups don't capture within regexes; optimize for that.
 % \begin{macro}+\regex_compile_}:+
 %   Non-escaped right braces are only special if they appear when
-%   building the regular expression for a csname, but not within a
+%   compiling the regular expression for a csname, but not within a
 %   class: |\c{[}{]}| matches the control sequences |\}| and
 %   |\{|\ldots{} Admittedly, that would be better done as
-%   |\c{[{}]}|. So, end building the inner regex (this closes any
-%   dangling class or group).  Then insert the corresponding test.
+%   |\c{[{}]}|. So, end compiling the inner regex (this closes any
+%   dangling class or group).  Then insert the corresponding test in the
+%   outer regex.
 %    \begin{macrocode}
 \cs_new_protected:cpn { regex_compile_ \c_rbrace_str : }
   {
@@ -3328,6 +3269,55 @@
 %^^A \begin{todo}{update}
 % This phase is about going from a compiled regex to an \textsc{nfa}.
 %
+% \subsubsection{Generic helpers used when building}
+%
+% \begin{macro}[int]{\regex_toks_put_left:Nx}
+% \begin{macro}[int]{\regex_toks_put_right:Nx}
+%   During the building phase, every \tn{toks} register starts with
+%   \cs{s_stop}, and we wish to add \texttt{x}-expanded material to
+%   those registers. The expansion is done \enquote{by hand} for
+%   optimization (these operations are used quite a lot). When adding
+%   material to the left, we define \cs{regex_tmp:w} to remove the
+%   \cs{s_stop} marker and put it back to the left of the new material.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_toks_put_left:Nx #1#2
+  {
+    \cs_set_nopar:Npx \regex_tmp:w \s_stop { \s_stop #2 }
+    \tex_toks:D #1 \exp_after:wN \exp_after:wN \exp_after:wN
+      { \exp_after:wN \regex_tmp:w \tex_the:D \tex_toks:D #1 }
+  }
+\cs_new_protected:Npn \regex_toks_put_right:Nx #1#2
+  {
+    \cs_set_nopar:Npx \regex_tmp:w {#2}
+    \tex_toks:D #1 \exp_after:wN
+      { \tex_the:D \tex_toks:D \exp_after:wN #1 \regex_tmp:w }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\regex_push_lr_states:, \regex_pop_lr_states:}
+%   When building the regular expression, we keep track of pointers to
+%   the left-end and right-end of each group without help from \TeX{}'s
+%   grouping.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_push_lr_states:
+  {
+    \seq_push:No \l_regex_left_state_seq
+      { \int_use:N \l_regex_left_state_int }
+    \seq_push:No \l_regex_right_state_seq
+      { \int_use:N \l_regex_right_state_int }
+  }
+\cs_new_protected_nopar:Npn \regex_pop_lr_states:
+  {
+    \seq_pop:NN \l_regex_left_state_seq  \l_regex_internal_a_tl
+    \int_set:Nn \l_regex_left_state_int  \l_regex_internal_a_tl
+    \seq_pop:NN \l_regex_right_state_seq \l_regex_internal_a_tl
+    \int_set:Nn \l_regex_right_state_int \l_regex_internal_a_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Helpers for building an \textsc{nfa}}
 %
 % \begin{macro}[int]{\regex_build_new_state:}
@@ -3418,11 +3408,9 @@
     \int_zero:N \l_regex_max_state_int
     \regex_build_new_state:
     \regex_build_new_state: % ^^A todo: needed?
-    \regex_seq_push_int:NN \l_regex_left_state_seq  \l_regex_left_state_int
-    \regex_seq_push_int:NN \l_regex_right_state_seq \l_regex_right_state_int
+    \regex_push_lr_states:
     #1
-    \regex_seq_pop_int:NN \l_regex_left_state_seq  \l_regex_left_state_int
-    \regex_seq_pop_int:NN \l_regex_right_state_seq \l_regex_right_state_int
+    \regex_pop_lr_states:
     \regex_group_transition_right_max:
     \regex_build_new_state: % ^^A todo: needed?
     \regex_toks_put_right:Nx \l_regex_right_state_int
@@ -3606,12 +3594,10 @@
       \fi:
     \fi:
     \regex_build_new_state:
-    \regex_seq_push_int:NN \l_regex_left_state_seq  \l_regex_left_state_int
-    \regex_seq_push_int:NN \l_regex_right_state_seq \l_regex_right_state_int
+    \regex_push_lr_states:
     #2
     #3
-    \regex_seq_pop_int:NN \l_regex_left_state_seq  \l_regex_left_state_int
-    \regex_seq_pop_int:NN \l_regex_right_state_seq \l_regex_right_state_int
+    \regex_pop_lr_states:
     \if_case:w - #5 \exp_stop_f:
            \regex_group_repeat:nn   {#1} {#4}
     \or:   \regex_group_repeat:nnN  {#1} {#4}      #6
@@ -3629,7 +3615,8 @@
   {
 %<trace>    \trace_push:nnn { regex } { 1 } { regex_branch }
     \regex_build_new_state:
-    \regex_seq_get_int:NN \l_regex_left_state_seq \l_regex_left_state_int
+    \seq_get:NN \l_regex_left_state_seq \l_regex_internal_a_tl
+    \int_set:Nn \l_regex_left_state_int \l_regex_internal_a_tl
     \regex_toks_put_right:Nx \l_regex_left_state_int
       {
         \regex_action_free:n
@@ -3639,14 +3626,13 @@
           }
       }
     #1
-    \int_set_eq:NN \l_regex_left_state_int \l_regex_right_state_int
-    \regex_seq_get_int:NN \l_regex_right_state_seq \l_regex_right_state_int
-    \regex_toks_put_right:Nx \l_regex_left_state_int
+    \seq_get:NN \l_regex_right_state_seq \l_regex_internal_a_tl
+    \regex_toks_put_right:Nx \l_regex_right_state_int
       {
         \regex_action_free:n
           {
             \int_eval:n
-              { \l_regex_right_state_int - \l_regex_left_state_int }
+              { \l_regex_internal_a_tl - \l_regex_right_state_int }
           }
       }
 %<trace>    \trace_pop:nnn { regex } { 1 } { regex_branch }
@@ -3655,8 +3641,7 @@
 % \end{macro}
 %
 % \begin{macro}[aux]{\regex_group_submatches:nNN}
-%   Once the quantifier is found by \cs{regex_compile_quantifier:w},
-%   we insert the code for tracking submatches.
+%   This inserts the code for tracking submatches.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_group_submatches:nNN #1#2#3
   {
