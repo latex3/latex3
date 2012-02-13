@@ -76,7 +76,8 @@
 % The \pkg{l3regex} package provides regular expression testing,
 % extraction of submatches, splitting, and replacement, all acting
 % on token lists. The syntax of regular expressions is mostly a subset
-% of the PCRE syntax (and very close to POSIX), with some additions
+% of the \textsc{pcre} syntax (and very close to \textsc{posix}),
+% with some additions
 % due to the fact that \TeX{} manipulates tokens rather than characters.
 % For performance reasons, only a limited set of features are implemented.
 % Notably, back-references are not supported.
@@ -191,7 +192,15 @@
 %     Matches any of the specified tokens.
 %   \item[{[\char`\^\ldots{}]}] Negative character class.
 %     Matches any token other than the specified characters.
-%   \item[{[x-y]}] Range (can be used with escaped characters).
+%   \item[{x-y}] Within a character class, this denotes a range (can be
+%     used with escaped characters).
+%   \item[{[:\meta{name}:]}] Within a character class (one more set of
+%     brackets), this denotes the \textsc{posix} character class
+%     \meta{name}, which can be \texttt{alnum}, \texttt{alpha},
+%     \texttt{ascii}, \texttt{blank}, \texttt{cntrl}, \texttt{digit},
+%     \texttt{graph}, \texttt{lower}, \texttt{print}, \texttt{punct},
+%     \texttt{space}, \texttt{upper}, \texttt{word}, or \texttt{xdigit}.
+%   \item[{[:\char`\^\meta{name}:]}] Negative \textsc{posix} character class.
 % \end{l3regex-syntax}
 % For instance, |[a-oq-z\cC.]| matches any lowercase latin letter
 % except |p|, as well as control sequences (see below for a description
@@ -573,18 +582,17 @@
 %   \item Clean up the use of messages.
 %   \item Code comments.
 %   \item Rewrite the documentation in a clearer way.
-%   \item Fix caseless matching (keep track of it in saved regexes?),
-%     clarify interaction with |\c| and |\u|.
+%   \item Document interaction between caseless matching and |\c| and |\u|.
 %   \item Better \enquote{show} for anchors and for properties.
 %   \item Quantifiers for |\u| and assertions.
 %   \item Clarify expansion of |\u| in regex and replacement.
+%   \item Find out whether the fact that |\W| and friends match the
+%     end-marker leads to bugs.
+%   \item Does |\K| really need a new state for itself?
 % \end{itemize}
-% ^^A todo: does \K really need a new state for itself?
 %
 % Code improvements to come.
 % \begin{itemize}
-% \item \cs{regex_show:N} to show how a given regular expression is
-%   interpreted.
 % \item Test for the maximum register \cs{c_max_register_int}.
 % \item Use \tn{dimen} registers rather than \cs{l_regex_nesting_tl}
 %   to build \cs{regex_nesting:n}.
@@ -607,8 +615,7 @@
 % \item Regex matching on external files.
 % \item Conditional subpatterns with look ahead/behind: \enquote{if
 %     what follows is [\ldots{}], then [\ldots{}]}.
-% \item |(*..)| and |(?..)| sequences to set some options
-%   (partially implemented).
+% \item |(*..)| and |(?..)| sequences to set some options.
 % \item UTF-8 mode for pdf\TeX{}.
 % \item Newline conventions are not done.
 %   In particular, we should have an option for |.| not to match newlines.
@@ -620,10 +627,10 @@
 %   ahead.
 % \end{itemize}
 %
-% The following features of PCRE or Perl will probably not be implemented.
+% The following features of \textsc{pcre} or Perl will probably not be
+% implemented.
 % \begin{itemize}
 % \item |\ddd|, matching the character with code \texttt{ddd} in octal;
-% \item POSIX character classes |[:alpha:]| \emph{etc.}, this is redundant;
 % \item Callout with |(?C...)|, we cannot run arbitrary user code during
 %   the matching, because the regex code uses registers in an unsafe way;
 % \item Conditional subpatterns (other than with a look-ahead
@@ -632,7 +639,8 @@
 %   any need for named macro parameters.
 % \end{itemize}
 %
-% The following features of PCRE or perl will definitely not be implemented.
+% The following features of \textsc{pcre} or Perl will definitely not be
+% implemented.
 % \begin{itemize}
 % \item |\cx|, similar to \TeX{}'s own |\^^x|;
 % \item Comments: \TeX{} already has its own system for comments.
@@ -762,6 +770,7 @@
 % \begin{variable}{\l_regex_internal_a_int, \l_regex_internal_b_int}
 % \begin{variable}{\l_regex_internal_a_tl, \l_regex_internal_b_tl}
 % \begin{variable}{\g_regex_internal_tl}
+% \begin{variable}{\l_regex_internal_bool}
 %   Temporary variables used for various purposes.
 %    \begin{macrocode}
 \tl_new:N   \l_regex_internal_a_tl
@@ -769,7 +778,9 @@
 \int_new:N  \l_regex_internal_a_int
 \int_new:N  \l_regex_internal_b_int
 \tl_new:N   \g_regex_internal_tl
+\bool_new:N \l_regex_internal_bool
 %    \end{macrocode}
+% \end{variable}
 % \end{variable}
 % \end{variable}
 % \end{variable}
@@ -1366,6 +1377,18 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}[int]{\regex_item_reverse:n}
+%   This function makes showing regular expressions easier. It may lead
+%   to reducing the cs consumption later on.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_item_reverse:n #1
+  {
+    #1
+    \regex_break_point:TF { } \regex_break_true:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[int]
 %   {\regex_item_caseful_equal:n, \regex_item_caseful_range:nn}
 %   Simple comparisons triggering \cs{regex_break_true:w} when true.
@@ -1489,10 +1512,7 @@
   {
     \bool_if:NTF #2
       { \regex_item_catcode:nT {#1} {#3} }
-      {
-        \regex_item_catcode:nT {#1}
-          { #3 \regex_break_point:TF { } \regex_break_true:w }
-      }
+      { \regex_item_catcode:nT {#1} { \regex_item_reverse:n {#3} } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1574,7 +1594,7 @@
       \regex_prop_w:
       \regex_break_point:TF
         { \group_end: \regex_prop_w: }
-        { \group_end: \regex_prop_W: \regex_item_equal:n { -2 } }
+        { \group_end: \regex_item_reverse:n \regex_prop_w: }
   }
 \cs_new_protected_nopar:Npn \regex_item_b:
   {
@@ -1582,8 +1602,106 @@
       \int_set_eq:NN \l_regex_current_char_int \l_regex_last_char_int
       \regex_prop_w:
       \regex_break_point:TF
-        { \group_end: \regex_prop_W: \regex_item_equal:n { -2 } }
+        { \group_end: \regex_item_reverse:n \regex_prop_w: }
         { \group_end: \regex_prop_w: }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Character property tests}
+%
+% \begin{macro}[aux]
+%   {
+%     \regex_prop_d:, \regex_prop_h:, \regex_prop_s:,
+%     \regex_prop_v:, \regex_prop_w:, \regex_prop_N:
+%   }
+%   Character property tests for |\d|, |\W|, \emph{etc.} These character
+%   properties are not affected by the |(?i)| option. The characters
+%   recognized by each one are as follows: |\d=[0-9]|,
+%   |\w=[0-9A-Z_a-z]|, \verb*+\s=[\ \^^I\^^J\^^L\^^M]+,
+%   \verb*+\h=[\ \^^I]+, |\v=[\^^J-\^^M]|, and the upper case
+%   counterparts match anything that the lower case does not match.  The
+%   order in which the various tests appear is optimized for usual
+%   mostly lower case letter text.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_prop_d:
+  { \regex_item_caseful_range:nn \c_forty_eight { 57 } } % 0--9
+\cs_new_protected_nopar:Npn \regex_prop_h:
+  {
+    \regex_item_caseful_equal:n \c_thirty_two % space
+    \regex_item_caseful_equal:n \c_nine       % tab
+  }
+\cs_new_protected_nopar:Npn \regex_prop_s:
+  {
+    \regex_item_caseful_equal:n \c_thirty_two % space
+    \regex_item_caseful_equal:n \c_nine       % tab
+    \regex_item_caseful_equal:n \c_ten        % lf
+    \regex_item_caseful_equal:n \c_twelve     % ff
+    \regex_item_caseful_equal:n \c_thirteen   % cr
+  }
+\cs_new_protected_nopar:Npn \regex_prop_v:
+  { \regex_item_caseful_range:nn \c_ten \c_thirteen } % lf, vtab, ff, cr
+\cs_new_protected_nopar:Npn \regex_prop_w:
+  {
+    \regex_item_caseful_range:nn \c_ninety_seven { 122 } % a--z
+    \regex_item_caseful_range:nn \c_sixty_five   {  90 } % A--Z
+    \regex_item_caseful_range:nn \c_forty_eight  {  57 } % 0--9
+    \regex_item_caseful_equal:n  { 95 } % _
+  }
+\cs_new_protected_nopar:Npn \regex_prop_N:
+  { \regex_item_reverse:n { \regex_item_caseful_equal:n \c_ten } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]
+%   {
+%     \regex_posix_alnum:, \regex_posix_alpha:, \regex_posix_ascii:,
+%     \regex_posix_blank:, \regex_posix_cntrl:, \regex_posix_digit:,
+%     \regex_posix_graph:, \regex_posix_lower:, \regex_posix_print:,
+%     \regex_posix_punct:, \regex_posix_space:, \regex_posix_upper:,
+%     \regex_posix_word: , \regex_posix_xdigit:
+%   }
+%   \textsc{posix} properties. No surprise.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_posix_alnum:
+  { \regex_posix_alpha: \regex_posix_digit: }
+\cs_new_protected_nopar:Npn \regex_posix_alpha:
+  { \regex_posix_lower: \regex_posix_upper: }
+\cs_new_protected_nopar:Npn \regex_posix_ascii:
+  { \regex_item_caseful_range:nn \c_zero \c_one_hundred_twenty_seven }
+\cs_new_eq:NN \regex_posix_blank: \regex_prop_h:
+\cs_new_protected_nopar:Npn \regex_posix_cntrl:
+  { %^^A?
+    \regex_item_caseful_range:nn \c_zero { 31 }
+    \regex_item_caseful_equal:n \c_one_hundred_twenty_seven
+  }
+\cs_new_eq:NN \regex_posix_digit: \regex_prop_d:
+\cs_new_protected_nopar:Npn \regex_posix_graph:
+  { \regex_item_caseful_range:nn { 33 } { 126 } }
+\cs_new_protected_nopar:Npn \regex_posix_lower:
+  { \regex_item_caseful_range:nn \c_ninety_seven { 122 } }
+\cs_new_protected_nopar:Npn \regex_posix_print:
+  { \regex_item_caseful_range:nn \c_thirty_two { 126 } }
+\cs_new_protected_nopar:Npn \regex_posix_punct:
+  {
+    \regex_item_caseful_range:nn { 33 } { 47 }
+    \regex_item_caseful_range:nn { 58 } { 64 }
+    \regex_item_caseful_range:nn { 91 } { 96 }
+    \regex_item_caseful_range:nn { 123 } { 126 }
+  }
+\cs_new_protected_nopar:Npn \regex_posix_space:
+  {
+    \regex_item_caseful_equal:n \c_thirty_two % space
+    \regex_item_caseful_range:nn \c_nine \c_thirteen
+  }
+\cs_new_protected_nopar:Npn \regex_posix_upper:
+  { \regex_item_caseful_range:nn \c_sixty_five { 90 } }
+\cs_new_eq:NN \regex_posix_word: \regex_prop_w:
+\cs_new_protected_nopar:Npn \regex_posix_xdigit:
+  {
+    \regex_posix_digit:
+    \regex_item_caseful_range:nn { 65 } { 70 }
+    \regex_item_caseful_range:nn { 97 } { 102 }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1727,7 +1845,7 @@
 %   turned into a byte and fed to \cs{regex_escape_raw:N}. Otherwise,
 %   interrupt the assignment, and either produce an error, or use a
 %   standard \tn{lowercase} trick depending on the precise value.
-%   ^^A todo: check what perl does to \x{12345678}.
+%   ^^A todo: check what Perl does to \x{12345678}.
 %    \begin{macrocode}
 \cs_new:cpn { regex_escape_/x:w } \regex_escape_loop:N
   {
@@ -2172,6 +2290,22 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\regex_compile_abort_tokens:n, \regex_compile_abort_tokens:x}
+%   This function places the collected tokens back in the input stream,
+%   each as a raw character. Spaces are not preserved.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_compile_abort_tokens:n #1
+  {
+    \use:x
+      {
+        \exp_args:No \tl_map_function:nN { \tl_to_str:n {#1} }
+          \regex_compile_raw:N
+      }
+  }
+\cs_generate_variant:Nn \regex_compile_abort_tokens:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Quantifers}
 %
 % \begin{macro}[int]{\regex_compile_quantifier:w}
@@ -2201,14 +2335,8 @@
 \cs_new_protected:Npn \regex_compile_quantifier_abort:xNN #1#2#3
   {
     \regex_compile_quantifier_none:
-    \tl_set:Nx \l_regex_internal_a_tl {#1}
-    \msg_kernel_warning:nnx { regex } { invalid-quantifier }
-      { \tl_to_str:N \l_regex_internal_a_tl } {#3}
-    \use:x
-      {
-        \tl_map_function:NN \l_regex_internal_a_tl
-          \regex_compile_raw:N
-      }
+    \msg_kernel_warning:nnxx { regex } { invalid-quantifier } {#1} {#3}
+    \regex_compile_abort_tokens:x {#1}
     #2 #3
   }
 %    \end{macrocode}
@@ -2478,68 +2606,23 @@
 %   class, and jump to the \cs{regex_break_point:TF} marker.
 %   As for a normal character, we check for quantifiers.
 %    \begin{macrocode}
-\tl_map_inline:nn { dDhHsSvVwWN }
+\cs_set_protected:Npn \regex_tmp:w #1#2
   {
     \cs_new_protected_nopar:cpx { regex_compile_/#1: }
       { \regex_compile_one:x \exp_not:c { regex_prop_#1: } }
+    \cs_new_protected_nopar:cpx { regex_compile_/#2: }
+      {
+        \regex_compile_one:x
+          { \regex_item_reverse:n \exp_not:c { regex_prop_#1: } }
+      }
   }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux]
-%   {
-%     \regex_prop_d:, \regex_prop_D:, \regex_prop_h:, \regex_prop_H:,
-%     \regex_prop_s:, \regex_prop_S:, \regex_prop_v:, \regex_prop_V:,
-%     \regex_prop_w:, \regex_prop_W:, \regex_prop_N:
-%   }
-%   Character property tests for |\d|, |\W|, \emph{etc.} These character
-%   properties are not affected by the |(?i)| option. The characters
-%   recognized by each one are as follows: |\d=[0-9]|,
-%   |\w=[0-9A-Z_a-z]|, \verb*+\s=[\ \^^I\^^J\^^L\^^M]+,
-%   \verb*+\h=[\ \^^I]+, |\v=[\^^J-\^^M]|, and the upper case
-%   counterparts match anything that the lower case does not match.  The
-%   order in which the various tests appear is optimized for usual
-%   mostly lower case letter text.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_prop_d:
-  { \regex_item_caseful_range:nn \c_forty_eight { 57 } } % 0--9
-\cs_new_protected_nopar:Npn \regex_prop_h:
-  {
-    \regex_item_caseful_equal:n \c_thirty_two % space
-    \regex_item_caseful_equal:n \c_nine       % tab
-  }
-\cs_new_protected_nopar:Npn \regex_prop_s:
-  {
-    \regex_item_caseful_equal:n \c_thirty_two % space
-    \regex_item_caseful_equal:n \c_nine       % tab
-    \regex_item_caseful_equal:n \c_ten        % lf
-    \regex_item_caseful_equal:n \c_twelve     % ff
-    \regex_item_caseful_equal:n \c_thirteen   % cr
-  }
-\cs_new_protected_nopar:Npn \regex_prop_v:
-  { \regex_item_caseful_range:nn \c_ten \c_thirteen } % lf, vtab, ff, cr
-\cs_new_protected_nopar:Npn \regex_prop_w:
-  {
-    \regex_item_caseful_range:nn \c_ninety_seven { 122 } % a--z
-    \regex_item_caseful_range:nn \c_sixty_five   {  90 } % A--Z
-    \regex_item_caseful_range:nn \c_forty_eight  {  57 } % 0--9
-    \regex_item_caseful_equal:n  { 95 } % _
-  }
-\cs_new_protected_nopar:Npn \regex_prop_D:
-  { \regex_prop_d: \regex_break_point:TF { } \regex_break_true:w }
-\cs_new_protected_nopar:Npn \regex_prop_H:
-  { \regex_prop_h: \regex_break_point:TF { } \regex_break_true:w }
-\cs_new_protected_nopar:Npn \regex_prop_S:
-  { \regex_prop_s: \regex_break_point:TF { } \regex_break_true:w }
-\cs_new_protected_nopar:Npn \regex_prop_V:
-  { \regex_prop_v: \regex_break_point:TF { } \regex_break_true:w }
-\cs_new_protected_nopar:Npn \regex_prop_W:
-  { \regex_prop_w: \regex_break_point:TF { } \regex_break_true:w }
-\cs_new_protected_nopar:Npn \regex_prop_N:
-  {
-    \regex_item_caseful_equal:n \c_ten
-    \regex_break_point:TF { } \regex_break_true:w
-  }
+\regex_tmp:w d D
+\regex_tmp:w h H
+\regex_tmp:w s S
+\regex_tmp:w v V
+\regex_tmp:w w W
+\cs_new_protected_nopar:cpn { regex_compile_/N: }
+  { \regex_compile_one:x \regex_prop_N: }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2610,13 +2693,15 @@
 %
 %^^A \begin{todo}{update}
 % \begin{macro}[aux]{\regex_compile_[:}
-%   In a class, left brackets mean nothing. Outside a class, this starts
-%   a class whose first characters may have a special meaning. Update
-%   the mode by appending $3$ to it. \ldots{}
+%   In a class, left brackets might introduce a \textsc{posix} character
+%   class, otherwise they mean nothing. Outside a class, a left bracket
+%   starts a class whose first characters may have a special
+%   meaning. Update the mode by appending $3$ to it. \ldots{}
 %    \begin{macrocode}
 \cs_new_protected_nopar:cpn { regex_compile_[: }
   {
-    \regex_if_in_class:TF { \regex_compile_raw:N [ }
+    \regex_if_in_class:TF
+      { \regex_compile_class_posix_test:w }
       {
         \l_regex_mode_int = \int_value:w \l_regex_mode_int 3 \exp_stop_f:
         \int_compare:nNnTF \l_regex_mode_int > \c_sixteen
@@ -2637,6 +2722,88 @@
             \regex_compile_class:nNNNN { }
           }
           { \regex_compile_class:nNNNN { \regex_class:NnnnN } }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]
+%   {
+%     \regex_compile_class_posix_test:w,
+%     \regex_compile_class_posix:NNNNw,
+%     \regex_compile_class_posix_loop:w,
+%     \regex_compile_class_posix_end:w
+%   }
+%   There we check for a syntax such as |[:alpha:]|. We also detect |[=|
+%   and |[.| which have a meaning in \textsc{posix} regular expressions,
+%   but are not implemented. In case we see |[:|, grab raw characters
+%   until hopefully reaching |:]|. If that's missing, or the
+%   \textsc{posix} class is unknown, abort. If all is right, add it to
+%   the current class. For negative classes we add
+%   \cs{regex_item_reverse:n} to the test.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_compile_class_posix_test:w #1#2
+  {
+    \token_if_eq_meaning:NNT \regex_compile_special:N #1
+      {
+        \prg_case_str:nnn { #2 }
+          {
+            : { \regex_compile_class_posix:NNNNw }
+            = { \msg_kernel_warning:nnx { regex } { posix-unsupported } { = } }
+            . { \msg_kernel_warning:nnx { regex } { posix-unsupported } { . } }
+          }
+          { }
+      }
+    \regex_compile_raw:N [ #1 #2
+  }
+\cs_new_protected:Npn \regex_compile_class_posix:NNNNw #1#2#3#4#5#6
+  {
+    \str_if_eq:nnTF { #5 #6 } { \regex_compile_special:N ^ }
+      {
+        \bool_set_false:N \l_regex_internal_bool
+        \tl_set:Nx \l_regex_internal_a_tl { \if_false: } \fi:
+          \regex_compile_class_posix_loop:w
+      }
+      {
+        \bool_set_true:N \l_regex_internal_bool
+        \tl_set:Nx \l_regex_internal_a_tl { \if_false: } \fi:
+          \regex_compile_class_posix_loop:w #5 #6
+      }
+  }
+\cs_new:Npn \regex_compile_class_posix_loop:w #1#2
+  {
+    \token_if_eq_meaning:NNTF \regex_compile_raw:N #1
+      { #2 \regex_compile_class_posix_loop:w }
+      { \if_false: { \fi: } \regex_compile_class_posix_end:w #1 #2 }
+  }
+\cs_new_protected:Npn \regex_compile_class_posix_end:w #1#2#3#4
+  {
+    \str_if_eq:nnTF { #1 #2 #3 #4 }
+      { \regex_compile_special:N : \regex_compile_special:N ] }
+      {
+        \cs_if_exist:cTF { regex_posix_ \l_regex_internal_a_tl : }
+          {
+            \regex_compile_one:x
+              {
+                \bool_if:NF \l_regex_internal_bool \regex_item_reverse:n
+                \exp_not:c { regex_posix_ \l_regex_internal_a_tl : }
+              }
+          }
+          {
+            \msg_kernel_warning:nnx { regex } { posix-unknown }
+              { \l_regex_internal_a_tl }
+            \regex_compile_abort_tokens:x
+              {
+                [: \bool_if:NF \l_regex_internal_bool { ^ }
+                \l_regex_internal_a_tl :]
+              }
+          }
+      }
+      {
+        \msg_kernel_error:nnxx { regex } { posix-missing-close }
+          { [: \l_regex_internal_a_tl } { #2 #4 }
+        \regex_compile_abort_tokens:x { [: \l_regex_internal_a_tl }
+        #1 #2 #3 #4
       }
   }
 %    \end{macrocode}
@@ -4892,15 +5059,15 @@
         { \regex_show_group_aux:nnnnN { ~(resetting) } }
       \cs_set_eq:NN \regex_class:NnnnN \regex_show_class:NnnnN
       \cs_set_nopar:Npn \regex_item_caseful_equal:n ##1
-        { \regex_show_one:n { char~code~##1 } }
+        { \regex_show_one:n { char~code~\int_eval:n{##1} } }
       \cs_set_nopar:Npn \regex_item_caseful_range:nn ##1##2
-        { \regex_show_one:n { range~[\int_value:w ##1, \int_value:w ##2] } }
+        { \regex_show_one:n { range~[\int_eval:n{##1}, \int_eval:n{##2}] } }
       \cs_set_nopar:Npn \regex_item_caseless_equal:n ##1
-        { \regex_show_one:n { char~code~##1~(caseless) } }
+        { \regex_show_one:n { char~code~\int_eval:n{##1}~(caseless) } }
       \cs_set_nopar:Npn \regex_item_caseless_range:nn ##1##2
         {
           \regex_show_one:n
-            { Range~[\int_value:w ##1, \int_value:w ##2]~(caseless) }
+            { Range~[\int_eval:n{##1}, \int_eval:n{##2}]~(caseless) }
         }
       \cs_set:Npn \regex_item_catcode:nT ##1
         { \regex_item_catcode:nNT {##1} \c_true_bool }
@@ -4909,6 +5076,8 @@
           \regex_show_scope:nn
             { catcode~##1, ~ \bool_if:NF ##2 { negative~ } class }
         }
+      \cs_set_nopar:Npn \regex_item_reverse:n
+        { \regex_show_scope:nn { Reversed~match } }
       \cs_set_nopar:Npn \regex_item_exact:nn ##1##2
         { \regex_show_one:n { char~##2,~catcode~##1 } }
       \cs_set:Npn \regex_item_exact_cs:N ##1
@@ -5077,7 +5246,7 @@
 % Invalid quantifier.
 %    \begin{macrocode}
 \msg_kernel_new:nnnn { regex } { invalid-quantifier }
-  { Braced~quantifier~'#1#2'~is~not~correctly~formed. }
+  { Braced~quantifier~'#1'~may~not~be~followed~by~'#2'. }
   {
     The~character~'#2'~is~invalid~in~the~braced~quantifier~'#1'.~
     The~only~valid~quantifiers~are~'*',~'?',~'+',~'{<int>}',~
@@ -5205,6 +5374,29 @@
       { encountered~an~escaped~alphanumeric~character '\iow_char:N\\#2'~ }
     when~parsing~the~argument~of~an~'\iow_char:N\\u\iow_char:N\{...\}'~escape.
   }
+%    \end{macrocode}
+%
+% Errors when encountering the \textsc{posix} syntax |[:...:]|.
+%    \begin{macrocode}
+\msg_kernel_new:nnnn { regex } { posix-unsupported }
+  { POSIX~collating~element~'[#1 ~ #1]'~not~supported. }
+  {
+    The~[.foo.]~and~[=bar=]~syntaxes~have~a~special~meaning~in~POSIX~
+    regular~expressions.~This~is~not~supported~by~LaTeX.~Maybe~you~
+    forgot~to~escape~a~left~bracket~in~a~character~class?
+  }
+\msg_kernel_new:nnnn { regex } { posix-unknown }
+  { POSIX~class~[:#1:]~unknown. }
+  {
+    [:#1:]~is~not~among~the~known~POSIX~classes~
+    [:alnum:],~[:alpha:],~[:ascii:],~[:blank:],~
+    [:cntrl:],~[:digit:],~[:graph:],~[:lower:],~
+    [:print:],~[:punct:],~[:space:],~[:upper:],~
+    [:word:],~and~[:xdigit:].
+  }
+\msg_kernel_new:nnnn { regex } { posix-missing-close }
+  { Missing~closing~':]'~for~POSIX~class. }
+  { The~POSIX~syntax~'#1'~must~be~followed~by~':]',~not~'#2'. }
 %    \end{macrocode}
 %
 % In various cases, the result of a \pkg{l3regex} operation can leave us
