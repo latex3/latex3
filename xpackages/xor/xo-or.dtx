@@ -69,12 +69,28 @@
 % \maketitle
 %
 % \begin{documentation}
+% 
+% Things that seem likely to require documentation,
+% \emph{i.e.}~\enquote{exposed} items.
+%
+% \begin{variable}{\g_xor_cols_int}
+%   The total number of columns to be filled for the current page. (?)
+% \end{variable}
 %
 % \end{documentation}
 %
 % \begin{implementation}
 %
 % \section{\pkg{xo-or} Implementation}
+% 
+% To check
+% \begin{itemize}
+%   \item Badly guarded penalties: how does this interact with collection?
+%   \item Is there are \tn{topskip} issue with marker penalties?
+%   \item What is a \enquote{block} in a column?
+%   \item Is allocation of storage for columns and blocks \enquote{dynamic}?
+%     What happens if we run out of blocks, for example?
+% \end{itemize}
 %
 %    \begin{macrocode}
 %<*initex|package>
@@ -196,6 +212,146 @@
 \int_const:Nn \c_xor_output_balance_penalty { 10009 }
 %    \end{macrocode}
 % \end{variable}
+% 
+% \subsection{Column structures and support functions}
+% 
+% Supporting multiple columns requires two forms of data structure: some
+% to track the overall situation, and some on a per-column basis. The
+% overall situation is easy to track.
+%
+% \begin{variable}{\g_xor_cols_int}
+%   The total number of columns available at the moment, as defined by the
+%   \enquote{user} (probably the designer).
+%    \begin{macrocode}
+\int_new:N \g_xor_cols_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_curr_col_int}
+%   The current column: a global variable as it may be modified within the
+%   output routine.
+%    \begin{macrocode}
+\int_new:N \g_xor_curr_col_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_curr_col_block_int}
+%   Register denoting the current block within the current column.
+%    \begin{macrocode}
+\int_new:N \g_xor_curr_col_block_int
+%    \end{macrocode}
+% \end{variable}
+% 
+% \begin{macro}[EXP]{\xor_curr_col_block:}
+%   A short cut for inserting the current column and block number when
+%   referring to a data structure by name. 
+%    \begin{macrocode}
+\cs_new_nopar:Npn \xor_curr_col_block:
+  { \int_use:N \g_xor_curr_col_int _ \int_use:N \g_xor_curr_col_block_int }
+%    \end{macrocode}
+% \end{macro}
+%
+% The data structures needed for each column independently are rather more
+% numerous, as many are also separated out for each block.
+% \begin{description}
+%   \item[\cs{g_xor_col_\meta{column}_\meta{block}_box}]
+%     The text of a column during trials and page make up.
+%     
+%   \item[\cs{g_xor_ht_col_\meta{column}_\meta{block}_dim}]
+%     The vertical target size for the column block during the trials.  
+%     
+%   \item[\cs{g_xor_best_ht_col_\meta{column}_\meta{block}_dim}]
+%     ? FRANK ?
+%     
+%   \item[\cs{g_xor_col_\meta{column}_balance_box}]
+%     ? FRANK ?
+%     
+%   \item[\cs{g_xor_ht_col_\meta{column}_block_int}]
+%     The maximum number of blocks in use for the column. Initially there is
+%     one block per column; this will increase when there are middle floats
+%     and (one day) for balancing.
+%     
+%   \item[\cs{g_xor_t_floats_col_\meta{column}_int}]
+%     The number of top floats we have seen so far in this column, used to
+%     implement \cs{g_xor_float_area_skip} handling.
+%     
+%   \item[\cs{g_xor_b_floats_col_\meta{column}_int}]
+%     The number of bottom floats we have seen so far in this column, used to
+%     implement \cs{g_xor_float_area_skip} handling.
+%     
+%   \item[\cs{g_xor_m_floats_col_\meta{column}_int}]
+%     The number of middle floats we have seen so far in this column, used to
+%     implement \cs{g_xor_float_area_skip} handling.
+%     
+%   \item[\cs{g_xor_t_delta_col_\meta{column}_tl}]
+%     The difference between the real size of all top floats (including
+%     their separation spaces) and the nominal size which is used to
+%     determine the vertical size of the remaining text column. The two
+%     may differ if we do grid typesetting.
+%     
+%   \item[\cs{g_xor_b_delta_col_\meta{column}_tl}]
+%     The difference between the real size of all bottom floats (including
+%     their separation spaces) and the nominal size which is used to
+%     determine the vertical size of the remaining text column. The two
+%     may differ if we do grid typesetting.
+%     
+%   \item[\cs{g_xor_m_delta_col_\meta{column}_tl}]
+%     The difference between the real size of all bottom floats (including
+%     their separation spaces) and the nominal size which is used to
+%     determine the vertical size of the remaining text column. The two
+%     may differ if we do grid typesetting.
+%     
+%   \item[\cs{g_xor_flseq_type_\meta{float}_col_\meta{column}_int}]
+%     The highest float sequence number for floats of type \meta{float}
+%     allocated to the column: zero if no float has been allocated so far.
+%     
+%   \item[\cs{g_xor_flseq_type_\meta{float}_col_0_int}]
+%     The highest float sequence number for floats of type \meta{float}
+%     allocated to the columns on the previous page.
+%     
+%   \item[\cs{g_xor_flseq_areas_top_type_\meta{float}_col_\meta{column}_int}]
+%     The highest float sequence number for floats of type \meta{float}
+%     allocated to top area of the column: zero if no float has been allocated
+%     so far.
+%     
+%   \item[\cs{g_xor_bottom_ht_col_\meta{column}_dim}]
+%     The vertical size already taken up by bottom floats during the trials.
+%     This is used during balancing.
+%     
+%   \item[\cs{g_xor_balance_ht_col_\meta{column}_dim}]
+%     ? FRANK ?
+%     
+%   \item[\cs{g_xor_saved_bottom_ht_col_\meta{column}_tl}]
+%     ? FRANK ?
+% \end{description}
+%
+% The above structures are now set up for six columns: this should be enough
+% for anyone. On the other hand, the number of blocks available is limited.
+%    \begin{macrocode}
+\prg_stepwise_inline:nnnn { 1 } { 1 } { 6 }
+  {
+    \box_new:c { g_xor_col_ #1 _1_box }
+    \box_new:c { g_xor_col_ #1 _2_box }
+    \dim_new:c { g_xor_ht_col_ #1 _1_dim }
+    \dim_new:c { g_xor_ht_col_ #1 _2_dim }
+    \dim_new:c { g_xor_best_ht_col_ #1 _1_dim }
+    \dim_new:c { g_xor_best_ht_col_ #1 _2_dim }
+    \box_new:c { g_xor_col_ #1 _balance_box }
+    \int_new:c { g_xor_col_ #1 _block_int }
+    \int_new:c { g_xor_t_floats_col_ #1 _int }
+    \int_new:c { g_xor_b_floats_col_ #1 _int }
+    \int_new:c { g_xor_m_floats_col_ #1 _int }
+    \tl_new:c { g_xor_t_delta_col_ #1 _tl }
+    \tl_new:c { g_xor_b_delta_col_ #1 _tl }
+    \tl_new:c { g_xor_m_delta_col_ #1 _tl }
+    \dim_new:c { g_xor_bottom_ht_col_ #1 _dim }
+    \dim_new:c { g_xor_balance_ht_col_ #1 _dim }
+    \tl_new:c { g_xor_saved_bottom_ht_col_#1_tl }
+    \tl_gset:cn { g_xor_saved_bottom_ht_col_#1_tl } { 0 pt }
+}
+%    \end{macrocode}
+% 
+% \subsection{Adding marker penalties to the MVL}
 %
 % \begin{macro}{\xor_add_badly_guarded_penalty:N}
 % \begin{macro}[aux]{\xor_add_badly_guarded_penalty_aux:N}
@@ -296,174 +452,6 @@
   }
 %    \end{macrocode}
 % \end{macro}
-%
-% \subsection{Columns and their Data Structures}
-%
-% \begin{macro}{\g_xor_cols_int}
-%    We are collecting stuff for a given number of columns. This
-%    number of column is available in a count register.
-%    \begin{macrocode}
-\int_new:N \g_xor_cols_int
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\g_xor_curr_col_int}
-%    Register denoting the column number of the current column while
-%    we cut the galley etc. Should always be modified globally since
-%    it is used within output routines.
-%    \begin{macrocode}
-\int_new:N \g_xor_curr_col_int
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\g_xor_curr_col_block_int}
-%    Register denoting the current block within the current column
-%    \begin{macrocode}
-\int_new:N \g_xor_curr_col_block_int
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-% \DescribeMacro\g_xor_col_NUM_BLOCK_box
-%    Per column number NUM and block BLOCK we have one box register allocated in which
-%    the column text from the galley is stored during trials and page
-%    makeup.
-%
-% \DescribeMacro\g_xor_ht_col_NUM_BLOCK_dim
-%    Per column number NUM and block BLOCK we have dimen  register allocated which
-%    holds the vertical target size for the column block during the trials.
-%
-%
-% \DescribeMacro\g_xor_col_NUM_block_int
-%    Per column number NUM we record the maximum number of blocks in
-%    use. Initially there is one block per column. This increases in cases of
-%    middle floats and (one day with balancing).
-%
-% \DescribeMacro\g_xor_t_floats_col_NUM_int
-%    Per column number NUM we have a macro number in which we count
-%    the number of top floats we have seen so far in this column. This
-%    is used to implement |\g_xor_float_area_skip| handling.
-%
-% \DescribeMacro\g_xor_b_floats_col_NUM_int
-%    Per column number NUM we have a macro number in which we count
-%    the number of bottom floats we have seen so far in this column. This
-%    is used to implement |\g_xor_float_area_skip| handling.
-%
-% \DescribeMacro\g_xor_m_floats_col_NUM_int
-%    Per column number NUM we have a macro number in which we count
-%    the number of middle floats we have seen so far in this column. This
-%    is used to implement |\g_xor_float_area_skip| handling.
-%
-%
-% \DescribeMacro\g_xor_t_delta_col_NUM_tl
-%    Per column number NUM we have a macro in which we record the
-%    difference between the real size of all top floats (including
-%    there separation spaces) and the nominal size which is used to
-%    determine the vertical size of the remaining text column. The two
-%    may differ if we do grid typesetting.
-%
-% \DescribeMacro\g_xor_b_delta_col_NUM_tl
-%    Same kind of delta is recorded per column for the bottom floats.
-%
-% \DescribeMacro\g_xor_m_delta_col_NUM_tl
-%    Same kind of delta is recorded per column for the middle floats.
-%
-% \DescribeMacro\g_xor_flseq_type_BAR_col_NUM_int
-%    For each float type BAR (e.g., |figure|, |table|, etc.) and each
-%    column number NUM we have a macro which holds the highest float
-%    sequence number for floats of type BAR allocated to column NUM or
-%    zero if no float has been allocated so far.
-%
-% \DescribeMacro{\g_xor_flseq_type_BAR_col_0_int}
-%    \mbox{}
-%    \hfill
-%    For each float type BAR (e.g., |figure|, |table|, etc.)\\
-%    |\g_xor_flseq_type_BAR_col_0_int| holds the highest sequence number in
-%    columns of the 
-%    previous page.
-%
-% \DescribeMacro{\g_xor_flseq_areas_top_type_BAR_col_NUM_int}
-%    \mbox{}
-%    \hfill
-%    |\g_xor_flseq_areas_top_type_BAR_col_NUM_int| is like \\
-%    |\g_xor_flseq_type_BAR_col_NUM_int| but only stores information
-%    about floats allocated to top areas.
-%
-% \DescribeMacro\g_xor_bottom_ht_col_NUM_dim
-%    Per column number NUM we have dimen  register allocated which
-%    holds the vertical size already taken up by bottom floats during the trials.
-%    This is used during balancing.
-%
-%
-%  \begin{macro}{\xor_curr_col_block:}
-%    
-%    \begin{macrocode}
-\cs_new_nopar:Npn \xor_curr_col_block: {\int_use:N \g_xor_curr_col_int
-                                       _
-                                       \int_use:N \g_xor_curr_col_block_int }
-%\cs_set_nopar:Npn \xor_curr_col_block: {\int_use:N \g_xor_curr_col_int}
-%    \end{macrocode}
-%  \end{macro}
-%
-% \begin{macro}{\g_xor_col_NUM_BLOCK_box}
-% \begin{macro}{\g_xor_col_NUM_balance_box}
-% \begin{macro}{\g_xor_ht_col_NUM_BLOCK_dim}
-% \begin{macro}{\g_xor_bottom_ht_col_NUM_dim}
-% \begin{macro}{\g_xor_balance_ht_col_NUM_dim}
-% \begin{macro}{\g_xor_col_NUM_block_int}
-%  For each column we need: a box to hold material from the galley, a
-%  box to do balancing, and a dimension to hold its current vertical
-%  target size. Currently we allocate for six columns.
-%    \begin{macrocode}
-\clist_map_inline:nn {1,2,3,4,5,6}
-{
-
-
-% work out proper box allocation later
-  \box_new:c {g_xor_col_#1_box}
-  \box_new:c {g_xor_col_#1_1_box}
-  \box_new:c {g_xor_col_#1_2_box}
-%
-  \box_new:c {g_xor_col_#1_balance_box}
-
-  \int_new:c {g_xor_col_#1_block_int}          % number of blocks used in this column.
-
-  \dim_new:c {g_xor_ht_col_#1_dim}
-  \dim_new:c {g_xor_ht_col_#1_1_dim}
-  \dim_new:c {g_xor_ht_col_#1_2_dim}
-
-
-  \dim_new:c {g_xor_best_ht_col_#1_dim}        % not really the best solution
-  \dim_new:c {g_xor_best_ht_col_#1_1_dim}
-  \dim_new:c {g_xor_best_ht_col_#1_2_dim}
-
-  \dim_new:c {g_xor_bottom_ht_col_#1_dim}
-  \dim_new:c {g_xor_balance_ht_col_#1_dim}
-  \int_new:c {g_xor_t_floats_col_#1_int}
-  \tl_new:c {g_xor_t_delta_col_#1_tl}
-  \int_new:c {g_xor_b_floats_col_#1_int}
-  \tl_new:c {g_xor_b_delta_col_#1_tl}
-  \int_new:c {g_xor_m_floats_col_#1_int}
-  \tl_new:c {g_xor_m_delta_col_#1_tl}
-
-  \int_new:c {g_xor_c_floats_col_#1_int}
-  \tl_new:c {g_xor_c_delta_col_#1_tl}                % needed?
-
-  \tl_new:c {g_xor_saved_bottom_ht_col_#1_tl}
-  \tl_gset:cn {g_xor_saved_bottom_ht_col_#1_tl} {0pt}
-}
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-%
 %
 % \subsubsection{Utilities for Columns and their Data Structures}
 %
