@@ -605,7 +605,6 @@
 %   \item Optimize groups with no alternative.
 %   \item Optimize the use of \cs{prg_stepwise_...} functions.
 %   \item Decide what |\c{\c{...}}| should do in the replacement text.
-%   \item Fix the |\c{\cBx}| bug in replacement text.
 %   \item Better \enquote{show} for anchors, properties, and catcode tests.
 %   \item Find out whether the fact that |\W| and friends match the
 %     end-marker leads to bugs.
@@ -717,7 +716,7 @@
 %   \item \emph{Query}: the token list to which we apply the regular
 %     expression.
 %   \item \emph{State}: each state of the \textsc{nfa} is labelled by an integer
-%     \meta{state} with $0 \leq \meta{state} <
+%     \meta{state} with $\cs{l_regex_min_state_int} \leq \meta{state} <
 %     \cs{l_regex_max_state_int}$.
 %   \item \emph{Active state}: state of the \textsc{nfa} that is reached when
 %     reading the query token list for the matching. Those states are
@@ -3152,10 +3151,13 @@
 %
 % \subsubsection{Variables used while building}
 %
-% \begin{variable}{\l_regex_max_state_int}
+% \begin{variable}{\l_regex_min_state_int, \l_regex_max_state_int}
 %   The last state that was allocated is $\cs{l_regex_max_state_int}-1$,
 %   so that \cs{l_regex_max_state_int} always points to a free state.
+%   The \texttt{min_state} variable is always $0$, but is included to
+%   avoid hard-coding this value.
 %    \begin{macrocode}
+\int_new:N  \l_regex_min_state_int
 \int_new:N  \l_regex_max_state_int
 %    \end{macrocode}
 % \end{variable}
@@ -3254,7 +3256,7 @@
 %<trace>    \trace_push:nnn { regex } { 1 } { regex_build }
     \int_set:Nn \tex_escapechar:D { 92 }
     \int_zero:N \l_regex_capturing_group_int
-    \int_zero:N \l_regex_max_state_int
+    \int_set_eq:NN \l_regex_max_state_int \l_regex_min_state_int
     \regex_build_new_state:
     \regex_build_new_state:
     \regex_toks_put_right:Nn \l_regex_left_state_int
@@ -3278,7 +3280,7 @@
 \cs_new_protected:Npn \regex_build_for_cs:n #1
   {
 %<trace>    \trace_push:nnn { regex } { 1 } { regex_build_for_cs }
-    \int_zero:N \l_regex_max_state_int
+    \int_set_eq:NN \l_regex_max_state_int \l_regex_min_state_int
     \regex_build_new_state:
     \regex_build_new_state:
     \regex_push_lr_states:
@@ -3821,16 +3823,20 @@
 % \end{macro}
 %
 % \begin{macro}[int]{\regex_command_K:}
-%   Make a new state to be on the safe side. In this state, set the
-%   beginning-of-match submatch marker to the value of the current
-%   position, and go to the new state.
+%   Change the starting point of the $0$-th submatch (full match), and
+%   transition to a new state, pretending that this is a fresh thread.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_command_K:
   {
     \regex_build_new_state:
-    \regex_build_transition_right:nNn
-      { \regex_action_submatch:n { 0< } \regex_action_free:n }
-      \l_regex_left_state_int \l_regex_right_state_int
+    \regex_toks_put_right:Nx \l_regex_left_state_int
+      {
+        \regex_action_submatch:n { 0< }
+        \bool_set_true:N \l_regex_fresh_thread_bool
+        \regex_action_free:n
+          { \int_eval:n { \l_regex_right_state_int - \l_regex_left_state_int } }
+        \bool_set_false:N \l_regex_fresh_thread_bool
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3892,66 +3898,64 @@
 % stream, by setting the corresponding \tn{dimen} register to
 % a value which uniquely identifies at which step it was last
 % inserted.
+%^^A \end{todo}
 %
 % \subsubsection{Variables used when matching}
 %
-% \begin{variable}{\l_regex_min_pos_int, \l_regex_max_pos_int}
-%   The tokens in the query are indexes from \cs{l_regex_min_pos_int}
-%   for the first to $\cs{l_regex_max_pos_int}-1$ for the last, and
-%   their information is stored in \tn{muskip} and \tn{toks} registers
-%   with those numbers. We don't start from $0$ because the \tn{toks}
-%   registers with low numbers are used to hold the states of the \textsc{nfa}.
-%    \begin{macrocode}
-\int_new:N \l_regex_min_pos_int
-\int_new:N \l_regex_max_pos_int
-%    \end{macrocode}
-% \end{variable}
-%
 % \begin{variable}{\l_regex_balance_int}
-%   The first phase when matching is to go once through the query token
+%   The thing we do when matching is to go once through the query token
 %   list and store the information for each token as \tn{muskip} and
 %   \tn{toks} registers. During this phase, \cs{l_regex_balance_int}
 %   counts the balance of begin-group and end-group character tokens
-%   which appear before a given point in the token list, and is stored as
-%   the shrink component of the \tn{muskip} registers. This integer is
-%   also used to keep track of the balance in the replacement text.
+%   which appear before a given point in the token list, and we store it
+%   as the shrink component of each \tn{muskip} register. This variable
+%   is also used to keep track of the balance in the replacement text.
 %    \begin{macrocode}
 \int_new:N \l_regex_balance_int
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_regex_current_pos_int}
-% \begin{variable}{\l_regex_start_pos_int}
-% \begin{variable}{\l_regex_success_pos_int}
-%   While reading through the query token list,
-%   \cs{l_regex_current_pos_int} is the position in the token list,
-%   starting at \cs{l_regex_min_pos_int} for the first token.
-%   Each match begins at the position given by
-%   \cs{l_regex_start_pos_int}. Whenever an execution thread succeeds,
-%   the corresponding position is stored into \cs{l_regex_success_pos_int},
-%   which will be the next starting position (except in the case of empty
-%   matches).
-%   \begin{macrocode}
+% \begin{variable}
+%   {
+%     \l_regex_min_pos_int,
+%     \l_regex_max_pos_int,
+%     \l_regex_current_pos_int,
+%     \l_regex_start_pos_int,
+%     \l_regex_success_pos_int,
+%   }
+%   The tokens in the query are indexed from \texttt{min_pos} for the
+%   first to $\texttt{max_pos}-1$ for the last, and their information is
+%   stored in \tn{muskip} and \tn{toks} registers with those numbers. We
+%   don't start from $0$ because the \tn{toks} registers with low
+%   numbers are used to hold the states of the \textsc{nfa}. We match
+%   without backtracking, keeping all threads in lockstep at the
+%   \texttt{current_pos} in the query. The starting point of the current
+%   match attempt is \texttt{start_pos}, and \texttt{success_pos},
+%   updated whenever a thread succeeds, is used as the next starting
+%   position.
+%    \begin{macrocode}
+\int_new:N \l_regex_min_pos_int
+\int_new:N \l_regex_max_pos_int
 \int_new:N \l_regex_current_pos_int
 \int_new:N \l_regex_start_pos_int
 \int_new:N \l_regex_success_pos_int
 %    \end{macrocode}
 % \end{variable}
-% \end{variable}
-% \end{variable}
 %
-% \begin{variable}{\l_regex_current_char_int}
-% \begin{variable}{\l_regex_current_catcode_int}
-% \begin{variable}{\l_regex_last_char_int}
-% \begin{variable}{\l_regex_case_changed_char_int}
+% \begin{variable}
+%   {
+%     \l_regex_current_char_int,
+%     \l_regex_current_catcode_int,
+%     \l_regex_last_char_int,
+%     \l_regex_case_changed_char_int
+%   }
 %   The character and category codes of the token at the current
-%   position; the character code of
-%   the token at the previous position; and the character code of the
-%   result of changing the case of the current token
-%   (|A-Z|$\leftrightarrow$|a-z|). This last integer is only computed if
-%   the \enquote{case insensitive} option |(?i)| is used.
-%   The \cs{l_regex_current_char_int} variable is also used in various
-%   other phases to hold a character code.
+%   position; the character code of the token at the previous position;
+%   and the character code of the result of changing the case of the
+%   current token (|A-Z|$\leftrightarrow$|a-z|). This last integer is
+%   only computed when necessary, and is otherwise \cs{c_max_int}.  The
+%   \texttt{current_char} variable is also used in various other phases
+%   to hold a character code.
 %    \begin{macrocode}
 \int_new:N \l_regex_current_char_int
 \int_new:N \l_regex_current_catcode_int
@@ -3959,39 +3963,31 @@
 \int_new:N \l_regex_case_changed_char_int
 %    \end{macrocode}
 % \end{variable}
-% \end{variable}
-% \end{variable}
-% \end{variable}
 %
 % \begin{variable}{\l_regex_current_state_int}
 %   For every character in the token list, each of the active states is
-%   considered in turn.
-%   The variable \cs{l_regex_current_state_int} holds the state
-%   of the \textsc{nfa} which is currently considered: transitions are then
-%   given as shifts relative to the current state.
-%   In some cases of groups with quantifiers,
-%   \cs{l_regex_current_state_int} is shifted to a fake value for
-%   transitions to point to the correct states.
+%   considered in turn.  The variable \cs{l_regex_current_state_int}
+%   holds the state of the \textsc{nfa} which is currently considered:
+%   transitions are then given as shifts relative to the current state.
 %    \begin{macrocode}
 \int_new:N \l_regex_current_state_int
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_regex_current_submatches_prop}
-% \begin{variable}{\l_regex_success_submatches_prop}
-%   The submatches for the thread which lies at the
-%   \cs{l_regex_current_state_int} are stored in a property
-%   list variable. This property list is stored by
-%   \cs{regex_action_cost:n} into the \tn{toks} register
-%   for the target state of the transition. When a thread
+% \begin{variable}
+%   {\l_regex_current_submatches_prop, \l_regex_success_submatches_prop}
+%   The submatches for the thread which is currently active are stored
+%   in the \texttt{current_submatches} property list variable. This
+%   property list is stored by \cs{regex_action_cost:n} into the
+%   \tn{toks} register for the target state of the transition, to be
+%   retrieved when matching at the next position. When a thread
 %   succeeds, this property list is copied to
-%   \cs{l_regex_success_submatches_prop} and only the last
-%   sucessful thread will remain there.
+%   \cs{l_regex_success_submatches_prop}: only the last sucessful thread
+%   will remain there.
 %    \begin{macrocode}
 \prop_new:N \l_regex_current_submatches_prop
 \prop_new:N \l_regex_success_submatches_prop
 %    \end{macrocode}
-% \end{variable}
 % \end{variable}
 %
 % \begin{variable}{\l_regex_step_int}
@@ -4002,8 +3998,8 @@
 %   encountered. This lets us break infinite loops by not visiting the
 %   same state twice in the same step. In fact, \tn{dimen}\meta{state}
 %   is equal \texttt{step} when we have started performing the
-%   operations of \tn{toks}\meta{state}, but not finished yet. Once we
-%   finish, we set \tn{dimen}\meta{state} to
+%   operations of \tn{toks}\meta{state}, but not finished yet. However,
+%   once we finish, we set \tn{dimen}\meta{state} to
 %   $\text{\texttt{step}}+1$. This is needed to track submatches
 %   properly (see building phase). The \texttt{step} is also used to
 %   attach each set of submatch information to a given iteration (and
@@ -4014,13 +4010,14 @@
 % \end{variable}
 %
 % \begin{variable}{\l_regex_max_active_int}
-%   All the currently active states are kept in order of precedence
-%   in the \tn{skip} registers, which for our purpose serve as an array:
-%   the $i$th item of the array is \tn{skip}$i$. The largest index used
-%   after treating the previous character is \cs{l_regex_max_active_int}.
-%   At the start of every step, the whole array is unpacked, so that the
-%   space can immediately be reused, and \cs{l_regex_max_active_int} is
-%   reset to zero, effectively clearing the array.
+%   All the currently active states are kept in order of precedence in
+%   the \tn{skip} registers, which for our purpose serve as an array:
+%   the $i$th item of the array is \tn{skip}$i$. The indices used after
+%   treating the previous character range from $0$ (included) to
+%   \cs{l_regex_max_active_int} (excluded).  At the start of every step,
+%   the whole array is unpacked, so that the space can immediately be
+%   reused, and \cs{l_regex_max_active_int} is reset to zero,
+%   effectively clearing the array.
 %    \begin{macrocode}
 \int_new:N \l_regex_max_active_int
 %    \end{macrocode}
@@ -4029,22 +4026,23 @@
 % \begin{variable}{\l_regex_every_match_tl}
 %   Every time a match is found, this token list is used.  For single
 %   matching, the token list is empty. For multiple matching, the token
-%   list is set to repeat the matching.
+%   list is set to repeat the matching, after performing some operation
+%   which depends on the user function. See \cs{regex_single_match:} and
+%   \cs{regex_multi_match:n}.
 %    \begin{macrocode}
 \tl_new:N \l_regex_every_match_tl
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_regex_fresh_thread_bool}
-% \begin{variable}{\l_regex_success_empty_bool}
+% \begin{variable}{\l_regex_fresh_thread_bool, \l_regex_empty_success_bool}
 % \begin{macro}[aux]{\regex_if_two_empty_matches:F}
 %   When doing multiple matches, we need to avoid infinite loops where
 %   each iteration matches the same empty token list. When an empty
 %   token list is matched, the next successful match of the same empty
 %   token list is suppressed. We detect empty matches by setting
 %   \cs{l_regex_fresh_thread_bool} to \texttt{true} for threads which
-%   directly come from the start of the regular expression, and testing
-%   that boolean whenever a thread succeeds. The function
+%   directly come from the start of the regex or from the |\K| command,
+%   and testing that boolean whenever a thread succeeds. The function
 %   \cs{regex_if_two_empty_matches:F} is redefined at every match
 %   attempt, depending on whether the previous match was empty or not:
 %   if it was, then the function must cancel a purported success if it
@@ -4053,50 +4051,187 @@
 %   is \cs{use:n}.
 %    \begin{macrocode}
 \bool_new:N \l_regex_fresh_thread_bool
-\bool_new:N \l_regex_success_empty_bool
+\bool_new:N \l_regex_empty_success_bool
 \cs_new_eq:NN \regex_if_two_empty_matches:F \use:n
 %    \end{macrocode}
 % \end{macro}
 % \end{variable}
-% \end{variable}
 %
-% \begin{variable}{\g_regex_success_bool}
-% \begin{variable}{\l_regex_saved_success_bool}
-% \begin{variable}{\l_regex_success_match_bool}
-%   The boolean \cs{g_regex_success_bool} is true if there was at least
-%   one successful match, and \cs{l_regex_success_match_bool} is true if
-%   the current match attempt was successful.  The variable
-%   \cs{g_regex_success_bool} is the only global variable in this whole
-%   module. When nesting \cs{regex} functions internally, the value of
-%   \cs{g_regex_success_bool} is saved into
-%   \cs{l_regex_saved_success_bool}, which is local, hence not affected
-%   by the changes due to inner regex functions.
+% \begin{variable}
+%   {
+%     \g_regex_success_bool,
+%     \l_regex_saved_success_bool,
+%     \l_regex_match_success_bool
+%   }
+%   The boolean \cs{l_regex_match_success_bool} is true if the current
+%   match attempt was successful, and \cs{g_regex_success_bool} is true
+%   if there was at least one successful match. This is the only global
+%   variable in this whole module, but we would need it to be local when
+%   matching a control sequence with |\c{...}|. This is done by saving
+%   the global variable into \cs{l_regex_saved_success_bool}, which is
+%   local, hence not affected by the changes due to inner regex
+%   functions.
 %    \begin{macrocode}
 \bool_new:N \g_regex_success_bool
 \bool_new:N \l_regex_saved_success_bool
-\bool_new:N \l_regex_success_match_bool
+\bool_new:N \l_regex_match_success_bool
 %    \end{macrocode}
 % \end{variable}
-% \end{variable}
-% \end{variable}
 %
-% \subsubsection{Helpers for running the \textsc{nfa}}
+% \subsubsection{Matching: framework}
 %
-% \begin{macro}[aux]{\regex_store_state:n}
-%   Put the given state in the array of \tn{skip} registers.
-%   This is done by increasing the pointer
-%   \cs{l_regex_max_active_int}, and converting the integer
-%   to a dimension (suitable for a \tn{skip} assignment) in
-%   scaled points.
+% \begin{macro}[int]{\regex_match:n}
+%   First store the query into \tn{toks} and \tn{muskip} registers (see
+%   \cs{regex_query_set:nnn}). Then initialize the variables that should
+%   be set once for each user function (even for multiple
+%   matches). Namely, the overall matching is not yet sucessful; none of
+%   the states should be marked as visited (\tn{dimen} registers), and
+%   we start at step $0$; we pretend that there was a previous match
+%   ending at the start of the query, which was not empty (to avoid
+%   smothering an empty match at the start). Once all this is set up, we
+%   are ready for the ride. Find the first match.
 %    \begin{macrocode}
-\cs_new_protected:Npn \regex_store_state:n #1
+\cs_new_protected:Npn \regex_match:n #1
   {
-    \int_incr:N \l_regex_max_active_int
-    \tex_skip:D \l_regex_max_active_int #1 sp \scan_stop:
-    \regex_store_submatches:n {#1}
+%<trace>    \trace_push:nnx { regex } { 1 } { regex_match }
+%<trace>    \trace:nnx { regex } { 1 } { analyzing~query~token~list }
+    \int_zero:N \l_regex_balance_int
+    \int_set_eq:NN \l_regex_current_pos_int \l_regex_max_state_int
+    \regex_query_set:nnn { } { -1 } { -2 }
+    \int_set_eq:NN \l_regex_min_pos_int \l_regex_current_pos_int
+    \tl_analysis_map_inline:nn {#1}
+      {
+        \regex_query_set:nnn {##1} {"##2} {##3}
+        \if_case:w "##2 \exp_stop_f:
+        \or: \int_incr:N \l_regex_balance_int
+        \or: \int_decr:N \l_regex_balance_int
+        \fi:
+      }
+    \int_set_eq:NN \l_regex_max_pos_int \l_regex_current_pos_int
+    \regex_query_set:nnn { } { -1 } { -2 }
+%<trace>    \trace:nnx { regex } { 1 } { initializing }
+    \bool_gset_false:N \g_regex_success_bool
+    \prg_stepwise_inline:nnnn
+      \l_regex_min_state_int \c_one { \l_regex_max_state_int - \c_one }
+      { \tex_dimen:D ##1 \c_one sp \scan_stop: }
+    \int_set_eq:NN \l_regex_step_int \c_zero
+    \int_set_eq:NN \l_regex_success_pos_int \l_regex_min_pos_int
+    \int_set_eq:NN \l_regex_submatch_int \l_regex_max_state_int
+    \bool_set_false:N \l_regex_empty_success_bool
+    \regex_match_once:
+%<trace>    \trace_pop:nnx { regex } { 1 } { regex_match }
   }
 %    \end{macrocode}
 % \end{macro}
+%
+% \begin{macro}[int]{\regex_match_once:}
+%   This function finds one match, then does some action defined by the
+%   \texttt{every_match} token list, which may recursively call
+%   \cs{regex_match_once:}. First initialize some variables: set the
+%   conditional which detects identical empty matches; this match
+%   attempt starts at the previous \texttt{success_pos}, is not yet
+%   sucessful, and has no submatches yet; clear the array of active
+%   threads, and put the starting state $0$ in it. We are then almost
+%   ready to read our first token in the query, but we actually start
+%   one position earlier than the start, and \texttt{get} that token, so
+%   that the \texttt{last_char} will be set properly for word
+%   boundaries. Then call \cs{regex_match_loop:}, which runs through the
+%   query until the end or until a successful match breaks early.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_match_once:
+  {
+    \if_meaning:w \c_true_bool \l_regex_empty_success_bool
+      \cs_set_nopar:Npn \regex_if_two_empty_matches:F
+        { \int_compare:nNnF \l_regex_start_pos_int = \l_regex_current_pos_int }
+    \else:
+      \cs_set_eq:NN \regex_if_two_empty_matches:F \use:n
+    \fi:
+    \int_set_eq:NN \l_regex_start_pos_int \l_regex_success_pos_int
+    \bool_set_false:N \l_regex_match_success_bool
+    \prop_clear:N \l_regex_current_submatches_prop
+    \int_zero:N \l_regex_max_active_int
+    \regex_store_state:n { \l_regex_min_state_int }
+    \int_set:Nn \l_regex_current_pos_int
+      { \l_regex_start_pos_int - \c_one }
+    \regex_query_get:
+    \regex_match_loop:
+    \l_regex_every_match_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\regex_single_match:, \regex_multi_match:n}
+%   For a single match, the overall success is determined by whether the
+%   only match attempt is a success. When doing multiple matches, the
+%   overall matching is successful as soon as any match
+%   succeeds. Perform the action |#1|, then find the next match.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_single_match:
+  {
+    \tl_set:Nn \l_regex_every_match_tl
+      { \bool_gset_eq:NN \g_regex_success_bool \l_regex_match_success_bool }
+  }
+\cs_new_protected:Npn \regex_multi_match:n #1
+  {
+    \tl_set:Nn \l_regex_every_match_tl
+      {
+        \if_meaning:w \c_true_bool \l_regex_match_success_bool
+          \bool_gset_true:N \g_regex_success_bool
+          #1
+          \exp_after:wN \regex_match_once:
+        \fi:
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\regex_match_loop:}
+% \begin{macro}[aux, rEXP]{\regex_match_one_active:w}
+%   At each new position, set some variables and get the new character
+%   and category from the query. Then unpack the array of active
+%   threads, and clear it by resetting its length
+%   (\texttt{max_active}). This results in a sequence of
+%   \cs{regex_state_use_with_submatches:n} \Arg{state}, and we consider
+%   those states in order. As soon as a thread succeeds, exit that step.
+%   If there are threads to consider at the next position, and if we
+%   have not reached the end of the string, repeat the loop. Otherwise,
+%   the last thread that succeeded is what \cs{regex_match_once:}
+%   matches. We explain the \texttt{fresh_thread} business when
+%   describing \cs{regex_action_wildcard:}.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \regex_match_loop:
+  {
+    \tex_advance:D \l_regex_step_int \c_two
+    \int_incr:N \l_regex_current_pos_int
+    \int_set_eq:NN \l_regex_last_char_int \l_regex_current_char_int
+    \int_set_eq:NN \l_regex_case_changed_char_int \c_max_int
+    \regex_query_get:
+    \use:x
+      {
+        \int_zero:N \l_regex_max_active_int
+        \regex_match_one_active:w 0 ;
+      }
+    \prg_break_point:n { \bool_set_false:N \l_regex_fresh_thread_bool }
+    \if_num:w \l_regex_max_active_int > \c_zero
+      \if_num:w \l_regex_current_pos_int < \l_regex_max_pos_int
+        \exp_after:wN \exp_after:wN \exp_after:wN \regex_match_loop:
+      \fi:
+    \fi:
+  }
+\cs_new:Npn \regex_match_one_active:w #1;
+  {
+    \if_num:w #1 < \l_regex_max_active_int
+      \regex_state_use_with_submatches:n { \int_value:w \tex_skip:D #1 }
+      \exp_after:wN \regex_match_one_active:w
+        \int_use:N \int_eval:w #1 + \c_one \exp_after:wN ;
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%^^A \begin{todo}
+% \subsubsection{Helpers for running the \textsc{nfa}}
 %
 % \begin{macro}[int]{\regex_state_use_unsafe_aux:N}
 % \begin{macro}[int]{\regex_state_use_with_submatches:n}
@@ -4136,25 +4271,8 @@
 %
 % \subsubsection{The query token list}
 %
-% \begin{macro}[aux]{\regex_query_set:n, \regex_query_set:nnn}
+% \begin{macro}[aux]{\regex_query_set:nnn}
 %    \begin{macrocode}
-\cs_new_protected:Npn \regex_query_set:n #1
-  {
-    \int_zero:N \l_regex_balance_int
-    \int_set_eq:NN \l_regex_current_pos_int \l_regex_max_state_int
-    \regex_query_set:nnn { } { -1 } { -2 }
-    \int_set_eq:NN \l_regex_min_pos_int \l_regex_current_pos_int
-    \tl_analysis_map_inline:nn {#1}
-      {
-        \regex_query_set:nnn {##1} {"##2} {##3}
-        \if_case:w "##2 \exp_stop_f:
-        \or: \int_incr:N \l_regex_balance_int
-        \or: \int_decr:N \l_regex_balance_int
-        \fi:
-      }
-    \int_set_eq:NN \l_regex_max_pos_int \l_regex_current_pos_int
-    \regex_query_set:nnn { } { -1 } { -2 }
-  }
 \cs_new_protected:Npn \regex_query_set:nnn #1#2#3
   {
     \tex_muskip:D \l_regex_current_pos_int
@@ -4249,171 +4367,17 @@
   }
 %    \end{macrocode}
 % \end{macro}
-%
-% \subsubsection{Matching: framework}
-%
-% \begin{macro}[int]{\regex_match:n}
-%^^A todo: update doc.
-%   Then reset a few variables which should be set only once,
-%   before the first match, even in the case of multiple matches.
-%   Then run the \textsc{nfa} (\cs{regex_match_once:} matches multiple times
-%   when appropriate).
-%    \begin{macrocode}
-\cs_new_protected:Npn \regex_match:n #1
-  {
-    \regex_query_set:n {#1}
-    \regex_match_initial_setup:
-    \regex_match_once:
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\regex_match_once:}
-%   Set up more variables in \cs{regex_match_setup:}.
-%   If there was a match, use the token list \cs{l_regex_every_match_tl},
-%   which may call \cs{regex_match_once:} again to achieve multiple matches.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_match_once:
-  {
-    \regex_match_setup:
-    \regex_query_get:
-    \regex_match_loop:
-    \prg_break_point:n { }
-    \l_regex_every_match_tl
-  }
-\cs_new_protected_nopar:Npn \regex_single_match:
-  {
-    \tl_set:Nn \l_regex_every_match_tl
-      { \bool_gset_eq:NN \g_regex_success_bool \l_regex_success_match_bool }
-  }
-\cs_new_protected:Npn \regex_multi_match:n #1
-  {
-    \tl_set:Nn \l_regex_every_match_tl
-      {
-        \bool_if:NT \l_regex_success_match_bool
-          {
-            \bool_gset_true:N \g_regex_success_bool
-            #1
-            \regex_match_once:
-          }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux]{\regex_match_initial_setup:}
-%   This function holds the setup that should be done
-%   only once for one given pattern matching.
-%   It is called only once for the whole token list.
-%   On the other hand, \cs{regex_match_setup:}
-%   is called for every match in the token list in case of
-%   repeated matches.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_match_initial_setup:
-  {
-    \prg_stepwise_inline:nnnn
-      \c_zero \c_one { \l_regex_max_state_int - \c_one }
-      { \tex_dimen:D ##1 \c_one sp \scan_stop: }
-    \int_set_eq:NN \l_regex_step_int \c_zero
-    \int_set:Nn \l_regex_start_pos_int
-      { \l_regex_min_pos_int - \c_one }
-    \int_set_eq:NN \l_regex_current_pos_int \l_regex_min_pos_int
-    \int_set_eq:NN \l_regex_success_pos_int \l_regex_min_pos_int
-    \int_set_eq:NN \l_regex_submatch_int \l_regex_max_state_int
-    \bool_set_false:N \l_regex_success_empty_bool
-    \bool_gset_false:N \g_regex_success_bool
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux]{\regex_match_setup:}
-%   Every time a match starts, \cs{regex_match_setup:} resets
-%   a few variables.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_match_setup:
-  {
-    \prop_clear:N \l_regex_current_submatches_prop
-    \bool_if:NTF \l_regex_success_empty_bool
-      {
-        \cs_set_nopar:Npn \regex_if_two_empty_matches:F
-          {
-            \int_compare:nNnF \l_regex_start_pos_int
-              = \l_regex_current_pos_int
-          }
-      }
-      { \cs_set_eq:NN \regex_if_two_empty_matches:F \use:n }
-    \int_set_eq:NN \l_regex_start_pos_int \l_regex_success_pos_int
-    \int_set:Nn \l_regex_current_pos_int
-      { \l_regex_start_pos_int - \c_one }
-    \bool_set_false:N \l_regex_success_match_bool
-    \int_zero:N \l_regex_max_active_int
-    \regex_store_state:n {0} %^^A _state_int!
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux]{\regex_match_loop:}
-% \begin{macro}[aux]{\regex_match_one_active:w}
-%   Setup what needs to be reset at every character,
-%   then set \cs{l_regex_current_char_int} to the
-%   character code of the token that is read
-%   (and $-1$ for the end of the token list), and loop
-%   over the elements of the \tn{skip} array. Then repeat.
-%   There are a couple of tests to stop reading the token list
-%   when no active state is left, or when the end is reached.
-%   At every step in reading the token list, we store the character
-%   code of the current character in \cs{l_regex_current_char_int},
-%   unless the end was reached: then we store $-1$.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \regex_match_loop:
-  {
-    \int_incr:N \l_regex_current_pos_int
-    \tex_advance:D \l_regex_step_int \c_two
-    \bool_set_false:N \l_regex_fresh_thread_bool
-    \int_set_eq:NN \l_regex_last_char_int \l_regex_current_char_int
-    \int_set_eq:NN \l_regex_case_changed_char_int \c_max_int
-    \regex_query_get:
-    \use:x
-      {
-        \int_zero:N \l_regex_max_active_int
-        \regex_match_one_active:w 1 ; \prg_break_point:n { }
-        \exp_not:N \prg_break_point:n { }
-      }
-    \if_num:w \l_regex_current_char_int < \c_minus_one
-      \exp_after:wN \prg_map_break:
-    \fi:
-    \if_num:w \l_regex_max_active_int = \c_zero
-      \exp_after:wN \prg_map_break:
-    \fi:
-    \regex_match_loop:
-  }
-\cs_new:Npn \regex_match_one_active:w #1;
-  {
-    \if_num:w #1 > \l_regex_max_active_int
-      \exp_after:wN \prg_map_break:
-    \fi:
-    \regex_state_use_with_submatches:n { \int_value:w \tex_skip:D #1 }
-    \exp_after:wN \regex_match_one_active:w
-      \int_use:N \int_eval:w #1 + \c_one ;
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
+%^^A\end{todo}
 %
 % \subsubsection{Actions when matching}
 %
 % \begin{macro}[int]{\regex_action_start_wildcard:}
-%: the first state has a free transition to the second
-%   state, where the regular expression really begins, and a costly
-%   transition to itself, to try again at the next character. ^^A ??
-%   The search is made unanchored at the start by putting
-%   a free transition to the real start of the \textsc{nfa}, and a
-%   costly transition to the same state, waiting for the
-%   next token in the query. This combination
-%   could be reused (with some changes). We sometimes need
-%   to know that the match for a given thread starts at
-%   this character. For that, we use the boolean
-%   \cs{l_regex_fresh_thread_bool}.
+%   For an unanchored match, state $0$ has a free transition to the next
+%   and a costly one to itself, to repeat at the next position. To catch
+%   repeated identical empty matches, we need to know if a successful
+%   thread corresponds to an empty match. The instruction resetting
+%   \cs{l_regex_fresh_thread_bool} may be skipped by a successful
+%   thread, hence we had to add it to \cs{regex_match_loop:} too.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \regex_action_start_wildcard:
   {
@@ -4425,16 +4389,33 @@
 %    \end{macrocode}
 % \end{macro}
 %
+%^^A\begin{todo}{update}
 % \begin{macro}[int]{\regex_action_cost:n}
-%   A transition which consumes the current character and moves
-%   to state |#1|.
+% \begin{macro}[aux]{\regex_store_state:n}
+%   A transition which consumes the current character and shifts the
+%   state by |#1|. The resulting state is stored in the \tn{skip} array
+%   for use at the next position, and we also store the current
+%   submatches.
+%
+%   Put the given state in the array of \tn{skip} registers.
+%   This is done by increasing the pointer
+%   \cs{l_regex_max_active_int}, and converting the integer
+%   to a dimension (suitable for a \tn{skip} assignment) in
+%   scaled points.
 %    \begin{macrocode}
 \cs_new_protected:Npn \regex_action_cost:n #1
   {
     \exp_args:No \regex_store_state:n
       { \int_use:N \int_eval:w \l_regex_current_state_int + #1 }
   }
+\cs_new_protected:Npn \regex_store_state:n #1
+  {
+    \tex_skip:D \l_regex_max_active_int #1 sp \scan_stop:
+    \int_incr:N \l_regex_max_active_int
+    \regex_store_submatches:n {#1}
+  }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[int]{\regex_action_success:}
@@ -4450,8 +4431,8 @@
   {
     \regex_if_two_empty_matches:F
       {
-        \bool_set_true:N \l_regex_success_match_bool
-        \bool_set_eq:NN \l_regex_success_empty_bool
+        \bool_set_true:N \l_regex_match_success_bool
+        \bool_set_eq:NN \l_regex_empty_success_bool
           \l_regex_fresh_thread_bool
         \int_set_eq:NN \l_regex_success_pos_int \l_regex_current_pos_int
         \prop_set_eq:NN \l_regex_success_submatches_prop
@@ -4462,7 +4443,8 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int]{\regex_action_free:n}
+% \begin{macro}[int]{\regex_action_free:n, \regex_action_free_group:n}
+% \begin{macro}[aux]{\regex_action_free_aux:nn}
 %   To copy a thread, check whether the program state has already
 %   been used at this character. If not, store submatches in the
 %   new state, and insert the instructions for that state in the
@@ -4493,6 +4475,7 @@
 \cs_new_protected_nopar:Npn \regex_action_free_group:n
   { \regex_action_free_aux:nn { < \l_regex_step_int } }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[int]{\regex_action_submatch:n}
@@ -4797,6 +4780,7 @@
 %     \regex_replacement_c_L:w,
 %     \regex_replacement_c_E:w,
 %     \regex_replacement_c_D:w,
+%     \regex_replacement_c_C:w,
 %     \regex_replacement_c_B:w,
 %     \regex_replacement_c_A:w,
 %   }
@@ -4829,7 +4813,7 @@
 
   \char_set_catcode_parameter:N \^^@
   \cs_new_protected_nopar:Npn \regex_replacement_c_P:w
-    { \regex_replacement_char:nNN { ^^@^^@^^@^^@^^@^^@^^@^^@ } }
+    { \regex_replacement_char:nNN { \exp_not:n { ^^@^^@^^@^^@ } } }
 
   \char_set_catcode_other:N \^^@
   \cs_new_protected_nopar:Npn \regex_replacement_c_O:w
@@ -4846,7 +4830,9 @@
   \char_set_catcode_group_end:N \^^@
   \cs_new_protected_nopar:Npn \regex_replacement_c_E:w
     {
-      \int_decr:N \l_regex_balance_int
+      \if_num:w \l_regex_replacement_csnames_int = \c_zero
+        \int_decr:N \l_regex_balance_int
+      \fi:
       \regex_replacement_char:nNN { \if_false: { \fi:  ^^@ }
     }
 
@@ -4857,14 +4843,16 @@
   \char_set_catcode_group_begin:N \^^@
   \cs_new_protected_nopar:Npn \regex_replacement_c_B:w
     {
-      \int_incr:N \l_regex_balance_int
+      \if_num:w \l_regex_replacement_csnames_int = \c_zero
+        \int_incr:N \l_regex_balance_int
+      \fi:
       \regex_replacement_char:nNN { \exp_after:wN ^^@ \if_false: } \fi: }
     }
-
+  \cs_new_protected:Npn \regex_replacement_c_C:w #1#2
+    { \tl_build_one:n { \exp_not:N \exp_not:N \exp_not:c {#2} } }
   \char_set_catcode_active:N \^^@
   \cs_new_protected_nopar:Npn \regex_replacement_c_A:w
     { \regex_replacement_char:nNN { \exp_not:N ^^@ } }
-
 \group_end:
 %    \end{macrocode}
 % \end{macro}
@@ -5147,7 +5135,7 @@
       \tex_skip:D \l_regex_submatch_int
         = \l_regex_start_pos_int sp plus \l_regex_max_pos_int sp \scan_stop:
       \int_incr:N \l_regex_submatch_int
-      \if_meaning:w \c_true_bool \l_regex_success_empty_bool
+      \if_meaning:w \c_true_bool \l_regex_empty_success_bool
         \if_num:w \l_regex_start_pos_int = \l_regex_max_pos_int
           \int_decr:N \l_regex_submatch_int
         \fi:
@@ -5651,18 +5639,23 @@
 %    \end{macrocode}
 % \end{macro}
 %
-%^^A \begin{todo}{update}
 % \subsection{Code for tracing}
 %
 % The tracing code is still very experimental, and is meant to be used
 % with the \pkg{l3trace} package, currently in \texttt{l3trial}.
 %
 % \begin{macro}[int]{\regex_trace_states:n}
+%   This function lists the contents of all states of the \textsc{nfa},
+%   stored in \tn{toks} from $0$ to \cs{l_regex_max_state_int}
+%   (excluded).
 %    \begin{macrocode}
 %<*trace>
 \cs_new_protected:Npn \regex_trace_states:n #1
   {
-    \prg_stepwise_inline:nnnn { 0 } { 1 } { \l_regex_max_state_int - 1 }
+    \prg_stepwise_inline:nnnn
+      \l_regex_min_state_int
+      \c_one
+      { \l_regex_max_state_int - 1 }
       {
         \trace:nnx { regex } { #1 }
           { \iow_char:N \\toks ##1 = { \tex_the:D \tex_toks:D ##1 } }
@@ -5671,7 +5664,6 @@
 %</trace>
 %    \end{macrocode}
 % \end{macro}
-% ^^A \end{todo}
 %
 %    \begin{macrocode}
 %</package>
