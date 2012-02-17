@@ -92,6 +92,16 @@
 %     What happens if we run out of blocks, for example?
 %   \item Should be use a nested mapping approach when setting up for
 %     columns, to map over all float areas and block numbers?
+%   \item The way that float areas are defined means that a maximum of nine
+%     columns are supported. This does not seem like a real limitation, but
+%     should be documented. We should also check the number of columns
+%     requested to ensure this stays working. Combined with the need for
+%     allocation for column data, this suggests that \cs{g_xor_cols_int} should
+%     not be set directly, with instead a \enquote{set up columns} function.
+%   \item Columns and blocks are indexed from one, not from zero. This
+%     makes sense in the OR but should be noted in the documentation.
+%   \item We have no mechanism for page layout (\textsf{geometry}),
+%     which means some dimensions are not defined in format mode!
 % \end{itemize}
 %
 %    \begin{macrocode}
@@ -382,6 +392,173 @@
     \dim_new:c { g_xor_balance_ht_col_ #1 _dim }
   }
 %    \end{macrocode}
+%
+% \subsection{Utilities for column structures}
+%
+% \begin{macro}{\xor_forall_columns:n}
+% \begin{macro}{\xor_forall_column_block:n}
+% \begin{variable}{\g_xor_saved_curr_col_int, \g_xor_saved_curr_col_block_int}
+%   Applies the code in |#1| for each column current active. Within the code,
+%   \cs{g_xor_curr_col_int} is the column current being processed. The
+%   value of \cs{g_xor_curr_col_int} is saved and restored using a global
+%   approach, but there is no nesting support here.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xor_forall_columns:n #1
+  {
+    \int_gset_eq:NN \g_xor_saved_curr_col_int \g_xor_curr_col_int
+    \int_gzero:N \g_xor_curr_col_int
+    \int_while_do:nNnn \g_xor_curr_col_int < \g_xor_cols_int
+      {
+        \int_gincr:N \g_xor_curr_col_int  
+         #1   
+      }
+    \int_gset_eq:NN \g_xor_curr_col_int \g_xor_saved_curr_col_int
+  }
+%    \end{macrocode}
+%   Mapping to every block of every column follows the same pattern, with
+%   \cs{g_xor_curr_col_block_int} available for the block number.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xor_forall_column_blocks:n #1
+  {
+    \int_gset_eq:NN \g_xor_saved_curr_col_block_int \g_xor_curr_col_block_int
+    \xor_forall_columns:n
+      {
+        \int_gzero:N \g_xor_curr_col_block_int
+        \int_while_do:nNnn \g_xor_curr_col_block_int <
+         {
+           \int_use:c { g_xor_col_ \int_use:N \g_xor_curr_col_int _block_int }
+         }
+         {
+           \int_gincr:N \g_xor_curr_col_block_int
+           #1   
+         }
+      }
+    \int_gset_eq:NN \g_xor_curr_col_block_int \g_xor_saved_curr_col_block_int
+  }
+\int_new:N \g_xor_saved_curr_col_int
+\int_new:N \g_xor_saved_curr_col_block_int
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+% \end{macro}
+% 
+% \begin{macro}{\xor_save_col_hts:N}
+%   Saves information about the current column setup in a tl var.~passed as its
+%   argument. Calling this tl var.~(e.g., |\g_xor_best_trial_col_hts_tl|) can
+%   then be used to restore those settings. As with most of the rest of the
+%   OR, the assignment here is global and the tl var.~should be a \cs{g_\ldots}
+
+%
+%   This is for example used to remember the current best trial.  Calling the
+%   tl var.~doesn't change the current \tn{vsize} but sets for each column
+%   block \cs{g_xor_ht_col_\meta{column}_\meta{block}_dim} to hold a new height
+%   which can then be assigned to \tn{vsize} when cutting the galley for the
+%   \meta{column} (or column block).
+%    \begin{macrocode}
+\cs_new_protected:Npn \xor_save_col_hts:N #1
+  {
+%<*trace>
+    \trace_push:n { xor_save_col_hts:N~( \token_to_str:N #1 ) }
+%</trace>
+    \tl_gclear:N #1
+    \xor_forall_columns:n
+      {
+        \tl_gput_right:Nx #1
+          {
+            \int_gset:Nn
+              \exp_not:c
+                { g_xor_col_ \int_use:N \g_xor_curr_col_int _block_int }
+              {
+                \int_use:c
+                  { g_xor_col_ \int_use:N \g_xor_curr_col_int _block_int }
+              }
+          }
+      }
+    \xor_forall_column_blocks:n
+      {
+%<*trace>
+        \trace:n
+          { \token_to_str:N \xor_curr_col_block: ~:=~ \xor_curr_col_block: }
+%</trace>
+        \tl_gput_right:Nx #1
+          {
+            \dim_gset:Nn
+              \exp_not:c { g_xor_ht_col_ \xor_curr_col_block: _dim }
+              { \dim_use:c { g_xor_ht_col_ \xor_curr_col_block: _dim} }
+          }
+      }
+%<*trace>
+    \trace:n { Saving~column~(height)~information: }
+    \trace:n { \token_to_str:N #1 ~:=~ \tl_to_str:N #1}
+    \trace_pop:n { xor_save_col_hts:N }
+%</trace>
+  }
+%    \end{macrocode}
+% \end{macro}
+% 
+% \begin{macro}{\xor_cols_setup:}
+%   This command sets up the column data structures when we are about to
+%   start a new page.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \xor_cols_setup:
+  {
+%<*trace>
+    \trace_push:n{xor_cols_setup:}
+%</trace>
+    \int_gset_eq:NN \g_xor_curr_col_int \c_one
+    \int_gset_eq:NN \g_xor_curr_col_block_int \c_one
+%    \end{macrocode}
+%   The initial target size for all columns is the height of the text on
+%   the page. The size already taken up by bottom floats is zero.
+%    \begin{macrocode}
+    \xor_forall_columns:n
+      {
+        \int_gset_eq:cN
+          { g_xor_col_ \int_use:N\g_xor_curr_col_int _block_int } \c_one
+        \dim_gset_eq:cN
+%<*package>
+          { g_xor_ht_col_ \xor_curr_col_block: _dim } \textheight
+%</package>
+%<*initex>
+          % What do we do here?
+          { g_xor_ht_col_ \xor_curr_col_block: _dim } \ERROR
+%</initex>
+        \dim_gzero:c
+          { g_xor_bottom_ht_col_ \int_use:N \g_xor_curr_col_int _dim}
+%    \end{macrocode}
+%    We haven't seen any balance points yet, thus clearly none are
+%    already handled.\footnote{FIX: not needed here?}
+%    \begin{macrocode}
+%       \int_gzero:N \g_xor_best_balance_done_int
+%    \end{macrocode}
+%    We haven't seen any top, bottom or middle floats yet.
+%    \begin{macrocode}
+        \int_gzero:c
+          { g_xor_t_floats_col_ \int_use:N \g_xor_curr_col_int _int }
+        \int_gzero:c
+          { g_xor_b_floats_col_ \int_use:N \g_xor_curr_col_int _int }
+        \int_gzero:c
+          { g_xor_m_floats_col_ \int_use:N \g_xor_curr_col_int _int }
+%    \end{macrocode}
+%    For the same reason the delta values for top and bottom areas are
+%    zeroed.
+%    \begin{macrocode}
+        \dim_gzero:c { g_xor_t_delta_col_ \int_use:N \g_xor_curr_col_int _dim }
+        \dim_gzero:c { g_xor_b_delta_col_ \int_use:N \g_xor_curr_col_int _dim }
+        \dim_gzero:c { g_xor_m_delta_col_ \int_use:N \g_xor_curr_col_int _dim }
+      }
+%    \end{macrocode}
+%    We now save in \cs{g_xor_best_trial_col_hts_tl} the various
+%    dim registers for all columns since this will be the best solution unless
+%    something better comes along (i.e., if we can place one or more floats)
+%    \begin{macrocode}
+    \xor_save_col_hts:N \g_xor_best_trial_col_hts_tl
+%<*trace>
+    \trace_pop:n { xor_cols_setup: }
+%</trace>
+  }
+%    \end{macrocode}
+% \end{macro}
 % 
 % \subsection{Adding marker penalties to the MVL}
 %
@@ -484,179 +661,6 @@
   }
 %    \end{macrocode}
 % \end{macro}
-%
-% \subsubsection{Utilities for Columns and their Data Structures}
-%
-% \begin{macro}{\xor_forall_columns:n}
-%    If we want to do something to data structures for all column we
-%    can use the macro |\xor_forall_columns:n|. Within its argument the
-%    current column is available in the register
-%    |\g_xor_curr_col_int|. The macro takes some pains to restore the
-%    original value of |\g_xor_curr_col_int| afterwards (but it it can't
-%    be called recursively).
-%    \begin{macrocode}
-\cs_new_nopar:Npn \xor_forall_columns:n #1 {
-  \tl_set:Nx \l_xor_saved_curr_col_tl {\int_use:N \g_xor_curr_col_int}
-  \int_gzero:N \g_xor_curr_col_int
-  \int_while_do:nNnn \g_xor_curr_col_int<\g_xor_cols_int
-      {
-        \int_gincr:N \g_xor_curr_col_int  
-         #1   
-      }
-  \int_gset:Nn \g_xor_curr_col_int \l_xor_saved_curr_col_tl
-}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-% \begin{macro}{\xor_forall_column_blocks:n}
-%    \begin{macrocode}
-\cs_new_nopar:Npn \xor_forall_column_blocks:n #1 {
-  \tl_set:Nx \l_xor_saved_curr_col_tl {\int_use:N \g_xor_curr_col_int}
-  \tl_set:Nx \l_xor_saved_curr_col_block_tl {\int_use:N \g_xor_curr_col_block_int}
-  \int_gzero:N \g_xor_curr_col_int
-  \int_while_do:nNnn \g_xor_curr_col_int<\g_xor_cols_int
-      {
-        \int_gincr:N \g_xor_curr_col_int  
-        \int_gzero:N \g_xor_curr_col_block_int
-        \int_while_do:nNnn \g_xor_curr_col_block_int < {\int_use:c{g_xor_col_
-                                                       \int_use:N \g_xor_curr_col_int 
-                                                       _block_int}}
-          {
-           \int_gincr:N \g_xor_curr_col_block_int  
-           #1   
-          }
-      }
-  \int_gset:Nn \g_xor_curr_col_int \l_xor_saved_curr_col_tl
-  \int_gset:Nn \g_xor_curr_col_block_int \l_xor_saved_curr_col_block_tl
-}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-%
-%
-% \begin{macro}{\xor_save_col_hts:N}
-%
-%    Saves information about the current column setup in a tl var.~passed as its
-%    argument. Calling this tl var.~(e.g., |\g_xor_best_trial_col_hts_tl|) can
-%    then be used to restore those settings.
-%
-%    This is for example used to remember the current best trial.  Calling the
-%    tl var.~doesn't change the current |\vsize| but sets for each column block
-%    |\g_xor_ht_col_NUM_BLOCK_dim| to hold a new height which can then be
-%    assigned to |\vsize| when cutting the galley for the column NUM (or
-%    column block).
-%    \begin{macrocode}
-\cs_new_nopar:Npn \xor_save_col_hts:N #1 {
-%<*trace>
-  \trace_push:n{xor_save_col_hts:N ~(\string #1)}
-%</trace>
-  \tl_gclear:N #1
-  \xor_forall_columns:n{
-    \tl_gput_right:Nx #1
-      {
-        \exp_not:N \int_gset:Nn
-        \exp_not:c  {g_xor_col_ \int_use:N\g_xor_curr_col_int _block_int}
-                    {\int_use:c {g_xor_col_ \int_use:N\g_xor_curr_col_int
-                                 _block_int} }
-      }
-  }
-  \xor_forall_column_blocks:n{
-%<*trace>
-   \trace:n{\string \xor_curr_col_block: ~:=~ \xor_curr_col_block: }
-%</trace>
-   \tl_gput_right:Nx #1
-      {
-        \exp_not:N \dim_gset:Nn
-        \exp_not:c  {g_xor_ht_col_ \xor_curr_col_block: _dim}
-                    {\dim_use:c {g_xor_ht_col_ \xor_curr_col_block: _dim} }
-      }
-  }
-%<*trace>
-  \trace:n{Saving~ column~ (height)~ information:}
-  \trace:n{\string #1 ~:=~
-         \tl_to_str:N #1}
-  \trace_pop:n{xor_save_col_hts:N}
-%</trace>
-}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-% \begin{macro}{\xor_cols_setup:}
-%    This command sets up the column data structures when we are about to
-%    start a new page.
-%    \begin{macrocode}
-\cs_new_nopar:Npn \xor_cols_setup:{
-%<*trace>
-  \trace_push:n{xor_cols_setup:}
-%</trace>
-%    \end{macrocode}
-%    
-%    \begin{macrocode}
-  \int_gset:Nn\g_xor_curr_col_int{1}  
-  \int_gset:Nn\g_xor_curr_col_block_int{1}
-%    \end{macrocode}
-%
-%    The initial target size for all columns is |\textheight| to which
-%   |g_xor_ht_col_NUM_1_dim| is set. The size already taken up by bottom floats is
-%   zero. These values are stored in |\g_xor_best_trial_col_hts_tl| for later
-%   retrieval during trials.
-%    \begin{macrocode}
-  \xor_forall_columns:n
-     {
-      \int_gset:cn {g_xor_col_ \int_use:N\g_xor_curr_col_int _block_int}{1}
-      \dim_gset:cn {g_xor_ht_col_ \xor_curr_col_block: _dim}{\textheight}
-      \dim_gset:cn {g_xor_bottom_ht_col_ \int_use:N\g_xor_curr_col_int _dim}{\c_zero_dim}
-%    \end{macrocode}
-%    We haven't seen any balance points yet, thus clearly none are
-%    already handled.\footnote{FIX: not needed here?}
-%    \begin{macrocode}
-%     \int_gzero:N \g_xor_best_balance_done_int
-%    \end{macrocode}
-%    We haven't seen any top, bottom or middle floats yet.
-%    \begin{macrocode}
-      \int_gzero:c {g_xor_t_floats_col_ \int_use:N\g_xor_curr_col_int
-                     _int}
-      \int_gzero:c {g_xor_b_floats_col_ \int_use:N\g_xor_curr_col_int
-                     _int}
-      \int_gzero:c {g_xor_m_floats_col_ \int_use:N\g_xor_curr_col_int
-                     _int}
-%    \end{macrocode}
-%    For the same reason the delta values for top and bottom areas are
-%    zeroed.\footnote{Using \texttt{\string\let} and
-%    \texttt{\string\c\_zero} in places like this would be more faster and
-%    shorter, but it wouldn't work nicely in tracing as it would make
-%    unexpandable macros. Perhaps the tracing versions should be made
-%    specially.}
-%    \begin{macrocode}
-      \dim_gzero:c {g_xor_t_delta_col_ \int_use:N\g_xor_curr_col_int _dim}
-      \dim_gzero:c {g_xor_b_delta_col_ \int_use:N\g_xor_curr_col_int _dim}
-      \dim_gzero:c {g_xor_m_delta_col_ \int_use:N\g_xor_curr_col_int _dim}
-  }
-%    \end{macrocode}
-%    We now save in |\g_xor_best_trial_col_hts_tl| the various
-%    dim registers for all columns since this will be the best solution unless
-%    something better comes along (i.e., if we can place one or more floats)
-%    \begin{macrocode}
-
-  \xor_save_col_hts:N \g_xor_best_trial_col_hts_tl
-
-%<*trace>
-  \trace_pop:n{xor_cols_setup:}
-%</trace>
-}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-%
-%
 %
 % \subsubsection{User Commands for Columns}
 %
