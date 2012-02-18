@@ -71,10 +71,41 @@
 % \begin{documentation}
 % 
 % Things that seem likely to require documentation,
-% \emph{i.e.}~\enquote{exposed} items.
+% \emph{i.e.}~\enquote{exposed} items. These will probably be manipulated
+% largely through templates.
 %
 % \begin{variable}{\g_xor_cols_int}
 %   The total number of columns to be filled for the current page. (?)
+%   This one seems to need revision in favour of a function which sets the
+%   value and ensures that the appropriate structures are available.
+% \end{variable}
+% 
+% \begin{variable}{\g_xor_float_area_skip}
+%   The separation to use between two adjacent float areas.
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_text_skip}
+%   The separation to use between column text and adjacent float areas.
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_float_skip}
+%   The separation to use between two floats in the same float area.
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_text_shrink_dim}
+%   The allowed shrinkability of \cs{g_xor_float_text_skip}. This is used if we
+%   are doing grid typesetting and have to adjust the vertical size of the
+%   column.
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_inline_skip}
+%   The separation to use between two floats in the same float area.
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_inline_shrink_dim}
+%   The allowed shrinkability of \cs{g_xor_float_inline_skip}. This is used if
+%   we are doing grid typesetting and have to adjust the vertical size of
+%   object to be added, e.g., an inline float with its caption.
 % \end{variable}
 %
 % \end{documentation}
@@ -102,6 +133,14 @@
 %     makes sense in the OR but should be noted in the documentation.
 %   \item We have no mechanism for page layout (\textsf{geometry}),
 %     which means some dimensions are not defined in format mode!
+%   \item There are a number of comma lists which seem at first glance to
+%     be suitable for conversion to sequences. This needs checking once
+%     the first pass is completed (and so proper access methods are in use).
+%   \item What is the difference between a float type and a float class?
+%   \item In package mode, the old \cs{@topnum}, \emph{etc.}, are reused, but
+%     in format mode everything is dynamic. Should we allocate a few
+%     \enquote{common} areas in all cases? On the other hand, should we test
+%     in package mode without this short cut?
 % \end{itemize}
 %
 %    \begin{macrocode}
@@ -244,7 +283,7 @@
 %    \end{macrocode}
 % \end{variable}
 % 
-% \subsection{Column structures and support functions}
+% \subsection{Column data structures}
 % 
 % Supporting multiple columns requires two forms of data structure: some
 % to track the overall situation, and some on a per-column basis. The
@@ -503,7 +542,7 @@
 \cs_new_protected_nopar:Npn \xor_cols_setup:
   {
 %<*trace>
-    \trace_push:n{xor_cols_setup:}
+    \trace_push:n { xor_cols_setup: }
 %</trace>
     \int_gset_eq:NN \g_xor_curr_col_int \c_one
     \int_gset_eq:NN \g_xor_curr_col_block_int \c_one
@@ -560,6 +599,344 @@
 %    \end{macrocode}
 % \end{macro}
 % 
+% \subsection{Float area data structures}
+% 
+% The naming convention for float areas is as follows:
+% \begin{quote}
+%   \meta{identifier}\meta{start-column}\meta{span-count}.
+% \end{quote}
+% The \meta{identifier} is a single letter denoting the type of area,
+% e.g., |t| for top, |b| for bottom. The \meta{span-count} is a single
+% digit denoting the number of columns to span. The
+% \meta{start-column} is a single digit\footnote{With a bit of care in
+% the code this could be extended to allow more than one digit.}
+% denoting the start column of the area. Thus |t32| is a top area
+% starting at column three and spanning two columns, i.e.~columns three and
+% four. A restriction due to the naming scheme is that no more than~$9$ columns
+% are possible. In addition to the standard areas, the special area
+% |DDD| is used to handle deferred floats.
+%
+% Only a subset of the float areas is allowed to be populated on a page. In
+% essence the current algorithm does not support placements that result in
+% splitting the text of a column due to a float (other than column
+% \enquote{here} floats).\footnote{Perhaps this restriction will be lifted one
+% day.} This means that if $pcs$ ($p = \textrm{pos}$, $c = \textrm{column}$,
+% $s = \textrm{span}$) is a float area that is being populated then it must
+% prevent populating all float areas that satisfy either
+% \[
+%    pij  \textrm{ with }   i < c \leq i+j < c+s
+% \]
+% or
+% \[
+%    pij  \textrm{ with }   i \leq c+s < i+j \leq \cs{g_xor_cols_int}
+% \]
+% The first formula describes the areas which partly overlap from the
+% left, the second formula describes those that partly overlap from
+% the right. Areas which are sub- or super-areas, e.g., \texttt{t13}
+% and \texttt{t22} do not affect each other. The above restriction is
+% necessary to prevent situations like
+% \begin{verbatim}
+%   aaaaaaaaaaa 444
+%   aaaaaaaaaaa 444
+%   aaaaaaaaaaa 444
+%   111 222 bbbbbbb
+%   111 222 bbbbbbb
+%   111 222 bbbbbbb
+%   111 222 333 444
+%   111 222 333 444
+% \end{verbatim}
+%
+% For each area \meta{area} (e.g., |t13|) we keep a number of global variables
+% to store relevant data. These are the following variables:
+% \begin{description}
+%   \item[\cs{g_xor_area_\meta{area}_float_seq}]
+%     Holds the floats allocated to the \meta{area} by the page building
+%     process.
+%   
+%   \item[\cs{g_xor_area_\meta{area}_max_float_int}]
+%     The maximum number of floats allowed in the \meta{area}.
+%   
+%   \item[\cs{g_xor_area_\meta{area}_float_int}]
+%     The number of floats currently allocated to the \meta{area}.
+%   
+%   \item[\cs{g_xor_area_\meta{area}_class_close_clist}]
+%     Areas that should be closes for floats of the same sequence class once a
+%     float is added to the \meta{area}.
+%   
+%   \item[\cs{g_xor_area_\meta{area}_all_close_clist}]
+%     Areas that should be closes for floats of all classes once a
+%     float is added to the \meta{area}.
+% \end{description}
+% 
+% There are three general classes of data structure here: ones which apply
+% to all floats, ones which apply to a single \enquote{current} float during
+% the processing operation, ones which apply to a class of floats (mainly
+% dynamically generated). In the first class, some are for internal use
+% while others are available for template manipulation.
+%
+% \begin{variable}{\g_xor_areas_known_clist}
+%   A list of the float areas known to the system.\footnote{Or
+%   something else, the semantics are still changing.} Initialization
+%   is done when declaring individual areas.
+%    \begin{macrocode}
+\clist_new:N \g_xor_areas_known_clist
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_areas_used_clist}
+%   The float areas actually used by the current page setup: initialization is
+%   done in the page setup template.
+%    \begin{macrocode}
+\clist_new:N \g_xor_areas_used_clist
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_free_seq}
+%   Sequence of float structures free to receive floats. \LaTeXe{} creates
+%   a number of inserts in the format code, and so these are reused in package
+%   mode. In kernel mode, all of the required inserts will be created as they
+%   are needed.
+%    \begin{macrocode}
+\seq_new:N \g_xor_float_free_seq
+%<*package>
+\cs_set:Npn \@elt #1 { \seq_gput_right:Nn \g_xor_float_free_seq {#1} }
+\@freelist
+\cs_undefine:N \@freelist
+\cs_undefine:N \@elt
+%</package>
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_floats_active_seq}
+%   ? FRANK ?
+%    \begin{macrocode}
+\seq_new:N \g_xor_floats_active_seq
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_floats_mvl_seq}
+%   ? FRANK ?
+%    \begin{macrocode}
+\seq_new:N \g_xor_floats_mvl_seq
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_area_DDD_float_seq}
+%   The list of deferred floats: a special \meta{area} with a three token
+%   name (as required by the general naming scheme).
+%    \begin{macrocode}
+\seq_new:N \g_xor_area_DDD_float_seq
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_area_DDD_class_close_clist}
+%   This clist lists all areas that should be closed for some class |FOO| if a
+%   float of this class is deferred. Normally this would be all areas on the
+%   page, i.e., \cs{g_xor_areas_used_clist}, and this is how it is typically
+%   initialized in the background. However, in designs that don't care about
+%   float orderings it can be set to something else in which case some or all
+%   areas may remain open.
+%    \begin{macrocode}
+\clist_new:N \g_xor_area_DDD_class_close_clist
+%    \end{macrocode}
+% \end{variable}
+
+% \begin{variable}{\g_xor_area_DDD_all_close_clist}
+%   This clist lists all areas that should be closed if a any float is
+%   deferred (regardless of its class). It is normally initialized to close
+%   no areas.
+%    \begin{macrocode}
+\clist_new:N \g_xor_area_DDD_all_close_clist
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_this_caption_tl}
+% \begin{variable}{\g_xor_this_span_num_tl}
+% \begin{variable}{\g_xor_this_display_tl}
+% \begin{variable}{\g_xor_this_display_cnt_tl}
+% \begin{variable}{\g_xor_this_allowed_areas_clist}
+% \begin{variable}{\g_xor_this_type_tl}
+% \begin{variable}{\g_xor_this_flseq_int}
+% \begin{variable}{\g_xor_this_class_tl}
+%   When working with an individual float, a number of pieces of information
+%   need to be available as variables.
+%   
+%   The float caption.
+%    \begin{macrocode}
+\tl_new:N \g_xor_this_caption_tl
+%    \end{macrocode}
+%   ? NOT SURE ?
+%    \begin{macrocode}
+\tl_new:N \g_xor_this_span_num_tl
+%    \end{macrocode}
+%   ? NOT SURE ?
+%    \begin{macrocode}  
+\tl_new:N \g_xor_this_label_key_tl
+%    \end{macrocode}
+%   The \enquote{display} counter for the float, which is usually dependent
+%   on the type of float.
+%    \begin{macrocode}
+\tl_new:N \g_xor_this_display_cnt_tl
+%    \end{macrocode}
+%   Float areas permitted for the float.
+%    \begin{macrocode}
+\clist_new:N \g_xor_this_allowed_areas_clist
+%    \end{macrocode}
+%   The type of the float.
+%    \begin{macrocode}
+\tl_new:N \g_xor_this_type_tl
+%    \end{macrocode}
+%   The number of this float within the sequence of floats of the appropriate
+%   type.
+%    \begin{macrocode}
+\int_new:N \g_xor_this_flseq_int
+%    \end{macrocode}
+%   The class of the float.
+%    \begin{macrocode}
+\tl_new:N \g_xor_this_class_tl
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+%
+% \begin{variable}
+%   {\g_xor_this_areas_open_clist, \g_xor_saved_this_areas_open_clist}
+%   The float areas in which we will try to place a float onto the current page.
+%   These areas are tried one after another until the float is successfully
+%   placed or we run out of areas. The \texttt{saved} version is needed for
+%   backtracking if we encounter a flush point that can't be resolved.
+%    \begin{macrocode}
+\clist_new:N \g_xor_this_areas_open_clist
+\clist_new:N \g_xor_saved_this_areas_open_clist
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_this_areas_closed_clist}
+%  The float areas which have been closed for the current float while trying to
+%  place it. It is initialized with
+%  |\g_xor_class_ \g_xor_this_class_tl _areas_closed_clist| when we fetch a new
+%  float to try. Once the float is placed we write the then current value back.
+%    \begin{macrocode}
+\clist_new:N \g_xor_this_areas_closed_clist
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_curr_page_areas_closed_clist}
+%   The float areas which have been closed for all float types.
+%    \begin{macrocode}
+\clist_new:N \g_xor_curr_page_areas_closed_clist
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}
+%   {
+%     \g_xor_area_t11_float_int,
+%     \g_xor_area_t21_float_int,
+%     \g_xor_area_b11_float_int,
+%     \g_xor_area_b21_float_int
+%   }
+%    The float counts are allocated dynamically when an area is
+%    declared if they are not defined, but we have a few registers
+%    left over from \LaTeX{}'s old OR so we might as well use them.
+%    \begin{macrocode}
+%<*unused>
+\int_new:c { g_xor_area_t11_float_int }
+\int_new:c { g_xor_area_b11_float_int }
+\int_new:c { g_xor_area_t12_float_int }
+\int_new:c { g_xor_area_b12_float_int }
+%</unused>
+%<*package>
+\cs_set_eq:cN { g_xor_area_t11_float_int } \@topnum
+\cs_set_eq:cN { g_xor_area_b11_float_int } \@botnum
+\cs_set_eq:cN { g_xor_area_t12_float_int } \@dbltopnum
+\cs_set_eq:cN { g_xor_area_b12_float_int } \@dblbotnum
+%</package>
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_area_DDD_float_int}
+%   We need to declare the one for the defer area is that isn't going through
+%   the normal initialization process.
+%    \begin{macrocode}
+\int_new:N \g_xor_area_DDD_float_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_area_skip}
+%   The separation to use between two adjacent float areas.
+%    \begin{macrocode}
+\skip_new:N \g_xor_float_area_skip
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_text_skip}
+%   The separation to use between column text and adjacent float areas.
+%    \begin{macrocode}
+%<*initex>
+\skip_new:N \g_xor_float_text_skip
+%</initex>
+%<*package>
+\cs_new_eq:NN \g_xor_float_text_skip \textfloatsep
+%</package>
+%<*unused>
+\cs_undefine:N \textfloatsep
+%</unused>
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_float_skip}
+%   The separation to use between two floats in the same float area.
+%    \begin{macrocode}
+%<*initex>
+\skip_new:N \g_xor_float_float_skip
+%</initex>
+%<*package>
+\cs_new_eq:NN \g_xor_float_float_skip \floatsep
+%</package>
+%<*unused>
+\cs_undefine:N \floatsep
+%</unused>
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_text_shrink_dim}
+%   The allowed shrinkability of \cs{g_xor_float_text_skip}. This is used if we
+%   are doing grid typesetting and have to adjust the vertical size of the
+%   column.
+%    \begin{macrocode}
+\dim_new:N \g_xor_float_text_shrink_dim
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_inline_skip}
+%   The separation to use between two floats in the same float area.
+%    \begin{macrocode}
+%<*initex>
+\skip_new:N \g_xor_float_inline_skip
+%</initex>
+%<*package>
+\cs_new_eq:NN \g_xor_float_inline_skip \intextsep
+%</package>
+%<*unused>
+\cs_undefine:N \intextsep
+%</unused>
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_xor_float_inline_shrink_dim}
+%   The allowed shrinkability of \cs{g_xor_float_inline_skip}. This is used if
+%   we are doing grid typesetting and have to adjust the vertical size of
+%   object to be added, e.g., an inline float with its caption.
+%    \begin{macrocode}
+\dim_new:N \g_xor_float_inline_shrink_dim
+%    \end{macrocode}
+% \end{variable}
+%
 % \subsection{Adding marker penalties to the MVL}
 %
 % \begin{macro}{\xor_add_badly_guarded_penalty:N}
@@ -697,366 +1074,6 @@
 }
 %    \end{macrocode}
 % \end{macro}
-%
-%
-%
-%
-%
-%
-%
-%
-%
-%
-% \subsection{Float Areas and their Data Structures}
-%
-% Naming conventions for float areas is as follows:
-% \begin{quote}
-% \meta{identifier}\meta{start-column}\meta{span-count}.
-% \end{quote}
-% The \meta{identifier} is a single letter denoting the type of area,
-% e.g., |t| for top, |b| for bottom. The \meta{span-count} is a single
-% digit denoting the number of columns to span. The
-% \meta{start-column} is a single digit\footnote{with a bit of care in
-% the code this could be extended to allow more than one digit.}
-% denoting the start column of the area. Thus |t32| is a top area
-% starting at column three and spanning two columns ie three and four.
-% A restriction due to the naming scheme is that currently no more than
-% 9 columns are possible.
-%
-% Only a subset of the float areas is allowed to be populated on a
-% page. In essense the current algorithm does not support placements
-% that result in splitting the text of a column due to a float (other
-% than column `here' floats).\footnote{Perhaps this restriction is
-% lifted one day.} This means that if $pcs$ ($p=\textrm{pos}$,
-% $c=\textrm{column}$, $s=\textrm{span}$) is a float area that is
-% being populated then it must prevent populating all float areas that
-% satisfy either
-% \[
-%    pij  \textrm{ with }   i < c \leq i+j < c+s
-% \]
-% or
-% \[
-%    pij  \textrm{ with }   i \leq c+s < i+j \leq \verb=\g_xor_cols_int=
-% \]
-% The first formula describes the areas which partly overlap from the
-% left, the second formula describes those that partly overlap from
-% the right. Areas which are sub- or super-areas, e.g., \texttt{t13}
-% and \texttt{t22} do not affect each other. The above restriction is
-% necessary to prevent situations like
-%\begin{verbatim}
-%aaaaaaaaaaa 444
-%aaaaaaaaaaa 444
-%aaaaaaaaaaa 444
-%111 222 bbbbbbb
-%111 222 bbbbbbb
-%111 222 bbbbbbb
-%111 222 333 444
-%111 222 333 444
-%\end{verbatim}
-%
-%
-% For each area |FOO| (e.g., |t13|) we keep a number of global
-% variables to store relevant data. These are the following
-%    variables\footnote{Not a consistent lot}:
-%
-% \DescribeMacro\g_xor_area_FOO_float_seq
-%    Floats allocated to the area |FOO| by the page building process
-%    are stored in the sequence |\g_xor_area_FOO_float_seq|.
-%
-% \DescribeMacro\g_xor_area_FOO_max_float_int
-%    The maximum number of floats allowed in area |FOO| is stored in
-%    the macro |\g_xor_area_FOO_max_float_int|.
-%
-% \DescribeMacro\g_xor_area_FOO_float_int
-%
-%    The number of floats currently allocated to area |FOO| is stored
-%    in the count register |\g_xor_area_FOO_float_int|.\footnote{This is a
-%    waste of registers!}
-%
-% \DescribeMacro\g_xor_area_FOO_class_close_clist
-%    The areas that should be closed for floats of the same sequence class the
-%    moment a float is placed into area |FOO|. This is a comma
-%    separated list.
-%
-% \DescribeMacro\g_xor_area_FOO_all_close_clist
-%    The areas that should be closed for all float sequence classes the
-%    moment a float is placed into area |FOO|. This is a comma
-%    separated list.
-%
-%
-%
-% \begin{macro}{\g_xor_areas_known_clist}
-%    |\g_xor_areas_known_clist| are the areas known to the system.\footnote{or
-%    something else, the semantics are still changing} Initialization
-%    is done when declaring individual areas.
-%    \begin{macrocode}
-\clist_new:N \g_xor_areas_known_clist
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-% \begin{macro}{\g_xor_areas_used_clist}
-%    |\g_xor_areas_used_clist| are the areas used by the current page setup.
-%    Initialization is done in the page setup template so the
-%    definition below is arbitrary.
-%    \begin{macrocode}
-\clist_new:N \g_xor_areas_used_clist
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{variable}{\g_or_float_free_seq}
-%   Sequence of float structures free to receive floats. \LaTeXe{} creates
-%   a number of inserts in the format code, and so these are reused in package
-%   mode. In kernel mode, all of the required inserts will be created as they
-%   are needed.
-%    \begin{macrocode}
-\seq_new:N \g_or_float_free_seq
-%<*package>
-\cs_set:Npn \@elt #1 { \seq_gput_right:Nn \g_or_float_free_seq {#1} }
-\@freelist
-\cs_undefine:N \@freelist
-\cs_undefine:N \@elt
-%</package>
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{macro}{\g_xor_floats_active_seq}
-%    \begin{macrocode}
-\seq_new:N \g_xor_floats_active_seq
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\g_xor_floats_mvl_seq}
-%    \begin{macrocode}
-\seq_new:N \g_xor_floats_mvl_seq
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\g_xor_area_DDD_float_seq}
-%    The list of deferred floats (which we consider being an area in
-%    some respects). And that area also needs a three-char name!
-%    \begin{macrocode}
-\seq_new:N \g_xor_area_DDD_float_seq
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\g_xor_area_DDD_class_close_clist}
-%    This clist lists all areas that should be closed for some class |FOO| if a
-%    float of this class is deferred. Normally this would be all areas on the
-%    page, i.e., |\g_xor_areas_used_clist|, and this is how it is typically
-%    initialized in the background. However, in designs that don't care about
-%    float orderings it can be set to something else in which case some or all
-%    areas may remain open.
-%    \begin{macrocode}
-\clist_new:N \g_xor_area_DDD_class_close_clist
-%    \end{macrocode}
-% \end{macro}
-
-% \begin{macro}{\g_xor_area_DDD_all_close_clist}
-%    This clist lists all areas that should be closed if a any float is
-%    deferred (regardless of its class). It is normally initialized to close
-%    no areas.
-%    \begin{macrocode}
-\clist_new:N \g_xor_area_DDD_all_close_clist
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\g_xor_this_caption_tl}
-% \begin{macro}{\g_xor_this_span_num_tl}
-% \begin{macro}{\g_xor_this_display_tl}
-% \begin{macro}{\g_xor_this_display_cnt_tl}
-% \begin{macro}{\g_xor_this_allowed_areas_clist}
-% \begin{macro}{\g_xor_this_type_tl}
-% \begin{macro}{\g_xor_this_flseq_int}
-% \begin{macro}{\g_xor_this_class_tl}
-% Each float box has an associated token register storing several
-% information fields.
-% \begin{enumerate}
-% \item[1] float caption (set by caption command)
-% \item[2] 
-% \item[3] saved label string
-% \item[4] `display counter' number (per-type count) set by float environment.
-% \item[5] Allowed float areas (from default or optional arg.)
-% \item[6] float type (currently this is the long name, eg figure) should
-% probably be the single token name, to allow quicker testing.
-% \item[7] float sequence number.
-% \end{enumerate}
-%
-%    \begin{macrocode}
-\tl_new:N \g_xor_this_caption_tl      
-\tl_new:N \g_xor_this_span_num_tl     
-\tl_new:N \g_xor_this_label_key_tl
-\tl_new:N \g_xor_this_display_cnt_tl
-\clist_new:N \g_xor_this_allowed_areas_clist
-\tl_new:N \g_xor_this_type_tl       
-\int_new:N \g_xor_this_flseq_int
-%    \end{macrocode}
-%    From the ``type'' the float class can be determined which is then stored
-%    in the following token list variable:
-%    \begin{macrocode}
-\tl_new:N \g_xor_this_class_tl
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\g_xor_this_areas_open_clist}
-% \begin{macro}{\g_xor_saved_this_areas_open_clist}
-%    In |\g_xor_this_areas_open_clist| we store the float areas in which we
-%    will try to place a float onto the current page. These areas are tried
-%    one after another until the float is successfully placed or we run out of
-%    areas. The list does not have any separator (as we assume that all areas
-%    are denoted by a letter followed by two digits).
-%
-%    |\g_xor_saved_this_areas_open_clist| is the saved version needed for
-%    backtracking if we encounter a flush point that can't be resolved.
-%    \begin{macrocode}
-\clist_new:N \g_xor_this_areas_open_clist
-\clist_new:N \g_xor_saved_this_areas_open_clist
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-%
-%
-% \begin{macro}{\g_xor_this_areas_closed_clist}
-%    In |\g_xor_this_areas_closed_clist| we store the float areas which have been
-%    closed for the current float while trying to place it. In this
-%    list each area name is followed by a comma (to avoid spurious
-%    matches). It is initialized with
-%    |\g_xor_class_ \g_xor_this_class_tl _areas_closed_clist| when
-%    we fetch a new float to try. Once the float is placed we write
-%    the then current value back.
-%    \begin{macrocode}
-\clist_new:N \g_xor_this_areas_closed_clist
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\g_xor_curr_page_areas_closed_clist}
-%    In |\g_xor_curr_page_areas_closed_clist| we store the float areas which have been
-%    closed for all float types. In this list each area name is
-%    followed by a comma (to avoid spurious matches).
-%    \begin{macrocode}
-\clist_new:N \g_xor_curr_page_areas_closed_clist
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-%
-% \begin{macro}{\g_xor_area_t11_float_int}
-% \begin{macro}{\g_xor_area_t21_float_int}
-% \begin{macro}{\g_xor_area_b11_float_int}
-% \begin{macro}{\g_xor_area_b21_float_int}
-%    The float counts are allocated dynamically when an area is
-%    declared if they are not defined, but we have a few registers
-%    left over from \LaTeX{}'s old OR so we might as well use them.
-%    \begin{macrocode}
-%\int_new:c {g_xor_area_t11_float_int}
-%\int_new:c {g_xor_area_b11_float_int}
-%\int_new:c {g_xor_area_t12_float_int}
-%\int_new:c {g_xor_area_b12_float_int}
-\cs_set_eq:cN {g_xor_area_t11_float_int} \@topnum
-\cs_set_eq:cN {g_xor_area_b11_float_int} \@botnum
-\cs_set_eq:cN {g_xor_area_t12_float_int} \@dbltopnum
-\cs_set_eq:cN {g_xor_area_b12_float_int} \@dblbotnum
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\g_xor_area_DDD_float_int}
-%    And we need to declare the one for the defer area is that isn't
-%    going through the normal initialization process.
-%    \begin{macrocode}
-\int_new:N \g_xor_area_DDD_float_int
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-%
-% \begin{macro}{\g_xor_float_area_skip}
-%    |\g_xor_float_area_skip| is the separation to use between two
-%    adjacent float areas.
-%    \begin{macrocode}
-\skip_new:N \g_xor_float_area_skip
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-% \begin{macro}{\g_xor_float_text_skip}
-%    |\g_xor_float_text_skip| is the separation to use between
-%    column text and adjacent float areas.
-%    \begin{macrocode}
-%\skip_new:N \g_xor_float_text_skip
-\cs_set_eq:NN \g_xor_float_text_skip \textfloatsep % reuse register
-\cs_set_eq:NN \textfloatsep \c_undefined
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-% \begin{macro}{\g_xor_float_float_skip}
-%    |\g_xor_float_float_skip| is the separation to use between
-%    two floats in the same float area.
-%    \begin{macrocode}
-%\skip_new:N \g_xor_float_float_skip
-\cs_set_eq:NN \g_xor_float_float_skip\floatsep % reuse register
-\cs_set_eq:NN \floatsep \c_undefined
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-% \begin{macro}{\g_xor_float_text_shrink_dim}
-%    |\g_xor_float_text_shrink_dim| is the allowed shrinkability of
-%    |\g_xor_float_text_skip|. This is used if we are doing grid
-%    typesetting and have to adjust the vertical size of the column.
-%    \begin{macrocode}
-\dim_new:N \g_xor_float_text_shrink_dim
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-%
-% \begin{macro}{\g_xor_float_inline_skip}
-%    |\g_xor_float_inline_skip| is the separation to use between
-%    two floats in the same float area.
-%    \begin{macrocode}
-%\skip_new:N \g_xor_float_inline_skip
-\cs_set_eq:NN \g_xor_float_inline_skip\intextsep % reuse register
-\cs_set_eq:NN \intextsep \c_undefined
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\g_xor_float_inline_shrink_dim}
-%    |\g_xor_float_inline_shrink_dim| is the allowed shrinkability of
-%    |\g_xor_float_inline_skip|. This is used if we are doing grid
-%    typesetting and have to adjust the vertical size of object to be
-%    added, e.g., an inline float with its caption.
-%    \begin{macrocode}
-\dim_new:N \g_xor_float_inline_shrink_dim
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-%
-%
 %
 % \subsubsection{Utilities for Float Areas and their Data Structures}
 %
