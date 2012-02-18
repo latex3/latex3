@@ -7,14 +7,16 @@ rem Makefile for LaTeX3 "xor" files
 :help
 
   echo.
-  echo  make all          - extract modules plus expl3
-  echo  make clean        - clean out directory
-  echo  make check        - run automated check system
-  echo  make doc          - typeset all dtx files
-  echo  make localinstall - locally install packages
+  echo  make all            - extract modules plus expl3
+  echo  make clean          - clean out directory
+  echo  make check          - run automated check system
+  echo  make check show     - run automated check system,
+  echo                        showing the output for the first TeX run
+  echo  make doc            - typeset all dtx files
+  echo  make localinstall   - locally install packages
   echo  make savetlg ^<name^> - save test log for ^<name^>
-  echo  make test         - run test doucments
-  echo  make unpack       - extract modules
+  echo  make test           - run test documents
+  echo  make unpack         - extract modules
 
   goto :end
 
@@ -32,6 +34,7 @@ rem Makefile for LaTeX3 "xor" files
   set EXPL3DIR=..\..\l3kernel
   set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
   set REVERT=xo-balance.pdf xo-pfloat.pdf template-doc.sty
+  set REDIRECT=^> null
   set SCRIPTDIR=..\..\support
   set TESTDIR=testfiles
   set TEST=
@@ -41,14 +44,17 @@ rem Makefile for LaTeX3 "xor" files
 
 :main
 
-  if /i [%1] == [all]          goto :all
-  if /i [%1] == [check]        goto :check
-  if /i [%1] == [clean]        goto :clean
-  if /i [%1] == [doc]          goto :doc
-  if /i [%1] == [localinstall] goto :localinstall
-  if /i [%1] == [savetlg]      goto :savetlg
-  if /i [%1] == [test]         goto :test
-  if /i [%1] == [unpack]       goto :unpack
+  set ARGUMENT=%1
+  shift
+
+  if /i [%ARGUMENT%] == [all]          goto :all
+  if /i [%ARGUMENT%] == [check]        goto :check
+  if /i [%ARGUMENT%] == [clean]        goto :clean
+  if /i [%ARGUMENT%] == [doc]          goto :doc
+  if /i [%ARGUMENT%] == [localinstall] goto :localinstall
+  if /i [%ARGUMENT%] == [savetlg]      goto :savetlg
+  if /i [%ARGUMENT%] == [test]         goto :test
+  if /i [%ARGUMENT%] == [unpack]       goto :unpack
 
   goto :help
 
@@ -76,10 +82,18 @@ rem Makefile for LaTeX3 "xor" files
   if exist *.fc  del /q *.fc
   if exist *.lvt del /q *.lvt
   if exist *.tlg del /q *.tlg
+  
   for %%I in (%TESTDIR%\*.tlg) do (
     if exist %TESTDIR%\%%~nI.lvt (
       xcopy /q /y %TESTDIR%\%%~nI.lvt > nul
       xcopy /q /y %TESTDIR%\%%~nI.tlg > nul
+    )
+  )
+  
+  if /i [%1] == [] else (
+    if /i [%1] == [show] (
+      shift
+      set REDIRECT=
     )
   )
 
@@ -88,7 +102,7 @@ rem Makefile for LaTeX3 "xor" files
 
   for %%I in (*.tlg) do (
     echo   %%~nI
-    pdflatex %%~nI.lvt > nul
+    pdflatex %%~nI.lvt %REDIRECT%
     pdflatex %%~nI.lvt > nul
     pdflatex %%~nI.lvt > nul
     %PERLEXE% log2tlg %%~nI < %%~nI.log > %%~nI.new.log
@@ -202,7 +216,6 @@ rem Makefile for LaTeX3 "xor" files
 
 :savetlg
 
-  shift
   if [%1] == [] goto :help
   if not exist %TESTDIR%\%1.lvt goto :no-lvt
 
@@ -221,6 +234,8 @@ rem Makefile for LaTeX3 "xor" files
   pdflatex %1.lvt > nul
   %PERLEXE% log2tlg %1 < %1.log > %1.tlg
   copy /y %1.tlg %TESTDIR%\%1.tlg > nul
+  
+  shift
 
   goto :clean-int
 
@@ -252,6 +267,5 @@ rem Makefile for LaTeX3 "xor" files
 
 :end
 
-  shift
   if not [%1] == [] goto :main
   endlocal
