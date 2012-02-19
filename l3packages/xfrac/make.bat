@@ -1,81 +1,140 @@
 @echo off
-rem This Windows batch file provides very similar functionality to the
-rem Makefile also available here.  Some of the options provided here 
-rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 
-setlocal
+rem Makefile for LaTeX3 "xfrac" files
 
-set PACKAGE=xfrac
-set KERNELDIR=l3packages
- 
-set AUXFILES=aux cmds glo hd idx ilg ind log lvt tlg toc out
-set CLEAN=fc gz pdf sty txt
-set EXPL3DIR=..\..\l3kernel
-set PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
-set SCRIPTDIR=..\..\support
-set TESTDIR=testfiles
-set TEST=
-set TDSROOT=latex\%KERNELDIR%\%PACKAGE%
-set UNPACK=%PACKAGE%.ins
-set VALIDATE=..\..\validate
+  if not [%1] == [] goto init
 
-:loop
+:help
 
-  if /i [%1] == [all]          goto :all
-  if /i [%1] == [check]        goto :check
-  if /i [%1] == [clean]        goto :clean
-  if /i [%1] == [doc]          goto :doc
-  if /i [%1] == [localinstall] goto :localinstall
-  if /i [%1] == [savetlg]      goto :savetlg
-  if /i [%1] == [test]         goto :test
-  if /i [%1] == [unpack]       goto :unpack
+  echo.
+  echo  make check [show]   - run automated check system
+  echo  make clean          - clean out directory
+  echo  make doc [show]     - typeset all dtx files
+  echo  make localinstall   - locally install package
+  echo  make savetlg ^<name^> - save test log for ^<name^>
+  echo  make unpack [show]  - extract modules
+  echo.
+  echo  The "show" option enables display of the output
+  echo  of the TeX runs in the terminal.
 
-  goto :help
+  goto :EOF
 
-:all
+:init
 
-  pushd %EXPL3DIR%
-  call make unpack
-  popd 
-  xcopy /q /y %EXPL3DIR%\*.sty > nul
-  pushd %EXPL3DIR%
-  call make clean
-  popd
+  rem Avoid clobbering anyone else's variables
 
-  goto :unpack
+  setlocal
 
+  rem Safety precaution against awkward paths
+
+  cd /d "%~dp0"
+
+  rem The name of the module and the bundle it is part of
+
+  set BUNDLE=l3packages
+  set MODULE=xfrac
+
+  rem Unpacking information
+
+  set UNPACK=%MODULE%.ins
+
+  rem Clean up settings
+
+  set AUXFILES=aux cmds fpl glo hd idx ilg ind log lvt tlg toc out
+  set CLEAN=fc gz pdf sty
+  set NOCLEAN=
+
+  rem Check system set up
+
+  set CHECKDIR=testfiles
+  set CHECKEXE=pdflatex
+  set CHECKRUNS=2
+  set CHECKUNPACK=%UNPACK%
+
+  rem Local installation settings
+
+  set INSTALLDIR=latex\%BUNDLE%\%MODULE%
+  set INSTALLFILES=*.sty
+
+  rem Documentation typesetting set up
+
+  set TYPESETEXE=pdflatex -interaction=nonstopmode
+
+  rem Locations for the various support items required
+
+  set MAINDIR=..\..
+  set KERNELDIR=%MAINDIR%\l3kernel
+  set SCRIPTDIR=%MAINDIR%\support
+  set VALIDATE=%MAINDIR%\validate
+
+  rem Set up redirection of output
+
+  set REDIRECT=^> nul
+  if not [%2] == [] (
+    if /i [%2] == [show] (
+      set REDIRECT=
+    )
+  )
+
+:main
+
+  if /i [%1] == [check]        goto check
+  if /i [%1] == [clean]        goto clean
+  if /i [%1] == [cleanall]     goto clean
+  if /i [%1] == [doc]          goto doc
+  if /i [%1] == [localinstall] goto localinstall
+  if /i [%1] == [savetlg]      goto savetlg
+  if /i [%1] == [unpack]       goto unpack
+
+  goto help
 
 :check
 
-  call :unpack
+  if not exist %CHECKDIR%\nul goto end
+
+  rem Check for Perl, and give up if it is not found
+
   call :perl
-  
-  xcopy /q /y %SCRIPTDIR%\log2tlg            > nul
-  xcopy /q /y %VALIDATE%\regression-test.tex > nul
-  
-  if exist *.fc  del /q *.fc
-  if exist *.lvt del /q *.lvt
-  if exist *.tlg del /q *.tlg
-  for %%I in (%TESTDIR%\*.tlg) do (
-    if exist %TESTDIR%\%%~nI.lvt (
-      xcopy /q /y %TESTDIR%\%%~nI.lvt > nul
-      xcopy /q /y %TESTDIR%\%%~nI.tlg > nul
+  if ERRORLEVEL 1 goto :EOF
+
+  rem Unpack, allowing for using a 'trace' version or similar
+
+  for %%I in (%CHECKUNPACK%) do (
+    tex %%I > nul
+  )
+
+  rem Remove any old files, and copy the test system into place
+
+  for %%I in (fc lvt tlg) do (
+    if exist *.%%I del /q *.%%I
+  )
+
+  copy /y %SCRIPTDIR%\log2tlg            > nul
+  copy /y %VALIDATE%\regression-test.tex > nul
+
+  rem Copy all test files for which there is a matching reference log
+
+  for %%I in (%CHECKDIR%\*.lvt) do (
+    if exist %CHECKDIR%\%%~nI.tlg (
+      copy /y %CHECKDIR%\%%~nI.lvt > nul
+      copy /y %CHECKDIR%\%%~nI.tlg > nul
     )
   )
-  
+
   echo.
   echo Running checks on
-  
+
   for %%I in (*.tlg) do (
     echo   %%~nI
-    pdflatex %%~nI.lvt > nul
-    pdflatex %%~nI.lvt > nul
-    %PERLEXE% log2tlg %%~nI < %%~nI.log > %%~nI.new.log 
+    for /l %%J in (1,1,%CHECKRUNS%) do (
+        %CHECKEXE% %%~nI.lvt %REDIRECT%
+      )
+    %PERLEXE% log2tlg %%~nI < %%~nI.log > %%~nI.new.log
     del /q %%~nI.log > nul
     ren %%~nI.new.log %%~nI.log > nul
     fc /n  %%~nI.log %%~nI.tlg > %%~nI.fc
   )
-  
+
   for %%I in (*.fc) do (
     for /f "skip=1 tokens=1" %%J in (%%~nI.fc) do (
       if "%%J" == "FC:" (
@@ -83,165 +142,180 @@ set VALIDATE=..\..\validate
       )
     )
   )
-  
+
   echo.
+
   if exist *.fc (
     echo   Checks fails for
     for %%I in (*.fc) do (
       echo   - %%~nI
-    ) 
+    )
   ) else (
     echo   All checks passed
   )
-  
+
   for %%I in (*.tlg) do (
     if exist %%~nI.pdf del /q %%~nI.pdf
   )
-  
-  goto :clean-int
+
+  goto clean-int
 
 :clean
 
-  for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
+  for %%I in (%NOCLEAN%) do (
+    copy /y %%I %%I.bak > nul
+  )
+
+  for %%I in (%CLEAN%) do (
+    if exist *.%%I del /q *.%%I
+  )
+
+  for %%I in (%NOCLEAN%) do (
+    copy /y %%I.bak %%I > nul
+    del /q %%I.bak
+  )
 
 :clean-int
 
-  for %%I in (%AUXFILES%) do if exist *.%%I del /q *.%%I
+  for %%I in (%AUXFILES%) do (
+    if exist *.%%I del /q *.%%I
+  )
 
   if exist log2tlg del /q log2tlg
   if exist regression-test.tex del /q regression-test.tex
 
-  goto :end
+  goto end
 
 :doc
 
+  echo.
+  echo Typesetting
+
   for %%I in (*.dtx) do (
     echo   %%I
-    pdflatex -interaction=nonstopmode -draftmode "%PDFSETTINGS% \input %%I" > nul
-    if not ERRORLEVEL 1 (
+    %TYPESETEXE% -draftmode %%I %REDIRECT%
+    if ERRORLEVEL 1 (
+      echo   ! Compilation failed
+    ) else (
       if exist %%~nI.idx (
         makeindex -q -s l3doc.ist -o %%~nI.ind %%~nI.idx > nul
       )
-      pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %%I" > nul
-      pdflatex -interaction=nonstopmode "%PDFSETTINGS% \input %%I" > nul
+      %TYPESETEXE% %%I %REDIRECT%
+      %TYPESETEXE% %%I %REDIRECT%
     )
   )
 
-  goto :clean-int
-
-:help
-
-  echo.
-  echo  make all          - extract modules plus expl3
-  echo  make clean        - clean out directory
-  echo  make check        - run automated check system
-  echo  make doc          - typeset all dtx files
-  echo  make localinstall - locally install packages
-  echo  make savetlg ^<name^> - save test log for ^<name^>
-  echo  make test         - run test doucments
-  echo  make unpack       - extract modules
-  
-  goto :end
+  goto clean-int
 
 :localinstall
+
+  call :unpack
 
   echo.
   echo Installing files
 
+  rem Find local root if possible
+
   if not defined TEXMFHOME (
     for /f "delims=" %%I in ('kpsewhich --var-value=TEXMFHOME') do @set TEXMFHOME=%%I
-    if [%TEXMFHOME%] == [] (
+    if "%TEXMFHOME%" == "" (
       set TEXMFHOME=%USERPROFILE%\texmf
     )
   )
-  set INSTALLROOT=%TEXMFHOME%\tex\%TDSROOT%
+
+  set INSTALLROOT=%TEXMFHOME%\tex\%INSTALLDIR%
 
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
+  mkdir "%INSTALLROOT%"
 
-  call make unpack
-  xcopy /q /y *.sty "%INSTALLROOT%\"   > nul 
-  call make clean
+  for %%I in (%INSTALLFILES%) do (
+    copy /y %%I "%INSTALLROOT%" > nul
+  )
 
-  goto :end
+  goto clean-int
 
-:perl 
+:perl
 
   set PATHCOPY=%PATH%
 
 :perl-loop
 
   if defined PERLEXE goto :EOF
-  
+
+  rem This code is used to find out if Perl is available in the path
+
   for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
     if exist %%I\perl.exe set PERLEXE=perl
     set PATHCOPY=%%J;%%K
   )
-  
+
   if defined PERLEXE goto :EOF
 
-  if not "%PATHCOPY%"==";" goto :perl-loop
-  
+  rem No Perl found in the path, so try some standard locations
+
+  if not "%PATHCOPY%" == ";" goto perl-loop
+
   if exist %SYSTEMROOT%\Perl\bin\perl.exe set PERLEXE=%SYSTEMROOT%\Perl\bin\perl
   if exist %ProgramFiles%\Perl\bin\perl.exe set PERLEXE=%ProgramFiles%\Perl\bin\perl
   if exist %SYSTEMROOT%\strawberry\Perl\bin\perl.exe set PERLEXE=%SYSTEMROOT%\strawberry\Perl\bin\perl
-  
-  if defined PERL goto :EOF
-  
+
+  if defined PERLEXE goto :EOF
+
+  rem Failed to find Perl, give up and kill the entire batch process
+
   echo.
   echo  This procedure requires Perl, but it could not be found.
-  
+
+  exit /b 1
+
   goto :EOF
 
 :savetlg
 
-  shift
-  if [%1] == [] goto :help
-  if not exist %TESTDIR%\%1.lvt goto :no-lvt
-
   call :perl
-  call :unpack
- 
-  xcopy /q /y %SCRIPTDIR%\log2tlg > nul
-  xcopy /q /y %VALIDATE%\regression-test.tex > nul
-  xcopy /q /y %TESTDIR%\%1.lvt > nul
-  
-  echo.
-  echo Creating and copying %1.tlg
-  
-  pdflatex %1.lvt > nul
-  pdflatex %1.lvt > nul
-  %PERLEXE% log2tlg %1 < %1.log > %1.tlg
-  copy /y %1.tlg %TESTDIR%\%1.tlg > nul
-  
-  goto :clean-int
 
-:test
-
-  call :all
-
-  for %%I in (%TEST%) do (
-    echo   %%I
-    pdflatex -interaction=batchmode %%I > nul
-    if not [%ERRORLEVEL%] == [0] (
-      echo.
-      echo **********************
-      echo * Compilation failed *
-      echo **********************
-      echo.
-    ) 
+  if [%2] == [] goto help
+  if not exist %CHECKDIR%\%2.lvt (
+    echo.
+    echo Check file %2.lvt not found!
+    shift
+    goto end
   )
 
-  goto :end
+  for %%I in (%CHECKUNPACK%) do (
+    tex %%I > nul
+  )
+
+  copy /y %SCRIPTDIR%\log2tlg            > nul
+  copy /y %VALIDATE%\regression-test.tex > nul
+  copy /y %CHECKDIR%\%2.lvt              > nul
+
+  echo.
+  echo Creating and copying %2.tlg
+
+  for /l %%I in (1,1,%CHECKRUNS%) do (
+      %CHECKEXE% %2.lvt > nul
+    )
+  %PERLEXE% log2tlg %2 < %2.log > %2.tlg
+  copy /y %2.tlg %CHECKDIR%\%2.tlg > nul
+
+  shift
+
+  goto clean-int
 
 :unpack
 
   for %%I in (%UNPACK%) do (
-    tex %%I > nul
+    tex %%I %REDIRECT%
   )
 
-  goto :end
+  goto end
 
 :end
 
+  rem If something like "make check show" was used, remove the "show"
+
+  if /i [%2] == [show] shift
+
   shift
-  if not [%1] == [] goto :loop
+  if not [%1] == [] goto main
