@@ -138,8 +138,6 @@ rem Makefile for LaTeX3 "l3experimental" files
   popd
   copy /y ctan\%BUNDLE%.zip > nul
 
-  goto end
-
   rmdir /q /s ctan
   rmdir /q /s tds
 
