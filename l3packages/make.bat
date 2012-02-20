@@ -1,207 +1,201 @@
 @echo off
-rem This Windows batch file provides very similar functionality to the
-rem Makefile also available here.  Some of the options provided here 
-rem require a zip program such as Info-ZIP (http://www.info-zip.org).
 
-setlocal
+rem Makefile for LaTeX3 "l3packages" files
 
-set CLEAN=zip
-set PACKAGE=l3packages
-set PACKAGES=l3keys2e xfrac xparse xtemplate
-set PATHCOPY=%PATH%
-set TDSROOT=latex\%PACKAGE%
-set TEST=
-set TXT=README
+  if not [%1] == [] goto init
 
-:loop
+:help
 
-  if /i [%1] == [clean]        goto :clean
-  if /i [%1] == [check]        goto :check
-  if /i [%1] == [ctan]         goto :ctan
-  if /i [%1] == [localinstall] goto :localinstall
-  if /i [%1] == [tds]          goto :tds
-  if /i [%1] == [test]         goto :test
+  echo.
+  echo  make check        - run automated check system
+  echo  make clean        - clean out directory
+  echo  make ctan         - create an archive ready for CTAN
+  echo  make doc          - typeset all dtx files
+  echo  make localinstall - locally install package
+  echo  make unpack       - extract modules
 
-  goto :help
+  goto :EOF
 
-:clean
+:init
 
-  for %%I in (%PACKAGES%) do (
-    pushd %%I
-    call make clean
-    popd
+  rem Avoid clobbering anyone else's variables and enable delayed expansion
+
+  setlocal enabledelayedexpansion
+
+  rem Safety precaution against awkward paths
+
+  cd /d "%~dp0"
+
+  rem The name of the bundle and the modules in it
+
+  set BUNDLE=l3packages
+
+  rem Automatically set the MODULES variable to all directories
+  rem Needs delayed expansion (set above)
+
+  set MODULES=
+  for /d %%I in (*) do (
+    set MODULES=!MODULES! %%I
   )
 
-  for %%I in (%CLEAN%) do if exist *.%%I del /q *.%%I
+  rem Clean up settings
 
-  goto :end
-  
+  set CLEAN=zip
+
+  rem CTAN and TDS settings
+
+  set CTANFILES=dtx ins pdf
+  set MARKDOWN=README
+  set TDSFILES=%CTANFILES% sty
+
+:main
+
+  if /i [%1] == [check]        goto check
+  if /i [%1] == [clean]        goto clean
+  if /i [%1] == [cleanall]     goto clean
+  if /i [%1] == [ctan]         goto ctan
+  if /i [%1] == [doc]          goto doc
+  if /i [%1] == [localinstall] goto localinstall
+  if /i [%1] == [unpack]       goto unpack
+
+  goto help
+
 :check
 
-  for %%I in (%PACKAGES%) do (
+  for %%I in (%MODULES%) do (
     pushd %%I
     call make check
     popd
   )
 
-  goto :end
+  goto end
+
+:clean
+
+  for %%I in (%MODULES%) do (
+    if exist %%I\make.bat (
+      pushd %%I
+      call make clean
+      popd
+    )
+  )
+
+  if exist ctan\nul rmdir /q /s ctan
+  if exist tds\nul  rmdir /q /s tds
+
+  for %%I in (%CLEAN%) do (
+    if exist *.%%I del /q *.%%I
+  )
+
+  goto end
 
 :ctan
 
   call :zip
+  if ERRORLEVEL 1 goto :EOF
 
-  echo.
-  echo Creating CTAN file
-  echo.
+  if exist ctan\nul rmdir /q /s ctan
+  if exist tds\nul  rmdir /q /s tds
 
-  if exist temp\*.* rmdir /q /s temp
-  if exist tds\*.*  rmdir /q /s tds
+  mkdir ctan\%BUNDLE%
 
-  for %%I in (%PACKAGES%) do (
-    echo Typesetting
+  rem The following uses delayed evaluation twice (two loops); an alternative
+  rem is a call-based method, but this keeps the code shorter
+
+  for %%I in (%MODULES%) do (
     pushd %%I
-    call make unpack
-    xcopy /q /y *.sty ..\tds\tex\%TDSROOT%\%%I\      > nul
-    call make doc
-    xcopy /q /y *.dtx ..\temp\%PACKAGE%\             > nul
-    xcopy /q /y *.dtx ..\tds\source\%TDSROOT%\%%I\   > nul
-    xcopy /q /y *.ins ..\temp\%PACKAGE%\             > nul
-    xcopy /q /y *.ins ..\tds\source\%TDSROOT%\%%I\   > nul
-    xcopy /q /y *.pdf ..\temp\%PACKAGE%\             > nul
-    xcopy /q /y *.pdf ..\tds\doc\%TDSROOT%\%%I\      > nul
-    if exist *.tex (
-      xcopy /q /y *.tex ..\temp\%PACKAGE%\           > nul
-      xcopy /q /y *.tex ..\tds\source\%TDSROOT%\%%I\ > nul
+    call make unpack doc
+    for %%J in (%CTANFILES%) do (
+      if exist *.%%J copy /y *.%%J ..\ctan\%BUNDLE%\ > nul
     )
-    call make clean
+    for %%J in (%TDSFILES%) do (
+      call :file2tds %%J
+      if exist *.%%J xcopy /q /y *.%%J ..\tds\!!TDSDIR!!\%%I\ > nul
+    )
     popd
   )
 
-  for %%I in (%TXT%) do (
-    xcopy /q /y %%I.markdown temp\%PACKAGE%\    > nul
-    xcopy /q /y %%I.markdown tds\doc\%TDSROOT%\ > nul
-    ren temp\%PACKAGE%\%%I.markdown    %%I
-    ren tds\doc\%TDSROOT%\%%I.markdown %%I
+  echo.
+  echo Creating CTAN archive
+  echo.
+
+  set TDSDIR=doc\latex\%BUNDLE%
+
+  for %%I in (%MARKDOWN%) do (
+    copy /y %%I.markdown ctan\%BUNDLE%\ > nul
+    copy /y %%I.markdown tds\%TDSDIR%\  > nul
+    ren ctan\%BUNDLE%\%%I.markdown %%I
+    ren tds\%TDSDIR%\%%I.markdown %%I
   )
 
-  echo.
-  echo Creating archive
-
   pushd tds
-  %ZIPEXE% %ZIPFLAG% %PACKAGE%.tds.zip .
+  %ZIPEXE% %ZIPFLAG% %BUNDLE%.tds.zip .
   popd
-  xcopy /q /y tds\%PACKAGE%.tds.zip temp\ > nul
+  copy /y tds\%BUNDLE%.tds.zip ctan\ > nul
 
-  pushd temp
-  %ZIPEXE% %ZIPFLAG% %PACKAGE%.zip .
+  pushd ctan
+  %ZIPEXE% %ZIPFLAG% %BUNDLE%.zip .
   popd
-  xcopy /q /y temp\%PACKAGE%.zip > nul
+  copy /y ctan\%BUNDLE%.zip > nul
 
-  rmdir /q /s temp
+  goto end
+
+  rmdir /q /s ctan
   rmdir /q /s tds
 
-  goto :end
+  goto end
 
-:help
+:doc
 
-  echo.
-  echo  make clean        - clean out all directories
-  echo  make check        - runs automated tests in all directories
-  echo  make ctan         - create a zip file ready to go to CTAN
-  echo  make localinstall - install the .sty files in your home texmf tree
-  echo  make tds          - creates a TDS-ready zip of CTAN packages
-  echo  make test         - set up and run all test documents
-  
-  goto :end
+  for %%I in (%MODULES%) do (
+    pushd %%I
+    call make doc
+    popd
+  )
+
+  goto end
+
+:file2tds
+
+  set TDSDIR=
+
+  if /i "%1" == "def" set TDSDIR=tex\latex\%BUNDLE%
+  if /i "%1" == "dtx" set TDSDIR=source\latex\%BUNDLE%
+  if /i "%1" == "ins" set TDSDIR=source\latex\%BUNDLE%
+  if /i "%1" == "pdf" set TDSDIR=doc\latex\%BUNDLE%
+  if /i "%1" == "sty" set TDSDIR=tex\latex\%BUNDLE%
+  if /i "%1" == "tex" set TDSDIR=doc\latex\%BUNDLE%
+  if /i "%1" == "txt" set TDSDIR=doc\latex\%BUNDLE%
+
+  goto :EOF
 
 :localinstall
 
-  echo.
-  echo Installing files
-
-  if not defined TEXMFHOME (
-    for /f "delims=" %%I in ('kpsewhich --var-value=TEXMFHOME') do @set TEXMFHOME=%%I
-    if [%TEXMFHOME%] == [] (
-      set TEXMFHOME=%USERPROFILE%\texmf
-    )
+  for %%I in (%MODULES%) do (
+    pushd %%I
+    call make localinstall
+    popd
   )
-  set INSTALLROOT=%TEXMFHOME%\tex\%TDSROOT%
 
-  if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
+  goto end
 
-  for %%I in (%PACKAGES%) do (
-    echo   %%I
+:unpack
+
+  for %%I in (%MODULES%) do (
     pushd %%I
     call make unpack
-    xcopy /q /y *.sty "%INSTALLROOT%\%%I\"   > nul 
-    call make clean
     popd
   )
 
-  goto :end
-  
-:tds
+  goto end
 
-  call :zip
-
-  echo.
-  echo Creating TDS file
-  echo.
-
-  if exist tds\*.*  rmdir /q /s tds
-
-  for %%I in (%PACKAGES%) do (
-    echo Typesetting
-    pushd %%I
-    call make unpack
-    xcopy /q /y *.sty ..\tds\tex\%TDSROOT%\%%I\      > nul
-    call make doc
-    xcopy /q /y *.dtx ..\tds\source\%TDSROOT%\%%I\   > nul
-    xcopy /q /y *.ins ..\tds\source\%TDSROOT%\%%I\   > nul
-    xcopy /q /y *.pdf ..\tds\doc\%TDSROOT%\%%I\      > nul
-    if exist *.tex (
-      xcopy /q /y *.tex ..\tds\source\%TDSROOT%\%%I > nul
-    )
-    call make clean
-    popd
-  )
-
-  for %%I in (%TXT%) do (
-    xcopy /q /y %%I.markdown tds\doc\%TDSROOT%\ > nul
-    ren tds\doc\%TDSROOT%\%%I.markdown %%I
-  )
-
-  ren tds\doc\%TDSROOT%\readme-ctan README
-
-  echo.
-  echo Creating archive
-
-  pushd tds
-  %ZIPEXE% %ZIPFLAG% %PACKAGE%.tds.zip .
-  popd
-  xcopy /q /y tds\%PACKAGE%.tds.zip > nul
-
-  rmdir /q /s tds
-  
-  goto :end
-
-:test
-  
-  for %%I in (%TEST%) do (
-    echo.
-    echo Testing %%I
-    pushd %%I
-    call make test clean
-    popd
-  )
-
-  goto :end
-
-:zip 
+:zip
 
   set PATHCOPY=%PATH%
 
 :zip-loop
+
+  rem Search for INFO-Zip, or another similar tool
 
   if defined ZIPEXE goto :EOF
 
@@ -213,11 +207,10 @@ set TXT=README
     set PATHCOPY=%%J;%%K
   )
   if not "%PATHCOPY%" == ";" goto :zip-loop
-  
+
   if not defined ZIPEXE (
     echo.
-    echo This procedure requires a zip program,
-    echo but one could not be found.
+    echo This procedure requires a zip program, but one could not be found.
     echo
     echo If you do have a command-line zip program installed,
     echo set ZIPEXE to the full executable path and ZIPFLAG to the
@@ -225,9 +218,11 @@ set TXT=README
     echo.
   )
 
+  exit /b 1
+
   goto :EOF
 
 :end
 
   shift
-  if not [%1] == [] goto :loop
+  if not [%1] == [] goto main
