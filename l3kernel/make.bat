@@ -2,30 +2,26 @@
 
 rem Makefile for LaTeX3 "l3kernel" files
 
-  if not [%1] == "" goto :init
+  if not [%1] == [] goto init
 
 :help
 
-  rem Default with no target is to give help
-
   echo.
-  echo  make check           - run the automated tests
-  echo  make checkcmd ^<name^> - checks all functions are defined in ^<name^>
-  echo  make checkcmds       - checks all functions are defined in all modules
-  echo  make checkdoc        - checks all documentation compiles correctly
-  echo  make checklvt ^<name^> - runs the automated tests for ^<name^>
-  echo  make checktest       - checks test file coverage for all modules
-  echo  make clean           - delete all generated files
-  echo  make ctan            - create an archive ready for CTAN
-  echo  make doc ^<name^>      - typesets ^<name^>.dtx
-  echo  make format          - create a format file for pdfTeX
-  echo  make format ^<engine^> - creates a format file for ^<engine^>
-  echo  make localinstall    - extract packages
-  echo  make savetlg ^<name^>  - save test log for ^<name^>
-  echo  make sourcedoc       - typeset expl3 and source3
-  echo  make test ^<name^>     - checks test file coverage for ^<name^>.dtx
-  echo  make tds             - create a TDS-ready archive
-  echo  make unpack          - extract files
+  echo  make check [show]      - run the automated tests
+  echo  make checkcmd ^<name^>   - checks all functions are defined in ^<name^>
+  echo  make checkcmds         - checks all functions are defined in all modules
+  echo  make checkdoc          - checks all documentation compiles correctly
+  echo  make checklvt ^<name^>   - runs the automated tests for ^<name^>
+  echo  make checktest         - checks test file coverage for all modules
+  echo  make clean             - delete all generated files
+  echo  make ctan              - create an archive ready for CTAN
+  echo  make doc [show] ^<name^> - typesets ^<name^>.dtx
+  echo  make format [^<engine^>] - creates a format file for ^<engine^>
+  echo  make localinstall      - extract packages
+  echo  make savetlg ^<name^>    - save test log for ^<name^>
+  echo  make sourcedoc [show]  - typeset expl3 and source3
+  echo  make test ^<name^>       - checks test file coverage for ^<name^>.dtx
+  echo  make unpack [show]     - extract files
 
   goto :EOF
 
@@ -35,66 +31,85 @@ rem Makefile for LaTeX3 "l3kernel" files
 
   setlocal
 
-  set AUXFILES=aux bbl blg cmds dvi glo gls hd idx ilg ind ist log lvt los out tlg tmp toc
-  set CLEAN=bib bst cls def fc fmt gz ltx mkii orig pdf sty zip
-  set CTANFILES=dtx ins pdf
-  set CTANROOT=ctan
-  set ENGINE=pdftex
-  set INCLUDETXT=README
-  set INCLUDEPDF=expl3 interface3 l3styleguide l3syntax-changes source3
-  set PACKAGE=l3kernel
-  set TDSFILES=%CTANFILES% cls sty
-  set TDSROOT=tds
-  set TESTDIR=testfiles
-  set SUPPORTDIR=..\support
-  set UNPACK=l3.ins
-  set VALIDATE=..\validate
-
-  set CTANDIR=%CTANROOT%\%PACKAGE%
+  rem Safety precaution against awkward paths
 
   cd /d "%~dp0"
 
+  rem The name of the bundle
+
+  set BUNDLE=l3kernel
+
+  rem Unpacking information
+
+  set UNPACK=l3.ins
+
+  rem Clean up settings
+
+  set AUXFILES=aux bbl blg cmds dvi glo gls hd idx ilg ind ist log lvt los out tlg tmp toc
+  set CLEAN=bib bst cls def fc fmt gz ltx mkii orig pdf sty zip
+
+  rem Check system set up
+
+  set CHECKDIR=testfiles
+  set CHECKEXE=pdflatex
+  set CHECKRUNS=2
+  set CHECKUNPACK=%UNPACK%
+
+  rem Locations for the various support items required
+
+  set MAINDIR=..
+  set SCRIPTDIR=%MAINDIR%\support
+  set VALIDATE=%MAINDIR%\validate
+
+  rem Set up redirection of output
+
+  set REDIRECT=^> nul
+  if not [%2] == [] (
+    if /i [%2] == [show] (
+      set REDIRECT=
+    )
+  )
+
+  set CTANFILES=dtx ins pdf
+  set CTANROOT=ctan
+  set ENGINE=pdftex
+  set MARKDOWN=README
+  set INCLUDEPDF=expl3 interface3 l3styleguide l3syntax-changes source3
+  set TDSFILES=%CTANFILES% cls sty
+  set TDSROOT=tds
+
+  set CTANDIR=%CTANROOT%\%BUNDLE%
+
 :main
 
-  if /i [%1] == [check]        goto :check
-  if /i [%1] == [checkcmd]     goto :checkcmd
-  if /i [%1] == [checkcmds]    goto :checkcmds
-  if /i [%1] == [checkdoc]     goto :checkdoc
-  if /i [%1] == [checklvt]     goto :checklvt
-  if /i [%1] == [checktest]    goto :checktest
-  if /i [%1] == [clean]        goto :clean
-  if /i [%1] == [cleanall]     goto :clean
-  if /i [%1] == [ctan]         goto :ctan
-  if /i [%1] == [doc]          goto :doc
-  if /i [%1] == [help]         goto :help
-  if /i [%1] == [format]       goto :format
-  if /i [%1] == [localinstall] goto :localinstall
-  if /i [%1] == [savetlg]      goto :savetlg
-  if /i [%1] == [sourcedoc]    goto :sourcedoc
-  if /i [%1] == [test]         goto :test
-  if /i [%1] == [tds]          goto :tds
-  if /i [%1] == [unpack]       goto :unpack
+  if /i [%1] == [check]        goto check
+  if /i [%1] == [checkcmd]     goto checkcmd
+  if /i [%1] == [checkcmds]    goto checkcmds
+  if /i [%1] == [checkdoc]     goto checkdoc
+  if /i [%1] == [checklvt]     goto checklvt
+  if /i [%1] == [checktest]    goto checktest
+  if /i [%1] == [clean]        goto clean
+  if /i [%1] == [cleanall]     goto clean
+  if /i [%1] == [ctan]         goto ctan
+  if /i [%1] == [doc]          goto doc
+  if /i [%1] == [help]         goto help
+  if /i [%1] == [format]       goto format
+  if /i [%1] == [localinstall] goto localinstall
+  if /i [%1] == [savetlg]      goto savetlg
+  if /i [%1] == [sourcedoc]    goto sourcedoc
+  if /i [%1] == [test]         goto test
+  if /i [%1] == [unpack]       goto unpack
 
-  goto :help
+  goto help
 
 :check
 
-  call :unpack
-  call :perl
+  call :check-aux-1
 
-  copy /y %SUPPORTDIR%\log2tlg           > nul
-  copy /y %VALIDATE%\regression-test.tex > nul
-  copy /y %VALIDATE%\pdftex.def          > nul
-  copy /y %VALIDATE%\pdftexcmds.sty      > nul
-  copy /y %VALIDATE%\supp-pdf.mkii       > nul
-
-  if exist *.fc  del /q *.fc
-  if exist *.lvt del /q *.lvt
-  if exist *.tlg del /q *.tlg
-  for %%I in (%TESTDIR%\*.tlg) do (
-    if exist %TESTDIR%\%%~nI.lvt (
-      copy /y %TESTDIR%\%%~nI.lvt > nul
-      copy /y %TESTDIR%\%%~nI.tlg > nul
+  for %%I in (%CHECKDIR%\*.lvt) do (
+    if exist %CHECKDIR%\%%~nI.tlg (
+      copy /y %CHECKDIR%\%%~nI.lvt > nul
+      copy /y %CHECKDIR%\%%~nI.tlg > nul
     )
   )
 
@@ -103,12 +118,7 @@ rem Makefile for LaTeX3 "l3kernel" files
 
   for %%I in (*.tlg) do (
     echo   %%~nI
-    pdflatex %%~nI.lvt > nul
-    pdflatex %%~nI.lvt > nul
-    %PERLEXE% log2tlg %%~nI < %%~nI.log > %%~nI.new.log
-    del /q %%~nI.log > nul
-    ren %%~nI.new.log %%~nI.log > nul
-    fc /n  %%~nI.log %%~nI.tlg > %%~nI.fc
+    call :check-aux-2 %%~nI
   )
 
   for %%I in (*.fc) do (
@@ -120,6 +130,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   )
 
   echo.
+
   if exist *.fc (
     echo   Checks fails for
     for %%I in (*.fc) do (
@@ -133,13 +144,53 @@ rem Makefile for LaTeX3 "l3kernel" files
     if exist %%~nI.pdf del /q %%~nI.pdf
   )
 
-  goto :clean-int
+  goto clean-int
+
+:check-aux-1
+
+  if not exist %CHECKDIR%\nul goto end
+
+  rem Check for Perl, and give up if it is not found
+
+  call :perl
+  if ERRORLEVEL 1 goto :EOF
+
+  rem Unpack, allowing for using a 'trace' version or similar
+
+  for %%I in (%CHECKUNPACK%) do (
+    tex %%I > nul
+  )
+
+  rem Remove any old files, and copy the test system into place
+
+  for %%I in (fc lvt tlg) do (
+    if exist *.%%I del /q *.%%I
+  )
+
+  copy /y %SCRIPTDIR%\log2tlg > nul
+  for %%I in (pdftex.def pdftexcmds.sty regression-test.tex supp-pdf.mkii) do (
+    copy /y %VALIDATE%\%%I > nul
+  )
+
+  goto :EOF
+
+:check-aux-2
+
+  for /l %%I in (1,1,%CHECKRUNS%) do (
+      %CHECKEXE% %1.lvt %REDIRECT%
+    )
+  %PERLEXE% log2tlg %1 < %1.log > %1.new.log
+  del /q %1.log > nul
+  ren %1.new.log %~n1.log > nul
+  fc /n  %1.log %~n1.tlg > %1.fc
+
+  goto :EOF
 
 :checkcmd
 
   shift
-  if [%1] == [] goto :help
-  if not exist %1.dtx goto :no-dtx
+  if [%1] == [] goto help
+  if not exist %1.dtx goto no-dtx
 
   call :unpack
 
@@ -162,19 +213,20 @@ rem Makefile for LaTeX3 "l3kernel" files
       if "%%I"=="!>" echo   - %%J
     )
   )
-  goto :end
-  goto :clean-int
+
+  goto clean-int
 
 :checkcmds
 
   call :unpack
+
   copy /y %VALIDATE%\commands-check.tex > nul
 
   for %%I in (l3*.dtx) do (
     call :checkcmd-int %%I
   )
 
-  goto :clean-int
+  goto clean-int
 
 :checkdoc
 
@@ -204,34 +256,25 @@ rem Makefile for LaTeX3 "l3kernel" files
 
 :checklvt
 
-  call :unpack
-  call :perl
-
-  copy /y %SUPPORTDIR%\log2tlg           > nul
-  copy /y %VALIDATE%\regression-test.tex > nul
-  copy /y %VALIDATE%\pdftex.def          > nul
-  copy /y %VALIDATE%\pdftexcmds.sty      > nul
-  copy /y %VALIDATE%\supp-pdf.mkii       > nul
-
   shift
 
-  if exist %~n1.fc  del /q %~n1.fc
-  if exist %~n1.lvt del /q %~n1.lvt
-  if exist %~n1.tlg del /q %~n1.tlg
-  if exist %TESTDIR%\%~n1.lvt (
-    copy /y %TESTDIR%\%~n1.lvt > nul
-    copy /y %TESTDIR%\%~n1.tlg > nul
+  call :check-aux-1
+
+  if exist %CHECKDIR%\%~n1.lvt (
+    if exist %CHECKDIR%\%~n1.tlg (
+      copy /y %CHECKDIR%\%~n1.lvt > nul
+      copy /y %CHECKDIR%\%~n1.tlg > nul
+    ) else (
+      goto clean-int
+    )
+  ) else (
+    goto clean-int
   )
 
   echo.
   echo Running checks on %~n1
 
-  pdflatex %~n1.lvt > nul
-  pdflatex %~n1.lvt > nul
-  %PERLEXE% log2tlg %~n1 < %~n1.log > %~n1.new.log
-  del /q %~n1.log > nul
-  ren %~n1.new.log %~n1.log > nul
-  fc /n  %~n1.log %~n1.tlg > %~n1.fc
+  call :check-aux-2 %~n1
 
   for %%I in (*.fc) do (
     for /f "skip=1 tokens=1" %%J in (%%~nI.fc) do (
@@ -249,13 +292,11 @@ rem Makefile for LaTeX3 "l3kernel" files
 
   if exist %~n1.pdf del /q %~n1.pdf
 
-  goto :clean-int
-
+  goto clean-int
 
 :checktest
 
   call :unpack
-
 
   echo.
   echo Checking functions have tests
@@ -265,7 +306,7 @@ rem Makefile for LaTeX3 "l3kernel" files
     pdflatex --interaction=batchmode "\PassOptionsToClass{checktest}{l3doc} \input %%I"
   )
 
-  goto :clean-int
+  goto clean-int
 
 :clean
 
@@ -276,29 +317,25 @@ rem Makefile for LaTeX3 "l3kernel" files
     if exist *.%%I del /q *.%%I
   )
 
-  for %%I in (%TXT% l3generic.tex regression-test.tex) do (
-    if exist %%I del /q %%I
-  )
-
 :clean-int
 
   for %%I in (%AUXFILES%) do (
     if exist *.%%I del /q *.%%I
   )
 
-  if exist log2tlg del /q log2tlg
-  if exist commands-check.tex del /q commands-check.tex
-  if exist regression-test.tex del /q regression-test.tex
+  for %%I in (log2tlg commands-check.tex regression-test.tex) do (
+    if exist %%I del /q %%I
+  )
 
-  goto :end
+  goto end
 
 :ctan
 
   call :zip
-  if errorlevel 1 goto :end
+  if ERRORLEVEL 1 goto end
 
   call :tds
-  if errorlevel 1 goto :end
+  if ERRORLEVEL 1 goto end
 
   echo.
   echo Remember to:
@@ -315,17 +352,17 @@ rem Makefile for LaTeX3 "l3kernel" files
   for %%I in (%CTANFILES%) do (
     xcopy /q /y *.%%I "%CTANDIR%\" > nul
   )
-  for %%I in (%INCLUDETXT%) do (
+  for %%I in (%MARKDOWN%) do (
     xcopy /q /y %%I.markdown "%CTANDIR%\" > nul
     ren "%CTANDIR%\%%I.markdown" %%I
   )
 
-  xcopy /q /y %PACKAGE%.tds.zip "%CTANROOT%\" > nul
+  xcopy /q /y %BUNDLE%.tds.zip "%CTANROOT%\" > nul
 
   pushd "%CTANROOT%"
-  %ZIPEXE% %ZIPFLAG% %PACKAGE%.zip .
+  %ZIPEXE% %ZIPFLAG% %BUNDLE%.zip .
   popd
-  copy /y "%CTANROOT%\%PACKAGE%.zip" > nul
+  copy /y "%CTANROOT%\%BUNDLE%.zip" > nul
 
   rmdir /s /q %CTANROOT%
 
@@ -367,15 +404,15 @@ rem Makefile for LaTeX3 "l3kernel" files
 
   set TDSDIR=
 
-  if /i "%~x1" == ".cls" set TDSDIR=tex\latex\%PACKAGE%
-  if /i "%~x1" == ".dtx" set TDSDIR=source\latex\%PACKAGE%
-  if /i "%~x1" == ".ins" set TDSDIR=source\latex\%PACKAGE%
-  if /i "%~x1" == ".pdf" set TDSDIR=doc\latex\%PACKAGE%
-  if /i "%~x1" == ".sty" set TDSDIR=tex\latex\%PACKAGE%
-  if /i "%~x1" == ".tex" set TDSDIR=doc\latex\%PACKAGE%
-  if /i "%~x1" == ".txt" set TDSDIR=doc\latex\%PACKAGE%
+  if /i "%~x1" == ".cls" set TDSDIR=tex\latex\%BUNDLE%
+  if /i "%~x1" == ".dtx" set TDSDIR=source\latex\%BUNDLE%
+  if /i "%~x1" == ".ins" set TDSDIR=source\latex\%BUNDLE%
+  if /i "%~x1" == ".pdf" set TDSDIR=doc\latex\%BUNDLE%
+  if /i "%~x1" == ".sty" set TDSDIR=tex\latex\%BUNDLE%
+  if /i "%~x1" == ".tex" set TDSDIR=doc\latex\%BUNDLE%
+  if /i "%~x1" == ".txt" set TDSDIR=doc\latex\%BUNDLE%
 
-  if /i "%~x1" == ".markdown" set TDSDIR=doc\latex\%PACKAGE%
+  if /i "%~x1" == ".markdown" set TDSDIR=doc\latex\%BUNDLE%
 
   goto :end
 
@@ -405,7 +442,7 @@ rem Makefile for LaTeX3 "l3kernel" files
       set TEXMFHOME=%USERPROFILE%\texmf
     )
   )
-  set INSTALLROOT=%TEXMFHOME%\tex\latex\%PACKAGE%
+  set INSTALLROOT=%TEXMFHOME%\tex\latex\%BUNDLE%
 
   if exist "%INSTALLROOT%\*.*" rmdir /q /s "%INSTALLROOT%"
 
@@ -451,30 +488,31 @@ rem Makefile for LaTeX3 "l3kernel" files
   echo.
   echo  This procedure requires Perl, but it could not be found.
 
-  goto :end
+  exit /b 1
+
+  goto :EOF
 
 :savetlg
 
   shift
-  if [%1] == [] goto :help
-  if not exist %TESTDIR%\%1.lvt goto :no-lvt
 
-  call :perl
-  call :unpack
+  call :check-aux-1
 
-  copy /y %SUPPORTDIR%\log2tlg > nul
-  copy /y %VALIDATE%\regression-test.tex > nul
-  copy /y %VALIDATE%\pdftex.def          > nul
-  copy /y %VALIDATE%\supp-pdf.mkii       > nul
-  copy /y %TESTDIR%\%1.lvt > nul
-
+  if exist %CHECKDIR%\%~n1.lvt (
+    copy /y %CHECKDIR%\%~n1.lvt > nul
+  ) else (
+    goto no-lvt
+  )
+  
   echo.
   echo Creating and copying %1.tlg
 
-  pdflatex %1.lvt > nul
-  pdflatex %1.lvt > nul
+  for /l %%I in (1,1,%CHECKRUNS%) do (
+      %CHECKEXE% %1.lvt %REDIRECT%
+    )
   %PERLEXE% log2tlg %1 < %1.log > %1.tlg
-  copy /y %1.tlg %TESTDIR%\%1.tlg > nul
+
+  copy /y %1.tlg %CHECKDIR%\%1.tlg > nul
 
   goto :clean-int
 
@@ -485,11 +523,11 @@ rem Makefile for LaTeX3 "l3kernel" files
   echo.
   echo Typesetting expl3
 
-  pdflatex -interaction=nonstopmode -draftmode "\input expl3.dtx" > nul
+  pdflatex -interaction=nonstopmode -draftmode "\input expl3.dtx" %REDIRECT%
   if not ERRORLEVEL 1 (
     makeindex -q -s l3doc.ist -o expl3.ind expl3.idx > nul
-    pdflatex -interaction=nonstopmode "\input expl3.dtx" > nul
-    pdflatex -interaction=nonstopmode "\input expl3.dtx" > nul
+    pdflatex -interaction=nonstopmode "\input expl3.dtx" %REDIRECT%
+    pdflatex -interaction=nonstopmode "\input expl3.dtx" %REDIRECT%
   ) else (
     echo ! expl3 compilation failed
   )
@@ -497,9 +535,9 @@ rem Makefile for LaTeX3 "l3kernel" files
   echo.
   echo Typesetting l3styleguide
 
-  pdflatex -interaction=nonstopmode -draftmode l3styleguide > nul
+  pdflatex -interaction=nonstopmode -draftmode l3styleguide %REDIRECT%
   if not ERRORLEVEL 1 (
-    pdflatex -interaction=nonstopmode l3styleguide > nul
+    pdflatex -interaction=nonstopmode l3styleguide %REDIRECT%
   ) else (
     echo ! l3styleguide compilation failed
   )
@@ -507,9 +545,9 @@ rem Makefile for LaTeX3 "l3kernel" files
   echo.
   echo Typesetting l3syntax-changes
 
-  pdflatex -interaction=nonstopmode -draftmode l3syntax-changes > nul
+  pdflatex -interaction=nonstopmode -draftmode l3syntax-changes %REDIRECT%
   if not ERRORLEVEL 1 (
-    pdflatex -interaction=nonstopmode l3syntax-changes > nul
+    pdflatex -interaction=nonstopmode l3syntax-changes %REDIRECT%
   ) else (
     echo ! l3syntax-changes compilation failed
   )
@@ -517,13 +555,13 @@ rem Makefile for LaTeX3 "l3kernel" files
   echo.
   echo Typesetting source3
 
-  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
+  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" %REDIRECT%
   if not ERRORLEVEL 1 (
     echo   Re-typesetting for index generation
     makeindex -q -s l3doc.ist -o source3.ind source3.idx > nul
-    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" %REDIRECT%
     echo   Re-typesetting to resolve cross-references
-    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" > nul
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" %REDIRECT%
     for /F "tokens=*" %%I in (source3.log) do (
       if "%%I" == "Functions documented but not defined:" (
         echo ! Warning: some functions not defined
@@ -539,13 +577,13 @@ rem Makefile for LaTeX3 "l3kernel" files
   echo.
   echo Typesetting interface3
 
-  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" > nul
+  pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" %REDIRECT%
   if not ERRORLEVEL 1 (
     echo   Re-typesetting for index generation
     makeindex -q -s l3doc.ist -o interface3.ind interface3.idx > nul
-    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" > nul
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" %REDIRECT%
     echo   Re-typesetting to resolve cross-references
-    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" > nul
+    pdflatex -interaction=nonstopmode "\PassOptionsToClass{nocheck}{l3doc} \input interface3" %REDIRECT%
     for /F "tokens=*" %%I in (interface3.log) do (
       if "%%I" == "Functions documented but not defined:" (
         echo ! Warning: some functions not defined
@@ -577,15 +615,15 @@ rem Makefile for LaTeX3 "l3kernel" files
   for %%I in (%TDSFILES%) do (
     call :tds-int *.%%I
   )
-  for %%I in (%INCLUDETXT%) do (
-    copy /y %%I.markdown "%TDSROOT%\doc\latex\%PACKAGE%\" > nul
-    ren "%TDSROOT%\doc\latex\%PACKAGE%\%%I.markdown" %%I
+  for %%I in (%MARKDOWN%) do (
+    copy /y %%I.markdown "%TDSROOT%\doc\latex\%BUNDLE%\" > nul
+    ren "%TDSROOT%\doc\latex\%BUNDLE%\%%I.markdown" %%I
   )
 
   pushd "%TDSROOT%"
-  %ZIPEXE% %ZIPFLAG% %PACKAGE%.tds.zip .
+  %ZIPEXE% %ZIPFLAG% %BUNDLE%.tds.zip .
   popd
-  copy /y "%TDSROOT%\%PACKAGE%.tds.zip" > nul
+  copy /y "%TDSROOT%\%BUNDLE%.tds.zip" > nul
 
   rmdir /s /q "%TDSROOT%"
 
@@ -609,7 +647,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   echo Unpacking files
 
   for %%I in (%UNPACK%) do (
-    tex %%I > nul
+    tex %%I %REDIRECT%
   )
 
   goto :end
@@ -639,9 +677,15 @@ rem Makefile for LaTeX3 "l3kernel" files
     echo.
   )
 
-  goto :end
+  exit /b 1
+
+  goto :EOF
 
 :end
+
+  rem If something like "make check show" was used, remove the "show"
+
+  if /i [%2] == [show] shift
 
   shift
   if not [%1] == [] goto :main

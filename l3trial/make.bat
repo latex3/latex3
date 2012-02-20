@@ -49,7 +49,8 @@ rem Makefile for LaTeX3 "l3trial" files
   if /i [%1] == [check]        goto check
   if /i [%1] == [clean]        goto clean
   if /i [%1] == [cleanall]     goto clean
-  if /i [%1] == [ctan]         goto ctan
+  rem As l3trial does not go to CTAN, this option is ignored
+  if /i [%1] == [ctan]         goto end
   if /i [%1] == [doc]          goto doc
   if /i [%1] == [localinstall] goto localinstall
   if /i [%1] == [unpack]       goto unpack
@@ -133,8 +134,6 @@ rem Makefile for LaTeX3 "l3trial" files
   %ZIPEXE% %ZIPFLAG% %BUNDLE%.zip .
   popd
   copy /y ctan\%BUNDLE%.zip > nul
-
-  goto end
 
   rmdir /q /s ctan
   rmdir /q /s tds
