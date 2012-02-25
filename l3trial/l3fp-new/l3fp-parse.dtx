@@ -92,18 +92,15 @@
 %   \begin{syntax}
 %     \cs{fp_parse:n} \Arg{floating point expression}
 %   \end{syntax}
-%   This f-expands to the internal floating point number obtained
-%   as follows. It reads through the \meta{floating point expression},
-%   f-expanding tokens from left to right until only non-expandable
-%   tokens remain, and parses this expanded result, converting
-%   floating point numbers to an internal form, and performing
-%   the infix operations on those.
+%   This \texttt{f}-expands to the internal floating point number
+%   obtained by evaluating the \meta{floating point expression}.  During
+%   this evaluation, each token is fully \texttt{f}-expanded.
 %   \begin{texnote}
 %     Registers (integers, toks, etc.) are automatically unpacked,
 %     without requiring a function such as \cs{int_use:N}. Invalid
-%     tokens remaining after f-expansion will lead to unrecoverable
-%     low-level TeX errors.\footnote{Bruno: describe what happens
-%       in cases like $2\cs{c_three} = 6$. (In fact, not yet.)}
+%     tokens remaining after \texttt{f}-expansion will lead to
+%     unrecoverable low-level TeX errors.\footnote{Bruno: describe what
+%       happens in cases like $2\cs{c_three} = 6$. (In fact, not yet.)}
 %   \end{texnote}
 % \end{function}
 %
@@ -238,10 +235,9 @@
 % \subsection{Infix operators}
 %
 % The implementation that was chosen is slightly wasteful: it causes
-% more nesting than necessary.\footnote{Bruno: clarify.}
+% more nesting than necessary. ^^A todo: clarify.
 % However, it is simpler to implement and to explain than a slightly
-% optimized variant.\footnote{Bruno: some day, I should
-%   implement the optimized version, and compare.}
+% optimized variant. ^^A todo: implement optimized version; compare.
 %
 % The cornerstone of that method is a pair of functions,
 % \cs{until} and \cs{one}, which both take as their first
@@ -559,21 +555,23 @@
 %     should the function be renamed \cs{fp_eval:n}?}
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse:n #1
-  { \tex_romannumeral:D \fp_parse:w #1 \fp_parse_end: }
+  { \tex_romannumeral:D \fp_parse:w #1 \fp_parse_end: \s_stop }
 \cs_new:Npn \fp_parse:w
   {
-    \exp_after:wN \fp_parse_after:wN
+    \exp_after:wN \fp_parse_after:ww
     \tex_romannumeral:D -`0
     \fp_parse_uo:Nw \c_fp_parse_min_precedence_int
     \fp_aux_expand:w
   }
-\cs_new:Npn \fp_parse_after:wN #1; #2
+\cs_new:Npn \fp_parse_after:ww #1; #2 \s_stop
   {
+    %^^A todo: check that #2 is \fp_parse_infix_end:N
     %\cs_if_eq:cNF {fp_parse_infix_):N} #2 {\ERROR}
     \c_zero
     #1;
   }
-\cs_new:Npn \fp_parse_end: {)}
+\cs_new_eq:NN \fp_parse_end: \tex_relax:D
+% \cs_new:Npn \fp_parse_end: {)}
 \int_const:Nn \c_fp_parse_min_precedence_int { 0 }
 \int_const:Nn \c_fp_parse_max_precedence_int { 100 }
 %    \end{macrocode}
@@ -718,8 +716,30 @@
 \cs_new:Npn \fp_parse_one_after:NwN #1 #2; #3
   {
     \fp_aux_exp_after_fp:wN #2;
-    \tex_romannumeral:D -`0 %^^A must test for #3=\relax.
-    \use:c {fp_parse_infix_#3:N} #1
+    \tex_romannumeral:D -`0
+    \if_meaning:w \tex_relax:D #3
+      \exp_after:wN \fp_parse_infix_end:N
+    \else:
+      \exp_after:wN \fp_parse_one_after_check:NNN
+      \exp_after:wN #3
+      \cs:w fp_parse_infix_#3:N \exp_after:wN \cs_end:
+    \fi:
+    #1
+  }
+\cs_new:Npn \fp_parse_infix_end:N #1
+  { \c_true_bool \fp_parse_infix_end:N }
+\cs_new:Npx \fp_parse_one_after_check:NNN #1#2#3
+  {
+    \exp_not:N \if_meaning:w \tex_relax:D #2
+      \exp_not:N \msg_expandable_error:n { Missing~*~inserted. }
+      \exp_not:N \exp_after:wN
+      \exp_not:c { fp_parse_infix_*:N }
+      \exp_not:N \exp_after:wN #3
+      \exp_not:N \exp_after:wN #1
+    \exp_not:N \else:
+      \exp_not:N \exp_after:wN #2
+      \exp_not:N \exp_after:wN #3
+    \exp_not:N \fi:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -764,14 +784,12 @@
     \fi:
     #2 #1
   }
-\cs_new:Npn \fp_parse_one_other_error:w \fi: #1 #2 #3
+\cs_new:Npn \fp_parse_one_other_error:w \fi: #1 #2
   {
     \fi:
-    \exp_after:wN \fp_aux_snan_fp:N
-    \exp_after:wN #1
-    \tex_romannumeral:D -`0
-    \use:c {fp_parse_infix_#3:N} #2
-  } %^^A must test for #3=\relax
+    \fp_aux_error:N #1
+    \fp_parse_one_after:NwN #2 \s_fp \fp_use:w 3 1 #1 ;
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -782,20 +800,19 @@
 % \begin{macro}{\fp_parse_prefix_nan;}
 %   This ought to give the infinite floating point.
 %    \begin{macrocode}
-\cs_new:cpn {fp_parse_prefix_inf;} #1 #2
+\cs_new:cpn {fp_parse_prefix_inf;} #1
   {
-    \exp_after:wN \c_plus_inf_fp
-    \tex_romannumeral:D -`0
-    \use:c {fp_parse_infix_#2:N} #1
-  } %^^A must test for #2=\relax.
+    \exp_after:wN \fp_parse_one_after:NwN
+    \exp_after:wN #1 \c_inf_fp
+  }
 \cs_new_eq:cc {fp_parse_prefix_infty;} {fp_parse_prefix_inf;}
 \cs_new_eq:cc {fp_parse_prefix_infinity;} {fp_parse_prefix_inf;}
-\cs_new:cpn {fp_parse_prefix_nan;} #1 #2
+\cs_new:cpn {fp_parse_prefix_nan;} #1
   {
-    \exp_after:wN \c_empty_qnan_fp
-    \tex_romannumeral:D -`0
-    \use:c {fp_parse_infix_#2:N} #1
-  } %^^A must test for #2=\relax.
+    \exp_after:wN \fp_parse_one_after:NwN
+    \exp_after:wN #1
+    \c_empty_qnan_fp
+  }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -846,8 +863,19 @@
     \fp_parse_uo:Nw \c_fp_parse_min_precedence_int
     \fp_aux_expand:w
   }
-\cs_new:Npn \fp_parse_lparen_after:NwN #1 #2; #3
-  { \fp_parse_one_after:NwN #1 #2; }
+\cs_new:Npx \fp_parse_lparen_after:NwN #1 #2; #3
+  {
+    \exp_not:N \if_meaning:w \exp_not:c { fp_parse_infix_):N } #3
+    \exp_not:n
+      {
+          \exp_after:wN \use_i:nn
+        \else:
+          \tex_romannumeral:D \int_eval:w ( 0 \int_eval_end: %^^A trigger error
+          \exp_after:wN \use:nn
+        \fi:
+      }
+    { \exp_not:N \fp_parse_one_after:NwN #1 #2; } \fp_parse_end:
+  }
 %    \end{macrocode}
 % \end{macro}
 %
