@@ -530,6 +530,7 @@
 %\end{documentation}
 %
 %\begin{implementation}
+% ^^A todo: add error detection that there is nothing left to parse at the end.
 %
 %
 %\section{Implementation}
@@ -551,11 +552,10 @@
 % \begin{macro}{\fp_parse:n}
 %   Thanks to \cs{tex_romannumeral:D}, this expands to an
 %   internal floating point number after two expansion steps,
-%   just like \cs{int_eval:n} and others.\footnote{Bruno:
-%     should the function be renamed \cs{fp_eval:n}?}
+%   just like \cs{int_eval:n} and others.
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse:n #1
-  { \tex_romannumeral:D \fp_parse:w #1 \fp_parse_end: \s_stop }
+  { \tex_romannumeral:D \fp_parse:w #1 \s_fp_mark \s_fp_stop }
 \cs_new:Npn \fp_parse:w
   {
     \exp_after:wN \fp_parse_after:ww
@@ -563,15 +563,12 @@
     \fp_parse_uo:Nw \c_fp_parse_min_precedence_int
     \fp_aux_expand:w
   }
-\cs_new:Npn \fp_parse_after:ww #1; #2 \s_stop
+\cs_new:Npn \fp_parse_after:ww #1; #2 \s_fp_stop
   {
     %^^A todo: check that #2 is \fp_parse_infix_end:N
-    %\cs_if_eq:cNF {fp_parse_infix_):N} #2 {\ERROR}
     \c_zero
     #1;
   }
-\cs_new_eq:NN \fp_parse_end: \tex_relax:D
-% \cs_new:Npn \fp_parse_end: {)}
 \int_const:Nn \c_fp_parse_min_precedence_int { 0 }
 \int_const:Nn \c_fp_parse_max_precedence_int { 100 }
 %    \end{macrocode}
@@ -688,59 +685,57 @@
   }
 \cs_new:Npn \fp_parse_one_relax:NN #1
   {
-    \exp_after:wN \fp_parse_one_after:NwN
+    \exp_after:wN \fp_parse_sign_after:NNwn
     \exp_after:wN #1
-    \tex_romannumeral:D -`0
-      \exp_after:wN \fp_cfs_sign_after:Nwn
-      \int_use:N \int_eval:w 1 -
-        \fp_cfs_lead_relax:N
+    \int_use:N \int_eval:w 1 - \fp_cfs_lead_relax:N
   }
 \cs_new:Npn \fp_parse_one_register:NN #1
-  {
-    \exp_after:wN \fp_parse_one_after:NwN
-    \exp_after:wN #1
-    \tex_romannumeral:D -`0
-    \exp_after:wN \fp_cfs_sign:w \tex_the:D
-  }
+  { \exp_after:wN \fp_parse_one:NN \exp_after:wN #1 \tex_the:D }
 \cs_new:Npn \fp_parse_one_digit:NN #1
   {
-    \exp_after:wN \fp_parse_one_after:NwN
+    \exp_after:wN \fp_parse_sign_after:NNwn
     \exp_after:wN #1
-    \tex_romannumeral:D -`0
-      \exp_after:wN \fp_cfs_sign_after:Nwn
-      \exp_after:wN 0
-      \exp_after:wN E
-        \int_use:N \int_eval:w \c_zero
-        \fp_cfs_trim_loop:N
+    \exp_after:wN 0
+    \exp_after:wN E
+      \int_use:N \int_eval:w \c_zero \fp_cfs_trim_loop:N
   }
-\cs_new:Npn \fp_parse_one_after:NwN #1 #2; #3
-  {
-    \fp_aux_exp_after_fp:wN #2;
-    \tex_romannumeral:D -`0
-    \if_meaning:w \tex_relax:D #3
-      \exp_after:wN \fp_parse_infix_end:N
-    \else:
-      \exp_after:wN \fp_parse_one_after_check:NNN
-      \exp_after:wN #3
-      \cs:w fp_parse_infix_#3:N \exp_after:wN \cs_end:
-    \fi:
-    #1
-  }
+\group_begin:
+  \char_set_catcode_letter:N \*
+  \cs_new:Npn \fp_parse_one_after:NwN #1 #2; #3
+    {
+      \fp_aux_exp_after_fp:wN #2;
+      \tex_romannumeral:D -`0
+      \if_catcode:w \tex_relax:D #3
+        \if_meaning:w \tex_relax:D #3
+          \exp_after:wN \exp_after:wN \exp_after:wN \fp_parse_infix_end:N
+          \exp_after:wN \exp_after:wN \exp_after:wN #1
+        \else:
+          \exp_after:wN \exp_after:wN \exp_after:wN \fp_parse_infix_*:N
+          \exp_after:wN \exp_after:wN \exp_after:wN #1
+          \exp_after:wN \exp_after:wN \exp_after:wN #3
+        \fi:
+      \else:
+        \exp_after:wN \fp_parse_one_after_check:NNN
+        \exp_after:wN #3
+        \cs:w fp_parse_infix_#3:N \exp_after:wN \cs_end:
+        \exp_after:wN #1
+      \fi:
+    }
+  \cs_new:Npn \fp_parse_one_after_check:NNN #1#2#3
+    {
+      \if_meaning:w \tex_relax:D #2
+        \msg_expandable_error:n { Missing~*~inserted. }
+        \exp_after:wN \fp_parse_infix_*:N
+        \exp_after:wN #3
+        \exp_after:wN #1
+      \else:
+        \exp_after:wN #2
+        \exp_after:wN #3
+      \fi:
+    }
+\group_end:
 \cs_new:Npn \fp_parse_infix_end:N #1
   { \c_true_bool \fp_parse_infix_end:N }
-\cs_new:Npx \fp_parse_one_after_check:NNN #1#2#3
-  {
-    \exp_not:N \if_meaning:w \tex_relax:D #2
-      \exp_not:N \msg_expandable_error:n { Missing~*~inserted. }
-      \exp_not:N \exp_after:wN
-      \exp_not:c { fp_parse_infix_*:N }
-      \exp_not:N \exp_after:wN #3
-      \exp_not:N \exp_after:wN #1
-    \exp_not:N \else:
-      \exp_not:N \exp_after:wN #2
-      \exp_not:N \exp_after:wN #3
-    \exp_not:N \fi:
-  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -763,51 +758,87 @@
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse_one_other:NN #1 #2
   {
-    \exp_after:wN \fp_parse_one_other_aux:NN
-    \exp_after:wN #1
-    \cs:w fp_parse_prefix_
-      \if_num:w \int_eval:w \tex_uccode:D `#2 / \c_twenty_six = \c_three
-        #2
-        \exp_after:wN \fp_aux_grab_letters:N
-        \tex_romannumeral:D
-      \else:
-        #2 ;
-        \exp_after:wN \cs_end:
-        \tex_romannumeral:D
-      \fi:
-      \fp_aux_expand:w
+    \if_num:w \int_eval:w \tex_uccode:D `#2 / \c_twenty_six = \c_three
+      \exp_after:wN \fp_parse_one_other_word_aux:NN
+      \exp_after:wN #1
+      \cs:w fp_parse_word_ #2
+        \exp_after:wN \fp_aux_grab_letters:N \tex_romannumeral:D
+    \else:
+      \exp_after:wN \fp_parse_one_other_prefix_aux:NNN
+      \exp_after:wN #1
+      \exp_after:wN #2
+      \cs:w fp_parse_prefix_#2; \exp_after:wN \cs_end:
+      \tex_romannumeral:D
+    \fi:
+    \fp_aux_expand:w
   }
-\cs_new:Npn \fp_parse_one_other_aux:NN #1 #2
+\cs_new:Npn \fp_parse_one_other_word_aux:NN #1 #2
   {
     \if_meaning:w \tex_relax:D #2
-      \fp_parse_one_other_error:w
+      \fp_aux_error:N #2
+      \exp_after:wN \fp_parse_one_other_nan:NN
     \fi:
     #2 #1
   }
-\cs_new:Npn \fp_parse_one_other_error:w \fi: #1 #2
+\cs_new:Npn \fp_parse_one_other_prefix_aux:NNN #1#2#3
   {
+    \if_meaning:w \tex_relax:D #3
+      \exp_after:wN \fp_parse_one_other_nan:NN
+      \exp_after:wN #3
+      \exp_after:wN #1
+      \tex_romannumeral:D \exp_after:wN #2 % "Missing number" error
+    \else:
+      \exp_after:wN #3
+      \exp_after:wN #1
     \fi:
-    \fp_aux_error:N #1
-    \fp_parse_one_after:NwN #2 \s_fp \fp_use:w 3 1 #1 ;
   }
+\cs_new:Npn \fp_parse_one_other_nan:NN #1 #2
+  { \fp_parse_one_after:NwN #2 \s_fp \fp_use:w 3 1 #1 ; }
 %    \end{macrocode}
 % \end{macro}
 %
 %
+% \subsubsection{Signs}
+%
+% \begin{macro}{\fp_parse_sign_after:NNwn}
+%   \begin{syntax}
+%     \cs{fp_parse_sign_after:NNwn} \meta{prec} \meta{sign} E \meta{exp1} |;| \meta{function}
+%   \end{syntax}
+%   Puts \meta{function} back in front. This function will be
+%   \begin{itemize}
+%   \item \cs{fp_cfs_premature_end:w} when the sign is
+%     immediately followed by the end of the number (gives a sNaN).
+%   \item \cs{fp_cfs_internal:w} when parsing an internal floating point,
+%   \item \cs{fp_cfs_zero:Nw} when parsing a zero,
+%   \item \cs{fp_cfs_small:NwN} when the mantissa is less than $1$,
+%   \item \cs{fp_cfs_large:NwN} when the mantissa is greater than $1$.
+%   \end{itemize}
+%   Sometimes it is a brace group, not a function.
+%   \footnote{Bruno: the \texttt{E} is useless here.}
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_sign_after:NNwn #1#2 E #3 ; #4
+  {
+    \exp_after:wN \fp_parse_one_after:NwN
+    \exp_after:wN #1
+    \tex_romannumeral:D -`0 #4 #2 #3 ;
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Prefix operators: variables and functions}
 %
-% \begin{macro}{\fp_parse_prefix_inf;}
-% \begin{macro}{\fp_parse_prefix_nan;}
+% \begin{macro}{\fp_parse_word_inf;}
+% \begin{macro}{\fp_parse_word_nan;}
 %   This ought to give the infinite floating point.
 %    \begin{macrocode}
-\cs_new:cpn {fp_parse_prefix_inf;} #1
+\cs_new:cpn {fp_parse_word_inf;} #1
   {
     \exp_after:wN \fp_parse_one_after:NwN
     \exp_after:wN #1 \c_inf_fp
   }
-\cs_new_eq:cc {fp_parse_prefix_infty;} {fp_parse_prefix_inf;}
-\cs_new_eq:cc {fp_parse_prefix_infinity;} {fp_parse_prefix_inf;}
-\cs_new:cpn {fp_parse_prefix_nan;} #1
+\cs_new_eq:cc {fp_parse_word_infty;} {fp_parse_word_inf;}
+\cs_new_eq:cc {fp_parse_word_infinity;} {fp_parse_word_inf;}
+\cs_new:cpn {fp_parse_word_nan;} #1
   {
     \exp_after:wN \fp_parse_one_after:NwN
     \exp_after:wN #1
@@ -874,7 +905,8 @@
           \exp_after:wN \use:nn
         \fi:
       }
-    { \exp_not:N \fp_parse_one_after:NwN #1 #2; } \fp_parse_end:
+    { \exp_not:N \fp_parse_one_after:NwN #1 #2; }
+    \s_fp_mark %^^A todo: this fp_mark is wrong!
   }
 %    \end{macrocode}
 % \end{macro}
@@ -884,21 +916,19 @@
 %    \begin{macrocode}
 \cs_new:cpn {fp_parse_prefix_.;} #1
   {
-    \exp_after:wN \fp_parse_one_after:NwN
+    \exp_after:wN \fp_parse_sign_after:NNwn
     \exp_after:wN #1
-    \tex_romannumeral:D -`0
-      \exp_after:wN \fp_cfs_sign_after:Nwn
-      \exp_after:wN 0
-      \exp_after:wN E
-        \int_use:N \int_eval:w \c_zero
-        \fp_cfs_strim_loop:N
+    \exp_after:wN 0
+    \exp_after:wN E
+      \int_use:N \int_eval:w \c_zero
+      \fp_cfs_strim_loop:N
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\fp_parse_prefix_ln;}
+% \begin{macro}{\fp_parse_word_ln;}
 %    \begin{macrocode}
-\cs_new:cpn {fp_parse_prefix_ln;} #1
+\cs_new:cpn {fp_parse_word_ln;} #1
   {
     \exp_after:wN \fp_parse_one_after_unary:NNwN
     \exp_after:wN #1
