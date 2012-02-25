@@ -124,23 +124,23 @@ $(TESTDIR)/%.lvt: $(TESTFILEDIR)/%.lvt
 	@cp -fp $< $@
 
 $(TESTDIR)/%.tex: $(SOURCEDIR)/%.tex
-	@cp -fp $< $@	
+	@cp -fp $< $@
 
 $(TESTDIR)/%.tlg: $(TESTFILEDIR)/%.tlg
-	@cp -fp $< $@	
+	@cp -fp $< $@
 
 $(TESTDIR)/%.txt: $(SOURCEDIR)/%.txt
-	@cp -fp $< $@	
+	@cp -fp $< $@
 
 ################################################################
 # File copying: specials                                       #
 ################################################################
 
 $(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
-	@cp -fp $< $@	
+	@cp -fp $< $@
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
-	@cp -fp $< $@	
+	@cp -fp $< $@
 
 ################################################################
 # File building: default actions                                #
