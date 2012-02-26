@@ -31,31 +31,31 @@ The following directories contain experimental LaTeX3 code:
    LaTeX3 Project but is not suitable for use in its current form.
    Parts of this code may be used as the basis for new developments
    in `l3kernel` or `l3experimental` over time.
- 
+
 Support material for development is found in:
 
   * `support`, which contains a variety of scripts for running
     automated tests.
   * `validate`, which contains specially-designed TeX files for testing
     purposes.
-    
+
 Documentation is found in:
 
   * `articles`: discussion of LaTeX3 concepts by team members for
     publication in [_TUGBoat_](http://www.tug.org/tugboat) or elsewhere.
   * `examples`: demonstration documents showing how to use LaTeX3 concepts.
   * `news`: source for _LaTeX3 News_.
-  
+
 The repository also contains the directory `xpackages`. This
 contain code which is being moved (broadly) `l3experimental`.
 Over time, `xpackages` is expected to be removed from the repository.
-  
+
 Discussion
 ----------
 
-Discussion concerning the approach, suggestions for improvements, 
+Discussion concerning the approach, suggestions for improvements,
 changes, additions, _etc._ should be addressed to the list
-[LaTeX-L](http://news.gmane.org/group/gmane.comp.tex.latex.latex3). 
+[LaTeX-L](http://news.gmane.org/group/gmane.comp.tex.latex.latex3).
 
 You can subscribe to this list by sending mail to
 
@@ -71,7 +71,7 @@ Bugs
 The issue tracker for LaTeX3 bugs is currently located at
 
   https://github.com/latex3/svn-mirror/issues
-  
+
 Please report specific issues with LaTeX3 code there. More general
 discussion should be directed to the LaTeX-L lists.
 
@@ -93,14 +93,14 @@ the team members are
   * Chris Rowley
   * Rainer Schöpf
   * Joseph Wright
-  
+
 Former members of The LaTeX3 Project team were
 
   * Michael Downes
   * Denys Duchier
   * Alan Jeffrey
   * Martin Schröder
-  
+
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
 the [LaTeX-L list](http://news.gmane.org/group/gmane.comp.tex.latex.latex3)
