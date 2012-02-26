@@ -23,7 +23,7 @@
 %% for those people who are interested.
 %%
 %%%%%%%%%%%
-%% NOTE: %% 
+%% NOTE: %%
 %%%%%%%%%%%
 %%
 %%   Snapshots taken from the repository represent work in progress and may
@@ -83,7 +83,7 @@ Run
 
 	latex xfrontm.ins
 
-to unpack the distribution. 
+to unpack the distribution.
 
 You also need to get the packages from the xbase distribution, eg
 template.sty. The older implementations of these packages _do not_ work!
@@ -134,7 +134,7 @@ simply not yet implemented) I would be glad if you report it using
 
  latex latexbug
 
-from the standard LaTeX distribution and select option 
+from the standard LaTeX distribution and select option
 
  7) expl3:    Experimental packages for TeX programmers. (expl3)
 

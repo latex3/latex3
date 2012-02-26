@@ -89,7 +89,7 @@ CLEAN = \
 	ltx  \
 	pdf  \
 	sty  \
-	zip 
+	zip
 
 ################################################################
 # File copying: default actions                                #
@@ -139,11 +139,11 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 .PHONY = \
 	expl3   \
 	support \
-	xbase 
+	xbase
 
 expl3:
 	cd $(EXPL3DIR) ; \
-	make localinstall 
+	make localinstall
 
 support: \
 	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
@@ -151,7 +151,7 @@ support: \
 
 xbase:
 	cd $(XBASEDIR) ; \
-	make localinstall 
+	make localinstall
 
 ################################################################
 # User make options                                            #
@@ -188,7 +188,7 @@ localinstall: unpack
 
 test: \
 	$(foreach FILE,$(TESTFILES),$(TESTDIR)/$(FILE).tex) \
-	expl3 unpack 
+	expl3 unpack
 	echo "Testing files"
 	cd $(TESTDIR) ;\
 	for I in $(TESTFILES) ; do \

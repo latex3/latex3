@@ -21,8 +21,8 @@ OVERVIEW
 The xpackages are a collection of experimental implementations
 for aspects of the LaTeX3 kernel, dealing with higher-level
 ideas such as the Desginer Interface. Some of them work as stand
-alone packages, providing new functionality, and can be used 
-on top of LaTeX2e with no changes to the existing kernel. 
+alone packages, providing new functionality, and can be used
+on top of LaTeX2e with no changes to the existing kernel.
 Others go further, and redefine LaTeX2e internals to provide
 better methods for managing certain constructs.
 
@@ -38,7 +38,7 @@ xbase
 -----
 
 The xbase bundle provides mechansims for defining document commands
-(xparse) and design constructions (xtemplate). 
+(xparse) and design constructions (xtemplate).
 
 The xparse package provides a high-level interface for declaring
 document commands, e.g., a uniform way to define commands taking
@@ -46,11 +46,11 @@ optional arguments, optional stars (and others), mandatory arguments
 and more.
 
 The xtemplate package provides an interface for defining generic
-functions using a key=val syntax. This is designed to be 
+functions using a key=val syntax. This is designed to be
 "self-documenting", with the key definitions providing information
 on how they are to be used.
 
-The legacy template and ldcsetup packages are included at the 
+The legacy template and ldcsetup packages are included at the
 present time, but new LaTeX3 code will not use these!
 
 Source files:
@@ -63,7 +63,7 @@ xtras
 
 The xtras bundle provides functionality to bridge between LaTeX2e
 and LaTeX3. It provides add-ons to LaTeX2e to allow other xpackages
-to be used in the LaTeX2e context. 
+to be used in the LaTeX2e context.
 
 The l3keys2e package allows keys defined using l3keys to be used
 as package and class options with LaTeX2e. This is tied to the
@@ -76,7 +76,7 @@ DISCUSSION
 ----------
 
 Discussion concerning the approach, suggestions for improvements, changes,
-additions, etc. should be addressed to the list LATEX-L. 
+additions, etc. should be addressed to the list LATEX-L.
 
 You can subscribe to this list by sending mail to
 
