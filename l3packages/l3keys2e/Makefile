@@ -22,7 +22,7 @@ help:
 ##############################################################
 
 PACKAGE = l3packages/l3keys2e
-	
+
 ##############################################################
 # Directory structure for source files                       #
 ##############################################################
@@ -71,7 +71,7 @@ AUXFILES = \
 	tmp  \
 	toc  \
 	xref
-	
+
 CLEAN = \
 	cls  \
 	diff \
@@ -81,27 +81,27 @@ CLEAN = \
 	ltx  \
 	pdf  \
 	sty  \
-	zip 
+	zip
 
 ################################################################
 # Document settings                                            #
 ################################################################
 
 PDFSETTINGS=\pdfminorversion=5  \pdfobjcompresslevel=2
-	
+
 ################################################################
 # File copying: default actions                                #
 ################################################################
 
 $(TESTDIR)/%.dtx: $(SOURCEDIR)/%.dtx
 	@cp -fp $< $@
-	
+
 $(TESTDIR)/%.ins: $(SOURCEDIR)/%.ins
 	@cp -fp $< $@
-	
+
 $(TESTDIR)/%.tex: $(SOURCEDIR)/%.tex
-	@cp -fp $< $@	
-		
+	@cp -fp $< $@
+
 ################################################################
 # File building: default actions                                #
 ################################################################
@@ -137,8 +137,8 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 
 expl3:
 	cd $(EXPL3DIR) ; \
-	make localinstall 
-	
+	make localinstall
+
 ################################################################
 # User make options                                            #
 ################################################################
@@ -150,13 +150,13 @@ expl3:
 	doc          \
 	localinstall \
 	unpack
-	
+
 check:
 
 clean:
 	echo "Cleaning up"
 	rm -rf $(TESTDIR)/*.*
-	
+
 cleanall: clean
 	for I in $(AUXFILES) $(CLEAN) ; do \
 	  rm -f *.$$I ; \
