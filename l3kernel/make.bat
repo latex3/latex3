@@ -503,7 +503,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   ) else (
     goto no-lvt
   )
-  
+
   echo.
   echo Creating and copying %1.tlg
 
