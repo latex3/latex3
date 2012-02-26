@@ -33,7 +33,7 @@ bundles:
  * l3str
  * xcoffins
  * xgalley
- 
+
 l3dt
 ----
 
@@ -50,7 +50,7 @@ in a flexible manner using the l3sort module. The definition of how to sort
 two items is provided by the programmer at the point at which the sort is
 carried out. Internally, the sorting algorithm is designed to take advantage
 of TeX token registers to allow a high performance and scalable sort.
- 
+
 l3str
 -----
 
@@ -62,7 +62,7 @@ including for manipulations such as UTF8 mappings in pdfTeX. The second
 part of the bundle is l3regex, a regular expression search-and-replace
 implementation written in TeX primitives. The regex module works on a string
 basis, ignoring category codes.
-    
+
 xcoffins
 --------
 
@@ -76,10 +76,10 @@ xgalley
 -------
 
 In LaTeX3 terminology a galley is a rectangular area which receives
-text and other material filling it from top. The vertically extend of 
-a galley is normally not restricted: instead certain chunks are taken 
-off the top of an already partially filled galley to form columns or 
-similar areas on a page. This process is typically asynchronous but 
+text and other material filling it from top. The vertically extend of
+a galley is normally not restricted: instead certain chunks are taken
+off the top of an already partially filled galley to form columns or
+similar areas on a page. This process is typically asynchronous but
 there are ways to control or change its behaviour. The xgalley module
 provides a mechanism for filling galleys and controlling the spacing,
 hyphenation and justification within them.
@@ -87,8 +87,8 @@ hyphenation and justification within them.
 DISCUSSION
 ----------
 
-Discussion concerning the approach, suggestions for improvements, 
-changes, additions, etc. should be addressed to the list LaTeX-L. 
+Discussion concerning the approach, suggestions for improvements,
+changes, additions, etc. should be addressed to the list LaTeX-L.
 
 You can subscribe to this list by sending mail to
 
@@ -104,7 +104,7 @@ BUGS
 The issue tracker for LaTeX3 bugs is currently located at
 
   https://github.com/latex3/svn-mirror/issues
-  
+
 Please report specific issues with LaTeX3 code there. More general
 discussion should be directed to the LaTeX-L lists.
 

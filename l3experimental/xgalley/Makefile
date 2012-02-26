@@ -16,7 +16,7 @@ help:
 	@echo " make cleanall         - clean out test and current directory"
 	@echo " make doc              - typeset documentation"
 	@echo " make localinstall     - install files in local texmf tree"
-	@echo " make savetlg F=<name> - save test log for <name>"  
+	@echo " make savetlg F=<name> - save test log for <name>"
 	@echo " make unpack           - extract packages"
 	@echo ""
 
@@ -98,7 +98,7 @@ CLEAN = \
 	pdf  \
 	sty  \
 	txt  \
-	zip 
+	zip
 
 ################################################################
 # Document settings                                            #
@@ -174,11 +174,11 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 
 .PHONY = \
 	expl3 \
-	support 
+	support
 
 expl3:
 	cd $(EXPL3DIR) ; \
-	make localinstall 
+	make localinstall
 
 support: \
 	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
@@ -216,11 +216,11 @@ localinstall: unpack
 	mkdir -p $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
 	cd $(TESTDIR) ; \
-	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ 
+	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/
 
 test: \
 	$(foreach FILE,$(TESTFILES),$(TESTDIR)/$(FILE).tex) \
-	expl3 unpack 
+	expl3 unpack
 	echo "Testing files"
 	cd $(TESTDIR) ;\
 	for I in $(TESTFILES) ; do \
