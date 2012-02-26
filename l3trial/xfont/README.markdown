@@ -51,5 +51,5 @@ Somewhere in there the code will be merged into the LaTeX3 SVN repository.
 Just not sure where.
 
 --------------
-Will Robertson  
+Will Robertson
 March 2011
