@@ -50,16 +50,16 @@ optional stars (and others), mandatory arguments and more.
 -----------
 
 The `xtemplate` package provides an interface for defining generic
-functions using a key=val syntax. This is designed to be 
+functions using a key=val syntax. This is designed to be
 "self-documenting", with the key definitions providing information
 on how they are to be used.
 
 Discussion
 ----------
 
-Discussion concerning the approach, suggestions for improvements, 
+Discussion concerning the approach, suggestions for improvements,
 changes, additions, _etc._ should be addressed to the list
-[LaTeX-L](http://news.gmane.org/group/gmane.comp.tex.latex.latex3). 
+[LaTeX-L](http://news.gmane.org/group/gmane.comp.tex.latex.latex3).
 
 You can subscribe to this list by sending mail to
 
@@ -75,7 +75,7 @@ Bugs
 The issue tracker for LaTeX3 bugs is currently located at
 
   https://github.com/latex3/svn-mirror/issues
-  
+
 Please report specific issues with LaTeX3 code there. More general
 discussion should be directed to the LaTeX-L lists.
 
@@ -97,14 +97,14 @@ the team members are
   * Chris Rowley
   * Rainer Schöpf
   * Joseph Wright
-  
+
 Former members of The LaTeX3 Project team were
 
   * Michael Downes
   * Denys Duchier
   * Alan Jeffrey
   * Martin Schröder
-  
+
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
 the [LaTeX-L list](http://news.gmane.org/group/gmane.comp.tex.latex.latex3)
