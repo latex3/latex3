@@ -212,7 +212,7 @@ rem Makefile for LaTeX3 "l3file-extras" files
   call :unpack
 
   echo.
-  echo Installing files
+  echo Installing %MODULE%
 
   rem Find local root if possible
 

@@ -434,7 +434,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   call :unpack
 
   echo.
-  echo Installing files
+  echo Installing %MODULE%
 
   if not defined TEXMFHOME (
     for /f "delims=" %%I in ('kpsewhich --var-value=TEXMFHOME') do @set TEXMFHOME=%%I

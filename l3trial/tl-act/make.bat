@@ -212,7 +212,7 @@ rem Makefile for LaTeX3 "tl-act" files
   call :unpack
 
   echo.
-  echo Installing files
+  echo Installing %MODULE%
 
   rem Find local root if possible
 
