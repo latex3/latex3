@@ -482,7 +482,7 @@ format: \
 	$(ENGINE) -ini "*l3format.ltx"
 
 localinstall: unpack
-	echo "Installing files"
+	@echo "Installing $(PACKAGE)"
 	TEXMFHOME=`kpsewhich --var-value=TEXMFHOME` ; \
 	mkdir -p $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	mkdir -p $$TEXMFHOME/makeindex/$(PACKAGE)/ ; \

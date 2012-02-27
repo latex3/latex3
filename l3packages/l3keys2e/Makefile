@@ -165,7 +165,7 @@ cleanall: clean
 doc: $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf)
 
 localinstall: unpack
-	echo "Installing files"
+	@echo "Installing $(PACKAGE)"
 	TEXMFHOME=`kpsewhich --var-value=TEXMFHOME` ; \
 	mkdir -p $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	rm -rf $$TEXMFHOME/tex/$(PACKAGEROOT)/* ; \
