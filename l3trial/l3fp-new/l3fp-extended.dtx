@@ -53,7 +53,7 @@
 % \title{The \textsf{l3fp-extended} package\thanks{This file
 %         has version number \ExplFileVersion, last
 %         revised \ExplFileDate.}\\
-% Floating point with extended precision for internal use}
+% Fixed points with extended precision for internal use}
 % \author{^^A
 %  The \LaTeX3 Project\thanks
 %    {^^A
@@ -68,11 +68,36 @@
 %
 % \begin{documentation}
 %
+% In this module, we work exclusively on fixed-point numbers with
+% extended ($24$ digits) precision.  This is used in the computation of
+% Taylor series for the logarithm, exponential, and trigonometric
+% functions.  Since we eventually only care about the $16$ first digits
+% of the final result, some of the calculations are not performed with
+% the full $24$-digit precision.  In other words, the last two blocks of
+% each fixed point number may be wrong as long as the error is small
+% enough to be rounded away when converting back to a floating point
+% number.  The fixed point numbers are expressed as
+% \begin{quote}
+%   \Arg{a_1} \Arg{a_2} \Arg{a_3} \Arg{a_4} \Arg{a_5} \Arg{a_6} |;|
+% \end{quote}
+% where each \meta{a\ensuremath{\sb{i}}} is exactly $4$ digits, except
+% \meta{a_1}, which may be any non-negative \TeX{} integer.  The fixed
+% point number $a$ corresponding to the representation above is $a =
+% \sum_{i=1}^{6} \meta{a\ensuremath{\sb{i}}} \cdot 10^{-4i}$.
+%
+% Most functions we define here have the form
+% \begin{syntax}
+%   \cs{fp_fixed_\meta{calculation}:wwN} \meta{operand_1} |;| \meta{operand_2} |;| \meta{function}
+% \end{syntax}
+% They perform the \meta{calculation} on the two \meta{operands}, then
+% feed the result ($6$ brace groups followed by a semicolon) to the
+% \meta{function}, responsible for continuing the calculation.
+%
 % \end{documentation}
 %
 % \begin{implementation}
 %
-% \section{Implementation}
+% \section{\pkg{l3fp-extended} implementation}
 %
 %   We start by ensuring that the required packages are loaded.
 %    \begin{macrocode}
@@ -83,164 +108,142 @@
 %<*initex|package>
 %    \end{macrocode}
 %
-% \subsection{Dividing by a small integer}
-%
-% Within computations of Taylor series, we often need to divide an
-% extended precision fixed point number ($6$ blocks of 4 digits) by
-% a small integer $0<n<10^4$.
-%
-% \begin{macro}{\fp_fixed_div_int:wwN}
+% \begin{macro}[int, EXP]{\fp_fixed_div_int:wwN}
+% \begin{macro}[aux, EXP]
+%   {
+%     \fp_fixed_div_int_aux:wnN, \fp_fixed_div_int_aux:wnn,
+%     \fp_fixed_div_int_end:wnn, \fp_fixed_div_int_pack:Nw,
+%     \fp_fixed_div_int_after:Nw
+%   }
 %   \begin{syntax}
-%     \cs{fp_fixed_div_int:wwN} \Arg{a_1} \Arg{a_2} \Arg{a_3}
-%     \Arg{a_4} \Arg{a_5} \Arg{a_6} |;| \meta{n} |;| \meta{function}
+%     \cs{fp_fixed_div_int:wwN} \meta{a} |;| \meta{n} |;| \meta{function}
 %   \end{syntax}
-%   This feeds \meta{function} $6$ braced groups of $4$ digits,
-%   followed by a semicolon, result of dividing the fixed point
-%   number \meta{a} by the (small) integer \meta{n}.
-%   We are working with fixed points rather than floating points,
-%   since this is what is needed for log, sine, exponential. The
-%   lowest block is wrong by at most...\footnote{Bruno complete,
-%     and really analyse this algorithm for overflow etc. Actually,
-%     I think \meta{n} doesn't need to be small. And \meta{a1} can
-%     be bigger than $10^4$.}
+%   Divides the fixed point number \meta{a} by the (small) integer
+%   $0<\meta{n}<10^4$ and feeds the result to the \meta{function}.  The
+%   \texttt{wnN} auxiliary receives $a_{i}$, $n$, and a continuation
+%   function as arguments, and computes a (rather tight) lower bound
+%   $Q_{i}$ for the quotient.  The \texttt{wnn} auxiliary receives
+%   $Q_{i}$, $n$, and $a_{i}$.  It adds $Q_{i}$ to a surrounding integer
+%   expression, and starts a new one.  It also computes $a_{i}-n\cdot
+%   Q_{i}$, putting the result in front of $a_{i+1}$ to serve as the
+%   first argument for a new call to the \texttt{wnN} auxiliary. At the
+%   end, the path we took to the lowest levels rewinds: the
+%   \texttt{pack} auxiliary receives $5$ digits, braces the last $4$,
+%   and carries the leading digit to the level above.  The offsets used
+%   to ensure a given number of digits are as follows: we first subtract
+%   $1$ from the top-level, then add $9999$ at every subsequent level,
+%   and add $2$ to the last level.  This last number is not $1$, because
+%   it compensates for the |- \c_one| in the \texttt{wnN} auxiliary.
 %    \begin{macrocode}
 \cs_new:Npn \fp_fixed_div_int:wwN #1#2#3#4#5#6 ; #7 ; #8
   {
     \exp_after:wN \fp_fixed_div_int_after:Nw
     \exp_after:wN #8
-    \int_use:N \int_eval:w 9999
-      \fp_fixed_div_int_i:w
-      #1; #7; \fp_fixed_div_int_ii:w
-      {#2} \fp_fixed_div_int_ii:w
-      {#3} \fp_fixed_div_int_ii:w
-      {#4} \fp_fixed_div_int_ii:w
-      {#5} \fp_fixed_div_int_ii:w
-      {#6} \fp_fixed_div_int_end:w ;
+    \int_use:N \int_eval:w \c_minus_one
+      \fp_fixed_div_int_aux:wnN
+      #1; {#7} \fp_fixed_div_int_aux:wnn
+      #2; {#7} \fp_fixed_div_int_aux:wnn
+      #3; {#7} \fp_fixed_div_int_aux:wnn
+      #4; {#7} \fp_fixed_div_int_aux:wnn
+      #5; {#7} \fp_fixed_div_int_aux:wnn
+      #6; {#7} \fp_fixed_div_int_end:wnn ;
   }
-\cs_new:Npn \fp_fixed_div_int_i:w #1; #2; #3 % a1; n; <func>
+\cs_new:Npn \fp_fixed_div_int_aux:wnN #1; #2 #3
   {
     \exp_after:wN #3
-    \int_use:N \int_eval:w #1 / #2 - \c_one ; % we need -1 : eTeX rounds
-    #2;
-    #1;
+    \int_use:N \int_eval:w #1 / #2 - \c_one ;
+    {#2}
+    {#1}
   }
-\cs_new:Npn \fp_fixed_div_int_ii:w #1; #2; #3; #4 % Q1; n; a1; {a2}
+\cs_new:Npn \fp_fixed_div_int_aux:wnn #1; #2 #3
   {
     + #1
     \exp_after:wN \fp_fixed_div_int_pack:Nw
     \int_use:N \int_eval:w 9999
-      \exp_after:wN \fp_fixed_div_int_i:w
-      \int_use:N \int_eval:w #3 - #1*#2 \int_eval_end: #4 ; #2;
+      \exp_after:wN \fp_fixed_div_int_aux:wnN
+      \int_use:N \int_eval:w #3 - #1*#2 \int_eval_end:
   }
-\cs_new:Npn \fp_fixed_div_int_end:w #1; #2; #3; % Q6; n; a'6;
-  { + #1 + \c_two ; }
+\cs_new:Npn \fp_fixed_div_int_end:wnn #1; #2 #3 { + #1 + \c_two ; }
 \cs_new:Npn \fp_fixed_div_int_pack:Nw #1 #2; { + #1; {#2} }
-\cs_new:Npn \fp_fixed_div_int_after:Nw #1 1 #2; { #1 {#2} }
+\cs_new:Npn \fp_fixed_div_int_after:Nw #1 #2; { #1 {#2} }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
 %
-%
-% \subsection{Adding two extended fixed points}
-%
-% \begin{macro}{\fp_fixed_add:wwN}
+% \begin{macro}[int, EXP]
+%   {\fp_fixed_add:wwN, \fp_fixed_sub:wwN, \fp_fixed_sub_back:wwN}
+% \begin{macro}[aux, EXP]
+%   {
+%     \fp_fixed_add_aux:NNnnnnwnn,
+%     \fp_fixed_add_aux:NnnNnnnnw,
+%     \fp_fixed_add_pack:NNNNNwN,
+%     \fp_fixed_add_after:NNNNNwN
+%   }
 %   \begin{syntax}
-%     \cs{fp_fixed_add:wwN}
-%     \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \Arg{X_5} \Arg{X_6} |;|
-%     \Arg{Y_1} \Arg{Y_2} \Arg{Y_3} \Arg{Y_4} \Arg{Y_5} \Arg{Y_6} |;|
-%     \meta{function}
+%     \cs{fp_fixed_add:wwN} \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \Arg{X_5} \Arg{X_6} |;| \Arg{Y_1} \Arg{Y_2} \Arg{Y_3} \Arg{Y_4} \Arg{Y_5} \Arg{Y_6} |;| \meta{function}
 %   \end{syntax}
-%   Feeds $6$ brace groups followed by a semicolon as an argument to
-%   \meta{function}. It would be nice to grab the $12$ first brace
-%   groups to compute $X + Y$, but that's not possible.
-%   Note that the first brace group of the result may have other than
-%   $4$ digits (since there can be a carry, or the leading digit
-%   may be $0$).
+%   Computes $X+Y$ (resp.\ $X-Y$ and $Y-X$) and feeds the result to
+%   \meta{function}.  The three functions only differ by some signs and
+%   use a common auxiliary.  It would be nice to grab the $12$ brace
+%   groups in one go, only $9$ arguments are allowed.  Start by grabbing
+%   the two signs, $X_{1}, \ldots, X_{4}$, the rest of $X$, and $Y_{1}$
+%   and $Y_{2}$.  The second auxiliary receives the sign of $X$, the
+%   rest of $X$, the sign of $Y$, the rest of $Y$, and the
+%   \meta{function}.  After going down through the various level, we go
+%   back up, packing digits and bringing the \meta{function} (|#9|, then
+%   |#7|) from the end of the argument list to its start.
 %    \begin{macrocode}
-\cs_new:Npn \fp_fixed_add:wwN #1#2#3#4 #5; #6#7 #8; #9
+\cs_new_nopar:Npn \fp_fixed_add:wwN { \fp_fixed_add_aux:NNnnnnwnn + + }
+\cs_new_nopar:Npn \fp_fixed_sub:wwN { \fp_fixed_add_aux:NNnnnnwnn + - }
+\cs_new_nopar:Npn \fp_fixed_sub_back:wwN { \fp_fixed_add_aux:NNnnnnwnn - + }
+\cs_new:Npn \fp_fixed_add_aux:NNnnnnwnn #1#2 #3#4#5#6 #7; #8#9
   {
-    \exp_after:wN \fp_fixed_add_after:NNNNNNw
-    \exp_after:wN #9
-    \int_use:N \int_eval:w 4 9999 9995 + #1#2 + #6#7
-      \exp_after:wN \fp_fixed_add_pack:NNNNNw
-      \int_use:N \int_eval:w 4 9999 9995 + #3#4
-        \fp_fixed_add_aux:nnnn #8 + \use:nn #5 ; ;
+    \exp_after:wN \fp_fixed_add_after:NNNNNwN
+    \int_use:N \int_eval:w 4 9999 9995 #1 #3#4 #2 #8#9
+      \exp_after:wN \fp_fixed_add_pack:NNNNNwN
+      \int_use:N \int_eval:w 4 9999 9995 #1 #5#6
+        \fp_fixed_add_aux:NnnNnnnnw #1 #7 #2
   }
-\cs_new:Npn \fp_fixed_add_aux:nnnn #1#2 #3#4
+\cs_new:Npn \fp_fixed_add_aux:NnnNnnnnw #1 #2#3 #4 #5#6 #7#8 ; #9
   {
-    + #1#2
-    \exp_after:wN \fp_fixed_add_pack:NNNNNw
-    \int_use:N \int_eval:w 5 0000 0000 + #3#4
+    #4 #5#6
+    \exp_after:wN \fp_fixed_add_pack:NNNNNwN
+    \int_use:N \int_eval:w 5 0000 0000 #4 #7#8 #1 #2#3 ; #9 ;
   }
-\cs_new:Npn \fp_fixed_add_pack:NNNNNw #1 #2#3#4#5 #6;
-  { + #1 ; {#2#3#4#5} {#6} }
-\cs_new:Npn \fp_fixed_add_after:NNNNNNw #1 #2 #3#4#5#6 #7;
+\cs_new:Npn \fp_fixed_add_pack:NNNNNwN #1 #2#3#4#5 #6; #7
+  { + #1 ; #7 {#2#3#4#5} {#6} }
+\cs_new:Npn \fp_fixed_add_after:NNNNNwN #1 #2#3#4#5 #6; #7
   {
-    \exp_after:wN #1
-    \exp_after:wN { \int_use:N \int_eval:w - 5 0000 + #2#3#4#5#6 }
-    {#7}
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \subsection{Difference of two extended fixed points}
-%
-% \begin{macro}{\fp_fixed_sub:wwN}
-% \begin{macro}{\fp_fixed_sub_back:wwN}
-%   \begin{syntax}
-%     \cs{fp_fixed_sub:wwN}
-%     \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \Arg{X_5} \Arg{X_6} |;|
-%     \Arg{Y_1} \Arg{Y_2} \Arg{Y_3} \Arg{Y_4} \Arg{Y_5} \Arg{Y_6} |;|
-%     \meta{function}
-%   \end{syntax}
-%   Feeds $6$ brace groups followed by a semicolon as an argument to
-%   \meta{function}. Computes $X - Y$ (or $Y-X$ for \texttt{sub\_back}).
-%   Only difference compared to
-%   addition: a few signs. All the auxiliaries are the same, since
-%   there is no error-checking.
-%    \begin{macrocode}
-\cs_new:Npn \fp_fixed_sub:wwN #1#2#3#4 #5; #6#7 #8; #9
-  {
-    \exp_after:wN \fp_fixed_add_after:NNNNNNw
-    \exp_after:wN #9
-    \int_use:N \int_eval:w 4 9999 9995 + #1#2 - #6#7
-      \exp_after:wN \fp_fixed_add_pack:NNNNNw
-      \int_use:N \int_eval:w 4 9999 9995 + #3#4
-        \fp_fixed_sub_aux:nnnn #8 + \use:nn #5 ; ;
-  }
-\cs_new:Npn \fp_fixed_sub_aux:nnnn #1#2 #3#4
-  {
-    - #1#2
-    \exp_after:wN \fp_fixed_add_pack:NNNNNw
-    \int_use:N \int_eval:w 5 0000 0000 - #3#4
-  }
-\cs_new:Npn \fp_fixed_sub_back:wwN #1#2#3#4 #5; #6#7 #8; #9
-  {
-    \exp_after:wN \fp_fixed_add_after:NNNNNNw
-    \exp_after:wN #9
-    \int_use:N \int_eval:w 4 9999 9995 - #1#2 + #6#7
-      \exp_after:wN \fp_fixed_add_pack:NNNNNw
-      \int_use:N \int_eval:w 4 9999 9995 - #3#4
-        \fp_fixed_add_aux:nnnn #8 - \use:nn #5 ; ;
+    \exp_after:wN #7
+    \exp_after:wN { \int_use:N \int_eval:w - 5 0000 + #1#2#3#4#5 }
+    {#6}
   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \subsection{Multiplying two extended fixed points}
-%
-% \begin{macro}{\fp_fixed_mul:wwn}
+% \begin{macro}[int, EXP]{\fp_fixed_mul:wwn}
+% \begin{macro}[aux, EXP]
+%   {
+%     \fp_fixed_mul_aux:nnnnnnnn   ,
+%     \fp_fixed_mul_pack:NNNNNw    ,
+%     \fp_fixed_mul_after:NNNNNwwn
+%   }
 %   \begin{syntax}
-%     \cs{fp_fixed_mul:wwn}
-%     \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \Arg{X_5} \Arg{X_6} |;|
-%     \Arg{Y_1} \Arg{Y_2} \Arg{Y_3} \Arg{Y_4} \Arg{Y_5} \Arg{Y_6} |;|
-%     \Arg{tokens}
+%     \cs{fp_fixed_mul:wwn} \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \Arg{X_5} \Arg{X_6} |;| \Arg{Y_1} \Arg{Y_2} \Arg{Y_3} \Arg{Y_4} \Arg{Y_5} \Arg{Y_6} |;| \Arg{tokens}
 %   \end{syntax}
-%   Feeds $6$ brace groups followed by a semicolon as an argument to
-%   \meta{tokens}. It would be nice to grab the $12$ first brace
-%   groups to compute $X \cdot Y$, but that's not possible. On the
-%   other hand, we don't need to obtain an exact result, contrarily
-%   to the case in \cs{fp_mul:ww}, so things are not quite as bad as
-%   they may seem.
+%   Computes $X\times Y$ and feeds the result to \meta{function}. It
+%   would be nice to grab the $12$ brace groups in one go, but that's
+%   not possible.  On the other hand, we don't need to obtain an exact
+%   rounding, contrarily to the case in \cs{fp_mul:ww}, so things are
+%   not quite as bad as they may seem.  The parenthesis computing the
+%   seventh group of digits (computed because we need to know its
+%   potentially large carry) is closed by
+%   \cs{fp_fixed_mul_aux:nnnnnnnn}, once we access the last two brace
+%   groups, which were not read before. Also, in
+%   \cs{fp_fixed_mul_after:NNNNNwwN}, |#8| is the continuation
+%   tokens.\footnote{Bruno: insist on the difference compared to
+%     \cs{fp_fixed_add:wwN}.}
 %    \begin{macrocode}
 \cs_new:Npn \fp_fixed_mul:wwn #1#2#3#4 #5; #6#7#8#9
   {
@@ -264,21 +267,12 @@
 \cs_new:Npn \fp_fixed_mul_after:NNNNNwwn
     #1 #2#3#4#5 #6; #7; #8 { #8 {#2#3#4#5} {#6} #7 ; }
 %    \end{macrocode}
-%   The parenthesis computing the seventh group of digits
-%   (computed because we need to know its potentially large
-%   carry) is closed by \cs{fp_fixed_mul_aux:nnnnnnnn},
-%   once we access the last two brace groups, which were
-%   not read before. Also, in \cs{fp_fixed_mul_after:NNNNNwwN},
-%   |#8| is the continuation tokens.\footnote{Bruno: insist
-%     on the difference compared to \cs{fp_fixed_add:wwN}.}
+% \end{macro}
 % \end{macro}
 %
-% \subsection{Extended fixed point to floating point conversion}
-%
-% \begin{macro}{\fp_fixed_to_normal:w}
+% \begin{macro}{\fp_fixed_to_float:w}
 %   \begin{syntax}
-%     \cs{int_eval:w} \meta{exponent} \cs{fp_fixed_to_normal:w}
-%     \Arg{a_1} \Arg{a_2} \Arg{a_3} \Arg{a_4} \Arg{a_5} \Arg{a_6} |;|
+%     \ldots{} \cs{int_eval:w} \meta{exponent} \cs{fp_fixed_to_float:w} \Arg{a_1} \Arg{a_2} \Arg{a_3} \Arg{a_4} \Arg{a_5} \Arg{a_6} |;|
 %   \end{syntax}
 %   yields
 %   \begin{quote}
@@ -288,53 +282,53 @@
 %   it is sign of an error before), and we assume that it is
 %   less than $10^5$.\footnote{Bruno: I must double check this assumption.}
 %    \begin{macrocode}
-\cs_new:Npn \fp_fixed_to_normal:w #1#2#3#4#5#6;
+\cs_new:Npn \fp_fixed_to_float:w #1#2#3#4#5#6;
   {
     + \c_one % for the 5-digit-at-the-start thing.
     \exp_after:wN \exp_after:wN
-    \exp_after:wN \fp_fixed_to_normal_loop:N
+    \exp_after:wN \fp_fixed_to_float_loop:N
     \exp_after:wN \use_none:n
     \int_use:N \int_eval:w 19 9998 + #1
-      \exp_after:wN \fp_fixed_to_normal_pack:N
+      \exp_after:wN \fp_fixed_to_float_pack:N
       \int_use:N \int_eval:w 1 9998 + #2
-        \exp_after:wN \fp_fixed_to_normal_pack:N
+        \exp_after:wN \fp_fixed_to_float_pack:N
         \int_use:N \int_eval:w 1 9998 + #3
-          \exp_after:wN \fp_fixed_to_normal_pack:N
+          \exp_after:wN \fp_fixed_to_float_pack:N
           \int_use:N \int_eval:w 1 9998 + #4
-            \exp_after:wN \fp_fixed_to_normal_pack:N
+            \exp_after:wN \fp_fixed_to_float_pack:N
             \int_use:N \int_eval:w 1 9998 + #5
-              \exp_after:wN \fp_fixed_to_normal_pack:N
+              \exp_after:wN \fp_fixed_to_float_pack:N
               \int_use:N \int_eval:w 2 0000 + #6
     \exp_after:wN ; \exp_after:wN ;
   }
-\cs_new:Npn \fp_fixed_to_normal_pack:N #1 { + #1 \int_eval_end: }
-\cs_new:Npn \fp_fixed_to_normal_loop:N #1
+\cs_new:Npn \fp_fixed_to_float_pack:N #1 { + #1 \int_eval_end: }
+\cs_new:Npn \fp_fixed_to_float_loop:N #1
   {
     \if_meaning:w 0 #1
       - \c_one
-      \exp_after:wN \fp_fixed_to_normal_loop:N
+      \exp_after:wN \fp_fixed_to_float_loop:N
     \else:
-      \fp_fixed_to_normal_loop_end:w
+      \fp_fixed_to_float_loop_end:w
       #1
     \fi:
   }
-\cs_new:Npn \fp_fixed_to_normal_loop_end:w #1 \fi: #2 ;
+\cs_new:Npn \fp_fixed_to_float_loop_end:w #1 \fi: #2 ;
   {
     \fi:
     \if_meaning:w ; #1
-      \exp_after:wN \fp_fixed_to_normal_zero:w
+      \exp_after:wN \fp_fixed_to_float_zero:w
     \else:
-      \exp_after:wN \fp_fixed_to_normal_pack_i:NNNNNNNN
+      \exp_after:wN \fp_fixed_to_float_pack_i:NNNNNNNN
     \fi:
     #1 #2 000 0000 0000 0000 ;
   }
-\cs_new:Npn \fp_fixed_to_normal_zero:w ; 000 0000 0000 0000 ;
+\cs_new:Npn \fp_fixed_to_float_zero:w ; 000 0000 0000 0000 ;
   { ; {0000} {0000} {0000} {0000} ; }
-\cs_new:Npn \fp_fixed_to_normal_pack_i:NNNNNNNN #1#2#3#4 #5#6#7#8
-  { \fp_fixed_to_normal_pack_ii:nNNNNNNNN { {#1#2#3#4} {#5#6#7#8} } }
-\cs_new:Npn \fp_fixed_to_normal_pack_ii:nNNNNNNNN #1 #2#3#4#5 #6#7#8#9
-  { \fp_fixed_to_normal_pack_iii:nw { #1 {#2#3#4#5} {#6#7#8#9} } }
-\cs_new:Npn \fp_fixed_to_normal_pack_iii:nw #1 #2 ; ; { ; #1 ; }
+\cs_new:Npn \fp_fixed_to_float_pack_i:NNNNNNNN #1#2#3#4 #5#6#7#8
+  { \fp_fixed_to_float_pack_ii:nNNNNNNNN { {#1#2#3#4} {#5#6#7#8} } }
+\cs_new:Npn \fp_fixed_to_float_pack_ii:nNNNNNNNN #1 #2#3#4#5 #6#7#8#9
+  { \fp_fixed_to_float_pack_iii:nw { #1 {#2#3#4#5} {#6#7#8#9} } }
+\cs_new:Npn \fp_fixed_to_float_pack_iii:nw #1 #2 ; ; { ; #1 ; }
 %    \end{macrocode}
 % \footnote{Bruno: rounding is missing!}
 % \end{macro}
