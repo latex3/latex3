@@ -70,33 +70,6 @@
 %
 % \begin{documentation}
 %
-% \section{Internal functions}
-%
-% \begin{function}[EXP]{\fp_to_ofp:n,\fp_to_ofp:N,\fp_to_ofp:w}
-%   \begin{syntax}
-%     \cs{fp_to_ofp:n} \Arg{token list}
-%     \cs{fp_to_ofp:N} \meta{fp var}
-%     \cs{fp_to_ofp:w} \meta{floating point}
-%   \end{syntax}
-%   These functions convert an internal floating point number to the old
-%   format (\meta{sign}\meta{digit}.\meta{9~digits}e\meta{exponent}).
-%   Note that since the new internal floating point number format includes
-%   a trailing semicolon, it is not needed for \cs{fp_to_ofp:w}.
-%
-%   This should probably be made into some generic rounding procedure.
-% \end{function}
-%
-% \begin{function}[EXP]{\ofp_to_fp:N,\ofp_to_fp:w}
-%   \begin{syntax}
-%     \cs{ofp_to_fp:N} \meta{old fp var}
-%     \cs{ofp_to_fp:w} \meta{old floating point} |;|
-%   \end{syntax}
-%   Converts the \meta{old fp var} to the new floating
-%   point format. Leaves the result in the input stream.
-%   These functions are f-expandable. Note the trailing
-%   semicolon (with catcode other) in the |w| case.
-% \end{function}
-%
 % \end{documentation}
 %
 % \begin{implementation}
@@ -112,13 +85,257 @@
 %<*initex|package>
 %    \end{macrocode}
 %
-% \subsection{Scientific notation}
+% \subsection{Floating point to various outputs}
+%
+% \subsubsection{Decimal}
+%
+% \begin{macro}[EXP]
+%   {\fp_to_decimal:N, \fp_to_decimal:c, \fp_to_decimal:n}
+%   All three variants are based on the same \cs{fp_to_decimal:w} after
+%   evaluating their argument to an internal floating point.
+%    \begin{macrocode}
+\cs_new:Npn \fp_to_decimal:N #1 { \exp_after:wN \fp_to_decimal:w #1 }
+\cs_generate_variant:Nn \fp_to_decimal:N { c }
+\cs_new_nopar:Npn \fp_to_decimal:n
+  {
+    \exp_after:wN \fp_to_decimal:w
+    \tex_romannumeral:D -`0 \fp_parse:n
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP,aux]
+%   {
+%     \fp_to_decimal:w,
+%     \fp_to_decimal_normal:nnnnn,
+%     \fp_to_decimal_large:Nnnw,
+%     \fp_to_decimal_huge:wnnnn,
+%   }
+%   In the case of a \texttt{nan}, we trigger the \enquote{Missing
+%     number, treated as $0$.} error.
+%    \begin{macrocode}
+\cs_new:Npn \fp_to_decimal:w \s_fp \fp_use:w #1#2
+  {
+    \if_meaning:w 2 #2 \exp_after:wN - \tex_romannumeral:D -`0 \fi:
+    \if_case:w #1 \exp_stop_f:
+         \fp_aux_case_return:nw { 0.000 0000 0000 0000 }
+    \or: \exp_after:wN \fp_to_decimal_normal:nnnnn
+    \or: \fp_aux_case_return:nw { 9999 9999 9999 9999 }
+    \else:
+      \fp_aux_case_return:nw
+        {
+          \exp_after:wN \use_none:n \tex_romannumeral:D ;
+          0.000 0000 0000 0000
+        }
+    \fi:
+  }
+\cs_new:Npn \fp_to_decimal_normal:nnnnn #1 #2#3#4#5;
+  {
+    \int_compare:nNnTF {#1} > \c_zero
+      {
+        \int_compare:nNnTF {#1} < \c_sixteen
+          {
+            \fp_aux_decimate:nNnnnn { \c_sixteen - #1 }
+              \fp_to_decimal_large:Nnnw
+          }
+          {
+            \exp_after:wN \exp_after:wN
+            \exp_after:wN \fp_to_decimal_huge:wnnnn
+            \prg_replicate:nn { #1 - \c_sixteen } { 0 }
+          }
+      }
+      {
+        \exp_after:wN 0 \exp_after:wN .
+        \prg_replicate:nn { - #1 } { 0 }
+      }
+    #2#3#4#5
+  }
+\cs_new:Npn \fp_to_decimal_large:Nnnw #1#2#3#4;
+  {
+    \int_value:w % remove leading zeros.
+      \if_int_compare:w #2 > \c_zero
+        #2 \exp_after:wN \exp_stop_f:
+      \fi:
+    #3.#4
+  }
+\cs_new:Npn \fp_to_decimal_huge:wnnnn #1; #2#3#4#5 { #2#3#4#5 #1 }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Dimension}
+%
+% \begin{macro}[EXP]{\fp_to_dim:N, \fp_to_dim:c, \fp_to_dim:n}
+%   The three functions evaluate their argument, then pass it to
+%   \cs{fp_to_dim:w}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_to_dim:N #1 { \exp_after:wN \fp_to_dim:w #1 }
+\cs_generate_variant:Nn \fp_to_dim:N { c }
+\cs_new_nopar:Npn \fp_to_dim:n
+  {
+    \exp_after:wN \fp_to_dim:w
+    \tex_romannumeral:D -`0 \fp_parse:n
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]
+%   {
+%     \fp_to_dim:w , \fp_to_dim_normal:nnnnn , \fp_to_dim_small:n ,
+%     \fp_to_dim_large:n , \fp_to_dim_large_pack:NNNNNw
+%   }
+%   Our goal is to convert a floating point to a dimension in
+%   \texttt{pt}.  The first step is to evaluate the floating point
+%   expression.  Then start a \cs{dim_eval:n} ending with \texttt{pt} to
+%   avoid any worry, and insert a minus sign if appropriate.  Zero
+%   floating point numbers are mapped to \cs{c_zero_dim}, infinite
+%   floating point numbers to \texttt{99999pt}, causing an overflow, and
+%   \texttt{nan} is mapped to \texttt{pt}, triggering the appropriate
+%   \TeX{} error: \enquote{Missing number, treated as 0}.  Finally, for
+%   normal numbers, check the exponent: if it is too large, output
+%   \texttt{99999pt} as for infinities; if it is very small, output
+%   \cs{c_zero_dim}, and in between, either produce
+%   \texttt{.000\ldots{}00} followed by the actual digits, or grab the
+%   first few digits and add a dot afterwards.
+%    \begin{macrocode}
+\cs_new:Npn \fp_to_dim:w \s_fp \fp_use:w #1#2#3;
+  {
+    \dim_eval:n
+      {
+        \if_meaning:w 2 #2 - \fi:
+        \if_case:w #1 \exp_stop_f:
+             \c_zero
+        \or: \fp_to_dim_normal:nnnnn #3
+        \or: 99999
+        \fi:
+        pt
+      }
+  }
+\cs_new:Npn \fp_to_dim_normal:nnnnn #1#2#3#4#5
+  {
+    \if_num:w #1 > \c_five
+      99999
+    \else:
+      \if_num:w #1 < - \c_five
+        \c_zero
+      \else:
+        \if_num:w #1 > \c_zero
+          \exp_after:wN \fp_to_dim_large:n
+        \else:
+          \exp_after:wN \fp_to_dim_small:n
+        \fi:
+        {#1} #2#3#4#5
+      \fi:
+    \fi:
+  }
+\cs_new:Npn \fp_to_dim_small:n #1
+  { . \prg_replicate:nn {-#1} {0} }
+\cs_new:Npn \fp_to_dim_large:n #1
+  {
+    \exp_after:wN \exp_after:wN
+    \exp_after:wN \fp_to_dim_large_pack:NNNNNw
+      \prg_replicate:nn { \c_five - #1 } {0}
+  }
+\cs_new:Npn \fp_to_dim_large_pack:NNNNNw #1#2#3#4#5 { #1#2#3#4#5 . }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Integer}
+%
+% \begin{macro}[EXP]{\fp_to_int:N, \fp_to_int:c, \fp_to_int:n}
+%   The three functions evaluate their argument, then pass it to
+%   \cs{fp_to_int:w}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_to_int:N #1 { \exp_after:wN \fp_to_int:w #1 }
+\cs_generate_variant:Nn \fp_to_int:N { c }
+\cs_new_nopar:Npn \fp_to_int:n
+  {
+    \exp_after:wN \fp_to_int:w
+    \tex_romannumeral:D -`0 \fp_parse:n
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]
+%   {
+%     \fp_to_int:w,
+%     \fp_to_int_normal:Nnnnnn,
+%     \fp_to_int_large_aux:NNNNNNNNN,
+%     \fp_to_int_large_aux:NNNNNNwN
+%   }
+%   ^^A inconsistency on whether overflow causes error.
+%   Our goal is to convert a floating point to an integer, rounding
+%   correctly.  The first step is to evaluate the floating point
+%   expression.  Then find the sign, which will affect an integer
+%   expression.  Zero is mapped to $0$, infinite floating points are
+%   silently mapped to the largest available integer, and \texttt{nan}
+%   triggers a \enquote{Missing number, treated as 0} error.  Finally,
+%   for normal numbers, detect underflow (non-positive exponent), and
+%   overflow (more elaborate tests using $2^{31}-1 = 2147483647$).  In
+%   the most normal case, we can grab $10$ digits after adding the
+%   appropriate number of $0$ to the front, then do the rounding.
+%    \begin{macrocode}
+\cs_new:Npn \fp_to_int:w \s_fp \fp_use:w #1#2#3;
+  {
+    \int_value:w \if_meaning:w 2 #2 - \fi:
+      \int_eval:w
+        \if_case:w #1 \exp_stop_f:
+             \c_zero
+        \or: \fp_to_int_normal:Nnnnnn #2 #3
+        \or: \c_max_int
+        \fi:
+      \int_eval_end:
+  }
+\cs_new:Npn \fp_to_int_normal:Nnnnnn #1#2#3#4#5#6
+  {
+    \if_case:w
+        \if_num:w #2 < \c_one       \c_two \fi:
+        \if_num:w #2 > \c_ten       \c_one \fi:
+        \if_num:w #2 = \c_ten
+          \if_num:w #3#4 > 21474836 \c_one \fi:
+          \if_num:w #3#4 = 21474836 \exp_stop_f:
+            \if_num:w #5 > 4699     \c_one \fi:
+          \fi:
+        \fi:
+        \c_zero
+      \exp_after:wN \exp_after:wN
+      \exp_after:wN \fp_to_int_large_aux:NNNNNNNNN
+      \prg_replicate:nn { \c_ten - #2 } {0}
+      #3#4#5#6 ; #1
+    \or:
+      \c_max_int
+    \else:
+      \c_zero
+    \fi:
+  }
+\cs_new:Npn \fp_to_int_large_aux:NNNNNNNNN #1#2#3#4#5#6#7#8#9
+  { #1#2#3#4#5#6#7#8#9 \fp_to_int_large_aux:NNNNNNwN }
+\cs_new:Npn \fp_to_int_large_aux:NNNNNNwN #1#2 #3#4#5#6#7; #8
+  { #1 + \fp_aux_round:NNNN #8 #1 #2 { \int_eval:w #3#4#5#6 + #7 } }
+  % ^^A wrong arg spec for round:.
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Scientific notation}
 %
 % Expressing an internal floating point number in scientific notation is
 % quite easy: no rounding, and the format is very well defined. We
 % simply have to filter out the various special cases.
 %
-% \begin{macro}{\fp_use:N,\fp_eval:n}
+% \begin{macro}
+%   {\fp_to_scientific:N, \fp_to_scientific:c, \fp_to_scientific:n}
+%   The three functions evaluate their argument, then pass it to
+%   \cs{fp_to_scientific:w}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_to_scientific:N #1 { \exp_after:wN \fp_to_scientific:w #1 }
+\cs_generate_variant:Nn \fp_to_scientific:N { c }
+\cs_new:Npn \fp_to_scientific:n #1
+  {
+    \exp_after:wN \fp_to_scientific:w
+    \tex_romannumeral:D -`0 \fp_parse:n {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[aux,EXP]
 %   {
 %     \fp_to_scientific:w,
@@ -131,12 +348,6 @@
 %   grab the first digit (previously hidden in braces) and order the
 %   various parts correctly.
 %    \begin{macrocode}
-\cs_new:Npn \fp_use:N #1 { \exp_after:wN \fp_to_scientific:w #1 }
-\cs_new:Npn \fp_eval:n #1
-  {
-    \exp_after:wN \fp_to_scientific:w
-    \tex_romannumeral:D -`0 \fp_parse:n {#1}
-  }
 \cs_new:Npn \fp_to_scientific:w \s_fp \fp_use:w #1 #2
   {
     \if_meaning:w 2 #2
@@ -158,11 +369,23 @@
 \cs_new:Npn \fp_to_scientific_normal:wNw #1 ; #2#3; { #2.#3 e #1 }
 %    \end{macrocode}
 % \end{macro}
-% \end{macro}
 %
-% \subsection{Conversion to tl}
+% \subsubsection{Token list (pocket calculator)}
 %
 % \begin{macro}[EXP]{\fp_to_tl:N, \fp_to_tl:c, \fp_to_tl:n}
+%   The three functions evaluate their argument, then pass it to
+%   \cs{fp_to_tl:w}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_to_tl:N #1 { \exp_after:wN \fp_to_tl:w #1 }
+\cs_generate_variant:Nn \fp_to_tl:N { c }
+\cs_new_nopar:Npn \fp_to_tl:n
+  {
+    \exp_after:wN \fp_to_tl:w
+    \tex_romannumeral:D -`0 \fp_parse:n
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[EXP, aux]
 %   {
 %     \fp_to_tl:w,
@@ -178,13 +401,6 @@
 %     \fp_to_tl_zeros_end:w,
 %   }
 %    \begin{macrocode}
-\cs_new:Npn \fp_to_tl:N #1 { \exp_after:wN \fp_to_tl:w #1 }
-\cs_generate_variant:Nn \fp_to_tl:N { c }
-\cs_new_nopar:Npn \fp_to_tl:n
-  {
-    \exp_after:wN \fp_to_tl:w
-    \tex_romannumeral:D -`0 \fp_parse:n
-  }
 \cs_new:Npn \fp_to_tl:w \s_fp \fp_use:w #1#2
   {
     \if_meaning:w 2 #2 \exp_after:wN - \tex_romannumeral:D -`0 \fi:
@@ -234,159 +450,105 @@
 \cs_new:Npn \fp_to_tl_zeros_end:w #1 ; #2 \s_stop { #1 }
 %    \end{macrocode}
 % \end{macro}
-% \end{macro}
 %
-% \subsection{Int}
+% \subsection{Misc}
 %
-% \begin{macro}[EXP]{\fp_to_int:N, \fp_to_int:c, \fp_to_int:n}
-% \begin{macro}[aux, EXP]
+% \subsubsection{Rounding}
+%
+% \begin{macro}[EXP]{\fp_round_figures:nn, \fp_round_places:nn}
+% \begin{macro}[EXP,aux]
 %   {
-%     \fp_to_int:w, \fp_to_int_normal:Nnnnnn,
-%     \fp_to_int_large_aux:NNNNNNNNN,
-%     \fp_to_int_large_aux:NNNNNNwN
+%     \fp_round_aux:Nww, \fp_round_normal:NwNnw, \fp_round_normal:wwN,
+%     \fp_round_normal:w, \fp_round_normal:NnnwN,
+%     \fp_round_normal_round:NNNNNNNNN, \fp_round_normal_pack:NNNNNw,
+%     \fp_round_normal_end:NNNNNw
 %   }
-%   ^^A inconsistency on whether overflow causes error.
-%   Our goal is to convert a floating point to an integer, rounding
-%   correctly.  The first step is to evaluate the floating point
-%   expression.  Then find the sign, which will affect an integer
-%   expression.  Zero is mapped to $0$, infinite floating points are
-%   silently mapped to the largest available integer, and \texttt{nan}
-%   triggers a \enquote{Missing number, treated as 0} error.  Finally,
-%   for normal numbers, detect underflow (non-positive exponent), and
-%   overflow (more elaborate tests using $2^{31}-1 = 2147483647$).  In
-%   the most normal case, we can grab $10$ digits after adding the
-%   appropriate number of $0$ to the front, then do the rounding.
 %    \begin{macrocode}
-\cs_new:Npn \fp_to_int:N #1 { \exp_after:wN \fp_to_int:w #1 }
-\cs_generate_variant:Nn \fp_to_int:N { c }
-\cs_new_nopar:Npn \fp_to_int:n
+\cs_new:Npn \fp_round_figures:nn #1#2
   {
-    \exp_after:wN \fp_to_int:w
-    \tex_romannumeral:D -`0 \fp_parse:n
+    \exp_after:wN \fp_round_aux:Nww \exp_after:wN 0
+    \int_use:N \int_eval:w #2 \exp_after:wN ;
+    \tex_romannumeral:D -`0 \fp_parse:n {#1}
   }
-\cs_new:Npn \fp_to_int:w \s_fp \fp_use:w #1#2#3;
+\cs_new:Npn \fp_round_places:nn #1#2
   {
-    \int_value:w \if_meaning:w 2 #2 - \fi:
-      \int_eval:w
-        \if_case:w #1 \exp_stop_f:
-             \c_zero
-        \or: \fp_to_int_normal:Nnnnnn #2 #3
-        \or: \c_max_int
-        \fi:
-      \int_eval_end:
+    \exp_after:wN \fp_round_aux:Nww \exp_after:wN 1
+    \int_use:N \int_eval:w #2 \exp_after:wN ;
+    \tex_romannumeral:D -`0 \fp_parse:n {#1}
   }
-\cs_new:Npn \fp_to_int_normal:Nnnnnn #1#2#3#4#5#6
+\cs_new:Npn \fp_round_aux:Nww #1#2; \s_fp \fp_use:w #3
   {
-    \if_case:w
-        \if_num:w #2 < \c_one       \c_two \fi:
-        \if_num:w #2 > \c_ten       \c_one \fi:
-        \if_num:w #2 = \c_ten
-          \if_num:w #3#4 > 21474836 \c_one \fi:
-          \if_num:w #3#4 = 21474836 \exp_stop_f:
-            \if_num:w #5 > 4699     \c_one \fi:
-          \fi:
-        \fi:
-        \c_zero
-      \exp_after:wN \exp_after:wN
-      \exp_after:wN \fp_to_int_large_aux:NNNNNNNNN
-      \prg_replicate:nn { \c_ten - #2 } {0}
-      #3#4#5#6 ; #1
-    \or:
-      \c_max_int
-    \else:
-      \c_zero
+    \if_meaning:w 1 #3
+      \exp_after:wN \fp_round_normal:NwNnw
+      \exp_after:wN #1
+      \int_value:w #2
     \fi:
+    \s_fp \fp_use:w #3
   }
-\cs_new:Npn \fp_to_int_large_aux:NNNNNNNNN #1#2#3#4#5#6#7#8#9
-  { #1#2#3#4#5#6#7#8#9 \fp_to_int_large_aux:NNNNNNwN }
-\cs_new:Npn \fp_to_int_large_aux:NNNNNNwN #1#2 #3#4#5#6#7; #8
-  { #1 + \fp_aux_round:NNNN #8 #1 #2 { \int_eval:w #3#4#5#6 + #7 } }
-  % ^^A wrong arg spec for round:.
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \subsection{Dimensions}
-%
-%
-% \begin{macro}[EXP]{\fp_to_dim:N, \fp_to_dim:c, \fp_to_dim:n}
-% \begin{macro}[aux, EXP]
-%   {
-%     \fp_to_dim:w , \fp_to_dim_normal:nnnnn , \fp_to_dim_small:n ,
-%     \fp_to_dim_large:n , \fp_to_dim_large_pack:NNNNNw
-%   }
-%   Our goal is to convert a floating point to a dimension in
-%   \texttt{pt}.  The first step is to evaluate the floating point
-%   expression.  Then start a \cs{dim_eval:n} ending with \texttt{pt} to
-%   avoid any worry, and insert a minus sign if appropriate.  Zero
-%   floating point numbers are mapped to \cs{c_zero_dim}, infinite
-%   floating point numbers to \texttt{99999pt}, causing an overflow, and
-%   \texttt{nan} is mapped to \texttt{pt}, triggering the appropriate
-%   \TeX{} error: \enquote{Missing number, treated as 0}.  Finally, for
-%   normal numbers, check the exponent: if it is too large, output
-%   \texttt{99999pt} as for infinities; if it is very small, output
-%   \cs{c_zero_dim}, and in between, either produce
-%   \texttt{.000\ldots{}00} followed by the actual digits, or grab the
-%   first few digits and add a dot afterwards.
-%    \begin{macrocode}
-\cs_new:Npn \fp_to_dim:N #1 { \exp_after:wN \fp_to_dim:w #1 }
-\cs_generate_variant:Nn \fp_to_dim:N { c }
-\cs_new_nopar:Npn \fp_to_dim:n
+\cs_new:Npn \fp_round_normal:NwNnw #1#2 \s_fp \fp_use:w 1 #3#4#5;
   {
-    \exp_after:wN \fp_to_dim:w
-    \tex_romannumeral:D -`0 \fp_parse:n
+    \exp_after:wN \fp_round_normal:wwN
+    \int_use:N \int_eval:w #4 +
+      \exp_after:wN \fp_round_normal:w
+      \int_use:N \int_eval:w
+        \c_sixteen - #2
+        \if_meaning:w 1 #1 - #4 \fi:
+      ;
+    \fp_round_normal:NnnwN
+    #5
+    #3
   }
-\cs_new:Npn \fp_to_dim:w \s_fp \fp_use:w #1#2#3;
+\cs_new:Npn \fp_round_normal:w #1;
   {
-    \dim_eval:n
-      {
-        \if_meaning:w 2 #2 - \fi:
-        \if_case:w #1 \exp_stop_f:
-             \c_zero
-        \or: \fp_to_dim_normal:nnnnn #3
-        \or: 99999
-        \fi:
-        pt
-      }
-  }
-\cs_new:Npn \fp_to_dim_normal:nnnnn #1#2#3#4#5
-  {
-    \if_num:w #1 > \c_five
-      99999
-    \else:
-      \if_num:w #1 < - \c_five
-        \c_zero
+    \if_num:w #1 < \c_fifteen
+      \if_num:w #1 > \c_zero
+        #1
       \else:
-        \if_num:w #1 > \c_zero
-          \exp_after:wN \fp_to_dim_large:n
-        \else:
-          \exp_after:wN \fp_to_dim_small:n
-        \fi:
-        {#1} #2#3#4#5
+        \c_zero
       \fi:
+    \else:
+      \c_fifteen
     \fi:
+    \fp_aux_decimate:nNnnnn
+      { \if_num:w #1 < \c_fifteen #1 \else: \c_fifteen \fi: }
   }
-\cs_new:Npn \fp_to_dim_small:n #1
-  { . \prg_replicate:nn {-#1} {0} }
-\cs_new:Npn \fp_to_dim_large:n #1
+\cs_new:Npn \fp_round_normal:wwN #1; #2; #3
+  { \s_fp \fp_use:w 1 #3 {#1} #2; }
+\cs_new:Npn \fp_round_normal:NnnwN #1#2#3#4; #5
   {
-    \exp_after:wN \exp_after:wN
-    \exp_after:wN \fp_to_dim_large_pack:NNNNNw
-      \prg_replicate:nn { \c_five - #1 } {0}
+    \exp_after:wN \fp_round_normal_end:NNNNNw
+    \int_use:N \int_eval:w 9999 9999 + #2 +
+      \exp_after:wN \fp_round_normal_pack:NNNNNw
+      \int_use:N \int_eval:w 1 0000 0000 + #3 +
+        \fp_round_normal_round:NNNNNNNNN #3 #5 #1 ;
+    {0000} {0000} ;
+    #5
   }
-\cs_new:Npn \fp_to_dim_large_pack:NNNNNw #1#2#3#4#5 { #1#2#3#4#5 . }
+\cs_new:Npn \fp_round_normal_round:NNNNNNNNN #1#2#3#4#5#6#7#8#9
+  { \fp_aux_round:NNN #9 #8 }
+\cs_new:Npn \fp_round_normal_pack:NNNNNw #1#2#3#4#5 #6;
+  { #1 ; {#2#3#4#5} {#6} }
+\cs_new:Npn \fp_round_normal_end:NNNNNw #1#2#3#4#5 #6;
+  { \fp_fixed_to_float:w {#2#3#4#5} {#6} }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \subsection{From dimension to floating point}
+% \subsubsection{Dimension}
 %
 %^^A todo: "0pt" should give "-0" when rounding to -infty.
 %
-% \begin{macro}{\dim_to_fp:n}
-%   \begin{syntax}
-%     \cs{dim_to_fp:n} \Arg{dimension expression}
-%   \end{syntax}
+% \begin{macro}[EXP]{\dim_to_fp:n}
+% \begin{macro}[aux, EXP]
+%   {
+%     \dim_to_fp_test:N,
+%     \dim_to_fp_ii:Nw,
+%     \dim_to_fp_iii:NNNNNNNN,
+%     \dim_to_fp_iii:nNNNNNNN,
+%     \dim_to_fp_iv:nnnnnnwN,
+%     \dim_to_fp_aux:w,
+%     \dim_to_fp_zero:w
+%   }
 %   The dimension expression (which can in fact be a glue expression)
 %   is evaluated, converted to a number (\emph{i.e.}, expressed in
 %   scaled points), then multiplied by $2^{-16} = 0.0000152587890625$
@@ -397,7 +559,6 @@
 %     \cs{fp_basics_mul_npos:Nnwnw} \meta{sign} \newline
 %     ~~\Arg{exp_1}  \meta{body1} |;| \Arg{exp_2} \meta{body2} |;|
 %   \end{quote}
-%
 %    \begin{macrocode}
 \cs_new:Npn \dim_to_fp:n #1
   {
@@ -440,173 +601,17 @@
 \cs_new:Npn \dim_to_fp_zero:w ; #1; { \c_zero_fp }
 %    \end{macrocode}
 % \end{macro}
-%
-% \subsection{Conversion from old floating points}
-%
-% To ease the transition, we provide a conversion from the old
-% floating point implementation to the new one. The input is a token
-% list of the form \meta{sign} \meta{1~digit}|.|\meta{9~digits}
-% |e|\meta{exponent}.
-%
-% \begin{macro}[EXP]
-%   {
-%     \ofp_to_fp:N,
-%     \ofp_to_fp:w
-%   }
-% \begin{macro}[EXP,aux]
-%   {
-%     \ofp_to_fp_special:Nw,
-%     \ofp_to_fp_normal:NnNNNNww,
-%     \ofp_to_fp_sign:N
-%   }
-%
-%   The old module only has one special case, \cs{c_undefined_fp},
-%   distinguished by its sign. It is converted to an \enquote{empty}
-%   \texttt{qNaN}. All other numbers are converted with no
-%   precision loss, just by adding zero at the end. The exponent
-%   is shifted by $1$ (because the mantissa of new floating point
-%   numbers starts with $0.\cdots$). For instance,
-%   \texttt{+1.234512345e7} is stored as \cs{s_fp} \cs{fp_use:w}
-%   |10{8}{1234}{5123}{4500}{0000};|.
-%
-%   \begin{macrocode}
-\cs_new_nopar:Npn \ofp_to_fp:N #1
-  { \exp_after:wN \ofp_to_fp:w #1 ; }
-\cs_new_nopar:Npn \ofp_to_fp:w #1 #2.#3#4#5
-  {
-    \if_meaning:w 0 #2
-      \exp_after:wN \ofp_to_fp_special:Nw
-    \else:
-      \exp_after:wN \ofp_to_fp_normal:NnNNNNww
-    \fi:
-    #1 {#2#3#4#5}
-  }
-\cs_new_nopar:Npn \ofp_to_fp_special:Nw #1 #2 ;
-  {
-    \if:w X #1
-      \exp_after:wN \c_empty_qnan_fp
-    \else:
-      \exp_after:wN \c_zero_fp
-    \fi:
-  }
-\cs_new_nopar:Npn \ofp_to_fp_normal:NnNNNNww
-    #1 #2 #3#4#5#6 #7 e #8 ;
-  {
-    \ofp_to_fp_sign:N #1
-    { \int_use:N \int_eval:w #8 + 1 }
-    {#2} {#3#4#5#6} {#700} {0000} ;
-  }
-\cs_new_nopar:Npn \ofp_to_fp_sign:N #1
-  {
-    \exp_after:wN \s_fp
-    \exp_after:wN \fp_use:w
-    \int_value:w 1 \if_meaning:w + #1 0 \else: 2 \fi: \exp_after:wN
-  }
-%    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
+% \subsubsection{Use and eval}
 %
-% \subsection{Conversion to old floating points}
-%
-% Converting from the internal representation to the old format for fp
-% is slightly harder, as it involves rounding.
-%
-% \begin{macro}[EXP]{\fp_to_ofp:n, \fp_to_ofp:N, \fp_to_ofp:w}
-% \begin{macro}[aux, EXP]
-%   {
-%     \fp_to_ofp_normal:Nnnn,
-%     \fp_to_ofp_aux_i:NNN,
-%     \fp_to_ofp_aux_ii:N,
-%     \fp_to_ofp_aux_iii:NN,
-%     \fp_to_ofp_carry:w
-%     \fp_to_ofp_sanitize:NNw,
-%   }
-%   The conversion then starts by examining the \meta{case}, and
-%   branching accordingly. Infinities and NaN are treated identically.
-%
-%   In the case of normal numbers ($\meta{case}=1$), we do the
-%   rounding within some \cs{int_eval:w}. Afterwards,
-%   check for a carry. This only ever happens to yield $1.0\cdots0$
-%   as a result, so \cs{fp_to_ofp_carry:w} knows
-%   precisely what follows.
-%
-%   The whole thing is wrapped in a calculation of the exponent.
-%   This will be ended by $-1$ (unless there is a carry). At the end,
-%   \emph{i.e.}, after the carry, \cs{fp_to_ofp_sanitize:NNw}
-%   tests for overflow or underflow, and reorders the various pieces.
-%
-%   If (the absolute value of) the exponent is less than $100$,
-%   then the number fits in the \enquote{old} range of exponents:
-%   simply set the sign correctly. Underflow gives \cs{c_zero_ofp}
-%   and  overflow gives \cs{c_undefined_ofp}.
+% \begin{macro}[EXP]{\fp_use:N, \fp_eval:n}
+%   The meaning of those functions might vary.  For now, they convert to
+%   a real number appropriate as a factor in front of dimensions.
 %    \begin{macrocode}
-\cs_new:Npn \fp_to_ofp:n
-  {
-    \exp_after:wN \fp_to_ofp:w
-    \tex_romannumeral:D -`0 \fp_parse:n
-  }
-\cs_new:Npn \fp_to_ofp:N { \exp_after:wN \fp_to_ofp:w }
-\cs_new:Npn \fp_to_ofp:w \s_fp \fp_use:w #1
-  {
-    \if_case:w #1 \exp_stop_f:
-         \fp_aux_case_return:nw { \c_zero_ofp }
-    \or: \exp_after:wN \fp_to_ofp_normal:Nnnn
-    \or: \fp_aux_case_return:nw { \c_undefined_ofp }
-    \or: \fp_aux_case_return:nw { \c_undefined_ofp }
-    \fi:
-  }
-\cs_new:Npn \fp_to_ofp_normal:Nnnn #1 #2 #3#4
-  {
-    \exp_after:wN \fp_to_ofp_sanitize:NNw
-    \exp_after:wN #1
-    \int_use:N \int_eval:w #2
-      \exp_after:wN \fp_to_ofp_aux_iii:NN
-      \int_use:N \int_eval:w 1#3
-        \exp_after:wN \fp_to_ofp_aux_ii:N
-        \int_use:N \int_eval:w
-          1 #4 \fp_to_ofp_aux_i:NNN #1
-  }
-\cs_new:Npn \fp_to_ofp_aux_i:NNN #1 #2#3
-  { % <sign> <X9> <X10> <X11-X16> ;
-    #2 #3
-    + \fp_aux_round_s:NNNw #1#3
-  }
-\cs_new:Npn \fp_to_ofp_aux_ii:N #1
-  { % <1 or 2> <X'6-10> ;
-    \if_meaning:w 2 #1 + 1 \fi: \int_eval_end:
-  }
-\cs_new:Npn \fp_to_ofp_aux_iii:NN #1 #2
-  { % <1 or 2> <X'1>
-    \if_meaning:w 2 #1
-      \exp_after:wN \fp_to_ofp_carry:w
-    \fi:
-    - 1 ;
-    #2.
-  }
-\cs_new:Npn \fp_to_ofp_carry:w - 1 ; 0.000000000 ;
-  { ; 1.000000000 ; }
-\cs_new:Npn \fp_to_ofp_sanitize:NNw #1 #2#3 ;
-  { % <sign digit> <exponent> ; <body> ;
-    \if_num:w \if:w - #2 - \fi: #2#3 < \c_one_hundred
-      \exp_after:wN \fp_to_ofp_sane:Nww
-    \else:
-      \exp_after:wN \fp_to_ofp_unsane:NNww
-    \fi:
-    #1 #2#3 ;
-  }
-\cs_new:Npn \fp_to_ofp_sane:Nww #1 #2; #3;
-  { \if:w 0 #1 \exp_after:wN + \else: \exp_after:wN - \fi: #3 e #2 }
-\cs_new:Npn \fp_to_ofp_unsane:NNww #1 #2#3; #4;
-  {
-    \if:w - #2
-      \exp_after:wN \c_zero_ofp
-    \else:
-      \exp_after:wN \c_undefined_ofp
-    \fi:
-  }
+\cs_new_eq:NN \fp_use:N  \fp_to_decimal:N
+\cs_new_eq:NN \fp_eval:n \fp_to_decimal:n
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 %    \begin{macrocode}
