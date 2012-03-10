@@ -133,6 +133,7 @@
 %     makes sense in the OR but should be noted in the documentation.
 %   \item We have no mechanism for page layout (\textsf{geometry}),
 %     which means some dimensions are not defined in format mode!
+%     That includes rather important things such as \cs{textheight}.
 %   \item There are a number of comma lists which seem at first glance to
 %     be suitable for conversion to sequences. This needs checking once
 %     the first pass is completed (and so proper access methods are in use).
@@ -142,7 +143,14 @@
 %     \enquote{common} areas in all cases? On the other hand, should we test
 %     in package mode without this short cut?
 %   \item Some things here need \cs{label} mechanisms, which need to be
-%     set up elsewhere!  
+%     set up elsewhere!
+%   \item There are some comments about the \LaTeXe{} OR and how it handles
+%     \cs{topskip}. Is this relevant as we completely take over how stuff
+%     is done?
+%   \item Some parts of the OR interact with the galley (and \emph{vice
+%     versa}). The only way to properly deal with this is to always both,
+%     and to tie the code together. Of course, this increases complexity:
+%     do we want to do this?
 % \end{itemize}
 %
 %    \begin{macrocode}
@@ -214,6 +222,13 @@
 %   variables!
 %    \begin{macrocode}
 \int_new:N \l_xor_returned_float_col_int
+%    \end{macrocode}
+% \end{variable}
+% 
+% \begin{variable}{\l_xor_tmp_box}
+%   Scratch space.
+%    \begin{macrocode}
+\box_new:N \l_xor_tmp_box
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1148,29 +1163,36 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \newpage
 % \subsection{Collection Output Routine}
+% 
+% \begin{variable}{\g_xor_saved_top_skip}
+%   Used to save the value of the \tn{topskip} so it can be reset
+%   safely.
+%    \begin{macrocode}
+\skip_new:N \g_xor_saved_top_skip
+%    \end{macrocode}
+% \end{variable}
 %
 % \begin{description}
-% \item[Entry:]  |\xor_collect_setup:|
-% \item[Exit:]   |\xor_trial_place_float_setup:|
-% \item[Prereq:] |\xor_next_page_setup:| should have been called before.
-% \item[Description:] Grab enough text (and float call-outs) to obtain
-%    a galley big enough to form the next text page. The page goal is
-%    set to a value high enough to ensure that in normal cases text
-%    for all columns of the page is collected, i.e, we have a safety
-%    margin of 5 extra lines per column.\footnote{This should be made
-%    customisable for unusual jobs!}
+%   \item[Entry:]  |\xor_collect_setup:|
+%   \item[Exit:]   |\xor_trial_place_float_setup:|
+%   \item[Prereq:] |\xor_next_page_setup:| should have been called before.
+%   \item[Description:] Grab enough text (and float call-outs) to obtain
+%     a galley big enough to form the next text page. The page goal is
+%     set to a value high enough to ensure that in normal cases text
+%     for all columns of the page is collected, i.e, we have a safety
+%     margin of five extra lines per column.\footnote{This should be made
+%     customisable for unusual jobs!}
 %
-%    If the output routine is triggered with a special penalty (in the
-%    range of $-10000>p>=-10009=|\c_xor_output_balance_penalty|$) the penalty
-%    is moved into the collection box |\g_xor_partial_mvl_box| without
-%    further processing; otherwise the collection is ended and all
-%    collected material is moved to |\g_xor_hold_page_box| for use in page
-%    production.
+%     If the output routine is triggered with a special penalty (in the
+%     range of $-10000>p>=-10009=|\c_xor_output_balance_penalty|$) the penalty
+%     is moved into the collection box |\g_xor_partial_mvl_box| without
+%     further processing; otherwise the collection is ended and all
+%     collected material is moved to |\g_xor_hold_page_box| for use in page
+%     production.
 %
-% \item[Flow:]
-%\begin{footnotesize}
+%   \item[Flow:]
+%    \begin{footnotesize}
 %\begin{verbatim}
 %   \xor_collect_setup:
 %           |
@@ -1188,496 +1210,449 @@
 %           V
 %   \xor_trial_place_float_setup:
 %\end{verbatim}
-%\end{footnotesize}
+%    \end{footnotesize}
 % \end{description}
 %
 % \begin{macro}{\xor_collect_setup:}
 %    \begin{macrocode}
-\cs_new_nopar:Npn \xor_collect_setup:{
+\cs_new_protected_nopar:Npn \xor_collect_setup:
+  {
 %<*trace>
-  \trace_push:n{xor_collect_setup:}
+    \trace_push:n { xor_collect_setup: }
 %</trace>
-  \int_gset:Nn \holdinginserts \c_one
+    \int_gset_eq:NN \tex_holdinginserts:D \c_one
 %    \end{macrocode}
-%    We set the |\vsize| for collection to the height of a single
-%    column (plus a safety margin of currently five lines to allow for
-%    vanishing space at margins) multiplied by the number of columns.
+%   We set the \tn{vsize} for collection to the height of a single
+%   column (plus a safety margin of currently five lines to allow for
+%   vanishing space at margins) multiplied by the number of columns.
 %    \begin{macrocode}
-  \dim_gset:Nn \vsize { \dim_eval:n{\textheight + 5\baselineskip} }
-  \dim_gset:Nn \vsize {\int_use:N \g_xor_cols_int \vsize}
+    \dim_gset:Nn \tex_vsize:D
+%<*initex>
+      % What to do here?
+      { ( \ERROR + \c_five \tex_baselineskip:D ) * \g_xor_cols_int }
+%</initex>
+%<*package>
+      { ( \textheight + \c_five \tex_baselineskip:D ) * \g_xor_cols_int }
+%</package>
 %<*trace>
-  \trace:n{collection~vsize:~\dim_use:N \vsize }
+    \trace:n { collection~vsize:~ \dim_use:N \tex_vsize:D }
 %</trace>
 %    \end{macrocode}
-%    Initialising the flush point handling:
+%   Initialising the flush point handling:
 %    \begin{macrocode}
-  \bool_gset_false:N \g_xor_flush_seen_bool
-  \bool_gset_false:N \g_xor_flush_failed_bool
+    \bool_gset_false:N \g_xor_flush_seen_bool
+    \bool_gset_false:N \g_xor_flush_failed_bool
 %    \end{macrocode}
-%    We may have to restart the collection (whenever we find a here or
-%    a flush point) and we don't want to get extra space added via
-%    |\topskip|. So we can either make |\topskip| zero during
-%    collection (current strategy) or back it out whenever we restart.
+%   We may have to restart the collection (whenever we find a here or
+%   a flush point) and we don't want to get extra space added via
+%   \tn{topskip}. So we can either make \tn{topskip} zero during
+%   collection (current strategy) or back it out whenever we restart.
 %
-%    We can't set topskip to zero now since a) we want a proper
-%    |\topskip| for the first column and b) due to a bloody fix for the
-%    old \LaTeX{} OR, a value of |0pt| is set to |1sp| in
-%    |\begin{document}| and this results in adding |1sp| at every
-%    special point\ldots no, we definitely do not want this! It took
-%    me ages to find out why the grid design macros didn't work.
+%   We can't set topskip to zero now since a) we want a proper
+%   \tn{topskip} for the first column and b) due to a bloody fix for the
+%   old \LaTeX{} OR, a value of |0pt| is set to |1sp| in
+%   |\begin{document}| and this results in adding |1sp| at every
+%   special point\ldots no, we definitely do not want this! It took
+%   me ages to find out why the grid design macros didn't work.
 %    \begin{macrocode}
-  \tl_gset:Nx \g_xor_saved_topskip_tl {\the\topskip}
+    \skip_gset_eq:NN \g_xor_saved_top_skip \tex_topskip:D
 %    \end{macrocode}
-%
-%    Free up the space still taken up by |\g_xor_hold_page_box| (as
-%    its was always copied---could probably done earlier).
+%    Free up the space still taken up by \cs{g_xor_hold_page_box} (as
+%    its was always copied--could probably done earlier).
 %    \begin{macrocode}
-  \box_gclear:N \g_xor_hold_page_box
+    \box_gclear:N \g_xor_hold_page_box
 %    \end{macrocode}
-%
+%   Finally, actually set the OR.
 %    \begin{macrocode}
-  \global\output{\xor_OR_collect:}
+    \tex_global:D \tex_output:D { \xor_OR_collect: }
 %<*trace>
-  \trace_pop:n{xor_collect_setup:}
+    \trace_pop:n { xor_collect_setup: }
 %</trace>
-}
+  }
 %    \end{macrocode}
 % \end{macro}
 %
-%
-%
-%
-% \begin{macro}{\g_xor_collect_new_stuff_bool}
-%    There are actually two collecting modes: one when the recent
-%    contributions are empty and we are really collecting material
-%    that we haven't seen before and one where we collect material
-%    that has been collected on a previous collection pass and has been
-%    placed again on to the main vertical list. The reason why we need
-%    to differentiate between the two is that in the second case we
-%    have to handle the special penalties differently since by now
-%    they are already surrounded by the proper guard boxes before and
-%    after and we better do not disturb this fragile setup.
+% \begin{variable}{\g_xor_collect_new_stuff_bool}
+%   There are actually two collecting modes: on when the recent
+%   contributions are empty and we are really collecting material
+%   that we haven't seen before and one where we collect material
+%   that has been collected on a previous collection pass and has been
+%   placed again on to the main vertical list. The reason why we need
+%   to differentiate between the two is that in the second case we
+%   have to handle the special penalties differently since by now
+%   they are already surrounded by the proper guard boxes before and
+%   after and we better do not disturb this fragile setup.
 %    \begin{macrocode}
 \bool_new:N \g_xor_collect_new_stuff_bool
 %    \end{macrocode}
-% \end{macro}
-%
-%
-%
-%
-% \begin{macro}{\xor_OR_collect:}
-%    The output routine during the collection phase assembles the
-%    material until enough has been gathered to be sure to fill a
-%    page.
+% \end{variable}
+% 
+% \begin{variable}{\g_xor_page_depth_dim}
+%   Used to store the page depth when dealing with a marker penalty.
 %    \begin{macrocode}
-\cs_new_nopar:Npn \xor_OR_collect:{
-%<*trace>
-  \trace_push:n{xor_OR_collect:}
-  \trace:n{output~pen:~ \the\outputpenalty}
-%%{\showoutput\showbox255}
-%</trace>
+\dim_new:N \g_xor_page_depth_dim
 %    \end{macrocode}
-%    We first look if the call to the OR is due to a special penalty.
+% \end{variable}
+% 
+% \begin{variable}{g_xor_saved_output_penalty_int}
+%   Saves the output penalty.
 %    \begin{macrocode}
-  \bool_if:nTF
-  {
-     \int_compare_p:nNn \outputpenalty < {-\c_ten_thousand} &&
-     \int_compare_p:nNn \outputpenalty > {-\c_xor_output_collect_penalty}
-      % might need special value here
-  }
-  {
-%<*trace>
-    \trace:n{Forced~ break~(\the\outputpenalty)~ seen\on@line}
-%</trace>
+\int_new:N \g_xor_saved_output_penalty_int
 %    \end{macrocode}
-%    Whenever a special penalty, i.e., one between $-10000 > p >
-%    -10010$\footnote{FIX docu} is encountered we need some magic:
-%    \begin{itemize}
-% \item We want to keep the the penalty in the collected material but
-%      nevertheless carry on with the collection. Simply moving the
-%      collected material to a separate box is not enough since then
-%      we will restart the collection with an empty page and thus
-%      receive a |\topskip| glue as well as probably losing material
-%      if there is anything discardable after the special penalty.
-% \item But putting a zero box back and doing something to fix the
-%      problem with the  |\topskip| glue isn't good either in case we
-%      later actually want to break after the line with special
-%      penalty, since then we would start a page with our inserted
-%      box, and in this case we would like to get a proper |\topskip|
-%      and we would like to get rid of discardable stuff.
-% \item And there is another problem, we need a guard box in front of
-%      that special penalty, but this guard box should not be simply a
-%      |\null| box (as it is right now added by
-%      |\xor_add_badly_guarded_penalty:N|) since that will result in wrong
-%      page calculations because it will make \TeX{} add the depth of
-%      the precious line to the page total which it shouldn't.
-%    \end{itemize}
-%    So what to do? First of all we remove the guard box in front of
-%    the special penalty (which is now at the end of box 255) since we
-%    want to replace that with something better, then we
-%    store away the depth of box 255 since we need that in a minute.
-%    \begin{macrocode}
-    \xor_remove_guard_box_from_cclv:
-%    \end{macrocode}
-%    We really have to say |\box_dp:N\c_two_hundred_fifty_five| not |\pagedepth|. The latter is
-%    always zero in the OR which looks suspiciously like a bug or at
-%    least an inconsistency when Don implemented the change from \TeX2
-%    to \TeX3 (in \TeX2 |\page...| registers were useless in the OR,
-%    now only |\pagedepth| seems to be left).
-%    \begin{macrocode}
-    \dim_set:Nn \l_tmpa_dim {\box_dp:N\c_two_hundred_fifty_five}
-%    \end{macrocode}
-%    Then we subtract the size of the collected material from
-%    |\vsize| since we will store it away in a separate box for a
-%    while. Note that we have to use |\box_ht:N\c_two_hundred_fifty_five| here not |\pagetotal|
-%    since the latter might be too large because of that |\null|
-%    box. The height of 255 on the other hand is, after the removal of
-%    that box the natural height of the material.
-%    \begin{macrocode}
-    \dim_gsub:Nn \vsize {\box_ht:N\c_two_hundred_fifty_five}
-%    \end{macrocode}
-%    Now we append the material to |\g_xor_partial_mvl_box|, this is
-%    straight forward.
-%    \begin{macrocode}
-    \vbox_gset:Nn \g_xor_partial_mvl_box
-    {
-      \box_if_empty:NF \g_xor_partial_mvl_box
-          { \vbox_unpack_clear:N\g_xor_partial_mvl_box }
-      \vbox_unpack_clear:N\c_two_hundred_fifty_five
-%    \end{macrocode}
-%    But how to add the penalty and how to guard it? We need a box or
-%    something to ensure the penalty doesn't get lost at a column
-%    break but we also want to avoid that \TeX{} adds the depth of the
-%    preceding line to |\pagetotal|. Fortunately we know this depth by
-%    now (we have just stored it in |\l_tmpa_dim|), something we didn't
-%    know at the time the we added the penalty with
-%    |\xor_add_badly_guarded_penalty:N|. So we could back up and then add a
-%    box with zero height and that depth. This way a break directly
-%    after this line would have the same |\pagetotal| as a break at
-%    the special penalty. In fact, instead of backing up using a
-%    |\kern| or a |\vskip| we can simply make the height of the box
-%    negative. The advantage is that this way we don't generate a
-%    break point between the box and a preceding box and thus don't
-%    have to use special precautions to prevent \TeX{} from breaking in
-%    front of the guard box.\footnote{This statement is only true for
-%    special penalties added using \texttt{\string\vadjust}, i.e., in
-%    hmode. If the penalty was added between paragraphs then there
-%    might be vertical space in front of the box. This might need
-%    special handling too. CHECK!}
-%    \begin{macrocode}
-      \vbox_set_to_ht:Nnn \c_zero {-\l_tmpa_dim}{}
-      \box_dp:N\c_zero\l_tmpa_dim
-      \box_use_clear:N\c_zero
-      \penalty\outputpenalty
-    }
-%%{\showoutput\batchmode\showbox\g_xor_partial_mvl_box\scrollmode}
-%    \end{macrocode}
-%    So now we have put everything we need into the
-%    |\g_xor_partial_mvl_box|, but how do we restart our collection
-%    process without running into the problems outlined above?
-%
-%    Well, right now on the recent contributions there will be a
-%    penalty node (from our special penalty) which gets set to 10000
-%    by \TeX{} followed perhaps by another penalty from the line
-%    breaking followed probably by interline glue calculated to make
-%    the next line of text fit vertically with the preceding one ---
-%    and we don't want to loose that that glue if we are ending up in
-%    the middle of a column. But we want to make it vanish if we
-%    happen to finally break at the special penalty place.
-%
-%    So the trick is that we a) disable |\topskip| by setting it to
-%    |-\maxdimen| (not zero this might be too large still) and b) we
-%    add another of those funny boxes followed by a penalty of zero to
-%    allow for a break after it.
-%    \begin{macrocode}
-  \skip_gset:Nn \topskip {-\c_max_skip}  %  okay here?
-%    \end{macrocode}
-%    If later on all this is put together again into a single box (in
-%    |\g_xor_hold_page_box|) we will have the following sequence there:
-%    \begin{itemize}
-% \item text line (box) preceding the special penalty with depth $d$
-%      or some other vertical material in which case $d=0\texttt{pt}$
-% \item special box with height $-d$ and depth $d$
-% \item special penalty, e.g. $-10008$
-% \item |\topskip| glue of 0pt
-% \item special box with height $-d$ and depth $d$
-% \item |\penalty| 0
-% \item |\penalty| 10000
-% \item perhaps a |\penalty| and/or interline glue
-% \item perhaps the next text line (box)
-%    \end{itemize}
-%    Now if during later processing we hit the special penalty
-%    |\pagetotal| has the same value as if we would have broken the
-%    galley directly after the text line, in other words we do not see
-%    the penalty too late (assume this happens to be the last line of
-%    the column then if |\pagetotal| would also have the extra depth
-%    added to it it might have been overfull and the penalty not being
-%    considered at all for this column).
-%
-%    After the OR's have dealt with the special penalty, e.g., by
-%    flushing some floats, etc. the penalty will be replaced by 10000
-%    and thus the next time the galley is processed there is no
-%    breakpoint between the two special boxes any more. As a result
-%    the next potential breakpoint is the penalty 0 which again
-%    results in exactly the same |\pagetotal| as before, i.e., if the
-%    text line was the last line to fit in the column then this
-%    breakpoint will still fit there. Thus if we break the column
-%    there then the interline glue etc will vanish and \TeX{} will
-%    insert |\topskip| glue (which has be set back to a normal value
-%    by then). If on the other hand, this break point is not chosen
-%    the interline glue will stay and thus the two text lines, before
-%    and after the special penalty will sit one |\baselineskip| apart
-%    just as they should.
-%
-%    Woah. What did Don said on page 125 of \textit{The \TeX{}book}?
-%    (Deep breath.) You got that?\footnote{There are probably still
-%    cases that aren't covered I fear and the need for an explicit
-%    penalty 0 at the end is kind of toublesome, so we have to see if
-%    this needs further refinements.}
-%
-%    And here is already the first case where the above method is not
-%    appropriate: if we stumble across a |\c_xor_output_columnbreak_penalty|
-%    or |\c_xor_output_balance_penalty|
-%    we need to discard any following glue, so we don't want a box
-%    intervene here.\footnote{Once this is interfaced with the galley
-%    code problems like this should vanish since then we can ensure
-%    that all such penalties are added to the galley on at save
-%    places. REDO THEN!}
-%
-%    And the same is true for |\c_xor_output_balance_penalty|!
-%    \begin{macrocode}
-%
-% CHECK following code doesn't work ... alternate below does
-%
-%    \prg_if_predicate:nT {
-%        \bool_if_p:N \g_xor_collect_new_stuff_bool
-%         &&
-%        \prg_if_predicate_not_p:n {\int_compare_p:nNn \outputpenalty
-%                                  {-\c_xor_output_columnbreak_penalty}}
-%         &&
-%        \prg_if_predicate_not_p:n {\int_compare_p:nNn \outputpenalty
-%                                       = {-\c_xor_output_balance_penalty}}
-%      }
-%    }
-%
-%    \end{macrocode}
-%    If the current penalty is a column or a balancing penalty, we do not want
-%    any box after it as here we know that we are starting a new column and
-%    should not hinder any glue following to vanishin in the break.
-%    \begin{macrocode}
-    \bool_if:NT \g_xor_collect_new_stuff_bool
-      {
-        \int_compare:nNnF  \outputpenalty = {-\c_xor_output_columnbreak_penalty}
-           { \int_compare:nNnF \outputpenalty = {-\c_xor_output_balance_penalty}
-                {
-                 \vbox_set_to_ht:Nnn \c_zero {-\l_tmpa_dim}{}
-                 \box_dp:N\c_zero\l_tmpa_dim
-                 \box_use_clear:N\c_zero
-                 \penalty\c_zero
-                }
-           }
-      }
-%    \end{macrocode}
-%
-%    \begin{macrocode}
-    \int_compare:nNnT \outputpenalty = {-\c_xor_output_flush_float_penalty}
-       {
-%<*trace>
-        \trace:n{Forced~ break~ =~ flush~ float~ point}
-%</trace>
-        \bool_gset_true:N \g_xor_flush_seen_bool
-       }
-%    \end{macrocode}
-%
-%    \begin{macrocode}
-    \int_compare:nNnT \outputpenalty = {-\c_xor_output_balance_penalty}
-      {
-%<*trace>
-       \trace:n{BALANCE:~ break~ seen\on@line}
-%</trace>
-      }
-%    \end{macrocode}
-%    Otherwise either the we reached the natural end of the
-%    collection, or the point where we have been before (in case we
-%    are recollecting previously seen material).
-%    \begin{macrocode}
-  }
-%    \end{macrocode}
-%    So this is the false case of the |\bool_if:nTF| from way up:
-%    \begin{macrocode}
-  {
-    \int_compare:nNnTF \outputpenalty = {-\c_xor_output_collect_penalty}
-     {
-%    \end{macrocode}
-%    If we got an |-\c_xor_output_collect_penalty| then we are at the point
-%    to which the previous collection pass got. So, away with the
-%    guard box, then everything back onto the MVL and as a penalty we
-%    try to put what we have found in the previous collection pass.
-%    \begin{macrocode}
-      \xor_remove_guard_box_from_cclv:
-      \vbox_unpack_clear:N\c_two_hundred_fifty_five
-%    \end{macrocode}
-%    In this particular case we also have to reset the |\deadcycles|
-%    to zero since otherwise we will produce an infinite loop in some
-%    cases. Why? Because the guard box may have been the only thing
-%    left on the recent contributions followed so after the above
-%    lines the recent contributions are empty, but by then
-%    |\deadcycles| would be |1| so a final |\tex_end:D| in the
-%    document (e.g., from |\stop| or |\end{document}|) would insert an
-%    empty box and a |\filll| generating column after column \ldots
-%    (see \TeX book page 264).
-%    \begin{macrocode}
-      \int_gzero:N \deadcycles
-%<*trace>
-      \trace:n{reinsert~penalty:~ \g_xor_saved_output_penalty_tl \space
-        (unless~ 10000~ or~ <~ -9999)}
-%</trace>
-      \int_compare:nNnTF \g_xor_saved_output_penalty_tl > {-\c_ten_thousand}
-       {
-        \int_compare:nNnTF \g_xor_saved_output_penalty_tl =\c_ten_thousand
-           { \penalty \c_zero }
-           { \penalty \g_xor_saved_output_penalty_tl \scan_stop: }
-%    \end{macrocode}
-%    We have a special situation to account for here: if we have a
-%    |\pagebreak| that ended the collection last time then it might
-%    still be the case that we haven't got to this point due to
-%    floats. So we would need to put that penalty back. But only then,
-%    and therese the catch!  The alternative is to not stop a
-%    collection as such a point so that this problem doesn't arise in
-%    the first place. Right now we lose the
-%    penalty.\footnote{Unresolved situation. FIX!}
-%    \begin{macrocode}
-       }
-       {     }
-%    \end{macrocode}
-%    Finally we change the |\g_xor_collect_new_stuff_bool| switch since we
-%    are from now on looking at really new material.
-%    \begin{macrocode}
-      \bool_gset_true:N \g_xor_collect_new_stuff_bool
-     }
-     {
-%    \end{macrocode}
-%    This is now the point where the collection ended naturally: we
-%    save the penalty that triggered it and combine the
-%    |\g_xor_partial_mvl_box| if it contains material with the stuff now
-%    in 255 and put everything into |\g_xor_hold_page_box|.
-%    \begin{macrocode}
-      \tl_gset:Nx \g_xor_saved_output_penalty_tl {\the\outputpenalty}
-%<*trace>
-        \trace:n{CHECK:~ Saving~ output~ penalty~ (\the\outputpenalty)}
-%</trace>
-      \box_if_empty:NTF \g_xor_partial_mvl_box
-      { \box_gset_eq_clear:NN \g_xor_hold_page_box \c_two_hundred_fifty_five }
-      {
-%<*trace>
-        \trace:n{Re-adding~ forced~ break(s)~ for~ splitting}
-%</trace>
-        \vbox_gset:Nn \g_xor_hold_page_box
-        {
-          \vbox_unpack_clear:N\g_xor_partial_mvl_box
-          \vbox_unpack_clear:N\c_two_hundred_fifty_five
-        }
-      }
-%%{\showoutput\showbox\g_xor_hold_page_box\scrollmode}
-      \marks_save_state:
-      \marks_update_structure:
-      \int_gzero:N \holdinginserts
-      \skip_gset:Nn \topskip \g_xor_saved_topskip_tl
-      \xor_trial_place_float_setup:
-      \bool_gset_false:N \g_xor_collect_new_stuff_bool
-    }
-  } % end of \bool_if:nTF from above
-%<*trace>
-  \trace_pop:n{xor_OR_collect:}
-%</trace>
-}
-%    \end{macrocode}
-% \end{macro}
-%
-%
-%
-% \begin{macro}{\g_xor_partial_mvl_box}
-%    Need a box to store the partially collected galley.
+% \end{variable}
+% 
+% \begin{variable}{\g_xor_partial_mvl_box}
+%   Need a box to store the partially collected galley.
 %    \begin{macrocode}
 \box_new:N \g_xor_partial_mvl_box
 %    \end{macrocode}
-% \end{macro}
+% \end{variable}
 %
-% \begin{macro}{\g_xor_hold_page_box}
+% \begin{variable}{\g_xor_hold_page_box}
 %    Need a box to temp store the fully collected galley.
 %    \begin{macrocode}
-%\box_new:N\g_xor_hold_page_box
-\cs_set_eq:NN \g_xor_hold_page_box \@holdpg
+%<*initex>
+\box_new:N \g_xor_hold_page_box
+%</initex>
+%<*package>
+\cs_new_eq:NN \g_xor_hold_page_box \@holdpg
+%</package>
 %    \end{macrocode}
-% \end{macro}
+% \end{variable}
 %
-%
-%
-%
-%
-% \begin{macro}{\xor_float_class_setup:n}
-%
+% \begin{macro}{\xor_OR_collect:}
+% \begin{macro}[aux]{\xor_OR_collect_special:, \xor_OR_collect_std:}
+%   The output routine during the collection phase assembles the
+%   material until enough has been gathered to be sure to fill a
+%   page.
 %    \begin{macrocode}
-\cs_new_nopar:Npn \xor_float_class_setup:n #1 {
+\cs_new_protected_nopar:Npn \xor_OR_collect:
+  {
 %<*trace>
-  \trace_push:n{xor_float_class_setup:n}
-%</trace>
-  \count@0\LastMark{#1}
-%<*trace>
-  \trace:n{count~ (#1) = \int_use:N \count@}
-%</trace>
-%    \end{macrocode}
-%
-%    Check: the close list should probably not be made empty but
-%    initialized with all areas not on the allowed list!\footnote{FIX}
-%    \begin{macrocode}
-  \clist_gclear:c {g_xor_class_ #1 _areas_closed_clist}
-%    \end{macrocode}
-%
-%    what is the meaning of the "allowed" floats doesn't seem to be used
-%    anywhere these days\footnote{check and fix}
-%    \begin{macrocode}
-%<*trace>
-%  \trace:n{allowed~ (#1) = \clist_use:c{g_xor_class_ #1 _areas_allowed_clist}}
-  \trace:n{closed~ (#1) = \clist_use:c{g_xor_class_ #1 _areas_closed_clist}}
+    \trace_push:n { xor_OR_collect: }
+    \trace:n { output~pen:~ \int_use:N \tex_outputpenalty:D }
 %</trace>
 %    \end{macrocode}
-%
-%    |\g_xor_flseq_type_figure_col_1_int| are macros that expands to the highest numbered
-%    figure callout in this column (or zero if there is none).
-%    |\g_xor_flseq_type_figure_col_0_int| is the highest value from
-%    previous pages (or zero
-%    if there was never any float of this type).
+%   We first look if the call to the OR is due to a special penalty.
 %    \begin{macrocode}
-  \xor_forall_columns:n {
-    \int_compare:nNnT
-      { \int_use:c {g_xor_flseq_type_#1_col_ \int_use:N\g_xor_curr_col_int _int }}
-      > \c_zero
-    {
-      \int_gzero_new:c {g_xor_flseq_type_#1_col_ 0                             _int}
-      \int_gset_eq:cc {g_xor_flseq_type_#1_col_ 0                             _int}
-                      {g_xor_flseq_type_#1_col_ \int_use:N\g_xor_curr_col_int _int}
-      \int_gzero_new:c {g_xor_flseq_type_#1_col_ \int_use:N\g_xor_curr_col_int _int}
-    }
-%    \end{macrocode}
-%    |\g_xor_flseq_areas_top_type_figure_col_1_int| is like \\
-%    |\g_xor_flseq_type_figure_col_1_int| but only stores
-%    information about floats allocated to top areas.
-%    \begin{macrocode}
-    \int_gzero_new:c {g_xor_flseq_areas_top_type_#1_col_
-                  \int_use:N\g_xor_curr_col_int _int}
+    \bool_if:nTF
+      {
+        \int_compare_p:nNn \tex_outputpenalty:D < { -\c_ten_thousand } &&
+        \int_compare_p:nNn \tex_outputpenalty:D > 
+          { -\c_xor_output_collect_penalty }
+      }
+      { \xor_OR_collect_special: }
+      { \xor_OR_collect_std: }
+%<*trace>
+    \trace_pop:n { xor_OR_collect: }
+%</trace>
   }
+%    \end{macrocode}
+%   Whenever a special penalty, i.e., one between $-10000 > p >
+%   -10010$ is encountered we need some magic:
+%   \begin{itemize}
+%     \item
+%       We want to keep the the penalty in the collected material but
+%       nevertheless carry on with the collection. Simply moving the
+%       collected material to a separate box is not enough since then
+%       we will restart the collection with an empty page and thus
+%       receive a \tn{topskip} glue as well as probably losing material
+%       if there is anything discardable after the special penalty.
+%     \item But putting a zero box back and doing something to fix the
+%       problem with the \tn{topskip} glue isn't good either in case we
+%       later actually want to break after the line with special
+%       penalty, since then we would start a page with our inserted
+%       box, and in this case we would like to get a proper \tn{topskip}
+%       and we would like to get rid of discardable stuff.
+%     \item And there is another problem, we need a guard box in front of
+%       that special penalty, but this guard box should not be simply a
+%       \tn{null} box (as it is right now added by
+%       \cs{xor_add_badly_guarded_penalty:N}) since that will result in wrong
+%       page calculations because it will make \TeX{} add the depth of
+%       the previous line to the page total which it shouldn't.
+%   \end{itemize}
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \xor_OR_collect_special:
+  {
 %<*trace>
-  \trace_pop:n{xor_float_class_setup:n}
+    \trace:n
+      {
+        Forced~break~( \int_use:N \tex_outputpenalty:D )~seen~
+        \msg_line_context: 
+      }
 %</trace>
-}
+%    \end{macrocode}
+%   So what to do? First of all we remove the guard box in front of
+%   the special penalty (which is now at the end of box~255) since we
+%   want to replace that with something better, then we
+%   store away the depth of box~255 since we need that in a minute.
+%    \begin{macrocode}
+    \xor_remove_guard_box_from_cclv:
+%    \end{macrocode}
+%   We really have to say |\box_dp:N \c_two_hundred_fifty_five| not
+%   \tn{pagedepth}. The latter is always zero in the OR which looks
+%   suspiciously like a bug or at least an inconsistency when Don implemented
+%   the change from \TeX2 to \TeX3 (in \TeX2 \cs{page\ldots} registers were
+%   useless in the OR, now only \cs{pagedepth} seems to be left).
+%    \begin{macrocode}
+    \dim_set:Nn \g_xor_page_depth_dim
+      { \box_dp:N \c_two_hundred_fifty_five }
+%    \end{macrocode}
+%   Then we subtract the size of the collected material from
+%   \tn{vsize} since we will store it away in a separate box for a while.
+%   Note that we have to use |\box_ht:N \c_two_hundred_fifty_five| here not
+%   \tn{pagetotal} since the latter might be too large because of that
+%   \tn{null} box. The height of~255 on the other hand is, after the removal
+%   of that box the natural height of the material.
+%    \begin{macrocode}
+    \dim_gsub:Nn \tex_vsize:D { \box_ht:N \c_two_hundred_fifty_five }
+%    \end{macrocode}
+%   Now we append the material to \cs{g_xor_partial_mvl_box}, this is
+%   straight forward.
+%    \begin{macrocode}
+    \vbox_gset:Nn \g_xor_partial_mvl_box
+      {
+        \box_if_empty:NF \g_xor_partial_mvl_box
+          { \vbox_unpack_clear:N \g_xor_partial_mvl_box }
+        \vbox_unpack_clear:N \c_two_hundred_fifty_five
+%    \end{macrocode}
+%   But how to add the penalty and how to guard it? We need a box or
+%   something to ensure the penalty doesn't get lost at a column
+%   break but we also want to avoid that \TeX{} adds the depth of the
+%   preceding line to \tn{pagetotal}. Fortunately we know this depth by
+%   now (we have just stored it in \cs{g_xor_page_depth_dim}), something we
+%   didn't know at the time the we added the penalty with
+%   \cs{xor_add_badly_guarded_penalty:N}. So we could back up and then add a
+%   box with zero height and that depth. This way a break directly after this
+%   line would have the same \cs{pagetotal} as a break at the special penalty.
+%   In fact, instead of backing up using a \tn{kern} or a \tn{vskip} we can
+%   simply make the height of the box negative. The advantage is that this way
+%   we don't generate a break point between the box and a preceding box and
+%   thus don't have to use special precautions to prevent \TeX{} from breaking
+%   in front of the guard box.\footnote{This statement is only true for
+%   special penalties added using \tn{vadjust}, i.e., in
+%   hmode. If the penalty was added between paragraphs then there
+%   might be vertical space in front of the box. This might need
+%   special handling too. CHECK!}
+%    \begin{macrocode}
+        \vbox_set_to_ht:Nnn \l_xor_tmp_box { -\g_xor_page_depth_dim } { }
+        \box_set_dp:Nn \l_xor_tmp_box \g_xor_page_depth_dim
+        \box_use_clear:N \l_xor_tmp_box
+        \tex_penalty:D \tex_outputpenalty:D
+      }
+%    \end{macrocode}
+%   So now we have put everything we need into the
+%   \cs{g_xor_partial_mvl_box}, but how do we restart our collection
+%   process without running into the problems outlined above?
+%
+%   Well, right now on the recent contributions there will be a penalty node
+%   (from our special penalty) which gets set to~$10000$ by \TeX{} followed
+%   perhaps by another penalty from the line breaking followed probably by
+%   interline glue calculated to make the next line of text fit vertically
+%   with the preceding one -- and we don't want to loose that that glue if we
+%   are ending up in the middle of a column. But we want to make it vanish if
+%   we happen to finally break at the special penalty place.
+%
+%   So the trick is that we a) disable \TN{topskip} by setting it to
+%   |-\c_max_skip| (not zero this might be too large still) and b) we
+%   add another of those funny boxes followed by a penalty of zero to
+%   allow for a break after it.
+%    \begin{macrocode}
+    \skip_gset:Nn \tex_topskip:D { -\c_max_skip }
+%    \end{macrocode}
+%   If later on all this is put together again into a single box (in
+%   \cs{g_xor_hold_page_box}) we will have the following sequence there:
+%   \begin{itemize}
+%     \item
+%       text line (box) preceding the special penalty with depth~$d$
+%       or some other vertical material in which case $d = 0\texttt{pt}$
+%     \item special box with height~$-d$ and depth~$d$
+%     \item special penalty, e.g. $-10008$
+%     \item \tn{topskip} glue of~$0$\,pt.
+%     \item special box with height~$-d$ and depth~$d$
+%     \item \tn{penalty}~$0$
+%     \item \tn{penalty}~$10000$
+%     \item perhaps a tn{\penalty} and/or interline glue
+%     \item perhaps the next text line (box)
+%   \end{itemize}
+%   Now if during later processing we hit the special penalty
+%   \tn{pagetotal} has the same value as if we would have broken the
+%   galley directly after the text line, in other words we do not see
+%   the penalty too late (assume this happens to be the last line of
+%   the column then if \tn{pagetotal} would also have the extra depth
+%   added to it it might have been overfull and the penalty not being
+%   considered at all for this column).
+%
+%   After the OR's have dealt with the special penalty, e.g., by flushing some
+%   floats, etc.~the penalty will be replaced by~$10000$ and thus the next time
+%   the galley is processed there is no breakpoint between the two special
+%   boxes any more. As a result the next potential breakpoint is the
+%   penalty~$0$ which again results in exactly the same \tn{pagetotal} as
+%   before, i.e., if the text line was the last line to fit in the column then
+%   this breakpoint will still fit there. Thus if we break the column there
+%   then the interline glue, etc.~will vanish and \TeX{} will insert
+%   \tn{topskip} glue (which has be set back to a normal value by then). If on
+%   the other hand, this break point is not chosen the interline glue will stay
+%   and thus the two text lines, before and after the special penalty will sit
+%   one \tn{baselineskip} apart just as they should.
+%
+%   Woah. What did Don said on page~125 of \textit{The \TeX{}book}?
+%   (Deep breath.) You got that?\footnote{There are probably still
+%   cases that aren't covered I fear and the need for an explicit
+%   penalty~$0$ at the end is kind of troublesome, so we have to see if
+%   this needs further refinements.}
+%
+%   And here is already the first case where the above method is not
+%   appropriate: if we stumble across a \cs{c_xor_output_columnbreak_penalty}
+%   or \cs{c_xor_output_balance_penalty} we need to discard any following glue,
+%   so we don't want a box intervene here.\footnote{Once this is interfaced
+%   with the galley code problems like this should vanish since then we can
+%   ensure that all such penalties are added to the galley on at a safe
+%   places. REDO THEN!}
+%
+%   If the current penalty is a column or a balancing penalty, we do not want
+%   any box after it as here we know that we are starting a new column and
+%   should not hinder any glue following to vanishing in the break.
+%    \begin{macrocode}
+    \bool_if:NT \g_xor_collect_new_stuff_bool
+      {
+        \int_compare:nNnF
+          \tex_outputpenalty:D = { -\c_xor_output_columnbreak_penalty }
+          {
+            \int_compare:nNnF
+              \tex_outputpenalty:D = { -\c_xor_output_balance_penalty }
+              {
+                \vbox_set_to_ht:Nnn
+                  \l_xor_tmp_box { -\g_xor_page_depth_dim } { }
+                \box_set_dp:Nn \l_xor_tmp_box \g_xor_page_depth_dim
+                \box_use_clear:N \l_xor_tmp_box
+                \tex_penalty:D \c_zero
+              }
+          }
+      }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+    \int_compare:nNnT
+      \tex_outputpenalty:D = { -\c_xor_output_flush_float_penalty }
+      { \bool_gset_true:N \g_xor_flush_seen_bool }
+%<*trace>
+    \int_compare:nNnT
+      \tex_outputpenalty:D = { -\c_xor_output_flush_float_penalty }
+      { \trace:n { Forced~break~=~flush~float~point } }
+%</trace>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*trace>
+    \int_compare:nNnT
+      \tex_outputpenalty:D = { -\c_xor_output_balance_penalty }
+      { \trace:n { BALANCE:~break~seen\on@line } }
+%</trace>
+%    \end{macrocode}
+%   Otherwise either the we reached the natural end of the
+%   collection, or the point where we have been before (in case we
+%   are recollecting previously seen material).
+%    \begin{macrocode}
+  }
+%    \end{macrocode}
+%   The standard branch.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \xor_OR_collect_std:
+  {
+    \int_compare:nNnTF
+      \tex_outputpenalty:D = { -\c_xor_output_collect_penalty }
+      {
+%    \end{macrocode}
+%   If we got an |-\c_xor_output_collect_penalty| then we are at the point
+%   to which the previous collection pass got. So, away with the
+%   guard box, then everything back onto the MVL and as a penalty we
+%   try to put what we have found in the previous collection pass.
+%    \begin{macrocode}
+        \xor_remove_guard_box_from_cclv:
+        \vbox_unpack_clear:N \c_two_hundred_fifty_five
+%    \end{macrocode}
+%   In this particular case we also have to reset the \tn{deadcycles}
+%   to zero since otherwise we will produce an infinite loop in some
+%   cases. Why? Because the guard box may have been the only thing
+%   left on the recent contributions followed so after the above
+%   lines the recent contributions are empty, but by then
+%   \tn{deadcycles} would be~$1$ so a final \tn{end} in the
+%   document (e.g., from \cs{stop} or |\end{document}|) would insert an
+%   empty box and a |\filll| generating column after column \ldots
+%   (see \textit{The \TeX{}book}, page~264).
+%    \begin{macrocode}
+        \int_gzero:N \tex_deadcycles:D
+%<*trace>
+        \trace:n
+          {
+            reinsert~penalty:~ \int_use:N \g_xor_saved_output_penalty_int
+            \c_space_tl (unless~10000~or~<~-9999)
+          }
+%</trace>
+        \int_compare:nNnTF
+          \g_xor_saved_output_penalty_int > { -\c_ten_thousand }
+          {
+            \int_compare:nNnTF
+              \g_xor_saved_output_penalty_int = \c_ten_thousand
+              { \tex_penalty:D \c_zero }
+              { \tex_penalty:D \g_xor_saved_output_penalty_int }
+          }
+%    \end{macrocode}
+%   We have a special situation to account for here: if we have a
+%   \cs{pagebreak} that ended the collection last time then it might
+%   still be the case that we haven't got to this point due to
+%   floats. So we would need to put that penalty back. But only then,
+%   and there is the catch!  The alternative is to not stop a
+%   collection at such a point so that this problem doesn't arise in
+%   the first place. Right now we lose the penalty.\footnote{Unresolved
+%   situation. FIX!}
+%    \begin{macrocode}
+       { }
+%    \end{macrocode}
+%   Finally we change the \cs{g_xor_collect_new_stuff_bool} switch since we
+%   are from now on looking at really new material.
+%    \begin{macrocode}
+        \bool_gset_true:N \g_xor_collect_new_stuff_bool
+      }
+%    \end{macrocode}
+%   This is now the point where the collection ended naturally: we
+%   save the penalty that triggered it and combine the
+%   \cs{g_xor_partial_mvl_box} if it contains material with the stuff now
+%   in~$255$ and put everything into \cs{g_xor_hold_page_box}.
+%    \begin{macrocode}
+      {
+        \int_gset_eq:NN \g_xor_saved_output_penalty_int \tex_outputpenalty:D
+%<*trace>
+        \trace:n
+          { CHECK:~Saving~output~penalty~( \int_use:N \tex_outputpenalty:D ) }
+%</trace>
+        \box_if_empty:NTF \g_xor_partial_mvl_box
+          {
+            \box_gset_eq_clear:NN
+              \g_xor_hold_page_box \c_two_hundred_fifty_five
+          }
+          {
+%<*trace>
+            \trace:n { Re-adding~forced~break(s)~for~splitting }
+%</trace>
+            \vbox_gset:Nn \g_xor_hold_page_box
+              {
+                \vbox_unpack_clear:N \g_xor_partial_mvl_box
+                 \vbox_unpack_clear:N \c_two_hundred_fifty_five
+              }
+          }
+        \marks_save_state:
+        \marks_update_structure:
+        \int_gzero:N \tex_holdinginserts:D
+        \skip_gset_eq:NN \tex_topskip:D \g_xor_saved_top_skip
+        \xor_trial_place_float_setup:
+        \bool_gset_false:N \g_xor_collect_new_stuff_bool
+      }
+  }
 %    \end{macrocode}
 % \end{macro}
-%
-%
-%
-%
-% \newpage
+% \end{macro}
 %
 % \subsection{Placing Floats}
 %
@@ -4272,6 +4247,67 @@ _1
 }
 %    \end{macrocode}
 %  \end{macro}
+%  
+%
+% \begin{macro}{\xor_float_class_setup:n}
+%    \begin{macrocode}
+\cs_new_protected:Npn \xor_float_class_setup:n #1
+  {
+%<*trace>
+    \trace_push:n { xor_float_class_setup:n }
+%</trace>
+  \count@0
+  \LastMark{#1}
+%<*trace>
+  \trace:n{count~ (#1) = \int_use:N \count@}
+%</trace>
+%    \end{macrocode}
+%
+%    Check: the close list should probably not be made empty but
+%    initialized with all areas not on the allowed list!\footnote{FIX}
+%    \begin{macrocode}
+  \clist_gclear:c {g_xor_class_ #1 _areas_closed_clist}
+%    \end{macrocode}
+%
+%    what is the meaning of the "allowed" floats doesn't seem to be used
+%    anywhere these days\footnote{check and fix}
+%    \begin{macrocode}
+%<*trace>
+%  \trace:n{allowed~ (#1) = \clist_use:c{g_xor_class_ #1 _areas_allowed_clist}}
+  \trace:n{closed~ (#1) = \clist_use:c{g_xor_class_ #1 _areas_closed_clist}}
+%</trace>
+%    \end{macrocode}
+%
+%    |\g_xor_flseq_type_figure_col_1_int| are macros that expands to the highest numbered
+%    figure callout in this column (or zero if there is none).
+%    |\g_xor_flseq_type_figure_col_0_int| is the highest value from
+%    previous pages (or zero
+%    if there was never any float of this type).
+%    \begin{macrocode}
+  \xor_forall_columns:n {
+    \int_compare:nNnT
+      { \int_use:c {g_xor_flseq_type_#1_col_ \int_use:N\g_xor_curr_col_int _int }}
+      > \c_zero
+    {
+      \int_gzero_new:c {g_xor_flseq_type_#1_col_ 0                             _int}
+      \int_gset_eq:cc {g_xor_flseq_type_#1_col_ 0                             _int}
+                      {g_xor_flseq_type_#1_col_ \int_use:N\g_xor_curr_col_int _int}
+      \int_gzero_new:c {g_xor_flseq_type_#1_col_ \int_use:N\g_xor_curr_col_int _int}
+    }
+%    \end{macrocode}
+%    |\g_xor_flseq_areas_top_type_figure_col_1_int| is like \\
+%    |\g_xor_flseq_type_figure_col_1_int| but only stores
+%    information about floats allocated to top areas.
+%    \begin{macrocode}
+    \int_gzero_new:c {g_xor_flseq_areas_top_type_#1_col_
+                  \int_use:N\g_xor_curr_col_int _int}
+  }
+%<*trace>
+  \trace_pop:n{xor_float_class_setup:n}
+%</trace>
+}
+%    \end{macrocode}
+% \end{macro}
 %
 %
 %
