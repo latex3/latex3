@@ -42,6 +42,14 @@
 \documentclass[full]{l3doc}
 \usepackage{amsmath}
 \usepackage{l3fp-new}
+\ExplSyntaxOn
+\clist_map_inline:nn
+  {
+    asin, acos, atan, acot,
+    asinh, acosh, atanh, acoth, abs, round, floor, ceil
+  }
+  { \exp_args:Nc \DeclareMathOperator{#1}{#1} }
+\ExplSyntaxOff
 \begin{document}
   \DocInput{\jobname.dtx}
 \end{document}
@@ -70,170 +78,121 @@
 %
 % \begin{documentation}
 %
-% The \pkg{l3fp-new} module is a wrapper around the following
-% submodules:
+% A floating point number is one which is stored as a mantissa and a
+% separate exponent.  The module implements expandably a wide set of
+% arithmetic, trigonometric, and other operations on floating point
+% numbers, to be used within floating point expressions.  Floating point
+% expressions support the following operations with their usual
+% precedence.
 % \begin{itemize}
-%   \item \pkg{l3fp-old} undefines functions defined in the current
-%     \pkg{l3fp} and renames them with \texttt{fp} replaced by
-%     \texttt{ofp}.  This submodule also defines some functions for
-%     compatibility with the old floating point module.
-%   \item \pkg{l3fp-aux} for auxiliary functions needed by all other
-%     submodules.
-%   \item \pkg{l3fp-parse} for parsing expressions.
-%   \item \pkg{l3fp-basics} for the implementation of elementary
-%     arithmetic (|+-*/|, remainder, comparisons, \texttt{abs}).
-%   \item \pkg{l3fp-expo} for \texttt{ln}, \texttt{exp}, and
-%     \texttt{pow}.
-%   \item \pkg{l3fp-trig} for \texttt{sin}, \texttt{cos}, and
-%     \texttt{tan}.
-%   \item \pkg{l3fp-atrig} for \texttt{asin}, \texttt{acos}, and
-%     \texttt{atan} (also available as \texttt{arcsin} \emph{etc.}).
-%   \item \pkg{l3fp-convert} for conversions to various formats.
-%   \item \pkg{l3fp-assign} for all assignments.
+% \item Basic arithmetic: addition $x+y$, subtraction $x-y$,
+%   multiplication $x*y$, and division $x/y$.
+% \item Trigonometry: $\sin x$, $\cos x$, $\tan x$, $\cot x$.
+% \item Exponentials: $\exp x$, $\ln x$, $x^y$.
+% \item Comparison operators: $x<y$, $x<=y$, $x>?y$, $x!=y$ \emph{etc.}
+% \item Boolean logic: negation $!x$, conjunction $\&$, disjunction
+%   $\vert$, ternary operator $x?y:z$.
+% \item [\emph{not yet}] Inverse trigonometric functions: $\asin x$,
+%   $\acos x$, $\atan x$, $\acot x$.
+% \item [\emph{not yet}] Hyperbolic functions and their inverse
+%   functions: $\sinh x$, $\cosh x$, $\tanh x$, $\coth x$, and $\asinh
+%   x$, $\acosh x$, $\atanh x$, $\acoth x$.
+% \item [\emph{not yet}] Extrema: $\max(x,y,z)$, $\min(x,y,z)$,
+%   $\abs(x)$.
+% \item [\emph{not yet}] Rounding functions $\round(x,n)$, $\ceil(x,n)$,
+%   $\floor(x,n)$.
 % \end{itemize}
-% It ensures that the submodules are loaded in the correct order,
-% and is meant to collect the documentation for all user commands
-% of those submodules, which will therefore mostly consist of
-% their commented source.
+% Floating point numbers can be given either explicitly (in a form such
+% as |1.234e-34|, or |-.0001|), or as a stored floating point variable,
+% which is automatically replaced by its current value.  See section
+% \ref{sec:fp-floats} for a description of what a floating point is,
+% \ref{sec:fp-precedence} for details about how an expression is parsed,
+% and \ref{sec:fp-operations} to know what the various operations do.
 %
+% ^^A todo: better example!!
+% An example of use could be the following.
+% \begin{verbatim}
+%   \LaTeX{} can now compute: $ \frac{\sin (3.5)}{2} + 2\cdot 10^{-3}
+%   = \ExplSyntaxOn \fp_eval:n {sin 3.5 /2 + 2e-3} \ExplSyntaxOff $.
+% \end{verbatim}
+% But in all fairness, this module is mostly meant as an underlying tool
+% for higher-level commands.  For example, one could provide a function
+% to typeset nicely the result of floating point computations.
+% \begin{verbatim}
+%   \usepackage{siunitx}
+%   \ExplSyntaxOn
+%   \NewDocumentCommand {\calcnum} {m}
+%     { \exp_args:Nf \num { \fp_to_scientific:n {#1} } }
+%   \ExplSyntaxOff
+% \end{verbatim}
+%
+% ^^A todo: redoc
+% ^^A \enquote{Exceptions} may occur when a floating point operation such as
+% ^^A $1/0$ or $0/0$ is performed.
+% ^^A When an invalid operation is performed, two outcomes are possible:
+% ^^A in a case such as $1/+0$, the result is simply the floating point
+% ^^A $+\infty$.  However, when there is no valid floating point number
+% ^^A representing the result, for example with $0/0$, an
+% ^^A \enquote{exception} will occur
+%
+% ^^A todo: remove.
 % To load all submodules just include the following line in the preamble.
 % \begin{verbatim}
 %   \RequirePackage{l3fp-new}
 % \end{verbatim}
 %
-% \section{Floating points}
+% \section{Creating and initialising floating point variables}
 %
-% Here, there may be a discussion of what floating point numbers
-% are, and a list of relevant resources (\emph{e.g.}, some of
-% Kahan's articles), and previous \TeX{} packages.
-%
-% \section{Input: floating point expressions}
-%
-% Floating point numbers are mainly\footnote{Bruno: only?} input
-% as floating point expressions. The corresponding computations
-% are then performed expandably, and the resulting floating point
-% is used: either stored, or output in some form, depending on the
-% function used. All \enquote{public} functions expecting floating
-% point numbers also accept floating point expressions as their
-% argument.\footnote{If one of them does not, it is an error,
-%   please inform the \LaTeX3 project.}
-%
-% Expressions are written using infix notation for the usual
-% arithmetic operations |+-*/^%|, and prefix notation for functions
-% such as \texttt{sin}, \texttt{log}, etc. A typical example of use
-% could be the following.
-% \begin{verbatim}
-% \fp_parse:n { 3.2 + .04e-2 * ( -2e3^2 - sin(pi/3) ) - 1234.567e1 }
-% \end{verbatim}
-% The \pkg{l3fp-parse} submodule reads this kind of
-% \enquote{free-form} input and hands it to functions defined for
-% instance in \pkg{l3fp-basics}, to do the actual computations.
-% Before presenting the user functions, we describe what a floating
-% point number is, and the syntax for operations.
-%
-% \subsection{Floating point numbers}
-%
-% A floating point number is stored as a mantissa and a separate
-% exponent. Floating point numbers are stored in base $10$, with $16$
-% significant digits, and their exponent should lie in the range
-% $\pm\cs{c_fp_max_exponent_int} = \pm \ExplSyntaxOn \int_use:N
-% \c_fp_max_exponent_int$ (inclusive).
-%
-% On input, a floating point number consists of the following
-% parts:\footnote{Bruno: we should probably have a grammar?}
-% \begin{itemize}
-% \item[\meta{sign}] possibly empty string of |+| and |-| characters;
-% \item[\meta{mantissa}] non-empty string of digits together with zero
-%   or one dot;
-% \item[\meta{exponent}] optionally, the character |e|, followed by
-%   a possibly empty string of |+|~and~|-| tokens, and a non-empty
-%   string of digits.
-% \end{itemize}
-%
-% The sign of the resulting number is |+| if \meta{sign} contains
-% an even number of |-|, and |-| otherwise, hence, an empty \meta{sign}
-% denotes a non-negative input. The stored mantissa is obtained from
-% \meta{mantissa} by omitting the decimal separator and leading zeros,
-% and rounding to $16$ significant digits, filling with trailing zeros
-% if necessary. Hence, the value stored is exact if the input
-% \meta{mantissa} has at most $16$ digits. The stored \meta{exponent}
-% is obtained by combining the input \meta{exponent} ($0$ if absent)
-% with a shift depending on the position of the mantissa and the number
-% of leading zeros.
-%
-% A special case arises if the resulting \meta{exponent} is either
-% too large or too small to be represented. This results either in an
-% overflow (the number is then replaced by $\pm\infty$), or an
-% underflow (resulting in $\pm 0$).\footnote{Bruno: currently, exponents
-%   which are too large for \TeX{}'s integers overflow \TeX{} itself. This
-%   ought to be rectified, since \texttt{0e99999999999} should be a valid
-%   representation of $0$.}
-%
-% The resulting number is thus $\pm 0$ if and only if \meta{mantissa}
-% contains no non-zero digit (\emph{i.e.}, consists only in |0| characters,
-% and an optional |.| character), or there is an underflow. Note that
-% a single dot is\footnote{Bruno: but that may change.} a valid floating
-% point number, equal to $+0$.
-%
-% Special numbers are input as follows:
-% \begin{itemize}
-% \item \texttt{inf} or \texttt{infty} or \texttt{infinity} all represent
-%   $+\infty$, and can be preceeded by any \meta{sign}.
-% \item \texttt{nan} represents a (quiet) non-number. It can be preceeded
-%   by any sign, but that will be ignored.
-% \item Any unrecognizable string will yield a signalling \texttt{nan}.
-% \end{itemize}
-%
-% Note that |e-1| is not a representation of $10^{-1}$, because it
-% could be mistaken with the difference of \enquote{\texttt{e}} and
-% $1$. This is consistent with several other programming languages.
-% However, in order to avoid confusions, |e-1| is not considered to
-% be this difference either. To input the base of natural logarithms,
-% use \texttt{exp(1)} or \cs{c_e_fp}.\footnote{Bruno: clarify what has
-%   changed or not compared to the previous \pkg{l3fp}.}
-%
-% \subsection{Operations}
-%
-% The following operations are supported.\footnote{Actually, not yet.}
-% \begin{itemize}
-% \item[\texttt{+-}] Addition and subtraction have lowest precedence.
-% \item[\texttt{*/}] Multiplication and division have higher precedence.
-% \item[\texttt{\char`\^}] The power function has even higher precedence.
-% \item[\texttt{()}] The contents of parenthesized groups are evaluated
-%   before being used in the computation.
-% \end{itemize}
-% Floating point expressions can involve the following
-% functions.\footnote{Actually not yet all.} The argument, within
-% parentheses, is evaluated before the call to the function.
-% \begin{itemize}
-% \item[\texttt{ln}] Natural logarithm.
-% \item[\texttt{exp}] Exponential.
-% \item[\texttt{sin}] Sine.
-% \item[\texttt{cos}] Cosine.
-% \item[\texttt{tan}] Tangent.
-% \end{itemize}
-% Eventually, we will provide |asin|, |acos|, |atan|, \emph{etc.}
-%
-% \begin{function}[EXP]{\dim_to_fp:n}
+% \begin{function}{\fp_new:N,\fp_new:c}
 %   \begin{syntax}
-%     \cs{dim_to_fp:n} \Arg{dimexpr}
+%     \cs{fp_new:N} \meta{fp~var}
 %   \end{syntax}
-%   Expands to an internal floating point number equal to the value of
-%   the \meta{dimexpr} in \texttt{pt}.
+%   Creates a new \meta{fp~var} or raises an error if the name is
+%   already taken. The declaration is global. The \meta{fp~var} will
+%   initially be $+0$.
 % \end{function}
 %
-% \section{Output}
+% \begin{function}{\fp_const:Nn, \fp_const:cn}
+%   \begin{syntax}
+%     \cs{fp_const:Nn} \meta{fp~var} \Arg{floating point expression}
+%   \end{syntax}
+%   Creates a new constant \meta{fp~var} or raises an error if the name
+%   is already taken. The \meta{fp~var} will be set globally equal to
+%   the result of evaluating the \meta{floating point expression}.
+% \end{function}
+%
+% \begin{function}
+%   {
+%     \fp_set_eq:NN , \fp_set_eq:cN , \fp_set_eq:Nc , \fp_set_eq:cc ,
+%     \fp_gset_eq:NN, \fp_gset_eq:cN, \fp_gset_eq:Nc, \fp_gset_eq:cc
+%   }
+%   \begin{syntax}
+%     \cs{fp_set_eq:NN} \meta{fp~var1} \meta{fp~var2}
+%   \end{syntax}
+%   Sets the floating point variable \meta{fp~var1} equal to the current
+%   value of \meta{fp~var2}.
+% \end{function}
+%
+% \begin{function}{\fp_set:Nn, \fp_set:cn, \fp_gset:Nn, \fp_gset:cn}
+%   \begin{syntax}
+%     \cs{fp_set:Nn} \meta{fp~var} \Arg{floating point expression}
+%   \end{syntax}
+%   Sets \meta{fp~var} equal to the result of computing the
+%   \meta{floating point expression}.
+% \end{function}
+%
+% \section{Using floating point numbers}
 %
 % \begin{function}[EXP]{\fp_to_decimal:N, \fp_to_decimal:n}
 %   \begin{syntax}
 %     \cs{fp_to_decimal:N} \meta{fp~var}
-%     \cs{fp_to_decimal:n} \Arg{fpexpr}
+%     \cs{fp_to_decimal:n} \Arg{floating point expression}
 %   \end{syntax}
-%   Evaluates the \meta{fpexpr} and expresses the result as a decimal
-%   number with no exponent.  If needed, leading or trailing zeros are
-%   inserted to compensate for the exponent.  The output does not
-%   contain a decimal separator for the case of integers.  The output is
-%   always given with $16$ significant figures.
+%   Evaluates the \meta{floating point expression} and expresses the
+%   result as a decimal number with $16$ significant figures and no
+%   exponent.  Leading or trailing zeros may be inserted to compensate
+%   for the exponent.  Integers are expressed without a decimal
+%   separator.
 % \end{function}
 %
 % \begin{function}[EXP]{\fp_to_dim:N, \fp_to_dim:n}
@@ -241,9 +200,10 @@
 %     \cs{fp_to_dim:N} \meta{fp~var}
 %     \cs{fp_to_dim:n} \Arg{floating point expression}
 %   \end{syntax}
-%   Evaluates the \meta{fpexpr} and converts the result into a dimension
-%   (in \texttt{pt}) suitable for use in dimension expressions.
-%   ^^A todo: correct the rounding.
+%   Evaluates the \meta{floating point expression} and expresses the
+%   result as a dimension (in \texttt{pt}) suitable for use in dimension
+%   expressions.  The precise output is identical to
+%   \cs{fp_to_decimal:n}, with an additional trailing \texttt{pt}.
 % \end{function}
 %
 % \begin{function}[EXP]{\fp_to_int:N, \fp_to_int:n}
@@ -251,6 +211,7 @@
 %     \cs{fp_to_int:N} \meta{fp~var}
 %     \cs{fp_to_int:n} \Arg{fpexpr}
 %   \end{syntax}
+%   ^^A todo: redoc
 %   Evaluates the \meta{fpexpr}, and rounds the result to the closest
 %   integer, with ties rounded to an even integer.  Numbers larger than
 %   $2^{31}-1$ are rounded down to $2^{31}-1$, and similarly for numbers
@@ -277,90 +238,187 @@
 %     \cs{fp_to_tl:N} \meta{fp~var}
 %     \cs{fp_to_tl:n} \Arg{fpexpr}
 %   \end{syntax}
-%   Evaluates the \meta{fpexpr} and expresses the result as a calculator
-%   would display it. In particular, trailing zeros are trimmed.
-%   ^^A todo: describe format.
+%   Evaluates the \meta{fpexpr} and expresses the result in (almost) the
+%   shortest possible form.  Numbers greater or equal to $10^{16}$, or
+%   less than $10^{-3}$ are expressed in scientific notation with
+%   trailing zeros trimmed.  Numbers in the range $[10^{-3},10^{16})$
+%   are expressed in a decimal notation without exponent, with trailing
+%   zeros trimmed, and no decimal separator for integer values.  The
+%   special valus $\pm 0$, $\pm \inf$ and \texttt{nan} are rendered as
+%   |0|, |-0|, \texttt{inf}, \texttt{-inf}, and \texttt{nan}
+%   respectively.
 % \end{function}
 %
-% \subsection{Rounding}
+% ^^A todo
+% ^^A \subsection{Rounding}
+% ^^A
+% ^^A This explains how to go from a floating point number to a
+% ^^A rounded value for various applications. Perhaps worth coding
+% ^^A functionalities up to what siunitx can do on this matter.
 %
-% This explains how to go from a floating point number to a
-% rounded value for various applications. Perhaps worth coding
-% functionalities up to what siunitx can do on this matter.
+% ^^A todo
+% ^^A \section{Floating points}
+% ^^A
+% ^^A Here, there may be a discussion of what floating point numbers
+% ^^A are, and a list of relevant resources (\emph{e.g.}, some of
+% ^^A Kahan's articles), and previous \TeX{} packages.
 %
-% \section{Assignments}
+% \section{Input of floating point numbers} \label{sec:fp-floats}
 %
-% \begin{function}{\fp_new:N,\fp_new:c}
+%^^A todo: write a grammar
+%^^A todo: fix the bug "0e9999999999 => TeX 'number too large'"
+%^^A todo: clarify what has changed compared to the previous l3fp
+%
+% We support four types of floating point numbers:
+% \begin{itemize}
+% \item $\pm 0.d_1d_2\ldots{}d_{16} \cdot 10^{n}$, a normal floating
+%   point number, with $d_i\in [0,9]$, $d_1\neq 0$, and $\lvert n\rvert
+%   \leq \ExplSyntaxOn \int_use:N \c_fp_max_exponent_int$;
+% \item $\pm 0$, zero, with a given sign;
+% \item $\pm \infty$, infinity, with a given sign;
+% \item \texttt{nan}, is \enquote{not a number}, and can be either quiet
+%   or signalling (\emph{not yet}: this distinction is currently
+%   unsupported);
+% \item [\emph{not yet}] subnormal numbers $\pm 0.d_1d_2\ldots{}d_{16}
+%   \cdot 10^{-\ExplSyntaxOn\int_use:N \c_fp_max_exponent_int}$ with
+%   $d_1=0$.
+% \end{itemize}
+% Normal floating point numbers are stored in base $10$, with $16$
+% significant figures.
+%
+% On input, a normal floating point number consists of:
+% \begin{itemize}
+% \item[\meta{sign}] a possibly empty string of |+| and |-| characters;
+% \item[\meta{mantissa}] a non-empty string of digits together with zero
+%   or one dot;
+% \item[\meta{exponent}] optionally, the character |e|, followed by a
+%   possibly empty string of |+|~and~|-| tokens, and a non-empty string
+%   of digits.
+% \end{itemize}
+% The sign of the resulting number is |+| if \meta{sign} contains an
+% even number of |-|, and |-| otherwise, hence, an empty \meta{sign}
+% denotes a non-negative input.  The stored mantissa is obtained from
+% \meta{mantissa} by omitting the decimal separator and leading zeros,
+% and rounding to $16$ significant digits, filling with trailing zeros
+% if necessary.  In particular, the value stored is exact if the input
+% \meta{mantissa} has at most $16$ digits.  The stored \meta{exponent}
+% is obtained by combining the input \meta{exponent} ($0$ if absent)
+% with a shift depending on the position of the mantissa and the number
+% of leading zeros.
+%
+% A special case arises if the resulting \meta{exponent} is either
+% too large or too small to be represented. This results either in an
+% overflow (the number is then replaced by $\pm\infty$), or an
+% underflow (resulting in $\pm 0$).
+%
+% The result is thus $\pm 0$ if and only if \meta{mantissa} contains no
+% non-zero digit (\emph{i.e.}, consists only in |0| characters, and an
+% optional |.| character), or there is an underflow. Note that a single
+% dot is\footnote{Bruno: but that may change.} a valid floating point
+% number, equal to $+0$.
+%
+% Special numbers are input as follows:
+% \begin{itemize}
+% \item \texttt{inf} or \texttt{infty} or \texttt{infinity} all represent
+%   $+\infty$, and can be preceeded by any \meta{sign}.
+% \item \texttt{nan} represents a (quiet) non-number. It can be preceeded
+%   by any sign, but that will be ignored.
+% \item Any unrecognizable string will yield a signalling \texttt{nan}.
+% \end{itemize}
+%
+% Note that |e-1| is not a representation of $10^{-1}$, because it
+% could be mistaken with the difference of \enquote{\texttt{e}} and
+% $1$. This is consistent with several other programming languages.
+% However, in order to avoid confusions, |e-1| is not considered to
+% be this difference either. To input the base of natural logarithms,
+% use \texttt{exp(1)} or \cs{c_e_fp}.
+%
+% \section{Precedence of operators} \label{sec:fp-precedence}
+%
+% ^^A List "juxtaposition" somewhere in the list.
+%
+% We list here all the operations supported in floating point
+% expressions, in order of decreasing precedence: operations listed
+% earlier bind more tightly than operations listed below them.
+% \begin{itemize}
+% \item Function calls (\texttt{sin}, \texttt{ln}, \emph{etc}).
+% \item Binary |**| and |^| (right associative).
+% \item Unary |+|, |-|, |!|.
+% \item Binary |*|, |/| and |%|.
+% \item Binary |+| and |-|.
+% \item Comparisons |>=|, |!=|, |<?|, \emph{etc}.
+% \item Logical \texttt{and}, denoted by |&&|.
+% \item Logical \texttt{or}, denoted by \verb*+||+.
+% \item Ternary operator |?:| (right associative).
+% \end{itemize}
+% The precedence of operations can be overridden using parentheses.
+%
+% Functions are called on the value of their argument, contrarily to
+% \TeX{} macros.
+%
+% \section{Operations} \label{sec:fp-operations}
+%
+% ^^A todo: figure out how to document stuff.
+%
+% \begin{function}{+,-}
+%   These functions raise the \enquote{invalid operation} exception for
+%   $\infty-\infty$.  They raise \enquote{inexact} whenever the result
+%   must be rounded, and \enquote{underflow} or \enquote{overflow} in
+%   the appropriate cases.
+% \end{function}
+%
+% \begin{function}{*,/}
+%   These functions raise the \enquote{invalid operation} exception for
+%   $\infty/\infty$, $0/0$, or $0*\infty$.  Dividing a finite non-zero
+%   number by $\pm 0$ raises \enquote{division by zero}.  Those
+%   operations may also raise \enquote{inexact}, \enquote{underflow} or
+%   \enquote{overflow}.
+% \end{function}
+%
+% \begin{function}{sin,cos,tan,cot}
+%   The trigonometric functions are undefined for an argument of
+%   $\pm\infty$, leading to the \enquote{invalid operation} exception.
+% \end{function}
+%
+% \begin{function}[EXP]{\dim_to_fp:n}
 %   \begin{syntax}
-%     \cs{fp_new:N} \meta{fp~var}
+%     \cs{dim_to_fp:n} \Arg{dimexpr}
 %   \end{syntax}
-%   Creates a new \meta{fp~var} or raises an error if the name is
-%   already taken. The declaration is global. The \meta{tl~var} will
-%   initially be $+0$.
+%   Expands to an internal floating point number equal to the value of
+%   the \meta{dimexpr} in \texttt{pt}.
 % \end{function}
 %
-% \begin{function}{\fp_const:Nn, \fp_const:cn}
-%   \begin{syntax}
-%     \cs{fp_const:Nn} \meta{fp~var} \Arg{floating point expression}
-%   \end{syntax}
-%   Creates a new constant \meta{fp~var} or raises an error if the name
-%   is already taken. The value of the \meta{fp~var} will be set
-%   globally to the result of evaluating the \meta{floating point
-%     expression}.
-% \end{function}
-%
-% \begin{function}
-%   {
-%     \fp_set_eq:NN, \fp_set_eq:cN, \fp_set_eq:Nc, \fp_set_eq:cc,
-%     \fp_gset_eq:NN, \fp_gset_eq:cN, \fp_gset_eq:Nc, \fp_gset_eq:cc
-%   }
-%   \begin{syntax}
-%     \cs{fp_set_eq:NN} \meta{fp~var1} \meta{fp~var2}
-%   \end{syntax}
-%   Sets the floating point variable \meta{fp~var1} equal to
-%   the current value of \meta{tl~var2}.
-% \end{function}
-%
-% \begin{function}{\fp_set:Nn,\fp_set:cn, \fp_gset:Nn, \fp_gset:cn}
-%   \begin{syntax}
-%     \cs{fp_set:Nn} \meta{fp~var} \Arg{floating point expression}
-%   \end{syntax}
-%   Sets \meta{fp~var} to the result of computing the
-%   \meta{floating point expression}.
-% \end{function}
-%
-% \section{Disclaimer}
+% \section{Disclaimer and roadmap}
 %
 % The package may break down if:
 % \begin{itemize}
 %   \item the escape character is either a digit, or an underscore,
-%   \item the uccodes are changed: the test for whether a character is a
-%     letter actually tests if the upper-case code of the character is
-%     between A and Z.
+%   \item the \tn{uccodes} are changed: the test for whether a character
+%     is a letter actually tests if the upper-case code of the character
+%     is between A and Z.
 % \end{itemize}
-%
-% \section{Roadmap}
 %
 % The following need to be done. I'll try to time-order the items.
 % \begin{itemize}
-% \item Trigonometric functions (cos, cosec, cot, sec, sin, tan).
-% \item Exponential and power functions, log-in-base.
-% \item Hyperbolic functions (cosh, sinh, tanh).
-% \item Inverse trigonometric functions (acos, asin, atan, atan2).
-% \item Square root and Euclidean length.
-% \item Comparison. |cmp(,)| returning $0$, $1$, $-1$, or \texttt{nan}
-%   for |=|, |<|, |>|, or unordered. Also, infix, any non-empty
-%   combination of |=<>?|, optionally preceeded by |!| to negate.
+% \item Hard-code the coefficients of the Taylor series for \texttt{sin}
+%   and \texttt{cos}.
+% \item Accelerate \texttt{tan} by using better coefficients.
 % \item Absolute value, max, min and modulo functions.
-% \item Rounding functions, (pgfmath provides |ceil()|, |floor()|,
-%   |int()|, |round(,)|, |frac()|, |real()|).
+% \item Multiple arguments, then rounding functions (pgfmath provides
+%   |ceil()|, |floor()|, |int()|, |round(,)|, |frac()|, |real()|),
+%   |max|, |min|, |and|, |or|, |xor|.
+% \item Square root and Euclidean length.
+% \item Add \texttt{csc} and \texttt{sec}.
+% \item Add $\log(x,b)$ for logarithm of $x$ in base $b$.
+% \item Hyperbolic functions \texttt{cosh}, \texttt{sinh}, \texttt{tanh}.
+% \item Inverse trigonometric functions \texttt{acos}, \texttt{asin},
+%   \texttt{atan}.  Also \texttt{atan2}, \texttt{asec}, \texttt{acsc}?
+% \item Inverse hyperbolics.
 % \item Pretty printing.
 % \item Base conversion.
 % \item Random numbers (pgfmath provides |rnd|, |rand|, |random|).
 % \item Factorial (not with |!|), gamma function.
-% \item Conditionals: |?|\ldots |:| ternary operator (\emph{this
-%     is incompatible with \texttt{?} as a comparison operator}),
-%   |not|, |and|, |or|, |xor|.
+% \item Conditionals: |?|\ldots |:| ternary operator,
 % \end{itemize}
 % Pgfmath also provides ``array'', and box-measurements:
 % depth, height, width (boxes are not possible expandably).
@@ -375,29 +433,15 @@
 %<*package>
 %    \end{macrocode}
 %
-%
 %    \begin{macrocode}
 \ProvidesExplPackage
   {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
 %    \end{macrocode}
 %
-% Load submodules in the right order.
-%    \begin{macrocode}
-\RequirePackage
-  {
-    l3fp-old,       % rename old fp functions + compatibility with old fp.
-    l3fp-aux,       % various tools
-    l3fp-parse,     % parsing fp expressions
-    l3fp-logic,     % comparisons and boolean logic
-    l3fp-basics,    % exact arithmetic with 4-block numbers
-    l3fp-extended,  % arithmetic with 6-block numbers
-    l3fp-expo,      % exp, ln, pow
-    l3fp-trig,      % sin, cos, tan
-    % l3fp-atrig,     % asin, acos, atan
-    l3fp-convert,   % converting internal fp to various formats.
-    l3fp-assign,    % all the non-expandable commands
-  }
-%    \end{macrocode}
+% The implementation is provided in separate modules.  A single
+% \texttt{sty} file is extracted from the various \texttt{dtx}
+% documented \TeX{} sources with the appropriate loading order.  See
+% \texttt{l3fp-new.ins} for details.
 %
 %    \begin{macrocode}
 %</package>
