@@ -104,6 +104,10 @@
 % \item[-1] Parentheses.
 % \end{itemize}
 %
+% ^^A todo: change mantissa' => 'significand' everywhere.
+% ^^A todo: ask SO when sNaN can arise.
+% ^^A todo: round_even, round_away, round_zero, round_pos, round_neg
+%
 % \section{Evaluating an expression}
 %
 % \begin{function}[EXP]{\fp_parse:n}
@@ -643,22 +647,362 @@
 % \end{documentation}
 %
 % \begin{implementation}
-% ^^A todo: add error detection that there is nothing left to parse at the end.
 %
-% \section{Implementation}
+% \section{\pkg{l3fp-parse} implementation}
 %
 %    \begin{macrocode}
 %<*initex|package>
 %    \end{macrocode}
 %
+% \subsection{Expansion control}
 %
-% \subsection{Parse one floating point}
+% ^^A todo: I think we should in fact never use the _unpack function,
+% ^^A because of cases like "\c_minus_one e\c_ten".
 %
-% In this section, we write some code to convert user input to
-% an internal floating point. The following forms are accepted:
+% Two types of expansion are used within floating point expressions:
+% \texttt{f}-type expansion, and \enquote{unpacking} expansion, which we
+% will denote in this module by \texttt{u}-expansion.  Those expansions
+% may fail in weird cases such as when a macro's expansion contains
+% leading spaces which will stop the \texttt{f}-expansion before further
+% macro calls are performed.  For instance, inserting \cs{c_space_tl}
+% \cs{c_space_tl} in a floating point expression will break the parsing.
+% It would be possible to recursively \texttt{f}-expand to counter this
+% effect, but this would slow things down too much: remember that
+% \cs{fp_parse_expand:w} is called for every character in the floating
+% point expression.
+%
+% \begin{macro}[rEXP, int]{\fp_parse_expand:w}
+%   \begin{syntax}
+%     \cs{tex_romannumeral:D} \cs{fp_parse_expand:w} \meta{tokens}
+%   \end{syntax}
+%   In most places, we simply want to fully expand macro calls.  To
+%   prevent spaces from stopping the expansion, \cs{fp_parse_expand:w}
+%   takes an argument.  This ensures that the \meta{tokens} are space-
+%   and brace-stripped before an \texttt{f}-expansion.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_expand:w #1 { -`0 #1 }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[rEXP, int]{\fp_parse_unpack:w}
+% \begin{macro}[EXP, aux]{\fp_parse_unpack_test:N}
+%   \begin{syntax}
+%     \cs{tex_romannumeral:D} \cs{fp_parse_unpack:w} \meta{tokens}
+%   \end{syntax}
+%   At some steps in parsing, we wish to have a stronger kind of
+%   expansion, which besides ignoring spaces also unpacks registers.  It
+%   is unfeasible to provide this expansion in a completely general way.
+%   general to provide that expansion.  However, in our limited
+%   situation, it is possible, because only characters are allowed in
+%   floating point numbers or expressions. Registers can then be
+%   recognized as the only tokens other than characters which can remain
+%   after \texttt{f}-expansion.  Thus, we can simply \texttt{f}-expand,
+%   then test if what follows is a character.  If it is not, we tell
+%   \TeX{} to unpack what is coming, using the primitive \cs{tex_the:D}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_unpack:w #1
+  {
+    -`0
+    \exp_after:wN \fp_parse_unpack_test:N
+    \tex_romannumeral:D -`0 #1
+  }
+\cs_new:Npn \fp_parse_unpack_test:N #1
+  {
+    \if_catcode:w \scan_stop: #1
+      \reverse_if:N \if_meaning:w \scan_stop: #1
+        \tex_the:D
+      \fi:
+    \fi:
+    #1
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\fp_parse_return_semicolon:w}
+%   This very odd function swaps its position with the following
+%   \cs{fi:} and removes \cs{fp_parse_expand:w} normally responsible for
+%   expansion.  That turns out to be useful.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_return_semicolon:w
+    #1 \fi: \fp_parse_expand:w { \fi: ; #1 }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Reading digits}
+%
+% \begin{macro}[aux, rEXP]
+%   {
+%     \fp_parse_digits_ix:N   , %^^A todo: is that one used?
+%     \fp_parse_digits_viii:N ,
+%     \fp_parse_digits_vii:N  ,
+%     \fp_parse_digits_vi:N   ,
+%     \fp_parse_digits_v:N    ,
+%     \fp_parse_digits_iv:N   ,
+%     \fp_parse_digits_iii:N  ,
+%     \fp_parse_digits_ii:N   ,
+%     \fp_parse_digits_i:N
+%   }
+%   These functions must be called within an \cs{int_value:w} or
+%   \cs{int_eval:w} construction.  The first token which follows must be
+%   \texttt{f}-expanded prior to calling those functions.  The functions
+%   read tokens one by one, and output digits into the input stream,
+%   until meeting a non-digit, or up to a number of digits equal to
+%   their index.  The full expansion is
+%   \begin{quote}
+%     \meta{digits} |;| \meta{filling 0} |;| \meta{length}
+%   \end{quote}
+%   where \meta{filling 0} is a string of zeros such that \meta{digits}
+%   \meta{filling 0} has the length given by the index of the function,
+%   and \meta{length} is the number of zeros in the \meta{filling 0}
+%   string.  Each function puts a digit into the input stream and calls
+%   the next function, until we find a non-digit.  We are careful to
+%   pass the tested tokens through \cs{token_to_str:N} to normalize
+%   their category code.
+%    \begin{macrocode}
+\cs_set_protected_nopar:Npn \fp_tmp:w #1 #2 #3
+  {
+    \cs_new:cpn { fp_parse_digits_ #1 :N } ##1
+      {
+        \if_num:w \c_nine < 1 \token_to_str:N ##1 \exp_stop_f:
+          \token_to_str:N ##1 \exp_after:wN #2 \tex_romannumeral:D
+        \else:
+          \fp_parse_return_semicolon:w #3 ##1
+        \fi:
+        \fp_parse_expand:w
+      }
+  }
+\fp_tmp:w {ix}   \fp_parse_digits_viii:N { 000000000 ; 9 }
+\fp_tmp:w {viii} \fp_parse_digits_vii:N  { 00000000 ; 8 }
+\fp_tmp:w {vii}  \fp_parse_digits_vi:N   { 0000000 ; 7 }
+\fp_tmp:w {vi}   \fp_parse_digits_v:N    { 000000 ; 6 }
+\fp_tmp:w {v}    \fp_parse_digits_iv:N   { 00000 ; 5 }
+\fp_tmp:w {iv}   \fp_parse_digits_iii:N  { 0000 ; 4 }
+\fp_tmp:w {iii}  \fp_parse_digits_ii:N   { 000 ; 3 }
+\fp_tmp:w {ii}   \fp_parse_digits_i:N    { 00 ; 2 }
+\fp_tmp:w {i}    \fp_parse_digits_:N     { 0 ; 1 }
+\cs_new_nopar:Npn \fp_parse_digits_:N { ; ; 0 }
+%    \end{macrocode}
+% \end{macro}
+%
+% ^^A 3.5\mydim e4**2
+% ^^A todo: add tests that catcode changes don't mess things up.
+%
+% \subsection{Parsing one operand}
+%
+% At the start of an expression, or just following a binary operation or
+% a function call, we are looking for an operand.  This can be an
+% explicit floating point number, a floating point variable, a \TeX{}
+% register, a function call such as \texttt{sin(3)}, a parenthesized
+% expression, \emph{etc.}  We distinguish the various cases by their
+% first token after \texttt{f}-expansion:
 % \begin{itemize}
-% \item \meta{signs} \meta{floating point}
-% \item \meta{signs} \meta{integer} |.| \meta{decimal} |e| \meta{exponent}
+% \item \cs{tex_relax:D} in some form.  That can be an internal
+%   floating point, a premature end, or an unitialized register.
+% \item A register.  We interpret this as the significand of a floating
+%   point number.  This is subtely different from unpacking it, for
+%   instance, \texttt{\cs{c_minus_one}**2} gives $1$, while
+%   \texttt{-1**2} gives $-1$.
+% \item A digit, or a dot.  That marks the start of the significand for
+%   a floating point number.
+% \item A letter (lower or upper-case), which starts an identifier,
+%   either a constant or a function (possibly unknown).
+% \item |+|, |-|, or |!|, unary operators, which resume looking for a
+%   floating point number before acting on it.
+% \item |(|, which makes us parse a subexpression until the
+%   matching~|)|.
+% \item Other characters such as |'| or |"| may be given a meaning
+%   later.  Characters such as |*| or |/| have a meaning as infix
+%   operators but are not valid when we are looking for an operand: for
+%   instance, |3+*4| is not valid.
+% \end{itemize}
+% A category code test separates the first two cases from the others,
+% and they are further distinguished with a meaning test.  We then
+% single out digits.  Letters are detected using their character code.
+% All other characters are taken care of by building a csname from that
+% character and using it to continue parsing.  Unknown characters lead
+% to an appropriate \enquote{Missing number, treated as zero} error from
+% \TeX{}.
+%
+% \begin{macro}[int, EXP]{\fp_parse_operand:Nw}
+%   Function called \cs{one} at other places. It grabs one operand, and
+%   packs the symbol that follows in an \cs{infix_} csname.  |#1| is the
+%   previous \meta{precedence}, and |#2| the first character of the
+%   operand (already \texttt{f}-expanded).
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_operand:Nw #1 #2
+  {
+    \if_catcode:w \tex_relax:D #2
+      \if_meaning:w \tex_relax:D #2
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \fp_parse_operand_relax:NN
+      \else:
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \fp_parse_operand_register:NN
+      \fi:
+    \else:
+      \if_num:w \c_nine < 1 \token_to_str:N #2 \exp_stop_f:
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \fp_parse_operand_digit:NN
+      \else:
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \fp_parse_operand_other:NN
+      \fi:
+    \fi:
+    #1 #2
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% ^^A todo: rounding of negative dimensions is probably wrong.
+% \begin{macro}[aux, EXP]
+%   {\fp_parse_operand_register:NN, \fp_parse_operand_register_aux:NNw}
+%   Find the exponent following the register |#2|, then combine the
+%   value of |#2| (mapping |1pt| to $1$) with the exponent to produce a
+%   floating point number.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_operand_register:NN #1#2
+  {
+    \exp_after:wN \fp_parse_operand_register_aux:NNw
+    \exp_after:wN #1
+    \exp_after:wN #2
+    \int_value:w \fp_parse_exponent:N
+  }
+\cs_new:Npn \fp_parse_operand_register_aux:NNw #1#2#3;
+  {
+    \exp_after:wN \fp_parse_operand_after:NwN
+    \exp_after:wN #1
+    \tex_romannumeral:D -`0
+      \fp_parse:n { \dim_strip_pt:n { #2 pt } e #3 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]
+%   {\fp_parse_operand_relax:NN, \fp_parse_operand_relax_aux:wwnw} The
+%   argument is a token equal to \cs{tex_relax:D}.  This can be
+%   \cs{s_fp}, \cs{s_fp_mark}, or a badly initialized register.  We make
+%   sure that the last argument of \cs{fp_parse_operand_after:NwN} is
+%   correctly expanded.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_operand_relax:NN #1#2
+  {
+    \exp_after:wN \fp_parse_operand_after:NwN
+    \exp_after:wN #1
+    \tex_romannumeral:D -`0
+      \fp_parse_operand_relax_aux:wwnw
+        #2 \s_fp_mark
+          {
+            \fp_aux_exp_after_fp_do:nw
+              { \tex_romannumeral:D \fp_parse_expand:w }
+            \s_fp
+          }
+        \s_fp #2
+          {
+            \fp_error:n { Premature~end~in~fp~expression. }
+            \c_nan_fp \s_fp_mark
+          }
+        \s_fp_mark
+          {
+            \fp_error:n { Erroneous~variable~#2 used! }
+            \exp_after:wN \c_nan_fp
+            \tex_romannumeral:D \fp_parse_expand:w
+          }
+        \s_fp_mark \s_fp_stop
+  }
+\cs_new:Npn \fp_parse_operand_relax_aux:wwnw
+    #1 \s_fp #2 \s_fp_mark #3 #4 \s_fp_mark \s_fp_stop { #3 }
+%    \end{macrocode}
+% \end{macro}
+%
+% ^^A begin[todo]
+%
+% \begin{macro}[aux, EXP]{\fp_parse_operand_other:NN}
+%   The interesting bit is \cs{fp_parse_operand_other:NN}. It separates
+%   letters from non-letters and builds the appropriate \cs{prefix}
+%   function. If it is not defined (is \cs{tex_relax:D}), make it
+%   a signalling \texttt{nan}. We don't look for an argument, as the
+%   unknown \enquote{prefix} can also be a (mistyped) constant such
+%   as \texttt{Inf}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_operand_other:NN #1 #2
+  {
+    \if_num:w \int_eval:w \tex_uccode:D `#2 / \c_twenty_six = \c_three
+      \exp_after:wN \fp_parse_operand_other_word_aux:Nw
+      \exp_after:wN #1
+      \tex_romannumeral:D
+        \exp_after:wN \fp_parse_letters:NN
+        \exp_after:wN #2
+        \tex_romannumeral:D
+    \else:
+      \exp_after:wN \fp_parse_operand_other_prefix_aux:NNN
+      \exp_after:wN #1
+      \exp_after:wN #2
+      \cs:w fp_parse_prefix_#2:Nw \exp_after:wN \cs_end:
+      \tex_romannumeral:D
+    \fi:
+    \fp_parse_expand:w
+  }
+
+\cs_new:Npn \fp_parse_letters:NN #1#2
+  {
+    \exp_after:wN \c_zero
+    \exp_after:wN #1
+    \tex_romannumeral:D
+      \if_num:w
+          \if_catcode:w \tex_relax:D #2
+            \c_zero
+          \else:
+            \int_eval:w \tex_uccode:D `#2 / \c_twenty_six
+          \fi:
+          = \c_three
+        \exp_after:wN \fp_parse_letters:NN
+        \exp_after:wN #2
+        \tex_romannumeral:D
+        \exp_after:wN \fp_parse_expand:w
+      \else:
+        \exp_after:wN \c_zero
+        \exp_after:wN ;
+        \exp_after:wN #2
+      \fi:
+  }
+\cs_new:Npn \fp_parse_operand_other_word_aux:Nw #1 #2;
+  {
+    \cs_if_exist_use:cTF { fp_parse_word_#2:N } {#1}
+      {
+        \msg_expandable_error:n { Unknown~word~#2. }
+        \fp_parse_operand_after:NwN #1 \s_fp \fp_use:w 3 1 \s_fp_unknown ;
+      }
+  }
+\cs_new_eq:NN \s_fp_unknown \tex_relax:D
+\cs_new:Npn \fp_parse_operand_other_prefix_aux:NNN #1#2#3
+  {
+    \if_meaning:w \tex_relax:D #3
+      \exp_after:wN \fp_parse_operand_other_prefix_unknown:NNN
+      \exp_after:wN #2
+    \fi:
+    #3 #1
+  }
+\cs_new:Npn \fp_parse_operand_other_prefix_unknown:NNN #1#2#3
+  {
+    \cs_if_exist:cTF { fp_parse_infix_#1:N }
+      {
+        \fp_error:n { Missing~number~before~'#1'. }
+        \fp_parse_operand_after:NwN #3 \s_fp \fp_use:w 3 1 #2 ; #1
+      }
+      {
+        \fp_error:n { Unknown~symbol~#1~ignored. }
+        \fp_parse_operand:Nw #3
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% The following forms are accepted:
+% \begin{itemize}
+% \item
+% \item \meta{floating point}
+% \item \meta{integer} |.| \meta{decimal} |e| \meta{exponent}
 % \end{itemize}
 % In both cases, \meta{signs} is a (possibly empty) string of
 % |+| and |-| (with any category code\footnote{Bruno: except
@@ -675,10 +1019,6 @@
 % \meta{exponent body}, where \meta{exponent sign} is any string
 % of |+| or |-|, and \meta{exponent body} is a string of digits,
 % stopping, as usual, at the first non-digit.
-%
-% The code attempts to match the longest possible string. If some
-% tokens remain, no error is raised.\footnote{Bruno: this \emph{must}
-%   be fixed, and \texttt{snan} be returned!}
 %
 % Any missing part will take the appropriate default value.
 % \begin{itemize}
@@ -718,577 +1058,546 @@
 % \item Finally check that nothing is left.\footnote{Bruno: not done yet.}
 % \end{itemize}
 %
+% \begin{macro}[aux, EXP]{\fp_parse_operand_digit:NN}
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_operand_digit:NN #1
+  {
+    \exp_after:wN \fp_parse_operand_after:NwN
+    \exp_after:wN #1
+    \tex_romannumeral:D -`0
+      \exp_after:wN \fp_aux_sanitize:wN
+      \int_use:N \int_eval:w \c_zero \fp_parse_trim_zeros:N
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% ^^A end[todo]
+%
 % \subsubsection{Trimming leading zeros}
 %
-% \begin{macro}{\fp_cfs_trim_loop:N,\fp_cfs_trim_end:w}
-%
-%   In this branch, we expect a number with a non-empty mantissa
-%   (between the sign part and the exponent part), starting with
-%   a digit (those starting with a dot are handled by
-%   \cs{fp_cfs_strim_loop:N}. The goal here is to trim zeros from
-%   the beginning of the number, reaching the most significant
-%   digit before starting to really read the number (this is required
-%   to round properly).
-%
-%   There are two cases. If we find a non-zero digit before any dot
-%   or exponent part, the mantissa is \enquote{large} ($\geq 1$).
-%   If we find no non-zero digit before a dot, we need to continue
-%   removing zeros afterwards (through the \cs{fp_cfs_strim} functions,
-%   resulting in a \enquote{small} mantissa ($<1$). In the latter case,
-%   we have to keep track of the shift $\meta{exp1}<0$ as we remove
-%   zeros after the dot. This exponent is \cs{c_zero} for large
-%   mantissas.
-%
+% \begin{macro}[aux, rEXP]{\fp_parse_trim_zeros:N, \fp_parse_trim_end:w}
+%   This function expects an already expanded token.  It removes any
+%   leading zero, then distinguished three cases: if the first non-zero
+%   token is a digit, then call \cs{fp_parse_large:N} (the significand is
+%   $\geq 1$); if it is |.|, then continue trimming zeros with
+%   \cs{fp_parse_strim_zeros:N}; otherwise, our number is exactly zero,
+%   and we call \cs{fp_parse_zero:} to take care of that case.
 %    \begin{macrocode}
-\cs_new:Npn \fp_cfs_trim_loop:N #1
+\cs_new:Npn \fp_parse_trim_zeros:N #1
   {
-      \if:w 0 #1
-        \exp_after:wN \fp_cfs_trim_loop:N
-        \tex_romannumeral:D
-      \else:
-        \if:w . #1
-          \exp_after:wN \fp_cfs_strim_loop:N
-          \tex_romannumeral:D
-        \else:
-          \fp_cfs_trim_end:w #1
-        \fi:
-      \fi:
-      \fp_aux_expand:w
-  }
-\cs_new:Npn \fp_cfs_trim_end:w #1 \fi: \fi: \fp_aux_expand:w
-  {
-        \fi:
-      \fi:
-      \if_num:w 9 < 1#1 \exp_stop_f:
-        \exp_after:wN ; \exp_after:wN \fp_cfs_large:NwN
-      \else:
-        \exp_after:wN ; \exp_after:wN \fp_cfs_zero:Nw
-      \fi:
-      #1
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \begin{macro}{\fp_cfs_strim_loop:N,\fp_cfs_strim_end:w}
-%   If we have removed all digits until a period (or if the body
-%   started with a period), then enter the
-%   \enquote{\texttt{small\_trim}} loop which outputs $-1$ for each
-%   removed $0$.
-%    \begin{macrocode}
-\cs_new:Npn \fp_cfs_strim_loop:N #1
-  {
-      \if:w 0 #1
-        - \c_one
-        \exp_after:wN \fp_cfs_strim_loop:N
-        \tex_romannumeral:D
-      \else:
-        \fp_cfs_strim_end:w #1
-      \fi:
-      \fp_aux_expand:w
-  }
-%    \end{macrocode}
-%
-%   As we cannot round properly before the sign is known,
-%   we need to take a rest when reaching a non-zero, stop the
-%   \cs{int_eval:w} which is computing the \meta{exp1},
-%   and simply leave instructions after the semicolon on what to
-%   do next.
-%
-%
-% %   and the best we can do at this stage is to read up to $16$
-% %   digits, and use any remaining digit to produce the correct
-% %   \meta{rounding} digit, as described for \cs{fp_aux_round:NNN}.
-% %   This can be done at most $9$ digits at a time, so we need two
-% %   steps.
-% %
-% %   If the number of digits in front of us is less than $16$,
-% %   simply fill with more zeros. If there are more digits, start
-% %   a loop to remove them, doing almost nothing (taking care of
-% %   the \meta{rounding}).
-%    \begin{macrocode}
-\cs_new:Npn \fp_cfs_strim_end:w #1 \fi: \fp_aux_expand:w
-  {
-      \fi:
-      \if_num:w 9 < 1#1 \exp_stop_f:
-        \exp_after:wN ; \exp_after:wN \fp_cfs_small:NwN
-      \else:
-        \exp_after:wN ; \exp_after:wN \fp_cfs_zero:Nw
-      \fi:
-      #1
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \subsubsection{Special cases}
-%
-%^^A todo: change 'mantissa' => 'significand' everywhere.
-%^^A todo: ask SO when sNaN can arise.
-%^^A todo: round_even, round_away, round_zero, round_pos, round_neg
-% \begin{macro}{\fp_cfs_lead_relax:N}
-%   The argument is a token equal to \cs{tex_relax:D}.  This can be
-%   \cs{s_fp}, \cs{s_fp_mark}, or a badly initialized register.
-%    \begin{macrocode}
-\cs_new:Npn \fp_cfs_lead_relax:N #1
-  {
-    \exp_after:wN \fp_cfs_lead_relax_aux:NN
-      \cs:w fp_cfs_lead_type_ \cs_to_str:N #1 :w \cs_end:
-      #1
-  }
-\cs_new:Npn \fp_cfs_lead_relax_aux:NN #1#2
-  {
-    \if_meaning:w \tex_relax:D #1
-      %^^A todo: cleanup and add info to snan.
-      \msg_expandable_error:n { Erroneous~variable~#2~used! }
-      \exp_after:wN \exp_after:wN \exp_after:wN \fp_cfs_internal:w
-      \exp_after:wN \c_empty_snan_fp
+    \if:w 0 #1
+      \exp_after:wN \fp_parse_trim_zeros:N
+      \tex_romannumeral:D
     \else:
-      \exp_after:wN #1
+      \if:w . #1
+        \exp_after:wN \fp_parse_strim_zeros:N
+        \tex_romannumeral:D
+      \else:
+        \fp_parse_trim_end:w #1
+      \fi:
     \fi:
+    \fp_parse_expand:w
   }
-\cs_new:Npn \fp_cfs_lead_type_s_fp:w { \fp_cfs_internal:w \s_fp }
-\cs_new:Npn \fp_cfs_lead_type_s_fp_mark:w
-  { \c_one E 0 ; \fp_cfs_premature_end:w \s_fp_mark }
-%    \end{macrocode}
-%
-%   In the case of an internal floating point number, |#1| is
-%   \cs{s_fp}, and what follows looks as follows.
-%   We terminate the \cs{int_eval:w} for the sign, and
-%   put the tokens in the right place.
-%   \begin{syntax}
-%     \cs{fp_cfs_internal:w} \cs{s_fp} \cs{fp_use:w}
-%     ~~\meta{case} \meta{sign} \meta{body} |;|
-%     ~~\meta{remaining input}
-%   \end{syntax}
-%    \begin{macrocode}
-\cs_new:Npn \fp_cfs_internal:w \s_fp \fp_use:w #1 #2 #3 ;
-  { \int_eval:w 1 - #2 E #3 ; { \s_fp \fp_use:w #1 } }
-%    \end{macrocode}
-%
-%   All other \cs{tex_relax:D} are invalid input, and we
-%   produce a signalling \texttt{nan}, whose \meta{info}
-%   field is the remaining part of the input.
-%    \begin{macrocode}
-\cs_new:Npn \fp_cfs_premature_end:w #1 0;
+\cs_new:Npn \fp_parse_trim_end:w #1 \fi: \fi: \fp_parse_expand:w
   {
-    \msg_expandable_error:n { Premature~end~in~fp~expression. }
-    \c_empty_snan_fp
+      \fi:
+    \fi:
+    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
+      \exp_after:wN \fp_parse_large:N
+    \else:
+      \exp_after:wN \fp_parse_zero:
+    \fi:
+    #1
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\fp_cfs_zero:Nw}
-%   \begin{syntax}
-%     \cs{fp_cfs_zero:Nw} \meta{sign} \meta{exp1} ; \meta{non-digit}
-%   \end{syntax}
+% \begin{macro}[aux, rEXP]{\fp_parse_strim_zeros:N, \fp_parse_strim_end:w}
+%   If we have removed all digits until a period (or if the body started
+%   with a period), then enter the \enquote{\texttt{small_trim}} loop
+%   which outputs $-1$ for each removed $0$.  Those $-1$ are added to an
+%   integer expression waiting for the exponent.  If the first non-zero
+%   token is a digit, call \cs{fp_parse_small:N} (our significand is
+%   smaller than~$1$), and otherwise, the number is an exact zero.
 %    \begin{macrocode}
-\cs_new:Npn \fp_cfs_zero:Nw #1 #2 ;
+\cs_new:Npn \fp_parse_strim_zeros:N #1
   {
-    \exp_after:wN \fp_cfs_zero_aux:Nw
-    \exp_after:wN #1
-    \int_value:w \fp_cfs_exponent_test:N
+    \if:w 0 #1
+      - \c_one
+      \exp_after:wN \fp_parse_strim_zeros:N
+      \tex_romannumeral:D
+    \else:
+      \fp_parse_strim_end:w #1
+    \fi:
+    \fp_parse_expand:w
   }
-\cs_new:Npn \fp_cfs_zero_aux:Nw #1 #2 ; { \fp_aux_zero_fp:N #1 }
+\cs_new:Npn \fp_parse_strim_end:w #1 \fi: \fp_parse_expand:w
+  {
+    \fi:
+    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
+      \exp_after:wN \fp_parse_small:N
+    \else:
+      \exp_after:wN \fp_parse_zero:
+    \fi:
+    #1
+  }
 %    \end{macrocode}
 % \end{macro}
 %
+% \subsubsection{Exact zero}
 %
-% \subsubsection{Small mantissa}
-%
-% \begin{macro}{\fp_cfs_small:NwN}
-%   \begin{syntax}
-%     \cs{fp_cfs_small:NwN} \meta{sign} \meta{exp1} |;| \meta{non-zero digit}
-%   \end{syntax}
-%   The goal here is to grab up to $16$ digits. But we can't do
-%   that all at once, because \cs{int_value:w} (which allows us
-%   to collect digits and continue expanding) can only go up to
-%   $9$ digits. We do it in two steps of (almost) $8$ digits.
-%   Using $8$ rather than $9$ helps us repack more easily. In fact,
-%   we've already read one digit, and there is no need to re-read it,
-%   hence the use of \cs{fp_aux_grab_digits_vii:N}. As usual,
-%   brace-removing f-expansion of the following. The goal is
-%   \begin{syntax}
-%     \cs{fp_cfs_sanitize:Nw} \meta{sign} \meta{exp} |;|
-%     ~~\Arg{4 digits} \Arg{4 digits} \Arg{4 digits} \Arg{4 digits} |;|
-%   \end{syntax}
+% \begin{macro}[aux, EXP]{\fp_parse_zero:}
+%   After reading a significand of $0$, we need to remove any exponent,
+%   then put a sign of |1| for \cs{fp_aux_sanitize:wN}, denoting an
+%   exact zero.
 %    \begin{macrocode}
-\cs_new:Npn \fp_cfs_small:NwN #1 #2 ; #3
+\cs_new:Npn \fp_parse_zero:
   {
-    \exp_after:wN \fp_cfs_sanitize:Nw
-    \exp_after:wN #1
-    \int_use:N \int_eval:w #2
-      \exp_after:wN \fp_cfs_i_after:NNNNNww
-      \int_use:N \int_eval:w 1
-        \exp_after:wN \fp_cfs_small_i:NwwNN
-        \exp_after:wN #1
-        \int_value:w 1 #3
-          \exp_after:wN \fp_aux_grab_digits_vii:N
-          \tex_romannumeral:D \fp_aux_expand:w
+    \exp_after:wN ; \exp_after:wN 1
+    \int_value:w \fp_parse_exponent:N
   }
 %    \end{macrocode}
+% \end{macro}
 %
-%   The next function appears within the \cs{int_eval:w}
-%   for the final exponent.
-%   \begin{syntax}
-%     \cs{fp_cfs_small_i:NwwNN} \meta{sign}
-%     ~~|1| \meta{digits} |,| \meta{zeros} |;| \meta{number~of~zeros}
-%   \end{syntax}
-%   Here, \meta{digits}\meta{zeros} is a string of $8$ digits,
-%   and \meta{number~of~zeros} counts how many zeros we had to
-%   add to complete the digits that we had already found.
+% \subsubsection{Small significand}
 %
-%   Note that the next token, |#5|, is already f-expanded in all
-%   cases (by the \cs{fp_aux_grab_digits} functions which looked
-%   for a digit). If that next token is a digit, then we need to
-%   grab more digits, until the $15$th digit (the digit number
-%   $16$ plays a special role in rounding). Otherwise, we check
-%   for an exponent (\cs{fp_cfs_exponent_test:N/w} is used in
-%   all \enquote{normal} branches), and end.
+% \begin{macro}[aux, rEXP]{\fp_parse_small:N}
+%   This function is called after we have passed the decimal separator
+%   and removed all leading zeros from the significand.  It is followed
+%   by a non-zero digit (with any catcode).  The goal is to read up to
+%   $16$ digits.  But we can't do that all at once, because
+%   \cs{int_value:w} (which allows us to collect digits and continue
+%   expanding) can only go up to $9$ digits.  Hence we grab digits in
+%   two steps of $8$ digits.  Since |#1| is a digit, read seven more
+%   digits using \cs{fp_parse_digits_vii:N}.  The \texttt{small_leading}
+%   auxiliary will leave those digits in the \cs{int_value:w}, and grab
+%   some more, or stop if there are no more digits.  Then the
+%   \texttt{pack_leading} auxiliary puts the various parts in the
+%   appropriate order for the processing further up.
 %    \begin{macrocode}
-\cs_new:Npn \fp_cfs_small_i:NwwNN #1 1 #2, #3; #4 #5
+\cs_new:Npn \fp_parse_small:N #1
   {
-        #2 #3
-        \if_num:w 9 < 1 #5 \exp_stop_f:
-          \exp_after:wN \fp_cfs_small_ii:NwwNN
-          \exp_after:wN #1
-          \int_value:w 1 #5
-            \exp_after:wN \fp_aux_grab_digits_vi:N
-            \tex_romannumeral:D
-        \else:
-          \exp_after:wN \fp_cfs_small_i_end:
-          \int_value:w
-            \fp_cfs_exponent_test:w #5
-        \fi:
-        \fp_aux_expand:w
+    \exp_after:wN \fp_parse_pack_leading:NNNNNww
+    \int_use:N \int_eval:w 1 \token_to_str:N #1
+      \exp_after:wN \fp_parse_small_leading:wwNN
+      \int_value:w 1
+        \exp_after:wN \fp_parse_digits_vii:N
+        \tex_romannumeral:D \fp_parse_expand:w
   }
 %    \end{macrocode}
-%   Ending involves filling up with zeros, and bringing the exponent
-%   back in the input stream, for \cs{fp_cfs_i_after:NNNNNww}.
-%   Since \cs{fp_cfs_i_after:NNNNNww} is common to both the case
-%   where there are few digits, and the cases with many digits, there
-%   is a check for the carry which may arise from rounding up.
-%   This carry can only arise to give a power of ten (and |#1| is |0000|).
-%   \footnote{Bruno: explain by going down through the expansion, and
-%     then up.}
+% \end{macro}
+%
+% \begin{macro}[aux, rEXP]{\fp_parse_small_leading:wwNN}
+%   \begin{syntax}
+%     \cs{fp_parse_small_leading:wwNN} |1| \meta{digits} |;| \meta{zeros} |;| \meta{number~of~zeros}
+%   \end{syntax}
+%   We leave \meta{digits} \meta{zeros} in the input stream: the
+%   functions used to grab digits are such that this constitutes digits
+%   $1$ through $8$ of the significand.  Then prepare to pack $8$ more
+%   digits, with an exponent shift of \cs{c_zero} (this shift is used in
+%   the case of a large significand).  If |#4| is a digit, leave it
+%   behind for the packing function, and read $6$ more digits to reach a
+%   total of $15$ digits: further digits are involved in the rounding.
+%   Otherwise put $8$ zeros in to complete the significand, then look
+%   for an exponent.
 %    \begin{macrocode}
-\cs_new:Npn \fp_cfs_small_i_end: #1 ; { ; #1 ; {0000} {0000} ; }
-\cs_new:Npn \fp_cfs_ii_after:NNNNNNww #1 #2 #3#4#5#6 #7; #8 ;
+\cs_new:Npn \fp_parse_small_leading:wwNN 1 #1 ; #2; #3 #4
   {
-    \if:w 2 #2
-      + 1
+    #1 #2
+    \exp_after:wN \fp_parse_pack_trailing:NNNNNNww
+    \exp_after:wN \c_zero
+    \int_use:N \int_eval:w 1
+      \if_num:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
+        \token_to_str:N #4
+        \exp_after:wN \fp_parse_small_trailing:wwNN
+        \int_value:w 1
+          \exp_after:wN \fp_parse_digits_vi:N
+          \tex_romannumeral:D
+      \else:
+        0000 0000 \fp_parse_exponent:Nw #4
+      \fi:
+      \fp_parse_expand:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, rEXP]{\fp_parse_small_trailing:wwNN}
+%   \begin{syntax}
+%     \cs{fp_parse_small_trailing:wwNN} |1| \meta{digits} |;| \meta{zeros} |;| \meta{number~of~zeros} \meta{next~token}
+%   \end{syntax}
+%   Leave digits $10$ to $15$ (arguments |#1| and |#2|) in the input
+%   stream.  If the \meta{next~token} is a digit, it is the $16$th
+%   digit, we keep it, then the \texttt{small_round} auxiliary considers
+%   this digit and all further digits to perform the rounding: the
+%   function expands to nothing or to |+1|.  Otherwise, there is no
+%   $16$-th digit, so we put a $0$, and look for an exponent.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_small_trailing:wwNN 1 #1 ; #2; #3 #4
+  {
+    #1 #2
+    \if_num:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
+      \token_to_str:N #4
+      \exp_after:wN \fp_parse_small_round:NN
+      \exp_after:wN #4
+      \tex_romannumeral:D
+    \else:
+      0 \fp_parse_exponent:Nw #4
     \fi:
-    ; #8 + #1 ; {#3#4#5#6}{#7};
+    \fp_parse_expand:w
   }
-\cs_new:Npn \fp_cfs_i_after:NNNNNww
-    #1 #2#3#4#5 #6; #7 ;
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, rEXP]
+%   {
+%     \fp_parse_pack_trailing:NNNNNNww ,
+%     \fp_parse_pack_leading:NNNNNww   ,
+%     \fp_parse_pack_carry:w
+%   }
+%   Those functions are expanded after all the digits are found, we took
+%   care of the rounding, as well as the exponent.  The last argument is
+%   the exponent.  The previous five arguments are $8$ digits which we
+%   pack in groups of $4$, and the argument before that is $1$, except
+%   in the rare case where rounding lead to a carry, in which case the
+%   argument is $2$.  The \texttt{trailing} function has an exponent
+%   shift as its first argument, which we add to the exponent found in
+%   the |e...| syntax.  If the trailing digits cause a carry, the
+%   integer expression for the leading digits is incremented (|+ \c_one|
+%   in the code below).  If the leading digits propagte this carry all
+%   the way up, the function \cs{fp_parse_pack_carry:w} increments the
+%   exponent, and changes the mantissa from |0000...| to |1000...|: this
+%   is simple because such a carry can only occur to give rise to a
+%   power of $10$.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_pack_trailing:NNNNNNww #1 #2 #3#4#5#6 #7; #8 ;
+  {
+    \if_meaning:w 2 #2 + \c_one \fi:
+    ; #8 + #1 ; {#3#4#5#6} {#7};
+  }
+\cs_new:Npn \fp_parse_pack_leading:NNNNNww #1 #2#3#4#5 #6; #7;
   {
     + #7
-    \if:w 2 #1
-      + 1 \exp_after:wN \fp_cfs_small_carry:w
-    \fi:
-    ; {#2#3#4#5} {#6}
+    \if_meaning:w 2 #1 \fp_parse_pack_carry:w \fi:
+    ; 0 {#2#3#4#5} {#6}
   }
-\cs_new:Npn \fp_cfs_small_carry:w ; #1 { ; {1000} }
-%    \end{macrocode}
-%
-%   \begin{syntax}
-%     \cs{fp_cfs_small_ii:NwwNN} \meta{sign}
-%     ~~|1| \meta{digits} |,| \meta{zeros} |;| \meta{number~of~zeros}
-%     ~~\meta{next~token}
-%   \end{syntax}
-%   Let's get ready for more digits. The \meta{next~token} is
-%   f-expanded. If it is a digit, it is the $16$th digit.
-%   \cs{fp_cfs_small_ii:NwwNN} builds a number $1$\meta{8 digits},
-%   rounded properly, and feeds that to
-%   \cs{fp_cfs_large_ii_after:NNNNNNww}.
-%
-%    \begin{macrocode}
-\cs_new:Npn \fp_cfs_small_ii:NwwNN #1 1 #2, #3; #4 #5
-  {
-        \exp_after:wN \fp_cfs_ii_after:NNNNNNww
-        \exp_after:wN \c_zero
-        \int_use:N \int_eval:w 1 #2 #3
-          \if_num:w 9 < 1 #5 \exp_stop_f:
-            #5
-            +
-            \exp_after:wN \fp_cfs_small_round:NNNw
-            \exp_after:wN #1
-            \exp_after:wN #5
-            \tex_romannumeral:D
-          \else:
-            0
-            \exp_after:wN ;
-            \int_value:w
-              \fp_cfs_exponent_test:w #5
-          \fi:
-          \fp_aux_expand:w
-  }
-%    \end{macrocode}
-%   Just as \cs{fp_cfs_i_after:NNNNNww}, pack digits in blocks
-%   of $4$, check for a carry, and increase the \cs{int_eval:w}
-%   above if needed. No surprise there.
-%    \begin{macrocode}
+\cs_new:Npn \fp_parse_pack_carry:w \fi: ; 0 #1
+  { \fi: + \c_one ; 0 {1000} }
 %    \end{macrocode}
 % \end{macro}
 %
+% \subsubsection{Large significand}
 %
+% Parsing a significand larger than $1$ is a little bit more difficult
+% than parsing small significands.  We need to count the number of
+% digits before the decimal separator, and add that to the final
+% exponent.  We also need to test for the presence of a dot each time we
+% run out of digits, and branch to the appropriate \texttt{parse_small}
+% function in those cases.
+%
+% \begin{macro}[aux, EXP]{\fp_parse_large:N}
+%   This function is followed by the first non-zero digit of a
+%   \enquote{large} significand ($\geq 1$).  It is called within an
+%   integer expression for the exponent.  Grab up to $7$ more digits,
+%   for a total of $8$ digits.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_large:N #1
+  {
+    \exp_after:wN \fp_parse_large_leading:wwNN
+    \int_value:w 1 \token_to_str:N #1
+      \exp_after:wN \fp_parse_digits_vii:N
+      \tex_romannumeral:D \fp_parse_expand:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, rEXP]{\fp_parse_large_leading:wwNN}
+%   \begin{syntax}
+%     \cs{fp_parse_large_leading:wwNN} |1| \meta{digits} |;| \meta{zeros} |;| \meta{number~of~zeros} \meta{next~token}
+%   \end{syntax}
+%   We shift the exponent by the number of digits in |#1|, namely the
+%   target number, $8$, minus the \meta{number of zeros} (number of
+%   digits missing).  Then prepare to pack the $8$ first digits.  If the
+%   \meta{next token} is a digit, read up to $6$ more digits (digits
+%   $10$ to $15$).  If it is a period, try to grab the end of our $8$
+%   first digits, branching to the \texttt{small} functions since the
+%   number of digit does not affect the exponent anymore.  Finally, if
+%   this is the end of the significand, insert the \meta{zeros} to
+%   complete the $8$ first digits, insert $8$ more, and look for an
+%   exponent.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_large_leading:wwNN 1 #1 ; #2; #3 #4
+  {
+    + \c_eight - #3
+    \exp_after:wN \fp_parse_pack_leading:NNNNNww
+    \int_use:N \int_eval:w 1 #1
+      \if_num:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
+        \exp_after:wN \fp_parse_large_trailing:wwNN
+        \int_value:w 1 \token_to_str:N #4
+          \exp_after:wN \fp_parse_digits_vi:N
+          \tex_romannumeral:D
+      \else:
+        \if:w . #4
+          \exp_after:wN \fp_parse_small_leading:wwNN
+          \int_value:w 1
+            \cs:w
+              fp_parse_digits_
+              \tex_romannumeral:D #3
+              :N \exp_after:wN
+            \cs_end:
+            \tex_romannumeral:D
+        \else:
+          #2
+          \exp_after:wN \fp_parse_pack_trailing:NNNNNNww
+          \exp_after:wN \c_zero
+          \int_value:w 1 0000 0000
+          \fp_parse_exponent:Nw #4
+        \fi:
+      \fi:
+      \fp_parse_expand:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\fp_parse_large_trailing:wwNN}
+%   \begin{syntax}
+%     \cs{fp_parse_large_trailing:wwNN} |1| \meta{digits} |;| \meta{zeros} |;| \meta{number~of~zeros} \meta{next~token}
+%   \end{syntax}
+%   We have just read $15$ digits.  If the \meta{next token} is a digit,
+%   then the exponent shift caused by this block of $8$ digits is $8$,
+%   first argument to the \texttt{pack_trailing} function.  We keep the
+%   \meta{digits} and this $16$-th digit, and find how this should be
+%   rounded using \cs{fp_parse_large_round:NN}.  Otherwise, the exponent
+%   shift is the number of \meta{digits}, $7$ minus the \meta{number of
+%     zeros}, and we test for a decimal point.  This case happens in
+%   |123451234512345.67| with exactly $15$ digits before the decimal
+%   separator.  Then branch to the appropriate \texttt{small} auxiliary,
+%   grabbing a few more digits to complement the digits we already
+%   grabbed.  Finally, if this is truly the end of the significand, look
+%   for an exponent after using the \meta{zeros} and providing a $16$-th
+%   digit of $0$.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_large_trailing:wwNN 1 #1 ; #2; #3 #4
+  {
+    \if_num:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
+      \exp_after:wN \fp_parse_pack_trailing:NNNNNNww
+      \exp_after:wN \c_eight
+      \int_use:N \int_eval:w 1 #1 \token_to_str:N #4
+        \exp_after:wN \fp_parse_large_round:NN
+        \exp_after:wN #4
+        \tex_romannumeral:D
+    \else:
+      \exp_after:wN \fp_parse_pack_trailing:NNNNNNww
+      \int_use:N \int_eval:w \c_seven - #3 \exp_stop_f:
+      \int_use:N \int_eval:w 1 #1
+        \if:w . #4
+          \exp_after:wN \fp_parse_small_trailing:wwNN
+          \int_value:w 1
+            \cs:w
+              fp_parse_digits_
+              \tex_romannumeral:D #3
+              :N \exp_after:wN
+            \cs_end:
+            \tex_romannumeral:D
+        \else:
+          #2 0 \fp_parse_exponent:Nw #4
+        \fi:
+    \fi:
+    \fp_parse_expand:w
+  }
+%    \end{macrocode}
+% \end{macro}
 %
 % \subsubsection{Finding the exponent}
 %
-%
-% \begin{macro}{\fp_cfs_exponent_test:N}
-%   \begin{syntax}
-%     \cs{int_value:w} \cs{fp_cfs_exponent_test:N}
-%   \end{syntax}
-%   Can also be invoked from within \cs{int_eval:w}, since
-%   the exponent gets terminated by a semicolon.
-%
-%   Expansion is a little bit tricky here. When implementing
-%   expression parsing, later, we may want to accept input where
-%   multiplication is implicit.
+% Expansion is a little bit tricky here, in part because we accept input
+% where multiplication is implicit.
 % \begin{verbatim}
-% \fp_parse:n { 3.2 erf(0.1) }
-% \fp_parse:n { 3.2 e\l_my_int }
-% \fp_parse:n { 3.2 \c_pi_fp }
+%   \fp_parse:n { 3.2 erf(0.1) }
+%   \fp_parse:n { 3.2 e\l_my_int }
+%   \fp_parse:n { 3.2 \c_pi_fp }
 % \end{verbatim}
-%   The first case indicates that just looking one character ahead
-%   for an \enquote{\texttt{e}} is not enough, since we would mistake
-%   the function \texttt{erf} for an exponent of \enquote{\texttt{rf}}.
-%   An alternative would be to look two tokens ahead and check if what
-%   follows is a sign or a digit, considering in that case that we must
-%   be finding an exponent. But taking care of the second case requires
-%   that we unpack registers after \texttt{e}. However, blindly expanding
-%   the two tokens ahead completely (plus unpacking) would break
-%   the third example. Indeed, in the course of reading $3.2$,
-%   \cs{c_pi_fp} is expanded to \cs{s_fp} \cs{fp_use:w} |1| |0| |{-1}|
-%   |{3141}| $\cdots$ |;| and \cs{s_fp} stops the expansion. Expanding
-%   two tokens ahead would then force the expansion of \cs{fp_use:w}
-%   (despite it being protected), and that function typesets the floating
-%   point number.
+% The first case indicates that just looking one character ahead for an
+% \enquote{\texttt{e}} is not enough, since we would mistake the
+% function \texttt{erf} for an exponent of \enquote{\texttt{rf}}.  An
+% alternative would be to look two tokens ahead and check if what
+% follows is a sign or a digit, considering in that case that we must be
+% finding an exponent.  But taking care of the second case requires that
+% we unpack registers after \texttt{e}.  However, blindly expanding the
+% two tokens ahead completely would break the third example (unpacking
+% is even worse).  Indeed, in the course of reading $3.2$, \cs{c_pi_fp}
+% is expanded to \cs{s_fp} \cs{fp_use:w} |1| |0| |{-1}| |{3141}|
+% $\cdots$ |;| and \cs{s_fp} stops the expansion.  Expanding two tokens
+% ahead would then force the expansion of \cs{fp_use:w} (despite it
+% being protected), and that function tries to typeset the floating
+% point number.
 %
-%   What can we do? Really, the reason why this last case breaks is that
-%   just as \TeX{} does, we should read ahead as little as possible.
-%   Here, the only case where there may be an exponent is if the first
-%   token ahead is |e|.\footnote{The commented code below allows
-%     both \texttt{e} and \texttt{E}, but seems ugly.} Then we expand
-%   (and possibly unpack) the second token --- and hopefully that is safe.
+% What can we do?  Really, the reason why this last case breaks is that
+% just as \TeX{} does, we should read ahead as little as possible.
+% Here, the only case where there may be an exponent is if the first
+% token ahead is |e|.  Then we expand (and possibly unpack) the second
+% token --- and hopefully that is safe.
 %
+% \begin{macro}[aux, rEXP]{\fp_parse_exponent:Nw}
+%   This auxiliary is convenient to smuggle some material through
+%   \cs{fi:} ending conditional processing.  We place those \cs{fi:}
+%   (argument |#2|) at a very odd place becase this allows us to insert
+%   \cs{int_eval:w} \ldots{} there if needed.
 %    \begin{macrocode}
-\cs_new:Npn \fp_cfs_exponent_test:w
-    #1 \fi: \fp_aux_expand:w
+\cs_new:Npn \fp_parse_exponent:Nw #1 #2 \fp_parse_expand:w
   {
-    \fi:
-    \fp_cfs_exponent_test:N #1
+    \exp_after:wN ;
+    \int_value:w #2 \fp_parse_exponent:N #1
   }
-\cs_new:Npn \fp_cfs_exponent_test:N #1
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, rEXP]{\fp_parse_exponent:N, \fp_parse_exponent_ii:N}
+%   This function should be called within an \cs{int_value:w} expansion
+%   (or within an integer expression.  It leaves digits of the exponent
+%   behind it in the input stream, and terminates the expansion with a
+%   semicolon.  If there is no \texttt{e}, leave an exponent of $0$.  If
+%   there is an \texttt{e}, expand the next token to run some tests on
+%   it.  Namely, if the character code of |#1| is greater than that of
+%   |9| (largest code valid for an exponent, less than any code valid
+%   for an identifier), there was in fact no exponent; otherwise, we
+%   search for the sign of the exponent.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_exponent:N #1
   {
-    % \if_num:w \tex_uccode:D `e
-    %     = \tex_uccode:D \exp_after:wN ` \token_to_str:N #1 \exp_stop_f:
     \if:w e #1
-      \exp_after:wN \fp_cfs_exponent_test_aux:NN
-      \exp_after:wN #1
-      \tex_romannumeral:D \exp_after:wN \fp_aux_unpack:w
+      \exp_after:wN \fp_parse_exponent_ii:N
+      \tex_romannumeral:D
     \else:
-      \exp_after:wN 0
-      \exp_after:wN \fp_cfs_exponent_end:
-      \exp_after:wN #1
+      0 \fp_parse_return_semicolon:w #1
     \fi:
+    \fp_parse_expand:w
   }
-%    \end{macrocode}
-%   The interested reader is invited to
-%   check that |#2=-| gives the case |0|, |#2=+| gives |2|,
-%   |#2=|digit gives the \cs{else:} branch, and all other case,
-%   including |*| and |/|, and also |(| and |)| (which stop the
-%   \cs{int_eval:w}) go to case |1|.
-%
-%   Anyways, that test should be rewritten. Now that I've put
-%   the expansion, it is ugly. Note that after the signs we
-%   unpack registers, whereas between digits we don't.
-%    \begin{macrocode}
-\cs_new:Npn \fp_cfs_exponent_test_aux:NN #1 #2
+\cs_new:Npn \fp_parse_exponent_ii:N #1
   {
-    \if_case:w \int_eval:w 1 #2 1 \int_eval_end:
-      - \exp_after:wN \fp_cfs_exponent_sign:N
-      \tex_romannumeral:D \exp_after:wN \fp_aux_unpack:w
-    \or:
-      \exp_after:wN 0
-      \exp_after:wN \fp_cfs_exponent_end:
-      \exp_after:wN #1
-      \exp_after:wN #2
-    \or:
-      \exp_after:wN \fp_cfs_exponent_sign:N
-      \tex_romannumeral:D \exp_after:wN \fp_aux_unpack:w
+    \if_num:w \if_catcode:w \tex_relax:D #1
+                \c_zero \else: `#1 \fi: > `9 \exp_stop_f:
+      0 \exp_after:wN ; \exp_after:wN e
     \else:
-      #2
-      \exp_after:wN \fp_cfs_exponent_body:N
-      \tex_romannumeral:D \exp_after:wN \fp_aux_expand:w
+      \exp_after:wN \fp_parse_exponent_sign:N
     \fi:
+    #1
   }
-\cs_new:Npn \fp_cfs_exponent_sign:N #1
-  {
-    \if:w + \if:w - #1 + \fi: #1
-      \exp_after:wN \fp_cfs_exponent_sign:N
-      \tex_romannumeral:D \exp_after:wN \fp_aux_unpack:w
-    \else:
-      \exp_after:wN \fp_cfs_exponent_body:N
-      \exp_after:wN #1
-    \fi:
-  }
-\cs_new:Npn \fp_cfs_exponent_body:N #1
-  {
-    \if_num:w 9 < 1 #1 \exp_stop_f:
-      #1
-      \exp_after:wN \fp_cfs_exponent_body:N
-      \tex_romannumeral:D \exp_after:wN \fp_aux_expand:w
-    \else:
-      \exp_after:wN \fp_cfs_exponent_end: \exp_after:wN #1
-    \fi:
-  }
-\cs_new:Npn \fp_cfs_exponent_end: { ; }
 %    \end{macrocode}
 % \end{macro}
 %
-%
-%
-%
-%
-% \subsubsection{Large mantissa}
-%
-% \begin{macro}{\fp_cfs_large:NwN}
-%   \begin{syntax}
-%     \cs{fp_cfs_large:NwN} \meta{sign} \meta{exp1} |;| \meta{non-zero digit}
-%   \end{syntax}
-%   This function and subsequent \cs{fp_cfs_large_...} functions are
-%   the most convoluted of this submodule. It is called after trimming
-%   leading zeros, if this does not reach a dot yet. Because we are
-%   reading the integer part of the number, digits must be counted.
-%   But at the same time, digits must be stored, and expansion must
-%   continue. We only have one place to store both digits and the
-%   corresponding exponent: upstream. Hence, quite a lot of reshuffling.
-%
+% \begin{macro}[aux, rEXP]{\fp_parse_exponent_sign:N}
+%   Read signs one by one (if there is any).
 %    \begin{macrocode}
-\cs_new:Npn \fp_cfs_large:NwN #1 #2 ; #3
+\cs_new:Npn \fp_parse_exponent_sign:N #1
   {
-    \exp_after:wN \fp_cfs_sanitize:Nw
-    \exp_after:wN #1
-    \int_use:N \int_eval:w #2
-      \exp_after:wN \fp_cfs_large_i:NwwNN
+    \if:w + \if:w - #1 + \fi: \token_to_str:N #1
+      \exp_after:wN \fp_parse_exponent_sign:N
+      \tex_romannumeral:D \exp_after:wN \fp_parse_expand:w
+    \else:
+      \exp_after:wN \fp_parse_exponent_body:N
       \exp_after:wN #1
-      \int_value:w 1 #3
-        \exp_after:wN \fp_aux_grab_digits_vii:N
-        \tex_romannumeral:D \fp_aux_expand:w
+    \fi:
   }
 %    \end{macrocode}
-%   Beyond |#3|, which is the first non-zero digit of the (large)
-%   mantissa (already expanded), we grab seven additional digits.
-%   Afterwards, we add to the exponent the shift corresponding to
-%   how many digits were grabbed, and test whether |#5| is a digit
-%   (the $9$th digit), a dot, or something else.
+% \end{macro}
 %
-%   Then, if |#5| is a digit, it is the $9$th digit of the mantissa,
-%   and we grab six more digits to reach a total of $15$, calling
-%   \cs{fp_cfs_large_ii:NwwNN}.
-%
-%   Otherwise, |#5| may be a dot, in which case we switch to the
-%   functions we used in the \enquote{small} case. Finally, |#5|
-%   may be something else, in which case we just look for an exponent.
+% \begin{macro}[aux, rEXP]{\fp_parse_exponent_body:N}
+%   An exponent can be an explicit integer (most common case), or
+%   various other things (most of which are invalid).
 %    \begin{macrocode}
-\cs_new:Npn \fp_cfs_large_i:NwwNN #1 1 #2, #3; #4 #5
+\cs_new:Npn \fp_parse_exponent_body:N #1
   {
-      + 8 - #4
-      \exp_after:wN \fp_cfs_i_after:NNNNNww
-      \int_use:N \int_eval:w 1 #2
-        \if_num:w 9 < 1 #5 \exp_stop_f:
-          \exp_after:wN \fp_cfs_large_ii:NwwNN
-          \exp_after:wN #1
-          \int_value:w 1 #5
-            \exp_after:wN \fp_aux_grab_digits_vi:N
-            \tex_romannumeral:D
+    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
+      \token_to_str:N #1
+      \exp_after:wN \fp_parse_exponent_digits:N
+      \tex_romannumeral:D
+    \else:
+      \fp_parse_exponent_type_keep:NTF #1
+        { \fp_parse_return_semicolon:w #1 }
+        {
+          \exp_after:wN ;
+          \tex_romannumeral:D
+        }
+    \fi:
+    \fp_parse_expand:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, rEXP]{\fp_parse_exponent_digits:N}
+%   Read digits one by one, and leave them behind in the input stream.
+%   When finding a non-digit, stop, and insert a semicolon.  Note that
+%   we don't check for overflow of the exponent, hence there can be a
+%   TeX error.  It is mostly harmless, except when parsing
+%   |0e9876543210|, which should be a valid representation of $0$, but
+%   is not.
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_exponent_digits:N #1
+  {
+    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
+      \token_to_str:N #1
+      \exp_after:wN \fp_parse_exponent_digits:N
+      \tex_romannumeral:D
+    \else:
+      \fp_parse_return_semicolon:w #1
+    \fi:
+    \fp_parse_expand:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, rEXP]{\fp_parse_exponent_type_keep:NTF}
+%   This is the last building block for parsing exponents.  The argument
+%   |#1| is already fully expanded, and neither |+| nor |-| nor a digit.
+%   It can be:
+%   \begin{itemize}
+%   \item \cs{s_fp}, marking the start of an internal floating point,
+%     invalid here;
+%   \item another control sequence equal to \tn{relax}, probably a bad
+%     variable;
+%   \item a register: in this case we make sure that it is an integer
+%     register, not a dimension;
+%   \item a character other than |+|, |-| or digits, again, an error.
+%   \end{itemize}
+%    \begin{macrocode}
+\prg_new_conditional:Npnn \fp_parse_exponent_type_keep:N #1 { TF }
+  {
+    \if_catcode:w \tex_relax:D #1
+      \if_meaning:w \tex_relax:D #1
+        \if_num:w \pdftex_strcmp:D { \s_fp } { #1 } = \c_zero
+          0 \fp_error:n { Cannot~use~floating~point~after~'e'. }
+          \prg_return_true:
         \else:
-          \if:w . #5
-            \exp_after:wN \fp_cfs_small_i:NwwNN
-            \exp_after:wN #1
-            \int_value:w 1
-              \cs:w
-                fp_aux_grab_digits_
-                \tex_romannumeral:D #4
-                :N \exp_after:wN
-              \cs_end:
-              \tex_romannumeral:D
-          \else:
-            #3
-            \exp_after:wN \fp_cfs_small_i_end:
-            \int_value:w
-              \exp_after:wN \fp_cfs_exponent_test:w
-              \exp_after:wN #5
-          \fi:
+          0 \fp_error:n { Erroneous~variable~#1 used. }
+          \prg_return_false:
         \fi:
-        \fp_aux_expand:w
-  }
-%    \end{macrocode}
-%
-%    \begin{macrocode}
-\cs_new:Npn \fp_cfs_large_ii:NwwNN #1 1 #2, #3; #4 #5
-  {
-      \if_num:w 9 < 1 #5 \exp_stop_f:
-        \exp_after:wN \fp_cfs_ii_after:NNNNNNww
-        \exp_after:wN \c_eight
-        \int_use:N \int_eval:w 1 #2 #5
-          + \exp_after:wN \fp_cfs_large_round:NNNw
-            \exp_after:wN #1
-            \exp_after:wN #5
-            \tex_romannumeral:D
       \else:
-        \exp_after:wN \fp_cfs_ii_after:NNNNNNww
-        \int_use:N \int_eval:w 7 - #4 \exp_after:wN \int_eval_end:
-        \int_use:N \int_eval:w 1 #2
-          \if:w . #5
-            \exp_after:wN \fp_cfs_large_iii:NwwNN
-            \exp_after:wN #1
-            \int_value:w 1
-              \cs:w
-                fp_aux_grab_digits_
-                \tex_romannumeral:D #4
-                :N \exp_after:wN
-              \cs_end:
-              \tex_romannumeral:D
-          \else:
-            #3 0 \exp_after:wN ;
-            \int_value:w
-              \exp_after:wN \fp_cfs_exponent_test:w
-              \exp_after:wN #5
-          \fi:
+        \if_num:w \pdftex_strcmp:D { \int_value:w #1 }
+                  { \tex_the:D #1 } = \c_zero
+          \int_value:w #1
+        \else:
+          0 \fp_error:n { Cannot~use~a~dimension~(#1)~after~'e'. }
+        \fi:
+        \prg_return_false:
       \fi:
-      \fp_aux_expand:w
-  }
-\cs_new:Npn \fp_cfs_large_iii:NwwNN #1 1 #2, #3; #4 #5
-  {
-          #2 #3
-          \if_num:w 9 < 1 #5 \exp_stop_f:
-            #5
-            +
-            \exp_after:wN \fp_cfs_small_round:NNNw
-            \exp_after:wN #1
-            \exp_after:wN #5
-            \tex_romannumeral:D
-          \else:
-            0
-            \exp_after:wN ;
-            \int_value:w
-              \fp_cfs_exponent_test:w #5
-          \fi:
-          \fp_aux_expand:w
+    \else:
+      0 \fp_error:n { Missing~exponent~after~'e'. }
+      \prg_return_true:
+    \fi:
   }
 %    \end{macrocode}
 % \end{macro}
 %
+% ^^A begin[todo]
+% ^^A todo: \fp_sin:Nn should first _set, then \fp_sin:w,
+% ^^A both for speed, and error reporting.
+% ^^A todo: word 'e' == 'invalid syntax', word 'E' == "use 'e' instead"
 %
 % \subsubsection{Beyond 16 digits: rounding}
 %
 % \begin{macro}{\fp_cfs_round_loop:N}
-%   Used both for \cs{fp_cfs_small_round:NNNw} and
-%   \cs{fp_cfs_large_round:NNNw}.
+%   Used both for \cs{fp_parse_small_round:NN} and
+%   \cs{fp_parse_large_round:NN}.
 %   Should appear after a \cs{int_eval:w} |0|. Reads digits one by one,
 %   until reaching a non-digit. Adds |+1| for each digit. If all digits
 %   found are |0|, ends the \cs{int_eval:w} by |;\c_zero|, otherwise
@@ -1298,7 +1607,7 @@
 %    \begin{macrocode}
 \cs_new:Npn \fp_cfs_round_loop:N #1
   {
-    \if_num:w 9 < 1 #1 \exp_stop_f:
+    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
       + \c_one
       \if:w 0 #1
         \exp_after:wN \fp_cfs_round_loop:N
@@ -1308,28 +1617,28 @@
         \tex_romannumeral:D
       \fi:
     \else:
-      \fp_aux_swap_fisuf:w ; \c_zero #1
+      \fp_parse_return_semicolon:w \c_zero #1
     \fi:
-    \fp_aux_expand:w
+    \fp_parse_expand:w
   }
 \cs_new:Npn \fp_cfs_round_up:N #1
   {
-    \if_num:w 9 < 1 #1 \exp_stop_f:
+    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
       + 1
       \exp_after:wN \fp_cfs_round_up:N
       \tex_romannumeral:D
     \else:
-      \fp_aux_swap_fisuf:w ; \c_one #1
+      \fp_parse_return_semicolon:w \c_one #1
     \fi:
-    \fp_aux_expand:w
+    \fp_parse_expand:w
   }
 %    \end{macrocode}
 % \end{macro}
 %
 %
-% \begin{macro}{\fp_cfs_large_round:NNNw}
+% \begin{macro}{\fp_parse_large_round:NN}
 %   \begin{syntax}
-%     \cs{fp_cfs_large_round:NNNw} \meta{sign} \meta{digit} \meta{stuff}
+%     \cs{fp_parse_large_round:NN} \meta{digit} \meta{more digits}
 %   \end{syntax}
 %   \meta{digit} is the digit that we are currently rounding (we only
 %   care whether it is even or odd).
@@ -1338,132 +1647,104 @@
 %   afterwards, and combine it to the number of digits before the decimal
 %   point (which we thus need to keep track of).
 %    \begin{macrocode}
-\cs_new:Npn \fp_cfs_large_round:NNNw #1 #2 #3
+\cs_new:Npn \fp_parse_large_round:NN #1#2
   {
-    \if_num:w 9 < 1 #3 \exp_stop_f:
+    \if_num:w \c_nine < 1 \token_to_str:N #2 \exp_stop_f:
+      +
       \exp_after:wN \fp_aux_round_s:NNNw
+      \exp_after:wN 0
       \exp_after:wN #1
       \exp_after:wN #2
-      \exp_after:wN #3
       \int_use:N \int_eval:w
-        \exp_after:wN \fp_cfs_large_round_after:wNN
-        \int_use:N \int_eval:w 1
+        \exp_after:wN \fp_parse_large_round_after:wNN
+        \int_use:N \int_eval:w \c_one
           \exp_after:wN \fp_cfs_round_loop:N
     \else: %^^A could be dot, or e, or other
-      \exp_after:wN \fp_cfs_large_round_dot_test:NNNw
+      \exp_after:wN \fp_parse_large_round_dot_test:NNw
       \exp_after:wN #1
       \exp_after:wN #2
-      \exp_after:wN #3
     \fi:
   }
-\cs_new:Npn \fp_cfs_large_round_dot_test:NNNw #1 #2 #3
+\cs_new:Npn \fp_parse_large_round_dot_test:NNw #1#2
   {
-    \if:w . #3
-      \exp_after:wN \fp_cfs_small_round:NNNw
+    \if:w . #2
+      \exp_after:wN \fp_parse_small_round:NN
       \exp_after:wN #1
-      \exp_after:wN #2
       \tex_romannumeral:D
     \else:
-      \exp_after:wN \c_zero \exp_after:wN ;
-      \int_value:w
-        \fp_cfs_exponent_test:w #3
+      \fp_parse_exponent:Nw #2
     \fi:
-    \fp_aux_expand:w
+    \fp_parse_expand:w
   }
 %    \end{macrocode}
 %   \begin{syntax}
-%     \cs{fp_cfs_large_round_after:wNN} \meta{exp} |;|
+%     \cs{fp_parse_large_round_after:wNN} \meta{exp} |;|
 %     ~~\meta{0 or 1} \meta{next~token}
 %   \end{syntax}
 %    \begin{macrocode}
-\cs_new:Npn \fp_cfs_large_round_after:wNN #1 ; #2 #3
+\cs_new:Npn \fp_parse_large_round_after:wNN #1 ; #2 #3
   {
     \if:w . #3
-      \exp_after:wN \fp_cfs_large_round_after_ii:wN
+      \exp_after:wN \fp_parse_large_round_after_ii:wN
       \int_use:N \int_eval:w #1 +
-        \c_zero * \int_eval:w
+        \c_zero * \int_eval:w \c_zero
           \exp_after:wN \fp_cfs_round_loop:N
-          \tex_romannumeral:D
+          \tex_romannumeral:D \exp_after:wN \fp_parse_expand:w
     \else:
       + #2
       \exp_after:wN ;
       \int_use:N \int_eval:w #1 +
-        \fp_cfs_exponent_test:w #3
+        \exp_after:wN \fp_parse_exponent:N
+        \exp_after:wN #3
     \fi:
-    \fp_aux_expand:w
   }
-\cs_new:Npn \fp_cfs_large_round_after_ii:wN #1 ; #2
+\cs_new:Npn \fp_parse_large_round_after_ii:wN #1 ; #2
   {
     + #2
     \exp_after:wN ;
     \int_use:N \int_eval:w #1 +
-      \fp_cfs_exponent_test:N
+      \fp_parse_exponent:N
   }
 %    \end{macrocode}
 % \end{macro}
 %
 %
 %
-% \begin{macro}{\fp_cfs_small_round:NNNw}
+% \begin{macro}{\fp_parse_small_round:NN}
 %   \begin{syntax}
-%     \cs{fp_cfs_small_round:NNNw} \meta{sign} \meta{digit} \meta{stuff}
+%     \cs{fp_parse_small_round:NN} \meta{digit} \meta{more digits}
 %   \end{syntax}
 %   \meta{digit} is the digit that we are currently rounding (we only
 %   care whether it is even or odd).
 %
 %   The goal is to get \cs{c_zero} or \cs{c_one}
 %    \begin{macrocode}
-\cs_new:Npn \fp_cfs_small_round:NNNw #1 #2 #3
+\cs_new:Npn \fp_parse_small_round:NN #1#2
   {
-    \if_num:w 9 < 1 #3 \exp_stop_f:
+    \if_num:w \c_nine < 1 \token_to_str:N #2 \exp_stop_f:
+      +
       \exp_after:wN \fp_aux_round_s:NNNw
+      \exp_after:wN 0
       \exp_after:wN #1
       \exp_after:wN #2
-      \exp_after:wN #3
       \int_use:N \int_eval:w
-        \exp_after:wN \fp_cfs_small_round_after:wN
-        \int_use:N \int_eval:w 0
+        \exp_after:wN \fp_parse_small_round_after:wN
+        \int_use:N \int_eval:w \c_zero
           \exp_after:wN \fp_cfs_round_loop:N
           \tex_romannumeral:D
     \else:
-      0 \exp_after:wN ;
-      \int_value:w
-        \fp_cfs_exponent_test:w #3
+      \fp_parse_exponent:Nw #2
     \fi:
-    \fp_aux_expand:w
+    \fp_parse_expand:w
   }
-\cs_new:Npn \fp_cfs_small_round_after:wN #1; #2
+\cs_new:Npn \fp_parse_small_round_after:wN #1; #2
   {
     + #2 \exp_after:wN ;
-    \int_value:w \fp_cfs_exponent_test:N
+    \int_value:w \fp_parse_exponent:N
   }
 %    \end{macrocode}
 % \end{macro}
 %
-%
-% \subsubsection{Just a final check}
-%
-% \begin{macro}{\fp_cfs_sanitize:Nw}
-%   \begin{syntax}
-%     \cs{fp_cfs_sanitize:Nw} \meta{sign} \meta{exp} |;|
-%     ~~\Arg{4~digits} \Arg{4~digits} \Arg{4~digits} \Arg{4~digits} |;|
-%   \end{syntax}
-%   check overflow
-%    \begin{macrocode}
-\cs_new:Npn \fp_cfs_sanitize:Nw #1 #2 ;
-  {
-    \if_num:w #2 > \c_fp_max_exponent_int
-      \exp_after:wN \fp_aux_overflow:w
-    \else:
-      \if_num:w #2 < - \c_fp_max_exponent_int
-        \exp_after:wN \exp_after:wN
-        \exp_after:wN \fp_aux_underflow:w
-      \fi:
-    \fi:
-    \s_fp \fp_use:w 1 #1 {#2}
-  }
-%    \end{macrocode}
-% \end{macro}
 %
 % \subsection{Main functions}
 %
@@ -1479,7 +1760,7 @@
     \exp_after:wN \fp_parse_after:ww
     \tex_romannumeral:D -`0
     \fp_parse_uo:Nw \c_minus_one
-    \fp_aux_expand:w
+    \fp_parse_expand:w
   }
 \cs_new:Npn \fp_parse_after:ww #1; #2#3 \s_fp_stop
   {
@@ -1487,7 +1768,6 @@
       \exp_after:wN \fp_parse_after_error:ww
       \token_to_str:N #2 #3 \s_fp_mark \s_fp_stop
     \fi:
-    %^^A todo: check that #2 is \fp_parse_infix_end:N
     \c_zero
     #1;
   }
@@ -1496,17 +1776,77 @@
     \cs_new:Npn \exp_not:N \fp_parse_after_error:ww
       ##1 \tl_to_str:n { fp_parse_infix_ } ##2 \tl_to_str:n { :N }
       ##3 \s_fp_mark ##4 \s_fp_stop
-      {
-        \exp_not:N \msg_expandable_error:n
-          { Extra~'##2##3'~in~fp~expression. }
-      }
+      { \exp_not:N \fp_error:n { Extra~'##2##3'~in~fp~expression. } }
   }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\fp_parse_operand_after:NwN}
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_operand_after:NwN #1
+  {
+    \fp_aux_exp_after_fp_do:nw
+      { \tex_romannumeral:D -`0 \fp_parse_operand_after_aux:NN #1 }
+  }
+\group_begin:
+  \char_set_catcode_letter:N \*
+  \cs_new:Npn \fp_parse_operand_after_aux:NN #1 #2
+    {
+      \if_catcode:w \tex_relax:D #2
+        \if_num:w \pdftex_strcmp:D { \s_fp_mark }
+                  { #2 } = \c_zero
+          \exp_after:wN \exp_after:wN
+          \exp_after:wN \fp_parse_infix_end:N
+        \else:
+          \exp_after:wN \exp_after:wN
+          \exp_after:wN \fp_parse_infix_*:N
+        \fi:
+      \else:
+        \if_num:w \int_eval:w \tex_uccode:D `#2 / \c_twenty_six = \c_three
+          \exp_after:wN \exp_after:wN
+          \exp_after:wN \fp_parse_infix_*:N
+        \else:
+          \exp_after:wN \fp_parse_operand_after_check:NNN
+          \cs:w
+            fp_parse_infix_#2:N
+            \exp_after:wN \exp_after:wN \exp_after:wN
+          \cs_end:
+        \fi:
+      \fi:
+      #1
+      #2
+    }
+  \cs_new:Npn \fp_parse_operand_after_check:NNN #1#2#3
+    {
+      \if_meaning:w \tex_relax:D #1
+        \msg_expandable_error:n { Missing~*~inserted. }
+        \exp_after:wN \fp_parse_infix_*:N
+        \exp_after:wN #2
+        \exp_after:wN #3
+      \else:
+        \exp_after:wN #1
+        \exp_after:wN #2
+        \tex_romannumeral:D \exp_after:wN \fp_parse_expand:w
+      \fi:
+    }
+\group_end:
+\cs_new:Npn \fp_parse_infix_end:N #1
+  { \c_true_bool \fp_parse_infix_end:N }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP,aux]{\fp_parse_operand_after_unary:NNwN}
+%   Here, |#2| is \emph{e.g.}, \cs{fp_neg:w}, and expands once
+%   after the calculation.\footnote{Bruno: explain.}
+%    \begin{macrocode}
+\cs_new:Npn \fp_parse_operand_after_unary:NNwN #1 #2 #3; #4
+  { #2 #3; \tex_romannumeral:D -`0 #4 #1 }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\fp_parse_uo:Nw}
 %   This is just a shorthand which sets up both \cs{fp_parse_until}
-%   and \cs{fp_parse_one} with the same precedence. Note the
+%   and \cs{fp_parse_operand} with the same precedence. Note the
 %   trailing \cs{tex_romannumeral:D}. This function should be
 %   used with much care.
 %    \begin{macrocode}
@@ -1515,7 +1855,7 @@
     \exp_after:wN \fp_parse_until:NwN
     \exp_after:wN #1
     \tex_romannumeral:D -`0
-    \exp_after:wN \fp_parse_one:Nw
+    \exp_after:wN \fp_parse_operand:Nw
     \exp_after:wN #1
     \tex_romannumeral:D
   }
@@ -1564,242 +1904,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsection{Parsing one number}
-%
-% \begin{macro}{\fp_parse_one:Nw}
-%   Function called \cs{one} at other places. It grabs one
-%   fp number, and packs what follows in an \cs{infix_} function.
-%
-%   |#1| is the previous \meta{prec}. Since we fully expanded,
-%   and only registers and characters are allowed in expressions,
-%   |#2| can be
-%   \begin{itemize}
-%   \item \cs{tex_relax:D} in some form. That can be an internal floating
-%     point, a premature end, or an unitialized register. In an
-%     \cs{int_eval:n}, we would get \enquote{missing number, treated as $0$}.
-%   \item A register. To be unpacked. But note that \cs{c_minus_one} is
-%     not equivalent to $-\cs{c_one}$.\footnote{Bruno: elaborate.}
-%   \item A digit, or a dot. That's the start of a number.
-%   \item A letter, which starts a \enquote{prefix} word, either
-%     constant or function (possibly unknown).
-%   \item A sign: in that case we grab all following signs, and turn
-%     them into a single \cs{prefix_+} or \cs{prefix_-} for efficiency.
-%   \item A left parenthesis.
-%   \item Any other character is an error.\footnote{Bruno: rephrase that,
-%       since really, it could be extended.}
-%   \end{itemize}
-%   The two first cases are separated out by an \cs{if_catcode:w} check,
-%   digits are also singled out, and then we use the \cs{grab_letters}
-%   facility.
-%    \begin{macrocode}
-\cs_new:Npn \fp_parse_one:Nw #1 #2
-  {
-    \if_catcode:w \tex_relax:D #2
-      \if_meaning:w \tex_relax:D #2
-        \exp_after:wN \exp_after:wN
-        \exp_after:wN \fp_parse_one_relax:NN
-      \else:
-        \exp_after:wN \exp_after:wN
-        \exp_after:wN \fp_parse_one_register:NN
-      \fi:
-    \else:
-      \if_num:w 9<1#2 \exp_stop_f:
-        \exp_after:wN \exp_after:wN
-        \exp_after:wN \fp_parse_one_digit:NN
-      \else:
-        \exp_after:wN \exp_after:wN
-        \exp_after:wN \fp_parse_one_other:NN
-      \fi:
-    \fi:
-    #1 #2
-  }
-\cs_new:Npn \fp_parse_one_relax:NN #1
-  {
-    \exp_after:wN \fp_parse_sign_after:NNwn
-    \exp_after:wN #1
-    \int_use:N \int_eval:w 1 - \fp_cfs_lead_relax:N
-  }
-\cs_new:Npn \fp_parse_one_register:NN #1
-  { \exp_after:wN \fp_parse_one:Nw \exp_after:wN #1 \tex_the:D }
-\cs_new:Npn \fp_parse_one_digit:NN #1
-  {
-    \exp_after:wN \fp_parse_sign_after:NNwn
-    \exp_after:wN #1
-    \exp_after:wN 0
-    \exp_after:wN E
-      \int_use:N \int_eval:w \c_zero \fp_cfs_trim_loop:N
-  }
-\group_begin:
-  \char_set_catcode_letter:N \*
-  \cs_new:Npn \fp_parse_one_after:NwN #1 #2; #3
-    {
-      \fp_aux_exp_after_fp:wN #2;
-      \tex_romannumeral:D -`0
-      \if_catcode:w \tex_relax:D #3
-        \if_meaning:w \tex_relax:D #3
-          \exp_after:wN \fp_parse_infix_end:N
-          \exp_after:wN #1
-          \tex_romannumeral:D
-        \else:
-          \exp_after:wN \fp_parse_infix_*:N
-          \exp_after:wN #1
-          \exp_after:wN #3
-          \tex_romannumeral:D
-        \fi:
-      \else:
-        \if_num:w \int_eval:w \tex_uccode:D `#3 / \c_twenty_six = \c_three
-          \exp_after:wN \fp_parse_infix_*:N
-          \exp_after:wN #1
-          \exp_after:wN #3
-          \tex_romannumeral:D
-        \else:
-          \exp_after:wN \fp_parse_one_after_check:NNN
-          \exp_after:wN #3
-          \cs:w fp_parse_infix_#3:N \exp_after:wN \cs_end:
-          \exp_after:wN #1 \tex_romannumeral:D
-        \fi:
-      \fi:
-      \fp_aux_expand:w %^^A todo: also unpack?
-    }
-  \cs_new:Npn \fp_parse_one_after_check:NNN #1#2#3
-    {
-      \if_meaning:w \tex_relax:D #2
-        \msg_expandable_error:n { Missing~*~inserted. }
-        \exp_after:wN \fp_parse_infix_*:N
-        \exp_after:wN #3
-        \exp_after:wN #1
-      \else:
-        \exp_after:wN #2
-        \exp_after:wN #3
-      \fi:
-    }
-\group_end:
-\cs_new:Npn \fp_parse_infix_end:N #1
-  { \c_true_bool \fp_parse_infix_end:N }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[EXP,aux]{\fp_parse_one_after_unary:NNwN}
-%   Here, |#2| is \emph{e.g.}, \cs{fp_neg:w}, and expands once
-%   after the calculation.\footnote{Bruno: explain.}
-%    \begin{macrocode}
-\cs_new:Npn \fp_parse_one_after_unary:NNwN #1 #2 #3; #4
-  { #2 #3; \tex_romannumeral:D -`0 #4 #1 }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\fp_parse_one_other:NN}
-%   The interesting bit is \cs{fp_parse_one_other:NN}. It separates
-%   letters from non-letters and builds the appropriate \cs{prefix}
-%   function. If it is not defined (is \cs{tex_relax:D}), make it
-%   a signalling \texttt{nan}. We don't look for an argument, as the
-%   unknown \enquote{prefix} can also be a (mistyped) constant such
-%   as \texttt{Inf}.
-%    \begin{macrocode}
-\cs_new:Npn \fp_parse_one_other:NN #1 #2
-  {
-    \if_num:w \int_eval:w \tex_uccode:D `#2 / \c_twenty_six = \c_three
-      \exp_after:wN \fp_parse_one_other_word_aux:Nw
-      \exp_after:wN #1
-      \tex_romannumeral:D
-        \exp_after:wN \fp_aux_grab_letters:NN
-        \exp_after:wN #2
-        \tex_romannumeral:D
-      % \cs:w fp_parse_word_ #2
-      %   \exp_after:wN \fp_aux_grab_letters:N \tex_romannumeral:D
-    \else:
-      \exp_after:wN \fp_parse_one_other_prefix_aux:NNN
-      \exp_after:wN #1
-      \exp_after:wN #2
-      \cs:w fp_parse_prefix_#2:Nw \exp_after:wN \cs_end:
-      \tex_romannumeral:D
-    \fi:
-    \fp_aux_expand:w
-  }
-
-\cs_new:Npn \fp_aux_grab_letters:NN #1#2
-  {
-    \exp_after:wN \c_zero
-    \exp_after:wN #1
-    \tex_romannumeral:D
-      \if_num:w
-          \if_catcode:w \tex_relax:D #2
-            \c_zero
-          \else:
-            \int_eval:w \tex_uccode:D `#2 / \c_twenty_six
-          \fi:
-          = \c_three
-        \exp_after:wN \fp_aux_grab_letters:NN
-        \exp_after:wN #2
-        \tex_romannumeral:D
-        \exp_after:wN \fp_aux_expand:w
-      \else:
-        \exp_after:wN \c_zero
-        \exp_after:wN ;
-        \exp_after:wN #2
-      \fi:
-  }
-\cs_new:Npn \fp_parse_one_other_word_aux:Nw #1 #2;
-  {
-    \cs_if_exist_use:cTF { fp_parse_word_#2:N } {#1}
-      {
-        \msg_expandable_error:n { Unknown~word~#2. }
-        \fp_parse_one_other_nan:NN \s_fp_unknown #1
-      }
-  }
-\cs_new_eq:NN \s_fp_unknown \tex_relax:D
-\cs_new:Npn \fp_parse_one_other_prefix_aux:NNN #1#2#3
-  {
-    \if_meaning:w \tex_relax:D #3
-      \cs_if_exist:cTF { fp_parse_infix_#2:N }
-        {
-          \exp_after:wN \fp_parse_one_other_nan:NN
-          \exp_after:wN #3
-          \exp_after:wN #1
-          \tex_romannumeral:D \exp_after:wN #2 % "Missing number" error
-        }
-        {
-          \msg_expandable_error:n { Unknown~symbol~#2~ignored. }
-          \exp_after:wN \fp_parse_one:Nw
-          \exp_after:wN #1
-        }
-    \else:
-      \exp_after:wN #3
-      \exp_after:wN #1
-    \fi:
-  }
-\cs_new:Npn \fp_parse_one_other_nan:NN #1 #2
-  { \fp_parse_one_after:NwN #2 \s_fp \fp_use:w 3 1 #1 ; }
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% \subsubsection{Signs}
-%
-% \begin{macro}{\fp_parse_sign_after:NNwn}
-%   \begin{syntax}
-%     \cs{fp_parse_sign_after:NNwn} \meta{prec} \meta{sign} E \meta{exp1} |;| \meta{function}
-%   \end{syntax}
-%   Puts \meta{function} back in front. This function will be
-%   \begin{itemize}
-%   \item \cs{fp_cfs_premature_end:w} when the sign is
-%     immediately followed by the end of the number (gives a \texttt{snan}).
-%   \item \cs{fp_cfs_internal:w} when parsing an internal floating point,
-%   \item \cs{fp_cfs_zero:Nw} when parsing a zero,
-%   \item \cs{fp_cfs_small:NwN} when the mantissa is less than $1$,
-%   \item \cs{fp_cfs_large:NwN} when the mantissa is greater than $1$.
-%   \end{itemize}
-%   Sometimes it is a brace group, not a function.
-%   \footnote{Bruno: the \texttt{E} is useless here.}
-%    \begin{macrocode}
-\cs_new:Npn \fp_parse_sign_after:NNwn #1#2 E #3 ; #4
-  {
-    \exp_after:wN \fp_parse_one_after:NwN
-    \exp_after:wN #1
-    \tex_romannumeral:D -`0 #4 #2 #3 ;
-  }
-%    \end{macrocode}
-% \end{macro}
 %
 % \subsection{Prefix operators}
 %
@@ -1821,12 +1925,12 @@
   {
     \cs_new:cpn { fp_parse_word_#1:N } ##1
       {
-        \exp_after:wN \fp_parse_one_after:NwN
+        \exp_after:wN \fp_parse_operand_after:NwN
         \exp_after:wN ##1 #2
       }
   }
 \fp_tmp:w { inf } \c_inf_fp
-\fp_tmp:w { nan } \c_empty_qnan_fp
+\fp_tmp:w { nan } \c_nan_fp
 \fp_tmp:w { pi  } \c_pi_fp
 \fp_tmp:w { deg } \c_one_degree_fp
 \fp_tmp:w { true } \c_one_fp
@@ -1836,7 +1940,7 @@
   {
     \cs_new:cpn { fp_parse_word_#1:N } ##1
       {
-        \exp_after:wN \fp_parse_one_after:NwN
+        \exp_after:wN \fp_parse_operand_after:NwN
         \exp_after:wN ##1
         \tex_romannumeral:D -`0 \dim_to_fp:n { 1 #1 }
       }
@@ -1861,12 +1965,12 @@
   {
     \cs_new:Npn #1 ##1
       {
-        \exp_after:wN \fp_parse_one_after_unary:NNwN
+        \exp_after:wN \fp_parse_operand_after_unary:NNwN
         \exp_after:wN ##1
         \exp_after:wN #2
         \tex_romannumeral:D -`0
         \fp_parse_uo:Nw \c_sixteen
-        \fp_aux_expand:w
+        \fp_parse_expand:w
       }
   }
 \fp_tmp:w \fp_parse_word_abs:N \fp_abs:w
@@ -1885,7 +1989,7 @@
 % \begin{macro}[EXP, aux]{\fp_parse_prefix_+:Nw}
 %   A unary |+| does nothing.
 %    \begin{macrocode}
-\cs_new_eq:cN { fp_parse_prefix_+:Nw } \fp_parse_one:Nw
+\cs_new_eq:cN { fp_parse_prefix_+:Nw } \fp_parse_operand:Nw
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1897,7 +2001,7 @@
   {
     \cs_new:cpn { fp_parse_prefix_#1:Nw } ##1
       {
-        \exp_after:wN \fp_parse_one_after_unary:NNwN
+        \exp_after:wN \fp_parse_operand_after_unary:NNwN
         \exp_after:wN ##1
         \exp_after:wN #2
         \tex_romannumeral:D -`0
@@ -1906,7 +2010,7 @@
         \else:
           \fp_parse_uo:Nw \c_twelve
         \fi:
-        \fp_aux_expand:w
+        \fp_parse_expand:w
       }
   }
 \fp_tmp:w - \fp_neg:w
@@ -1917,8 +2021,6 @@
 % \subsubsection{Other prefixes}
 %
 % \begin{macro}{\fp_parse_prefix_(:Nw}
-%   This really ought to have a correct argument spec,
-%   but it is technically complicated.
 %    \begin{macrocode}
 \group_begin:
   \char_set_catcode_letter:N \)
@@ -1928,7 +2030,7 @@
       \exp_after:wN #1
       \tex_romannumeral:D -`0
       \fp_parse_uo:Nw \c_minus_one
-      \fp_aux_expand:w
+      \fp_parse_expand:w
     }
   \cs_new:Npn \fp_parse_lparen_after:NwN #1 #2; #3
     {
@@ -1938,7 +2040,7 @@
         \tex_romannumeral:D \int_eval:w ( 0 \int_eval_end: % trigger error
         \exp_after:wN \use:nn
       \fi:
-      { \fp_parse_one_after:NwN #1 #2; }
+      { \fp_parse_operand_after:NwN #1 #2; }
       \s_fp_mark %^^A todo: this fp_mark is wrong! #3 fails too.
     }
 \group_end:
@@ -1950,12 +2052,11 @@
 %    \begin{macrocode}
 \cs_new:cpn {fp_parse_prefix_.:Nw} #1
   {
-    \exp_after:wN \fp_parse_sign_after:NNwn
+    \exp_after:wN \fp_parse_operand_after:NwN
     \exp_after:wN #1
-    \exp_after:wN 0
-    \exp_after:wN E
-      \int_use:N \int_eval:w \c_zero
-      \fp_cfs_strim_loop:N
+    \tex_romannumeral:D -`0
+      \exp_after:wN \fp_aux_sanitize:wN
+      \int_use:N \int_eval:w \c_zero \fp_parse_strim_zeros:N
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1976,7 +2077,7 @@
           \exp_after:wN #2
           \tex_romannumeral:D -`0
           \fp_parse_uo:Nw #3
-          \exp_after:wN \fp_aux_expand:w
+          \exp_after:wN \fp_parse_expand:w
         \else:
           \exp_after:wN \c_true_bool
           \exp_after:wN #1
@@ -2032,7 +2133,7 @@
         \exp_after:wN \fp_pow:ww
         \tex_romannumeral:D -`0
         \fp_parse_uo:Nw \c_fourteen
-        \exp_after:wN \fp_aux_expand:w
+        \exp_after:wN \fp_parse_expand:w
       \fi:
     }
 \group_end:
@@ -2051,7 +2152,7 @@
       \if:w | #2
         \exp_after:wN \fp_parse_infix_|:N
         \exp_after:wN #1
-        \tex_romannumeral:D \exp_after:wN \fp_aux_expand:w
+        \tex_romannumeral:D \exp_after:wN \fp_parse_expand:w
       \else:
         \exp_after:wN \fp_parse_infix_or:N
         \exp_after:wN #1
@@ -2063,7 +2164,7 @@
       \if:w & #2
         \exp_after:wN \fp_parse_infix_&:N
         \exp_after:wN #1
-        \tex_romannumeral:D \exp_after:wN \fp_aux_expand:w
+        \tex_romannumeral:D \exp_after:wN \fp_parse_expand:w
       \else:
         \exp_after:wN \fp_parse_infix_and:N
         \exp_after:wN #1
@@ -2109,7 +2210,7 @@
 \cs_new:cpn { fp_parse_infix_!:N } #1
   {
     \exp_after:wN \fp_parse_infix_excl_aux:NN
-    \exp_after:wN #1 \tex_romannumeral:D \fp_aux_expand:w
+    \exp_after:wN #1 \tex_romannumeral:D \fp_parse_expand:w
   }
 \cs_new:Npn \fp_parse_infix_excl_aux:NN #1#2
   {
@@ -2161,7 +2262,7 @@
     \exp_after:wN #3
     \exp_after:wN #4
     \exp_after:wN #5
-    \tex_romannumeral:D \exp_after:wN \fp_aux_expand:w
+    \tex_romannumeral:D \exp_after:wN \fp_parse_expand:w
   }
 \cs_new:Npn \fp_parse_compare_end:NNNN #1#2#3#4#5 \fi:
   {
@@ -2173,7 +2274,7 @@
     \exp_after:wN #3
     \exp_after:wN #4
     \tex_romannumeral:D -`0
-    \fp_parse_uo:Nw \c_seven \fp_aux_expand:w #5
+    \fp_parse_uo:Nw \c_seven \fp_parse_expand:w #5
   }
 \cs_new:Npn \fp_compare:wNNNNw #1; #2#3#4#5 #6;
   {
@@ -2202,7 +2303,7 @@
         \exp_after:wN \fp_ternary_i:ww
         \tex_romannumeral:D -`0
         \fp_parse_uo:Nw \c_three
-        \exp_after:wN \fp_aux_expand:w
+        \exp_after:wN \fp_parse_expand:w
       \else:
         \exp_after:wN \c_true_bool
         \exp_after:wN \fp_parse_infix_?:N
@@ -2216,7 +2317,7 @@
         \exp_after:wN \fp_ternary_default:ww
         \tex_romannumeral:D -`0
         \fp_parse_uo:Nw \c_two
-        \exp_after:wN \fp_aux_expand:w
+        \exp_after:wN \fp_parse_expand:w
       \else:
         \exp_after:wN \c_true_bool
         \exp_after:wN \fp_parse_infix_::N

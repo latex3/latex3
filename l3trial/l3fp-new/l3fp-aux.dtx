@@ -166,10 +166,7 @@
 % \end{variable}
 %
 % \begin{variable}
-%   {
-%     \c_zero_fp, \c_minus_zero, \c_inf_fp, \c_minus_inf_fp,
-%     \c_empty_qnan_fp, \c_empty_snan_fp
-%   }
+%   {\c_zero_fp, \c_minus_zero, \c_inf_fp, \c_minus_inf_fp, \c_nan_fp}
 % \begin{macro}[int]{\fp_info:}
 %   The special floating points. All of them have the form
 %   \begin{quote}
@@ -181,14 +178,17 @@
 %   so we let them to \cs{tex_relax:D}. This will happen automatically
 %   for info messages created with a csname expansion.
 %    \begin{macrocode}
-\tl_const:Nn \c_zero_fp          { \s_fp \fp_use:w 0 0 \fp_info:  ; }
-\tl_const:Nn \c_minus_zero_fp    { \s_fp \fp_use:w 0 2 \fp_info:  ; }
-\tl_const:Nn \c_inf_fp           { \s_fp \fp_use:w 2 0 \fp_info:  ; }
-\tl_const:Nn \c_minus_inf_fp     { \s_fp \fp_use:w 2 2 \fp_info:  ; }
-\tl_const:Nn \c_empty_qnan_fp    { \s_fp \fp_use:w 3 1 \fp_info:  ; }
-\tl_const:Nn \c_empty_snan_fp    { \s_fp \fp_use:w 3 1 \fp_info:  ; }
+\tl_const:Nn \c_zero_fp       { \s_fp \fp_use:w 0 0 \s_fp_exact ; }
+\tl_const:Nn \c_minus_zero_fp { \s_fp \fp_use:w 0 2 \s_fp_exact ; }
+\tl_const:Nn \c_inf_fp        { \s_fp \fp_use:w 2 0 \s_fp_exact ; }
+\tl_const:Nn \c_minus_inf_fp  { \s_fp \fp_use:w 2 2 \s_fp_exact ; }
+\tl_const:Nn \c_nan_fp        { \s_fp \fp_use:w 3 1 \s_fp_exact ; }
 \cs_new_eq:NN \fp_info:  \tex_relax:D
-\cs_new_eq:NN \s_fp_invalid_operation \tex_relax:D
+\scan_new:N \s_fp_invalid
+\scan_new:N \s_fp_underflow
+\scan_new:N \s_fp_overflow
+\scan_new:N \s_fp_division
+\scan_new:N \s_fp_exact
 %    \end{macrocode}
 % \end{macro}
 % \end{variable}
@@ -251,6 +251,37 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[int, EXP]{\fp_aux_sanitize:Nw, \fp_aux_sanitize:wN}
+%   Expects the sign and the exponent in some order, then the
+%   significand (which we don't touch).  Outputs the corresponding
+%   floating point number, possibly underflowed to $\pm 0$ or overflowed
+%   to $\pm\infty$.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_sanitize:Nw #1 #2;
+  {
+    \if_case:w \if_num:w #2 > \c_fp_max_exponent_int \c_one \else:
+               \if_num:w #2 < - \c_fp_max_exponent_int \c_two \else:
+               \if_meaning:w 1 #1 \c_three \else: \c_zero \fi: \fi: \fi:
+    \or: \exp_after:wN \fp_aux_overflow:w
+    \or: \exp_after:wN \fp_aux_underflow:w
+    \or: \exp_after:wN \fp_aux_exact_zero:w
+    \fi:
+    \s_fp \fp_use:w 1 #1 {#2}
+  }
+\cs_new:Npn \fp_aux_sanitize:wN #1; #2
+  {
+    \if_case:w \if_num:w #1 > \c_fp_max_exponent_int \c_one \else:
+               \if_num:w #1 < - \c_fp_max_exponent_int \c_two \else:
+               \if_meaning:w 1 #2 \c_three \else: \c_zero \fi: \fi: \fi:
+    \or: \exp_after:wN \fp_aux_overflow:w
+    \or: \exp_after:wN \fp_aux_underflow:w
+    \or: \exp_after:wN \fp_aux_exact_zero:w
+    \fi:
+    \s_fp \fp_use:w 1 #2 {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Expanding after a floating point number}
 %
 % \begin{macro}[int, EXP]{\fp_aux_exp_after_fp:wN}
@@ -264,35 +295,46 @@
 \cs_new:Npn \fp_aux_exp_after_fp:wN \s_fp \fp_use:w #1
   {
     \if:w 1 #1
-      \exp_after:wN \fp_aux_exp_after_normal:NNnnnnn
+      \exp_after:wN \fp_aux_exp_after_normal:nNNw
     \else:
-      \exp_after:wN \fp_aux_exp_after_special:NNN
+      \exp_after:wN \fp_aux_exp_after_special:nNNw
     \fi:
+    { }
+    #1
+  }
+\cs_new:Npn \fp_aux_exp_after_fp_do:nw #1 \s_fp \fp_use:w #2
+  {
+    \if_meaning:w 1 #2
+      \exp_after:wN \fp_aux_exp_after_normal:nNNw
+    \else:
+      \exp_after:wN \fp_aux_exp_after_special:nNNw
+    \fi:
+    { #1 }
+    #2
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\fp_aux_exp_after_special:nNNw}
+%   \begin{syntax}
+%     \cs{fp_aux_exp_after_special:nNNw} \Arg{after} \meta{case} \meta{sign} \meta{info} |;|
+%   \end{syntax}
+%   Special floating point numbers are easy to jump over.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_exp_after_special:nNNw #1#2#3#4;
+  {
+    \exp_after:wN \s_fp
+    \exp_after:wN \fp_use:w
+    \exp_after:wN #2
+    \exp_after:wN #3
+    \exp_after:wN #4
+    \exp_after:wN ;
     #1
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux, EXP]{\fp_aux_exp_after_special:NNN}
-%   \begin{syntax}
-%     \cs{fp_aux_exp_after_special:NNN} \meta{case} \meta{sign} \meta{info} |;|
-%   \end{syntax}
-%   Special floating point numbers are easy to jump over.
-%   We don't grab the trailing |;| since we would put it back anyways.
-%    \begin{macrocode}
-\cs_new:Npn \fp_aux_exp_after_special:NNN #1 #2 #3
-  {
-    \exp_after:wN \s_fp
-    \exp_after:wN \fp_use:w
-    \exp_after:wN #1
-    \exp_after:wN #2
-    \exp_after:wN #3
-    \exp_after:wN
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux, EXP]{\fp_aux_exp_after_normal:NNnnnnn}
+% \begin{macro}[aux, EXP]{\fp_aux_exp_after_normal:nNNw}
 %   For normal floating point numbers, life is slightly harder,
 %   since we have many tokens to jump over. Here it would be better
 %   if the digits were not braced but instead were delimited
@@ -300,15 +342,15 @@
 %   cope with, and I'm refusing to recode some parts right now
 %   to make this optimization possible.
 %    \begin{macrocode}
-\cs_new:Npn \fp_aux_exp_after_normal:NNnnnnn 1 #1 #2 #3#4#5#6
+\cs_new:Npn \fp_aux_exp_after_normal:nNNw #1 1 #2 #3 #4#5#6#7;
   {
     \exp_after:wN \fp_aux_exp_after_normal_ii:Nwwwww
-    \exp_after:wN #1
-    \int_value:w #2   \exp_after:wN ;
-    \int_value:w 1 #3 \exp_after:wN ;
+    \exp_after:wN #2
+    \int_value:w #3   \exp_after:wN ;
     \int_value:w 1 #4 \exp_after:wN ;
     \int_value:w 1 #5 \exp_after:wN ;
-    \int_value:w 1 #6 \exp_after:wN
+    \int_value:w 1 #6 \exp_after:wN ;
+    \int_value:w 1 #7 \exp_after:wN ; #1
   }
 \cs_new:Npn \fp_aux_exp_after_normal_ii:Nwwwww
     #1 #2; 1 #3 ; 1 #4 ; 1 #5 ; 1 #6 ;
@@ -484,67 +526,30 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \subsubsection{Errors}
 %
-% \subsubsection{Grabbing digits}
-%
-% Those functions are used in \pkg{l3fp-convert}.
-% ^^A todo: thus move those to l3fp-convert.sty?
-%
-% \begin{macro}[int, EXP]
-%   {
-%     \fp_aux_grab_digits_ix:N,
-%     \fp_aux_grab_digits_viii:N,
-%     \fp_aux_grab_digits_vii:N,
-%     \fp_aux_grab_digits_vi:N,
-%     \fp_aux_grab_digits_v:N,
-%     \fp_aux_grab_digits_iv:N,
-%     \fp_aux_grab_digits_iii:N,
-%     \fp_aux_grab_digits_ii:N,
-%     \fp_aux_grab_digits_i:N
-%   }
-%   \footnote{Bruno: describe why it is done like that.}
-%   \footnote{Explain that the following token is fully expanded,
-%     even after the last function. Also say that the first token
-%     must come fully expanded.}
-%   The function \cs{fp_aux_grab_digits_<int>:N} must be triggered by
-%   a \cs{int_value:w} expansion. It reads characters which follow,
-%   and outputs digits on the left, until meeting a non-digit, or
-%   up to a maximum of |<int>| digits. The expansion is
-%   \begin{quote}
-%     \meta{digits} |,| \meta{filling 0} |;|
-%   \end{quote}
-%   Here, \meta{filling 0} is a string of zeros such that
-%   \meta{digits} \meta{filling 0} has the length given by the
-%   index of the function. Thus, \meta{filling 0} is empty if no
-%   more digits were to be found, and can have up to $9$ zeros.
+% \begin{macro}[int, EXP]{\fp_error:n, \fp_error:x}
+%   The argument is fully expanded in a way similar to \texttt{x}-type
+%   expansion, but braced groups are simply copied, \cs{exp_not:n} does
+%   not work, spaces are ignored unless braced.  The result of that
+%   weird (but useful) expansion is fed to \cs{msg_expandable_error:n}.
 %    \begin{macrocode}
-\cs_new:Npn \fp_aux_grab_digits_end:w
-    #1 \fi: \fp_aux_expand:w { \fi: #1 }
-%    \end{macrocode}
-%   The other functions are defined through a common \cs{fp_aux_cs:w}.
-%    \begin{macrocode}
-\cs_set_protected_nopar:Npn \fp_aux_cs:w #1 #2 #3
+\cs_new_eq:NN \fp_error:n \msg_expandable_error:n
+\cs_new:Npn \fp_error:x #1
   {
-    \cs_new:cpn { fp_aux_grab_digits_ #1 :N } ##1
+    \exp_args:Nf \msg_expandable_error:n
       {
-        \if_num:w 9 < 1 ##1 \exp_stop_f:
-          ##1 \exp_after:wN #2 \tex_romannumeral:D
-        \else:
-          \fp_aux_grab_digits_end:w #3 ##1
-        \fi:
-        \fp_aux_expand:w
+        \fp_error_loop:nwnN { \exp_stop_f: } #1 \prg_do_nothing:
+        \s_fp_mark { } \fp_error_loop:nwnN \s_fp_mark { } \fp_error_end:nw
       }
   }
-\fp_aux_cs:w {ix}   \fp_aux_grab_digits_viii:N { , 000000000 ; 9}
-\fp_aux_cs:w {viii} \fp_aux_grab_digits_vii:N  { , 00000000 ; 8}
-\fp_aux_cs:w {vii}  \fp_aux_grab_digits_vi:N   { , 0000000 ; 7}
-\fp_aux_cs:w {vi}   \fp_aux_grab_digits_v:N    { , 000000 ; 6}
-\fp_aux_cs:w {v}    \fp_aux_grab_digits_iv:N   { , 00000 ; 5}
-\fp_aux_cs:w {iv}   \fp_aux_grab_digits_iii:N  { , 0000 ; 4}
-\fp_aux_cs:w {iii}  \fp_aux_grab_digits_ii:N   { , 000 ; 3}
-\fp_aux_cs:w {ii}   \fp_aux_grab_digits_i:N    { , 00 ; 2}
-\fp_aux_cs:w {i}    \fp_aux_grab_digits_:N     { , 0 ; 1}
-\cs_new_nopar:Npn \fp_aux_grab_digits_:N { , ; 0 }
+\cs_new:Npn \fp_error_end:nw #1#2 \fp_error_end:nw { #1 }
+\cs_new:Npn \fp_error_loop:nwnN #1#2 \s_fp_mark #3 #4
+  {
+    \exp_after:wN #4 \tex_romannumeral:D -`0
+    #2
+    \s_fp_mark { #3 #1 } #4
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -564,15 +569,10 @@
 \cs_new:Npn \fp_aux_case_invalid:nnw #1#2#3\fi: #4 \s_fp #5 ;
   {
     \fi:
-    \exp_args:Nf \msg_expandable_error:n
-      {
-        \exp_args:Nffff \use:nnnn
-          { Invalid~operation~ } { #1 } { \fp_to_tl:w \s_fp #5; } { #2 }
-      }
+    \fp_error:x { Invalid{~}operation{~}#1 \fp_to_tl:w \s_fp #5; #2 }
     \exp_after:wN \fp_aux_qnan_fp:N
-    \exp_after:wN \s_fp_invalid_operation
+    \exp_after:wN \s_fp_invalid
   }
-\cs_generate_internal_variant:n { ffff }
 \cs_new:Npn \fp_aux_case_return_same:w #1\fi: #2 \s_fp
   { \fi: \fp_aux_exp_after_fp:wN \s_fp }
 \cs_new:Npn \fp_aux_case_return_fp:Nw #1#2\fi: #3;
@@ -591,75 +591,6 @@
 \cs_new:Npn \fp_aux_pack_twice_four:wNNNNNNNN #1; #2#3#4#5 #6#7#8#9
   { #1 {#2#3#4#5} {#6#7#8#9} ; }
 %    \end{macrocode}
-%
-% \subsubsection{Expansion control}
-%
-% Two types of expansion are used a lot in the fp modules: simple
-% f-expansion, and unpacking f-expansion.
-%
-% \begin{macro}[rEXP, int]{\fp_aux_expand:w}
-%   \begin{syntax}
-%     \cs{tex_romannumeral:D} \cs{fp_aux_expand:w} \meta{tokens}
-%   \end{syntax}
-%   Ensures that \meta{tokens} are space- and brace-stripped, and expanded.
-%    \begin{macrocode}
-\cs_new:Npn \fp_aux_expand:w #1 { -`0 #1 }
-%    \end{macrocode}
-% \end{macro}
-%
-%
-% At some steps in parsing, we wish to have a stronger kind of expansion,
-% which ignores spaces, and unpacks registers. It is not possible in
-% general to provide that expansion. However, in our limited cases, it is
-% possible, because only characters are allowed in floating point numbers
-% or expressions. Registers can then be recognized as the only tokens
-% other than characters which can remain after f-expansion. Thus, we can
-% simply f-expand, then test if what follows is a character. If it is not,
-% we tell \TeX{} to unpack what is coming, using the primitive
-% \cs{tex_the:D}.
-%
-% \begin{macro}[rEXP, int]{\fp_aux_unpack:w}
-% \begin{macro}[EXP, aux]{\fp_aux_unpack_test:N}
-%   \begin{syntax}
-%     \cs{tex_romannumeral:D} \cs{fp_aux_unpack:w} \meta{tokens}
-%   \end{syntax}
-%   Ensures that \meta{tokens} are space- and brace-stripped,
-%   f-expanded, and unpacked in the case of non-\cs{tex_relax:D}
-%   registers.
-%
-%   Hitting the two tokens \cs{tex_romannumeral:D} \cs{fp_aux_unpack:w}
-%   with one expansion step causes a full \texttt{f}-expansion of what
-%   follows, and unpacking of registers.
-%
-%   \begin{texnote}
-%     \cs{fp_aux_unpack:w} takes one argument in order to remove
-%     any leading space (and to some extend braces). It is still possible
-%     to make the expansion fail by putting things like |{ \macro}| in the
-%     input stream (note the space before |\macro|, which stops the expansion
-%     of |\tex_romannumeral:D -`0|).
-%   \end{texnote}
-%
-%   It would be possible to recursively f-expand (useful in rare cases
-%   for toks, but those are not used in \LaTeX3).
-%    \begin{macrocode}
-\cs_new:Npn \fp_aux_unpack:w #1
-  {
-    -`0
-    \exp_after:wN \fp_aux_unpack_test:N
-    \tex_romannumeral:D -`0 #1
-  }
-\cs_new:Npn \fp_aux_unpack_test:N #1
-  {
-    \if_catcode:w \scan_stop: #1
-      \reverse_if:N \if_meaning:w \scan_stop: #1
-        \tex_the:D
-      \fi:
-    \fi:
-    #1
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
 %
 %
 % \subsubsection{Rounding}
@@ -927,12 +858,6 @@
 % \end{macro}
 %
 % \subsubsection{Misc}
-%
-% \begin{macro}{\fp_aux_swap_fisuf:w}
-%    \begin{macrocode}
-\cs_new:Npn \fp_aux_swap_fisuf:w #1 \fi: \fp_aux_expand:w { \fi: #1 }
-%    \end{macrocode}
-% \end{macro}
 %
 % \begin{macro}{\fp_aux_do_nothing:}
 %   Same as \cs{prg_do_nothing:}, but protected. This is inserted
