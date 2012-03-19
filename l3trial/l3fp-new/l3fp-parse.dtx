@@ -66,8 +66,10 @@
 % \maketitle
 % \tableofcontents
 %
-%^^A To typeset the examples of expansion control, I'm using a hand-made
-%^^A environment.
+% ^^A begin[todo]
+%
+% ^^A To typeset the examples of expansion control, I'm using a hand-made
+% ^^A environment.
 % \newcommand{\fpOperation}[1]
 %   {\textcolor[rgb]{.6,.2,.2}{\ttfamily#1}}
 % \newcommand{\fpPrecedence}[1]
@@ -88,12 +90,13 @@
 %
 % \section{Precedences}
 %
-% In order of evaluation.
+% In order of evaluation (some distinctions are irrelevant for the order
+% of evaluation, but serve as signals).
 % \begin{itemize}
-% \item[16] Function calls.
+% \item[16] Function calls with multiple arguments.
+% \item[15] Function calls expecting exactly one argument.
 % \item[14] Binary |**| and |^| (right to left).
 % \item[12] Unary |+|, |-|, |!| (right to left).
-% %   ^^A really not sure about that story.
 % \item[10] Binary |*|, |/| and |%|.
 % \item[9] Binary |+| and |-|.
 % \item[7] Comparisons.
@@ -101,7 +104,8 @@
 % \item[4] Logical \texttt{or}, denoted by \verb*+||+.
 % \item[3] Ternary operator |?:|, piece |?|.
 % \item[2] Ternary operator |?:|, piece |:|.
-% \item[0] Parentheses.
+% \item[1] Commas, and parentheses accepting commas.
+% \item[0] Parentheses expecting exactly one argument.
 % \item[-1] Start and end of the expression.
 % \end{itemize}
 %
@@ -298,7 +302,7 @@
 %   \cs{until} \meta{prec} \meta{floating point} \newline
 %   \texttt{...} \meta{floating point 2} |;| \cs{infix_?}
 % \end{quote}
-% The dots are \cs{fp_parse_map_binary:NwNwN} \cs{fp_mul:ww}. The boolean
+% The dots are \cs{fp_parse_apply_binary:NwNwN} |*|.  The boolean
 % tells \cs{until} that it is not done, and it expands
 % (essentially) to
 % \begin{quote}
@@ -653,7 +657,7 @@
 %   Reads the \meta{tokens}, performing every computation with a
 %   precedence higher than \meta{precedence}, then expands to
 %   \begin{syntax}
-%     \meta{fpa} \cs{fp_parse_infix_\meta{op}:N} \ldots{}
+%     \meta{objects} |@| \cs{fp_parse_infix_\meta{operation}:N} \ldots{}
 %   \end{syntax}
 %   where the \meta{op} is the first operation with a lower precedence,
 %   possibly \texttt{end}.
@@ -663,31 +667,32 @@
 %   \begin{syntax}
 %     \cs{fp_parse_operand:Nw} \meta{precedence} \ldots{}
 %   \end{syntax}
-%   If the following \meta{op} has a precedence higher than
+%   If the following \meta{operation} has a precedence higher than
 %   \meta{precedence}, expands to
 %   \begin{syntax}
-%     \meta{fpa_1} \cs{fp_parse_map_binary:NwNwN} \cs{fp_\meta{op}:ww} \meta{fpa_2} \cs{fp_parse_infix_\meta{op_2}:N} \ldots{}
+%     \meta{object_1} |@| \cs{fp_parse_apply_binary:NwNwN} \meta{operation} \meta{object_2} |@| \cs{fp_parse_infix_\meta{operation_2}:N} \ldots{}
 %   \end{syntax}
 %   and otherwise expands to
 %   \begin{syntax}
-%     \meta{fpa} \cs{fp_parse_stop_until:N} \cs{fp_parse_infix_\meta{op}:N} \ldots{}
+%     \meta{object} |@| \cs{fp_parse_stop_until:N} \cs{fp_parse_infix_\meta{operation}:N} \ldots{}
 %   \end{syntax}
 % \end{function}
 %
 % \begin{function}[EXP]{\fp_parse_infix_:N}
 %   \begin{syntax}
-%     \cs{fp_parse_infix_\meta{op}:N} \meta{precedence}
+%     \cs{fp_parse_infix_\meta{operation}:N} \meta{precedence}
 %   \end{syntax}
 %   If the \meta{op} has a precedence higher than \meta{precedence}, expands to
 %   \begin{syntax}
-%     |@| \cs{fp_parse_map_binary:NwNwN} \cs{fp_\meta{op}:ww} \meta{fpa} \cs{fp_parse_infix_\meta{op_2}:N}
+%     |@| \cs{fp_parse_apply_binary:NwNwN} \meta{operation} \meta{object} |@| \cs{fp_parse_infix_\meta{operation_2}:N}
 %   \end{syntax}
 %   Otherwise expands to
 %   \begin{syntax}
-%     |@| \cs{fp_parse_stop_until:N} \cs{fp_parse_infix_\meta{op}:N}
+%     |@| \cs{fp_parse_stop_until:N} \cs{fp_parse_infix_\meta{operation}:N}
 %   \end{syntax}
 % \end{function}
 %
+% ^^A end[todo]
 % \end{documentation}
 %
 % \begin{implementation}
@@ -700,35 +705,39 @@
 %
 % \subsection{Expansion control}
 %
-% ^^A todo: I think we should in fact never use the _unpack function,
-% ^^A because of cases like "\c_minus_one e\c_ten".
+% At each step in reading a floating point expression, we wish to
+% perform \texttt{f}-expansion.  Normally, spaces stop this
+% \texttt{f}-expansion.  This can be problematic: for instance, the
+% macro |\X| below will not be expanded if we simply do
+% \texttt{f}-expansion.
+% \begin{verbatim}
+%   \DeclareDocumentCommand {\test} {m} { \fp_eval:n {#1} }
+%   \ExplSyntaxOff
+%   \test { 1 + \X }
+% \end{verbatim}
+% To avoid this problem, at every step, we do essentially what
+% \cs{use:f} would do: take an argument, put it back in the input
+% stream, then \texttt{f}-expand it.  This is not a complete solution,
+% since a macro's expansion could contain leading spaces which will stop
+% the \texttt{f}-expansion before further macro calls are performed.
+% However, in practice it should be enough: in particular, floating
+% point numbers will correctly be expanded to the underlying \cs{s_fp}
+% \ldots{} structure.
 %
-% Two types of expansion are used within floating point expressions:
-% \texttt{f}-type expansion, and \enquote{unpacking} expansion, which we
-% will denote in this module by \texttt{u}-expansion.  Those expansions
-% may fail in weird cases such as when a macro's expansion contains
-% leading spaces which will stop the \texttt{f}-expansion before further
-% macro calls are performed.  For instance, inserting \cs{c_space_tl}
-% \cs{c_space_tl} in a floating point expression will break the parsing.
-% It would be possible to recursively \texttt{f}-expand to counter this
-% effect, but this would slow things down too much: remember that
-% \cs{fp_parse_expand:w} is called for every character in the floating
-% point expression.
-%
-% \begin{macro}[rEXP, int]{\fp_parse_expand:w}
+% \begin{macro}[rEXP, aux]{\fp_parse_expand:w}
 %   \begin{syntax}
 %     \cs{tex_romannumeral:D} \cs{fp_parse_expand:w} \meta{tokens}
 %   \end{syntax}
-%   In most places, we simply want to fully expand macro calls.  To
-%   prevent spaces from stopping the expansion, \cs{fp_parse_expand:w}
-%   takes an argument.  This ensures that the \meta{tokens} are space-
-%   and brace-stripped before an \texttt{f}-expansion.
+%   This function must always come within a \tn{romannumeral} expansion.
+%   The \meta{tokens} should be the part of the expression that we have
+%   not yet read.  This requires in particular closing all conditionals
+%   properly before expanding.
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse_expand:w #1 { -`0 #1 }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux, EXP]{\fp_parse_return_semicolon:w}
+% \begin{macro}[EXP, aux]{\fp_parse_return_semicolon:w}
 %   This very odd function swaps its position with the following
 %   \cs{fi:} and removes \cs{fp_parse_expand:w} normally responsible for
 %   expansion.  That turns out to be useful.
@@ -740,10 +749,8 @@
 %
 % \subsection{Reading digits}
 %
-% \begin{macro}[aux, rEXP]
+% \begin{macro}[rEXP, aux]
 %   {
-%     \fp_parse_digits_ix:N   , %^^A todo: is that one used?
-%     \fp_parse_digits_viii:N ,
 %     \fp_parse_digits_vii:N  ,
 %     \fp_parse_digits_vi:N   ,
 %     \fp_parse_digits_v:N    ,
@@ -773,7 +780,7 @@
   {
     \cs_new:cpn { fp_parse_digits_ #1 :N } ##1
       {
-        \if_num:w \c_nine < 1 \token_to_str:N ##1 \exp_stop_f:
+        \if_int_compare:w \c_nine < 1 \token_to_str:N ##1 \exp_stop_f:
           \token_to_str:N ##1 \exp_after:wN #2 \tex_romannumeral:D
         \else:
           \fp_parse_return_semicolon:w #3 ##1
@@ -781,8 +788,6 @@
         \fp_parse_expand:w
       }
   }
-\fp_tmp:w {ix}   \fp_parse_digits_viii:N { 000000000 ; 9 }
-\fp_tmp:w {viii} \fp_parse_digits_vii:N  { 00000000 ; 8 }
 \fp_tmp:w {vii}  \fp_parse_digits_vi:N   { 0000000 ; 7 }
 \fp_tmp:w {vi}   \fp_parse_digits_v:N    { 000000 ; 6 }
 \fp_tmp:w {v}    \fp_parse_digits_iv:N   { 00000 ; 5 }
@@ -827,8 +832,7 @@
 % single out digits.  Letters are detected using their character code.
 % All other characters are taken care of by building a csname from that
 % character and using it to continue parsing.  Unknown characters lead
-% to an appropriate \enquote{Missing number, treated as zero} error from
-% \TeX{}.
+% to an error.
 %
 % \begin{macro}[int, EXP]{\fp_parse_operand:Nw}
 %   Function called \cs{one} at other places. It grabs one operand, and
@@ -847,7 +851,7 @@
         \exp_after:wN \fp_parse_operand_register:NN
       \fi:
     \else:
-      \if_num:w \c_nine < 1 \token_to_str:N #2 \exp_stop_f:
+      \if_int_compare:w \c_nine < 1 \token_to_str:N #2 \exp_stop_f:
         \exp_after:wN \exp_after:wN
         \exp_after:wN \fp_parse_operand_digit:NN
       \else:
@@ -940,7 +944,8 @@
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse_operand_other:NN #1 #2
   {
-    \if_num:w \int_eval:w \tex_uccode:D `#2 / \c_twenty_six = \c_three
+    \if_int_compare:w
+        \int_eval:w \tex_uccode:D `#2 / \c_twenty_six = \c_three
       \exp_after:wN \fp_parse_operand_other_word_aux:Nw
       \exp_after:wN #1
       \tex_romannumeral:D
@@ -962,7 +967,7 @@
     \exp_after:wN \c_zero
     \exp_after:wN #1
     \tex_romannumeral:D
-      \if_num:w
+      \if_int_compare:w
           \if_catcode:w \tex_relax:D #2
             \c_zero
           \else:
@@ -1119,7 +1124,7 @@
   {
       \fi:
     \fi:
-    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
+    \if_int_compare:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
       \exp_after:wN \fp_parse_large:N
     \else:
       \exp_after:wN \fp_parse_zero:
@@ -1151,7 +1156,7 @@
 \cs_new:Npn \fp_parse_strim_end:w #1 \fi: \fp_parse_expand:w
   {
     \fi:
-    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
+    \if_int_compare:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
       \exp_after:wN \fp_parse_small:N
     \else:
       \exp_after:wN \fp_parse_zero:
@@ -1224,7 +1229,7 @@
     \exp_after:wN \fp_parse_pack_trailing:NNNNNNww
     \exp_after:wN \c_zero
     \int_use:N \int_eval:w 1
-      \if_num:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
+      \if_int_compare:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
         \token_to_str:N #4
         \exp_after:wN \fp_parse_small_trailing:wwNN
         \int_value:w 1
@@ -1252,7 +1257,7 @@
 \cs_new:Npn \fp_parse_small_trailing:wwNN 1 #1 ; #2; #3 #4
   {
     #1 #2
-    \if_num:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
+    \if_int_compare:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
       \token_to_str:N #4
       \exp_after:wN \fp_parse_small_round:NN
       \exp_after:wN #4
@@ -1347,7 +1352,7 @@
     + \c_eight - #3
     \exp_after:wN \fp_parse_pack_leading:NNNNNww
     \int_use:N \int_eval:w 1 #1
-      \if_num:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
+      \if_int_compare:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
         \exp_after:wN \fp_parse_large_trailing:wwNN
         \int_value:w 1 \token_to_str:N #4
           \exp_after:wN \fp_parse_digits_vi:N
@@ -1395,7 +1400,7 @@
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse_large_trailing:wwNN 1 #1 ; #2; #3 #4
   {
-    \if_num:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
+    \if_int_compare:w \c_nine < 1 \token_to_str:N #4 \exp_stop_f:
       \exp_after:wN \fp_parse_pack_trailing:NNNNNNww
       \exp_after:wN \c_eight
       \int_use:N \int_eval:w 1 #1 \token_to_str:N #4
@@ -1491,7 +1496,7 @@
   }
 \cs_new:Npn \fp_parse_exponent_ii:N #1
   {
-    \if_num:w \if_catcode:w \tex_relax:D #1
+    \if_int_compare:w \if_catcode:w \tex_relax:D #1
                 \c_zero \else: `#1 \fi: > `9 \exp_stop_f:
       0 \exp_after:wN ; \exp_after:wN e
     \else:
@@ -1524,12 +1529,12 @@
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse_exponent_body:N #1
   {
-    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
+    \if_int_compare:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
       \token_to_str:N #1
       \exp_after:wN \fp_parse_exponent_digits:N
       \tex_romannumeral:D
     \else:
-      \fp_parse_exponent_type_keep:NTF #1
+      \fp_parse_exponent_keep:NTF #1
         { \fp_parse_return_semicolon:w #1 }
         {
           \exp_after:wN ;
@@ -1551,7 +1556,7 @@
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse_exponent_digits:N #1
   {
-    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
+    \if_int_compare:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
       \token_to_str:N #1
       \exp_after:wN \fp_parse_exponent_digits:N
       \tex_romannumeral:D
@@ -1563,7 +1568,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux, rEXP]{\fp_parse_exponent_type_keep:NTF}
+% \begin{macro}[aux, rEXP]{\fp_parse_exponent_keep:NTF}
 %   This is the last building block for parsing exponents.  The argument
 %   |#1| is already fully expanded, and neither |+| nor |-| nor a digit.
 %   It can be:
@@ -1577,11 +1582,11 @@
 %   \item a character other than |+|, |-| or digits, again, an error.
 %   \end{itemize}
 %    \begin{macrocode}
-\prg_new_conditional:Npnn \fp_parse_exponent_type_keep:N #1 { TF }
+\prg_new_conditional:Npnn \fp_parse_exponent_keep:N #1 { TF }
   {
     \if_catcode:w \tex_relax:D #1
       \if_meaning:w \tex_relax:D #1
-        \if_num:w \pdftex_strcmp:D { \s_fp } { #1 } = \c_zero
+        \if_int_compare:w \pdftex_strcmp:D { \s_fp } { #1 } = \c_zero
           0 \fp_error:n { Cannot~use~floating~point~after~'e'. }
           \prg_return_true:
         \else:
@@ -1589,8 +1594,9 @@
           \prg_return_false:
         \fi:
       \else:
-        \if_num:w \pdftex_strcmp:D { \int_value:w #1 }
-                  { \tex_the:D #1 } = \c_zero
+        \if_int_compare:w
+            \pdftex_strcmp:D { \int_value:w #1 } { \tex_the:D #1 }
+            = \c_zero
           \int_value:w #1
         \else:
           0 \fp_error:n { Cannot~use~a~dimension~(#1)~after~'e'. }
@@ -1624,7 +1630,7 @@
 %    \begin{macrocode}
 \cs_new:Npn \fp_cfs_round_loop:N #1
   {
-    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
+    \if_int_compare:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
       + \c_one
       \if:w 0 #1
         \exp_after:wN \fp_cfs_round_loop:N
@@ -1640,7 +1646,7 @@
   }
 \cs_new:Npn \fp_cfs_round_up:N #1
   {
-    \if_num:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
+    \if_int_compare:w \c_nine < 1 \token_to_str:N #1 \exp_stop_f:
       + 1
       \exp_after:wN \fp_cfs_round_up:N
       \tex_romannumeral:D
@@ -1666,7 +1672,7 @@
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse_large_round:NN #1#2
   {
-    \if_num:w \c_nine < 1 \token_to_str:N #2 \exp_stop_f:
+    \if_int_compare:w \c_nine < 1 \token_to_str:N #2 \exp_stop_f:
       +
       \exp_after:wN \fp_aux_round_s:NNNw
       \exp_after:wN 0
@@ -1738,7 +1744,7 @@
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse_small_round:NN #1#2
   {
-    \if_num:w \c_nine < 1 \token_to_str:N #2 \exp_stop_f:
+    \if_int_compare:w \c_nine < 1 \token_to_str:N #2 \exp_stop_f:
       +
       \exp_after:wN \fp_aux_round_s:NNNw
       \exp_after:wN 0
@@ -1786,21 +1792,14 @@
 \cs_new:Npn \fp_parse_after:ww #1@ #2 \s_fp_stop
   {
 %<assert>    \assert_str_eq:nn { #2 } { \fp_parse_infix_end:N \s_fp_mark }
-    \if_case:w \fp_array_count:w #1@ \exp_stop_f:
-      \fp_error:n { Expression~results~in~empty~array. }
-    \or:
-    \else:
-      \fp_error:n { Expression~results~in~several~floating~points. }
-    \fi:
-    \fp_parse_after_first:w #1 \s_fp \fp_use:w 3 1 \s_fp_exact ; @
+    \c_zero #1
   }
-\cs_new:Npn \fp_parse_after_first:w #1; #2@ { \c_zero #1; }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
 % \begin{macro}[int, EXP]{\fp_parse_until:Nw}
-% \begin{macro}[aux, EXP]{\fp_parse_until_test:NwN, \fp_parse_map_binary:NwNwN}
+% \begin{macro}[aux, EXP]{\fp_parse_until_test:NwN}
 %   The \cs{fp_parse_until}
 %   This is just a shorthand which sets up both \cs{fp_parse_until_test}
 %   and \cs{fp_parse_operand} with the same precedence. Note the
@@ -1868,8 +1867,9 @@
   \cs_new:Npn \fp_parse_infix:NN #1 #2
     {
       \if_catcode:w \tex_relax:D #2
-        \if_num:w \pdftex_strcmp:D { \s_fp_mark }
-                  { #2 } = \c_zero
+        \if_int_compare:w
+            \pdftex_strcmp:D { \s_fp_mark } { #2 }
+            = \c_zero
           \exp_after:wN \exp_after:wN
           \exp_after:wN \fp_parse_infix_end:N
         \else:
@@ -1877,7 +1877,9 @@
           \exp_after:wN \fp_parse_infix_*:N
         \fi:
       \else:
-        \if_num:w \int_eval:w \tex_uccode:D `#2 / \c_twenty_six = \c_three
+        \if_int_compare:w
+            \int_eval:w \tex_uccode:D `#2 / \c_twenty_six
+            = \c_three
           \exp_after:wN \exp_after:wN
           \exp_after:wN \fp_parse_infix_*:N
         \else:
@@ -1908,46 +1910,24 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int, EXP]
-%   {\fp_parse_apply_binary_array:NwNwN, \fp_parse_map_binary:NwNwN}
-% \begin{macro}[aux, EXP]{\fp_parse_map_binary_loop:NNwwNw}
+% \begin{macro}[int, EXP]{\fp_parse_apply_binary:NwNwN}
 %
 %    \begin{macrocode}
-\cs_new:Npn \fp_parse_apply_binary_array:NwNwN #1#2@#3#4@#5
+\cs_new:Npn \fp_parse_apply_binary:NwNwN #1 #2#3@ #4 #5#6@ #7
   {
     \exp_after:wN \fp_parse_until_test:NwN
     \exp_after:wN #1
     \tex_romannumeral:D -`0
-    #3 #2@ #4@
-    \tex_romannumeral:D -`0 #5 #1
-  }
-\cs_new:Npn \fp_parse_map_binary:NwNwN #1 #2@ #3 #4@ #5
-  {
-    \exp_after:wN \fp_parse_until_test:NwN
-    \exp_after:wN #1
-    \tex_romannumeral:D -`0
-    \fp_parse_map_binary_loop:NNwwNw #3
-      #2 { ? \prg_map_break: } ; @
-      #4 { ? \prg_map_break: } ; @
-    \prg_break_point:n { }
-    #5 #1
-  }
-\cs_new:Npn \fp_parse_map_binary_loop:NNwwNw #1 #2#3;#4@ #5#6;
-  {
-    \use_none:n #2 %^^A todo: add same-length check
-    \use_none:n #5
-    #1 #2#3; #5#6;
-    \tex_romannumeral:D -`0
-      \fp_parse_map_binary_loop:NNwwNw #1 #4@
+      \cs:w \fp_aux_type:N #2 _ \fp_aux_type:N #5 _ #4:ww \cs_end:
+      #2#3 #5#6
+    \tex_romannumeral:D -`0 #7 #1
   }
 %    \end{macrocode}
 % \end{macro}
-% \end{macro}
 %
 % \begin{macro}[int, EXP]
-%   {\fp_parse_apply_unary_array:NNwN, \fp_parse_map_unary:NNwN}
-% \begin{macro}[aux, EXP]{\fp_parse_map_unary_loop:NNw}
-%   Here, |#2| is \emph{e.g.}, \cs{fp_neg:w}, and expands once after the
+%   {\fp_parse_apply_unary_array:NNwN, \fp_parse_apply_unary:NNwN}
+%   Here, |#2| is \emph{e.g.}, \cs{fp_neg_fp:w}, and expands once after the
 %   calculation.\footnote{Bruno: explain.}  The argument |#3| may be an
 %   array, so either we map through all its items, or we feed all items
 %   at once to the custom function.
@@ -1957,20 +1937,14 @@
     #2 #3 @
     \tex_romannumeral:D -`0 #4 #1
   }
-\cs_new:Npn \fp_parse_map_unary:NNwN #1#2#3@#4
+\cs_new:Npn \fp_parse_apply_unary:NNwN #1#2#3@#4
   {
-    \fp_parse_map_unary_loop:NNw #2
-    #3 { ? \prg_map_break: } ; \prg_break_point:n { }
-    #4 #1
+    #2 #3
+    \tex_romannumeral:D -`0 #4 #1
   }
-\cs_new:Npn \fp_parse_map_unary_loop:NNw #1#2#3;
-  {
-    \use_none:n #2
-    #1#2#3; \tex_romannumeral:D -`0
-    \fp_parse_map_unary_loop:NNw #1
-  }
+\cs_new:Npn \fp_parse_unary_type:N #1
+  { \fp_aux_type:N #1 :w \cs_end: #1 }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \subsection{Prefix operators}
@@ -2030,25 +2004,18 @@
 %   Unary functions, which are applied to all of their arguments when
 %   receiving an array.
 %    \begin{macrocode}
-\cs_set_protected:Npn \fp_tmp:w #1#2
+\tl_map_inline:nn { {abs} {cos} {cot} {exp} {ln} {sin} {tan} }
   {
-    \cs_new:Npn #1 ##1
+    \cs_new:cpn { fp_parse_word_#1:N } ##1
       {
-        \exp_after:wN \fp_parse_map_unary:NNwN
+        \exp_after:wN \fp_parse_apply_unary:NNwN
         \exp_after:wN ##1
-        \exp_after:wN #2
+        \cs:w fp_#1_ \exp_after:wN \fp_parse_unary_type:N
         \tex_romannumeral:D
-        \fp_parse_until:Nw \c_sixteen
+        \fp_parse_until:Nw \c_fifteen
         \fp_parse_expand:w
       }
   }
-\fp_tmp:w \fp_parse_word_abs:N \fp_abs:w
-\fp_tmp:w \fp_parse_word_cos:N \fp_cos:w
-\fp_tmp:w \fp_parse_word_cot:N \fp_cot:w
-\fp_tmp:w \fp_parse_word_exp:N \fp_exp:w
-\fp_tmp:w \fp_parse_word_ln:N  \fp_ln:w
-\fp_tmp:w \fp_parse_word_sin:N \fp_sin:w
-\fp_tmp:w \fp_parse_word_tan:N \fp_tan:w
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2133,11 +2100,13 @@
   {
     \cs_new:cpn { fp_parse_prefix_#1:Nw } ##1
       {
-        \exp_after:wN \fp_parse_map_unary:NNwN
+        \exp_after:wN \fp_parse_apply_unary:NNwN
         \exp_after:wN ##1
-        \exp_after:wN #2
+        \cs:w
+          fp_#2_
+          \exp_after:wN \fp_parse_unary_type:N
         \tex_romannumeral:D
-        \if_num:w \c_twelve < ##1
+        \if_int_compare:w \c_twelve < ##1
           \fp_parse_until:Nw ##1
         \else:
           \fp_parse_until:Nw \c_twelve
@@ -2145,8 +2114,8 @@
         \fp_parse_expand:w
       }
   }
-\fp_tmp:w - \fp_neg:w
-\fp_tmp:w ! \fp_not:w
+\fp_tmp:w - { neg }
+\fp_tmp:w ! { not }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2158,29 +2127,31 @@
   \char_set_catcode_letter:N \)
   \cs_new:cpn { fp_parse_prefix_(:Nw } #1
     {
-      \exp_after:wN \fp_parse_matching:NNNwN
-      \exp_after:wN \fp_parse_infix_):N
-      \exp_after:wN )
+      \exp_after:wN \fp_parse_lparen_after:NwN
       \exp_after:wN #1
       \tex_romannumeral:D
-      \fp_parse_until:Nw \c_zero
+      \if_int_compare:w #1 = \c_sixteen
+        \fp_parse_until:Nw \c_one
+      \else:
+        \fp_parse_until:Nw \c_zero
+      \fi:
       \fp_parse_expand:w
     }
+  \cs_new:Npn \fp_parse_lparen_after:NwN #1#2@#3
+    {
+      \token_if_eq_meaning:NNTF #3 \fp_parse_infix_):N
+        {
+          \fp_parse_exp_after_array:wf #2 \s_fp_stop
+          \exp_after:wN \fp_parse_infix:NN
+          \exp_after:wN #1
+          \tex_romannumeral:D \fp_parse_expand:w
+        }
+        {
+          \fp_error:n { Missing~')'~inserted. }
+          #2 @ \fp_parse_stop_until:N #3
+        }
+    }
 \group_end:
-\cs_new:Npn \fp_parse_matching:NNNwN #1#2#3#4@#5
-  {
-    \fp_parse_exp_after_array:wf #4 @
-    \if_meaning:w #1 #5
-      \exp_after:wN \fp_parse_infix:NN
-      \exp_after:wN #3
-      \tex_romannumeral:D \exp_after:wN \fp_parse_expand:w
-    \else:
-      \fp_error:n { Missing~'#2'~inserted. }
-      \exp_after:wN @
-      \exp_after:wN \fp_parse_stop_until:N
-      \exp_after:wN #5
-    \fi:
-  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2188,11 +2159,11 @@
 %    \begin{macrocode}
 \cs_new:Npn \fp_parse_exp_after_array:wf #1
   {
-    \if_meaning:w @ #1 \exp_after:wN \use_none:nnn \fi:
-    \fp_aux_exp_after_fp_do:nw
-      { \tex_romannumeral:D -`0 \fp_parse_exp_after_array:wf }
+    \cs:w \fp_aux_type:N #1 _exp_after_do:nwf \cs_end:
+      { \fp_parse_exp_after_array:wf }
     #1
   }
+\cs_new:Npn \fp_stop_exp_after_do:nwf #1#2 { }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2217,16 +2188,16 @@
 %   precedence, given as arguments to \cs{fp_tmp:w}.  The
 %   latter two are only needed when defining the \cs{infix} function.
 %    \begin{macrocode}
-\cs_set_protected:Npn \fp_tmp:w #1#2#3
+\cs_set_protected:Npn \fp_tmp:w #1#2#3#4
   {
     \cs_new:Npn #1 ##1
       {
-        \if_num:w ##1 < #3
+        \if_int_compare:w ##1 < #3
           \exp_after:wN @
-          \exp_after:wN \fp_parse_map_binary:NwNwN
+          \exp_after:wN \fp_parse_apply_binary:NwNwN
           \exp_after:wN #2
           \tex_romannumeral:D
-          \fp_parse_until:Nw #3
+          \fp_parse_until:Nw #4
           \exp_after:wN \fp_parse_expand:w
         \else:
           \exp_after:wN @
@@ -2241,15 +2212,19 @@
 %   {
 %     \fp_parse_infix_+:N, \fp_parse_infix_-:N,
 %     \fp_parse_infix_/:N, \fp_parse_infix_mul:N,
+%     \fp_parse_infix_and:N, \fp_parse_infix_or:N,
 %   }
 %   Using the general mechanism for arithmetic operations.
 %    \begin{macrocode}
-\exp_args:Nc \fp_tmp:w { fp_parse_infix_ / :N } \fp_div:ww \c_ten
-\exp_args:Nc \fp_tmp:w { fp_parse_infix_mul:N } \fp_mul:ww \c_ten
-\exp_args:Nc \fp_tmp:w { fp_parse_infix_ - :N } \fp_sub:ww \c_nine
-\exp_args:Nc \fp_tmp:w { fp_parse_infix_ + :N } \fp_add:ww \c_nine
-\exp_args:Nc \fp_tmp:w { fp_parse_infix_and:N } \fp_and:ww \c_five
-\exp_args:Nc \fp_tmp:w { fp_parse_infix_ or:N } \fp_or:ww  \c_four
+\group_begin:
+  \char_set_catcode_other:N \&
+  \exp_args:Nc \fp_tmp:w { fp_parse_infix_ / :N } / \c_ten \c_ten
+  \exp_args:Nc \fp_tmp:w { fp_parse_infix_mul:N } * \c_ten \c_ten
+  \exp_args:Nc \fp_tmp:w { fp_parse_infix_ - :N } - \c_nine \c_nine
+  \exp_args:Nc \fp_tmp:w { fp_parse_infix_ + :N } + \c_nine \c_nine
+  \exp_args:Nc \fp_tmp:w { fp_parse_infix_and:N } & \c_five \c_five
+  \exp_args:Nc \fp_tmp:w { fp_parse_infix_ or:N } | \c_four \c_four
+\group_end:
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2257,13 +2232,13 @@
 % \begin{macro}[int, EXP]+\fp_parse_infix_^:N+
 %   The power operation must be associative in the opposite order from
 %   all others.  For this, we reverse the test, hence treating a
-%   \enquote{previous precedence} of \cs{c_thirteen} as less binding
+%   \enquote{previous precedence} of \cs{c_fourteen} as less binding
 %   than |^|.
 %    \begin{macrocode}
 \group_begin:
-  \char_set_catcode_letter:N *
   \char_set_catcode_letter:N ^
-  \cs_new:Npn \fp_parse_infix_*:N #1#2
+  \fp_tmp:w \fp_parse_infix_^:N ^ \c_fifteen \c_fourteen
+  \cs_new:cpn { fp_parse_infix_*:N } #1#2
     {
       \if:w * #2
         \exp_after:wN \fp_parse_infix_^:N
@@ -2272,21 +2247,6 @@
         \exp_after:wN \fp_parse_infix_mul:N
         \exp_after:wN #1
         \exp_after:wN #2
-      \fi:
-    }
-  \cs_new:Npn \fp_parse_infix_^:N #1
-    {
-      \if_num:w #1 > \c_fourteen
-        \exp_after:wN @
-        \exp_after:wN \fp_parse_stop_until:N
-        \exp_after:wN \fp_parse_infix_^:N
-      \else:
-        \exp_after:wN @
-        \exp_after:wN \fp_parse_map_binary:NwNwN
-        \exp_after:wN \fp_pow:ww
-        \tex_romannumeral:D
-        \fp_parse_until:Nw \c_fourteen
-        \exp_after:wN \fp_parse_expand:w
       \fi:
     }
 \group_end:
@@ -2370,10 +2330,10 @@
     \if_catcode:w \tex_relax:D #2
       \fp_parse_infix_excl_error:
     \else:
-      \if_num:w `#2 > `? \exp_stop_f:
+      \if_int_compare:w `#2 > `? \exp_stop_f:
         \fp_parse_infix_excl_error:
       \else:
-        \if_num:w `#2 < `< \exp_stop_f:
+        \if_int_compare:w `#2 < `< \exp_stop_f:
           \fp_parse_infix_excl_error:
         \fi:
       \fi:
@@ -2385,7 +2345,7 @@
   { \msg_expandable_error:n { Missing~relation~symbol~after~'!'. } }
 \cs_new:Npn \fp_infix_compare:N #1
   {
-    \if_num:w #1 < \c_seven
+    \if_int_compare:w #1 < \c_seven
       \exp_after:wN \fp_parse_compare:NNNNNw
     \else:
       \exp_after:wN @
@@ -2422,8 +2382,7 @@
   {
     \fi:
     \exp_after:wN @
-    \exp_after:wN \fp_parse_map_binary:NwNwN
-    \exp_after:wN \fp_compare:wNNNNw
+    \exp_after:wN \fp_parse_apply_compare:NwNNNNwN
     \exp_after:wN #1
     \exp_after:wN #2
     \exp_after:wN #3
@@ -2431,17 +2390,21 @@
     \tex_romannumeral:D
     \fp_parse_until:Nw \c_seven \fp_parse_expand:w #5
   }
-\cs_new:Npn \fp_compare:wNNNNw #1; #2#3#4#5 #6;
+\cs_new:Npn \fp_parse_apply_compare:NwNNNNwN #1 #2@ #3#4#5#6 #7@ #8
   {
-    \exp_after:wN \exp_after:wN
-    \exp_after:wN \exp_after:wN
-    \exp_after:wN \exp_after:wN
-    \if_case:w \fp_compare:ww #1; #6; \exp_stop_f:
-           #3
-    \or:   #4
-    \or:   #5
-    \else: #2
-    \fi:
+    \exp_after:wN \fp_parse_until_test:NwN
+    \exp_after:wN #1
+    \tex_romannumeral:D -`0
+      \exp_after:wN \exp_after:wN
+      \exp_after:wN \exp_after:wN
+      \exp_after:wN \exp_after:wN
+      \if_case:w \fp_compare:ww #2 #7 \exp_stop_f:
+             #4
+      \or:   #5
+      \or:   #6
+      \else: #3
+      \fi:
+    \tex_romannumeral:D -`0 #8 #1
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2453,7 +2416,7 @@
   \char_set_catcode_letter:N \?
   \cs_new:Npn \fp_parse_infix_?:N #1
     {
-      \if_num:w #1 < \c_three
+      \if_int_compare:w #1 < \c_three
         \exp_after:wN @
         \exp_after:wN \fp_ternary:NwwN
         \tex_romannumeral:D
@@ -2467,7 +2430,7 @@
     }
   \cs_new:Npn \fp_parse_infix_::N #1
     {
-      \if_num:w #1 < \c_three
+      \if_int_compare:w #1 < \c_three
         \msg_expandable_error:n { Missing~'?'~inserted~for~'?:'. }
         \exp_after:wN @
         \exp_after:wN \fp_ternary_ii:NwwN
@@ -2493,7 +2456,7 @@
   \char_set_catcode_letter:N \)
   \cs_new:Npn \fp_parse_infix_):N #1
     {
-      \if_num:w #1 < \c_zero
+      \if_int_compare:w #1 < \c_zero
         \fp_error:n { Extra~')'~ignored. }
         \exp_after:wN \fp_parse_infix:NN
         \exp_after:wN #1
@@ -2510,82 +2473,35 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int, EXP]{\fp_parse_infix_[:N}
-%    \begin{macrocode}
-\group_begin:
-  \char_set_catcode_letter:N \[
-  \char_set_catcode_letter:N \]
-  \cs_new:Npn \fp_parse_infix_]:N #1
-    {
-      \if_num:w #1 < \c_zero
-        \fp_error:n { Extra~']'~ignored. }
-        \exp_after:wN \fp_parse_infix:NN
-        \exp_after:wN #1
-        \tex_romannumeral:D \exp_after:wN \fp_parse_expand:w
-      \else:
-        \exp_after:wN @
-        \exp_after:wN \fp_parse_stop_until:N
-        \exp_after:wN \fp_parse_infix_]:N
-      \fi:
-    }
-  \cs_new:cpn { fp_parse_prefix_[:Nw } #1
-    {
-      \exp_after:wN \fp_parse_matching:NNNwN
-      \exp_after:wN \fp_parse_infix_]:N
-      \exp_after:wN ]
-      \exp_after:wN #1
-      \tex_romannumeral:D
-      \fp_parse_until:Nw \c_zero
-      \fp_parse_expand:w
-    }
-
-  \cs_new:cpn { fp_parse_infix_[:N } #1
-    {
-      \exp_after:wN @
-      \exp_after:wN \fp_parse_apply_binary_array:NwNwN
-      \exp_after:wN \fp_index:ww
-      \tex_romannumeral:D -`0
-      \exp_after:wN \fp_parse_ibrack_after:wN
-      \tex_romannumeral:D
-      \fp_parse_until:Nw \c_zero
-      \fp_parse_expand:w
-    }
-  \cs_new:Npn \fp_parse_ibrack_after:wN #1@#2
-    {
-      \fp_parse_exp_after_array:wf #1 @
-      \if_meaning:w \fp_parse_infix_]:N #2
-        \exp_after:wN @
-        \exp_after:wN \fp_parse_infix:NN
-        \tex_romannumeral:D \exp_after:wN \fp_parse_expand:w
-      \else:
-        \fp_error:n { Missing~']'~inserted. }
-        \exp_after:wN @
-        \exp_after:wN #2
-      \fi:
-    }
-\group_end:
-%    \end{macrocode}
-% \end{macro}
-%
 % \begin{macro}[int, EXP]+\fp_parse_infix_,:N+
 %    \begin{macrocode}
 \group_begin:
   \char_set_catcode_letter:N \,
   \cs_new:Npn \fp_parse_infix_,:N #1
     {
-      \if_num:w #1 > \c_two %^^A ?
+      \if_int_compare:w #1 > \c_one
         \exp_after:wN @
         \exp_after:wN \fp_parse_stop_until:N
         \exp_after:wN \fp_parse_infix_,:N
       \else:
-        \exp_after:wN \fp_parse_infix_comma:w
-        \tex_romannumeral:D
-        \fp_parse_until:Nw \c_two
+        \if_int_compare:w #1 = \c_one
+          \exp_after:wN \fp_parse_infix_comma:w
+          \tex_romannumeral:D
+        \else:
+          \exp_after:wN \fp_parse_infix_comma_gobble:w
+          \tex_romannumeral:D
+        \fi:
+        \fp_parse_until:Nw \c_one
         \exp_after:wN \fp_parse_expand:w
       \fi:
     }
   \cs_new:Npn \fp_parse_infix_comma:w #1 @
     { #1 @ \fp_parse_stop_until:N }
+  \cs_new:Npn \fp_parse_infix_comma_gobble:w #1 @
+    {
+      \fp_error:n { Unexpected~comma:~extra~arguments~ignored. }
+      @ \fp_parse_stop_until:N
+    }
 \group_end:
 %    \end{macrocode}
 % \end{macro}
