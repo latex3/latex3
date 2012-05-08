@@ -1,0 +1,812 @@
+% \iffalse meta-comment
+%
+%% File: l3fp-aux.dtx Copyright(C) 2011-2012 The LaTeX3 Project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3c of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the "l3trial bundle" (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %%
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX Project Team.
+%%
+%% -----------------------------------------------------------------------
+%%
+%
+%<*driver>
+\RequirePackage{l3names}
+\GetIdInfo$Id$
+  {L3 Experimental support for floating points}
+\documentclass[full]{l3doc}
+\usepackage{l3fp-new}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \textsf{l3fp-aux} package\\ Support for floating points^^A
+%   \thanks{This file describes v\ExplFileVersion,
+%     last revised \ExplFileDate.}^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released \ExplFileDate}
+%
+% \maketitle
+%
+% \begin{documentation}
+% 
+% \end{documentation}
+% 
+% \begin{implementation}
+%
+% \section{\pkg{l3fp-aux} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+% \subsection{Some useful \TeX{} techniques}
+%
+% Full expansion can be done with \cs{tex_romannumeral:D} |-`0|. It is
+% stopped by spaces. We can avoid being stopped by explicit spaces
+% (and some braces) if we simply add \cs{use:n} after~|-`0|.
+%
+% Testing if a character token |#1| is a digit can be done using
+% \begin{verbatim}
+% \if_num:w \c_nine < 1 \token_to_str:N #1
+%   true code
+% \else:
+%   false code
+% \fi:
+% \end{verbatim}
+% To exclude |0|, replace \cs{c_nine} by \cs{c_ten}. The use of
+% \cs{token_to_str:N} ensures that a digit with any catcode is detected.
+%
+% When a positive integer |#1| is known to be less than $10^8$, the following
+% trick will split it into two blocks of $4$ digits, padding with zeros
+% on the left.
+% \begin{verbatim}
+% \cs_new:Npn \aux:NNNNNw #1 #2#3#4#5 #6; { {#2#3#4#5} {#6} }
+% \exp_after:wN \aux:NNNNNw \int_use:N \int_eval:w 1 0000 0000 + #1 ;
+% \end{verbatim}
+% The idea is that adding $10^8$ to the number ensures that it has
+% exactly $9$ digits, and can then easily find which digits correspond
+% to what position in the number. Of course, this can be modified
+% for any number of digits less or equal to~$9$ (we are limited by
+% \TeX{}'s integers). This method is very heavily relied upon in
+% \texttt{l3fp-basics}.
+%
+% \subsection{Constants, and structure of floating points}
+%
+% \begin{variable}{\c_twenty_six}
+%   Integers used in the fp modules.
+%    \begin{macrocode}
+\int_const:Nn \c_twenty_six {26}
+  % \int_const:Nn \c_one_hundred {100}
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\s_fp,\fp_use:w}
+%   Floating points numbers all start with \cs{s_fp} \cs{fp_use:w},
+%   where \cs{s_fp} is equal to \cs{tex_relax:D}, and \cs{fp_use:w}
+%   is protected. The rest of the floating point number is made of
+%   characters (and \cs{tex_relax:D}, see \cs{fp_info: ...}).
+%   This ensures that nothing expands under f-expansion, nor under
+%   x-expansion. However, when typeset, \cs{s_fp} does nothing, and
+%   \cs{fp_use:w} is expanded. Thus, we define \cs{fp_use:w} such
+%   that it typesets the corresponding floating point number.
+%^^A \fp_use:w needs thought.
+%    \begin{macrocode}
+\scan_new:N \s_fp
+\cs_new_protected_nopar:Npn \fp_use:w { \fp_to_tl:w \s_fp \fp_use:w }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\s_fp_mark,\s_fp_stop}
+%   Aliases of \cs{tex_relax:D}, used to terminate expressions.
+%    \begin{macrocode}
+\scan_new:N \s_fp_mark
+\scan_new:N \s_fp_stop
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\c_fp_max_exponent_int}
+%   Normal floating point numbers have an exponent at most
+%   \texttt{max_exponent} in absolute value.  Larger numbers are rounded
+%   to $\pm\infty$.  Smaller numbers are subnormal, and digits beyond
+%   $10^{-\text{\texttt{max_exponent}}}$ are rounded away, hence the
+%   true minimum exponent is $-\text{\texttt{max_exponent}}-16$;
+%   beyond this, numbers are rounded to zero.  Why this choice of
+%   limits?  When computing $(a\cdot 10^n)^(b\cdot 10^p)$, we need to
+%   evaluate $\log(a\cdot 10^n) = \log(a) + n \log(10)$ as a fixed point
+%   number, which we manipulate as blocks of $4$ digits.  Multiplying
+%   such a fixed point number by $n<10000$ is much cheaper than larger
+%   $n$, because we can multiply $n$ with each block safely.
+%    \begin{macrocode}
+\int_const:Nn \c_fp_max_exponent_int { 10000 }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}
+%   {\c_zero_fp, \c_minus_zero, \c_inf_fp, \c_minus_inf_fp, \c_nan_fp}
+% \begin{macro}[int]{\fp_info:}
+%   The special floating points. All of them have the form
+%   \begin{quote}
+%     \cs{s_fp} \cs{fp_use:w} \meta{case} \meta{sign} \cs{fp_info:...} |;|
+%   \end{quote}
+%   where the dots in \cs{fp_info:...} can be any string,
+%   meant to give a diagnosis of where the floating point was created.
+%   We don't want \cs{fp_info:...} to expand under x-expansion,
+%   so we let them to \cs{tex_relax:D}. This will happen automatically
+%   for info messages created with a csname expansion.
+%    \begin{macrocode}
+\tl_const:Nn \c_zero_fp       { \s_fp \fp_use:w 0 0 \s_fp_exact ; }
+\tl_const:Nn \c_minus_zero_fp { \s_fp \fp_use:w 0 2 \s_fp_exact ; }
+\tl_const:Nn \c_inf_fp        { \s_fp \fp_use:w 2 0 \s_fp_exact ; }
+\tl_const:Nn \c_minus_inf_fp  { \s_fp \fp_use:w 2 2 \s_fp_exact ; }
+\tl_const:Nn \c_nan_fp        { \s_fp \fp_use:w 3 1 \s_fp_exact ; }
+\cs_new_eq:NN \fp_info:  \tex_relax:D
+\scan_new:N \s_fp_invalid
+\scan_new:N \s_fp_underflow
+\scan_new:N \s_fp_overflow
+\scan_new:N \s_fp_division
+\scan_new:N \s_fp_exact
+%    \end{macrocode}
+% \end{macro}
+% \end{variable}
+%
+% \begin{variable}
+%   {
+%     \c_max_fp, \c_minus_max_fp,
+%     \c_min_fp, \c_minus_min_fp
+%   }
+%   In some cases, we need to output the smallest and
+%   biggest positive or negative finite numbers.
+%    \begin{macrocode}
+\cs_set_protected:Npn \fp_tmp:w #1#2#3#4;
+  {
+    \tl_const:Nx #1
+      { \s_fp \fp_use:w 1 #3 { \int_value:w #2 \c_fp_max_exponent_int } #4; }
+  }
+\fp_tmp:w \c_max_fp       + 0 {9999} {9999} {9999} {9999} ;
+\fp_tmp:w \c_minus_max_fp + 2 {9999} {9999} {9999} {9999} ;
+\fp_tmp:w \c_min_fp       - 0 {1000} {0000} {0000} {0000} ;
+\fp_tmp:w \c_minus_min_fp - 2 {1000} {0000} {0000} {0000} ;
+%    \end{macrocode}
+% \end{variable}
+%
+% \subsection{Over- and Under-flow}
+%
+% \begin{macro}[int]
+%   {
+%     \fp_aux_zero_fp:N, \fp_aux_inf_fp:N,
+%     \fp_aux_qnan_fp:N, \fp_aux_snan_fp:N
+%   }
+%   In case of overflow or underflow, we have to output
+%   a zero or infinity with a given sign.
+%^^A Add diagnosis information to \fp_info:...
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_zero_fp:N #1 { \s_fp \fp_use:w 0 #1 \fp_info: ; }
+\cs_new:Npn \fp_aux_inf_fp:N #1  { \s_fp \fp_use:w 2 #1 \fp_info: ; }
+\cs_new:Npn \fp_aux_qnan_fp:N #1 { \s_fp \fp_use:w 3 1 #1 ; }
+\cs_new:Npn \fp_aux_snan_fp:N #1
+  { \msg_expandable_error:n {#1} \s_fp \fp_use:w 3 1 #1 ; }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]
+%   {
+%     \fp_aux_overflow:w,
+%     \fp_aux_underflow:w,
+%     \fp_aux_exact_zero:w
+%   }
+%   ^^A todo: these ones should depend on the rounding mode,
+%   ^^A todo: they should throw exceptions.
+%   ^^A todo: Implement subnormals.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_overflow:w \s_fp \fp_use:w #1 #2 #3;
+  { \fp_aux_inf_fp:N #2 }
+\cs_new:Npn \fp_aux_underflow:w \s_fp \fp_use:w #1 #2 #3;
+  { \fp_aux_zero_fp:N #2 }
+\cs_new:Npn \fp_aux_exact_zero:w \s_fp \fp_use:w #1 #2 #3;
+  { \exp_after:wN \c_zero_fp }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\fp_aux_sanitize:Nw, \fp_aux_sanitize:wN}
+%   Expects the sign and the exponent in some order, then the
+%   significand (which we don't touch).  Outputs the corresponding
+%   floating point number, possibly underflowed to $\pm 0$ or overflowed
+%   to $\pm\infty$.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_sanitize:Nw #1 #2;
+  {
+    \if_case:w \if_num:w #2 > \c_fp_max_exponent_int \c_one \else:
+               \if_num:w #2 < - \c_fp_max_exponent_int \c_two \else:
+               \if_meaning:w 1 #1 \c_three \else: \c_zero \fi: \fi: \fi:
+    \or: \exp_after:wN \fp_aux_overflow:w
+    \or: \exp_after:wN \fp_aux_underflow:w
+    \or: \exp_after:wN \fp_aux_exact_zero:w
+    \fi:
+    \s_fp \fp_use:w 1 #1 {#2}
+  }
+\cs_new:Npn \fp_aux_sanitize:wN #1; #2
+  {
+    \if_case:w \if_num:w #1 > \c_fp_max_exponent_int \c_one \else:
+               \if_num:w #1 < - \c_fp_max_exponent_int \c_two \else:
+               \if_meaning:w 1 #2 \c_three \else: \c_zero \fi: \fi: \fi:
+    \or: \exp_after:wN \fp_aux_overflow:w
+    \or: \exp_after:wN \fp_aux_underflow:w
+    \or: \exp_after:wN \fp_aux_exact_zero:w
+    \fi:
+    \s_fp \fp_use:w 1 #2 {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Expanding after a floating point number}
+%
+% \begin{macro}[int, EXP]{\fp_aux_exp_after_fp:wN}
+%   \begin{syntax}
+%     \cs{fp_aux_exp_after_fp:wN} \cs{s_fp} \cs{fp_use:w}
+%     ~~\meta{case} \meta{sign} \meta{body} |;| \meta{tokens}
+%   \end{syntax}
+%   Expands \meta{tokens} exactly once (with \cs{exp_after:wN}),
+%   and leaves the floating point number unchanged.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_exp_after_fp:wN \s_fp \fp_use:w #1
+  {
+    \if:w 1 #1
+      \exp_after:wN \fp_aux_exp_after_normal:nNNw
+    \else:
+      \exp_after:wN \fp_aux_exp_after_special:nNNw
+    \fi:
+    { }
+    #1
+  }
+\cs_new:Npn \fp_aux_exp_after_fp_do:nw #1 \s_fp \fp_use:w #2
+  {
+    \if_meaning:w 1 #2
+      \exp_after:wN \fp_aux_exp_after_normal:nNNw
+    \else:
+      \exp_after:wN \fp_aux_exp_after_special:nNNw
+    \fi:
+    { #1 }
+    #2
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\fp_exp_after_do:nwf}
+%   This function is a variant of \cs{fp_aux_exp_after_fp_do:nw} which
+%   \texttt{f}-expands instead of expanding just once.  The name is also
+%   a little bit more sensible.  Eventually, this part will be
+%   refactored.
+%    \begin{macrocode}
+\cs_new:Npn \fp_exp_after_do:nwf #1
+  { \fp_aux_exp_after_fp_do:nw { \tex_romannumeral:D -`0 #1 } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\fp_aux_exp_after_special:nNNw}
+%   \begin{syntax}
+%     \cs{fp_aux_exp_after_special:nNNw} \Arg{after} \meta{case} \meta{sign} \meta{info} |;|
+%   \end{syntax}
+%   Special floating point numbers are easy to jump over.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_exp_after_special:nNNw #1#2#3#4;
+  {
+    \exp_after:wN \s_fp
+    \exp_after:wN \fp_use:w
+    \exp_after:wN #2
+    \exp_after:wN #3
+    \exp_after:wN #4
+    \exp_after:wN ;
+    #1
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\fp_aux_exp_after_normal:nNNw}
+%   For normal floating point numbers, life is slightly harder,
+%   since we have many tokens to jump over. Here it would be better
+%   if the digits were not braced but instead were delimited
+%   arguments. However, there's just so much that my brain can
+%   cope with, and I'm refusing to recode some parts right now
+%   to make this optimization possible.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_exp_after_normal:nNNw #1 1 #2 #3 #4#5#6#7;
+  {
+    \exp_after:wN \fp_aux_exp_after_normal_ii:Nwwwww
+    \exp_after:wN #2
+    \int_value:w #3   \exp_after:wN ;
+    \int_value:w 1 #4 \exp_after:wN ;
+    \int_value:w 1 #5 \exp_after:wN ;
+    \int_value:w 1 #6 \exp_after:wN ;
+    \int_value:w 1 #7 \exp_after:wN ; #1
+  }
+\cs_new:Npn \fp_aux_exp_after_normal_ii:Nwwwww
+    #1 #2; 1 #3 ; 1 #4 ; 1 #5 ; 1 #6 ;
+  { \s_fp \fp_use:w 1 #1 {#2} {#3} {#4} {#5} {#6} ; }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Packing digits}
+%
+% \begin{macro}[int, EXP]{\fp_pack:NNNNNw}
+% \begin{variable}
+%   {
+%     \c_fp_trailing_shift_int ,
+%     \c_fp_middle_shift_int   ,
+%     \c_fp_leading_shift_int  ,
+%   }
+%   Allow a $+5\cdot 10^8-1$ or $-4\cdot 10^8$.
+%    \begin{macrocode}
+\int_const:Nn \c_fp_leading_shift_int  { - 5 0000 }
+\int_const:Nn \c_fp_middle_shift_int   { 5 0000 *  9999 }
+\int_const:Nn \c_fp_trailing_shift_int { 5 0000 * 10000 }
+\cs_new:Npn \fp_pack:NNNNNw #1 #2#3#4#5 #6; { + #1#2#3#4#5 ; {#6} }
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\fp_pack_big:NNNNNNw}
+% \begin{variable}
+%   {
+%     \c_fp_big_trailing_shift_int ,
+%     \c_fp_big_middle_shift_int   ,
+%     \c_fp_big_leading_shift_int  ,
+%   }
+%   Allow a $+6\cdot 10^8$ or $-5\cdot 10^8$.
+%    \begin{macrocode}
+\int_const:Nn \c_fp_big_leading_shift_int  { - 15 2374 }
+\int_const:Nn \c_fp_big_middle_shift_int   { 15 2374 *  9999 }
+\int_const:Nn \c_fp_big_trailing_shift_int { 15 2374 * 10000 }
+\cs_new:Npn \fp_pack_big:NNNNNNw
+    #1#2 #3#4#5#6 #7; { + #1#2#3#4#5#6 ; {#7} }
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_pack_twice_four:wNNNNNNNN #1; #2#3#4#5 #6#7#8#9
+  { #1 {#2#3#4#5} {#6#7#8#9} ; }
+%    \end{macrocode}
+%
+% \subsection{Decimate (dividing by a power of 10)}
+%
+% \begin{macro}[int, EXP]{\fp_aux_decimate:nNnnnn}
+%   \begin{syntax}
+%     \cs{fp_aux_decimate:nNnnnn} \Arg{shift} \Arg{f_1}
+%     ~~\Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4}
+%   \end{syntax}
+%   Each \meta{X$\sb{i}$} consists in $4$ digits exactly,
+%   and $1000\leq\meta{X1}<9999$. The first argument determines
+%   by how much we shift the digits. \meta{f1} is called as follows:
+%   \begin{syntax}
+%     \meta{f1} \meta{rounding} \Arg{X'1} \Arg{X'2} \meta{extra-digits} |;|
+%   \end{syntax}
+%   where $0\leq\meta{X$'\sb{i}$}<10^{8}-1$ are $8$ digit numbers,
+%   forming the truncation of our number. In other words,
+%   \[
+%   \left(
+%     \sum_{i=1}^{4} \meta{X$\sb{i}$} \cdot 10^{-4i} \cdot 10^{-\meta{shift}}
+%     - \meta{X$'$1} \cdot 10^{-8} + \meta{X$'$2} \cdot 10^{-16}
+%   \right)
+%   \in [0,10^{-16}).
+%   \]
+%   To round properly later, we need to remember some information
+%   about the difference. The \meta{rounding} digit is $0$ if and
+%   only if the difference is exactly $0$, and $5$ if and only if
+%   the difference is exactly $0.5\cdot 10^{-16}$. Otherwise, it
+%   is the (non-$0$, non-$5$) digit closest to $10^{17}$ times the
+%   difference.  In particular, if the shift is $17$ or more, all
+%   the digits are dropped, \meta{rounding} is $1$ (not $0$), and
+%   \meta{X'1} \meta{X'2} are both zero.
+%
+%   If the shift is $1$, the \meta{rounding} digit is simply the
+%   only digit that was pushed out of the brace groups (this is
+%   important for subtraction). It would be more natural for the
+%   \meta{rounding} digit to be placed after the \meta{X$\sb{i}$},
+%   but the choice we make involves less reshuffling.
+%
+%   Note that this function fails for negative \meta{shift}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_decimate:nNnnnn #1
+  {
+    \cs:w
+      fp_aux_decimate_
+      \if_num:w \int_eval:w #1 > \c_sixteen
+        tiny
+      \else:
+        \tex_romannumeral:D \int_eval:w #1
+      \fi:
+      :Nnnnn
+    \cs_end:
+  }
+%    \end{macrocode}
+%   Each of the auxiliaries see the function \meta{f1},
+%   followed by $4$ blocks of $4$ digits.
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]
+%   {\fp_aux_decimate_:Nnnnn, \fp_aux_decimate_tiny:Nnnnn}
+%   If the \meta{shift} is zero, or too big, life is very easy.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_decimate_:Nnnnn #1 #2#3#4#5
+  { #1 0 {#2#3} {#4#5} ; }
+\cs_new:Npn \fp_aux_decimate_tiny:Nnnnn #1 #2#3#4#5
+  { #1 1 {00000000} {00000000} 0 #2#3#4#5 ; }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]
+%   {
+%     \fp_aux_decimate_i:Nnnnn,    \fp_aux_decimate_ii:Nnnnn,
+%     \fp_aux_decimate_iii:Nnnnn,  \fp_aux_decimate_iv:Nnnnn,
+%     \fp_aux_decimate_v:Nnnnn,    \fp_aux_decimate_vi:Nnnnn,
+%     \fp_aux_decimate_vii:Nnnnn,  \fp_aux_decimate_viii:Nnnnn,
+%     \fp_aux_decimate_ix:Nnnnn,   \fp_aux_decimate_x:Nnnnn,
+%     \fp_aux_decimate_xi:Nnnnn,   \fp_aux_decimate_xii:Nnnnn,
+%     \fp_aux_decimate_xiii:Nnnnn, \fp_aux_decimate_xiv:Nnnnn,
+%     \fp_aux_decimate_xv:Nnnnn,   \fp_aux_decimate_xvi:Nnnnn
+%   }
+%   \begin{syntax}
+%     \cs{fp_aux_decimate_i:Nnnnn} \meta{f1}
+%     ~~\Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4}
+%   \end{syntax}
+%   Shifting happens in two steps: compute the \meta{rounding} digit,
+%   and repack digits into two blocks of $8$. The sixteen functions
+%   are very similar, and defined through \cs{fp_aux_tmp:w}.
+%   The arguments are as follows: |#1| indicates which function is
+%   being defined; after one step of expansion, |#2| yields the
+%   \enquote{extra digits} which are then converted by
+%   \cs{fp_aux_decimate_round:Nw} to the \meta{rounding} digit.
+%   This triggers the f-expansion of
+%   \cs{fp_aux_decimate_pack:nnnnnnnnnnw},\footnote{No, the argument
+%     spec is not a mistake: the function calls an auxiliary to
+%     do half of the job.} responsible for building two blocks of
+%   $8$ digits, and removing the rest. For this to work, |#3|
+%   alternates between braced and unbraced blocks of $4$ digits,
+%   in such a way that the $5$ first and $5$ next token groups
+%   yield the correct blocks of $8$ digits.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_tmp:w #1 #2 #3
+  {
+    \cs_new:cpn {fp_aux_decimate_#1:Nnnnn} ##1 ##2##3##4##5
+      {
+        \exp_after:wN ##1
+        \int_value:w
+          \exp_after:wN \fp_aux_decimate_round:Nw #2 ;
+        \fp_aux_decimate_pack:nnnnnnnnnnw #3 ;
+      }
+  }
+\fp_aux_tmp:w {i}   {\use_none:nnn      #50} {    0{#2}#3{#4}#5                }
+\fp_aux_tmp:w {ii}  {\use_none:nn       #5 } {    00{#2}#3{#4}#5               }
+\fp_aux_tmp:w {iii} {\use_none:n        #5 } {    000{#2}#3{#4}#5              }
+\fp_aux_tmp:w {iv}  {                   #5 } {   {0000}#2{#3}#4 #5             }
+\fp_aux_tmp:w {v}   {\use_none:nnn    #4#5 } {   0{0000}#2{#3}#4 #5            }
+\fp_aux_tmp:w {vi}  {\use_none:nn     #4#5 } {   00{0000}#2{#3}#4 #5           }
+\fp_aux_tmp:w {vii} {\use_none:n      #4#5 } {   000{0000}#2{#3}#4 #5          }
+\fp_aux_tmp:w {viii}{                 #4#5 } {  {0000}0000{#2}#3 #4 #5         }
+\fp_aux_tmp:w {ix}  {\use_none:nnn  #3#4+#5} {  0{0000}0000{#2}#3 #4 #5        }
+\fp_aux_tmp:w {x}   {\use_none:nn   #3#4+#5} {  00{0000}0000{#2}#3 #4 #5       }
+\fp_aux_tmp:w {xi}  {\use_none:n    #3#4+#5} {  000{0000}0000{#2}#3 #4 #5      }
+\fp_aux_tmp:w {xii} {               #3#4+#5} { {0000}0000{0000}#2 #3 #4 #5     }
+\fp_aux_tmp:w {xiii}{\use_none:nnn#2#3+#4#5} { 0{0000}0000{0000}#2 #3 #4 #5    }
+\fp_aux_tmp:w {xiv} {\use_none:nn #2#3+#4#5} { 00{0000}0000{0000}#2 #3 #4 #5   }
+\fp_aux_tmp:w {xv}  {\use_none:n  #2#3+#4#5} { 000{0000}0000{0000}#2 #3 #4 #5  }
+\fp_aux_tmp:w {xvi} {             #2#3+#4#5} {{0000}0000{0000}0000 #2 #3 #4 #5 }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP, aux]
+%   {\fp_aux_decimate_round:Nw, \fp_aux_decimate_pack:nnnnnnnnnnw}
+%   \cs{fp_aux_decimate_round:Nw} will receive the \enquote{extra digits}
+%   as its argument, and its expansion is triggered by \cs{int_value:w}.
+%   If the first digit is neither $0$ nor $5$, then it is the \meta{rounding}
+%   digit. Otherwise, if the remaining digits are not all zero, we need
+%   to add $1$ to that leading digit to get the rounding digit. Some caution
+%   is required, though, because there may be more than $10$
+%   \enquote{extra digits}, and this may overflow \TeX{}'s integers.
+%   Instead of feeding the digits directly to \cs{fp_aux_decimate_round:Nw},
+%   they come split into several blocks, separated by $+$. Hence the first
+%   \cs{int_eval:w} here.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_decimate_round:Nw #1 #2;
+  {
+    \if_int_odd:w \if_meaning:w 0 #1 \c_one \else:
+                  \if_meaning:w 5 #1 \c_one \else:
+                  \c_zero \fi: \fi:
+      \if_num:w \int_eval:w #2 > \c_zero
+        \int_eval:w 1 +
+      \fi:
+    \fi:
+    #1
+  }
+%    \end{macrocode}
+%   The computation of the \meta{rounding} digit leaves an unfinished
+%   \cs{int_value:w}, which expands the following functions. This
+%   allows us to repack nicely the digits we keep. Those digits come
+%   as an alternation of unbraced and braced blocks of $4$ digits,
+%   such that the first $5$ groups of token consist in $4$ single digits,
+%   and one brace group (in some order), and the next $5$ have the same
+%   structure. This is followed by some digits and a semicolon.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_decimate_pack:nnnnnnnnnnw #1#2#3#4#5
+  { \fp_aux_decimate_pack_ii:nnnnnnw { #1#2#3#4#5 } }
+\cs_new:Npn \fp_aux_decimate_pack_ii:nnnnnnw #1 #2#3#4#5#6
+  { {#1} {#2#3#4#5#6} }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Errors}
+%
+% \begin{macro}[int, EXP]{\fp_error:n, \fp_error:x}
+%   The argument is fully expanded in a way similar to \texttt{x}-type
+%   expansion, but braced groups are simply copied, \cs{exp_not:n} does
+%   not work, spaces are ignored unless braced.  The result of that
+%   weird (but useful) expansion is fed to \cs{msg_expandable_error:n}.
+%    \begin{macrocode}
+\cs_new_eq:NN \fp_error:n \msg_expandable_error:n
+\cs_new:Npn \fp_error:x #1
+  {
+    \exp_args:Nf \msg_expandable_error:n
+      {
+        \fp_error_loop:nwnN { \exp_stop_f: } #1 \prg_do_nothing:
+        \s_fp_mark { } \fp_error_loop:nwnN \s_fp_mark { } \fp_error_end:nw
+      }
+  }
+\cs_new:Npn \fp_error_end:nw #1#2 \fp_error_end:nw { #1 }
+\cs_new:Npn \fp_error_loop:nwnN #1#2 \s_fp_mark #3 #4
+  {
+    \exp_after:wN #4 \tex_romannumeral:D -`0
+    #2
+    \s_fp_mark { #3 #1 } #4
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Bracing and using arguments}
+%
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_use_none_stop_f:n #1 { \exp_stop_f: }
+\cs_new:Npn \fp_aux_use_s:n #1 { #1; }
+\cs_new:Npn \fp_aux_use_s:nn #1#2 { #1#2; }
+\cs_new:Npn \fp_aux_use_i_until_s:nw #1 #2; {#1}
+\cs_new:Npn \fp_aux_use_ii_until_s:nnw #1#2#3; {#2}
+\cs_new:Npn \fp_aux_use_none_until_s:w #1; { }
+%    \end{macrocode}
+%
+% These functions are evil.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_case_return:nw #1#2\fi: #3; { \fi: #1 }
+\cs_new:Npn \fp_aux_case_invalid:nnw #1#2#3\fi: #4 \s_fp #5 ;
+  {
+    \fi:
+    \fp_error:x { {Invalid~operation~} #1 \fp_to_tl:w \s_fp #5; {#2} }
+    \exp_after:wN \fp_aux_qnan_fp:N
+    \exp_after:wN \s_fp_invalid
+  }
+\cs_new:Npn \fp_aux_case_return_same:w #1\fi: #2 \s_fp
+  { \fi: \fp_aux_exp_after_fp:wN \s_fp }
+\cs_new:Npn \fp_aux_case_return_fp:Nw #1#2\fi: #3;
+  { \fi: \exp_after:wN #1 }
+%    \end{macrocode}
+%
+% Same when two \texttt{fp} follow.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_case_return_fp:Nww #1#2\fi: #3 \s_fp #4; #5;
+  { \fi: \exp_after:wN #1 }
+\cs_new:Npn \fp_aux_case_return_ii:ww #1\fi: #2 \s_fp #3;
+  { \fi: \fp_aux_exp_after_fp:wN }
+%    \end{macrocode}
+%
+% \subsection{Return various values}
+%
+% \begin{macro}[int]
+%   {
+%     \fp_aux_return_one:ww        ,
+%     \fp_aux_return_zero:ww       ,
+%     \fp_aux_return_minus_zero:ww ,
+%     \fp_aux_return_inf:ww        ,
+%     \fp_aux_return_minus_inf:ww  ,
+%     \fp_aux_return_qnan:Nww      ,
+%     \fp_aux_return_snan:Nww      ,
+%   }
+%   These functions expect to be followed by two fp numbers.  All of
+%   them expand after the floating point they return.  The \texttt{nan}
+%   functions take as a first argument the operation to display in the
+%   message.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_return_one:ww #1; #2;
+  { \exp_after:wN \c_one_fp }
+\cs_new:Npn \fp_aux_return_zero:ww #1; #2;
+  { \exp_after:wN \c_zero_fp }
+\cs_new:Npn \fp_aux_return_minus_zero:ww #1; #2;
+  { \exp_after:wN \c_minus_zero_fp }
+\cs_new:Npn \fp_aux_return_inf:ww #1; #2;
+  { \exp_after:wN \c_inf_fp }
+\cs_new:Npn \fp_aux_return_minus_inf:ww #1; #2;
+  { \exp_after:wN \c_minus_inf_fp }
+\cs_new:Npn \fp_aux_return_qnan:Nww #1#2 \s_fp #3; #4;
+  {
+    \exp_after:wN \fp_aux_qnan_fp:N
+      \cs:w
+        fp_info ~ \fp_to_tl:w \s_fp #3; #1 \fp_to_tl:w #4; ;
+        \exp_after:wN
+      \cs_end:
+  }
+\cs_new:Npn \fp_aux_return_snan:Nww #1#2 \s_fp #3; #4;
+  {
+    \exp_after:wN \fp_aux_snan_fp:N
+      \cs:w
+        fp_info ~ \fp_to_tl:w \s_fp #3; #1 \fp_to_tl:w #4; ;
+        \exp_after:wN
+      \cs_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Misc}
+%
+% \begin{macro}{\fp_aux_type:N}
+%   \begin{syntax}
+%     \cs{fp_aux_type:N} \meta{token}
+%   \end{syntax}
+%   Grabs the pieces of the stringified \meta{token} which
+%   lies after the first |s_|.
+%   ^^A Needs a better name.
+%    \begin{macrocode}
+\cs_new:Npx \fp_aux_type:N #1
+  {
+    \exp_not:n
+      {
+        \exp_after:wN \fp_aux_type_aux:w
+        \token_to_str:N
+      }
+    #1
+    \exp_not:N \q_mark
+    \tl_to_str:n {s_}
+    \exp_not:N \q_mark
+    \exp_not:N \q_stop
+  }
+\exp_args:Nno \use:nn
+  { \cs_new:Npn \fp_aux_type_aux:w #1 }
+  { \tl_to_str:n { s_ } #2 \q_mark #3 \q_stop }
+  {
+    #2
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\fp_aux_small_int:wTF}
+% \begin{macro}[aux, EXP]
+%   {
+%     \fp_aux_small_int_true:wTF,
+%     \fp_aux_small_int_normal:NnwTF,
+%     \fp_aux_small_int_test:NnnwNTF
+%   }
+%   This function tests if its floating point argument is an integer in
+%   the range $[-99999999,99999999]$.  If it is, the result of the
+%   conversion is fed as a braced argument to the \meta{true code}.
+%   Otherwise, the \meta{false code} is performed.  First filter special
+%   cases: neither \texttt{nan} nor infinities are integers.  Normal
+%   numbers with a non-positive exponent are never integers.  When the
+%   exponent is greater than $8$, the number is too large for the range.
+%   Otherwise, decimate, and test the digits after the decimal
+%   separator.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_small_int:wTF \s_fp \fp_use:w #1
+  {
+    \if_case:w #1 \exp_stop_f:
+      \fp_aux_case_return:nw { \fp_aux_small_int_true:wTF 0 ; }
+    \or: \exp_after:wN \fp_aux_small_int_normal:NnwTF
+    \else:
+      \fp_aux_case_return:nw \use_ii:nn
+    \fi:
+  }
+\cs_new:Npn \fp_aux_small_int_true:wTF #1; #2#3 { #2 {#1} }
+\cs_new:Npn \fp_aux_small_int_normal:NnwTF #1#2#3;
+  {
+    \if_int_compare:w #2 > \c_zero
+      \if_int_compare:w #2 > \c_eight
+        \exp_after:wN \exp_after:wN
+        \exp_after:wN \use_iii:nnn
+      \else:
+        \fp_aux_decimate:nNnnnn { \c_sixteen - #2 }
+          \fp_aux_small_int_test:NnnwNTF
+          #3 #1
+      \fi:
+    \else:
+      \exp_after:wN \use_iii:nnn
+    \fi:
+    ;
+  }
+\cs_new:Npn \fp_aux_small_int_test:NnnwNTF #1#2#3#4; #5
+  {
+    \if_meaning:w 0 #1
+      \exp_after:wN \fp_aux_small_int_true:wTF
+      \int_value:w \if_meaning:w 2 #5 - \fi: #3
+    \else:
+      \exp_after:wN \use_iii:nnn
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\fp_array_count:w}
+% \begin{macro}[aux, EXP]{\fp_array_count_loop:Nw}
+%   Count the number of items in an array of floating points.  The
+%   technique is very similar to \cs{tl_length:n}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_array_count:w #1@
+  {
+    \int_use:N \int_eval:w \c_zero
+      \fp_array_count_loop:Nw #1 { ? \prg_map_break: } ;
+      \prg_break_point:n { }
+    \int_eval_end:
+  }
+\cs_new:Npn \fp_array_count_loop:Nw #1#2;
+  { \use_none:n #1 + \c_one \fp_array_count_loop:Nw }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\fp_aux_exponent:w}
+%   For normal numbers, the function expands to the exponent, otherwise
+%   to $0$.
+%    \begin{macrocode}
+\cs_new:Npn \fp_aux_exponent:w \s_fp \fp_use:w #1
+  {
+    \if_meaning:w 1 #1
+      \exp_after:wN \fp_aux_use_ii_until_s:nnw
+    \else:
+      \fp_aux_case_return:nw 0
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintChanges
+%
+% \PrintIndex
