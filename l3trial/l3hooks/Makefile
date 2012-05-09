@@ -162,7 +162,7 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 	    echo "! Warning: some functions documented but not defined" ; \
 	  fi ; \
 	else \
-	  echo "  Complilation failed" ; \
+	  echo "  Compilation failed" ; \
 	fi ; \
 	for I in $(AUXFILES) ; do \
 	  rm -f $$NAME.$$I ; \
