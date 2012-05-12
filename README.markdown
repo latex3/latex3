@@ -85,7 +85,6 @@ the team members are
   * Johannes Braams
   * David Carlisle
   * Robin Fairbairns
-  * Morten Høgholm
   * Bruno Le Floch
   * Thomas Lotze
   * Frank Mittelbach
@@ -98,6 +97,7 @@ Former members of The LaTeX3 Project team were
 
   * Michael Downes
   * Denys Duchier
+  * Morten Høgholm
   * Alan Jeffrey
   * Martin Schröder
 
@@ -106,5 +106,7 @@ by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
 the [LaTeX-L list](http://news.gmane.org/group/gmane.comp.tex.latex.latex3)
 should be used.
 
---- Copyright 2011
-    The LaTeX3 Project.  All rights reserved ---
+-----
+
+Copyright (C) 2011,2012 The LaTeX3 Project
+All rights reserved
