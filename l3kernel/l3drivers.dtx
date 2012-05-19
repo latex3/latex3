@@ -101,7 +101,7 @@
 %
 % \section{Box rotation and scaling}
 %
-% \begin{function}[added = 2011-09-01]
+% \begin{function}[added = 2011-09-01, updated = 2012-05-18]
 %  {\driver_box_rotate_begin:, \driver_box_rotate_end:}
 %   \begin{syntax}
 %     \cs{driver_box_rotate_begin:}
@@ -117,7 +117,7 @@
 %   required by some drivers to obtain the correct output.
 % \end{function}
 %
-% \begin{function}[added = 2011-09-02]
+% \begin{function}[added = 2011-09-02, updated = 2012-05-18]
 %   {\driver_box_scale_begin:, \driver_box_scale_end:}
 %   \begin{syntax}
 %     \cs{driver_box_scale_begin:}
@@ -135,7 +135,8 @@
 %
 % \section{Colour support}
 %
-% \begin{function}[added = 2011-09-03]{\driver_color_ensure_current:}
+% \begin{function}[added = 2011-09-03, updated = 2012-05-18]
+%   {\driver_color_ensure_current:}
 %   \begin{syntax}
 %     \cs{driver_color_ensure_current:}
 %   \end{syntax}
@@ -208,19 +209,16 @@
 %
 % \subsection{Driver utility functions}
 %
-% \begin{macro}{\driver_graphic_state_save:}
-% \begin{macro}{\driver_graphic_state_restore:}
+% \begin{macro}{\driver_graphic_state_save:, \driver_graphic_state_restore:}
 %   All of the drivers have a stack for saving the graphic state. These
-%   have slightly different interfaces. As \texttt{dvips} does not
-%   automatically save the current location, this is set up here.
+%   have slightly different interfaces. For both \texttt{dvips} and
+%   \texttt{xdvipdfmx} this is done using an appropriate special.
 %    \begin{macrocode}
+%<*dvips|xdvipdfmx>
 \cs_new_protected_nopar:Npn \driver_graphic_state_save:
 %<*dvips>
   { \tex_special:D { ps:gsave } }
 %</dvips>
-%<*pdfmode>
-  { \pdftex_pdfsave:D }
-%</pdfmode>
 %<*xdvipdfmx>
   { \tex_special:D { pdf:bcontent } }
 %</xdvipdfmx>
@@ -228,14 +226,29 @@
 %<*dvips>
   { \tex_special:D { ps:grestore } }
 %</dvips>
-%<*pdfmode>
-  { \pdftex_pdfrestore:D }
-%</pdfmode>
 %<*xdvipdfmx>
   { \tex_special:D { pdf:econtent } }
 %</xdvipdfmx>
+%</dvips|xdvipdfmx>
 %    \end{macrocode}
-% \end{macro}
+%   For direct PDF output there is also a need to worry about the version
+%   of \pdfTeX{} in use: the \tn{pdfsave} primitive was only introduced
+%   in version~1.40.0.
+%    \begin{macrocode}
+%<*pdfmode>
+\cs_if_exist:NTF \pdftex_pdfsave:D
+  {
+    \cs_new_eq:NN \driver_graphic_state_save:    \pdftex_pdfsave:D
+    \cs_new_eq:NN \driver_graphic_state_restore: \pdftex_pdfrestore:D
+  }
+  {
+    \cs_new_protected_nopar:Npn \driver_graphic_state_save:
+      { \pdftex_pdfliteral:D { q } }
+    \cs_new_protected_nopar:Npn \driver_graphic_state_restore:
+      { \pdftex_pdfliteral:D { Q } }
+  }
+%</pdfmode>
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\driver_pdf_literal:n, \driver_pdf_literal_direct:n}
@@ -387,12 +400,7 @@
           { round ( \l_box_cos_fp , 5 ) }
       }
     \fp_set:Nn \l_box_sin_fp { round ( \l_box_sin_fp , 5 ) }
-%<*pdfmode>
-    \pdftex_pdfsetmatrix:D
-%</pdfmode>
-%<*xdvipdfmx>
-    \driver_pdf_literal_direct:n
-%</xdvipdfmx>
+    \driver_pdf_matrix:n
       {
         \fp_use:N \l_box_cos_fp \c_space_tl
         \fp_compare:nNnTF \l_box_sin_fp = \c_zero_fp
@@ -404,14 +412,11 @@
           }
         \c_space_tl
         \fp_use:N \l_box_cos_fp
-%<*xdvipdfmx>
-        \c_space_tl 0~0~cm
-%</xdvipdfmx>
       }
 %</pdfmode|xdvipdfmx>
   }
 %    \end{macrocode}
-% The end of a rotation means tidying up the output grouping.
+%   The end of a rotation means tidying up the output grouping.
 %    \begin{macrocode}
 \cs_new_eq:NN \driver_box_rotate_end: \driver_graphic_state_restore:
 %    \end{macrocode}
@@ -437,23 +442,41 @@
       }
 %</dvips>
 %<*pdfmode|xdvipdfmx>
-%<*pdfmode>
-    \pdftex_pdfsetmatrix:D
-%</pdfmode>
-%<*xdvipdfmx>
-    \driver_pdf_literal_direct:n
-%</xdvipdfmx>
+    \driver_pdf_matrix:n
       {
         \fp_use:N \l_box_scale_x_fp \c_space_tl
         0~0~
         \fp_use:N \l_box_scale_y_fp
-%<*xdvipdfmx>
-        \c_space_tl 0~0~cm
-%</xdvipdfmx>
       }
 %</pdfmode|xdvipdfmx>
   }
 \cs_new_eq:NN \driver_box_scale_end: \driver_graphic_state_restore:
+%    \end{macrocode}
+% \end{macro}
+% 
+% \begin{macro}[int]{\driver_pdf_matrix:n}
+%   Here the appropriate function is set up to insert an affine matrix
+%   into the PDF. With a new enough \pdfTeX{} (version~1.40.0 or later)
+%   there is a primitive for this, which only needs the rotation/scaling/skew
+%   part. With an older \pdfTeX{} or with \texttt{xdvipdfmx} the matrix
+%   also has to include a translation part: that is always zero and so is
+%   built in here.
+%    \begin{macrocode}
+%<*pdfmode>
+\cs_if_exist:NTF \pdftex_pdfsetmatrix:D
+  {
+    \cs_new_protected:Npn \driver_pdf_matrix:n #1
+      { \pdftex_pdfsetmatrix:D {#1} }
+  }
+  {
+    \cs_new_protected:Npn \driver_pdf_matrix:n #1
+      { \driver_pdf_literal:n { #1 \c_space_tl 0~0~cm } }
+  }
+%</pdfmode>
+%<*xdvipdfmx>
+\cs_new_protected:Npn \driver_pdf_matrix:n #1
+  { \driver_pdf_literal_direct:n { #1 \c_space_tl 0~0~cm } }
+%</xdvipdfmx>
 %    \end{macrocode}
 % \end{macro}
 %
@@ -477,8 +500,8 @@
 % \end{variable}
 %
 % \begin{variable}{\l_driver_color_stack_int}
-%   \pdfTeX{} and \LuaTeX{} have multiple stacks available, and the colour
-%   stack therefore needs a number.
+%   \pdfTeX{} (version~1.40.0 or later) and \LuaTeX{} have multiple stacks
+%   available, and the colour stack therefore needs a number.
 %    \begin{macrocode}
 %<*pdfmode>
 \int_new:N \l_driver_color_stack_int
@@ -492,23 +515,40 @@
 %   available. In all cases there is a need to reset the colour after
 %   the current group.
 %    \begin{macrocode}
+%<*dvips|xdvipdfmx>
 \cs_new_protected_nopar:Npn \driver_color_ensure_current:
   {
-%<*dvips|xdvipdfmx>
     \tex_special:D { color~push~\l_driver_current_color_tl }
-%</dvips|xdvipdfmx>
-%<*pdfmode>
-    \pdftex_pdfcolorstack:D \l_driver_color_stack_int push
-      { \l_driver_current_color_tl }
-%</pdfmode>
     \group_insert_after:N \driver_color_reset:
   }
 \cs_new_protected_nopar:Npn \driver_color_reset:
-%<*dvips|xdvipdfmx>
   { \tex_special:D { color~pop } }
 %</dvips|xdvipdfmx>
+%    \end{macrocode}
+%   Once again there is a version switch for \pdfTeX{}, as the
+%   \tn{pdfcolorstack} primitive was introduced in version~1.40.0.
+%    \begin{macrocode}
 %<*pdfmode>
-  { \pdftex_pdfcolorstack:D \l_driver_color_stack_int pop }
+\cs_if_exist:NTF \pdftex_pdfcolorstack:D
+  {
+    \cs_new_protected_nopar:Npn \driver_color_ensure_current:
+      {
+        \pdftex_pdfcolorstack:D \l_driver_color_stack_int push
+          { \l_driver_current_color_tl }
+        \group_insert_after:N \driver_color_reset:
+      }
+    \cs_new_protected_nopar:Npn \driver_color_reset:
+      { \pdftex_pdfcolorstack:D \l_driver_color_stack_int pop }
+  }
+  {
+    \cs_new_protected_nopar:Npn \driver_color_ensure_current:
+      {
+        \driver_pdf_literal:n { \l_driver_current_color_tl }
+        \group_insert_after:N \driver_color_reset:
+      }
+    \cs_new_protected_nopar:Npn \driver_color_reset:
+      { \driver_pdf_literal:n { \l_driver_current_color_tl } }
+  }
 %</pdfmode>
 %    \end{macrocode}
 % \end{macro}
