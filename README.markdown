@@ -72,8 +72,8 @@ The issue tracker for LaTeX3 bugs is currently located at
 
   https://github.com/latex3/svn-mirror/issues
 
-Please report specific issues with LaTeX3 code there. More general
-discussion should be directed to the LaTeX-L lists.
+Please report specific issues with LaTeX3 code there; more general
+discussion should be directed to the [LaTeX-L list](#Discussion).
 
 The LaTeX3 Project
 ------------------
@@ -103,8 +103,7 @@ Former members of The LaTeX3 Project team were
 
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
-the [LaTeX-L list](http://news.gmane.org/group/gmane.comp.tex.latex.latex3)
-should be used.
+the [LaTeX-L list](#Discussion) should be used .
 
 -----
 
