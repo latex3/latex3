@@ -317,6 +317,25 @@
 %
 % \subsection{\pkg{l3basics}}
 %
+% \begin{function}{\group_insert_after:n, \group_insert_after:x}
+%   \begin{syntax}
+%     \cs{group_insert_after:n} \Arg{tokens}
+%   \end{syntax}
+%   Places the \meta{tokens} in the input stream once the current group
+%   ends.  If this function is called multiple times, the \meta{tokens}
+%   will be inserted in the same order.  Note that a construction such as
+%   \begin{verbatim}
+%     \tl_set:Nn \l_example_tl { outside }
+%     \group_begin:
+%       \tl_set:Nn \l_example_tl { inside }
+%       \group_insert_after:n { \tl_use:N \l_example_tl }
+%     \group_end:
+%   \end{verbatim}
+%   will use the value of \cs{l_example_tl} when \cs{tl_use:N}, which is
+%   outside the group.  Using \cs{group_insert_after:x} would instead
+%   use \enquote{\texttt{inside}}.
+% \end{function}
+%
 % \begin{function}{\group_after_set:NNn}
 %   \begin{syntax}
 %     \cs{group_after_set:NNn} <`set' function> <variable> \Arg{value}
@@ -743,21 +762,50 @@
 %
 % \subsection{\pkg{l3basics}}
 %
-% \begin{variable}{\g_group_after_name_tl}
-%   Contains the name of the control sequence holding the tokens which
-%   should be output just after the end of the current group.  The token
-%   list \cs{g_group_after_name_tl} itself won't change, but its full
-%   expansion depends on the group level, hence we don't use the |c_|
-%   prefix.
+% \begin{macro}{\group_insert_after:n, \group_insert_after:x}
+% \begin{macro}[EXP]{\group_insert_after_aux:NNn}
+%   The material to insert at the end of a given group is stored in a
+%   global variable, whose name is built from the
+%   \tn{currentgrouplevel}.  We build the variable's name once, then
+%   feed it to an auxiliary.  First make sure the variable exists by
+%   defining it if needed.  If it is empty, this is the first time
+%   \cs{group_insert_after:n} is called in this group.  Use the \TeX{}
+%   primitive \tn{aftergroup} to insert that token list, which is
+%   initialized to clear itself (emptyness is used as a flag).  Finally
+%   append the new material to the token list being inserted.
 %    \begin{macrocode}
-\tl_const:Nn \g_group_after_name_tl
-  { g_aftergroup_ \int_use:N \etex_currentgrouplevel:D _tl }
+\cs_new_protected:Npn \group_insert_after:n
+  {
+    \exp_args:NNc \group_insert_after_aux:NNn \tl_gput_right:Nn
+      { g_group_after_ \int_use:N \etex_currentgrouplevel:D _tl }
+  }
+\cs_new_protected:Npn \group_insert_after:x
+  {
+    \exp_args:NNc \group_insert_after_aux:NNn \tl_gput_right:Nx
+      { g_group_after_ \int_use:N \etex_currentgrouplevel:D _tl }
+  }
+\cs_new_protected:Npn \group_insert_after_aux:NNn #1#2#3
+  {
+    \tl_if_exist:NF #2 { \tl_new:N #2 }
+    \tl_if_empty:NT #2
+      {
+        \tex_aftergroup:D #2
+        \tl_gset:Nn #2 { \tl_gclear:N #2 }
+      }
+    #1 #2 {#3}
+  }
 %    \end{macrocode}
-% \end{variable}
+% \end{macro}
+% \end{macro}
 %
-% \begin{macro}{\group_insert_after:c}
-%   A variant we need.
+% \begin{macro}{\group_insert_after:N, \group_insert_after:c}
+%   We cannot define \cs{group_insert_after:N} directly as the \TeX{}
+%   primitive \tn{aftergroup}, because the order would not be preserved
+%   between tokens inserted with the \texttt{n}-type variant and the
+%   \texttt{N}-type variant.  Instead, we simply copy the definition of
+%   the \texttt{n}-type function.
 %    \begin{macrocode}
+\cs_gset_eq:NN \group_insert_after:N \group_insert_after:n
 \cs_generate_variant:Nn \group_insert_after:N { c }
 %    \end{macrocode}
 % \end{macro}
@@ -765,26 +813,15 @@
 % \begin{macro}{\group_after_set:NNn}
 %   A bad name that allows local variables to \enquote{escape} out of
 %   the current group.  (Without being global.)  Set the variable
-%   locally for use inside the group.  Then make sure that the
-%   \enquote{aftergroup} token list for this group level exists.  The
-%   first time this function is called inside the group, use
-%   \cs{group_insert_after:N} to insert that token list, which is
-%   initialised to clear itself (emptyness is used as a flag).  Finally
-%   append the new material to the token list being inserted.
+%   locally for use inside the group, then after the group place the
+%   assignment and the value of the variable.  We don't use |#3| as a
+%   value, because this may involve functions or variables which are
+%   only defined in the group.
 %    \begin{macrocode}
-\cs_new:Npn \group_after_set:NNn #1#2#3
+\cs_new_protected:Npn \group_after_set:NNn #1#2#3
   {
     #1 #2 {#3}
-    \tl_if_exist:cF { \g_group_after_name_tl }
-      { \tl_new:c { \g_group_after_name_tl } }
-    \tl_if_empty:cT { \g_group_after_name_tl }
-      {
-        \group_insert_after:c { \g_group_after_name_tl }
-        \tl_gset:cx { \g_group_after_name_tl }
-        { \tl_gclear:c { \g_group_after_name_tl } }
-      }
-    \tl_gput_right:cx { \g_group_after_name_tl }
-      { \exp_not:n { #1 #2 } { \exp_not:V #2 } }
+    \group_insert_after:x { \exp_not:n { #1 #2 } { \exp_not:V #2 } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -798,7 +835,7 @@
 %   \texttt{sp}, we must define |#1| to be the integer expression to be
 %   multiplied, and |#2| to be the (real) scaling factor.
 %    \begin{macrocode}
-\cs_set:Npn \int_mul_truncate:nn #1 #2
+\cs_new:Npn \int_mul_truncate:nn #1 #2
   {
     \int_value:w
       \dim_eval:w
