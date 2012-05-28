@@ -72,121 +72,299 @@
 %<*initex|package>
 %    \end{macrocode}
 %
+% Exceptions should be accessed by an \texttt{n}-type argument, among
+% \begin{itemize}
+% \item \texttt{invalid_operation}
+% \item \texttt{division_by_zero}
+% \item \texttt{overflow}
+% \item \texttt{underflow}
+% \item \texttt{inexact} (actually never used).
+% \end{itemize}
+%
 % \subsection{Flags}
 %
-% \begin{macro}{\fp_flag_off:N}
-%   Turns the given flag off.
-%   We're careful not to apply that to a non-flag.
+% \begin{macro}{\fp_flag_off:n}
+%   Function to turn a flag off.  Simply undefine it.
 %    \begin{macrocode}
-\cs_new_protected:Npn \fp_flag_off:N #1
-  {
-    \cs_if_free:NTF #1
-      { \cs_set_eq:NN #1 \tex_undefined:D }
-      { \msg_error:nnx { fp } { not-a-flag } { \token_to_str:N #1 } }
-  }
+\cs_new_protected:Npn \fp_flag_off:n #1
+  { \cs_set_eq:cN { l_fp_ #1 _flag_token } \c_undefined:D }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\fp_flag_on:N}
-%   Turns the flag on, \emph{expandably}.
-%   We are careful not to apply that to a non-flag.
+% \begin{macro}[EXP]{\fp_flag_on:n}
+%   Function to turn a flag on expandably: use \TeX{}'s automatic
+%   assignment to \cs{scan_stop:}.
 %    \begin{macrocode}
-\cs_new:Npn \fp_flag_on:N #1
-  {
-    \cs_if_free:NTF #1
-      { \exp_args:Nc \use_none:n { \cs_to_str:N #1 } }
-      { \msg_expandable_kernel_error:nnn { fp } { not-a-flag } {#1} }
-  }
+\cs_new:Npn \fp_flag_on:n #1
+  { \exp_args:Nc \use_none:n { l_fp_ #1 _flag_token } }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP,pTF]{\fp_if_flag_on:N}
-%   Returns true if the flag is on, false otherwise. A non-flag
-%   causes an error and returns false.
+% \begin{macro}[EXP,pTF]{\fp_if_flag_on:n}
+%   Returns true if the flag is on, false otherwise.
 %    \begin{macrocode}
-\prg_new_conditional:Npnn \fp_if_flag_on:N #1 { p , T , F , TF }
+\prg_new_conditional:Npnn \fp_if_flag_on:n #1 { p , T , F , TF }
   {
-    \if_meaning:w \scan_stop: #1
+    \if_cs_exist:w l_fp_ #1 _flag_token \cs_end:
       \prg_return_true:
     \else:
-      \reverse_if:N \if_meaning:w \tex_undefined:D #1
-        \msg_expandable_kernel_error:nnn { fp } { not-a-flag } {#1}
-      \fi:
       \prg_return_false:
     \fi:
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{
-%     \l_fp_invalid_operation_flag_token,
-%     \l_fp_division_by_zero_flag_token,
-%     \l_fp_overflow_flag_token,
-%     \l_fp_underflow_flag_token,
-%     \l_fp_inexact_flag_token}
-%   The five exceptions defined by the IEEE standard.
+% \begin{variable}
+%   {
+%     \l_fp_invalid_operation_flag_token ,
+%     \l_fp_division_by_zero_flag_token  ,
+%     \l_fp_overflow_flag_token          ,
+%     \l_fp_underflow_flag_token         ,
+%   }
+%   The \textsc{ieee} standard defines five exceptions.  We currently
+%   don't support the \enquote{inexact} exception.
 %    \begin{macrocode}
-\fp_flag_off:N \l_fp_invalid_operation_flag_token
-\fp_flag_off:N \l_fp_division_by_zero_flag_token
-\fp_flag_off:N \l_fp_overflow_flag_token
-\fp_flag_off:N \l_fp_underflow_flag_token
-\fp_flag_off:N \l_fp_inexact_flag_token
+\cs_new_eq:NN \l_fp_invalid_operation_flag_token \c_undefined:D
+\cs_new_eq:NN \l_fp_division_by_zero_flag_token \c_undefined:D
+\cs_new_eq:NN \l_fp_overflow_flag_token \c_undefined:D
+\cs_new_eq:NN \l_fp_underflow_flag_token \c_undefined:D
 %    \end{macrocode}
-% \end{macro}
+% \end{variable}
 %
 % \subsection{Traps}
 %
-% \begin{macro}{\fp_trap_invalid_operation:Nww}
-% \begin{macro}{\fp_trap_division_by_zero:Nww}
+% Exceptions can be trapped to obtain custom behaviour.  When an invalid
+% operation or a division by zero is trapped, the trap receives as
+% arguments the result as an $N$-type floating point number, the
+% function name (multiple letters for prefix operations, or a single
+% symbol for infix operations), and the operand(s).  When an overflow or
+% underflow is trapped, the trap receives the resulting overly large or
+% small floating point number if it is not too big, otherwise it
+% receives $+\infty$.  Currently, the inexact exception is entirely
+% ignored.
+%
+% The behaviour when an exception occurs is controlled by the
+% definitions of the functions
+% \begin{itemize}
+% \item \cs{fp_invalid_operation:Nnw},
+% \item \cs{fp_invalid_operation:Nnww},
+% \item \cs{fp_division_by_zero:Nnw},
+% \item \cs{fp_division_by_zero:Nnww},
+% \item \cs{fp_overflow:w},
+% \item \cs{fp_underflow:w}.
+% \end{itemize}
+% Rather than changing them directly, we provide a user interface as
+% \cs{fp_trap:nn} \Arg{exception} \Arg{way of trapping}, where the
+% \meta{way of trapping} is one of \texttt{error}, \texttt{flag}, or
+% \texttt{none}.
+%
+% \begin{macro}{\fp_trap:nn} %^^A todo: user command => document
 %    \begin{macrocode}
-\cs_generate_internal_variant:n { NNff }
-\cs_new:Npn \fp_trap_invalid_operation:Nww #1 #2; #3;
+\cs_new_protected:Npn \fp_trap:nn #1#2
   {
-    % \bool_if:NT \l_fp_catch_exceptions_bool
-    %   {
-    %     \exp_args:NNff \fp_trap_invalid_operation_msg:Nnn
-    %       #1 { \fp_to_tl:w #2; } { \fp_to_tl:w #3; }
-    %   }
-    \c_nan_fp
+    \cs_if_exist_use:cF { fp_trap_#1_set_#2: }
+      {
+        \clist_if_in:nnTF
+          { invalid_operation , division_by_zero , overflow , underflow }
+          {#1}
+          { \msg_kernel_error:nnxx { fp } { unknown-trap-type } {#1} {#2} }
+          { \msg_kernel_error:nnx { fp } { unknown-exception } {#1} }
+      }
   }
-\cs_new:Npn \fp_trap_invalid_operation_msg:Nnn #1#2#3
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]
+%   {
+%     \fp_trap_invalid_operation_set_error: ,
+%     \fp_trap_invalid_operation_set_flag:  ,
+%     \fp_trap_invalid_operation_set_none:  ,
+%     \fp_trap_invalid_operation_set:N      ,
+%   }
+% \begin{macro}[aux]
+%   {
+%     \fp_trap_division_by_zero_set_error: ,
+%     \fp_trap_division_by_zero_set_flag:  ,
+%     \fp_trap_division_by_zero_set_none:  ,
+%     \fp_trap_division_by_zero_set:N      ,
+%   }
+% \begin{macro}[aux]{\fp_trap_invalid_operation_set:Nnn}
+%   We provide three types of trapping for invalid operations and
+%   division by zero: either produce an error and raise the relevant
+%   flag; or only raise the flag; or don't even raise the flag.  In all
+%   cases, the function must produce a result, namely its first
+%   argument, $\pm\infty$ or \nan{}.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \fp_trap_invalid_operation_set_error:
+  { \fp_trap_invalid_operation_set:N \prg_do_nothing: }
+\cs_new_protected_nopar:Npn \fp_trap_invalid_operation_set_flag:
+  { \fp_trap_invalid_operation_set:N \use_none:nn }
+\cs_new_protected_nopar:Npn \fp_trap_invalid_operation_set_none:
+  { \fp_trap_invalid_operation_set:N \use_none:nnnn }
+\cs_new_protected:Npn \fp_trap_invalid_operation_set:N #1
   {
-    \msg_expandable_kernel_error:nn
-      { fp } { bad-operation } {#2~#1~#3}
+    \fp_trap_invalid_operation_set:Nnn #1
+      { invalid_operation } { Invalid~operation~ }
   }
-\cs_new:Npn \fp_trap_division_by_zero:Nww #1 #2; #3;
+\cs_new_protected_nopar:Npn \fp_trap_division_by_zero_set_error:
+  { \fp_trap_division_by_zero_set:N \prg_do_nothing: }
+\cs_new_protected_nopar:Npn \fp_trap_division_by_zero_set_flag:
+  { \fp_trap_division_by_zero_set:N \use_none:nn }
+\cs_new_protected_nopar:Npn \fp_trap_division_by_zero_set_none:
+  { \fp_trap_division_by_zero_set:N \use_none:nnnn }
+\cs_new_protected:Npn \fp_trap_division_by_zero_set:N #1
   {
-    % \exp_args:NNff \fp_trap_division_by_zero:Nnn
-    %   #1 { \fp_to_tl:w #2; } { \fp_to_tl:w #3; }
-    \c_nan_fp
+    \fp_trap_invalid_operation_set:Nnn #1
+      { division_by_zero } { Division~by~zero~in~ }
   }
-\cs_new:Npn \fp_trap_division_by_zero_msg:Nnn #1#2#3
+\cs_new_protected:Npn \fp_trap_invalid_operation_set:Nnn #1#2#3
   {
-    \msg_expandable_kernel_error:nnn
-      { fp } { division-by-zero } { #2~#1~#3 }
+    \exp_args:Nno \use:n
+      { \cs_set:cpn { fp_ #2 :Nnw } ##1##2##3; }
+      {
+        #1
+        \fp_error:x { { #3 ##2 } ( \fp_to_tl:w ##3; ) }
+        \fp_flag_on:n {#2}
+        \exp_after:wN ##1
+      }
+    \exp_args:Nno \use:n
+      { \cs_set:cpn { fp_ #2 :Nnww } ##1##2##3; ##4; }
+      {
+        #1
+        \fp_error:x
+          {
+            {#3}
+            \tl_if_single:nTF {##2}
+              { ( \fp_to_tl:w ##3; ) ##2 ( \fp_to_tl:w ##4; ) }
+              { { ##2 ( } \fp_to_tl:w ##3; { , ~ } \fp_to_tl:w ##4; ) }
+          }
+        \fp_flag_on:n {#2}
+        \exp_after:wN ##1
+      }
   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
-%
-% \begin{macro}{\fp_trap_overflow:Nw}
-% \begin{macro}{\fp_trap_underflow:Nw}
-% \begin{macro}{\fp_trap_inexact:Nw}
-% \begin{macro}{\fp_trap_inexact_overflow:Nw}
-% \begin{macro}{\fp_trap_inexact_underflow:Nw}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 %
+% \begin{macro}[aux]
+%   {
+%     \fp_trap_overflow_set_error: ,
+%     \fp_trap_overflow_set_flag:  ,
+%     \fp_trap_overflow_set_none:  ,
+%     \fp_trap_overflow_set:N      ,
+%   }
+% \begin{macro}[aux]
+%   {
+%     \fp_trap_underflow_set_error: ,
+%     \fp_trap_underflow_set_flag:  ,
+%     \fp_trap_underflow_set_none:  ,
+%     \fp_trap_underflow_set:N      ,
+%   }
+% \begin{macro}[aux]{\fp_trap_overflow_set:NnNn}
+%   Just as for invalid operations and division by zero, the three
+%   different behaviours are obtained by feeding \cs{prg_do_nothing:},
+%   \cs{use_none:nn} or \cs{use_none:nnnn} to an auxiliary, with a
+%   further auxiliary common to overflow and underflow functions.  In
+%   most cases, the argument of the \cs{fp_overflow:w} and
+%   \cs{fp_underflow:w} functions will be an (almost) normal number
+%   (with an exponent outside the allowed range), and the error message
+%   thus displays that number together with the result to which it
+%   overflowed or underflowed.  For extreme cases such as \texttt{10 **
+%     1e9999}, the exponent would be too large for \TeX{}, and
+%   \cs{fp_overflow:w} receives $\pm \infty$ (\cs{fp_underflow:w} would
+%   receive $\pm 0$); then we cannot do better than simply say an
+%   overflow or underflow occurred.
 %    \begin{macrocode}
-\msg_new:nnnn { fp } { not-a-flag }
-  { The~control~sequence~#1~exists~and~is~not~a~flag. }
-\msg_kernel_new:nnn { fp } { bad-operation }
-  { Operation~#1~is~invalid. }
-\msg_kernel_new:nnn { fp } { division-by-zero }
-  { Division~by~zero~in~#1. }
+\cs_new_protected_nopar:Npn \fp_trap_overflow_set_error:
+  { \fp_trap_overflow_set:N \prg_do_nothing: }
+\cs_new_protected_nopar:Npn \fp_trap_overflow_set_flag:
+  { \fp_trap_overflow_set:N \use_none:nn }
+\cs_new_protected_nopar:Npn \fp_trap_overflow_set_none:
+  { \fp_trap_overflow_set:N \use_none:nnnn }
+\cs_new_protected:Npn \fp_trap_overflow_set:N #1
+  { \fp_trap_overflow_set:NnNn #1 { overflow } \fp_aux_inf_fp:N { inf } }
+\cs_new_protected_nopar:Npn \fp_trap_underflow_set_error:
+  { \fp_trap_underflow_set:N \prg_do_nothing: }
+\cs_new_protected_nopar:Npn \fp_trap_underflow_set_flag:
+  { \fp_trap_underflow_set:N \use_none:nn }
+\cs_new_protected_nopar:Npn \fp_trap_underflow_set_none:
+  { \fp_trap_underflow_set:N \use_none:nnnn }
+\cs_new_protected:Npn \fp_trap_underflow_set:N #1
+  { \fp_trap_overflow_set:NnNn #1 { underflow } \fp_aux_zero_fp:N { 0 } }
+\cs_new_protected:Npn \fp_trap_overflow_set:NnNn #1#2#3#4
+  {
+    \exp_args:Nno \use:n
+      { \cs_set:cpn { fp_ #2 :w } \s_fp \fp_use:w ##1##2##3; }
+      {
+        #1
+        \fp_error:x
+          {
+            \token_if_eq_meaning:NNTF 1 ##1
+              {
+                \fp_to_tl:w \s_fp \fp_use:w ##1##2##3; ~ #2 ed ~ to ~
+                \token_if_eq_meaning:NNF 0 ##2 { - } #4 .
+              }
+              { An~#2~occurred. }
+          }
+        \fp_flag_on:n {#2}
+        #3 ##2
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]
+%   {
+%     \fp_invalid_operation:Nnw, \fp_invalid_operation:Nnww,
+%     \fp_division_by_zero:Nnw, \fp_division_by_zero:Nnww,
+%     \fp_overflow:w , \fp_underflow:w
+%   }
+%   Initialize the two control sequences (to log properly their
+%   existence).  Then set invalid operations to trigger an error, and
+%   division by zero, overflow, and underflow to act silently on their
+%   flag.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \fp_invalid_operation:Nnw { }
+\cs_new_protected_nopar:Npn \fp_invalid_operation:Nnww { }
+\cs_new_protected_nopar:Npn \fp_division_by_zero:Nnw { }
+\cs_new_protected_nopar:Npn \fp_division_by_zero:Nnww { }
+\cs_new_protected_nopar:Npn \fp_overflow:w { }
+\cs_new_protected_nopar:Npn \fp_underflow:w { }
+\fp_trap:nn { invalid_operation } { error }
+\fp_trap:nn { division_by_zero } { flag }
+\fp_trap:nn { overflow } { flag }
+\fp_trap:nn { underflow } { flag }
+%    \end{macrocode}
+% \end{macro}
+%
+% Some messages.
+%    \begin{macrocode}
+\msg_new:nnnn { fp } { unknown-exception }
+  { The~exception~`#1'~is~not~known:~that~trap~will~never~be~triggered. }
+  {
+    The~only~exceptions~to~which~traps~can~be~attached~are \\
+    \iow_indent:n
+      {
+        * ~ invalid_operation \\
+        * ~ division_by_zero \\
+        * ~ overflow \\
+        * ~ underflow
+      }
+  }
+\msg_new:nnnn { fp } { unknown-trap-type }
+  { The~trap~type~`#2'~is~not~known. }
+  {
+    The~trap~type~must~be~one~of \\
+    \iow_indent:n
+      {
+        * ~ error \\
+        * ~ flag \\
+        * ~ none
+      }
+  }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
