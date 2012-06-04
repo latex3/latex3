@@ -58,7 +58,7 @@ PACKAGEROOT := latex/$(L3DIR)/$(PACKAGE)
 DTX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 DTXFILES  = $(subst .dtx,,$(notdir $(wildcard $(SOURCEDIR)/*.dtx)))
 TEX       = $(subst ,,$(notdir $(wildcard $(SOURCEDIR)/*.tex)))
-UNPACK    = $(PACKAGE).ins
+UNPACK    = $(PACKAGE).ins $(PACKAGE)-trial.ins
 
 ##############################################################
 # Files for the check systems                                #
@@ -91,6 +91,7 @@ CLEAN = \
 	diff \
 	gz   \
 	pdf  \
+	sty  \
 	tex  \
 	zip
 

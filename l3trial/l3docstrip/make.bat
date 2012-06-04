@@ -34,12 +34,12 @@ rem Makefile for LaTeX3 "l3docstrip" files
 
   rem Unpacking information
 
-  set UNPACK=%MODULE%.ins
+  set UNPACK=%MODULE%.ins %MODULE%-trial.ins
 
   rem Clean up settings
 
   set AUXFILES=aux cmds fpl glo hd idx ilg ind log lvt tlg toc out
-  set CLEAN=fc gz pdf tex
+  set CLEAN=fc gz pdf sty tex
   set NOCLEAN=
 
   rem Check system set up
