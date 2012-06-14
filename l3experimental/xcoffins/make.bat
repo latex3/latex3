@@ -110,7 +110,7 @@ rem Makefile for LaTeX3 "xcoffins" files
   )
 
   copy /y %SCRIPTDIR%\log2tlg            > nul
-  for %%I in (pdftex.def pdftexcmds.sty regression-test.tex supp-pdf.mkii) do (
+  for %%I in (regression-test.tex) do (
     copy /y %VALIDATE%\%%I > nul
   )
   copy /y %VALIDATE%\regression-test.tex > nul

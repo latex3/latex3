@@ -67,7 +67,7 @@ UNPACK    = xcoffins.ins
 
 CHECKFILES = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/*.tlg)))
 SCRIPTS    = log2tlg
-VALIDATE   = commands-check.tex pdftex.def pdftexcmds.sty regression-test.tex supp-pdf.mkii
+VALIDATE   = commands-check.tex regression-test.tex
 
 ##############################################################
 # Clean-up information                                       #
@@ -138,18 +138,8 @@ $(TESTDIR)/%.txt: $(SOURCEDIR)/%.txt
 $(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
 	@cp -fp $< $@
 
-$(TESTDIR)/pdftex.def: $(VALIDATEDIR)/pdftex.def
-	@cp -fp $< $@
-	
-$(TESTDIR)/pdftexcmds.sty: $(VALIDATEDIR)/pdftexcmds.sty
-	@cp -fp $< $@
-
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 	@cp -fp $< $@
-
-$(TESTDIR)/supp-pdf.mkii: $(VALIDATEDIR)/supp-pdf.mkii
-	@cp -fp $< $@
-
 
 ################################################################
 # File building: default actions                                #
