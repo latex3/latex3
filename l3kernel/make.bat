@@ -46,7 +46,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   rem Clean up settings
 
   set AUXFILES=aux bbl blg cmds dvi glo gls hd idx ilg ind ist log lvt los out tlg tmp toc
-  set CLEAN=bib bst cls def fc fmt gz ltx mkii orig pdf sty zip
+  set CLEAN=bib bst cls def fc fmt gz ltx orig pdf sty zip
 
   rem Check system set up
 
