@@ -67,7 +67,7 @@ TDSDIR   := $(TESTDIR)/tds
 # Data for local installation and TDS construction           #
 ##############################################################
 
-INCLUDEPDF  := expl3 interface3 l3styleguide l3syntax-changes source3
+INCLUDEPDF  := expl3 interface3 l3docstrip l3styleguide l3syntax-changes source3
 INCLUDETEX  := interface3 l3styleguide l3syntax-changes source3 source3body
 INCLUDETXT  := README
 PACKAGEROOT := latex/$(PACKAGE)
@@ -424,6 +424,7 @@ cleanall: clean
 	for I in $(AUXFILES) $(CLEAN) ; do \
 	  rm -f *.$$I ; \
 	done
+	rm -f l3docstrip.tex
 
 ctan: tds
 	echo ""
@@ -506,6 +507,7 @@ tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).markdown) sourcedoc
 	mkdir -p $(TDSDIR)/tex/$(PACKAGEROOT)/
 	cd $(TESTDIR) ; \
 	cp -f *.cls $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
+	cp -f l3docstrip.tex $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
 	cp -f *.dtx $(TDSDIR)/source/$(PACKAGEROOT)/ ; \
 	cp -f *.ist $(TDSDIR)/makeindex/$(PACKAGE)/ ; \
 	for I in $(INCLUDEPDF) ; do \

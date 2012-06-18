@@ -74,7 +74,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   set CTANROOT=ctan
   set ENGINE=pdftex
   set MARKDOWN=README
-  set INCLUDEPDF=expl3 interface3 l3styleguide l3syntax-changes source3
+  set INCLUDEPDF=expl3 interface3 l3dostrip l3styleguide l3syntax-changes source3
   set TDSFILES=%CTANFILES% cls sty
   set TDSROOT=tds
 
@@ -316,6 +316,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   for %%I in (%CLEAN%) do (
     if exist *.%%I del /q *.%%I
   )
+  if exist l3docstrip.tex del /q l3docstrip.tex
 
 :clean-int
 
@@ -615,6 +616,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   for %%I in (%TDSFILES%) do (
     call :tds-int *.%%I
   )
+  xcopy /q /y l3docstrip.tex "%TDSROOT%\tex\latex\%BUNDLE%\" > nul
   for %%I in (%MARKDOWN%) do (
     copy /y %%I.markdown "%TDSROOT%\doc\latex\%BUNDLE%\" > nul
     ren "%TDSROOT%\doc\latex\%BUNDLE%\%%I.markdown" %%I
