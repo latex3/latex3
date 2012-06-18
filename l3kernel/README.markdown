@@ -94,5 +94,7 @@ by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
 the [LaTeX-L list](http://news.gmane.org/group/gmane.comp.tex.latex.latex3)
 should be used.
 
---- Copyright 1998-2011
-    The LaTeX3 Project.  All rights reserved ---
+-----
+
+Copyright (C) 1998-2012 The LaTeX3 Project
+All rights reserved
