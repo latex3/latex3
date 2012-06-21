@@ -624,7 +624,8 @@
 %   \end{syntax}
 %   Tests if the function |\exp_args:N|\meta{arg~spec} exists, and defines it
 %   if it does not. The \meta{arg~spec} should be a series of one or more
-%   of the letters |N|, |c|, |n|, |o|, |V|, |v|, |f| and |x|.
+%   of the letters |N|, |c|, |n|, |o|, |V|, |v|, |f| and |x|, with category
+%   other.  The result is protected if |x| appears in its signature.
 % \end{function}
 %
 % \end{documentation}
@@ -1281,45 +1282,51 @@
 %     \item Base form of a function; \emph{e.g.},~|\tl_set:Nn|
 %     \item One or more variant argument specifiers; e.g., |{Nx,c,cx}|
 %   \end{arguments}
-%   Test whether the base function is protected or not
-%   and define \cs{cs_tmp:w} as either \cs{cs_new_nopar:Npx} or
-%   \cs{cs_new_protected_nopar:Npx}, then used to define all the
-%   variants.
-%   Split up the original base function to grab its name and signature
-%   consisting of $k$ letters. Then we wish to iterate through the list
-%   of variant argument specifiers, and for each one construct a new
-%   function name using the original base name, the variant signature
-%   consisting of $l$ letters and the last $k-l$ letters of the base
-%   signature. For example, for a base function |\tl_set:Nn| which
-%   needs a |c| variant form, we want the new signature to be |cn|.
+%   After making sure that the base form exists, test whether it is
+%   protected or not and define \cs{cs_tmp:w} as either
+%   \cs{cs_new_nopar:Npx} or \cs{cs_new_protected_nopar:Npx}, which is
+%   then used to define all the variants (except those involving
+%   \texttt{x}-expansion, always protected).
+%   Split up the original base function to grab its name and signature.
+%   Then we wish to iterate through the comma list of variant argument
+%   specifiers, which we first convert to a string: this is explained
+%   later.
 %    \begin{macrocode}
-\cs_new_protected:Npn \cs_generate_variant:Nn #1
+\cs_new_protected:Npn \cs_generate_variant:Nn #1#2
   {
     \chk_if_exist_cs:N #1
     \cs_generate_variant_aux:N #1
-    \cs_split_function:NN #1 \cs_generate_variant_aux:nnNNn
-    #1
+    \exp_after:wN \cs_split_function:NN
+    \exp_after:wN #1
+    \exp_after:wN \cs_generate_variant_aux:nnNN
+    \exp_after:wN #1
+    \etex_detokenize:D {#2} , ? , \q_recursion_stop
   }
 %    \end{macrocode}
 %   We discard the boolean |#3| and then set off a loop through the desired
 %   variant forms. The original function is retained as |#4| for efficiency.
+%   For each variant form, construct a new function name using the original
+%   base name |#1|, the variant signature consisting of $l$ letters and the
+%   last $k-l$ letters of the base signature (of length $k$).
+%   For example, for a base function \cs{prop_put:Nnn} which needs a
+%   |cV| variant form, we want the new signature to be |cVn|.
 %    \begin{macrocode}
-\cs_new_protected:Npn \cs_generate_variant_aux:nnNNn #1#2#3#4#5
-  { \cs_generate_variant_aux:Nnnw #4 {#1}{#2} #5 , ? , \q_recursion_stop }
+\cs_new_protected:Npn \cs_generate_variant_aux:nnNN #1#2#3#4
+  { \cs_generate_variant_aux:Nnnw #4 {#1}{#2} }
 %    \end{macrocode}
 %   Next is the real work to be done. We now have 1: original function,
 %   2: base name, 3: base signature, 4: beginning of variant signature.
 %   To construct the new
-%   csname and the |\exp_args:Ncc| form, we need the variant signature.
+%   csname and the |\exp_args:NcV| form, we need the variant signature.
 %   In our example, we wanted to discard the first two letters of the
-%   base signature because the variant form started with |cc|. This is
-%   the same as putting first |cc| in the signature and then
-%   |\use_none:nn| followed by the base signature |NNn|. Depending on
+%   base signature because the variant form started with |cV|. This is
+%   the same as putting first |cV| in the signature and then
+%   |\use_none:nn| followed by the base signature |Nnn|. Depending on
 %   the number of characters in |#4|, the relevant \cs{use_none:n\ldots{}n}
 %   is called.
 %
 %   Firstly though, we check whether to terminate the loop.
-%   Then build the variant function once, to avoid repeating this
+%   Then build the variant function name once, to avoid repeating this
 %   relatively expensive operation. Then recurse.
 %    \begin{macrocode}
 \cs_new_protected:Npn \cs_generate_variant_aux:Nnnw #1#2#3#4 ,
@@ -1352,15 +1359,18 @@
 %    \end{macrocode}
 %   Check if the variant form has already been defined.
 %   If not, then define it and then additionally check if
-%   the |\exp_args:N| form needed is defined.
-%   Otherwise tell that it was already defined.
+%   the |\exp_args:N| form needed is defined: this is the place where
+%   having converted the original comma-list argument to a string is
+%   very important.  Otherwise tell that it was already defined.
 %    \begin{macrocode}
 \cs_new_protected:Npn \cs_generate_variant_aux:NNn #1 #2 #3
   {
     \cs_if_free:NTF #2
       {
-        \cs_tmp:w #2 { \exp_not:c { exp_args:N #3 } \exp_not:N #1 }
-        \cs_generate_internal_variant:n {#3}
+        \group_begin:
+          \cs_generate_internal_variant:n {#3}
+          \cs_tmp:w #2 { \exp_not:c { exp_args:N #3 } \exp_not:N #1 }
+        \group_end:
       }
       {
         \iow_log:x
@@ -1418,17 +1428,40 @@
 % \end{macro}
 %
 % \begin{macro}[int]{\cs_generate_internal_variant:n}
+% \begin{macro}[aux]{\cs_generate_internal_variant_aux:wwnw}
 % \begin{macro}[aux, rEXP]{\cs_generate_internal_variant_aux:N}
 %   Test if |exp_args:N #1| is already defined
 %   and if not define it via the
-%   |\::| commands using the chars in |#1|
+%   |\::| commands using the chars in |#1|.
+%   If |#1| contains an |x|, the result should be protected, and the
+%   next variant to be defined using that internal variant should be
+%   protected.  Note that the argument is given as a string, so there is
+%   no need to convert it again.
 %    \begin{macrocode}
-\cs_new_protected:Npn \cs_generate_internal_variant:n #1
+\group_begin:
+  \tex_catcode:D `\X = 12 \scan_stop:
+  \tex_lccode:D `\N = `\N \scan_stop:
+\tex_lowercase:D
   {
-    \cs_if_free:cT { exp_args:N #1 }
+    \group_end:
+    \cs_new_protected:Npn \cs_generate_internal_variant:n #1
       {
-        \cs_new:cpx { exp_args:N #1 }
+        \cs_generate_internal_variant_aux:wwnNwnn
+          #1 \q_mark
+            { \cs_set_eq:NN \cs_tmp:w \cs_new_protected_nopar:Npx }
+            \cs_new_protected_nopar:cpx
+          X \q_mark
+            { }
+            \cs_new_nopar:cpx
+        \q_stop
+          { exp_args:N #1 }
           { \cs_generate_internal_variant_aux:N #1 : }
+      }
+    \cs_new_protected:Npn \cs_generate_internal_variant_aux:wwnNwnn
+        #1 X #2 \q_mark #3 #4 #5 \q_stop #6 #7
+      {
+        #3
+        \cs_if_free:cT {#6} { #4 {#6} {#7} }
       }
   }
 %    \end{macrocode}
@@ -1446,6 +1479,7 @@
     \cs_generate_internal_variant_aux:N
   }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
