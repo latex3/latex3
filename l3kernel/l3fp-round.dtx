@@ -76,130 +76,153 @@
 %<*initex|package>
 %    \end{macrocode}
 %
+%    \begin{macrocode}
+%<@@=fp>
+%    \end{macrocode}
+%
+% ^^A todo: provide an interface for rounding modes.
+% ^^A todo: provide a \l_@@_rounding_mode_int giving the current mode.
+% ^^A todo: make transcendental function obey the correct rounding mode.
+% ^^A todo: optimize all rounding functions for various rounding modes.
+% ^^A todo: reduce the number of almost identical functions.
+%
 % \subsection{Rounding tools}
 %
-% \begin{variable}
-%   {
-%     \l_fp_rounding_mode_int,
-%     \c_fp_rounding_mode_nearest_int,
-%     \c_fp_rounding_mode_ninf_int,
-%     \c_fp_rounding_mode_zero_int,
-%     \c_fp_rounding_mode_pinf_int
-%   }
-%    \begin{macrocode}
-\int_new:N    \l_fp_rounding_mode_int
-\int_const:Nn \c_fp_rounding_mode_nearest_int {0}
-\int_const:Nn \c_fp_rounding_mode_ninf_int    {1}
-\int_const:Nn \c_fp_rounding_mode_zero_int    {2}
-\int_const:Nn \c_fp_rounding_mode_pinf_int    {3}
-%    \end{macrocode}
-% \end{variable}
+% Floating point operations often yield a result that cannot be exactly
+% represented in a mantissa with $16$ digits.  In that case, we need to
+% round the exact result to a representable number.  The \textsc{ieee}
+% standard defines four rounding modes:
+% \begin{itemize}
+%   \item Round to nearest: round to the representable floating point
+%     number whose absolute difference with the exact result is the
+%     smallest.  If the exact result lies exactly at the mid-point
+%     between two consecutive representable floating point numbers,
+%     round to the floating point number whose last digit is even.
+%   \item Round towards negative infinity: round to the greatest
+%     floating point number not larger than the exact result.
+%   \item Round towards zero: round to a floating point number with the
+%     same sign as the exact result, with the largest absolute value not
+%     larger than the absolute value of the exact result.
+%   \item Round towards positive infinity: round to the least floating
+%     point number not smaller than the exact result.
+% \end{itemize}
+% This is not fully implemented in \pkg{l3fp} yet, and transcendental
+% functions fall back on the \enquote{round to nearest} mode.  All
+% rounding for basic algebra is done through the functions defined in
+% this module, which can be redefined to change their rounding behaviour
+% (but there is not interface for that yet).
 %
-% \begin{macro}[int, rEXP]{\fp_aux_round:NNN}
+% The rounding tools available in this module are many variations on a
+% base function \cs{@@_round:NNN}, which expands to \cs{c_zero} or
+% \cs{c_one} depending on whether the final result should be rounded up
+% or down.
+% \begin{itemize}
+%   \item \cs{@@_round:NNN} \meta{sign} \meta{digit1} \meta{digit2}
+%     can expand to \cs{c_zero} or \cs{c_one}.
+%   \item \cs{@@_round:NNNN} \meta{sign} \meta{digit1} \meta{digit2}
+%     \meta{digit3} can expand to \cs{c_zero} or \cs{c_one}.
+%   \item \cs{@@_round_s:NNNw} \meta{sign} \meta{digit1} \meta{digit2}
+%     \meta{more digits} |;| can expand to |\c_zero ;| or |\c_one ;|.
+%   \item \cs{@@_round_neg:NNN} \meta{sign} \meta{digit1} \meta{digit2}
+%     can expand to \cs{c_zero} or \cs{c_one}.
+% \end{itemize}
+% See implementation comments for details on the syntax.
+%
+% \begin{macro}[int, rEXP]{\@@_round:NNN}
 % \begin{macro}[aux, rEXP]
 %   {
-%     \fp_aux_round_to_nearest:NNN,
-%     \fp_aux_round_to_ninf:NNN,
-%     \fp_aux_round_to_zero:NNN,
-%     \fp_aux_round_to_pinf:NNN
+%     \@@_round_to_nearest:NNN,
+%     \@@_round_to_ninf:NNN,
+%     \@@_round_to_zero:NNN,
+%     \@@_round_to_pinf:NNN
 %   }
 %   \begin{syntax}
-%     \cs{fp_aux_round:NNN} \meta{final sign} \meta{digit1} \meta{digit2}
+%     \cs{@@_round:NNN} \meta{final sign} \meta{digit1} \meta{digit2}
 %   \end{syntax}
-%   This expands to \cs{c_zero} if in the current rounding mode a number
-%   of sign \meta{final sign} and ending with the \meta{digits} should
-%   be rounded towards zero (truncated), and to \cs{c_one} if it should
-%   be rounded away from zero.  Typically used within the scope of an
-%   \cs{__int_eval:w}, to add~$1$ if needed, and thereby round correctly.
+%   If rounding the number $\meta{final sign}
+%   \meta{digit1}.\meta{digit2}$ to an integer rounds it towards zero
+%   (truncates it), this function expands to \cs{c_zero}, and otherwise
+%   to \cs{c_one}.  Typically used within the scope of an
+%   \cs{__int_eval:w}, to add~$1$ if needed, and thereby round
+%   correctly.  The result depends on the rounding mode.
 %
 %   It is very important that \meta{final sign} be the final sign of the
 %   result. Otherwise, the result will be incorrect in the case of
 %   rounding towards~$-\infty$ or towards~$+\infty$. Also recall that
 %   \meta{final sign} is~$0$ for positive, and~$2$ for negative.
 %
-%   We use a trick similar to \cs{prg_return_true:}
-%   and \cs{prg_return_false:}, but more dirty. By default,
-%   the functions below return \cs{c_zero}, but this is superseded
-%   by \cs{fp_aux_round_return_one:}, which instead returns \cs{c_one},
-%   expanding everything and removing \cs{c_zero} in the process.
-%   In the case of rounding towards~$\pm\infty$, $0$, this is not
-%   really useful, but it prepares us for the \enquote{round to nearest,
-%     ties to even} mode.
+%   By default, the functions below return \cs{c_zero}, but this is
+%   superseded by \cs{@@_round_return_one:}, which instead returns
+%   \cs{c_one}, expanding everything and removing \cs{c_zero} in the
+%   process.  In the case of rounding towards~$\pm\infty$ or
+%   towards~$0$, this is not really useful, but it prepares us for the
+%   \enquote{round to nearest, ties to even} mode.
+%
+%   The \enquote{round to nearest} mode is the default.  If the
+%   \meta{digit2} is larger than~$5$, then round up.  If it is less
+%   than~$5$, round down.  If it is exactly $5$, then round such that
+%   \meta{digit1} plus the result is even.  In other words, round up if
+%   \meta{digit1} is odd.
 %    \begin{macrocode}
-\cs_new:Npn \fp_aux_round_return_one:
+\cs_new:Npn \@@_round_return_one:
   { \exp_after:wN \c_one \tex_romannumeral:D }
-\cs_new:Npn \fp_aux_round_to_ninf:NNN #1 #2 #3
+\cs_new:Npn \@@_round_to_ninf:NNN #1 #2 #3
   {
-    \if:w 2 #1
+    \if_meaning:w 2 #1
       \if_int_compare:w #3 > \c_zero
-        \fp_aux_round_return_one:
+        \@@_round_return_one:
       \fi:
     \fi:
     \c_zero
   }
-\cs_new:Npn \fp_aux_round_to_zero:NNN #1 #2 #3 { \c_zero }
-\cs_new:Npn \fp_aux_round_to_pinf:NNN #1 #2 #3
+\cs_new:Npn \@@_round_to_zero:NNN #1 #2 #3 { \c_zero }
+\cs_new:Npn \@@_round_to_pinf:NNN #1 #2 #3
   {
-    \if:w 0 #1
+    \if_meaning:w 0 #1
       \if_int_compare:w #3 > \c_zero
-        \fp_aux_round_return_one:
+        \@@_round_return_one:
       \fi:
     \fi:
     \c_zero
   }
-%    \end{macrocode}
-%   The \enquote{round to nearest} mode is the default.
-%   If the \meta{digit2} is larger than~$5$, then round up.
-%   If it is less than~$5$, round down. If it is exactly $5$,
-%   then round such that \meta{digit1} plus the result is even.
-%   In other words, round up if \meta{digit1} is odd.
-%    \begin{macrocode}
-\cs_new:Npn \fp_aux_round_to_nearest:NNN #1 #2 #3
+\cs_new:Npn \@@_round_to_nearest:NNN #1 #2 #3
   {
     \if_int_compare:w #3 > \c_five
-      \fp_aux_round_return_one:
+      \@@_round_return_one:
     \else:
-      \if:w 5 #3
+      \if_meaning:w 5 #3
         \if_int_odd:w #2 \exp_stop_f:
-          \fp_aux_round_return_one:
+          \@@_round_return_one:
         \fi:
       \fi:
     \fi:
     \c_zero
   }
-\cs_new_eq:NN \fp_aux_round:NNN \fp_aux_round_to_nearest:NNN
+\cs_new_eq:NN \@@_round:NNN \@@_round_to_nearest:NNN
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[rEXP, int]{\fp_aux_round_s:NNNw}
+% \begin{macro}[EXP, int]{\@@_round_s:NNNw}
 %   \begin{syntax}
-%     \cs{fp_aux_round_s:NNNw} \meta{final sign}
-%     ~~\meta{digit} \meta{more digits} |;|
+%     \cs{@@_round_s:NNNw} \meta{final sign} \meta{digit} \meta{more digits} |;|
 %   \end{syntax}
-%   Expands to \cs{c_zero} or \cs{c_one}, followed by a
-%   semicolon. The value \cs{c_zero} is returned if rounding
-%   (in the current mode) the number $\meta{final sign}
-%   \meta{digit}.\meta{more digits}$ to an integer yields
-%   $\meta{final sign} \meta{digit}$, and \cs{c_one} if it
-%   yields $\meta{final sign} (\meta{digit} + 1)$. See
-%   \cs{fp_aux_round:NNN} for details on the various
-%   rounding modes.
-%
-%   Note that \meta{more digits} must be a digit, followed
-%   by a piece that does not overflow a \cs{int_use:N}
-%   \cs{__int_eval:w} construction. The only relevant
-%   information about this piece is whether it is zero or not.
-%^^A Optimize for various rounding modes.
+%   Similar to \cs{@@_round:NNN}, but with an extra semicolon, this
+%   function expands to |\c_zero ;| if rounding $\meta{final sign}
+%   \meta{digit}.\meta{more digits}$ to an integer truncates, and to
+%   |\c_one ;| otherwise.  The \meta{more digits} part must be a digit,
+%   followed by something that does not overflow a \cs{int_use:N}
+%   \cs{__int_eval:w} construction.  The only relevant information about
+%   this piece is whether it is zero or not.
 %    \begin{macrocode}
-\cs_new:Npn \fp_aux_round_s:NNNw #1 #2 #3 #4;
+\cs_new:Npn \@@_round_s:NNNw #1 #2 #3 #4;
   {
-    \exp_after:wN \fp_aux_round:NNN
+    \exp_after:wN \@@_round:NNN
     \exp_after:wN #1
     \exp_after:wN #2
     \int_use:N \__int_eval:w
-      \if_int_odd:w 0 \if:w 0 #3 1 \fi:
-                      \if:w 5 #3 1 \fi:
+      \if_int_odd:w 0 \if_meaning:w 0 #3 1 \fi:
+                      \if_meaning:w 5 #3 1 \fi:
                 \exp_stop_f:
         \if_int_compare:w \__int_eval:w #4 > \c_zero
           1 +
@@ -211,21 +234,20 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int, rEXP]{\fp_aux_round:NNNN}
+% \begin{macro}[int, EXP]{\@@_round:NNNN}
 %   \begin{syntax}
-%     \cs{fp_aux_round:NNNN} \meta{final sign} \meta{digit} \meta{2d}
+%     \cs{@@_round:NNNN} \meta{final sign} \meta{digit} \meta{2d}
 %   \end{syntax}
-%   Identical to \cs{fp_aux_round_s:NNNw} except for trailing semicolon.
-%   \footnote{Bruno: I shouldn't have almost identical functions like this.}
+%   Identical to \cs{@@_round_s:NNNw} except for a trailing semicolon.
 %   \begin{macrocode}
-\cs_new:Npn \fp_aux_round:NNNN #1 #2 #3 #4
+\cs_new:Npn \@@_round:NNNN #1 #2 #3 #4
   {
-    \exp_after:wN \fp_aux_round:NNN
+    \exp_after:wN \@@_round:NNN
     \exp_after:wN #1
     \exp_after:wN #2
     \int_use:N \__int_eval:w
-      \if_int_odd:w 0 \if:w 0 #3 1 \fi:
-                      \if:w 5 #3 1 \fi:
+      \if_int_odd:w 0 \if_meaning:w 0 #3 1 \fi:
+                      \if_meaning:w 5 #3 1 \fi:
                 \exp_stop_f:
         \if_int_compare:w #4 > \c_zero
           1 +
@@ -237,16 +259,16 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int, rEXP]{\fp_aux_round_neg:NNN}
+% \begin{macro}[int, EXP]{\@@_round_neg:NNN}
 % \begin{macro}[aux, EXP]
 %   {
-%     \fp_aux_round_to_nearest_neg:NNN,
-%     \fp_aux_round_to_ninf_neg:NNN,
-%     \fp_aux_round_to_zero_neg:NNN,
-%     \fp_aux_round_to_pinf_neg:NNN
+%     \@@_round_to_nearest_neg:NNN,
+%     \@@_round_to_ninf_neg:NNN,
+%     \@@_round_to_zero_neg:NNN,
+%     \@@_round_to_pinf_neg:NNN
 %   }
 %   \begin{syntax}
-%     \cs{fp_aux_round_neg:NNN} \meta{final sign} \meta{digit1} \meta{digit2}
+%     \cs{@@_round_neg:NNN} \meta{final sign} \meta{digit1} \meta{digit2}
 %   \end{syntax}
 %   This expands to \cs{c_zero} or \cs{c_one}. Consider a number of
 %   the form $ \meta{final sign}.X\ldots X\meta{digit1} $ with exactly
@@ -256,79 +278,88 @@
 %   then this function returns \cs{c_one}. Otherwise, \emph{i.e.},
 %   if the result is rounded back to the first operand, then this function
 %   returns \cs{c_zero}.
-%    \begin{macrocode}
-\cs_new:Npn \fp_aux_round_to_ninf_neg:NNN #1 #2 #3
-  {
-    \if:w 0 #1
-      \if_int_compare:w #3 > \c_zero
-        \fp_aux_round_return_one:
-      \fi:
-    \fi:
-    \c_zero
-  }
-\cs_new:Npn \fp_aux_round_to_zero_neg:NNN #1 #2 #3
-  {
-    \if_int_compare:w #3 > \c_zero
-      \fp_aux_round_return_one:
-    \fi:
-    \c_zero
-  }
-\cs_new:Npn \fp_aux_round_to_pinf_neg:NNN #1 #2 #3
-  {
-    \if:w 2 #1
-      \if_int_compare:w #3 > \c_zero
-        \fp_aux_round_return_one:
-      \fi:
-    \fi:
-    \c_zero
-  }
-%    \end{macrocode}
+%
 %   It turns out that this negative \enquote{round to nearest}
 %   is identical to the positive one. And this is the default mode.
 %    \begin{macrocode}
-\cs_new_eq:NN \fp_aux_round_to_nearest_neg:NNN
-    \fp_aux_round_to_nearest:NNN
-\cs_new_eq:NN \fp_aux_round_neg:NNN
-    \fp_aux_round_to_nearest_neg:NNN
+\cs_new:Npn \@@_round_to_ninf_neg:NNN #1 #2 #3
+  {
+    \if_meaning:w 0 #1
+      \if_int_compare:w #3 > \c_zero
+        \@@_round_return_one:
+      \fi:
+    \fi:
+    \c_zero
+  }
+\cs_new:Npn \@@_round_to_zero_neg:NNN #1 #2 #3
+  {
+    \if_int_compare:w #3 > \c_zero
+      \@@_round_return_one:
+    \fi:
+    \c_zero
+  }
+\cs_new:Npn \@@_round_to_pinf_neg:NNN #1 #2 #3
+  {
+    \if_meaning:w 2 #1
+      \if_int_compare:w #3 > \c_zero
+        \@@_round_return_one:
+      \fi:
+    \fi:
+    \c_zero
+  }
+\cs_new_eq:NN \@@_round_to_nearest_neg:NNN \@@_round_to_nearest:NNN
+\cs_new_eq:NN \@@_round_neg:NNN \@@_round_to_nearest_neg:NNN
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \subsection{Rounding floating point numbers}
+% \subsection{The \texttt{round} function}
 %
-% \begin{macro}[int, EXP]{\fp_round:ww}
+% ^^A todo: This macro is intermingled with l3fp-parse.
+% ^^A todo: Add explanations.
+% \begin{macro}[int, EXP]{\@@_round:Nww, \@@_round:Nwn}
+% \begin{macro}[aux, EXP]
+%   {
+%     \@@_round_normal:NwNNnw ,
+%     \@@_round_normal_ii:NnnwNNnn ,
+%     \@@_round_pack:Nw ,
+%     \@@_round_normal_iii:NNwNnn ,
+%     \@@_round_normal_end:wwNnn ,
+%     \@@_round_special:NwwNnn ,
+%     \@@_round_special_aux:Nw
+%   }
 %    \begin{macrocode}
-\cs_new:Npn \fp_round:Nww #1#2;#3;
+\cs_new:Npn \@@_round:Nww #1#2 ; #3 ;
   {
-    \fp_aux_small_int:wTF #3; { \fp_round:Nwn #1#2; }
+    \@@_small_int:wTF #3; { \@@_round:Nwn #1#2; }
       {
-        \fp_error:x { {round(x,n)~with~n=} \fp_to_tl:w #3; }
+        \@@_error:x { {round(x,n)~with~n=} \@@_to_tl:w #3; }
         \exp_after:wN \c_nan_fp
       }
   }
-\cs_new:Npn \fp_round:Nwn #1 \s_fp \fp_use:w #2#3#4; #5
+\cs_new:Npn \@@_round:Nwn #1 \s_@@ \@@_use:w #2#3#4; #5
   {
     \if_meaning:w 1 #2
-      \exp_after:wN \fp_round_normal:NwNNnw
+      \exp_after:wN \@@_round_normal:NwNNnw
       \exp_after:wN #1
       \__int_value:w #5
     \else:
-      \exp_after:wN \fp_aux_exp_after_fp:wN
+      \exp_after:wN \@@_exp_after_o:w
     \fi:
-    \s_fp \fp_use:w #2#3#4;
+    \s_@@ \@@_use:w #2#3#4;
   }
-\cs_new:Npn \fp_round_normal:NwNNnw #1#2 \s_fp \fp_use:w 1#3#4#5;
+\cs_new:Npn \@@_round_normal:NwNNnw #1#2 \s_@@ \@@_use:w 1#3#4#5;
   {
-    \fp_aux_decimate:nNnnnn { \c_sixteen - #4 - #2 }
-      \fp_round_normal_ii:NnnwNNnn #5 #1 #3 {#4} {#2}
+    \@@_decimate:nNnnnn { \c_sixteen - #4 - #2 }
+      \@@_round_normal_ii:NnnwNNnn #5 #1 #3 {#4} {#2}
   }
-\cs_new:Npn \fp_round_normal_ii:NnnwNNnn #1#2#3#4; #5#6
+\cs_new:Npn \@@_round_normal_ii:NnnwNNnn #1#2#3#4; #5#6
   {
-    \exp_after:wN \fp_round_normal_iii:NNwNnn
+    \exp_after:wN \@@_round_normal_iii:NNwNnn
     \int_use:N \__int_eval:w
       \if_int_compare:w #2 > \c_zero
         1 \__int_value:w #2
-        \exp_after:wN \fp_round_pack:Nw
+        \exp_after:wN \@@_round_pack:Nw
         \int_use:N \__int_eval:w 1#3 +
       \else:
         \if_int_compare:w #3 > \c_zero
@@ -342,43 +373,44 @@
       \__int_eval_end:
       0000 0000 0000 0000 ; #6
   }
-\cs_new:Npn \fp_round_pack:Nw #1
+\cs_new:Npn \@@_round_pack:Nw #1
   { \if_meaning:w 2 #1 + \c_one \fi: \__int_eval_end: }
-\cs_new:Npn \fp_round_normal_iii:NNwNnn #1 #2
+\cs_new:Npn \@@_round_normal_iii:NNwNnn #1 #2
   {
     \if_meaning:w 0 #2
-      \exp_after:wN \fp_round_special:NwwNnn
+      \exp_after:wN \@@_round_special:NwwNnn
       \exp_after:wN #1
     \fi:
-    \fp_aux_pack_twice_four:wNNNNNNNN
-    \fp_aux_pack_twice_four:wNNNNNNNN
-    \fp_round_normal_end:wwNnn
+    \@@_pack_twice_four:wNNNNNNNN
+    \@@_pack_twice_four:wNNNNNNNN
+    \@@_round_normal_end:wwNnn
     ; #2
   }
-\cs_new:Npn \fp_round_normal_end:wwNnn #1;#2;#3#4#5
+\cs_new:Npn \@@_round_normal_end:wwNnn #1;#2;#3#4#5
   {
-    \exp_after:wN \fp_aux_exp_after_fp:wN \tex_romannumeral:D -`0
-    \fp_aux_sanitize:Nw #3 #4 ; #1 ;
+    \exp_after:wN \@@_exp_after_o:w \tex_romannumeral:D -`0
+    \@@_sanitize:Nw #3 #4 ; #1 ;
   }
-\cs_new:Npn \fp_round_special:NwwNnn #1#2;#3;#4#5#6
+\cs_new:Npn \@@_round_special:NwwNnn #1#2;#3;#4#5#6
   {
     \if_meaning:w 0 #1
-      \fp_aux_case_return:nw
-        { \exp_after:wN \fp_aux_zero_fp:N \exp_after:wN #4 }
+      \@@_case_return:nw
+        { \exp_after:wN \@@_zero_fp:N \exp_after:wN #4 }
     \else:
-      \exp_after:wN \fp_round_special_aux:Nw
+      \exp_after:wN \@@_round_special_aux:Nw
       \exp_after:wN #4
       \int_use:N \__int_eval:w \c_one
         \if_meaning:w 1 #1 -#6 \else: +#5 \fi:
     \fi:
     ;
   }
-\cs_new:Npn \fp_round_special_aux:Nw #1#2;
+\cs_new:Npn \@@_round_special_aux:Nw #1#2;
   {
-    \exp_after:wN \fp_aux_exp_after_fp:wN \tex_romannumeral:D -`0
-    \fp_aux_sanitize:Nw #1#2; {1000}{0000}{0000}{0000};
+    \exp_after:wN \@@_exp_after_o:w \tex_romannumeral:D -`0
+    \@@_sanitize:Nw #1#2; {1000}{0000}{0000}{0000};
   }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 %    \begin{macrocode}
