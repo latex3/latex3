@@ -377,34 +377,50 @@
 %
 % \subsection{Wrapping lines in output}
 %
-% \begin{function}[updated = 2012-06-24]{\iow_wrap:xnnnN}
+% \begin{function}[added = 2012-06-28]{\iow_wrap:nnnN}
 %   \begin{syntax}
-%     \cs{iow_wrap:xnnnN} \Arg{text} \Arg{run-on text} \Arg{run-on count} \Arg{set up} \meta{function}
+%     \cs{iow_wrap:nnnN} \Arg{text} \Arg{run-on text} \Arg{set up} \meta{function}
 %   \end{syntax}
 %   This function will wrap the \meta{text} to a fixed number of
 %   characters per line. At the start of each line which is wrapped,
 %   the \meta{run-on text} will be inserted.  The line character count
 %   targeted will be the value of \cs{l_iow_line_count_int} minus the
-%   \meta{run-on count}. The latter value should be the number of
-%   characters in the \meta{run-on text}. Additional functions may be
-%   added to the wrapping by using the \meta{set up}, which is executed
-%   before the wrapping takes place. The result of the wrapping operation
-%   is passed as a braced argument to the \meta{function}, which will
-%   typically be a wrapper around a writing operation. Within the
-%   \meta{text},
+%   number of characters in the \meta{run-on text}.  The \meta{text} and
+%   \meta{run-on text} are exhaustively expanded by the function, with the
+%   following substitutions:
 %   \begin{itemize}
-%   \item |\\| may be used to force a new line,
-%   \item \verb|\ | may be used to represent a forced space
-%     (for example after a control sequence),
-%   \item |\#|, |\%|, |\{|, |\}|, |\~| may be used to represent
-%     the corresponding character,
-%   \item \cs{iow_indent:n} may be used to indent a part of the
-%     message.
+%     \item |\\| may be used to force a new line,
+%     \item \verb*|\ | may be used to represent a forced space
+%       (for example after a control sequence),
+%     \item |\#|, |\%|, |\{|, |\}|, |\~| may be used to represent
+%       the corresponding character,
+%     \item \cs{iow_indent:n} may be used to indent a part of the
+%       message.
 %   \end{itemize}
-%   The output of \cs{iow_wrap:xnnnN} (\emph{i.e.}~the argument passed to the
-%   \meta{function}) will consist of characters of category code $12$ (other)
-%   and $10$ (space) only. This means that the output will \emph{not} expand
-%   further when written to a file.
+%   Additional functions may be added to the wrapping by using the
+%   \meta{set up}, which is executed before the wrapping takes place: this
+%   may include overriding the substitutions listed.
+%   
+%   Any expandable material in the \meta{text} which is not to be expanded
+%   on wrapping should be converted to a string using \cs{token_to_str:N},
+%   \cs{tl_to_str:n}, \cs{tl_to_str:N}, \emph{etc.}
+%   
+%   The result of the wrapping operation is passed as a braced argument to the
+%   \meta{function}, which will typically be a wrapper around a write
+%   operation. The output of \cs{iow_wrap:nnnN} (\emph{i.e.}~the argument
+%   passed to the \meta{function}) will consist of characters of category
+%   \enquote{other} (category code~12), with the exception of spaces which
+%   will have category \enquote{space} (category code~10). This means that the
+%   output will \emph{not} expand further when written to a file.
+%   
+%   \begin{texnote}
+%     Internally, \cs{iow_wrap:nnnN} carries out an \texttt{x}-type expansion
+%     on the \meta{text} to expand it. This is done in such a way that
+%     \cs{exp_not:N} or \cs{exp_not:n} \emph{could} be used to prevent
+%     expansion of material. However, this is less conceptually clear than
+%     conversion to a string, which is therefore the supported method for
+%     handling expandable material in the \meta{text}.
+%   \end{texnote}
 % \end{function}
 %
 % \begin{function}[added = 2011-09-21]{\iow_indent:n}
@@ -1498,7 +1514,7 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\iow_wrap:xnnnN}
+% \begin{macro}{\iow_wrap:nnnN}
 %   The main wrapping function works as follows.  First give |\\|,
 %   \verb*|\ | and other formatting commands the correct definition for
 %   messages, before fully-expanding the input.  In package mode, the
@@ -1515,7 +1531,7 @@
 %   expansions. The \cs{tl_to_str:N} step converts the \enquote{other}
 %   space back to a normal space.
 %    \begin{macrocode}
-\cs_new_protected:Npn \iow_wrap:xnnnN #1#2#3#4#5
+\cs_new_protected:Npn \iow_wrap:nnnN #1#2#3#4
   {
     \group_begin:
       \int_set_eq:NN \tex_escapechar:D \c_minus_one
@@ -1528,16 +1544,24 @@
       \cs_set_eq:NN \\ \c_@@_wrap_newline_marker_tl
       \cs_set_eq:NN \  \c_catcode_other_space_tl
       \cs_set_eq:NN \iow_indent:n \@@_indent:n
-      #4
+      #3
 %<*initex>
       \tl_set:Nx \l_@@_wrap_tl {#1}
 %</initex>
 %<*package>
       \protected@edef \l_@@_wrap_tl {#1}
 %</package>
+%    \end{macrocode}
+%   This is a bit of a hack to measure the string length of the run on text
+%   without the \pkg{l3str} module (which is still experimental). This should
+%   be replaced once the string module is finalised with something a little
+%   cleaner.
+%    \begin{macrocode}
       \tl_set:Nx \l_@@_newline_tl { \iow_newline: #2 }
       \tl_set:Nx \l_@@_newline_tl { \tl_to_str:N \l_@@_newline_tl }
-      \int_set:Nn \l_@@_target_count_int { \l_iow_line_count_int - ( #3 ) }
+      \tl_replace_all:Nnn \l_@@_newline_tl { ~ } { \c_space_tl }
+      \int_set:Nn \l_@@_target_count_int
+        { \l_iow_line_count_int - \tl_count:N \l_@@_newline_tl + \c_one }
       \int_zero:N \l_@@_current_indentation_int
       \tl_clear:N \l_@@_current_indentation_tl
       \int_zero:N \l_@@_current_line_int
@@ -1553,7 +1577,7 @@
           \exp_not:N \q_stop
         }
     \exp_args:NNo \group_end:
-    #5 \l_@@_wrap_tl
+    #4 \l_@@_wrap_tl
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1746,6 +1770,16 @@
 %    \end{macrocode}
 %
 % \subsection{Deprecated functions}
+% 
+% Deprecated on 2012-06-28, for removal by 2012-12-31.
+% 
+% \begin{macro}{\iow_wrap:xnnnN}
+%   This was renamed and one unneed argument was removed.
+%    \begin{macrocode}
+\cs_new_protected:Npn \iow_wrap:xnnnN #1#2#3#4#5
+  { \iow_wrap:nnnN {#1} {#2} {#4} #5 }
+%    \end{macrocode}
+% \end{macro}
 %
 % Deprecated on 2012-06-24, for removal by 2012-12-31.
 %
