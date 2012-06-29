@@ -1,6 +1,6 @@
 ################################################################
 ################################################################
-# Makefile for LaTeX3 "expl3" files                            #
+# Makefile for LaTeX3 "l3kernel" files                         #
 ################################################################
 ################################################################
 
@@ -481,6 +481,7 @@ localinstall: unpack
 	cp *.cls $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp *.def $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
+	cp l3docstrip.tex $$TEXMFHOME/tex/$(PACKAGEROOT) ; \
 	cp l3doc.ist $$TEXMFHOME/makeindex/$(PACKAGE)
 
 savetlg: $(TESTDIR)/$(F).lvt support unpack
