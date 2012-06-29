@@ -452,6 +452,8 @@ rem Makefile for LaTeX3 "l3kernel" files
   )
   xcopy /q /y *.def "%INSTALLROOT%\"   > nul
   xcopy /q /y *.sty "%INSTALLROOT%\"   > nul
+  
+  xcopy /q /y l3docstrip.tex "%INSTALLROOT%\" > nul
 
   goto :clean-int
 
