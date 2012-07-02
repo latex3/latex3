@@ -334,7 +334,7 @@ check: \
 checkcmd: support unpack
 	echo "Checking commands in $(F)" ; \
 	cd $(TESTDIR) ; \
-	pdflatex -interaction=nonstopmode $(F).dtx > /dev/null ; \
+	pdflatex -interaction=nonstopmode "\PassOptionsToClass{check}{l3doc} \input $(F).dtx" > /dev/null ; \
 	pdflatex -interaction=nonstopmode "\def\CMDS{$(F).cmds}\input commands-check" > cmds.log ; \
 	if [ $$? -ne 0 ] ; then \
 	  echo "  Missing definitions:" ; \
