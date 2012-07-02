@@ -202,7 +202,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   echo.
   echo Checking commands in %1
 
-  pdflatex -interaction=batchmode %1.dtx > nul
+  pdflatex -interaction=batchmode "\PassOptionsToClass{check}{l3doc} \input %1.dtx" > nul
   pdflatex -interaction=batchmode "\def\CMDS{%1.cmds}\input commands-check" > cmds.log
   for /F "tokens=1*" %%I in (cmds.log) do (
     if "%%I"=="!>" copy /y cmds.log missing.cmds.log > nul
