@@ -520,7 +520,7 @@ Do not distribute a modified version of this file.
 %
 % Temporaries:
 %    \begin{macrocode}
-\seq_new:N \l_doc_tmpa_seq
+\seq_new:N \g_doc_tmpa_seq
 \tl_new:N \l_doc_tmpa_tl
 \tl_new:N \l_doc_tmpb_tl
 \int_new:N \l_doc_tmpa_int
@@ -800,7 +800,12 @@ Do not distribute a modified version of this file.
 %    \begin{macrocode}
 \cs_set_nopar:Npn \cmd #1 { \cs{\expandafter\cmd@to@cs\string#1} }
 \cs_set_nopar:Npn \cmd@to@cs #1#2 { \char\number`#2\relax }
-\DeclareRobustCommand \cs [1] { \texttt { \char`\\ #1 } }
+\DeclareRobustCommand \cs [1] {
+  \texttt { \char`\\
+    \tl_set:Nn \l_doc_tmpa_tl {#1}
+    \doc_replace_at_at:N \l_doc_tmpa_tl
+    \tl_use:N \l_doc_tmpa_tl
+  } }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1464,10 +1469,15 @@ Do not distribute a modified version of this file.
 % \begin{arguments}
 % \item Macro/function/whatever name; input has already been sanitised.
 % \end{arguments}
+% \cs{l_doc_at_replaced_macro_tl} stores the macro name after
+% replacement of |@@|.
 %    \begin{macrocode}
+\tl_new:N \l_doc_at_replaced_macro_tl
 \cs_set_nopar:Npn \doc_macro_single:n #1 {
   \int_incr:N \l_doc_macro_int
-  \tl_set:Nx \saved@macroname { \token_to_str:N #1 }
+  \tl_set:Nx \l_doc_at_replaced_macro_tl { \token_to_str:N #1 }
+  \doc_replace_at_at:N \l_doc_at_replaced_macro_tl
+  \tl_set_eq:NN \saved@macroname \l_doc_at_replaced_macro_tl
   \topsep\MacroTopsep
   \trivlist
   \cs_set_nopar:Npn \makelabel ##1 { \llap{##1} }
@@ -1494,33 +1504,33 @@ Do not distribute a modified version of this file.
   }
 
   \bool_if:NF \l_doc_macro_aux_bool {
-    \tl_gset:Nx \l_doc_macro_tl { \tl_to_str:n {#1} }
+    \tl_gset:Nx \l_doc_macro_tl { \tl_to_str:N \l_doc_at_replaced_macro_tl }
     \exp_args:NNf \tl_greplace_all:Nnn \l_doc_macro_tl {\token_to_str:N _} {/}
     \exp_args:NNf \tl_greplace_all:Nnn \l_doc_macro_tl {\@backslashchar} {}
   }
 
   \use:x {
     \exp_not:N \item [ \exp_not:N \doc_print_macroname:n {
-      \tl_to_str:n {#1}
+      \tl_to_str:N \l_doc_at_replaced_macro_tl
     }]
   }
   \global\advance \c@CodelineNo \@ne
 
   \bool_if:NF \l_doc_macro_aux_bool {
     \bool_if:NTF \l_doc_macro_TF_bool {
-      \seq_gput_right:Nx \g_doc_macros_seq { \tl_to_str:n { #1 TF } }
-      \seq_gput_right:Nx \g_doc_macros_seq { \tl_to_str:n { #1 T  } }
-      \seq_gput_right:Nx \g_doc_macros_seq { \tl_to_str:n { #1 F  } }
+      \seq_gput_right:Nx \g_doc_macros_seq { \tl_to_str:N \l_doc_at_replaced_macro_tl \tl_to_str:n {TF} }
+      \seq_gput_right:Nx \g_doc_macros_seq { \tl_to_str:N \l_doc_at_replaced_macro_tl \tl_to_str:n {T } }
+      \seq_gput_right:Nx \g_doc_macros_seq { \tl_to_str:N \l_doc_at_replaced_macro_tl \tl_to_str:n { F} }
     }{
-      \seq_gput_right:Nx \g_doc_macros_seq { \tl_to_str:n {#1} }
+      \seq_gput_right:Nx \g_doc_macros_seq { \tl_to_str:N \l_doc_at_replaced_macro_tl }
     }
   }
   \bool_if:NTF \l_doc_macro_TF_bool {
-    \SpecialMainIndex{#1 TF}\nobreak
-    \DoNotIndex{#1 TF}
+    \exp_args:Nx \SpecialMainIndex{ \tl_to_str:N \l_doc_at_replaced_macro_tl TF}\nobreak
+    \exp_args:Nx \DoNotIndex{ \tl_to_str:N \l_doc_at_replaced_macro_tl TF}
   }{
-    \SpecialMainIndex{#1}\nobreak
-    \DoNotIndex{#1}
+    \exp_args:Nx \SpecialMainIndex{ \tl_to_str:N \l_doc_at_replaced_macro_tl }\nobreak
+    \exp_args:Nx \DoNotIndex{ \tl_to_str:N \l_doc_at_replaced_macro_tl }
   }
 
   \global\advance \c@CodelineNo \m@ne
@@ -1619,6 +1629,7 @@ Do not distribute a modified version of this file.
 % \end{macro}
 %
 % \begin{macro}{\TestMissing}
+%   Note: There \cs{l_doc_macro_input_clist} may contain unconverted |@@|.
 %    \begin{macrocode}
 \cs_generate_variant:Nn \prop_gput:Nnn {NVx}
 \DeclareDocumentCommand \TestMissing {m} {
@@ -1637,17 +1648,50 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\SetModuleName}
+% \begin{variable}{\l_doc_module_name_tl}
+% \begin{macro}[int]{\doc_replace_at_at:N}
+%    \begin{macrocode}
+\tl_new:N \l_doc_module_name_tl
+\DeclareDocumentCommand \SetModuleName {m} {
+  \tl_set:Nx \l_doc_module_name_tl {#1}
+}
+\cs_new_protected:Npn \doc_replace_at_at:N #1 {
+    \tl_if_empty:NF \l_doc_module_name_tl
+      {
+        \tl_replace_all:Non #1 { \token_to_str:N @ } { @ }
+        \tl_replace_all:Non #1 { \token_to_str:N _ } { _ }
+        \tl_replace_all:Nox #1 { _@@ } { __ \l_doc_module_name_tl }
+        \tl_replace_all:Nox #1 { @@ } { __ \l_doc_module_name_tl }
+      }
+}
+\cs_generate_variant:Nn \tl_replace_all:Nnn { Non, Nox }
+%    \end{macrocode}
+% \end{macro}
+% \end{variable}
+% \end{macro}
+%
 % \begin{macro}{\endmacro}
-%   The \cs{doc_macro_wrap_each:N} puts each item of the sequence |#1|
+%   The \cs{doc_endmacro_wrap_each:N} puts each item of the sequence |#1|
 %   in \cs{texttt} font and with a trailing TF if needed.  This should
 %   go inline in the definition of \cs{endmacro}, but somehow the |#|
 %   doesn't go through some \LaTeXe{} internals.
 %    \begin{macrocode}
-\cs_set_protected:Nn \doc_macro_wrap_each:N
+\cs_new_protected:Nn \doc_endmacro_build_seq:N
+  {
+    \seq_gclear:N #1
+    \clist_map_inline:Nn \l_doc_macro_input_clist
+      {
+        \tl_set:Nn \l_doc_tmpa_tl {##1}
+        \doc_replace_at_at:N \l_doc_tmpa_tl
+        \seq_gput_right:No #1 { \l_doc_tmpa_tl }
+      }
+  }
+\cs_set_protected:Nn \doc_endmacro_wrap_each:N
   {
     \bool_if:NTF \l_doc_macro_TF_bool
-      { \seq_set_map:NNn #1 #1 { \exp_not:N \texttt { ##1 TF } } }
-      { \seq_set_map:NNn #1 #1 { \exp_not:N \texttt { ##1 } } }
+      { \seq_gset_map:NNn #1 #1 { \exp_not:N \texttt { ##1 TF } } }
+      { \seq_gset_map:NNn #1 #1 { \exp_not:N \texttt { ##1 } } }
   }
 \cs_set:Nn \doc_texttt_comma:n {\,,~\texttt{#1}}
 \cs_set:Npn \endmacro {
@@ -1655,14 +1699,14 @@ Do not distribute a modified version of this file.
   {
   \par\nobreak\noindent{\footnotesize(\emph{
     End~ definition~ for~
-    \seq_set_split:NnV \l_doc_tmpa_seq { , } \l_doc_macro_input_clist
-    \doc_macro_wrap_each:N \l_doc_tmpa_seq
-    \int_compare:nTF { \seq_count:N \l_doc_tmpa_seq <= 3 }
+    \doc_endmacro_build_seq:N \g_doc_tmpa_seq
+    \doc_endmacro_wrap_each:N \g_doc_tmpa_seq
+    \int_compare:nTF { \seq_count:N \g_doc_tmpa_seq <= 3 }
       {
-        \seq_use:Nnnn \l_doc_tmpa_seq
+        \seq_use:Nnnn \g_doc_tmpa_seq
           { \,~and~ } { \,,~ } { \,,~and~ }
       }
-      { \seq_item:Nn \l_doc_tmpa_seq {1}\,~and~others. }
+      { \seq_item:Nn \g_doc_tmpa_seq {1}\,~and~others. }
     \bool_if:nT {
       !\l_doc_macro_aux_bool &&
       !\l_doc_macro_internal_bool &&
@@ -1685,7 +1729,7 @@ Do not distribute a modified version of this file.
   {
     \seq_gput_right:Nx \g_doc_not_tested_seq
     {
-      \l_doc_macro_input_clist
+      \seq_use:Nnnn \g_doc_tmpa_seq { , } { , } { , }
       \bool_if:NT \l_doc_macro_pTF_bool {~(pTF)}
       \bool_if:NT \l_doc_macro_TF_bool {~(TF)}
     }
@@ -1693,6 +1737,54 @@ Do not distribute a modified version of this file.
 }
 %    \end{macrocode}
 % \end{macro}
+%
+% \begin{environment}{macrocode}
+% \begin{macro}[aux]{\doc_xmacro_code:n}
+%   Hook into the \texttt{macrocode} environment in a dirty way:
+%   \cs{xmacro@code} is responsible for grabbing (and tokenizing) the
+%   body of the environment.  Redefine it to pass what it grabs to
+%   \cs{doc_xparse_code:n}.  This new macro replaces all |@@| by the
+%   appropriate module name.  One exceptional case is the
+%   |<@@=|\meta{module}|>| lines themselves, where |@@| should not be
+%   modified.
+%    \begin{macrocode}
+\group_begin:
+  \char_set_catcode_escape:N \/
+  \char_set_catcode_other:N \^^A
+  \char_set_catcode_active:N \^^S
+  \char_set_catcode_active:N \^^B
+  \char_set_catcode_other:N \^^L
+  \char_set_catcode_other:N \^^R
+  \char_set_lccode:nn { `\^^A } { `\% }
+  \char_set_lccode:nn { `\^^S } { `\  }
+  \char_set_lccode:nn { `\^^B } { `\\ }
+  \char_set_lccode:nn { `\^^L } { `\{ }
+  \char_set_lccode:nn { `\^^R } { `\} }
+  \tl_to_lowercase:n
+    {
+      \group_end:
+      \cs_set_protected:Npn \xmacro@code
+          #1 ^^A ^^S^^S^^S^^S ^^Bend ^^Lmacrocode^^R
+        { \doc_xmacro_code:n {#1} /end{macrocode} }
+    }
+\group_begin:
+  \char_set_catcode_active:N \<
+  \cs_new_protected:Npn \doc_xmacro_code:n #1
+    {
+      \tl_if_empty:NTF \l_doc_module_name_tl
+        {#1}
+        {
+          \tl_set:Nn \l_doc_tmpa_tl {#1}
+          \tl_replace_all:Nnn \l_doc_tmpa_tl { <@@ } { \@ }
+          \doc_replace_at_at:N \l_doc_tmpa_tl
+          \tl_replace_all:Nnn \l_doc_tmpa_tl { \@ } { <@@ }
+          \tl_use:N \l_doc_tmpa_tl
+        }
+    }
+\group_end:
+%    \end{macrocode}
+% \end{macro}
+% \end{environment}
 %
 % \begin{macro}{\DescribeOption}
 % For describing package options. Due to Joseph Wright.
