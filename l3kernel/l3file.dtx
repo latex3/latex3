@@ -546,9 +546,11 @@
 % \end{variable}
 %
 % \begin{variable}{\g_@@_record_seq}
-%   The total list of files used is recorded separately from the current file
-%   stack, as nothing is ever popped from this list.
-%   The current file name should be included in the file list!
+%   The total list of files used is recorded separately from the current
+%   file stack, as nothing is ever popped from this list.  The current
+%   file name should be included in the file list!  In format mode, this
+%   is done at the very start of the \TeX{} run.  In package mode we
+%   will eventually copy the contents of \cs{@filelist}.
 %    \begin{macrocode}
 \seq_new:N \g_@@_record_seq
 %<*initex>
@@ -688,7 +690,9 @@
 % \begin{macro}{\file_input:n}
 % \begin{macro}[aux]{\@@_input_aux:n \@@_input_aux:V}
 %   Loading a file is done in a safe way, checking first that the file
-%   exists and loading only if it does.
+%   exists and loading only if it does.  Push the file name on the
+%   \cs{g_@@_stack_seq}, and add it to the file list, either
+%   \cs{g_@@_record_seq}, or \cs{@filelist} in package mode.
 %    \begin{macrocode}
 \cs_new_protected:Npn \file_input:n #1
   {
@@ -706,7 +710,9 @@
     \seq_gput_right:Nn \g_@@_record_seq {#1}
 %</initex>
 %<*package>
-    \@addtofilelist {#1}
+    \clist_if_exist:NTF \@filelist
+      { \@addtofilelist {#1} }
+      { \seq_gput_right:Nn \g_@@_record_seq {#1} }
 %</package>
     \seq_gpush:Nn \g_@@_stack_seq \g_file_current_name_tl
     \tl_gset:Nn \g_file_current_name_tl {#1}
@@ -741,26 +747,42 @@
 % \end{macro}
 %
 % \begin{macro}{\file_list:}
-%   A function to list all files used to the log.
+%   A function to list all files used to the log, without duplicates.
+%   In package mode, if \cs{@filelist} is still defined, we need to take
+%   it into account (we capture it \cs{AtBeginDocument} into
+%   \cs{g_@@_record_seq}), turning each file name into a string.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \file_list:
   {
-    \seq_remove_duplicates:N \g_@@_record_seq
+    \seq_set_eq:NN \l_@@_internal_seq \g_@@_record_seq
+%<*package>
+    \clist_if_exist:NT \@filelist
+      {
+        \clist_map_inline:Nn \@filelist
+          {
+            \seq_put_right:No \l_@@_internal_seq
+              { \tl_to_str:n {##1} }
+          }
+      }
+%</package>
+    \seq_remove_duplicates:N \l_@@_internal_seq
     \iow_log:n { *~File~List~* }
-    \seq_map_inline:Nn \g_@@_record_seq { \iow_log:n {##1} }
+    \seq_map_inline:Nn \l_@@_internal_seq { \iow_log:n {##1} }
     \iow_log:n { ************* }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-%   When used as a package, there is a need to hold onto the standard
-%   file list as well as the new one here.
+% When used as a package, there is a need to hold onto the standard file
+% list as well as the new one here.  File names recorded in
+% \cs{@filelist} must be turned to strings before being added to
+% \cs{g_@@_record_seq}.
 %    \begin{macrocode}
 %<*package>
 \AtBeginDocument
   {
-    \seq_set_split:NnV \l_@@_internal_seq { , } \@filelist
-    \seq_gconcat:NNN \g_@@_record_seq \g_@@_record_seq \l_@@_internal_seq
+    \clist_map_inline:Nn \@filelist
+      { \seq_gput_right:No \g_@@_record_seq { \tl_to_str:n {#1} } }
   }
 %</package>
 %    \end{macrocode}
