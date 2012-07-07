@@ -402,6 +402,37 @@
 %   \end{center}
 % \end{function}
 %
+% \subsubsection{Replace tokens by others in a token list}
+%
+% \begin{function}{\tl_new_replace:nn, \tl_set_replace:nn, \tl_gset_replace:nn}
+%   \begin{syntax}
+%     \cs{tl_new_replace:nn} \Arg{name} \\
+%     ~~|{| \\
+%     ~~~~\Arg{from_1} \Arg{to_1} \\
+%     ~~~~\Arg{from_2} \Arg{to_2} \\
+%     ~~~~\ldots \\
+%     ~~~~\Arg{from$\sb{n}$} \Arg{to$\sb{n}$} \\
+%     ~~|}|
+%   \end{syntax}
+%   Defines an expandable function
+%   \begin{syntax}
+%     |\|\meta{name}_replace:n \Arg{tokens}
+%   \end{syntax}
+%   which replaces \meta{from_1} by \meta{to_1}, \meta{from_2} by
+%   \meta{to_2}, \emph{etc.} in \meta{tokens}, and leaves the result in
+%   the input stream.  This function does the replacements in the same
+%   order as the code
+%   \begin{quote}
+%     \cs{tl_replace_all:Nnn} \meta{tl~var} \Arg{from_1} \Arg{to_1} \\
+%     \cs{tl_replace_all:Nnn} \meta{tl~var} \Arg{from_2} \Arg{to_2} \\
+%     \ldots \\
+%     \cs{tl_replace_all:Nnn} \meta{tl~var} \Arg{from$\sb{n}$} \Arg{to$\sb{n}$}
+%   \end{quote}
+%   but operates on \meta{tokens} expandably without requiring those
+%   tokens to be stored into a \meta{tl~var}, at the cost of being
+%   slower.
+% \end{function}
+%
 % \subsubsection{Miscellaneous proposals}
 %
 % [Old thoughts; I'm not sorting those, so we may have already added
@@ -1184,6 +1215,213 @@
   }
 %    \end{macrocode}
 % \end{macro}
+%
+% \subsubsection{Replace tokens by others in a token list}
+%
+% The reader is highly encouraged to take a look at the implementation
+% of \cs{tl_replace_all:Nnn} and comments therein before this section.
+% One difference is that since the replacement functions we define must
+% fully expand upon \texttt{f}-type expansion, we cannot leave the
+% material that is already converted behind in the input stream.  The
+% process is divided in separate passes for each pair \Arg{from}
+% \Arg{to}, each using one dedicated auxiliary function, with an
+% argument delimited by \meta{from}.
+%
+% \begin{variable}[aux]{\l__tl_replace_int}
+%   Labels the pairs \Arg{from$\sb{i}$} \Arg{to$\sb{i}$} in the second
+%   argument of \cs{tl_new_replace:nn} and related functions.
+%    \begin{macrocode}
+\int_new:N \l__tl_replace_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}[aux]{\l__tl_replace_name_tl}
+%   Expands to the name of the current auxiliary (as labelled by
+%   \cs{l__tl_replace_int}) of the replacement function being defined.
+%    \begin{macrocode}
+\tl_new:N \l__tl_replace_name_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}[aux]{\l__tl_replace_code_tl}
+%   The code for the replacement function is built one
+%   \Arg{from$\sb{i}$} \Arg{to$\sb{i}$} pair at a time in this variable.
+%    \begin{macrocode}
+\tl_new:N \l__tl_replace_code_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\tl_new_replace:nn, \tl_set_replace:nn, \tl_gset_replace:nn}
+%   All three public functions are defined in terms of a common
+%   auxiliary.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \tl_new_replace:nn
+  { \__tl_replace_set:NNnn \cs_new:cpx \cs_new_eq:cN }
+\cs_new_protected_nopar:Npn \tl_set_replace:nn
+  { \__tl_replace_set:NNnn \cs_set:cpx \cs_set_eq:cN }
+\cs_new_protected_nopar:Npn \tl_gset_replace:nn
+  { \__tl_replace_set:NNnn \cs_gset:cpx \cs_gset_eq:cN }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\__tl_replace_set:NNnn}
+%   The arguments are two definition functions, the \meta{name}, and a
+%   list of pairs \Arg{from$\sb{i}$} \Arg{to$\sb{i}$}.  The auxiliaries
+%   to the replacement function have the form
+%   \texttt{\char`\\\meta{name}_replace_\meta{int}:nwwn}.  Each step in
+%   the loop over replacement pairs defines one auxiliary, increments
+%   the \meta{int} (which starts at $1$), and adds some code for use in
+%   the main replacement function.  The last auxiliary is defined to
+%   clean up at the end.  Then we use the code collected so far to
+%   define the replacement function: this starts by calling the first
+%   auxiliary, with some trailing markers.  The whole construction is
+%   wrapped within \cs{exp_not:f}, whose \texttt{f}-type expansion is
+%   stopped at the end of the last pass by \cs{__tl_replace_end:nwn},
+%   and of course braces, which ensure that any |&| is hidden from
+%   \TeX{}'s table-making.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__tl_replace_set:NNnn #1#2#3#4
+  {
+    \tl_set:Nx \l__tl_replace_name_tl
+      { #3 _replace_ \exp_not:n { \int_use:N \l__tl_replace_int } :nwwn }
+    \int_set_eq:NN \l__tl_replace_int \c_one
+    \tl_clear:N \l__tl_replace_code_tl
+    \__tl_replace_set_loop:Nnn #1
+      #4
+      \q_recursion_tail \q_recursion_tail
+      \q_recursion_stop
+    #2 { \l__tl_replace_name_tl } \__tl_replace_end:nwn
+    \int_set_eq:NN \l__tl_replace_int \c_one
+    #1 { #3_replace:n } ##1
+      {
+        \exp_not:N \exp_not:f
+          {
+            \exp_not:c { \l__tl_replace_name_tl } { }
+              \exp_not:N \prg_do_nothing:
+              ##1
+              \exp_not:N \q_nil
+              \exp_not:N \q_mark { }
+              \exp_not:o \l__tl_replace_code_tl
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\__tl_replace_set_loop:Nnn}
+%   After checking that neither the \meta{from} nor the \meta{to}
+%   arguments are \cs{q_recursion_tail}, set up the pass which replaces
+%   \meta{from} by \meta{to}.  During a given pass, the tokens which
+%   have already undergone the replacement are stored as the first
+%   argument (\meta{transformed tokens}) of the auxiliary, the second
+%   argument (\meta{delimited tokens}) is delimited by \meta{from} and
+%   starts with \cs{prg_do_nothing:} to avoid losing braces, the third
+%   argument (\meta{remaining tokens}) is the end of the token list, and
+%   the fourth (\meta{action}) is most often empty.  Store the
+%   \meta{delimited tokens} and \meta{to} at the end of the
+%   \meta{transformed tokens}, after expanding once to get rid of
+%   \cs{prg_do_nothing:}, then call the auxiliary again, which looks for
+%   the next occurrence of \meta{from} among the \meta{remaining tokens}
+%   (with \cs{prg_do_nothing:} prepended to avoid losing braces).  The
+%   main replacement function is constructed in such a way that as long
+%   as \meta{from} occurs, the \cs{q_mark} delimiter taken by the
+%   auxiliary is at the end of the true token list, and the
+%   \meta{action} is empty.  At the end, the \meta{from} delimiter is a
+%   trailing delimiter from the main function, and the \meta{action} is
+%   set to do some cleanup and call the auxiliary for the next pass (see
+%   \cs{__tl_replace_cleanup:NNnnNnwn}).
+%    \begin{macrocode}
+\cs_new_protected:Npn \__tl_replace_set_loop:Nnn #1#2#3
+  {
+    \quark_if_recursion_tail_stop:n {#2}
+    \quark_if_recursion_tail_stop_do:nn {#3}
+      {
+        \__msg_kernel_error:nnxx { replace } { odd-groups }
+          { \token_to_str:N \tl_..._replace:nn } { \tl_to_str:n {#2} }
+      }
+    #1 { \l__tl_replace_name_tl } ##1##2 #2 ##3 \q_mark ##4
+      {
+        ##4
+        \exp_not:N \__tl_replace_next:onNn
+          {##2}
+          { \exp_not:n {#3} }
+          \exp_not:c { \l__tl_replace_name_tl }
+          {##1}
+        ##3 \exp_not:N \q_mark {##4}
+      }
+    \int_incr:N \l__tl_replace_int
+    \tl_put_right:Nx \l__tl_replace_code_tl
+      {
+        \exp_not:n {#2}
+        \exp_not:N \q_mark
+        {
+          \exp_not:N \__tl_replace_cleanup:NNnnNnwn
+          \exp_not:c { \l__tl_replace_name_tl }
+        }
+      }
+    \__tl_replace_set_loop:Nnn #1
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\__tl_replace_next:nnNn}
+%   The arguments are 1.~\meta{delimited tokens}, 2.~\meta{to},
+%   3.~current auxiliary, 4.~\meta{transformed tokens}.  Insert
+%   \cs{prg_do_nothing:} to avoid losing braces.
+%    \begin{macrocode}
+\cs_new:Npn \__tl_replace_next:nnNn #1#2#3#4
+  { #3 { #4 #1 #2 } \prg_do_nothing: }
+\cs_generate_variant:Nn \__tl_replace_next:nnNn { o }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\__tl_replace_cleanup:NNnnNnwn}
+% \begin{macro}[aux, EXP]
+%   {\__tl_replace_cleanup_next:nNn, \__tl_replace_cleanup_next:oNn}
+%   Remove some material from the pass which just ended, then call |#1|,
+%   the auxiliary for the next pass, with an empty \meta{transformed
+%     tokens} and a leading \cs{prg_do_nothing:} to avoid losing braces.
+%   The appropriate trailing tokens are already added by the main
+%   function.
+%    \begin{macrocode}
+\cs_new:Npn \__tl_replace_cleanup:NNnnNnwn #1#2#3#4#5#6#7 \q_mark #8
+  { \__tl_replace_cleanup_next:oNn {#3} #1 {#6} }
+\cs_new:Npn \__tl_replace_cleanup_next:nNn #1#2#3
+  { #2 { } \prg_do_nothing: #3 #1 }
+\cs_generate_variant:Nn \__tl_replace_cleanup_next:nNn { o }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\__tl_replace_end:nwn}
+%   Once all the passes have occurred, there is a need to remove the
+%   trailing \cs{q_nil} (there to avoid losing trailing braces), then
+%   expand \cs{prg_do_nothing:} away and stop the current
+%   \texttt{f}-type expansion.
+%    \begin{macrocode}
+\cs_new:Npn \__tl_replace_end:nwn #1 #2 \q_nil \q_mark #3
+  { \exp_after:wN \exp_stop_f: #2 }
+%    \end{macrocode}
+% \end{macro}
+%
+% A message, for use when the second argument of \cs{tl_new_replace:nn}
+% is not of the right form (it could be used for the \cs{int_case:nnn}
+% functions, \emph{etc.}).
+%    \begin{macrocode}
+\__msg_kernel_new:nnnn { replace } { odd-groups }
+  { Odd~number~of~brace~groups. }
+  {
+    The~second~argument~of~#1~must~have~the~form\\\\
+    \iow_indent:n
+      {
+        \{ ~ key ~ 1 ~ \} ~ \{ ~ value ~ 1 ~ \} \\
+        ... \\
+        \{ ~ key ~ N ~ \} ~ \{ ~ value ~ N ~ \} \\
+      }
+    \\
+    The~extra~brace~group~'#2'~will~be~ignored.
+  }
+%    \end{macrocode}
 %
 % \subsection{Optimizations for \pkg{l3seq} }
 %
