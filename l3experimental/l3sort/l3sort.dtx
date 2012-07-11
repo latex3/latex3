@@ -71,7 +71,7 @@
 %
 % \section{\pkg{l3sort} documentation}
 %
-% \LaTeX3 comes with a function to sort list variables (sequences,
+% \LaTeX3 comes with a facility to sort list variables (sequences,
 % token lists, or comma-lists) according to some user-defined
 % comparison. For instance,
 % \begin{verbatim}
@@ -133,6 +133,18 @@
 %   \meta{clist var}.
 % \end{function}
 %
+% \begin{function}[EXP]{\tl_sort:nN}
+%   \begin{syntax}
+%     \cs{tl_sort:nN} \Arg{token list} \meta{conditional}
+%   \end{syntax}
+%   Sorts the items in the \meta{token list}, using the
+%   \meta{conditional} to compare items, and leaves the result in the
+%   input stream.  The \meta{conditional} should have signature |:nnTF|,
+%   and return \texttt{true} if the two items being compared should be
+%   left in the same order, and \texttt{false} if the items should be
+%   swapped.
+% \end{function}
+%
 % \end{documentation}
 %
 % \begin{implementation}
@@ -142,7 +154,7 @@
 %    \begin{macrocode}
 %<*initex|package>
 %    \end{macrocode}
-%    
+%
 %    \begin{macrocode}
 %<@@=sort>
 %    \end{macrocode}
@@ -221,7 +233,99 @@
 % \end{variable}
 % \end{variable}
 %
-% \subsection{User commands}
+% \subsection{Expandable sorting}
+%
+% Sorting expandably is very different from sorting and assigning to a
+% variable.  Since tokens cannot be stored, they must remain in the
+% input stream, and be read through at every step.  It is thus
+% necessarily much slower (at best $O(n^2)$) than non-expandable sorting
+% functions.
+%
+% A prototypical version of expandable quicksort is as follows.  If the
+% argument has no item, return nothing, otherwise partition, using the
+% first item as a pivot (argument |#4| of |\__sort:nnNnn|).  The
+% arguments of \cs{__sort:nnNnn} are 1.~items less than |#4|, 2.~items
+% greater than |#4|, 3.~comparison, 4.~pivot, 5.~next item to test.  If
+% |#5| is the tail of the list, call \cs{tl_sort:nN} on |#1| and on
+% |#2|, placing |#4| in between; |\use:ff| expands the parts to make
+% \cs{tl_sort:nN} \texttt{f}-expandable.  Otherwise, compare |#4| and
+% |#5| using |#3|.  If they are ordered, place |#5| amongst the
+% \enquote{greater} items, otherwise amongst the \enquote{lesser} items,
+% and continue partitioning.
+% \begin{verbatim}
+% \cs_new:Npn \tl_sort:nN #1#2
+%   {
+%     \tl_if_blank:nF {#1}
+%       {
+%         \__sort:nnNnn { } { } #2
+%           #1 \q_recursion_tail \q_recursion_stop
+%       }
+%   }
+% \cs_new:Npn \__sort:nnNnn #1#2#3#4#5
+%   {
+%     \quark_if_recursion_tail_stop_do:nn {#5}
+%       { \use:ff { \tl_sort:nN {#1} #3 {#4} } { \tl_sort:nN {#2} #3 } }
+%     #3 {#4} {#5}
+%       { \__sort:nnNnn {#1} { #2 {#5} } #3 {#4} }
+%       { \__sort:nnNnn { #1 {#5} } {#2} #3 {#4} }
+%   }
+% \cs_generate_variant:Nn \use:nn { ff }
+% \end{verbatim}
+% There are quite a few optimizations available here: the code below is
+% less legible, but twice as fast.
+%
+% \begin{macro}[EXP]{\tl_sort:nN}
+% \begin{macro}[EXP, aux]
+%   {
+%     \@@_quick_i:nNn, \@@_quick_ii:wn,
+%     \@@_quick_iii:nnNnn, \@@_quick_iv:nnNnwn
+%   }
+%   The \cs{@@_quick_i:nNn} function sorts |#1| using the comparison
+%   |#2|, then places its third argument (\meta{continuation}) before
+%   the result.  This essentially avoids the rather slow \cs{use:ff}.
+%   First test if |#1| is blank: if it is, \cs{use_none:n} eats the
+%   break point, and \cs{@@_quick_ii:wn} removes all until the ending
+%   break point, unbracing the \meta{continuation}.  If it is not blank,
+%   \cs{@@_quick_ii:wn} simply removes the end of that test until the
+%   break point.  The third auxiliary plays the role of |\__sort:nnNnn|
+%   above, with an end-test replaced by \cs{__prg_break:}, which skips
+%   to the break point two lines later, unless |#5| is itself a break
+%   point.  In that case, \cs{@@_quick_iv:nnNnwn} calls the first
+%   auxiliary, which sorts |#2| and places another call to itself before
+%   the result.
+%    \begin{macrocode}
+\cs_new:Npn \tl_sort:nN #1#2 { \@@_quick_i:nNn {#1} #2 { } }
+\cs_new:Npn \@@_quick_i:nNn #1#2
+  {
+    \exp_after:wN \@@_quick_ii:wn
+      \use_none:n #1 \__prg_break_point:
+    \@@_quick_iii:nnNnn { } { } #2
+      #1
+      { \__prg_break_point: }
+      \__prg_break_point:
+  }
+\cs_new:Npn \@@_quick_ii:wn #1 \__prg_break_point: #2 {#2}
+\cs_new:Npn \@@_quick_iii:nnNnn #1#2#3#4#5
+  {
+    \__prg_break: #5
+      \@@_quick_iv:nnNnwn {#1} {#2}
+      \__prg_break_point:
+    #3 {#4} {#5}
+      { \@@_quick_iii:nnNnn {#1} { #2 {#5} } }
+      { \@@_quick_iii:nnNnn { #1 {#5} } {#2} }
+          #3 {#4}
+  }
+\cs_new:Npn \@@_quick_iv:nnNnwn
+    #1#2 \__prg_break_point: #3#4 #5 \__prg_break_point: #6
+  {
+    \@@_quick_i:nNn {#2} #3
+      { \@@_quick_i:nNn {#1} #3 {#6} {#4} }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Protected user commands}
 %
 % \begin{macro}[int]{\@@_main:NNNnNn}
 %   Sorting happens in three steps. First store items
