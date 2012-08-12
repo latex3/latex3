@@ -194,213 +194,249 @@
 %
 % \subsection{Addition and subtraction}
 %
-% \begin{macro}[int, EXP]{\@@_+_o:ww}
-%   For addition, everything is easy.  No need to grab the
-%   \meta{body_2}.
-%    \begin{macrocode}
-\cs_new:cpn { @@_+_o:ww }
-    \s_@@ \@@_chk:w #1 #2 #3 ; \s_@@ \@@_chk:w #4 #5
-  { \@@_add_cases:NN #1 #4 #2 #5 #3 ; }
-%    \end{macrocode}
-% \end{macro}
+% We define here two functions, \cs{@@_-_o:ww} and \cs{@@_+_o:ww}, which
+% perform the subtraction and addition of their two floating point
+% operands, and expand the tokens following the result once.
 %
-% \begin{macro}[int, EXP]{\@@_-_o:ww}
-%   Change the sign of the second argument.
-%    \begin{macrocode}
-\cs_new:cpn { @@_-_o:ww }
-    \s_@@ \@@_chk:w #1 #2 #3 ; \s_@@ \@@_chk:w #4 #5
-  {
-    \exp_after:wN \@@_add_cases:NN
-    \exp_after:wN #1
-    \exp_after:wN #4
-    \exp_after:wN #2
-    \int_use:N \__int_eval:w \c_two - #5 \__int_eval_end:
-    #3 ;
-  }
-%    \end{macrocode}
-% \end{macro}
+% A more obscure function, \cs{@@_add_big_i_o:wNww}, is used in
+% \pkg{l3fp-expo}.
+%
+% The logic goes as follows:
+% \begin{itemize}
+%   \item \cs{@@_-_o:ww} calls \cs{@@_+_o:ww} to do the work, with the
+%     sign of the second operand flipped;
+%   \item \cs{@@_+_o:ww} dispatches depending on the type of floating
+%     point, calling specialized auxiliaries;
+%   \item in all cases except summing two normal floating point numbers,
+%     we return one or the other operands depending on the signs, or
+%     detect an invalid operation in the case of $\infty - \infty$;
+%   \item for normal floating point numbers, compare the signs;
+%   \item to add two floating point numbers of the same sign or of
+%     opposite signs, shift the mantissa of the smaller one to match the
+%     bigger one, perform the addition or subtraction of mantissas, and
+%     check for a carry.
+% \end{itemize}
+% The trickiest part is to round correctly when adding or subtracting
+% normal floating point numbers.
 %
 % \subsubsection{Sign, exponent, and special numbers}
 %
-% \begin{macro}[EXP,aux]{\@@_add_cases:NN}
-%   \begin{syntax}
-%     \cs{@@_add_cases:NN} \meta{case_1} \meta{case_2}
-%     ~~\meta{sign_1} \meta{sign_2} \meta{body_1} |;| \meta{body_2} |;|
-%   \end{syntax}
-%   This performs the addition. it also expands the following tokens
-%   on the input stream once.
-%
-%   Whenever \meta{case_1} is different from \meta{case_2}, the result
-%   is simply the floating point number with the highest \meta{case}.
-%   For instance, adding a normal number to a zero gives the normal
-%   number, and adding a \texttt{nan} to any non-\texttt{nan} gives
-%   that \texttt{nan}. Optimizing for addition of normal numbers,
-%   we test for equality and then separate the \enquote{greater than}
-%   and \enquote{less than} branches.
+% \begin{macro}[int, EXP]{\@@_-_o:ww}
+%   A previous version of this function grabbed its two operands,
+%   changed the sign of the second, and called \cs{@@_+_o:ww}.  However,
+%   for efficiency reasons, the operands were swapped in the process,
+%   which means that error messages ended up wrong.  Now, the
+%   \cs{@@_+_o:ww} auxiliary has a hook: it takes one argument between
+%   the first \cs{s_@@} and \cs{@@_chk:w}, which is applied to the sign
+%   of the second operand.
 %    \begin{macrocode}
-\cs_new:Npn \@@_add_cases:NN #1 #2
+\cs_new:cpx { @@_-_o:ww } \s_@@
   {
-    \if_int_compare:w #1 = #2 \exp_stop_f:
-      \exp_after:wN \@@_add_cases_eq:N
-    \else:
-      \if_int_compare:w #1 < #2 \exp_stop_f:
-        \exp_after:wN \exp_after:wN
-        \exp_after:wN \@@_basics_return_ii:NNNNww
-      \else:
-        \exp_after:wN \exp_after:wN
-        \exp_after:wN \@@_basics_return_i:NNNNww
-      \fi:
-      \exp_after:wN #1
-    \fi:
-    #2
-  }
-%    \end{macrocode}
-%   If the first \meta{case} is larger, then the first number remains
-%   untouched, while the second number is ignored. On the other hand,
-%   if the second \meta{case} is larger, the opposite happens: we retain
-%   the second number. In both cases, there needs to be one step of
-%   expansion after.
-%    \begin{macrocode}
-%    \end{macrocode}
-%   We are then ready for the equality case: we split according
-%   to the \meta{case}.
-%    \begin{macrocode}
-\cs_new:Npn \@@_add_cases_eq:N #1
-  {
-    \if_case:w #1 \exp_stop_f:
-         \exp_after:wN \@@_add_zeros:NNww
-    \or: \exp_after:wN \@@_add_normal:NNww
-    \or: \exp_after:wN \@@_add_inf:NNww
-    \or: \exp_after:wN \@@_basics_return_nan_nan:NNww
-    \fi:
-  }
-%    \end{macrocode}
-%   Adding two zeros yields \cs{c_zero_fp}, except if both
-%   zeros were $-0$.\footnote{Bruno: this should depend on the
-%     rounding mode.}
-%    \begin{macrocode}
-\cs_new:Npn \@@_add_zeros:NNww #1#2 #3;
-  {
-    \if_int_compare:w #1 #2 = 02 \exp_stop_f:
-      \@@_case_return_o:Nw \c_zero_fp
-    \else:
-      \@@_case_return_same_o:w
-    \fi:
-    \s_@@ \@@_chk:w 0 #2
-  }
-%    \end{macrocode}
-%   If both infinities have the same sign, just return that infinity,
-%   otherwise, it is an invalid operation.
-%    \begin{macrocode}
-\cs_new:Npn \@@_add_inf:NNww #1#2 #3;
-  {
-    \if_meaning:w #1 #2
-      \@@_case_return_same_o:w
-    \else:
-      \@@_case_use:nw
-        { \@@_invalid_operation_o:Nww + \s_@@ \@@_chk:w 2 #1 #3 ; }
-    \fi:
-    \s_@@ \@@_chk:w 2 #2
+    \exp_not:c { @@_+_o:ww }
+    \exp_not:n { \s_@@ \@@_neg_sign:N }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_add_normal:NNww}
-%   \begin{syntax}
-%     \cs{@@_add_normal:NNww} \meta{sign_1} \meta{sign_2}
-%     ~~\Arg{exp_1}  \meta{body_1} |;| \Arg{exp_2} \meta{body_2} |;|
-%   \end{syntax}
+% \begin{macro}[int, EXP]{\@@_+_o:ww}
+%   This function is either called directly with an empty |#1| to
+%   compute an addition, or it is called by \cs{@@_-_o:ww} with
+%   \cs{@@_neg_sign:N} as |#1| to compute the subtraction (equivalent to
+%   changing the \meta{sign_2} of the second operand).  If the
+%   \meta{types} |#2| and |#4| are the same, dispatch to case |#2| ($0$,
+%   $1$, $2$, or $3$), where we call specialized functions: thanks to
+%   \cs{__int_value:w}, those receive the tweaked \meta{sign_2}
+%   (expansion of |#1#5|) as an argument.  If the \meta{types} are
+%   distinct, the result is simply the floating point number with the
+%   highest \meta{type}.  Since case $3$ (used for two \texttt{nan})
+%   also picks the first operand, we can also use it when \meta{type_1}
+%   is greater than \meta{type_2}.  Also note that we don't need to
+%   worry about \meta{sign_2} in that case since the second operand is
+%   discarded.
+%    \begin{macrocode}
+\cs_new:cpn { @@_+_o:ww }
+    \s_@@ #1 \@@_chk:w #2 #3 ; \s_@@ \@@_chk:w #4 #5
+  {
+    \if_case:w
+      \if_meaning:w #2 #4
+        #2 \exp_stop_f:
+      \else:
+        \if_int_compare:w #2 > #4 \exp_stop_f:
+          \c_three
+        \else:
+          \c_minus_one
+        \fi:
+      \fi:
+           \exp_after:wN \@@_add_zeros_o:Nww \__int_value:w
+    \or:   \exp_after:wN \@@_add_normal_o:Nww \__int_value:w
+    \or:   \exp_after:wN \@@_add_inf_o:Nww \__int_value:w
+    \or:   \@@_case_return_i_o:ww
+    \else: \exp_after:wN \@@_add_return_ii_o:Nww \__int_value:w
+    \fi:
+    #1 #5
+    \s_@@ \@@_chk:w #2 #3 ;
+    \s_@@ \@@_chk:w #4 #5
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_add_return_ii_o:Nww}
+%   Ignore the first operand, and return the second, but using the sign
+%   |#1| rather than |#4|.  As usual, expand after the floating point.
+%    \begin{macrocode}
+\cs_new:Npn \@@_add_return_ii_o:Nww #1 #2 ; \s_@@ \@@_chk:w #3 #4
+  { \@@_exp_after_o:w \s_@@ \@@_chk:w #3 #1 }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_add_zeros_o:Nww}
+%   Adding two zeros yields \cs{c_zero_fp}, except if both zeros were
+%   $-0$.
+%    \begin{macrocode}
+\cs_new:Npn \@@_add_zeros_o:Nww #1 \s_@@ \@@_chk:w 0 #2
+  {
+    \if_int_compare:w #2 #1 = 20 \exp_stop_f:
+      \exp_after:wN \@@_add_return_ii_o:Nww
+    \else:
+      \@@_case_return_i_o:ww
+    \fi:
+    #1
+    \s_@@ \@@_chk:w 0 #2
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_add_inf_o:Nww}
+%   If both infinities have the same sign, just return that infinity,
+%   otherwise, it is an invalid operation.  We find out if that invalid
+%   operation is an addition or a subtraction by testing whether the
+%   tweaked \meta{sign_2} (|#1|) and the \meta{sign_2} (|#4|) are
+%   identical.
+%    \begin{macrocode}
+\cs_new:Npn \@@_add_inf_o:Nww
+    #1 \s_@@ \@@_chk:w 2 #2 #3; \s_@@ \@@_chk:w 2 #4
+  {
+    \if_meaning:w #1 #2
+      \@@_case_return_i_o:ww
+    \else:
+      \@@_case_use:nw
+        {
+          \if_meaning:w #1 #4
+            \exp_after:wN \@@_invalid_operation_o:Nww
+            \exp_after:wN +
+          \else:
+            \exp_after:wN \@@_invalid_operation_o:Nww
+            \exp_after:wN -
+          \fi:
+        }
+    \fi:
+    \s_@@ \@@_chk:w 2 #2 #3;
+    \s_@@ \@@_chk:w 2 #4
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_add_normal_o:Nww}
+%   \begin{quote}
+%     \cs{@@_add_normal_o:Nww} \meta{sign_2}
+%       \cs{s_@@} \cs{@@_chk:w} |1| \meta{sign_1}
+%       \meta{exp_1} \meta{body_1} |;|
+%       \cs{s_@@} \cs{@@_chk:w} |1| \meta{initial sign_2}
+%       \meta{exp_2} \meta{body_2} |;|
+%   \end{quote}
 %   We now have two normal numbers to add, and we have to check signs
 %   and exponents more carefully before performing the addition.
 %    \begin{macrocode}
-\cs_new:Npn \@@_add_normal:NNww #1#2
+\cs_new:Npn \@@_add_normal_o:Nww #1 \s_@@ \@@_chk:w 1 #2
   {
     \if_meaning:w #1#2
-      \exp_after:wN \@@_add_npos:Nnwnw
+      \exp_after:wN \@@_add_npos_o:NnwNnw
     \else:
-      \exp_after:wN \@@_sub_npos:Nnwnw
+      \exp_after:wN \@@_sub_npos_o:NnwNnw
     \fi:
-    #1
+    #2
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \subsubsection{Absolute addition}
 %
-% In this subsection, we perform the addition
-% of two positive normal numbers.
+% In this subsection, we perform the addition of two positive normal
+% numbers.
 %
-% \begin{macro}[EXP]{\@@_add_npos:Nnwnw}
-%   \begin{syntax}
-%     \cs{@@_add_npos:Nnwnw} \meta{sign}
-%     ~~\Arg{exp_1}  \meta{body_1} |;| \Arg{exp_2} \meta{body_2} |;|
-%   \end{syntax}
-%   Since we are doing an addition, \meta{sign} will be the final sign.
-%   The only special case which may arise is the case of an overflow.
-%   This will be checked by \cs{@@_sanitize:Nw} at the end of
-%   the calculation. We start an \cs{__int_eval:w}, responsible for
-%   computing the exponent, which may receive a contribution of |+1|
-%   in case of carry. The exponent should be stopped by |;| followed by
-%   the overall \meta{sign} for the sanitizing to work properly.
-%
-%   Grab and compare the exponents. The smaller number is decimated until
-%   its exponent reaches that of the bigger number. We need to bring the
-%   final sign down in the midst of the calculation to do the rounding
-%   correctly.
+% \begin{macro}[aux, EXP]{\@@_add_npos_o:NnwNnw}
+%   \begin{quote}
+%     \cs{@@_add_npos_o:NnwNnw} \meta{sign_1} \meta{exp_1} \meta{body_1}
+%     |;| \cs{s_@@} \cs{@@_chk:w} |1| \meta{initial sign_2} \meta{exp_2}
+%     \meta{body_2} |;|
+%   \end{quote}
+%   Since we are doing an addition, the final sign is \meta{sign_1}.
+%   Start an \cs{__int_eval:w}, responsible for computing the exponent:
+%   the result, and the \meta{final sign} are then given to
+%   \cs{@@_sanitize:Nw} which checks for overflow.  The exponent is
+%   computed as the largest exponent |#2| or |#5|, incremented if there
+%   is a carry.  To add the mantissas, we decimate the smaller number by
+%   the difference between the exponents.  This is done by
+%   \cs{@@_add_big_i:wNww} or \cs{@@_add_big_ii:wNww}.  We need to bring
+%   the final sign with us in the midst of the calculation to round
+%   properly at the end.
 %    \begin{macrocode}
-\cs_new:Npn \@@_add_npos:Nnwnw #1 #2#3; #4
+\cs_new:Npn \@@_add_npos_o:NnwNnw #1#2#3 ; \s_@@ \@@_chk:w 1 #4 #5
   {
     \exp_after:wN \@@_sanitize:Nw
     \exp_after:wN #1
     \int_use:N \__int_eval:w
-      \if_int_compare:w #2 > #4 \exp_stop_f:
+      \if_int_compare:w #2 > #5 \exp_stop_f:
         #2
-        \exp_after:wN \@@_add_big_i:wNww \__int_value:w -
+        \exp_after:wN \@@_add_big_i_o:wNww \__int_value:w -
       \else:
-        #4
-        \exp_after:wN \@@_add_big_ii:wNww \__int_value:w
+        #5
+        \exp_after:wN \@@_add_big_ii_o:wNww \__int_value:w
       \fi:
-      \__int_eval:w #4 - #2 ; #1 #3;
+      \__int_eval:w #5 - #2 ; #1 #3;
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_add_big_i:wNww,
-%     \@@_add_big_ii:wNww}
-%   \begin{syntax}
-%     \cs{@@_add_big_i:wNww} \meta{shift} |;| \meta{sign}
-%     ~~\meta{body_1} |;| \meta{body_2} |;|
-%   \end{syntax}
-%   Shift the mantissa of the small number, and then add with
-%   \cs{@@_add_mantissa:NnnwnnnnN}.
+% \begin{macro}[int, EXP]{\@@_add_big_i_o:wNww}
+% \begin{macro}[aux, EXP]{\@@_add_big_ii_o:wNww}
+%   \begin{quote}
+%     \cs{@@_add_big_i_o:wNww} \meta{shift} |;| \meta{final sign}
+%       \meta{body_1} |;| \meta{body_2} |;|
+%   \end{quote}
+%   Shift the mantissa of the small number, then add with
+%   \cs{@@_add_mantissa_o:NnnwnnnnN}.
 %    \begin{macrocode}
-\cs_new:Npn \@@_add_big_i:wNww #1; #2 #3; #4;
+\cs_new:Npn \@@_add_big_i_o:wNww #1; #2 #3; #4;
   {
     \@@_decimate:nNnnnn {#1}
-      \@@_add_mantissa:NnnwnnnnN
+      \@@_add_mantissa_o:NnnwnnnnN
       #4
     #3
     #2
   }
-\cs_new:Npn \@@_add_big_ii:wNww #1; #2 #3; #4;
+\cs_new:Npn \@@_add_big_ii_o:wNww #1; #2 #3; #4;
   {
     \@@_decimate:nNnnnn {#1}
-      \@@_add_mantissa:NnnwnnnnN
+      \@@_add_mantissa_o:NnnwnnnnN
       #3
     #4
     #2
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
 %
-% \begin{macro}{\@@_add_mantissa:NnnwnnnnN}
-%   \begin{syntax}
-%     \cs{@@_add_mantissa:NnnwnnnnN}
-%     ~~\meta{rounding}
-%     ~~\Arg{Y'_1} \Arg{Y'_2} \meta{extra-digits} |;|
-%     ~~\Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4}
-%     ~~\meta{final sign}
-%   \end{syntax}
+% \begin{macro}[aux, EXP]{\@@_add_mantissa_o:NnnwnnnnN}
+% \begin{macro}[aux, EXP]
+%   {\@@_add_mantissa_pack:NNNNNNN, \@@_add_mantissa_test_o:N}
+%   \begin{quote}
+%     \cs{@@_add_mantissa_o:NnnwnnnnN}
+%       \meta{rounding digit}
+%       \Arg{Y'_1} \Arg{Y'_2} \meta{extra-digits} |;|
+%       \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4}
+%       \meta{final sign}
+%   \end{quote}
 %   To round properly, we must know at which digit the rounding
 %   should occur. This requires to know whether the addition
 %   produces an overall carry or not. Thus, we do the computation
@@ -410,45 +446,43 @@
 %   give an exact power of $10$, for which it is easy to correct
 %   the result at the end.
 %    \begin{macrocode}
-\cs_new:Npn \@@_add_mantissa:NnnwnnnnN #1 #2#3 #4; #5#6#7#8
+\cs_new:Npn \@@_add_mantissa_o:NnnwnnnnN #1 #2#3 #4; #5#6#7#8
   {
-    \exp_after:wN \@@_add_mantissa_test:N
+    \exp_after:wN \@@_add_mantissa_test_o:N
     \int_use:N \__int_eval:w 1#5#6 + #2
       \exp_after:wN \@@_add_mantissa_pack:NNNNNNN
       \int_use:N \__int_eval:w 1#7#8 + #3 ; #1
   }
-%    \end{macrocode}
-%
-%    \begin{macrocode}
 \cs_new:Npn \@@_add_mantissa_pack:NNNNNNN #1 #2#3#4#5#6#7
   {
-    \if:w 2 #1
+    \if_meaning:w 2 #1
       + \c_one
     \fi:
     ; #2 #3 #4 #5 #6 #7 ;
   }
-\cs_new:Npn \@@_add_mantissa_test:N #1
+\cs_new:Npn \@@_add_mantissa_test_o:N #1
   {
-    \if:w 2 #1
-      \exp_after:wN \@@_add_mantissa_carry:wwNNNN
+    \if_meaning:w 2 #1
+      \exp_after:wN \@@_add_mantissa_carry_o:wwNNNN
     \else:
-      \exp_after:wN \@@_add_mantissa_no_carry:wwNNNN
+      \exp_after:wN \@@_add_mantissa_no_carry_o:wwNNNN
     \fi:
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 %
+% \begin{macro}[aux, EXP]{\@@_add_mantissa_no_carry_o:wwNNNN}
 %   \begin{quote}
-%     \cs{@@_add_mantissa_no_carry:wwNNNN}
-%     ~~\meta{8d} |;| \meta{6d} |;| \meta{2d} |;|
-%     ~~\meta{rounding} \meta{sign}
+%     \cs{@@_add_mantissa_no_carry_o:wwNNNN}
+%       \meta{8d} |;| \meta{6d} |;| \meta{2d} |;|
+%       \meta{rounding digit} \meta{sign}
 %   \end{quote}
-%   If there's no carry, grab all the digits again, and just
-%   set the rounding correctly.\footnote{Bruno: an optimization
-%     would be to compute whether we need rounding or not,
-%     and only grab digits if there is rounding.}
-%
+%   If there's no carry, grab all the digits again and round.  The
+%   packing function \cs{@@_basics_pack_high:NNNNNw} takes care of the
+%   case where rounding brings a carry.
 %    \begin{macrocode}
-\cs_new:Npn \@@_add_mantissa_no_carry:wwNNNN
+\cs_new:Npn \@@_add_mantissa_no_carry_o:wwNNNN
     #1; #2; #3#4 ; #5#6
   {
     \exp_after:wN \@@_basics_pack_high:NNNNNw
@@ -459,16 +493,23 @@
         \exp_after:wN ;
   }
 %    \end{macrocode}
+% \end{macro}
 %
-%   The case where there is a carry is very similar: rounding can even
-%   raise the first digit from $1$ to $2$ (but we don't need to check that).
+% \begin{macro}[aux, EXP]{\@@_add_mantissa_carry_o:wwNNNN}
+% \begin{macro}[aux, EXP]
+%   {
+%     \@@_add_mantissa_carry_pack_ii:NNNNw,
+%     \@@_add_mantissa_carry_pack:NNNNNNNNw
+%   }
 %   \begin{quote}
-%     \cs{@@_add_mantissa_carry:wwNNNN}
-%     ~~\meta{8d} |;| \meta{6d} |;| \meta{2d} |;|
-%     ~~\meta{rounding} \meta{sign}
+%     \cs{@@_add_mantissa_carry_o:wwNNNN}
+%       \meta{8d} |;| \meta{6d} |;| \meta{2d} |;|
+%       \meta{rounding digit} \meta{sign}
 %   \end{quote}
+%   The case where there is a carry is very similar.  Rounding can even
+%   raise the first digit from $1$ to $2$, but we don't care.
 %    \begin{macrocode}
-\cs_new:Npn \@@_add_mantissa_carry:wwNNNN
+\cs_new:Npn \@@_add_mantissa_carry_o:wwNNNN
     #1; #2; #3#4; #5#6
   {
     + \c_one
@@ -491,227 +532,306 @@
     #1#2#3#4 #5#6#7#8 #9; { ; {#1#2#3#4} {#5#6#7#8} {#9} }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
 %
 % \subsubsection{Absolute subtraction}
 %
-% \begin{macro}[EXP]{\@@_sub_npos:Nnwnw}
-%   \begin{syntax}
-%     \cs{@@_sub_npos:Nnwnw} \meta{sign}
-%     ~~\Arg{exp_1}  \meta{body_1} |;| \Arg{exp_2} \meta{body_2} |;|
-%   \end{syntax}
-%   Rounding properly in some modes requires to know what the sign
-%   of the result will be. For addition, this was easy. Here, besides
-%   comparing the exponents to know how to decimate, we need to
-%   check carefully which number is bigger when they have the same
-%   exponent.
+% \begin{macro}[aux, EXP]{\@@_sub_npos_o:NnwNnw}
+% \begin{macro}[aux, EXP]{\@@_sub_eq_o:Nnwnw, \@@_sub_npos_ii_o:Nnwnw}
+%   \begin{quote}
+%     \cs{@@_sub_npos_o:NnwNnw}
+%       \meta{sign_1} \meta{exp_1} \meta{body_1} |;|
+%       \cs{s_@@} \cs{@@_chk:w} |1|
+%       \meta{initial sign_2} \meta{exp_2} \meta{body_2} |;|
+%   \end{quote}
+%   Rounding properly in some modes requires to know what the sign of
+%   the result will be.  Thus, we start by comparing the exponents and
+%   mantissas.  If the numbers coincide, return zero.  If the second
+%   number is larger, swap the numbers and call
+%   \cs{@@_sub_npos_i_o:Nnwnw} with the opposite of \meta{sign_1}.
 %    \begin{macrocode}
-\cs_new:Npn \@@_sub_npos:Nnwnw #1 #2#3; #4 #5;
+\cs_new:Npn \@@_sub_npos_o:NnwNnw #1#2#3; \s_@@ \@@_chk:w 1 #4#5#6;
   {
-    \exp_after:wN \@@_sanitize:wN
-    \int_use:N \__int_eval:w
-      \if_int_compare:w #2 > #4 \exp_stop_f:
-        #2
-        \exp_after:wN \@@_sub_big_i:wNww \__int_value:w -
-      \else:
-        #4
-        \if_int_compare:w #2 = #4 \exp_stop_f:
-          \@@_sub_exponent_eq:nnnnnnnn #3 #5
-        \else:
-          \exp_after:wN \@@_sub_big_ii:wNww \__int_value:w
-        \fi:
-      \fi:
-      \__int_eval:w #4 - #2 ; #1 #3; #5;
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@@_sub_exponent_eq:nnnnnnnn}
-%    \begin{macrocode}
-\cs_new:Npn \@@_sub_exponent_eq:nnnnnnnn #1#2#3#4 #5#6#7#8
-  {
-    \if_int_compare:w #1#2 > #5#6 \exp_stop_f:
-      \exp_after:wN \@@_sub_big_i:wNww \__int_value:w
+    \if_case:w \@@_compare_npos:nwnw {#2} #3; {#5} #6; \exp_stop_f:
+      \exp_after:wN \@@_sub_eq_o:Nnwnw
+    \or:
+      \exp_after:wN \@@_sub_npos_i_o:Nnwnw
     \else:
-      \if_int_compare:w #1#2 < #5#6 \exp_stop_f:
-        \exp_after:wN \@@_sub_big_ii:wNww \__int_value:w
-      \else:
-        \if_int_compare:w #3#4 > #7#8 \exp_stop_f:
-          \exp_after:wN \@@_sub_big_i:wNww \__int_value:w
-        \else:
-          \if_int_compare:w #3#4 < #7#8 \exp_stop_f:
-            \exp_after:wN \@@_sub_big_ii:wNww \__int_value:w
-          \else:
-            \exp_after:wN \@@_sub_eq:wNww \__int_value:w
-          \fi:
-        \fi:
-      \fi:
+      \exp_after:wN \@@_sub_npos_ii_o:Nnwnw
     \fi:
+    #1 {#2} #3; {#5} #6;
   }
-\cs_new:Npn \@@_sub_eq:wNww #1; #2 #3; #4;
-  { \exp_after:wN ; \exp_after:wN 1 \exp_after:wN ; }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@@_sub_big_i:wNww,\@@_sub_big_ii:wNww}
-%   \begin{syntax}
-%     \cs{@@_sub_big_i:wNww} \meta{shift} |;| \meta{sign}
-%     ~~\meta{body_1} |;| \meta{body_2} |;|
-%   \end{syntax}
-%   Shift the mantissa of the small number, and then subtract with
-%   \cs{@@_sub_back_mantissa:NnnwNnnnn}.
-%    \begin{macrocode}
-\cs_new:Npn \@@_sub_big_i:wNww #1; #2 #3; #4;
+\cs_new:Npn \@@_sub_eq_o:Nnwnw #1#2; #3; { \exp_after:wN \c_zero_fp }
+\cs_new:Npn \@@_sub_npos_ii_o:Nnwnw #1 #2; #3;
   {
-    \@@_decimate:nNnnnn {#1}
-      \@@_sub_back_mantissa:NnnwNnnnn
-      #4
-    #2
-    #3
-  }
-\cs_new:Npn \@@_sub_big_ii:wNww #1; #2 #3; #4;
-  {
-    \exp_after:wN \@@_sub_big_i:wNww
-    \__int_value:w #1 \exp_after:wN ;
-    \int_use:N \__int_eval:w 2 - #2 \__int_eval_end:
-    #4; #3;
+    \exp_after:wN \@@_sub_npos_i_o:Nnwnw
+      \int_use:N \__int_eval:w \c_two - #1 \__int_eval_end:
+      #3; #2;
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
 %
-% \begin{macro}{\@@_sub_back_mantissa:NnnwNnnnn}
-%   \begin{syntax}
-%     \cs{@@_sub_back_mantissa:NnnwNnnnn}
-%     ~~\meta{rounding} \Arg{Y'_1} \Arg{Y'_2} \meta{extra-digits}
-%     ~~\meta{final sign}
-%     ~~\Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4}
-%   \end{syntax}
-%   At this stage, we know that \meta{Y} is less than \meta{X},
-%   and we know the final sign.
+% \begin{macro}[aux, EXP]{\@@_sub_npos_i_o:Nnwnw}
+%   After the computation is done, \cs{@@_sanitize:Nw} checks for
+%   overflow/underflow.  It expects the \meta{final sign} and the
+%   \meta{exponent} (delimited by |;|).  Start an integer expression for
+%   the exponent, which starts with the exponent of the largest number,
+%   and may be decreased if the two numbers are very close.  If the two
+%   numbers have the same exponent, call the \texttt{near} auxiliary.
+%   Otherwise, decimate $y$, then call the \texttt{far} auxiliary to
+%   evaluate the difference between the two mantissas.  Note that we
+%   decimate by $1$ less than one would expect.
 %    \begin{macrocode}
-\cs_new:Npn \@@_sub_back_mantissa:NnnwNnnnn #1 #2#3 #4; #5 #6#7#8#9
+\cs_new:Npn \@@_sub_npos_i_o:Nnwnw #1 #2#3; #4#5;
   {
-    \exp_after:wN \@@_sub_back_mantissa_i:NNwNNNNwN
+    \exp_after:wN \@@_sanitize:Nw
     \exp_after:wN #1
-    \exp_after:wN #5
-    \int_use:N \__int_eval:w 2#6#7 - #2 - \c_two +
-      \exp_after:wN \@@_sub_back_mantissa_round:wNN
-      \int_use:N \__int_eval:w 2#8#9 - #3 ; #1 #5
+    \int_use:N \__int_eval:w
+      #2
+      \if_int_compare:w #2 = #4 \exp_stop_f:
+        \exp_after:wN \@@_sub_back_near_o:nnnnnnnnN
+      \else:
+        \exp_after:wN \@@_decimate:nNnnnn \exp_after:wN
+          { \int_use:N \__int_eval:w #2 - #4 - \c_one \exp_after:wN }
+          \exp_after:wN \@@_sub_back_far_o:NnnwnnnnN
+      \fi:
+        #5
+      #3
+      #1
   }
 %    \end{macrocode}
-%   After the computation, we need to check whether the first digit of
-%   the result is zero. This can only happen if the two numbers had the
-%   same exponent, or exponents differing by $1$. In the latter case,
-%   the \meta{rounding} digit is not quite enough to let us retrieve
-%   the exact result (consider $\cdots25$ and $\cdots15$, both rounded
-%   to $\cdots2$ in the usual mode), so we also move the result of
-%   \cs{@@_round_neg:NNN} upstream as the digit $0$ or $1$.
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_sub_back_near_o:nnnnnnnnN}
+% \begin{macro}[aux, EXP]
+%   {\@@_sub_back_near_pack:NNNNNNw, \@@_sub_back_near_after:wNNNNw}
+%   \begin{quote}
+%     \cs{@@_sub_back_near_o:nnnnnnnnN}
+%       \Arg{Y_1} \Arg{Y_2} \Arg{Y_3} \Arg{Y_4}
+%       \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4}
+%       \meta{final sign}
+%   \end{quote}
+%   In this case, the subtraction is exact, so we discard the
+%   \meta{final sign} |#9|.  The very large shifts of $10^{9}$ and
+%   $1.1\cdot10^{9}$ are unnecessary here, but allow the auxiliaries to
+%   be reused later.  Each integer expression produces a $10$ digit
+%   result.  If the resulting $16$ digits start with a $0$, then we need
+%   to shift the group, padding with trailing zeros.
 %    \begin{macrocode}
-\cs_new:Npn \@@_sub_back_mantissa_round:wNN #1; #2 #3
+\cs_new:Npn \@@_sub_back_near_o:nnnnnnnnN #1#2#3#4 #5#6#7#8 #9
   {
-    \exp_after:wN \@@_sub_back_mantissa_iii:N
-    \__int_value:w
-        \exp_after:wN \@@_round_neg:NNN
-        \exp_after:wN #3
-        \use_none:nnnnnnnn #1 #2
-      + #1
+    \exp_after:wN \@@_sub_back_near_after:wNNNNw
+    \int_use:N \__int_eval:w 10#5#6 - #1#2 - \c_eleven
+      \exp_after:wN \@@_sub_back_near_pack:NNNNNNw
+      \int_use:N \__int_eval:w 11#7#8 - #3#4 \exp_after:wN ;
+  }
+\cs_new:Npn \@@_sub_back_near_pack:NNNNNNw #1#2#3#4#5#6#7 ;
+  { + #1#2 ; {#3#4#5#6} {#7} ; }
+\cs_new:Npn \@@_sub_back_near_after:wNNNNw 10 #1#2#3#4 #5 ;
+  {
+    \if_meaning:w 0 #1
+      \exp_after:wN \@@_sub_back_shift:wnnnn
+    \fi:
+    ; {#1#2#3#4} {#5}
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_sub_back_shift:wnnnn}
+% \begin{macro}[aux, EXP]
+%   {
+%     \@@_sub_back_shift_ii:ww,
+%     \@@_sub_back_shift_iii:NNNNNNNNw,
+%     \@@_sub_back_shift_iv:nnnnw
+%   }
+%   \begin{quote}
+%     \cs{@@_sub_back_shift:wnnnn} |;|
+%       \Arg{Z_1} \Arg{Z_2} \Arg{Z_3} \Arg{Z_4} |;|
+%   \end{quote}
+%   This function is called with $\meta{Z_1}\leq 999$.  Act with
+%   \tn{number} to trim leading zeros from \meta{Z_1} \meta{Z_2} (we
+%   don't do all four blocks at once, since non-zero blocks would then
+%   overflow \TeX{}'s integers).  If the first two blocks are zero, the
+%   auxiliary receives an empty |#1| and trims |#2#30| from leading
+%   zeros, yielding a total shift between $7$ and~$16$ to the exponent.
+%   Otherwise we get the shift from |#1| alone, yielding a result
+%   between $1$ and~$6$.  Once the exponent is taken care of, trim
+%   leading zeros from |#1#2#3| (when |#1| is empty, the space before
+%   |#2#3| is ignored), get four blocks of $4$~digits and finally clean
+%   up.  Trailing zeros are added so that digits can be grabbed safely.
+%    \begin{macrocode}
+\cs_new:Npn \@@_sub_back_shift:wnnnn ; #1#2
+  {
+    \exp_after:wN \@@_sub_back_shift_ii:ww
+    \__int_value:w #1 #2 0 ;
+  }
+\cs_new:Npn \@@_sub_back_shift_ii:ww #1 0 ; #2#3 ;
+  {
+    \if_meaning:w @ #1 @
+      - \c_seven
+      - \exp_after:wN \use_i:nnn
+        \exp_after:wN \@@_sub_back_shift_iii:NNNNNNNNw
+        \__int_value:w #2#3 0 ~ 123456789;
+    \else:
+      - \@@_sub_back_shift_iii:NNNNNNNNw #1 123456789;
+    \fi:
+    \exp_after:wN \@@_pack_twice_four:wNNNNNNNN
+    \exp_after:wN \@@_pack_twice_four:wNNNNNNNN
+    \exp_after:wN \@@_sub_back_shift_iv:nnnnw
     \exp_after:wN ;
+    \__int_value:w
+    #1 ~ #2#3 0 ~ 0000 0000 0000 000 ;
   }
-\cs_new:Npn \@@_sub_back_mantissa_iii:N #1
-  {
-    \exp_after:wN \@@_sub_back_mantissa_ii:NNNNNNw
-    \exp_after:wN #1
-    \int_use:N \__int_eval:w
-      - #1
-  }
-\cs_new:Npn \@@_sub_back_mantissa_ii:NNNNNNw #1 #2 #3#4#5#6 #7;
-  { #2 ; #1 {#3#4#5#6} {#7} ; }
+\cs_new:Npn \@@_sub_back_shift_iii:NNNNNNNNw #1#2#3#4#5#6#7#8#9; {#8}
+\cs_new:Npn \@@_sub_back_shift_iv:nnnnw #1 ; #2 ; { ; #1 ; }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
 %
-% \begin{macro}{\@@_sub_back_mantissa_i:NNwNNNNwN}
-%   Here, |#3| should always be $2$, but we have to take is
-%   as a normal undelimited argument since that would break
-%   if |#2| is $2$.
+% \begin{macro}[aux, EXP]{\@@_sub_back_far_o:NnnwnnnnN}
+%   \begin{quote}
+%     \cs{@@_sub_back_far_o:NnnwnnnnN}
+%       \meta{rounding} \Arg{Y'_1} \Arg{Y'_2} \meta{extra-digits} |;|
+%       \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4}
+%       \meta{final sign}
+%   \end{quote}
+%   If the difference is greater than $10^{\meta{expo_x}}$, call the
+%   \texttt{very_far} auxiliary.  If the result is less than
+%   $10^{\meta{expo_x}}$, call the \texttt{not_far} auxiliary.  If it is
+%   too close a call to know yet, namely if $1 \meta{Y'_1} \meta{Y'_2} =
+%   \meta{X_1} \meta{X_2} \meta{X_3} \meta{X_4} 0$, then call the
+%   \texttt{quite_far} auxiliary.  We use the odd combination of space
+%   and semi-colon delimiters to allow the \texttt{not_far} auxiliary to
+%   grab each piece individually, the \texttt{very_far} auxiliary to use
+%   \cs{@@_pack_eight:wNNNNNNNN}, and the \texttt{quite_far} to ignore
+%   the mantissas easily (using the |;| delimiter).
 %    \begin{macrocode}
-\cs_new:Npn \@@_sub_back_mantissa_i:NNwNNNNwN #1#2 #3 #4#5#6#7 #8; #9
+\cs_new:Npn \@@_sub_back_far_o:NnnwnnnnN #1 #2#3 #4; #5#6#7#8
   {
-    \if:w 0 #4
-      \exp_after:wN \@@_sub_back_carry:NNwNnnnn
-      \exp_after:wN #1
-      \exp_after:wN #9
+    \if_case:w
+      \if_int_compare:w 1 #2 = #5#6 \use_i:nnnn #7 \exp_stop_f:
+        \if_int_compare:w #3 = \use_none:n #7#8 0 \exp_stop_f:
+          \c_zero
+        \else:
+          \if_int_compare:w #3 > \use_none:n #7#8 0 - \fi: \c_one
+        \fi:
+      \else:
+        \if_int_compare:w 1 #2 > #5#6 \use_i:nnnn #7 - \fi: \c_one
+      \fi:
+           \exp_after:wN \@@_sub_back_quite_far_o:wwNN
+    \or:   \exp_after:wN \@@_sub_back_very_far_o:wwwwNN
+    \else: \exp_after:wN \@@_sub_back_not_far_o:wwwwNN
     \fi:
-    ; #2
-    {#4#5#6#7} {#8}
+    #2 ~ #3 ; #5 #6 ~ #7 #8 ; #1
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_sub_back_carry:NNwNnnnn}
-%   \begin{syntax}
-%     \cs{@@_sub_back_carry:NNwNnnnn}
-%     ~~\meta{rounding} \meta{0 or 1} |;| \meta{final sign}
-%     ~~\Arg{Z_1} \Arg{Z_2} \Arg{Z_3} \Arg{Z_4} |;|
-%   \end{syntax}
-%   This function is called when $\meta{Z_1}\leq 999$. We revert
-%   the carry, which is given by \meta{0 or 1}, and subtract the
-%   \meta{rounding} digit as appropriate, then feed the result,
-%   of the form \meta{$\leq$ 7d} |;| \meta{9d} |;| to
-%   \cs{@@_sub_back_carry_i:wwN}. The result is always exact.
+% \begin{macro}[aux, EXP]{\@@_sub_back_quite_far_o:wwNN}
+% \begin{macro}[aux, EXP]{\@@_sub_back_quite_far_ii:NN}
+%   The easiest case is when $x-y$ is extremely close to a power of
+%   $10$, namely the first digit of $x$ is $1$, and all others vanish
+%   when subtracting $y$.  Then the \meta{rounding} |#3| and the
+%   \meta{final sign} |#4| control whether we get $1$ or $0.9999 9999
+%   9999 9999$.  In the usual round-to-nearest mode, we will get $1$
+%   whenever the \meta{rounding} digit is less than or equal to $5$
+%   (remember that the \meta{rounding} digit is only equal to $5$ if
+%   there was no further non-zero digit).
 %    \begin{macrocode}
-\cs_new:Npn \@@_sub_back_carry:NNwNnnnn #1#2 ; #3 #4#5#6#7 ;
+\cs_new:Npn \@@_sub_back_quite_far_o:wwNN #1; #2; #3#4
   {
-    \exp_after:wN \@@_sub_back_carry_i:wwN
-    \int_use:N \__int_eval:w #4 #5 - 1 + \exp_after:wN \@@_use_s:n
-    \int_use:N \__int_eval:w 1 #6 #7 0 + #2 0 - #1 ; #3
+    \exp_after:wN \@@_sub_back_quite_far_ii:NN
+    \exp_after:wN #3
+    \exp_after:wN #4
   }
-%    \end{macrocode}
-%   Unless the first block is zero, check how many digits is has,
-%   and shift the exponent down by the corresponding amount. Then
-%   pack digits into blocks of $4$ (there are between $10$ and $16$
-%   digits in front of \cs{@@_sub_back_carry_large:NNNNNNNNw}).
-%    \begin{macrocode}
-\cs_new:Npn \@@_sub_back_carry_i:wwN #1 ;
+\cs_new:Npn \@@_sub_back_quite_far_ii:NN #1#2
   {
-    \if:w 0 #1
-      - 8
-      \exp_after:wN \@@_sub_back_carry_small:wN \__int_value:w
+    \if_case:w \@@_round_neg:NNN #2 0 #1
+      \exp_after:wN \use_i:nn
     \else:
-      - \@@_sub_back_carry_ii:NNNNNNNNw #1 1234567;
-      \exp_after:wN \@@_sub_back_carry_large:NNNNNNNNw
+      \exp_after:wN \use_ii:nn
     \fi:
-    #1
+      { ; {1000} {0000} {0000} {0000} ; }
+      { - \c_one ; {9999} {9999} {9999} {9999} ; }
   }
 %    \end{macrocode}
-%   The case where the number is non-zero is slightly easier.
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_sub_back_not_far_o:wwwwNN}
+%   In the present case, $x$ and $y$ have different exponents, but
+%   $y$~is large enough that $x-y$ has a smaller exponent than~$x$.
+%   Decrement the exponent (with |- \c_one|).  Then proceed in a way
+%   similar to the \texttt{near} auxiliaries seen earlier, but
+%   multiplying $x$ by~$10$ (|#30| and |#40| below), and with the added
+%   quirk that the \meta{rounding} digit has to be taken into account.
+%   Namely, we may have to decrease the result by one unit if
+%   \cs{@@_round_neg:NNN} returns~$1$.  This function expects the
+%   \meta{final sign}~|#6|, the last digit of |1100000000+#40-#2|, and
+%   the \meta{rounding} digit.  Instead of redoing the computation for
+%   the second argument, we note that \cs{@@_round_neg:NNN} only cares
+%   about its parity, which is identical to that of the last digit
+%   of~|#2|.
 %    \begin{macrocode}
-\cs_new:Npn \@@_sub_back_carry_ii:NNNNNNNNw #1#2#3#4#5#6#7#8#9; {#8}
-\cs_new:Npn \@@_sub_back_carry_large:NNNNNNNNw #1#2#3#4 #5#6#7#8 #9;
+\cs_new:Npn \@@_sub_back_not_far_o:wwwwNN #1 ~ #2; #3 ~ #4; #5#6
   {
-    \@@_sub_back_carry_large_ii:NNNNNNNNw
-    #9 000000 ; {#1#2#3#4} {#5#6#7#8}
+    - \c_one
+    \exp_after:wN \@@_sub_back_near_after:wNNNNw
+    \int_use:N \__int_eval:w 1#30 - #1 - \c_eleven
+      \exp_after:wN \@@_sub_back_near_pack:NNNNNNw
+      \int_use:N \__int_eval:w 11 0000 0000 + #40 - #2
+        - \exp_after:wN \@@_round_neg:NNN
+          \exp_after:wN #6
+          \use_none:nnnnnnn #2 #5
+        \exp_after:wN ;
   }
-\cs_new:Npn \@@_sub_back_carry_large_ii:NNNNNNNNw #1#2#3#4 #5#6#7#8 #9;
-  { \@@_sub_back_carry_large_iii:nnnnN {#1#2#3#4} {#5#6#7#8} }
-\cs_new:Npn \@@_sub_back_carry_large_iii:nnnnN #1#2 #3#4 #5
-  { ; #5 {#3}{#4} {#1}{#2} ; }
-%    \end{macrocode}
-%   In the case of a \enquote{small} result, what comes after
-%   \cs{@@_sub_back_carry_small:wN} has between $1$
-%   and $9$ digits, and is not zero.
-%    \begin{macrocode}
-\cs_new:Npn \@@_sub_back_carry_small:wN #1;
-  {
-    - \exp_after:wN \@@_use_i_until_s:nw
-      \use_none:nnnnnnnnn #1 012345678;
-    \@@_sub_back_carry_small_ii:NNNNNNNN #1 00000000 ;
-  }
-\cs_new:Npn \@@_sub_back_carry_small_ii:NNNNNNNN #1#2#3#4 #5#6#7#8
-  { \@@_sub_back_carry_small_iii:nnNwN {#1#2#3#4} {#5#6#7#8} }
-\cs_new:Npn \@@_sub_back_carry_small_iii:nnNwN #1 #2 #3 #4; #5
-  { ; #5 {#1} {#2} {#3000} {0000} ; }
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[aux, EXP]{\@@_sub_back_very_far_o:wwwwNN}
+% \begin{macro}[aux, EXP]
+%   {
+%     \@@_sub_back_very_far_ii_o:nnNwwNN,
+%     \@@_sub_back_very_far_pack:NNNNNw,
+%     \@@_sub_back_very_far_after:wNNNNw,
+%   }
+%   The case where $x-y$ and $x$ have the same exponent is a bit more
+%   tricky, mostly because it cannot reuse the same auxiliaries.  Shift
+%   the $y$~mantissa by adding a leading~$0$.  Then the logic is similar
+%   to the \texttt{not_far} functions above.  Rounding is a bit more
+%   complicated: we have two \meta{rounding} digits |#3| and |#6| (from
+%   the decimation, and from the new shift) to take into account, and
+%   getting the parity of the main result requires a computation.
+%    \begin{macrocode}
+\cs_new:Npn \@@_sub_back_very_far_o:wwwwNN #1#2#3#4#5#6#7
+  {
+    \@@_pack_eight:wNNNNNNNN
+    \@@_sub_back_very_far_ii_o:nnNwwNN
+    {0 #1#2#3 #4#5#6#7 }
+    ;
+  }
+\cs_new:Npn \@@_sub_back_very_far_ii_o:nnNwwNN #1#2 ; #3 ; #4 ~ #5; #6#7
+  {
+    \exp_after:wN \@@_sub_back_very_far_after:wNNNNw
+    \int_use:N \__int_eval:w 2#4 - #1 - \c_two
+      \exp_after:wN \@@_sub_back_very_far_pack:NNNNNw
+      \int_use:N \__int_eval:w 2#5 - #2 -
+        \if_int_odd:w \__int_eval:w #5 - #2 \__int_eval_end:
+          \@@_round:NNNN #7 1 #3 #6
+        \else: % ^^A todo: should be \@@_round_neg:NNNN
+          \@@_round:NNNN #7 0 #3 #6
+        \fi:
+      \exp_after:wN ;
+  }
+\cs_new:Npn \@@_sub_back_very_far_pack:NNNNNw #1#2#3#4#5 #6;
+  { + #1 ; {#2#3#4#5} {#6} ; }
+\cs_new:Npn \@@_sub_back_very_far_after:wNNNNw 2 #1#2#3#4 #5;
+  { ; {#1#2#3#4} {#5} }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 %
 % \subsection{Multiplication}
 %
@@ -729,7 +849,7 @@
 %
 % \begin{macro}[EXP,aux]{\@@_mul_cases:NN}
 %   \begin{syntax}
-%     \cs{@@_mul_cases:NN} \meta{case_1} \meta{case_2}
+%     \cs{@@_mul_cases:NN} \meta{type_1} \meta{type_2}
 %     ~~\meta{sign_1} \meta{sign_2} \meta{body_1} |;| \meta{body_2} |;|
 %   \end{syntax}
 %   Expands the following tokens on the input stream once.
@@ -953,7 +1073,7 @@
 %
 % \begin{macro}[EXP,aux]{\@@_div_back_cases:NN}
 %   \begin{syntax}
-%     \cs{@@_div_back_cases:NN} \meta{case_2} \meta{case_1}
+%     \cs{@@_div_back_cases:NN} \meta{type_2} \meta{type_1}
 %     ~~\meta{sign_2} \meta{sign_1} \meta{body_2} |;| \meta{body_1} |;|
 %   \end{syntax}
 %   Expands the following tokens on the input stream once.
