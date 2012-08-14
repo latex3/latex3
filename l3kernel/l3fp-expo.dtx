@@ -77,21 +77,46 @@
 %<@@=fp>
 %    \end{macrocode}
 %
-% \subsection{General comments}
+% \subsection{Logarithm}
 %
-%^^A todo: redoc
-% The algorithm for computing the logarithm of the significand could be
-% made to use a $5$ terms Taylor series instead of $10$ terms by taking
-% $c = 2000/(\lfloor 200x\rfloor +1) \in [10,95]$ instead of $c\in
-% [1,10]$.  Also, it would then be possible to simplify the computation
-% of $t$, using methods similar to \cs{@@_fixed_div_to_float:ww}.
-% However, we would then have to hard-code the logarithms of $44$ small
-% integers instead of $9$.
+% \subsubsection{Work plan}
 %
-% \subsection{Some constants}
+% As for many other functions, we filter out special cases in
+% \cs{@@_ln_o:w}.  Then \cs{@@_ln_npos_o:w} receives a positive normal
+% number, which we write in the form $a\cdot 10^{b}$ with $a\in[0.1,1)$.
 %
-% ^^A todo: very odd: can I delete ln_ten?
-% \begin{variable}
+% \emph{The rest of this section is actually not in sync with the code.
+%   Or is the code not in sync with the section?}
+%
+% We are given a positive normal number, of the form $a\cdot 10^{b}$
+% with $a\in[0.1,1)$.  To compute its logarithm, we find a small integer
+% $5\leq c < 50$ such that $0.91 \leq a c / 5 < 1.1$, and use the
+% relation
+% \begin{equation*}
+%   \ln (a \cdot 10^b) = b \cdot \ln (10) - \ln (c/5) + \ln (ac/5).
+% \end{equation*}
+% The logarithms $\ln(10)$ and $\ln(c/5)$ are looked up in a table.  The
+% last term is computed using the following Talor series of $\ln$ near
+% $1$:
+% \begin{equation*}
+%   \ln\left(\frac{ac}{5}\right)
+%   = \ln\left(\frac{1+t}{1-t}\right)
+%   = 2t\left(1 + t^2 \left(\frac{1}{3} + t^2 \left(\frac{1}{5}
+%         + t^2 \left(\frac{1}{7} + t^2 \left( \frac{1}{9} + \cdots
+%           \right)\right)\right)\right)\right)
+% \end{equation*}
+% where $t=1-10/(ac+5)$.  We can now see one reason for the choice of
+% $ac\sim 5$: then $ac+5=10(1-\epsilon)$ with $-0.05<\epsilon\leq
+% 0.045$, hence
+% \begin{equation*}
+%   t = \frac{\epsilon}{1-\epsilon}
+%   = \epsilon (1+\epsilon)(1+\epsilon^2)(1+\epsilon^4)\ldots,
+% \end{equation*}
+% is not too difficult to compute.
+%
+% \subsubsection{Some constants}
+%
+% \begin{variable}[aux]
 %   {
 %     \c_@@_ln_i_fixed_tl ,
 %     \c_@@_ln_ii_fixed_tl ,
@@ -102,88 +127,57 @@
 %     \c_@@_ln_viii_fixed_tl ,
 %     \c_@@_ln_ix_fixed_tl ,
 %     \c_@@_ln_x_fixed_tl,
-%     \c_@@_ln_ten_fixed_tl,
 %   }
-%   A few values of the logarithm which are needed in the
-%   implementation.  It turns out that we don't need the value of
-%   $\log(5)$.
+%   A few values of the logarithm as extended fixed point numbers.
+%   Those are needed in the implementation.  It turns out that we don't
+%   need the value of $\ln(5)$.
 %    \begin{macrocode}
 \tl_const:Nn \c_@@_ln_i_fixed_tl   { {0000}{0000}{0000}{0000}{0000}{0000} }
 \tl_const:Nn \c_@@_ln_ii_fixed_tl  { {6931}{4718}{0559}{9453}{0941}{7232} }
 \tl_const:Nn \c_@@_ln_iii_fixed_tl {{10986}{1228}{8668}{1096}{9139}{5245} }
 \tl_const:Nn \c_@@_ln_iv_fixed_tl  {{13862}{9436}{1119}{8906}{1883}{4464} }
- % \tl_const:Nn \c_@@_ln_v_fixed_tl   {{16094}{3791}{2434}{1003}{7460}{0759} }
 \tl_const:Nn \c_@@_ln_vi_fixed_tl  {{17917}{5946}{9228}{0550}{0081}{2477} }
 \tl_const:Nn \c_@@_ln_vii_fixed_tl {{19459}{1014}{9055}{3133}{0510}{5353} }
 \tl_const:Nn \c_@@_ln_viii_fixed_tl{{20794}{4154}{1679}{8359}{2825}{1696} }
 \tl_const:Nn \c_@@_ln_ix_fixed_tl  {{21972}{2457}{7336}{2193}{8279}{0490} }
 \tl_const:Nn \c_@@_ln_x_fixed_tl   {{23025}{8509}{2994}{0456}{8401}{7991} }
- %\tl_const:Nn \c_@@_ln_ten_fixed_tl {{23025}{8509}{2994}{0456}{8401}{7991} }
 %    \end{macrocode}
 % \end{variable}
 %
-% \subsection{Logarithm}
-%
 % \subsubsection{Sign, exponent, and special numbers}
 %
-% \begin{macro}[EXP]{\@@_ln_o:w}
-%   The logarithm of $\pm 0$ is $-\infty$, raising a division by zero
-%   exception.  The logarithm of negative numbers (including $-\infty$,
-%   but not $-0$) raises the \enquote{invalid} exception.  The logarithm
-%   of $+\infty$ or a \texttt{nan} is itself.  Positive normal numbers
-%   call \cs{@@_ln_npos:w}.
+% \begin{macro}[EXP, int]{\@@_ln_o:w}
+%   The logarithm of negative numbers (including $-\infty$ and $-0$)
+%   raises the \enquote{invalid} exception.  The logarithm of $+0$ is
+%   $-\infty$, raising a division by zero exception.  The logarithm of
+%   $+\infty$ or a \texttt{nan} is itself.  Positive normal numbers call
+%   \cs{@@_ln_npos_o:w}.
 %    \begin{macrocode}
 \cs_new:Npn \@@_ln_o:w \s_@@ \@@_chk:w #1 #2
   {
     \if_meaning:w 2 #2
       \@@_case_use:nw { \@@_invalid_operation_o:nw { ln } }
     \fi:
-    \if_meaning:w 0 #1
+    \if_case:w #1 \exp_stop_f:
       \@@_case_use:nw
-        { \@@_division_by_zero:nnw { \exp_after:wN \c_minus_inf_fp } { ln } }
-    \fi:
-    \if_meaning:w 1 #1 \else:
+        { \@@_division_by_zero_o:Nnw \c_minus_inf_fp { ln } }
+    \or:
+    \else:
       \@@_case_return_same_o:w
     \fi:
-    \@@_ln_npos:w \s_@@ \@@_chk:w #1#2
+    \@@_ln_npos_o:w \s_@@ \@@_chk:w #1#2
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \subsubsection{Absolute ln}
 %
-% We are given a positive normal number, of the form $a\cdot 10^{b}$
-% with $a\in[0.1,1)$.  To compute its logarithm, we find a small integer
-% $5\leq c < 50$ such that $0.91 \leq a c / 5 < 1.1$, and use the
-% relation
-% \[
-% \ln (a \cdot 10^b) = b \cdot \ln (10) - \ln (c/5) + \ln (ac/5).
-% \]
-% The logarithms $\ln(10)$ and $\ln(c/5)$ are looked up in a table.  The
-% last term is computed using the following Talor series of $\ln$ near
-% $1$:
-% \[
-% \ln\left(\frac{ac}{5}\right)
-% = \ln\left(\frac{1+t}{1-t}\right)
-% = 2t\left(1 + t^2 \left(\frac{1}{3} + t^2 \left(\frac{1}{5}
-%       + t^2 \left(\frac{1}{7} + t^2 \left( \frac{1}{9} + \cdots
-%         \right)\right)\right)\right)\right)
-% \]
-% where $t=1-10/(ac+5)$.  We can now see one reason for the choice of
-% $ac\sim 5$: then $ac+5=10(1-\epsilon)$ with $-0.05<\epsilon\leq
-% 0.045$, hence
-% \[
-% t = \frac{\epsilon}{1-\epsilon}
-% = \epsilon (1+\epsilon)(1+\epsilon^2)(1+\epsilon^4)\ldots,
-% \]
-% is not too difficult to compute.
-%
-% \begin{macro}{\@@_ln_npos:w}
+% \begin{macro}[aux, EXP]{\@@_ln_npos_o:w}
 %   We catch the case of a significand very close to $0.1$ or to $1$.
 %   In all other cases, the final result is at least $10^{-4}$, and
 %   then an error of $0.5\cdot 10^{-20}$ is acceptable.
 %    \begin{macrocode}
-\cs_new:Npn \@@_ln_npos:w \s_@@ \@@_chk:w 10#1#2#3;
+\cs_new:Npn \@@_ln_npos_o:w \s_@@ \@@_chk:w 10#1#2#3;
   { %^^A todo: ln(1) should be "exact zero", not "underflow"
     \exp_after:wN \@@_sanitize:Nw
     \__int_value:w % for the overall sign
@@ -200,15 +194,17 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int, EXP]{\@@_ln_significand:NNNNnnnN}
-%   \begin{syntax}
-%     \cs{@@_ln_significand:NNNNnnnN} \meta{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \meta{continuation}
-%   \end{syntax}
+% \begin{macro}[aux, EXP]{\@@_ln_significand:NNNNnnnN}
+%   \begin{quote}
+%     \cs{@@_ln_significand:NNNNnnnN} \meta{X_1} \Arg{X_2} \Arg{X_3}
+%     \Arg{X_4} \meta{continuation}
+%   \end{quote}
 %   This function expands to
 %   \begin{quote}
-%     \meta{continuation} \Arg{Y_1} \Arg{Y_2} \Arg{Y_3} \Arg{Y_4} \Arg{Y_5} \Arg{Y_6} |;|
+%     \meta{continuation} \Arg{Y_1} \Arg{Y_2} \Arg{Y_3} \Arg{Y_4}
+%     \Arg{Y_5} \Arg{Y_6} |;|
 %   \end{quote}
-%   where $Y = - \log X$.
+%   where $Y = - \ln(X)$ as an extended fixed point.
 %    \begin{macrocode}
 \cs_new:Npn \@@_ln_significand:NNNNnnnN #1#2#3#4
   {
@@ -231,6 +227,9 @@
     ; { #1 #2 #3 #4 }
   }
 %    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_ln_x_ii:wnnnn}
 %   We have thus found $c$. It is chosen such that $0.7\leq ac < 1.4$
 %   in all cases. Compute $ 1 + x = 1 + ac \in [1.7,2.4)$.
 %    \begin{macrocode}
@@ -239,8 +238,8 @@
     \exp_after:wN \@@_ln_div_after:Nw
     \cs:w c_@@_ln_ \tex_romannumeral:D #1 _fixed_tl \exp_after:wN \cs_end:
     \__int_value:w
-      \exp_after:wN \@@_ln_x_iv:nnnnnnnn
-      \tex_romannumeral:D -`0
+      \exp_after:wN \@@_ln_x_iv:wnnnnnnnn
+      \int_use:N \__int_eval:w
         \exp_after:wN \@@_ln_x_iii_var:NNNNNw
         \int_use:N \__int_eval:w 9999 9999 + #1*#2#3 +
           \exp_after:wN \@@_ln_x_iii:NNNNNw
@@ -248,7 +247,11 @@
     {20000} {0000} {0000} {0000}
   } %^^A todo: reoptimize (a generalization attempt failed).
 \cs_new:Npn \@@_ln_x_iii:NNNNNw #1 #2#3#4#5 #6; { #1; {#2#3#4#5} {#6} }
-\cs_new:Npn \@@_ln_x_iii_var:NNNNNw #1 #2#3#4#5 #6; { {#1#2#3#4#5} {#6} }
+\cs_new:Npn \@@_ln_x_iii_var:NNNNNw #1 #2#3#4#5 #6;
+  {
+    #1#2#3#4#5 + \c_one ;
+    {#1#2#3#4#5} {#6}
+  }
 %    \end{macrocode}
 %   The Taylor series will be expressed in terms of
 %   $t = (x-1)/(x+1) = 1 - 2/(x+1)$. We now compute the
@@ -314,50 +317,41 @@
 %   a faithful rounding).\footnote{Bruno: to be completed.}
 %
 %   \begin{quote}
-%     \cs{@@_ln_x_iv:NNNNNwnn}
+%     \cs{@@_ln_x_iv:wnnnnnnnn}
 %     \meta{1 or 2} \meta{8d} |;| \Arg{4d} \Arg{4d} \meta{fixed-tl}
 %   \end{quote}
 %   The number is $x$. Compute $y$ by adding 1 to the five first digits.
 %    \begin{macrocode}
-\cs_new:Npn \@@_ln_x_iv:nnnnnnnn #1#2#3#4 #5#6#7#8
+\cs_new:Npn \@@_ln_x_iv:wnnnnnnnn #1; #2#3#4#5 #6#7#8#9
   {
-    \exp_after:wN \@@_ln_div_i:w
-    \int_use:N \__int_eval:w #1 + \c_one ;
-    #5 #6 ; {#7} {#8}
-    {#1} {#2} {#3} {#4}
+    \exp_after:wN \@@_div_mantissa_pack:NNN
+    \int_use:N \__int_eval:w
+    \@@_ln_div_i:w #1 ;
+      #6 #7 ; {#8} {#9}
+      {#2} {#3} {#4} {#5}
+      { \exp_after:wN \@@_ln_div_ii:wwn \__int_value:w #1 }
+      { \exp_after:wN \@@_ln_div_ii:wwn \__int_value:w #1 }
+      { \exp_after:wN \@@_ln_div_ii:wwn \__int_value:w #1 }
+      { \exp_after:wN \@@_ln_div_ii:wwn \__int_value:w #1 }
+      { \exp_after:wN \@@_ln_div_vi:wwn \__int_value:w #1 }
   }
 \cs_new:Npn \@@_ln_div_i:w #1;
   {
-    \exp_after:wN \@@_ln_div_ii:www
-    \__int_value:w #1 \exp_after:wN ;
-    \__int_value:w
-      \exp_after:wN \@@_div_mantissa_calc:Nwwnnnnnn
-      \int_use:N \__int_eval:w 999999 + 2 0000 0000 / #1 ; % Q1
+    \exp_after:wN \@@_div_mantissa_calc:wwnnnnnnn
+    \int_use:N \__int_eval:w 999999 + 2 0000 0000 / #1 ; % Q1
   }
-\cs_set_protected:Npn \@@_tmp:w #1#2
-  {
-    \cs_new:Npn #1 ##1; ##2; ##3; % y; Q1; B1B2; <- for k=1
-      {
-        \exp_after:wN \@@_div_mantissa_pack:NNN
-        \int_use:N \__int_eval:w ##2
-          \exp_after:wN #2
-          \__int_value:w ##1 \exp_after:wN ;
-          \__int_value:w
-            \exp_after:wN \@@_div_mantissa_calc:Nwwnnnnnn
-            \int_use:N \__int_eval:w 999999 + ##3 / ##1 ; % Q2
-            ##3 ;
-      }
-  }
-\@@_tmp:w \@@_ln_div_ii:www \@@_ln_div_iii:www
-\@@_tmp:w \@@_ln_div_iii:www \@@_ln_div_iv:www
-\@@_tmp:w \@@_ln_div_iv:www \@@_ln_div_v:www
-\@@_tmp:w \@@_ln_div_v:www \@@_ln_div_vi:www
-\cs_new:Npn \@@_ln_div_vi:www #1; #2; #3;#4#5 #6#7#8#9 %y;Q5;F1F2;F3F4x1x2x3x4
+\cs_new:Npn \@@_ln_div_ii:wwn #1; #2;#3 % y; B1;B2 <- for k=1
   {
     \exp_after:wN \@@_div_mantissa_pack:NNN
-    \int_use:N \__int_eval:w #2
-      \exp_after:wN \@@_div_mantissa_pack:NNN
-      \int_use:N \__int_eval:w 1000000 + #3 / #1 ; % Q6
+    \int_use:N \__int_eval:w
+      \exp_after:wN \@@_div_mantissa_calc:wwnnnnnnn
+      \int_use:N \__int_eval:w 999999 + #2 #3 / #1 ; % Q2
+      #2 #3 ;
+  }
+\cs_new:Npn \@@_ln_div_vi:wwn #1; #2;#3#4#5 #6#7#8#9 %y;F1;F2F3F4x1x2x3x4
+  {
+    \exp_after:wN \@@_div_mantissa_pack:NNN
+    \int_use:N \__int_eval:w 1000000 + #2 #3 / #1 ; % Q6
   }
 %    \end{macrocode}
 %   We now have essentially\footnote{Bruno: add a mention that
@@ -520,14 +514,14 @@
 %     \Arg{r_1} \Arg{r_2} \Arg{r_3} \Arg{r_4} \Arg{r_5} \Arg{r_6} |;|
 %     \meta{fixed tl} \meta{exponent} |;| \meta{continuation}
 %   \end{quote}
-%   We are now reduced to finding $\ln c$ and $\meta{exponent}\ln 10$
+%   We are now reduced to finding $\ln(c)$ and $\meta{exponent}\ln(10)$
 %   in a table, and adding it to the mixture. The first step is to
-%   get $\ln c - \ln x = - \ln a$, then we get $|b|\ln 10$ and add
+%   get $\ln(c) - \ln(x) = - \ln(a)$, then we get $|b|\ln(10)$ and add
 %   or subtract.
 %
-%   For now, $\ln x$ is given as $\cdot 10^0$. Unless both the exponent
+%   For now, $\ln(x)$ is given as $\cdot 10^0$. Unless both the exponent
 %   is $1$ and $c=1$, we shift to working in units of $\cdot 10^4$,
-%   since the final result will be at least $\ln 10/7 \simeq
+%   since the final result will be at least $\ln(10/7) \simeq
 %   0.35$.\footnote{Bruno: that was wrong at some point, I must check.}
 %    \begin{macrocode}
 \cs_new:Npn \@@_ln_c:NwNw #1 #2; #3
@@ -549,9 +543,9 @@
 %     \Arg{s_1} \Arg{s_2} \Arg{s_3} \Arg{s_4} \Arg{s_5} \Arg{s_6} |;|
 %     \Arg{exponent}
 %   \end{quote}
-%   Compute \meta{exponent} times $\ln 10$. Apart from the cases where
+%   Compute \meta{exponent} times $\ln(10)$. Apart from the cases where
 %   \meta{exponent} is $0$ or $1$, the result will necessarily be at
-%   least $\ln 10 \simeq 2.3$ in magnitude. We can thus drop the least
+%   least $\ln(10) \simeq 2.3$ in magnitude. We can thus drop the least
 %   significant $4$ digits. In the case of a very large (positive or
 %   negative) exponent, we can (and we need to) drop $4$ additional
 %   digits, since the result is of order $10^4$. Naively, one would
@@ -1018,8 +1012,8 @@
 % \begin{macro}[aux, EXP]{\@@_pow_npos:Nww}
 %   We now know that $a\neq\pm 1$ is a normal number, and $b$ is a
 %   normal number too.  We want to compute $\lvert a\rvert^{b} = (\lvert
-%   x\rvert\cdot 10^{n})^{y\cdot 10^{p}} = \exp((\log\lvert x\rvert + n
-%   \log 10)\cdot y \cdot 10^{p}) = \exp(z)$.  To compute the
+%   x\rvert\cdot 10^{n})^{y\cdot 10^{p}} = \exp((\ln\lvert x\rvert + n
+%   \ln(10))\cdot y \cdot 10^{p}) = \exp(z)$.  To compute the
 %   exponential accurately, we need to know the digits of $z$ up to the
 %   $16$-th position.  Since the exponential of $10^{5}$ is infinite, we
 %   only need at most $21$ digits, hence the fixed point result of
@@ -1050,7 +1044,7 @@
 % \begin{macro}[aux, EXP]{\@@_pow_npos_aux:Nnww}
 %   The first argument is the conversion function from fixed point to
 %   float.  Then comes an exponent and the $4$ brace groups of $x$,
-%   followed by $b$.  Compute $-\log x$.
+%   followed by $b$.  Compute $-\ln(x)$.
 %    \begin{macrocode}
 \cs_new:Npn \@@_pow_npos_aux:Nnww #1#2#3#4; \s_@@ \@@_chk:w 1#5#6#7;
   {
@@ -1064,10 +1058,10 @@
 \cs_new:Npn \@@_pow_exponent:wnN #1; #2
   {
     \if_int_compare:w #2 > \c_zero
-      \exp_after:wN \@@_pow_exponent:Nwnnnnnn % n\log 10 - (-\log x)
+      \exp_after:wN \@@_pow_exponent:Nwnnnnnn % n\ln(10) - (-\ln(x))
       \exp_after:wN +
     \else:
-      \exp_after:wN \@@_pow_exponent:Nwnnnnnn % -( |n|\log 10 + (-\log x) )
+      \exp_after:wN \@@_pow_exponent:Nwnnnnnn % -( |n|\ln(10) + (-\ln(x)) )
       \exp_after:wN -
     \fi:
     #2; #1;
