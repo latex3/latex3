@@ -77,6 +77,8 @@
 %<@@=fp>
 %    \end{macrocode}
 %
+% \subsection{Description of extended fixed points}
+%
 % In this module, we work on (almost) fixed-point numbers with
 % extended ($24$ digits) precision.  This is used in the computation of
 % Taylor series for the logarithm, exponential, and trigonometric
@@ -89,23 +91,28 @@
 % \begin{quote}
 %   \Arg{a_1} \Arg{a_2} \Arg{a_3} \Arg{a_4} \Arg{a_5} \Arg{a_6} |;|
 % \end{quote}
-% where each \meta{a_i} is exactly $4$ digits, except
-% \meta{a_1}, which may be any positive \TeX{} integer.  The fixed point
+% where each \meta{a_i} is exactly $4$ digits (ranging from |0000| to
+% |9999|), except \meta{a_1}, which may be any \enquote{not-too-large}
+% non-negative integer, with or without trailing zeros.  Here,
+% \enquote{not-too-large} depends on the specific function (see the
+% corresponding comments for details).  Checking for overflow is the
+% responsibility of the code calling those functions.  The fixed point
 % number $a$ corresponding to the representation above is $a =
 % \sum_{i=1}^{6} \meta{a_i} \cdot 10^{-4i}$.
 %
 % Most functions we define here have the form
 % \begin{syntax}
-%   \cs{@@_fixed_\meta{calculation}:wwN} \meta{operand_1} |;| \meta{operand_2} |;| \meta{continuation}
+%   \cs{@@_fixed_\meta{calculation}:wwn} \meta{operand_1} |;| \meta{operand_2} |;| \Arg{continuation}
 % \end{syntax}
 % They perform the \meta{calculation} on the two \meta{operands}, then
 % feed the result ($6$ brace groups followed by a semicolon) to the
 % \meta{continuation}, responsible for the next step of the calculation.
+% Some functions only accept an \texttt{N}-type \meta{continuation}.
 % This allows constructions such as
 % \begin{quote}
-%   \cs{@@_fixed_add:wwN} \meta{X_1} |;| \meta{X_2} |;| \\
+%   \cs{@@_fixed_add:wwn} \meta{X_1} |;| \meta{X_2} |;| \\
 %   \cs{@@_fixed_mul:wwn} \meta{X_3} |;| \\
-%   \cs{@@_fixed_add:wwN} \meta{X_4} |;| \\
+%   \cs{@@_fixed_add:wwn} \meta{X_4} |;| \\
 % \end{quote}
 % to compute $(X_1+X_2)\cdot X_3 + X_4$.  This turns out to be very
 % appropriate for computing continued fractions and Taylor series.
@@ -116,7 +123,10 @@
 % after starting an integer expression for the overall exponent of the
 % result.
 %
-% \begin{variable}{\c_@@_one_fixed_tl}
+% \subsection{Helpers for extended fixed points}
+%
+% \begin{variable}[int]{\c_@@_one_fixed_tl}
+%   The extended fixed-point number~$1$, used in \pkg{l3fp-expo}.
 %    \begin{macrocode}
 \tl_const:Nn \c_@@_one_fixed_tl
   { {10000} {0000} {0000} {0000} {0000} {0000} }
@@ -124,38 +134,92 @@
 % \end{variable}
 %
 % \begin{macro}[int, EXP]{\@@_fixed_continue:wn}
-%   This function does nothing.
+%   This function does nothing.  Of course, there is no bound on
+%   $a_1$ (except \TeX{}'s own $2^{31}-1$).
 %    \begin{macrocode}
 \cs_new:Npn \@@_fixed_continue:wn #1; #2 { #2 #1; }
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[int, EXP]{\@@_fixed_add_one:wN}
+%   \begin{syntax}
+%     \cs{@@_fixed_add_one:wN} \meta{a} |;| \meta{continuation}
+%   \end{syntax}
+%   This function adds $1$ to the fixed point \meta{a}, by changing
+%   $a_1$ to $10000+a_1$, then calls the \meta{continuation}.  This
+%   requires $a_1 \leq 2^{31} - 10001$.
+%    \begin{macrocode}
+\cs_new:Npn \@@_fixed_add_one:wN #1#2; #3
+  {
+    \exp_after:wN #3 \exp_after:wN
+      { \int_use:N \__int_eval:w \c_ten_thousand + #1 } #2 ;
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_fixed_mul_after:wn}
+%   The fixed point operations which involve multiplication end by
+%   calling this auxiliary.  It braces the last block of digits, and
+%   places the \meta{continuation} |#2| in front.  The
+%   \meta{continuation} was brought up through the expansions by
+%   the packing functions.
+%    \begin{macrocode}
+\cs_new:Npn \@@_fixed_mul_after:wn #1; #2 { #2 {#1} }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Dividing a fixed point number by a small integer}
+%
 % \begin{macro}[int, EXP]{\@@_fixed_div_int:wwN}
 % \begin{macro}[aux, EXP]
 %   {
 %     \@@_fixed_div_int_i:wnN, \@@_fixed_div_int_ii:wnn,
-%     \@@_fixed_div_int_end:wnn, \@@_fixed_div_int_pack:Nw,
+%     \@@_fixed_div_int_iii:wnn, \@@_fixed_div_int_pack:Nw,
 %     \@@_fixed_div_int_after:Nw
 %   }
 %   \begin{syntax}
-%     \cs{@@_fixed_div_int:wwN} \meta{a} |;| \meta{n} |;| \meta{function}
+%     \cs{@@_fixed_div_int:wwN} \meta{a} |;| \meta{n} |;| \meta{continuation}
 %   \end{syntax}
 %   Divides the fixed point number \meta{a} by the (small) integer
-%   $0<\meta{n}<10^4$ and feeds the result to the \meta{function}.  The
-%   \texttt{wnN} auxiliary receives $a_{i}$, $n$, and a continuation
-%   function as arguments, and computes a (rather tight) lower bound
-%   $Q_{i}$ for the quotient.  The \texttt{wnn} auxiliary receives
-%   $Q_{i}$, $n$, and $a_{i}$.  It adds $Q_{i}$ to a surrounding integer
-%   expression, and starts a new one.  It also computes $a_{i}-n\cdot
-%   Q_{i}$, putting the result in front of $a_{i+1}$ to serve as the
-%   first argument for a new call to the \texttt{wnN} auxiliary. At the
-%   end, the path we took to the lowest levels rewinds: the
-%   \texttt{pack} auxiliary receives $5$ digits, braces the last $4$,
-%   and carries the leading digit to the level above.  The offsets used
-%   to ensure a given number of digits are as follows: we first subtract
-%   $1$ from the top-level, then add $9999$ at every subsequent level,
-%   and add $2$ to the last level.  This last number is not $1$, because
-%   it compensates for the |- \c_one| in the \texttt{wnN} auxiliary.
+%   $0<\meta{n}<10^4$ and feeds the result to the \meta{continuation}.
+%   There is no bound on $a_1$.
+%
+%   The arguments of the \texttt{i} auxiliary are 1: one of the $a_{i}$,
+%   2: $n$, 3: the \texttt{ii} or the \texttt{iii} auxiliary.  It
+%   computes a (somewhat tight) lower bound $Q_{i}$ for the ratio
+%   $a_{i}/n$.
+%
+%   The \texttt{ii} auxiliary receives $Q_{i}$, $n$, and $a_{i}$ as
+%   arguments.  It adds $Q_{i}$ to a surrounding integer expression, and
+%   starts a new one with the initial value $9999$, which ensures that
+%   the result of this expression will have $5$ digits.  The auxiliary
+%   also computes $a_{i}-n\cdot Q_{i}$, placing the result in front of
+%   the $4$ digits of $a_{i+1}$.  The resulting $a'_{i+1} = 10^{4}
+%   (a_{i} - n \cdot Q_{i}) + a_{i+1}$ serves as the first argument for
+%   a new call to the \texttt{i} auxiliary.
+%
+%   When the \texttt{iii} auxiliary is called, the situation looks like
+%   this:
+%   \begin{quote}
+%     \cs{@@_fixed_div_int_after:Nw} \meta{continuation} \\
+%     $-1 + Q_{1}$ \\
+%     \cs{@@_fixed_div_int_pack:Nw} $9999 + Q_{2}$ \\
+%     \cs{@@_fixed_div_int_pack:Nw} $9999 + Q_{3}$ \\
+%     \cs{@@_fixed_div_int_pack:Nw} $9999 + Q_{4}$ \\
+%     \cs{@@_fixed_div_int_pack:Nw} $9999 + Q_{5}$ \\
+%     \cs{@@_fixed_div_int_pack:Nw} $9999$ \\
+%     \cs{@@_fixed_div_int_iii:wnn} $Q_{6}$ |;| \Arg{n} \Arg{a_{6}}
+%   \end{quote}
+%   where expansion is happening from the last line up.  The
+%   \texttt{iii} auxiliary adds $Q_{6} + 2 \simeq a_{6}/n + 1$ to the
+%   last $9999$, giving the integer closest to $10000 + a_{6}/n$.
+%
+%   Each \texttt{pack} auxiliary receives $5$ digits followed by a
+%   semicolon.  The first digit is added as a carry to the integer
+%   expression above, and the $4$ other digits are braced.  Each call to
+%   the \texttt{pack} auxiliary thus produces one brace group.  The last
+%   brace group is produced by the \texttt{after} auxiliary, which
+%   places the \meta{continuation as appropriate.
 %    \begin{macrocode}
 \cs_new:Npn \@@_fixed_div_int:wwN #1#2#3#4#5#6 ; #7 ; #8
   {
@@ -168,7 +232,7 @@
       #3; {#7} \@@_fixed_div_int_ii:wnn
       #4; {#7} \@@_fixed_div_int_ii:wnn
       #5; {#7} \@@_fixed_div_int_ii:wnn
-      #6; {#7} \@@_fixed_div_int_end:wnn ;
+      #6; {#7} \@@_fixed_div_int_iii:wnn ;
   }
 \cs_new:Npn \@@_fixed_div_int_i:wnN #1; #2 #3
   {
@@ -185,185 +249,287 @@
       \exp_after:wN \@@_fixed_div_int_i:wnN
       \int_use:N \__int_eval:w #3 - #1*#2 \__int_eval_end:
   }
-\cs_new:Npn \@@_fixed_div_int_end:wnn #1; #2 #3 { + #1 + \c_two ; }
+\cs_new:Npn \@@_fixed_div_int_iii:wnn #1; #2 #3 { + #1 + \c_two ; }
 \cs_new:Npn \@@_fixed_div_int_pack:Nw #1 #2; { + #1; {#2} }
 \cs_new:Npn \@@_fixed_div_int_after:Nw #1 #2; { #1 {#2} }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[int, EXP]{\@@_fixed_add_one:wN}
-%   \begin{syntax}
-%     \cs{@@_fixed_add_one:wN} \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \Arg{X_5} \Arg{X_6} |;| \meta{function}
-%   \end{syntax}
-%    \begin{macrocode}
-\cs_new:Npn \@@_fixed_add_one:wN #1#2; #3
-  {
-    \exp_after:wN #3 \exp_after:wN
-      { \int_use:N \__int_eval:w 10000 + #1 } #2 ;
-  }
-%    \end{macrocode}
-% \end{macro}
+% \subsection{Adding and subtracting fixed points}
 %
-% \begin{macro}[int, EXP]
-%   {\@@_fixed_add:wwN, \@@_fixed_sub:wwN, \@@_fixed_sub_back:wwN}
-%^^A todo: remove sub_back.
+% \begin{macro}[int, EXP]{\@@_fixed_add:wwn, \@@_fixed_sub:wwn}
 % \begin{macro}[aux, EXP]
 %   {
-%     \@@_fixed_add_i:NNnnnnwnn,
-%     \@@_fixed_add_ii:NnnNnnnnw,
-%     \@@_fixed_add_pack:NNNNNwN,
-%     \@@_fixed_add_after:NNNNNwN
+%     \@@_fixed_add_i:Nnnnnwnn,
+%     \@@_fixed_add_ii:nnNnnnwn,
+%     \@@_fixed_add_pack:NNNNNwn,
+%     \@@_fixed_add_after:NNNNNwn
 %   }
 %   \begin{syntax}
-%     \cs{@@_fixed_add:wwN} \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \Arg{X_5} \Arg{X_6} |;| \Arg{Y_1} \Arg{Y_2} \Arg{Y_3} \Arg{Y_4} \Arg{Y_5} \Arg{Y_6} |;| \meta{function}
+%     \cs{@@_fixed_add:wwn} \meta{a} |;| \meta{b} |;| \Arg{continuation}
 %   \end{syntax}
-%   Computes $X+Y$ (resp.\ $X-Y$ and $Y-X$) and feeds the result to
-%   \meta{function}.  The three functions only differ by some signs and
-%   use a common auxiliary.  It would be nice to grab the $12$ brace
-%   groups in one go, only $9$ arguments are allowed.  Start by grabbing
-%   the two signs, $X_{1}, \ldots, X_{4}$, the rest of $X$, and $Y_{1}$
-%   and $Y_{2}$.  The second auxiliary receives the sign of $X$, the
-%   rest of $X$, the sign of $Y$, the rest of $Y$, and the
-%   \meta{function}.  After going down through the various level, we go
-%   back up, packing digits and bringing the \meta{function} (|#9|, then
-%   |#7|) from the end of the argument list to its start.
+%   Computes $a+b$ (resp.\ $a-b$) and feeds the result to the
+%   \meta{continuation}.  This function requires $0\leq
+%   a_{1},b_{1}<50000$, and requires the result to be positive (this
+%   happens automatically for addition).  The two functions only differ
+%   a sign, hence use a common auxiliary.  It would be nice to grab the
+%   $12$ brace groups in one go; only $9$ parameters are allowed.  Start
+%   by grabbing the two signs, $a_{1}, \ldots, a_{4}$, the rest of $a$,
+%   and $b_{1}$ and $b_{2}$.  The second auxiliary receives the rest of
+%   $a$, the sign multiplying $b$, the rest of $b$, and the
+%   \meta{continuation} as arguments.  After going down through the
+%   various level, we go back up, packing digits and bringing the
+%   \meta{continuation} (|#8|, then |#7|) from the end of the argument
+%   list to its start.
 %    \begin{macrocode}
-\cs_new_nopar:Npn \@@_fixed_add:wwN { \@@_fixed_add_i:NNnnnnwnn + + }
-\cs_new_nopar:Npn \@@_fixed_sub:wwN { \@@_fixed_add_i:NNnnnnwnn + - }
-\cs_new_nopar:Npn \@@_fixed_sub_back:wwN { \@@_fixed_add_i:NNnnnnwnn - + }
-\cs_new:Npn \@@_fixed_add_i:NNnnnnwnn #1#2 #3#4#5#6 #7; #8#9
+\cs_new_nopar:Npn \@@_fixed_add:wwn { \@@_fixed_add_i:Nnnnnwnn + }
+\cs_new_nopar:Npn \@@_fixed_sub:wwn { \@@_fixed_add_i:Nnnnnwnn - }
+\cs_new:Npn \@@_fixed_add_i:Nnnnnwnn #1 #2#3#4#5 #6; #7#8
   {
-    \exp_after:wN \@@_fixed_add_after:NNNNNwN
-    \int_use:N \__int_eval:w 1 9999 9998 #1 #3#4 #2 #8#9
-      \exp_after:wN \@@_fixed_add_pack:NNNNNwN
-      \int_use:N \__int_eval:w 1 9999 9998 #1 #5#6
-        \@@_fixed_add_ii:NnnNnnnnw #1 #7 #2
+    \exp_after:wN \@@_fixed_add_after:NNNNNwn
+    \int_use:N \__int_eval:w 9 9999 9998 + #2#3 #1 #7#8
+      \exp_after:wN \@@_fixed_add_pack:NNNNNwn
+      \int_use:N \__int_eval:w 1 9999 9998 + #4#5
+        \@@_fixed_add_ii:nnNnnnwn #6 #1
   }
-\cs_new:Npn \@@_fixed_add_ii:NnnNnnnnw #1 #2#3 #4 #5#6 #7#8 ; #9
+\cs_new:Npn \@@_fixed_add_ii:nnNnnnwn #1#2 #3 #4#5 #6#7 ; #8
   {
-    #4 #5#6
-    \exp_after:wN \@@_fixed_add_pack:NNNNNwN
-    \int_use:N \__int_eval:w 2 0000 0000 #4 #7#8 #1 #2#3 ; #9 ;
+    #3 #4#5
+    \exp_after:wN \@@_fixed_add_pack:NNNNNwn
+    \int_use:N \__int_eval:w 2 0000 0000 #3 #6#7 + #1#2 ; {#8} ;
   }
-\cs_new:Npn \@@_fixed_add_pack:NNNNNwN #1 #2#3#4#5 #6; #7
-  { + #1 ; #7 {#2#3#4#5} {#6} }
-\cs_new:Npn \@@_fixed_add_after:NNNNNwN #1 #2#3#4#5 #6; #7
-  {
-    \exp_after:wN #7
-    \exp_after:wN { \int_use:N \__int_eval:w - 2 0000 + #1#2#3#4#5 }
-    {#6}
-  }
+\cs_new:Npn \@@_fixed_add_pack:NNNNNwn #1 #2#3#4#5 #6; #7
+  { + #1 ; {#7} {#2#3#4#5} {#6} }
+\cs_new:Npn \@@_fixed_add_after:NNNNNwn 1 #1 #2#3#4#5 #6; #7
+  { #7 {#1#2#3#4#5} {#6} }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
+%
+% \subsection{Multiplying fixed points}
 %
 % \begin{macro}[int, EXP]{\@@_fixed_mul:wwn}
-% \begin{macro}[aux, EXP]
-%   {
-%     \@@_fixed_mul_i:nnnnnnnn   ,
-%     \@@_fixed_mul_pack:NNNNNw    ,
-%     \@@_fixed_mul_after:wwn
-%   }
+% \begin{macro}[aux, EXP]{\@@_fixed_mul_i:nnnnnnnwn}
 %   \begin{syntax}
-%     \cs{@@_fixed_mul:wwn} \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \Arg{X_5} \Arg{X_6} |;| \Arg{Y_1} \Arg{Y_2} \Arg{Y_3} \Arg{Y_4} \Arg{Y_5} \Arg{Y_6} |;| \Arg{tokens}
+%     \cs{@@_fixed_mul:wwn} \meta{a} |;| \meta{b} |;| \Arg{continuation}
 %   \end{syntax}
-%   Computes $X\times Y$ and feeds the result to \meta{function}. It
-%   would be nice to grab the $12$ brace groups in one go, but that's
-%   not possible.  On the other hand, we don't need to obtain an exact
-%   rounding, contrarily to the case in \cs{@@_*_o:ww}, so things are
-%   not quite as bad as they may seem.  The parenthesis computing the
-%   seventh group of digits (computed because we need to know its
-%   potentially large carry) is closed by
-%   \cs{@@_fixed_mul_i:nnnnnnnn}, once we access the last two brace
-%   groups, which were not read before. Also, in
-%   \cs{@@_fixed_mul_after:wwn}, |#3| is the continuation
-%   tokens.\footnote{Bruno: insist on the difference compared to
-%     \cs{@@_fixed_add:wwN}.}
+%   Computes $a\times b$ and feeds the result to \meta{continuation}.
+%   This function requires $0\leq a_{1}, b_{1} < 10000$.  Once more, we
+%   need to play around the limit of $9$ arguments for \TeX{} macros.
+%   Note that we don't need to obtain an exact rounding, contrarily to
+%   the |*| operator, so things could be harder.  We wish to perform
+%   carries in
+%   \begin{align*}
+%     a \times b =
+%     & a_{1} \cdot b_{1} \cdot 10^{-8} \\
+%     & + (a_{1} \cdot b_{2} + a_{2} \cdot b_{1}) \cdot 10^{-12} \\
+%     & + (a_{1} \cdot b_{3} + a_{2} \cdot b_{2}
+%           + a_{3} \cdot b_{1}) \cdot 10^{-16} \\
+%     & + (a_{1} \cdot b_{4} + a_{2} \cdot b_{3}
+%           + a_{3} \cdot b_{2} + a_{4} \cdot b_{1}) \cdot 10^{-20} \\
+%     & + \left(a_{2} \cdot b_{4} + a_{3} \cdot b_{3} + a_{4} \cdot b_{2}
+%           + \frac{a_{3} \cdot b_{4} + a_{4} \cdot b_{3}
+%             + a_{1} \cdot b_{6} + a_{2} \cdot b_{5}
+%             + a_{5} \cdot b_{2} + a_{6} \cdot b_{1}}{10^{4}}
+%           + a_{1} \cdot b_{5} + a_{5} \cdot b_{1}\right) \cdot 10^{-24}
+%     + O(10^{-24}),
+%   \end{align*}
+%   where the $O(10^{-24})$ stands for terms which are at most $5\cdot
+%   10^{-24}$; ignoring those leads to an error of at most
+%   $5$~\texttt{ulp}.  Note how the first $15$~terms only depend on
+%   $a_{1},\ldots{},a_{4}$ and $b_{1},\ldots,b_{4}$, while the last
+%   $6$~terms only depend on $a_{1},a_{2},a_{5},a_{6}$, and the
+%   corresponding parts of~$b$.  Hence, the first function grabs
+%   $a_{1},\ldots,a_{4}$, the rest of $a$, and $b_{1},\ldots,b_{4}$, and
+%   writes the $15$ first terms of the expression, including a left
+%   parenthesis for the fraction.  The \texttt{i} auxiliary receives
+%   $a_{5}$, $a_{6}$, $b_{1}$, $b_{2}$, $a_{1}$, $a_{2}$, $b_{5}$,
+%   $b_{6}$ and finally the \meta{continuation} as arguments.  It writes
+%   the end of the expression, including the right parenthesis and the
+%   denominator of the fraction.  The packing auxiliaries bring the
+%   \meta{continuation} up through the expansion chain, as |#7|, and it
+%   is finally placed in front of the $6$ brace groups by
+%   \cs{@@_fixed_mul_after:wn}.
 %    \begin{macrocode}
 \cs_new:Npn \@@_fixed_mul:wwn #1#2#3#4 #5; #6#7#8#9
   {
-    \exp_after:wN \@@_fixed_mul_after:wwn
+    \exp_after:wN \@@_fixed_mul_after:wn
     \int_use:N \__int_eval:w \c_@@_leading_shift_int
-      \exp_after:wN \@@_pack:NNNNNw
+      \exp_after:wN \@@_pack:NNNNNwn
       \int_use:N \__int_eval:w \c_@@_middle_shift_int
         + #1*#6
-        \exp_after:wN \@@_pack:NNNNNw
+        \exp_after:wN \@@_pack:NNNNNwn
         \int_use:N \__int_eval:w \c_@@_middle_shift_int
           + #1*#7 + #2*#6
-          \exp_after:wN \@@_pack:NNNNNw
+          \exp_after:wN \@@_pack:NNNNNwn
           \int_use:N \__int_eval:w \c_@@_middle_shift_int
             + #1*#8 + #2*#7 + #3*#6
-            \exp_after:wN \@@_pack:NNNNNw
+            \exp_after:wN \@@_pack:NNNNNwn
             \int_use:N \__int_eval:w \c_@@_middle_shift_int
               + #1*#9 + #2*#8 + #3*#7 + #4*#6
-              \exp_after:wN \@@_pack:NNNNNw
+              \exp_after:wN \@@_pack:NNNNNwn
               \int_use:N \__int_eval:w \c_@@_trailing_shift_int
                 + #2*#9 + #3*#8 + #4*#7
                 + ( #3*#9 + #4*#8
-                  + \@@_fixed_mul_i:nnnnnnnn #5 {#6}{#7}  {#1}{#2}
+                  + \@@_fixed_mul_i:nnnnnnnwn #5 {#6}{#7}  {#1}{#2}
   }
-\cs_new:Npn \@@_fixed_mul_i:nnnnnnnn #1#2 #3#4 #5#6 #7#8
-  { #1*#4 + #2*#3 + #5*#8 + #6*#7 )/10000 + #1*#3 + #5*#7 ; }
-\cs_new:Npn \@@_fixed_mul_pack:NNNNNw
-    #1 #2#3#4#5 #6; { + #1#2#3#4#5 ; {#6} }
-\cs_new:Npn \@@_fixed_mul_after:wwn #1; #2; #3 { #3 {#1} #2 ; }
+\cs_new:Npn \@@_fixed_mul_i:nnnnnnnwn #1#2 #3#4 #5#6 #7#8 ; #9
+  {
+    #1*#4 + #2*#3 + #5*#8 + #6*#7 ) / \c_ten_thousand
+    + #1*#3 + #5*#7 ;
+    {#9} ;
+  }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[int, EXP]{\@@_fixed_mul_add:wwwn, \@@_fixed_mul_sub_back:wwwn}
+% \subsection{Combining product and sum of fixed points}
+%
+% \begin{macro}[int, EXP]
+%   {
+%     \@@_fixed_mul_add:wwwn,
+%     \@@_fixed_mul_sub_back:wwwn,
+%     \@@_fixed_mul_one_minus_mul:wwn,
+%   }
 %   \begin{syntax}
-%     \cs{@@_fixed_mul_add:wwn} \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \Arg{X_5} \Arg{X_6} |;| \Arg{Y_1} \Arg{Y_2} \Arg{Y_3} \Arg{Y_4} \Arg{Y_5} \Arg{Y_6} |;| \Arg{Z_1} \Arg{Z_2} \Arg{Z_3} \Arg{Z_4} \Arg{Z_5} \Arg{Z_6} |;| \Arg{tokens}
+%     \cs{@@_fixed_mul_add:wwwn} \meta{a} |;| \meta{b} |;| \meta{c} |;| \Arg{continuation}
+%     \cs{@@_fixed_mul_sub_back:wwwn} \meta{a} |;| \meta{b} |;| \meta{c} |;| \Arg{continuation}
+%     \cs{@@_fixed_one_minus_mul:wwn} \meta{a} |;| \meta{b} |;| \Arg{continuation}
 %   \end{syntax}
-%   These functions compute $X\times Y + Z$ or $Z-X\times Y$ and feed
-%   the result to the \meta{tokens}.  This is tough because we have $18$
-%   brace groups in front of us.
+%   Compute $a\times b + c$, $c - a\times b$, and $1 - a\times b$ and
+%   feed the result to the \meta{continuation}.  Those functions require
+%   $0\leq a_{1}, b_{1}, c_{1} \leq 10000$.  Since those functions are
+%   at the heart of the computation of Taylor expansions, we
+%   over-optimize them a bit, and in particular we do not factor out the
+%   common parts of the three functions.
+%
+%   For definiteness, consider the task of computing $a\times b + c$.
+%   We will perform carries in
+%   \begin{align*}
+%     a \times b + c =
+%     & (a_{1} \cdot b_{1} + c_{1} c_{2})\cdot 10^{-8} \\
+%     & + (a_{1} \cdot b_{2} + a_{2} \cdot b_{1}) \cdot 10^{-12} \\
+%     & + (a_{1} \cdot b_{3} + a_{2} \cdot b_{2} + a_{3} \cdot b_{1}
+%           + c_{3} c_{4}) \cdot 10^{-16} \\
+%     & + (a_{1} \cdot b_{4} + a_{2} \cdot b_{3} + a_{3} \cdot b_{2}
+%           + a_{4} \cdot b_{1}) \cdot 10^{-20} \\
+%     & + \Big(a_{2} \cdot b_{4} + a_{3} \cdot b_{3} + a_{4} \cdot b_{2}
+%           + \frac{a_{3} \cdot b_{4} + a_{4} \cdot b_{3}
+%             + a_{1} \cdot b_{6} + a_{2} \cdot b_{5}
+%             + a_{5} \cdot b_{2} + a_{6} \cdot b_{1}}{10^{4}}
+%           + a_{1} \cdot b_{5} + a_{5} \cdot b_{1}
+%           + c_{5} c_{6} \Big) \cdot 10^{-24}
+%     + O(10^{-24}),
+%   \end{align*}
+%   where $c_{1} c_{2}$, $c_{3} c_{4}$, $c_{5} c_{6}$ denote the
+%   $8$-digit number obtained by juxtaposing the two blocks of digits of
+%   $c$, and $\cdot$ denotes multiplication.  The task is obviously
+%   tough because we have $18$ brace groups in front of us.
+%
+%   Each of the three function starts the first two levels (the first,
+%   corresponding to $10^{-4}$, is empty), with $c_{1} c_{2}$ in the
+%   first level, calls the \texttt{i} auxiliary with arguments described
+%   later, and adds a trailing ${} + c_{5}c_{6}$ |;|
+%   \Arg{continuation}~|;|.  The ${} + c_{5}c_{6}$ piece, which is
+%   omitted for \cs{@@_fixed_one_minus_mul:wwn}, will be taken in the
+%   integer expression for the $10^{-24}$ level.  The
+%   \meta{continuation} is placed correctly to be taken upstream by
+%   packing auxiliaries.
 %    \begin{macrocode}
-\cs_new:Npn \@@_fixed_one_minus_mul:wwn #1; #2#3#4#5;
+\cs_new:Npn \@@_fixed_mul_add:wwwn #1; #2; #3#4#5#6#7#8; #9
   {
-    \exp_after:wN \@@_fixed_mul_after:wwn
-    \int_use:N \__int_eval:w \c_@@_big_leading_shift_int + \c_ten_thousand
-      \exp_after:wN \@@_pack_big:NNNNNNw
+    \exp_after:wN \@@_fixed_mul_after:wn
+    \int_use:N \__int_eval:w \c_@@_big_leading_shift_int
+      \exp_after:wN \@@_pack_big:NNNNNNwn
+      \int_use:N \__int_eval:w \c_@@_big_middle_shift_int + #3 #4
+        \@@_fixed_mul_add_i:Nwnnnwnnn +
+          + #5 #6 ; #2 ; #1 ; #2 ; +
+          + #7 #8 ; {#9} ;
+  }
+\cs_new:Npn \@@_fixed_mul_sub_back:wwwn #1; #2; #3#4#5#6#7#8; #9
+  {
+    \exp_after:wN \@@_fixed_mul_after:wn
+    \int_use:N \__int_eval:w \c_@@_big_leading_shift_int
+      \exp_after:wN \@@_pack_big:NNNNNNwn
+      \int_use:N \__int_eval:w \c_@@_big_middle_shift_int + #3 #4
+        \@@_fixed_mul_add_i:Nwnnnwnnn -
+          + #5 #6 ; #2 ; #1 ; #2 ; -
+          + #7 #8 ; {#9} ;
+  }
+\cs_new:Npn \@@_fixed_one_minus_mul:wwn #1; #2; #3
+  {
+    \exp_after:wN \@@_fixed_mul_after:wn
+    \int_use:N \__int_eval:w \c_@@_big_leading_shift_int
+      \exp_after:wN \@@_pack_big:NNNNNNwn
+      \int_use:N \__int_eval:w \c_@@_big_middle_shift_int + 1 0000 0000
+        \@@_fixed_mul_add_i:Nwnnnwnnn -
+          ; #2 ; #1 ; #2 ; -
+          ; {#3} ;
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_fixed_mul_add_i:Nwnnnwnnn}
+%   \begin{syntax}
+%     \cs{@@_fixed_mul_add_i:Nwnnnwnnn} \meta{op} |+| \meta{c_3} \meta{c_4} |;|
+%     ~~\meta{b} |;| \meta{a} |;| \meta{b} |;| \meta{op}
+%     ~~|+| \meta{c_5} \meta{c_6} |;|
+%   \end{syntax}
+%   Here, \meta{op} is either |+| or |-|.  Arguments |#3|, |#4|, |#5|
+%   are \meta{b_1}, \meta{b_2}, \meta{b_3}; arguments |#7|, |#8|, |#9|
+%   are \meta{a_1}, \meta{a_2}, \meta{a_3}.  We can build three levels:
+%   $a_{1} \cdot b_{1}$ for $10^{-8}$, $(a_{1} \cdot b_{2} + a_{2} \cdot
+%   b_{1})$ for $10^{-12}$, and $(a_{1} \cdot b_{3} + a_{2} \cdot b_{2}
+%   + a_{3} \cdot b_{1} + c_{3} c_{4})$ for $10^{-16}$.  The $a$--$b$
+%   products huse the sign |#1|.  Note that |#2| is empty for
+%   \cs{@@_fixed_one_minus_mul:wwn}.  We call the \texttt{ii} auxiliary
+%   for levels $10^{-20}$ and $10^{-24}$, keeping the pieces of \meta{a}
+%   we've read, but not \meta{b}, since there is another copy later in
+%   the input stream.
+%    \begin{macrocode}
+\cs_new:Npn \@@_fixed_mul_add_i:Nwnnnwnnn #1 #2; #3#4#5#6; #7#8#9
+  {
+    #1 #7*#3
+    \exp_after:wN \@@_pack_big:NNNNNNwn
+    \int_use:N \__int_eval:w \c_@@_big_middle_shift_int
+      #1 #7*#4 #1 #8*#3
+      \exp_after:wN \@@_pack_big:NNNNNNwn
       \int_use:N \__int_eval:w \c_@@_big_middle_shift_int
-        \@@_fixed_mul_add_i:Nnwnnwnnn
-          - 00; {#2}{#3}{#4}; #1; {#2}{#3}{#4}#5; - 00 ;
+        #1 #7*#5 #1 #8*#4 #1 #9*#3 #2
+        \exp_after:wN \@@_pack_big:NNNNNNwn
+        \int_use:N \__int_eval:w \c_@@_big_middle_shift_int
+          #1 \@@_fixed_mul_add_ii:nnnnwnnnn {#7}{#8}{#9}
   }
-\cs_new:Npn \@@_fixed_mul_add:wwwn #1; #2#3#4#5; #6#7#8#9
-  {
-    \exp_after:wN \@@_fixed_mul_after:wwn
-    \int_use:N \__int_eval:w \c_@@_big_leading_shift_int + #6
-      \exp_after:wN \@@_pack_big:NNNNNNw
-      \int_use:N \__int_eval:w \c_@@_big_middle_shift_int + #7
-        \@@_fixed_mul_add_i:Nnwnnwnnn
-          + {#8}{#9}; {#2}{#3}{#4}; #1; {#2}{#3}{#4}#5; +
-  }
-\cs_new:Npn \@@_fixed_mul_sub_back:wwwn #1; #2#3#4#5; #6#7#8#9
-  {
-    \exp_after:wN \@@_fixed_mul_after:wwn
-    \int_use:N \__int_eval:w \c_@@_big_leading_shift_int + #6
-      \exp_after:wN \@@_pack_big:NNNNNNw
-      \int_use:N \__int_eval:w \c_@@_big_middle_shift_int + #7
-        \@@_fixed_mul_add_i:Nnwnnwnnn
-          - {#8}{#9}; {#2}{#3}{#4}; #1; {#2}{#3}{#4}#5; -
-  }
-\cs_new:Npn \@@_fixed_mul_add_i:Nnwnnwnnn #1 #2#3; #4#5#6; #7#8#9
-  { % sg z3z4; y1y2y3; x1x2x3  x4x5x6; y1y2y3y4y5y6; sg z5z6;
-        #1 #7*#4
-        \exp_after:wN \@@_pack_big:NNNNNNw
-        \int_use:N \__int_eval:w \c_@@_big_middle_shift_int + #2
-          #1 #7*#5 #1 #8*#4
-          \exp_after:wN \@@_pack_big:NNNNNNw
-          \int_use:N \__int_eval:w \c_@@_big_middle_shift_int + #3
-            #1 #7*#6 #1 #8*#5 #1 #9*#4
-            \exp_after:wN \@@_pack_big:NNNNNNw
-            \int_use:N \__int_eval:w \c_@@_big_middle_shift_int
-              #1 \@@_fixed_mul_add_ii:nnnnwnnnn {#7}{#8}{#9}
-  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_fixed_mul_add_ii:nnnnwnnnn}
+%   \begin{syntax}
+%     \cs{@@_fixed_mul_add_ii:nnnnwnnnn} \meta{a} |;| \meta{b} |;| \meta{op}
+%     ~~|+| \meta{c_5} \meta{c_6} |;|
+%   \end{syntax}
+%   Level $10^{-20}$ is $(a_{1} \cdot b_{4} + a_{2} \cdot b_{3} + a_{3}
+%   \cdot b_{2} + a_{4} \cdot b_{1})$, multiplied by the sign, which was
+%   inserted by the \texttt{i} auxiliary.  Then we prepare level
+%   $10^{-24}$.  We don't have access to all parts of \meta{a} and
+%   \meta{b} needed to make all products.  Instead, we prepare the
+%   partial expressions
+%   \begin{align*}
+%     & b_{1} + a_{4} \cdot b_{2} + a_{3} \cdot b_{3} + a_{2} \cdot b_{4} + a_{1} \\
+%     & b_{2} + a_{4} \cdot b_{3} + a_{3} \cdot b_{4} + a_{2} .
+%   \end{align*}
+%   Obviously, those expressions make no mathematical sense: we will
+%   complete them with $a_{5} \cdot {}$ and ${} \cdot b_{5}$, and with
+%   $a_{6} \cdot b_{1} + a_{5} \cdot {}$ and ${} \cdot b_{5} + a_{1}
+%   \cdot b_{6}$, and of course with the trailing ${} + c_{5} c_{6}$.
+%   To do all this, we keep $a_{1}$, $a_{5}$, $a_{6}$, and the
+%   corresponding pieces of \meta{b}.
+%    \begin{macrocode}
 \cs_new:Npn \@@_fixed_mul_add_ii:nnnnwnnnn #1#2#3#4#5; #6#7#8#9
-  { % x1x2x3x4 x5x6; y1y2y3y4  y5y6; sg z5z6;
+  {
     ( #1*#9 + #2*#8 + #3*#7 + #4*#6 )
-    \exp_after:wN \@@_pack_big:NNNNNNw
+    \exp_after:wN \@@_pack_big:NNNNNNwn
     \int_use:N \__int_eval:w \c_@@_big_trailing_shift_int
       \@@_fixed_mul_add_iii:nnnnwnnwN
         { #6 + #4*#7 + #3*#8 + #2*#9 + #1 }
@@ -371,25 +537,37 @@
         {#1} #5;
         {#6}
   }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_fixed_mul_add_iii:nnnnwnnwN}
+%   \begin{syntax}
+%     \cs{@@_fixed_mul_add_iii:nnnnwnnwN} \Arg{partial_1} \Arg{partial_2}
+%     ~~\Arg{a_1} \Arg{a_5} \Arg{a_6} |;| \Arg{b_1} \Arg{b_5} \Arg{b_6} |;|
+%     ~~\meta{op} |+| \meta{c_5} \meta{c_6} |;|
+%   \end{syntax}
+%   Complete the \meta{partial_1} and \meta{partial_2} expressions as
+%   explained for the \texttt{ii} auxiliary.  The second one is divided
+%   by $10000$: this is the carry from level $10^{-28}$.  The trailing
+%   ${} + c_{5} c_{6}$ is taken into the expression for level
+%   $10^{-24}$.  Note that the total of level $10^{-24}$ is in the
+%   interval $[-5\cdot 10^{8}, 6\cdot 10^{8}$ (give or take a couple of
+%   $10000$), hence adding it to the shift gives a $10$-digit number, as
+%   expected by the packing auxiliaries.  See \pkg{l3fp-aux} for the
+%   definition of the shifts and packing auxiliaries.
+%    \begin{macrocode}
 \cs_new:Npn \@@_fixed_mul_add_iii:nnnnwnnwN #1#2 #3#4#5; #6#7#8; #9
-  { % {y1+x4*y2+x3*y3+x2*y4+x1} {y2+x4*y3+x3*y4+x2}
-    % x1x5x6; y1y5y6; sg z5z6;
-    % =>
-    % sg (x5*y1+x4*y2+x3*y3+x2*y4+x1*y5)
-    % sg (x6*y1+x5*y2+x4*y3+x3*y4+x2*y5+x1*y6)/10000
-    % + z5z6;
+  {
     #9 (#4* #1 *#7)
     #9 (#5*#6+#4* #2 *#7+#3*#8) / \c_ten_thousand
-    + \@@_use_s:nn
   }
 %    \end{macrocode}
 % \end{macro}
 %
-%    \begin{macrocode}
-\cs_new:Npn \@@_fixed_to_float:Nw #1#2; { \@@_fixed_to_float:wN #2; #1 }
-%    \end{macrocode}
+% \subsection{Converting from fixed point to floating point}
 %
-% \begin{macro}[int, rEXP]{\@@_fixed_to_float:wN}
+% \begin{macro}[int, rEXP]
+%   {\@@_fixed_to_float:wN, \@@_fixed_to_float:Nw}
 %   \begin{syntax}
 %     \ldots{} \cs{__int_eval:w} \meta{exponent} \cs{@@_fixed_to_float:wN} \Arg{a_1} \Arg{a_2} \Arg{a_3} \Arg{a_4} \Arg{a_5} \Arg{a_6} |;| \meta{sign}
 %   \end{syntax}
@@ -405,6 +583,7 @@
 %
 %^^A todo: round properly when rounding to infinity: I need to know the sign.
 %    \begin{macrocode}
+\cs_new:Npn \@@_fixed_to_float:Nw #1#2; { \@@_fixed_to_float:wN #2; #1 }
 \cs_new:Npn \@@_fixed_to_float:wN #1#2#3#4#5#6; #7
   {
     + \c_four % for the 8-digit-at-the-start thing.
