@@ -100,6 +100,7 @@
 %     data should be formatted.  The list of allowed \meta{styles}
 %     depends on the type.
 % \end{itemize}
+% The choice of \meta{alignment} |=| is not implemented yet.
 %
 % \section{Formatting various data-types}
 %
@@ -112,6 +113,26 @@
 %   be~|s|.  If \meta{precision} is given, all characters of the string
 %   representation of the \meta{token list} beyond the first
 %   \meta{precision} characters are discared.
+% \end{function}
+%
+% \begin{function}[EXP]{\seq_format:Nn, \seq_format:cn}
+%   \begin{syntax}
+%     \cs{seq_format:Nn} \Arg{sequence} \Arg{format specification}
+%   \end{syntax}
+%   Converts each item in the \meta{sequence} to a string according to
+%   the \meta{format specification}, and concatenates the results.
+% \end{function}
+%
+% \begin{function}[EXP]{\int_format:Nn, \int_format:cn, \int_format:nn}
+%   \begin{syntax}
+%     \cs{int_format:nn} \Arg{integer expression} \Arg{format specification}
+%   \end{syntax}
+%   Evaluates the \meta{integer expression} and converts the result to a
+%   string according to the \meta{format specification}.  The
+%   \meta{precision} argument is not allowed.  The \meta{style} can be
+%   |b| for binary output, |d| for decimal output (this is the default),
+%   |o| for octal output, |X| for hexadecimal output (using capital
+%   letters).
 % \end{function}
 %
 % \section{Possibilities, and things to do}
@@ -171,10 +192,11 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux, EXP]{\@@_format_put:nw}
+% \begin{macro}[aux, EXP]{\@@_format_put:nw, \@@_format_put:ow}
 %   Put |#1| after an \cs{s__stop} delimiter.
 %    \begin{macrocode}
 \cs_new:Npn \@@_format_put:nw #1 #2 \s__stop { #2 \s__stop #1 }
+\cs_generate_variant:Nn \@@_format_put:nw { o }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -220,8 +242,12 @@
   }
 \cs_new:Npn \@@_format_parse_iii:nN #1#2
   {
-    \@@_if_contains_char:nNTF { + - ~ } #2 % ^^A (broken: space ignored)
-      { \@@_format_parse_iv:nwN { #1 #2 } ; }
+    \str_case:nnn {#2}
+      {
+        { + } { \@@_format_parse_iv:nwN { #1 #2 } ; }
+        { - } { \@@_format_parse_iv:nwN { #1 #2 } ; }
+        { ~ } { \@@_format_parse_iv:nwN { #1 #2 } ; }
+      }
       { \@@_format_parse_iv:nwN { #1 ? } ; #2 }
   }
 \cs_new:Npn \@@_format_parse_iv:nwN #1#2; #3
@@ -349,7 +375,7 @@
 %
 % \begin{macro}[aux, EXP]{\@@_format_tl:NNNnnNn}
 %   \begin{quote}
-%     \cs{@@_format_tl:wn} \meta{fill} \meta{alignment} \meta{sign}
+%     \cs{@@_format_tl:NNNnnNn} \meta{fill} \meta{alignment} \meta{sign}
 %     \Arg{width} \Arg{precision} \meta{style} \Arg{token list}
 %   \end{quote}
 %   First check that the \meta{alignment} is not |=|, and set the
@@ -478,6 +504,123 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \subsection{Formatting integers}
+%
+% \begin{macro}[EXP]{\int_format:Nn, \int_format:cn, \int_format:nn}
+%   Evalute the first argument and feed it to \cs{@@_format_int:nn}.
+%    \begin{macrocode}
+\cs_new:Npn \int_format:nn #1
+  { \exp_args:Nf \@@_format_int:nn { \int_eval:n {#1} } }
+\cs_new_nopar:Npn \int_format:Nn
+  { \exp_args:NV \@@_format_int:nn }
+\cs_generate_variant:Nn \int_format:Nn { c }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_format_int:nn}
+%   Parse the \meta{format specification} and feed it to
+%   \cs{@@_format_int:NNNnnNn}.  Then convert the result to a string
+%    \begin{macrocode}
+\cs_new:Npn \@@_format_int:nn #1#2
+  {
+    \tl_to_str:f
+      {
+        \exp_last_unbraced:Nf \@@_format_int:NNNnnNn
+          { \@@_format_parse:n {#2} }
+          {#1}
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_format_int:NNNnnNn}
+%   \begin{quote}
+%     \cs{@@_format_int:NNNnnNn} \meta{fill} \meta{alignment}
+%     \meta{sign} \Arg{width} \Arg{precision} \meta{style} \Arg{integer}
+%   \end{quote}
+%   First check that the \meta{alignment} is not |=|, and set the
+%   default alignment |?| to |>|.  Place the modified information after
+%   a trailing \cs{s__stop} for later retrieval.  Then check the
+%   \meta{sign}: if the integer is negative, always put~|-|.  Otherwise,
+%   if the format's \meta{sign} is |~|, put a space (with category
+%   \enquote{other}); if it is~|+| put |+|; if it is |-| (default), put
+%   nothing, represented as a brace group.  The width |#4| will be
+%   useful later, store it after \cs{s__stop}.  Afterwards, check that
+%   the \meta{precision} was absent.  Finally, dispatch depending on the
+%   \meta{style}.
+%    \begin{macrocode}
+\cs_new:Npn \@@_format_int:NNNnnNn #1#2#3#4#5#6#7
+  {
+    \token_if_eq_charcode:NNTF #2 =
+      {
+        \__msg_kernel_expandable_error:nnnn
+          { str } { invalid-align-format } {#2} {int}
+        \@@_format_put:nw { #1 > }
+      }
+      {
+        \token_if_eq_charcode:NNTF #2 ?
+          { \@@_format_put:nw { #1 > } }
+          { \@@_format_put:nw { #1 #2 } }
+      }
+    \int_compare:nNnTF {#7} < \c_zero
+      { \@@_format_put:nw { - } }
+      {
+        \str_case:nnn {#3}
+          {
+            { ~ } { \@@_format_put:ow { \c_catcode_other_space_tl } }
+            { + } { \@@_format_put:nw { + } }
+          }
+          { \@@_format_put:nw { { } } }
+      }
+    \@@_format_put:nw { {#4} }
+    \tl_if_empty:nF {#5}
+      {
+        \__msg_kernel_expandable_error:nnnn
+          { str } { invalid-precision-format } {#5} {int}
+      }
+    \str_case:nnn {#6}
+      {
+        { ? } { \@@_format_int:NwnnNNn \use:n }
+        { d } { \@@_format_int:NwnnNNn \use:n }
+        { b } { \@@_format_int:NwnnNNn \int_to_binary:n }
+        { o } { \@@_format_int:NwnnNNn \int_to_octal:n }
+        { X } { \@@_format_int:NwnnNNn \int_to_hexadecimal:n }
+      }
+      {
+        \__msg_kernel_expandable_error:nnnn
+          { str } { invalid-style-format } {#6} { int }
+        \@@_format_int:NwnnNNn \use:n
+      }
+    \s__stop {#7}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_format_int:NwnnNNn}
+%   \begin{quote}
+%     \cs{@@_format_int:NwnnNNn} \meta{function} \cs{s__stop}
+%     \Arg{width} \Arg{sign} \meta{fill} \meta{alignment} \Arg{integer}
+%   \end{quote}
+%   Use the |format_align| function corresponding to the
+%   \meta{alignment}, with the following arguments:
+%   \begin{itemize}
+%     \item the string formed by combining the sign |#4| with the result
+%       of converting the absolute value of the \meta{integer} |#7|
+%       according to the conversion function |#1|;
+%     \item the \meta{width};
+%     \item the \meta{fill} character.
+%   \end{itemize}
+%    \begin{macrocode}
+\cs_new:Npn \@@_format_int:NwnnNNn #1#2 \s__stop #3#4#5#6#7
+  {
+    \exp_args:Nc \exp_args:Nf
+      { @@_format_align_#6:nnN }
+      { \use:nf {#4} { #1 { \int_abs:n {#7} } } }
+      {#3} #5
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Messages}
 %
 % All of the messages are produced expandably, so there is no need for
@@ -486,11 +629,13 @@
 \__msg_kernel_new:nnn { str } { invalid-format }
   { Invalid~format~'#1'. }
 \__msg_kernel_new:nnn { str } { invalid-align-format }
-  { Invalid~alignment~'#1'~for~#2~type. }
+  { Invalid~alignment~'#1'~for~type~'#2'. }
 \__msg_kernel_new:nnn { str } { invalid-sign-format }
-  { Invalid~sign~'#1'~for~#2~type. }
+  { Invalid~sign~'#1'~for~type~'#2'. }
+\__msg_kernel_new:nnn { str } { invalid-precision-format }
+  { Invalid~precision~'#1'~for~type~'#2'. }
 \__msg_kernel_new:nnn { str } { invalid-style-format }
-  { Invalid~style~'#1'~for~#2~type. }
+  { Invalid~style~'#1'~for~type~'#2'. }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
