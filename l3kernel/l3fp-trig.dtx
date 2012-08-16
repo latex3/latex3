@@ -79,39 +79,25 @@
 %
 %^^A todo: check EXP/rEXP everywhere.
 %
-% \subsection{Inverting a floating point number}
-%
-% \begin{macro}[int, EXP]{\@@_one_over:w}
-%   Expects a floating point of the form \cs{s_@@} \ldots{} |;| and
-%   computes its multiplicative inverse.  This is used to compute the
-%   cotangent function very near $0$.
-%    \begin{macrocode}
-\cs_new_nopar:Npx \@@_one_over:w
-  {
-    \exp_not:N \exp_after:wN
-    \exp_not:c { @@_/_o:ww }
-    \exp_not:N \c_one_fp
-  }
-%    \end{macrocode}
-% \end{macro}
-%
 % \subsection{Direct trigonometric functions}
 %
 % The approach for all trigonometric functions (sine, cosine, tangent,
-% and cotangent) is the same.
+% cotangent, cosecant, and secant) is the same.
 % \begin{itemize}
-% \item Filter out special cases ($\pm 0$, $\pm\inf$ and \nan{}).
-% \item Keep the sign for later, and work with the absolute value $|x|$
-%   of the argument.
-% \item For numbers less than $1$, shift the mantissa to convert them to
-%   fixed point numbers.  Very small numbers take a slightly different
-%   route.
-% \item For numbers $\geq 1$, subtract a multiple of $\pi/2$ to bring
-%   them to the range to $[0, \pi/2]$.
-% \item Reduce further to $[0, \pi/4]$ using $\sin x = \cos (\pi/2-x)$.
-% \item Use the appropriate power series depending on the octant
-%   $\lfloor\frac{|x|}{\pi/4}\rfloor \mod 8$, the sign, and the function
-%   to compute.
+%   \item Filter out special cases ($\pm 0$, $\pm\inf$ and \nan{}).
+%   \item Keep the sign for later, and work with the absolute value
+%     $|x|$ of the argument.
+%   \item For numbers less than $1$, shift the mantissa to convert them
+%     to fixed point numbers.  Very small numbers take a slightly
+%     different route.
+%   \item For numbers $\geq 1$, subtract a multiple of $\pi/2$ to bring
+%     them to the range to $[0, \pi/2]$.  (This is called argument
+%     reduction.)
+%   \item Reduce further to $[0, \pi/4]$ using $\sin x = \cos
+%     (\pi/2-x)$.
+%   \item Use the appropriate power series depending on the octant
+%     $\lfloor\frac{|x|}{\pi/4}\rfloor \mod 8$, the sign, and the
+%     function to compute.
 % \end{itemize}
 %
 % \subsubsection{Sign and special numbers}
@@ -119,23 +105,25 @@
 % \begin{macro}[int, EXP]{\@@_sin_o:w}
 %   The sine of $\pm 0$ or \nan{} is the same floating point number.
 %   The sine of $\pm\infty$ raises an invalid operation exception.
-%   Otherwise, check the exponent, preparing to use
-%   \cs{@@_sin_series:NNwww} for the calculation, with a sign |#2|, and
-%   an initial octant of $0$.  The question mark is an argument which is
-%   not used in this case.
+%   Otherwise, \cs{@@_trig_exponent:NNNNNwn} checks the exponent: if the
+%   number is tiny, use \cs{@@_trig_epsilon_o:w} which returns
+%   $\sin\epsilon = \epsilon$.  For larger inputs, use the series
+%   \cs{@@_sin_series:NNwww} after argument reduction.  In this second
+%   case, we will use a sign~|#2|, an initial octant of~$0$, and convert
+%   the result of the series to a floating point directly, since
+%   $\sin(x) = \#2 \sin\lvert x\rvert$.
 %    \begin{macrocode}
 \cs_new:Npn \@@_sin_o:w \s_@@ \@@_chk:w #1#2
   {
     \if_case:w #1 \exp_stop_f:
            \@@_case_return_same_o:w
     \or:
-      \exp_after:wN \@@_trig_exponent:NNNNwn
-      \exp_after:wN \@@_sin_series:NNwww
-      \exp_after:wN ?
-      \exp_after:wN #2
-      \exp_after:wN \c_zero
-    \or:
-      \@@_case_use:nw { \@@_invalid_operation_o:nw { sin } }
+      \@@_case_use:nw
+        {
+          \@@_trig_exponent:NNNNNwn \@@_trig_epsilon_o:w
+            \@@_sin_series:NNwww \@@_fixed_to_float:wN #2 \c_zero
+        }
+    \or:   \@@_case_use:nw { \@@_invalid_operation_o:nw { sin } }
     \else: \@@_case_return_same_o:w
     \fi:
     \s_@@ \@@_chk:w #1#2
@@ -146,27 +134,81 @@
 % \begin{macro}[int, EXP]{\@@_cos_o:w}
 %   The cosine of $\pm 0$ is $1$.  The cosine of $\pm\infty$ raises an
 %   invalid operation exception.  The cosine of \nan{} is itself.
-%   Otherwise, check the exponent, preparing to use
-%   \cs{@@_sin_series:NNwww} for the calculation, with a positive sign
-%   ($0$), and an initial octant of $2$, because $\cos x = \sin ( \pi/2
-%   + |x|)$.  The question mark is an argument which is not used in this
-%   case.
+%   Otherwise, \cs{@@_trig_exponent:NNNNNwn} checks the exponent: if the
+%   number is tiny, use \cs{@@_trig_epsilon_one_o:w} which returns
+%   $\cos\epsilon = 1$.  For larger inputs, use the same series as for
+%   sine, but using a positive sign~|0| and with an initial octant
+%   of~$2$, because $\cos(x) = + \sin(\pi/2 + \lvert x\rvert)$.
 %    \begin{macrocode}
 \cs_new:Npn \@@_cos_o:w \s_@@ \@@_chk:w #1#2
   {
     \if_case:w #1 \exp_stop_f:
            \@@_case_return_o:Nw \c_one_fp
     \or:
-      \@@_case_use:nw %^^A todo: is that faster than the exp_after route?
+      \@@_case_use:nw
         {
-          \@@_trig_exponent:NNNNwn
-          \@@_sin_series:NNwww
-          ?
-          0
-          \c_two
+          \@@_trig_exponent:NNNNNwn \@@_trig_epsilon_one_o:w
+            \@@_sin_series:NNwww \@@_fixed_to_float:wN 0 \c_two
         }
+    \or:   \@@_case_use:nw { \@@_invalid_operation_o:nw { cos } }
+    \else: \@@_case_return_same_o:w
+    \fi:
+    \s_@@ \@@_chk:w #1#2
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\@@_csc_o:w}
+%   The cosecant of $\pm 0$ is $\pm \infty$ with the same sign, with a
+%   division by zero exception (see \cs{@@_cot_zero_o:Nnw} defined
+%   below).  The cosecant of $\pm\infty$ raises an invalid operation
+%   exception.  The cosecant of \nan{} is itself.  Otherwise,
+%   \cs{@@_trig_exponent:NNNNNwn} checks the exponent: if the number is
+%   tiny, use \cs{@@_trig_epsilon_inv_o:w} which returns $\csc\epsilon =
+%   1/\epsilon$.  For larger inputs, use the same series as for sine,
+%   using the sign~|#2|, a starting octant of~$0$, and inverting during
+%   the conversion from the fixed point sine to the floating point
+%   result, because $\csc(x) = \#2 \big( \sin\lvert x\rvert\big)^{-1}$.
+%    \begin{macrocode}
+\cs_new:Npn \@@_csc_o:w \s_@@ \@@_chk:w #1#2
+  {
+    \if_case:w #1 \exp_stop_f:
+           \@@_cot_zero_o:Nnw #2 { csc }
     \or:
-      \@@_case_use:nw { \@@_invalid_operation_o:nw { cos } }
+      \@@_case_use:nw
+        {
+          \@@_trig_exponent:NNNNNwn \@@_trig_epsilon_inv_o:w
+            \@@_sin_series:NNwww \@@_fixed_inv_to_float:wN #2 \c_zero
+        }
+    \or:   \@@_case_use:nw { \@@_invalid_operation_o:nw { csc } }
+    \else: \@@_case_return_same_o:w
+    \fi:
+    \s_@@ \@@_chk:w #1#2
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\@@_sec_o:w}
+%   The secant of $\pm 0$ is $1$.  The secant of $\pm \infty$ raises an
+%   invalid operation exception.  The secant of \nan{} is itself.
+%   Otherwise, \cs{@@_trig_exponent:NNNNNwn} checks the exponent: if the
+%   number is tiny, use \cs{@@_trig_epsilon_one_o:w} which returns
+%   $\sec\epsilon = 1$.  For larger inputs, use the same series as for
+%   sine, using a positive sign~$0$, a starting octant of~$2$, and
+%   inverting upon conversion, because $\sec(x) = + 1 / \sin(\pi/2 +
+%   \lvert x\rvert)$.
+%    \begin{macrocode}
+\cs_new:Npn \@@_sec_o:w \s_@@ \@@_chk:w #1#2
+  {
+    \if_case:w #1 \exp_stop_f:
+           \@@_case_return_o:Nw \c_one_fp
+    \or:
+      \@@_case_use:nw
+        {
+          \@@_trig_exponent:NNNNNwn \@@_trig_epsilon_one_o:w
+            \@@_sin_series:NNwww \@@_fixed_inv_to_float:wN 0 \c_two
+        }
+    \or:   \@@_case_use:nw { \@@_invalid_operation_o:nw { sec } }
     \else: \@@_case_return_same_o:w
     \fi:
     \s_@@ \@@_chk:w #1#2
@@ -177,24 +219,25 @@
 % \begin{macro}[int, EXP]{\@@_tan_o:w}
 %   The tangent of $\pm 0$ or \nan{} is the same floating point number.
 %   The tangent of $\pm\infty$ raises an invalid operation exception.
-%   Otherwise, check the exponent, preparing to use
-%   \cs{@@_tan_series:NNwww} for the calculation, with a positive sign
-%   ($0$), and an initial octant of $1$, chosen to be distinct from the
-%   octants for sine and cosine.  See \cs{@@_cot_o:w} for an
-%   explanation of the $0$ argument.
+%   Otherwise, \cs{@@_trig_exponent:NNNNNwn} checks the exponent: if the
+%   number is tiny, use \cs{@@_trig_epsilon_o:w} which returns
+%   $\tan\epsilon = \epsilon$.  For larger inputs, use
+%   \cs{@@_tan_series_o:NNwww} for the calculation after argument
+%   reduction, with a sign~|#2| and an initial octant of~$1$ (this shift
+%   is somewhat arbitrary).  See \cs{@@_cot_o:w} for an explanation of
+%   the $0$~argument.
 %    \begin{macrocode}
 \cs_new:Npn \@@_tan_o:w \s_@@ \@@_chk:w #1#2
   {
     \if_case:w #1 \exp_stop_f:
            \@@_case_return_same_o:w
     \or:
-      \exp_after:wN \@@_trig_exponent:NNNNwn
-      \exp_after:wN \@@_tan_series:NNwww
-      \exp_after:wN 0
-      \exp_after:wN #2
-      \exp_after:wN \c_one
-    \or:
-      \@@_case_use:nw { \@@_invalid_operation_o:nw { tan } }
+      \@@_case_use:nw
+        {
+          \@@_trig_exponent:NNNNNwn \@@_trig_epsilon_o:w
+            \@@_tan_series_o:NNwww 0 #2 \c_one
+        }
+    \or:   \@@_case_use:nw { \@@_invalid_operation_o:nw { tan } }
     \else: \@@_case_return_same_o:w
     \fi:
     \s_@@ \@@_chk:w #1#2
@@ -203,110 +246,123 @@
 % \end{macro}
 %
 % \begin{macro}[int, EXP]{\@@_cot_o:w}
-%   The cotangent of $\pm 0$ is $\pm \infty$ with the same sign,
-%   produced by \cs{@@_one_over:w}.  The cotangent of $\pm\infty$ raises
-%   an invalid operation exception.  The cotangent of \nan{} is itself.
-%   We use $\cot x = - \tan (\pi/2 + x)$, and the initial octant for the
-%   tangent was chosen to be $1$, so the octant here starts at $3$.  The
-%   change in sign is obtained by feeding \cs{@@_tan_series:NNwww} two
-%   signs rather than just the sign of the argument: the first of those
-%   indicates whether we compute tangent or cotangent.  Those signs are
-%   eventually combined.
+% \begin{macro}[aux, EXP]{\@@_cot_zero_o:Nnw}
+%   The cotangent of $\pm 0$ is $\pm \infty$ with the same sign, with a
+%   division by zero exception (see \cs{@@_cot_zero_o:Nnw}.  The
+%   cotangent of $\pm\infty$ raises an invalid operation exception.  The
+%   cotangent of \nan{} is itself.  We use $\cot x = - \tan (\pi/2 +
+%   x)$, and the initial octant for the tangent was chosen to be $1$, so
+%   the octant here starts at $3$.  The change in sign is obtained by
+%   feeding \cs{@@_tan_series_o:NNwww} two signs rather than just the sign
+%   of the argument: the first of those indicates whether we compute
+%   tangent or cotangent.  Those signs are eventually combined.
 %    \begin{macrocode}
 \cs_new:Npn \@@_cot_o:w \s_@@ \@@_chk:w #1#2
   {
     \if_case:w #1 \exp_stop_f:
-           \exp_after:wN \@@_one_over:w
+           \@@_cot_zero_o:Nnw #2 { cot }
     \or:
-      \exp_after:wN \@@_trig_exponent:NNNNwn
-      \exp_after:wN \@@_tan_series:NNwww
-      \exp_after:wN 2
-      \exp_after:wN #2
-      \exp_after:wN \c_three
-    \or:
-      \@@_case_use:nw { \@@_invalid_operation_o:nw { cot } }
+      \@@_case_use:nw
+        {
+          \@@_trig_exponent:NNNNNwn \@@_trig_epsilon_inv_o:w
+            \@@_tan_series_o:NNwww 2 #2 \c_three
+        }
+    \or:   \@@_case_use:nw { \@@_invalid_operation_o:nw { cot } }
     \else: \@@_case_return_same_o:w
     \fi:
     \s_@@ \@@_chk:w #1#2
   }
+\cs_new:Npn \@@_cot_zero_o:Nnw #1 #2 #3 \fi:
+  {
+    \fi:
+    \if_meaning:w 0 #1
+      \exp_after:wN \@@_division_by_zero_o:Nnw \exp_after:wN \c_inf_fp
+    \else:
+      \exp_after:wN \@@_division_by_zero_o:Nnw \exp_after:wN \c_minus_inf_fp
+    \fi:
+    {#2}
+  }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \subsubsection{Small and tiny arguments}
 %
-% \begin{macro}[aux, EXP]{\@@_trig_exponent:NNNNwn}
-%   The first four arguments control what trigonometric function we
+% \begin{macro}[aux, EXP]{\@@_trig_exponent:NNNNNwn}
+%   The first five arguments control what trigonometric function we
 %   compute, then follows a normal floating point number.  If the
-%   floating point is smaller than $10^{-8}$, then call the appropriate
-%   \texttt{_epsilon} auxiliary.  Otherwise, call the function |#1|,
-%   with arguments |#2|, |#3|, the octant, computed in an integer
-%   expression starting with |#4|, and a fixed point number obtained
-%   from the floating point number by argument reduction.  Numbers less
-%   than $1$ are converted using \cs{@@_trig_small:w} which simply
-%   shifts the mantissa, while large numbers need argument reduction.
+%   floating point is smaller than $10^{-8}$, then call the
+%   \texttt{_epsilon} auxiliary~|#1|.  Otherwise, call the function
+%   |#2|, with arguments |#3|; |#4|; the octant, computed in an integer
+%   expression starting with |#5| and stopped by a period; and a fixed
+%   point number obtained from the floating point number by argument
+%   reduction.  Argument reduction leaves a shift into the integer
+%   expression for the octant.  Numbers less than~$1$ are converted
+%   using \cs{@@_trig_small:w} which simply shifts the mantissa, while
+%   large numbers need argument reduction.
 %    \begin{macrocode}
-\cs_new:Npn \@@_trig_exponent:NNNNwn #1#2#3#4 \s_@@ \@@_chk:w 1#5#6
+\cs_new:Npn \@@_trig_exponent:NNNNNwn #1#2#3#4#5 \s_@@ \@@_chk:w 1#6#7
   {
-    \if_int_compare:w #6 > - \c_eight
-      \exp_after:wN #1
+    \if_int_compare:w #7 > - \c_eight
       \exp_after:wN #2
       \exp_after:wN #3
-      \int_use:N \__int_eval:w #4
-        \if_int_compare:w #6 > \c_zero
-          \exp_after:wN \@@_trig_large:w \__int_value:w
+      \exp_after:wN #4
+      \int_use:N \__int_eval:w #5
+        \if_int_compare:w #7 > \c_zero
+          \exp_after:wN \@@_trig_large:ww \__int_value:w
         \else:
-          \exp_after:wN \@@_trig_small:w \__int_value:w
+          \exp_after:wN \@@_trig_small:ww \__int_value:w
         \fi:
     \else:
-      \if_case:w #4
-             \@@_sin_epsilon:w
-      \or:   \@@_sin_epsilon:w
-      \or:   \@@_cos_epsilon:w
-      \else: \@@_cot_epsilon:w
-      \fi:
-      #5
+      \exp_after:wN #1
+      \exp_after:wN #6
     \fi:
-    #6 ;
+    #7 ;
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[aux, EXP]
-%   {\@@_sin_epsilon:w, \@@_cos_epsilon:w, \@@_cot_epsilon:w}
+%   {\@@_trig_epsilon_o:w, \@@_trig_epsilon_one_o:w, \@@_trig_epsilon_inv_o:w}
 %   Sine and tangent of tiny numbers give the number itself: the
 %   relative error is less than $5 \cdot 10^{-17}$, which is
-%   appropriate.  Cosine simply gives $1$.  Cotangent computes the
-%   inverse.  This is actually slightly wrong because further terms in
-%   the power series could affect the rounding for cotangent.
+%   appropriate.  Cosine and secant simply give~$1$.  Cotangent and
+%   cosecant compute $1/\epsilon$.  This is actually slightly wrong
+%   because further terms in the power series could affect the rounding
+%   for cotangent.
 %    \begin{macrocode}
-\cs_new:Npn \@@_sin_epsilon:w #1 \fi: #2 \fi: #3 ;
-  { \fi: \fi: \@@_exp_after_o:w \s_@@ \@@_chk:w 1 #2 {#3} }
-\cs_new:Npn \@@_cos_epsilon:w #1 \fi: #2 \fi: #3 ; #4 ;
-  { \fi: \fi: \exp_after:wN \c_one_fp }
-\cs_new:Npn \@@_cot_epsilon:w \fi: #1 \fi: #2 ;
-  { \fi: \fi: \@@_one_over:w \s_@@ \@@_chk:w 1 #1 {#2} }
+\cs_new:Npn \@@_trig_epsilon_o:w #1 #2 ;
+  { \@@_exp_after_o:w \s_@@ \@@_chk:w 1 #1 {#2} }
+\cs_new:Npn \@@_trig_epsilon_one_o:w #1 ; #2 ;
+  { \exp_after:wN \c_one_fp }
+\group_begin:
+  \char_set_catcode_letter:N /
+  \cs_new:Npn \@@_trig_epsilon_inv_o:w #1 #2 ;
+    {
+      \exp_after:wN \@@_/_o:ww
+        \c_one_fp
+        \s_@@ \@@_chk:w 1 #1 {#2}
+    }
+\group_end:
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux, EXP]{\@@_trig_small:w, \@@_trig_small_aux:wwNN}
+% \begin{macro}[aux, EXP]{\@@_trig_small:ww}
 %   Floating point numbers less than $1$ are converted to fixed point
-%   numbers by shifting the mantissa.  Since we have already filtered
-%   out numbers less than $10^{-8}$, no digit is lost in converting to
-%   a fixed point number.
+%   numbers by prepending a number of zeroes to the mantissa.  Since we
+%   have already filtered out numbers less than $10^{-8}$, we add at
+%   most $7$ zeroes, hence no digit is lost in converting to a fixed
+%   point number.
 %    \begin{macrocode}
-\cs_new:Npn \@@_trig_small:w #1;
+\cs_new:Npn \@@_trig_small:ww #1; #2#3#4#5;
   {
-    \exp_after:wN \exp_after:wN \exp_after:wN \@@_trig_small_aux:wwNN
-    \prg_replicate:nn { - #1 } { 0 } ;
-  }
-\cs_new:Npn \@@_trig_small_aux:wwNN #1; #2#3#4#5;
-  {
-    \@@_pack_twice_four:wNNNNNNNN
-    \@@_pack_twice_four:wNNNNNNNN
-    \@@_pack_twice_four:wNNNNNNNN
-    .
-    ;
-    #1#2#3#4#5 0000 0000;
+    \exp_after:wN \@@_pack_twice_four:wNNNNNNNN
+    \exp_after:wN \@@_pack_twice_four:wNNNNNNNN
+    \exp_after:wN \@@_pack_twice_four:wNNNNNNNN
+    \exp_after:wN .
+    \exp_after:wN ;
+    \tex_romannumeral:D -`0
+      \prg_replicate:nn { - #1 } { 0 } #2#3#4#5 0000 0000 ;
   }
 %    \end{macrocode}
 % \end{macro}
@@ -318,8 +374,8 @@
 %
 % \begin{macro}[aux, rEXP]
 %   {
-%     \@@_trig_large:w, \@@_trig_large_i:www,
-%     \@@_trig_large_ii:wnnnnnn, \@@_trig_large_break:w
+%     \@@_trig_large:ww, \@@_trig_large_i:www,
+%     \@@_trig_large_ii_o:wnnnn, \@@_trig_large_break:w
 %   }
 %   We shift the mantissa by one digit at a time, subtracting a multiple
 %   of $2\pi$ at each step.  We use a value of $2\pi$ rounded up,
@@ -333,20 +389,21 @@
 %   non-negative integer).  The subtraction has a form similar to our
 %   usual multiplications (see \pkg{l3fp-basics} or
 %   \pkg{l3fp-extended}).  Once the exponent reaches $0$, we are done
-%   subtracting $2\pi$, and we call \cs{@@_trig_octant_loop:nw} to do
+%   subtracting $2\pi$, and we call \cs{@@_trig_octant_loop:nnnnnw} to do
 %   the reduction by $\pi/2$.
 %    \begin{macrocode}
-\cs_new:Npn \@@_trig_large:w #1; #2#3;
+\cs_new:Npn \@@_trig_large:ww #1; #2#3;
   { \@@_trig_large_i:www #2; #3 ;  #1; }
 \cs_new:Npn \@@_trig_large_i:www #1; #2; #3;
   {
     \if_meaning:w 0 #3 \@@_trig_large_break:w \fi:
-    \exp_after:wN \@@_trig_large_ii:wnnnnnn
+    \exp_after:wN \@@_trig_large_ii_o:wnnnn
     \int_use:N \__int_eval:w ( #1 - 3141 ) / 6283 ;
-    {#1} #2;
+    {#1} #2
+    \exp_after:wN ;
     \int_use:N \__int_eval:w \c_minus_one + #3;
   }
-\cs_new:Npn \@@_trig_large_ii:wnnnnnn #1; #2#3#4#5;
+\cs_new:Npn \@@_trig_large_ii_o:wnnnn #1; #2#3#4#5
   {
     \exp_after:wN \@@_trig_large_i:www
     \int_use:N \__int_eval:w \c_@@_leading_shift_int + #20 - #1*62831
@@ -357,72 +414,57 @@
           \exp_after:wN \@@_pack:NNNNNw
           \int_use:N \__int_eval:w \c_@@_trailing_shift_int + #50 - #1*5880
     \exp_after:wN ;
-    \exp_after:wN ;
   }
 \cs_new:Npn \@@_trig_large_break:w \fi: #1; #2;
-  { \fi: \@@_trig_octant_loop:nw #2 {0000} {0000} ; }
+  { \fi: \@@_trig_octant_loop:nnnnnw #2 {0000} {0000} ; }
 %    \end{macrocode}
 % \end{macro}
 %
-%^^A todo: optimize: we don't need 6x4 digits here, only 4x4.
-%
 % \begin{macro}[aux, rEXP]
-%   {
-%     \@@_trig_octant_loop:nw, \@@_trig_octant_break:w,
-%     \@@_trig_octant_neg:w
-%   }
+%   {\@@_trig_octant_loop:nnnnnw, \@@_trig_octant_break:w}
 %   We receive a fixed point number as argument.  As long as it is
-%   greater than $1.5707$ (a slight underestimate of $\pi/2$), subtract
-%   $\pi/2$, and leave |+ \c_two| in the integer expression for the
-%   octant.  Once it becomes smaller, if it is greater than $0.7854$
-%   (overestimate of $\pi/4$), then compute $\pi/2 - x$ and increment
-%   the octant.  If it is negative, correct this by changing the sign
-%   and decrementing the octant (by adding $7$).  The result is in all
-%   cases in the range $[0, 0.7854]$, appropriate for a series
-%   expansion.
+%   greater than half of \cs{c_pi_fp}, namely $1.5707963267948970$,
+%   subtract that fixed-point approximation of $\pi/2$, and leave |+
+%   \c_two| in the integer expression for the octant.  Once the argument
+%   becomes smaller, break the initial loop.  If the number is greater
+%   than $0.7854$ (overestimate of $\pi/4$), then compute $\pi/2 - x$
+%   and increment the octant.  The result is in all cases in the range
+%   $[0, 0.7854]$, appropriate for the series expansions.
 %    \begin{macrocode}
-\cs_new:Npn \@@_trig_octant_loop:nw #1#2;
+\cs_new:Npn \@@_trig_octant_loop:nnnnnw #1#2#3#4#5#6;
   {
-    \if_int_compare:w #1 < 15707 \exp_stop_f:
+    \if_int_compare:w #1#2 < 157079633 \exp_stop_f:
+      \if_int_compare:w #1#2 = 157079632 \exp_stop_f:
+        \if_int_compare:w #3#4 > 67948969 \exp_stop_f:
+          \use_i_ii:nnn
+        \fi:
+      \fi:
       \@@_trig_octant_break:w
     \fi:
     + \c_two
     \@@_fixed_sub:wwn
-      {#1} #2;
+      {#1} {#2} {#3} {#4} {0000} {0000} ;
       {15707} {9632} {6794} {8970} {0000} {0000} ;
-    \@@_trig_octant_loop:nw
+    \@@_trig_octant_loop:nnnnnw
   }
 \cs_new:Npn \@@_trig_octant_break:w #1 \fi: + #2#3 #4#5; #6; #7;
   {
     \fi:
     \if_int_compare:w #4 < 7854 \exp_stop_f:
-      \if_int_compare:w #4 < \c_zero
-        \exp_after:wN \@@_trig_octant_neg:w
-      \fi:
       \exp_after:wN \@@_use_i_until_s:nw
       \exp_after:wN .
     \fi:
     + \c_one
     \@@_fixed_sub:wwn #6 ; {#4} #5 ; . ;
   }
-\cs_new:Npn \@@_trig_octant_neg:w #1\fi: #2; #3#4#5#6#7#8; #9
-  {
-    \fi:
-    + \c_seven
-    \exp_after:wN \@@_fixed_add_after:NNNNNwn
-    \int_use:N \__int_eval:w 9 9999 9998 - #30000 - #4
-      \exp_after:wN \@@_fixed_add_pack:NNNNNwn
-      \int_use:N \__int_eval:w 1 9999 9998 - #5#6
-        \exp_after:wN \@@_fixed_add_pack:NNNNNwn
-        \int_use:N \__int_eval:w 2 0000 0000 - #7#8 ; {#9} ;
-  }
 %    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Computing the power series}
 %
-% \begin{macro}[aux, EXP]{\@@_sin_series:NNwww, \@@_sin_series_aux:Nnww}
-%   Here we receive an unused |?|, a \meta{sign} ($0$ or $2$), a
+% \begin{macro}[aux, EXP]{\@@_sin_series:NNwww, \@@_sin_series_aux:NNnww}
+%   Here we receive a conversion function \cs{@@_fixed_to_float:wN} or
+%   \cs{@@_fixed_inv_to_float:wN}, a \meta{sign} ($0$ or $2$), a
 %   (non-negative) \meta{octant} delimited by a dot, a \meta{fixed
 %     point} number, and junk delimited by a semicolon.  The auxiliary
 %   receives:
@@ -446,14 +488,15 @@
 %   \frac{1}{5!} - x^2 \bigg( \cdots \bigg) \bigg) \bigg) \bigg)
 %   \]
 %   is used.  Finally, the fixed point number is converted to a floating
-%   point number with the given sign, and we check for overflow or
-%   underflow. %^^A todo: can over/underflow really happen??
+%   point number with the given sign, and \cs{@@_sanitize:Nw} checks for
+%   overflow and underflow.
 %    \begin{macrocode}
 \cs_new:Npn \@@_sin_series:NNwww #1#2#3 . #4; #5;
   {
     \@@_fixed_mul:wwn #4; #4;
     {
-      \exp_after:wN \@@_sin_series_aux:Nnww
+      \exp_after:wN \@@_sin_series_aux:NNnww
+      \exp_after:wN #1
       \__int_value:w
         \if_int_odd:w \__int_eval:w ( #3 + \c_two ) / \c_four \__int_eval_end:
           #2
@@ -464,66 +507,81 @@
     }
     #4 ;
   }
-\cs_new:Npn \@@_sin_series_aux:Nnww #1#2 #3; #4;
+\cs_new:Npn \@@_sin_series_aux:NNnww #1#2#3 #4; #5;
   {
-    \if_int_odd:w \__int_eval:w #2 / \c_two \__int_eval_end:
+    \if_int_odd:w \__int_eval:w #3 / \c_two \__int_eval_end:
       \exp_after:wN \use_i:nn
     \else:
       \exp_after:wN \use_ii:nn
     \fi:
-    {
-      \@@_fixed_continue:wn {0000}{0000}{0000}{0001}{5619}{2070}; % 1/18!
-      \@@_fixed_mul_sub_back:wwwn #3; {0000}{0000}{0000}{0477}{9477}{3324};
-      \@@_fixed_mul_sub_back:wwwn #3; {0000}{0000}{0011}{4707}{4559}{7730};
-      \@@_fixed_mul_sub_back:wwwn #3; {0000}{0000}{2087}{6756}{9878}{6810};
-      \@@_fixed_mul_sub_back:wwwn #3; {0000}{0027}{5573}{1922}{3985}{8907};
-      \@@_fixed_mul_sub_back:wwwn #3; {0000}{2480}{1587}{3015}{8730}{1587};
-      \@@_fixed_mul_sub_back:wwwn #3; {0013}{8888}{8888}{8888}{8888}{8889};
-      \@@_fixed_mul_sub_back:wwwn #3; {0416}{6666}{6666}{6666}{6666}{6667};
-      \@@_fixed_mul_sub_back:wwwn #3; {5000}{0000}{0000}{0000}{0000}{0000};
-      \@@_fixed_mul_sub_back:wwwn #3;{10000}{0000}{0000}{0000}{0000}{0000};
+    { % 1/18!
+      \@@_fixed_mul_sub_back:wwwn     {0000}{0000}{0000}{0001}{5619}{2070};
+                                  #4; {0000}{0000}{0000}{0477}{9477}{3324};
+      \@@_fixed_mul_sub_back:wwwn #4; {0000}{0000}{0011}{4707}{4559}{7730};
+      \@@_fixed_mul_sub_back:wwwn #4; {0000}{0000}{2087}{6756}{9878}{6810};
+      \@@_fixed_mul_sub_back:wwwn #4; {0000}{0027}{5573}{1922}{3985}{8907};
+      \@@_fixed_mul_sub_back:wwwn #4; {0000}{2480}{1587}{3015}{8730}{1587};
+      \@@_fixed_mul_sub_back:wwwn #4; {0013}{8888}{8888}{8888}{8888}{8889};
+      \@@_fixed_mul_sub_back:wwwn #4; {0416}{6666}{6666}{6666}{6666}{6667};
+      \@@_fixed_mul_sub_back:wwwn #4; {5000}{0000}{0000}{0000}{0000}{0000};
+      \@@_fixed_mul_sub_back:wwwn #4;{10000}{0000}{0000}{0000}{0000}{0000};
     }
-    {
-      \@@_fixed_continue:wn {0000}{0000}{0000}{0028}{1145}{7254}; % 1/17!
-      \@@_fixed_mul_sub_back:wwwn #3; {0000}{0000}{0000}{7647}{1637}{3182};
-      \@@_fixed_mul_sub_back:wwwn #3; {0000}{0000}{0160}{5904}{3836}{8216};
-      \@@_fixed_mul_sub_back:wwwn #3; {0000}{0002}{5052}{1083}{8544}{1719};
-      \@@_fixed_mul_sub_back:wwwn #3; {0000}{0275}{5731}{9223}{9858}{9065};
-      \@@_fixed_mul_sub_back:wwwn #3; {0001}{9841}{2698}{4126}{9841}{2698};
-      \@@_fixed_mul_sub_back:wwwn #3; {0083}{3333}{3333}{3333}{3333}{3333};
-      \@@_fixed_mul_sub_back:wwwn #3; {1666}{6666}{6666}{6666}{6666}{6667};
-      \@@_fixed_mul_sub_back:wwwn #3;{10000}{0000}{0000}{0000}{0000}{0000};
-      \@@_fixed_mul:wwn #4;
+    { % 1/17!
+      \@@_fixed_mul_sub_back:wwwn     {0000}{0000}{0000}{0028}{1145}{7254};
+                                  #4; {0000}{0000}{0000}{7647}{1637}{3182};
+      \@@_fixed_mul_sub_back:wwwn #4; {0000}{0000}{0160}{5904}{3836}{8216};
+      \@@_fixed_mul_sub_back:wwwn #4; {0000}{0002}{5052}{1083}{8544}{1719};
+      \@@_fixed_mul_sub_back:wwwn #4; {0000}{0275}{5731}{9223}{9858}{9065};
+      \@@_fixed_mul_sub_back:wwwn #4; {0001}{9841}{2698}{4126}{9841}{2698};
+      \@@_fixed_mul_sub_back:wwwn #4; {0083}{3333}{3333}{3333}{3333}{3333};
+      \@@_fixed_mul_sub_back:wwwn #4; {1666}{6666}{6666}{6666}{6666}{6667};
+      \@@_fixed_mul_sub_back:wwwn #4;{10000}{0000}{0000}{0000}{0000}{0000};
+      \@@_fixed_mul:wwn #5;
     }
     {
       \exp_after:wN \@@_sanitize:Nw
-      \exp_after:wN #1
-      \int_use:N \__int_eval:w \@@_fixed_to_float:wN
+      \exp_after:wN #2
+      \int_use:N \__int_eval:w #1
     }
-    #1
+    #2
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux, EXP]{\@@_tan_series:NNwww, \@@_tan_series_aux:Nnww}
-%   Similar to \cs{@@_sin_series:NNwww}, but with slightly different
-%   rules to find the sign.  The result is expressed as a ratio of
-%   polynomials, of the form
+% \begin{macro}[aux, EXP]{\@@_tan_series_o:NNwww, \@@_tan_series_aux_o:Nnww}
+%   Contrarily to \cs{@@_sin_series:NNwww} which received the conversion
+%   auxiliary as |#1|, here |#1| is $0$ for tangent, and $2$ for
+%   cotangent.  Consider first the case of the tangent.  The octant |#3|
+%   starts at $1$, which means that it is $1$ or $2$ for $\lvert
+%   x\rvert\in[0,\pi/2]$, it is $3$ or $4$ for $\lvert
+%   x\rvert\in[\pi/2,\pi]$, and so on: the intervals on which
+%   $\tan\lvert x\rvert\geq 0$ coincide with those for which $\lfloor
+%   (|#3| + 1) / 2\rfloor$ is odd.  We also have to take into account
+%   the original sign of $x$ to get the sign of the final result; it is
+%   straightforward to check that the first \cs{__int_value:w} expansion
+%   produces $0$ for a positive final result, and $2$ otherwise.  A
+%   similar story holds for $\cot(x)$.
+%
+%   The auxiliary receives the sign, the octant, the square of the
+%   (reduced) input, and the (reduced) input as arguments.  It then
+%   computes the numerator and denominator of
 %   \[
 %   \tan(x) \simeq
 %   \frac{x (1 - x^2 (a_1 - x^2 (a_2 - x^2 (a_3 - x^2 (a_4 - x^2 a_5)))))}
 %     {1 - x^2 (b_1 - x^2 (b_2 - x^2 (b_3 - x^2 (b_4 - x^2 b_5))))} .
 %   \]
-%   The ratio of the two fixed point numbers is converted to a floating
-%   point number directly to avoid rounding issues.  The two fixed
-%   points may be exchanged before computing the ratio, depending on the
-%   quadrant.
+%   The ratio itself is computed by \cs{@@_fixed_div_to_float:ww}, which
+%   converts it directly to a floating point number to avoid rounding
+%   issues.  For octants~|#2| (really, quadrants) next to a pole of the
+%   functions, the fixed point numerator and denominator are exchanged
+%   before computing the ratio.  Note that this \cs{if_int_odd:w} test
+%   relies on the fact that the octant is at least~$1$.
 %    \begin{macrocode}
-\cs_new:Npn \@@_tan_series:NNwww #1#2#3. #4; #5;
+\cs_new:Npn \@@_tan_series_o:NNwww #1#2#3. #4; #5;
   {
     \@@_fixed_mul:wwn #4; #4;
     {
-      \exp_after:wN \@@_tan_series_aux:Nnww
+      \exp_after:wN \@@_tan_series_aux_o:Nnww
       \__int_value:w
         \if_int_odd:w \__int_eval:w #3 / \c_two \__int_eval_end:
           \exp_after:wN \reverse_if:N
@@ -533,18 +591,18 @@
     }
     #4 ;
   }
-\cs_new:Npn \@@_tan_series_aux:Nnww #1 #2 #3; #4;
+\cs_new:Npn \@@_tan_series_aux_o:Nnww #1 #2 #3; #4;
   {
-    \@@_fixed_continue:wn {0000}{0000}{1527}{3493}{0856}{7059};
-    \@@_fixed_mul_sub_back:wwwn #3; {0000}{0159}{6080}{0274}{5257}{6472};
+    \@@_fixed_mul_sub_back:wwwn     {0000}{0000}{1527}{3493}{0856}{7059};
+                                #3; {0000}{0159}{6080}{0274}{5257}{6472};
     \@@_fixed_mul_sub_back:wwwn #3; {0002}{4571}{2320}{0157}{2558}{8481};
     \@@_fixed_mul_sub_back:wwwn #3; {0115}{5830}{7533}{5397}{3168}{2147};
     \@@_fixed_mul_sub_back:wwwn #3; {1929}{8245}{6140}{3508}{7719}{2982};
     \@@_fixed_mul_sub_back:wwwn #3;{10000}{0000}{0000}{0000}{0000}{0000};
     \@@_fixed_mul:wwn #4;
       {
-        \@@_fixed_continue:wn {0000}{0007}{0258}{0681}{9408}{4706};
-        \@@_fixed_mul_sub_back:wwwn #3; {0000}{2343}{7175}{1399}{6151}{7670};
+        \@@_fixed_mul_sub_back:wwwn     {0000}{0007}{0258}{0681}{9408}{4706};
+                                    #3; {0000}{2343}{7175}{1399}{6151}{7670};
         \@@_fixed_mul_sub_back:wwwn #3; {0019}{2638}{4588}{9232}{8861}{3691};
         \@@_fixed_mul_sub_back:wwwn #3; {0536}{6357}{0691}{4344}{6852}{4252};
         \@@_fixed_mul_sub_back:wwwn #3; {5263}{1578}{9473}{6842}{1052}{6315};
@@ -572,4 +630,4 @@
 %
 % \PrintChanges
 %
-% \PrintIndex 
+% \PrintIndex
