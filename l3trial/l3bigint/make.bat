@@ -1,6 +1,6 @@
 @echo off
 
-rem Makefile for LaTeX3 "l3arithmetic" files
+rem Makefile for LaTeX3 "l3bigint" files
 
   if not [%1] == [] goto init
 
@@ -32,7 +32,7 @@ rem Makefile for LaTeX3 "l3arithmetic" files
   rem The name of the module and the bundle it is part of
 
   set BUNDLE=l3trial
-  set MODULE=l3arithmetic
+  set MODULE=l3bigint
 
   rem Unpacking information
 
