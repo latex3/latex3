@@ -125,7 +125,7 @@
 %
 % \begin{function}[EXP]{\int_format:Nn, \int_format:cn, \int_format:nn}
 %   \begin{syntax}
-%     \cs{int_format:nn} \Arg{integer expression} \Arg{format specification}
+%     \cs{int_format:nn} \Arg{intexpr} \Arg{format specification}
 %   \end{syntax}
 %   Evaluates the \meta{integer expression} and converts the result to a
 %   string according to the \meta{format specification}.  The
@@ -133,6 +133,25 @@
 %   |b| for binary output, |d| for decimal output (this is the default),
 %   |o| for octal output, |X| for hexadecimal output (using capital
 %   letters).
+% \end{function}
+%
+% \begin{function}[EXP]{\fp_format:Nn, \fp_format:cn, \fp_format:nn}
+%   \begin{syntax}
+%     \cs{fp_format:nn} \Arg{fpexpr} \Arg{format specification}
+%   \end{syntax}
+%   Evaluates the \meta{floating point expression} and converts the
+%   result to a string according to the \meta{format specification}.
+%   The \meta{precision} defaults to $6$.  The \meta{style} can be
+%   \begin{itemize}
+%     \item |e| for scientific notation, with one digit before and
+%       \meta{precision} digits after the decimal separator, and an
+%       integer exponent, following |e|;
+%     \item |f| for a fixed point notation, with \meta{precision} digits
+%       after the decimal separator and no exponent;
+%     \item |g| for a general format, which uses style |f| for numbers
+%       in the range $[10^{-4}, 10^{\meta{precision}})$ and style |e|
+%       otherwise.
+%   \end{itemize}
 % \end{function}
 %
 % \section{Possibilities, and things to do}
@@ -192,11 +211,12 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux, EXP]{\@@_format_put:nw, \@@_format_put:ow}
+% \begin{macro}[aux, EXP]
+%   {\@@_format_put:nw, \@@_format_put:ow, \@@_format_put:fw}
 %   Put |#1| after an \cs{s__stop} delimiter.
 %    \begin{macrocode}
 \cs_new:Npn \@@_format_put:nw #1 #2 \s__stop { #2 \s__stop #1 }
-\cs_generate_variant:Nn \@@_format_put:nw { o }
+\cs_generate_variant:Nn \@@_format_put:nw { o , f }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -581,7 +601,7 @@
 %     \cs{@@_format_int:NNNnnNn} \meta{fill} \meta{alignment}
 %     \meta{sign} \Arg{width} \Arg{precision} \meta{style} \Arg{integer}
 %   \end{quote}
-%   First check that the \meta{alignment} is not |=|, and set the
+%   First set the
 %   default alignment |?| to |>|.  Place the modified information after
 %   a trailing \cs{s__stop} for later retrieval.  Then check the
 %   \meta{sign}: if the integer is negative, always put~|-|.  Otherwise,
@@ -658,6 +678,242 @@
 % ^^A todo: note similarity with  \@@_format_tl_s:NNnnNNn
 % \end{macro}
 %
+% \subsection{Formatting floating points}
+%
+% \begin{macro}[EXP]{\fp_format:Nn, \fp_format:cn, \fp_format:nn}
+%   Evalute the first argument to an internal floating point number, and
+%   feed it to \cs{@@_format_fp:nn}.
+%    \begin{macrocode}
+\cs_new:Npn \fp_format:nn #1
+  { \exp_args:Nf \@@_format_fp:nn { \__fp_parse:n {#1} } }
+\cs_new_nopar:Npn \fp_format:Nn
+  { \exp_args:No \@@_format_fp:nn }
+\cs_generate_variant:Nn \fp_format:Nn { c }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_format_fp:nn}
+%   Parse the \meta{format specification} and feed it to
+%   \cs{@@_format_fp:NNNnnNn}.  Then convert the result to a string
+%    \begin{macrocode}
+\cs_new:Npn \@@_format_fp:nn #1#2
+  {
+    \tl_to_str:f
+      {
+        \exp_last_unbraced:Nf \@@_format_fp:NNNnnNw
+          { \@@_format_parse:n {#2} }
+          #1
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_format_fp:NNNnnNw}
+%   \begin{quote}
+%     \cs{@@_format_fp:NNNnnNw} \meta{fill} \meta{alignment}
+%     \meta{format sign} \Arg{width} \Arg{precision} \meta{style}
+%     \cs{s__fp} \cs{__fp_chk:w} \meta{fp type} \meta{fp sign} \meta{fp
+%       body} |;|
+%   \end{quote}
+%   First set the default alignment |?| to |>|.  Place the modified
+%   information after a trailing \cs{s__stop} for later retrieval.  Then
+%   check the \meta{format sign} and the \meta{fp sign}: if the floating
+%   point is negative, always put~|-|.  Otherwise (including
+%   \texttt{nan}), if the format's \meta{sign} is |~|, put a space (with
+%   category \enquote{other}); if it is~|+| put |+|; if it is |-|
+%   (default), put nothing, represented as a brace group.  The width
+%   |#4| will be useful later, store it after \cs{s__stop}.  Afterwards,
+%   check the \meta{precision}: if it was not given, replace it by $6$
+%   (default precision).  Finally, dispatch depending on the
+%   \meta{style}.
+%    \begin{macrocode}
+\cs_new:Npn \@@_format_fp:NNNnnNw
+    #1#2#3#4#5#6 \s__fp \__fp_chk:w #7 #8
+  {
+    \token_if_eq_charcode:NNTF #2 ?
+      { \@@_format_put:nw { #1 > } }
+      { \@@_format_put:nw { #1 #2 } }
+    \token_if_eq_meaning:NNTF 2 #8
+      { \@@_format_put:nw { - } }
+      {
+        \str_case:nnn {#3}
+          {
+            { ~ } { \@@_format_put:ow { \c_catcode_other_space_tl } }
+            { + } { \@@_format_put:nw { + } }
+          }
+          { \@@_format_put:nw { { } } }
+      }
+    \@@_format_put:nw { {#4} }
+    \tl_if_empty:nTF {#5}
+      { \@@_format_put:nw { { 6} } }
+      { \@@_format_put:nw { {#5} } }
+    \str_case:nnn {#6}
+      {
+        { e } { \@@_format_fp:wnnnNNw \@@_format_fp_e:wn }
+        { f } { \@@_format_fp:wnnnNNw \@@_format_fp_f:wn }
+        { g } { \@@_format_fp:wnnnNNw \@@_format_fp_g:wn }
+        { ? } { \@@_format_fp:wnnnNNw \@@_format_fp_g:wn }
+      }
+      {
+        \__msg_kernel_expandable_error:nnnn
+          { str } { invalid-style-format } {#6} { fp }
+        \@@_format_fp:wnnnNNw \@@_format_fp_g:wn
+      }
+    \s__stop
+    \s__fp \__fp_chk:w #7 #8
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_format_fp:wnnnNNw}
+%   \begin{quote}
+%     \cs{@@_format_fp:wnnnNNw} \meta{formatting function} \cs{s__stop}
+%     \Arg{precision} \Arg{width} \Arg{sign} \meta{fill}
+%     \meta{alignment} \cs{s__fp} \cs{__fp_chk:w} \meta{fp type}
+%     \meta{fp sign} \meta{fp body} |;|
+%   \end{quote}
+%    \begin{macrocode}
+\cs_new:Npn \@@_format_fp:wnnnNNw
+    #1 \s__stop #2 #3 #4 #5#6 #7 ;
+  {
+    \exp_args:Nc \exp_args:Nf
+      { @@_format_align_#6:nnnN }
+      { #1 #7 ; {#2} }
+      {#4}
+      {#3} #5
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_format_fp_round:wn}
+%   Round the given floating point (not its absolute value, to play
+%   nicely with unusual rounding modes).
+%    \begin{macrocode}
+\cs_new:Npn \@@_format_fp_round:wn #1 ; #2
+  { \__fp_parse:n { round ( #1; , #2 - \__fp_exponent:w #1; ) } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_format_fp_e:wn}
+% \begin{macro}[aux, EXP]{\@@_format_fp_e_ii:wn}
+%   With the |e| type, first filter out special cases.  In the normal
+%   case, round to |#4+1| significant figures (one before the decimal
+%   separator, |#4| after).
+%    \begin{macrocode}
+\group_begin:
+\char_set_catcode_other:N E
+\tl_to_lowercase:n
+  {
+    \group_end:
+    \cs_new:Npn \@@_format_fp_e:wn \s__fp \__fp_chk:w #1#2#3 ; #4
+      {
+        \int_case:nnn {#1}
+          {
+            {0} { \use:nf { 0 . } { \prg_replicate:nn {#4} { 0 } } e 0 }
+            {2} { inf }
+            {3} { nan }
+          }
+          {
+            \exp_last_unbraced:Nf \@@_format_fp_e_ii:wn
+              \@@_format_fp_round:wn \s__fp \__fp_chk:w #1#2#3 ; { #4 + 1 }
+              {#4}
+          }
+      }
+    \cs_new:Npn \@@_format_fp_e_ii:wn
+        \s__fp \__fp_chk:w #1#2 #3 #4#5#6#7 ; #8
+      {
+        \@@_format_put:fw { \int_eval:n { #3 - 1 } }
+        \@@_format_put:nw { e }
+        \int_compare:nNnTF {#8} > \c_sixteen
+          {
+            \@@_format_put:fw { \prg_replicate:nn { #8 - \c_fifteen } {0} }
+            \@@_format_put:fw { \use_none:n #4#5#6#7 }
+          }
+          {
+            \@@_format_put:fw
+              { \str_substr:nnn { #4#5#6#7 0 } { 2 } { #8 + 1 } }
+          }
+        \@@_format_put:fw { \use_i:nnnn #4 . }
+        \use_none:n \s__stop
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_format_fp_f:wn}
+% \begin{macro}[aux, EXP]{\@@_format_fp_f_ii:wwn}
+%   With the |f| type, first filter out special cases.  In the normal
+%   case, round to |#4| (absolute) decimal places.
+%    \begin{macrocode}
+\cs_new:Npn \@@_format_fp_f:wn \s__fp \__fp_chk:w #1#2#3 ; #4
+  {
+    \int_case:nnn {#1}
+      {
+        {0} { \use:nf { 0 . } { \prg_replicate:nn {#4} { 0 } } }
+        {2} { inf }
+        {3} { nan }
+      }
+      {
+        \exp_last_unbraced:Nf \@@_format_fp_f_ii:wwwn
+          \fp_to_decimal:n
+            { abs ( round ( \s__fp \__fp_chk:w #1#2#3 ; , #4 ) ) }
+          . . ;
+          {#4}
+      }
+  }
+\cs_new:Npn \@@_format_fp_f_ii:wwwn #1 . #2 . #3 ; #4
+  {
+    \use:nf
+      { #1 . #2 }
+      { \prg_replicate:nn { #4 - \@@_count_unsafe:n {#2} } {0} }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_format_fp_g:wn}
+% \begin{macro}[aux, EXP]{\@@_format_fp_g_ii:wn}
+%   With the |g| type, first filter out special cases.  In the normal
+%   case, round to |#4| significant figures, then test the exponent: if
+%   $-4\leq \meta{exponent} < \meta{precision}$, use the presentation
+%   type |f|, otherwise use the presentation type |e|.  Also, a
+%   \meta{precision} of $0$ is treated like a precision of $1$.
+%   Actually, we don't reuse the |e| and |f| auxiliaries, because we
+%   want to trim trailing zeros.  Thankfully, this is done by
+%   \cs{fp_to_decimal:n} and \cs{fp_to_scientific:n}, acting on the
+%   (absolute value of the) rounded value.
+%    \begin{macrocode}
+\cs_new:Npn \@@_format_fp_g:wn \s__fp \__fp_chk:w #1#2 ; #3
+  {
+    \int_case:nnn {#1}
+      {
+        {0} { 0 }
+        {2} { inf }
+        {3} { nan }
+      }
+      {
+        \exp_last_unbraced:Nf \@@_format_fp_g_ii:wn
+          \@@_format_fp_round:wn \s__fp \__fp_chk:w #1#2 ;
+            { \int_max:nn {1} {#3} }
+          { \int_max:nn {1} {#3} }
+      }
+  }
+\cs_new:Npn \@@_format_fp_g_ii:wn #1; #2
+  {
+    \int_compare:nNnTF { \__fp_exponent:w #1; } < { -3 }
+      { \fp_to_scientific:n }
+      {
+        \int_compare:nNnTF { \__fp_exponent:w #1; } > {#2}
+          { \fp_to_scientific:n }
+          { \fp_to_decimal:n }
+      }
+    { \__fp_abs_o:w #1; \prg_do_nothing: }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \subsection{Messages}
 %
 % All of the messages are produced expandably, so there is no need for
@@ -674,6 +930,14 @@
 \__msg_kernel_new:nnn { str } { invalid-style-format }
   { Invalid~style~'#1'~for~type~'#2'. }
 %    \end{macrocode}
+%
+% \subsection{Todos}
+%
+% \begin{itemize}
+%   \item Check what happens during floating point formatting when a
+%     number is rounded to $0$ or $\infty$.  I think the |e| and |f|
+%     types break horribly.
+% \end{itemize}
 %
 %    \begin{macrocode}
 %</initex|package>
