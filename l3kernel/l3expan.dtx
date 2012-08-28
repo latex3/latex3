@@ -1369,108 +1369,232 @@
 %     \item Base signature.
 %     \item Beginning of variant signature.
 %   \end{arguments}
-%   First check whether to terminate the loop over variant forms.  Then
-%   build the variant function name once, to avoid repeating this
-%   relatively expensive operation. Then recurse, calling
-%   \cs{@@_generate_variant:Nnnw} with the three same arguments (and a
-%   new item from the comma list of variant forms).
-%
-%   For each variant form, construct a new function name using the
+%   First check whether to terminate the loop over variant forms.  Then,
+%   for each variant form, construct a new function name using the
 %   original base name, the variant signature consisting of $l$ letters
 %   and the last $k-l$ letters of the base signature (of length $k$).
 %   For example, for a base function \cs{prop_put:Nnn} which needs a
-%   |cV| variant form, we want the new signature to be |cVn|.  This
-%   could be done by placing the variant form letters, then
-%   \cs{use_none:nn} followed by the signature (the choice of
-%   \cs{use_none:nn} would depend on the variant form).  However, this
-%   would crash badly if the base signature is mistakenly shorter than
-%   the variant form (this includes cases where the base function had no
-%   colon).  Instead, we do a loop which at each step removes a
-%   character from the base signature and leaves one from the variant
-%   form behind it in a \cs{cs:w} \ldots{} \cs{cs_end:} construction.
-%   This \texttt{c}-type expansion is not done using \cs{exp_args:NNc}
-%   because some error-reporting mechanism must escape out of this
-%   construction.
+%   |cV| variant form, we want the new signature to be |cVn|.
+%
+%   There are further subtleties:
+%   \begin{itemize}
+%     \item In \cs{cs_generate_variant:Nn} |\foo:nnTF| |{xxTF}|, it
+%       would be better to define |\foo:xxTF| using |\exp_args:Nxx|,
+%       rather than a hypothetical |\exp_args:NxxTF|.  Thus, we wish to
+%       trim a common trailing part from the base signature and the
+%       variant signature.
+%     \item In \cs{cs_generate_variant:Nn} |\foo:on| |{ox}|, the
+%       function |\foo:ox| should be defined using |\exp_args:Nnx|, not
+%       |\exp_args:Nox|, to avoid double |o| expansion.
+%     \item Lastly, \cs{cs_generate_variant:Nn} |\foo:on| |{xn}| should
+%       trigger an error, because we do not have a means to replace
+%       |o|-expansion by |x|-expansion.
+%     \end{itemize}
+%     All this boils down to a few rules.  Only |n| and |N|-type
+%     arguments can be replaced by \cs{cs_generate_variant:Nn}.  Other
+%     argument types are allowed to be passed unchanged from the base
+%     form to the variant: in the process they are changed to |n|
+%     (except for two cases: |N| and |p|-type arguments).  A common
+%     trailing part is ignored.
+%
+%     We compare the base and variant signatures one character at a time
+%     within |x|-expansion.  The result is given to
+%     \cs{@@_generate_variant:wwNN} in the form \meta{processed variant
+%       signature} \cs{q_mark} \meta{errors} \cs{q_stop} \meta{base
+%       function} \meta{new function}.  If all went well, \meta{errors}
+%     is empty; otherwise, it is a kernel error message, followed by
+%     some clean-up code (\cs{use_none:nnnn}).
+%
+%     Note the space after |#3| and after the following brace group.
+%     Those are ignored by \TeX{} when fetching the last argument for
+%     \cs{@@_generate_variant_loop:nNwN}, but can be used as a delimiter
+%     for \cs{@@_generate_variant_loop_end:nwwwNNnn}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_generate_variant:Nnnw #1#2#3#4 ,
   {
     \if_meaning:w \scan_stop: #4
       \exp_after:wN \use_none_delimit_by_q_recursion_stop:w
     \fi:
-    \exp_after:wN \@@_generate_variant:NNn
-    \exp_after:wN #1
-      \cs:w
-        #2 :
-        \@@_generate_variant_loop:NwN
-          ? #3
-          \q_mark #4 \@@_generate_variant_loop_end:w
-          \q_mark \@@_generate_variant_loop_error:wnNNnn
-        \q_stop
-      \cs_end:
-      {#4}
+    \use:x
+      {
+        \exp_not:N \@@_generate_variant:wwNN
+        \@@_generate_variant_loop:nNwN { }
+          #4
+          \@@_generate_variant_loop_end:nwwwNNnn
+          \q_mark
+          #3 ~
+          { ~ { } \fi: \@@_generate_variant_loop_long:wNNnn } ~
+          { }
+          \q_stop
+        \exp_not:N #1 {#2} {#4}
+      }
     \@@_generate_variant:Nnnw #1 {#2} {#3}
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux, rEXP]{\@@_generate_variant_loop:NwN}
 % \begin{macro}[aux, EXP]
 %   {
-%     \@@_generate_variant_loop_end:w,
-%     \@@_generate_variant_loop_error:wnNNnn
+%     \@@_generate_variant_loop:nNwN,
+%     \@@_generate_variant_loop_same:w,
+%     \@@_generate_variant_loop_end:nwwwNNnn,
+%     \@@_generate_variant_loop_long:wNNnn,
+%     \@@_generate_variant_loop_invalid:NNwNNnn,
 %   }
-%   Normally, the loop takes one character of the base signature and one
-%   from the variant form (after \cs{q_mark}), and leaves the latter one
-%   in the input stream.  This stops when |#3| is the \texttt{loop_end}
-%   auxiliary, which, once left in the input stream, cleans up the rest
-%   of the csname construction.  In case the base signature was in fact
-%   shorter, one reaches the point where |#1| is the \cs{q_mark} which
-%   is supposed to separate the base signature from the variant form.
-%   Then |#2| is delimited by the next \cs{q_mark}, and the
-%   \texttt{loop_error} auxiliary is taken as |#3|.  This function
-%   fetches appropriate arguments for an error message, and places it
-%   outside the csname construction.
+%   \begin{arguments}
+%     \item Last few (consecutive) letters common between the base
+%       and variant (in fact, \cs{@@_generate_variant_same:N}
+%       \meta{letter} for each letter).
+%     \item Next variant letter.
+%     \item Remainder of variant form.
+%     \item Next base letter.
+%   \end{arguments}
+%   The first argument is populated by
+%   \cs{@@_generate_variant_loop_same:w} when a variant letter and a
+%   base letter match.  It is flushed into the input stream whenever the
+%   two letters are different: if the loop ends before, the argument is
+%   dropped, which means that trailing common letters are ignored.
 %
-%   Note in the definition of \cs{@@_generate_variant:Nnnw} the base
-%   signature is preceeded by a question mark.  This shifts the base
-%   signature and variant form to compensate for the presence of the
-%   \texttt{loop_end} auxiliary at the end of the variant form.
+%   The case where the two letters are different is only allowed with a
+%   base letter of |N| or |n|.  Otherwise, call
+%   \cs{@@_generate_variant_loop_invalid:NNwNNnn} to remove the end of
+%   the loop, get arguments at the end of the loop, and place an
+%   appropriate error message as a second argument of
+%   \cs{@@_generate_variant:wwNN}.  If the letters are distinct and
+%   the base letter is indeed |n| or |N|, leave in the input stream
+%   whatever argument was collected, and the next variant letter |#2|,
+%   then loop by calling \cs{@@_generate_variant_loop:nNwN}.
+%
+%   The loop can stop in three ways.
+%   \begin{itemize}
+%     \item If the end of the variant form is encountered first, |#2| is
+%       \cs{@@_generate_variant_loop_end:nwwwNNnn} (expanded by the
+%       conditional \cs{if:w}), which inserts some tokens to end the
+%       conditional; grabs the \meta{base name} as |#7|, the
+%       \meta{variant signature} |#8|, the \meta{next base letter} |#1|
+%       and the part |#3| of the base signature that wasn't read yet;
+%       and combines those into the \meta{new function} to be defined.
+%     \item If the end of the base form is encountered first, |#4| is
+%       |~{}\fi:| which ends the conditional (with an empty expansion),
+%       followed by \cs{@@_generate_variant_loop_long:wNNnn}, which
+%       places an error as the second argument of
+%       \cs{@@_generate_variant:wwNN}.
+%     \item The loop can be interrupted early if the requested expansion
+%       is unavailable, namely when the variant and base letters differ
+%       and the base is neither |n| nor |N|.  Again, an error is placed
+%       as the second argument of \cs{@@_generate_variant:wwNN}.
+%   \end{itemize}
+%   Note that if the variant form has the same length as the base form,
+%   |#2| is as described in the first point, and |#4| as described in
+%   the second point above.  The \cs{@@_generate_variant_loop_end:nwwwNNnn}
+%   breaking function takes the empty brace group in |#4| as its first
+%   argument: this empty brace group produces the correct signature for
+%   the full variant.
 %    \begin{macrocode}
-\cs_new:Npn \@@_generate_variant_loop:NwN #1 #2 \q_mark #3
-  { #3 \@@_generate_variant_loop:NwN #2 \q_mark }
-\cs_new:Npn \@@_generate_variant_loop_end:w #1#2 \q_mark #3 \q_stop {#2}
-\cs_new:Npn \@@_generate_variant_loop_error:wnNNnn
-    #1 \q_stop \cs_end: #2 #3#4#5#6
+\cs_new:Npn \@@_generate_variant_loop:nNwN #1#2#3 \q_mark #4
   {
-    \cs_end: {#2}
-    \__msg_kernel_error:nnxx { kernel } { variant-too-long }
-      { \tl_to_str:n {#2} } { \token_to_str:N #4 }
-    #3 #4 {#5} {#6}
+    \if:w #2 #4
+      \exp_after:wN \@@_generate_variant_loop_same:w
+    \else:
+      \if:w N #4 \else:
+        \if:w n #4 \else:
+          \@@_generate_variant_loop_invalid:NNwNNnn #4#2
+        \fi:
+      \fi:
+    \fi:
+    #1
+    \prg_do_nothing:
+    #2
+    \@@_generate_variant_loop:nNwN { } #3 \q_mark
+  }
+\cs_new:Npn \@@_generate_variant_loop_same:w
+    #1 \prg_do_nothing: #2#3#4
+  {
+    #3 { #1 \@@_generate_variant_same:N #2 }
+  }
+\cs_new:Npn \@@_generate_variant_loop_end:nwwwNNnn
+    #1#2 \q_mark #3 ~ #4 \q_stop #5#6#7#8
+  {
+    \scan_stop: \scan_stop: \fi:
+    \exp_not:N \q_mark
+    \exp_not:N \q_stop
+    \exp_not:N #6
+    \exp_not:c { #7 : #8 #1 #3 }
+  }
+\cs_new:Npn \@@_generate_variant_loop_long:wNNnn #1 \q_stop #2#3#4#5
+  {
+    \exp_not:n
+      {
+        \q_mark
+        \__msg_kernel_error:nnxx { kernel } { variant-too-long }
+          {#5} { \token_to_str:N #3 }
+        \use_none:nnnn
+        \q_stop
+        #3
+        #3
+      }
+  }
+\cs_new:Npn \@@_generate_variant_loop_invalid:NNwNNnn
+    #1#2 \fi: \fi: \fi: #3 \q_stop #4#5#6#7
+  {
+    \fi: \fi: \fi:
+    \exp_not:n
+      {
+        \q_mark
+        \__msg_kernel_error:nnxxxx { kernel } { invalid-variant }
+          {#7} { \token_to_str:N #5 } {#1} {#2}
+        \use_none:nnnn
+        \q_stop
+        #5
+        #5
+      }
   }
 %    \end{macrocode}
 % \end{macro}
+%
+% \begin{macro}[aux, rEXP]{\@@_generate_variant_same:N}
+%   When the base and variant letters are identical, don't do any
+%   expansion.  For most argument types, we can use the |n|-type
+%   no-expansion, but the |N| and |p| types require a slightly different
+%   behaviour with respect to braces.
+%    \begin{macrocode}
+\cs_new:Npn \@@_generate_variant_same:N #1
+  {
+    \if:w N #1
+      N
+    \else:
+      \if:w p #1
+        p
+      \else:
+        n
+      \fi:
+    \fi:
+  }
+%    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux]{\@@_generate_variant:NNn}
+% \begin{macro}[aux]{\@@_generate_variant:wwNN}
 %   If the variant form has already been defined, log its existence.
 %   Otherwise, make sure that the |\exp_args:N #3| form is defined, and
 %   if it contains |x|, change \cs{@@_tmp:w} locally to
 %   \cs{cs_new_protected_nopar:Npx}.  Then define the variant by
 %   combining the |\exp_args:N #3| variant and the base function.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_generate_variant:NNn #1 #2 #3
+\cs_new_protected:Npn \@@_generate_variant:wwNN
+    #1 \q_mark #2 \q_stop #3#4
   {
-    \cs_if_free:NTF #2
+    #2
+    \cs_if_free:NTF #4
       {
         \group_begin:
-          \@@_generate_internal_variant:n {#3}
-          \@@_tmp:w #2 { \exp_not:c { exp_args:N #3 } \exp_not:N #1 }
+          \@@_generate_internal_variant:n {#1}
+          \@@_tmp:w #4 { \exp_not:c { exp_args:N #1 } \exp_not:N #3 }
         \group_end:
       }
       {
         \iow_log:x
           {
-            Variant~\token_to_str:N #2~%
+            Variant~\token_to_str:N #4~%
             already~defined;~ not~ changing~ it~on~line~%
             \tex_the:D \tex_inputlineno:D
           }
