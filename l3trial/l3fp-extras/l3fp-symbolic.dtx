@@ -1,0 +1,440 @@
+% \iffalse
+%
+%% File l3fp-symbolic.dtx (C) Copyright 2012 The LaTeX3 Project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3c of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the "l3trial bundle" (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %%
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX Project Team.
+%%
+%% -----------------------------------------------------------------------
+%%
+%
+%<*driver|package>
+\RequirePackage{expl3}
+\GetIdInfo$Id$
+  {L3 Experimental manipulations of symbolic expressions}
+%</driver|package>
+%<*driver>
+\documentclass[full]{l3doc}
+\usepackage{amsmath}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \pkg{l3fp-symbolic} package\\ Add ons to \pkg{l3kernel}^^A
+%   \thanks{This file describes v\ExplFileVersion,
+%      last revised \ExplFileDate.}^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released \ExplFileDate}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \section{\pkg{l3fp-symbolic} documentation}
+%
+% At the moment, this package redefines a few \pkg{l3fp} internals to
+% introduce the ability to use unbound variables in floating point
+% expressions.
+% \begin{verbatim}
+%   \fp_set:Nn \l_test_fp { 1 + A * sin(B) }
+%   \fp_show:N \l_test_fp
+% \end{verbatim}
+% gives |(1+(A*sin(B)))|.  One can assign a value to a variable with
+% \cs{fp_var_set:nn}.  For example,
+% \begin{verbatim}
+%   \fp_var_set:nn { B } { pi / 2 }
+%   \fp_show:N \l_test_fp
+%   \fp_show:n { \l_test_fp }
+% \end{verbatim}
+% shows |(1+(A*sin(B)))|, since |\l_test_fp| has not changed, then
+% |(1+(A*1))| because \cs{fp_show:n} forces the re-evaluation of
+% \cs{l_test_fp}, and \pkg{l3fp} finds out that the sine function can be
+% evaluated now that its argument has a definite value.  Note that |A*1|
+% is not simplified to |A|: \cs{fp_eval:n} only attempts to evaluate
+% computations whose operands are all known.
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3fp-symbolic} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=fp>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*package>
+\ProvidesExplPackage
+  {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
+%</package>
+%    \end{macrocode}
+%
+% \subsection{Building blocks for expressions}
+%
+% ^^A todo: try to use a variable called "chk".
+%
+% Every symbolic expression has the form
+% \begin{quote}
+%   \cs{s_@@_symbolic} \cs{@@_symbolic_chk:w}
+%   \cs{@@_symbol_\meta{op}:w} \Arg{arguments} |;|
+% \end{quote}
+% where the \meta{op} is an operation (binary |+|, |*|, \ldots{}, or
+% function such as |sin| or |ln|), and \meta{arguments} is an array of
+% floating points or symbolic expressions, with the number of items
+% expected for the given operation.  Variables are stored as operations
+% with no arguments.
+%
+% Symbolic expressions are stored in a prefix form.  When encountering a
+% symbolic expression in a floating point computation, we attempt to
+% evaluate the operands as much as possible, and if that yields floating
+% point numbers rather than expressions, we apply the operator which
+% follows (if the function is known).
+%
+% For instance, the expression "a + b * sin(c)" is stored as
+% \begin{verbatim}
+% \s__fp_symbolic \__fp_symbolic_chk:w \__fp_symbol_+:w
+%   {
+%     \s__fp_symbolic \__fp_symbolic_chk:w \__fp_symbol_a:w { } ;
+%     \s__fp_symbolic \__fp_symbolic_chk:w \__fp_symbol_*:w
+%       {
+%         \s__fp_symbolic \__fp_symbolic_chk:w \__fp_symbol_b:w { } ;
+%         \s__fp_symbolic \__fp_symbolic_chk:w \__fp_symbol_sin:w
+%           { \s__fp_symbolic \__fp_symbolic_chk:w \__fp_symbol_c:w { } ; } ;
+%       } ;
+%   } ;
+% \end{verbatim}
+%
+% \begin{variable}[int]{\s_@@_symbolic}
+%   Scan mark indicating the start of a symbolic expression.
+%    \begin{macrocode}
+\__scan_new:N \s_@@_symbolic
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}[int]{\@@_symbolic_chk:w}
+%   Analog of \cs{@@_chk:w} for symbolic expressions.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_symbolic_chk:w #1;
+  {
+    \__msg_kernel_error:nnx { kernel } { misused-fp }
+      { \@@_to_tl:w \s_@@_symbolic \@@_symbolic_chk:w #1; }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]
+%   {\@@_if_has_symbolic:nTF, \@@_if_has_symbolic_aux:w}
+%   Tests if the string representation of |#1| contains
+%   |s__fp_symbolic|.  This test should be precise enough to determine
+%   if a given an array contains a symbolic expression or only consists
+%   in floating points.  See \cs{@@_exp_after_symbolic_f:nw} for an
+%   application.
+%    \begin{macrocode}
+\cs_set:Npn \@@_tmp:w #1
+  {
+    \cs_new:Npn \@@_if_has_symbolic:nTF ##1
+      {
+        \exp_after:wN \@@_if_has_symbolic_aux:w
+          \tl_to_str:n {##1} \q_mark \use_i:nn
+          #1                 \q_mark \use_ii:nn
+        \q_stop
+      }
+    \cs_new:Npn \@@_if_has_symbolic_aux:w
+        ##1 #1 ##2 \q_mark ##3##4 \q_stop { ##3 }
+  }
+\exp_args:No \@@_tmp:w { \tl_to_str:n { s_@@_symbolic ~ } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\@@_exp_after_symbolic_f:nw}
+% \begin{macro}[aux, EXP]{\@@_exp_after_symbolic_aux:Nn}
+%   This function does two things: trigger an \texttt{f}-expansion of
+%   the argument |#1| after the following symbolic expression, and
+%   evaluate all pieces of the expression that can be evaluated.
+%    \begin{macrocode}
+\cs_new:Npn \@@_exp_after_symbolic_f:nw
+    #1 \s_@@_symbolic \@@_symbolic_chk:w #2 #3 ;
+  {
+    \exp_after:wN \@@_exp_after_symbolic_aux:Nn
+    \exp_after:wN #2
+    \exp_after:wN
+      {
+        \tex_romannumeral:D -`0
+        \@@_exp_after_array_f:w #3 \s_@@_stop
+        \exp_after:wN
+      }
+      \exp_after:wN ;
+    \tex_romannumeral:D -`0 #1
+  }
+\cs_new:Npn \@@_exp_after_symbolic_aux:Nn #1#2
+  {
+    \@@_if_has_symbolic:nTF {#2}
+      { \s_@@_symbolic \@@_symbolic_chk:w #1 {#2} }
+      {
+        \cs_if_exist:NTF #1
+          { #1 #2 @ }
+          { \s_@@_symbolic \@@_symbolic_chk:w #1 {#2} }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% ^^A todo: test { \fp_gset:Nn \foo { abc } } ...
+%
+% \subsection{Built-in operators}
+%
+% \begin{@makeother}{^} %^^A Hack!
+% \begin{@makeother}{|} %^^A Hack!
+% \begin{@makeother}{&} %^^A Hack!
+% \begin{macro}[EXP, aux]
+%   {
+%     \@@_symbolic_+_symbolic_o:ww,
+%     \@@_symbolic_+_o:ww,
+%     \@@_+_symbolic_o:ww,
+%     \@@_symbol_+:w,
+%     \@@_symbolic_-_symbolic_o:ww,
+%     \@@_symbolic_-_o:ww,
+%     \@@_-_symbolic_o:ww,
+%     \@@_symbol_-:w,
+%     \@@_symbolic_*_symbolic_o:ww,
+%     \@@_symbolic_*_o:ww,
+%     \@@_*_symbolic_o:ww,
+%     \@@_symbol_*:w,
+%     \@@_symbolic_/_symbolic_o:ww,
+%     \@@_symbolic_/_o:ww,
+%     \@@_/_symbolic_o:ww,
+%     \@@_symbol_/:w,
+%     \@@_symbolic_^_symbolic_o:ww,
+%     \@@_symbolic_^_o:ww,
+%     \@@_^_symbolic_o:ww,
+%     \@@_symbol_^:w,
+%     \@@_symbolic_|_symbolic_o:ww,
+%     \@@_symbolic_|_o:ww,
+%     \@@_|_symbolic_o:ww,
+%     \@@_symbol_|:w,
+%     \@@_symbolic_&_symbolic_o:ww,
+%     \@@_symbolic_&_o:ww,
+%     \@@_&_symbolic_o:ww,
+%     \@@_symbol_&:w,
+%   }
+%    \begin{macrocode}
+\cs_set:Npn \@@_tmp:w #1#2
+  {
+    \cs_new:cpn { @@_symbolic_#2_symbolic_o:ww } ##1; ##2;
+      {
+        \@@_exp_after_symbolic_f:nw { }
+          \s_@@_symbolic \@@_symbolic_chk:w #1 { ##1; ##2; } ;
+        \exp_after:wN \exp_stop_f: % ?
+      }
+    \cs_new_eq:cc
+      { @@_symbolic_#2         _o:ww }
+      { @@_symbolic_#2_symbolic_o:ww }
+    \cs_new_eq:cc
+      { @@         _#2_symbolic_o:ww }
+      { @@_symbolic_#2_symbolic_o:ww }
+    \cs_new_protected:Npx #1 ##1; ##2; @ ;
+      {
+        \exp_not:c { @@_#2_o:ww } ##1; ##2;
+      }
+  }
+\exp_args:Nc \@@_tmp:w { @@_symbol_+:w } +
+\exp_args:Nc \@@_tmp:w { @@_symbol_-:w } -
+\exp_args:Nc \@@_tmp:w { @@_symbol_*:w } *
+\exp_args:Nc \@@_tmp:w { @@_symbol_/:w } /
+\exp_args:Nc \@@_tmp:w { @@_symbol_^:w } ^
+\exp_args:Nc \@@_tmp:w { @@_symbol_|:w } |
+\exp_args:Nc \@@_tmp:w { @@_symbol_&:w } &
+%    \end{macrocode}
+% \end{macro}
+% \end{@makeother}
+% \end{@makeother}
+% \end{@makeother}
+%
+% \subsection{Built-in functions}
+%
+% \begin{macro}[EXP, aux]
+%   {
+%     \@@_abs_symbolic_o:w  ,
+%     \@@_unary_symbol_abs:w,
+%     \@@_cos_symbolic_o:w  ,
+%     \@@_unary_symbol_cos:w,
+%     \@@_cot_symbolic_o:w  ,
+%     \@@_unary_symbol_cot:w,
+%     \@@_csc_symbolic_o:w  ,
+%     \@@_unary_symbol_csc:w,
+%     \@@_exp_symbolic_o:w  ,
+%     \@@_unary_symbol_exp:w,
+%     \@@_ln_symbolic_o:w   ,
+%     \@@_unary_symbol_ln:w ,
+%     \@@_sec_symbolic_o:w  ,
+%     \@@_unary_symbol_sec:w,
+%     \@@_sin_symbolic_o:w  ,
+%     \@@_unary_symbol_sin:w,
+%     \@@_tan_symbolic_o:w  ,
+%     \@@_unary_symbol_tan:w,
+%     \@@_!_symbolic_o:w  ,
+%     \@@_unary_symbol_!:w,
+%     \@@_-_symbolic_o:w  ,
+%     \@@_unary_symbol_-:w,
+%   }
+%    \begin{macrocode}
+\cs_set:Npn \@@_tmp:w #1#2
+  {
+    \cs_new:cpn { @@_#2_symbolic_o:w } ##1;
+      {
+        \@@_exp_after_symbolic_f:nw { \exp_after:wN \exp_stop_f: } % ?
+          \s_@@_symbolic \@@_symbolic_chk:w #1 { ##1; } ;
+      }
+    \cs_new_protected:Npx #1 ##1 @ ;
+      {
+        \exp_not:c { @@_#2_o:w } ##1
+      }
+  }
+\tl_map_inline:nn
+  { {abs} {cos} {cot} {csc} {exp} {ln} {sec} {sin} {tan} {!} {-} }
+  { \exp_args:Nc \@@_tmp:w { @@_unary_symbol_#1:w } {#1} }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Turning unknown fp words into new variables}
+%
+% \begin{macro}[int, EXP]{\@@_parse_operand_other_word_aux:Nw}
+% \begin{macro}[aux, EXP]{\@@_parse_operand_other_word_auxii:NnN}
+%    \begin{macrocode}
+\cs_gset:Npn \@@_parse_operand_other_word_aux:Nw #1 #2;
+  {
+    \exp_after:wN \@@_parse_operand_other_word_auxii:NnN
+      \cs:w @@_parse_word_#2:N \cs_end: {#2}
+      #1
+  }
+\cs_new:Npn \@@_parse_operand_other_word_auxii:NnN #1#2
+  {
+    \if_meaning:w \tex_relax:D #1
+      \exp_after:wN \@@_exp_after_symbolic_f:nw
+      \exp_after:wN \@@_parse_infix:NN
+      \exp_after:wN \s_@@_symbolic
+      \exp_after:wN \@@_symbolic_chk:w
+      \cs:w @@_symbol_ #2 :w \exp_after:wN \cs_end:
+      \exp_after:wN {
+      \exp_after:wN }
+      \exp_after:wN ;
+    \else:
+      \exp_after:wN #1
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Giving values to variables}
+%
+% \begin{macro}{\fp_var_set:nn}
+%    \begin{macrocode}
+\cs_new:Npn \fp_var_set:nn #1#2
+  {
+    \cs_set_protected:cpn { @@_symbol_#1:w } @ ;
+      {
+        \@@_parse:n {#2}
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Conversion to token list}
+%
+% \begin{macro}[EXP, int]{\@@_to_tl:w}
+%    \begin{macrocode}
+\cs_new_eq:NN \@@_to_tl_aux:w \@@_to_tl:w
+\cs_gset:Npn \@@_to_tl:w #1
+  { \cs:w @@ \@@_type_from_scan:N #1 _to_tl_aux:w \cs_end: #1 }
+\cs_new:Npn \@@_symbolic_to_tl_aux:w
+    \s_@@_symbolic \@@_symbolic_chk:w #1 #2;
+  {
+    \exp_after:wN \@@_symbolic_to_tl_auxii:wNwn
+      \token_to_str:N #1 ;
+      #2 \s_@@_stop
+  }
+\use:x
+  {
+    \cs_new:Npn \exp_not:N \@@_symbolic_to_tl_auxii:wNwn
+        ##1 \tl_to_str:n { symbol_ } ##2##3 \tl_to_str:n { :w } ;
+  }
+      {
+        \if_int_compare:w
+            \__int_eval:w \tex_uccode:D `#2 / 26 = \c_three
+          \exp_after:wN \@@_symbolic_to_tl_aux_letters:nw
+        \else:
+          \exp_after:wN \@@_symbolic_to_tl_aux_binary:nw
+        \fi:
+        { #2 #3 }
+      }
+\cs_generate_variant:Nn \use:nn { nf }
+\cs_new:Npn \@@_symbolic_to_tl_aux_letters:nw #1#2 \s_@@_stop
+  {
+    \@@_expand:n
+      { #1 \tl_if_empty:nF {#2} { ( \@@_array_to_clist:n {#2} ) } }
+  }
+\cs_new:Npn \@@_symbolic_to_tl_aux_binary:nw #1#2; #3 \s_@@_stop
+  {
+    \@@_expand:n
+      { ( \@@_to_tl:w #2; #1 \@@_array_to_clist:n {#3} ) }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Not implemented}
+%
+% The following functions are not implemented: min, max.
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex
