@@ -85,6 +85,13 @@
 %
 % \subsection{Misc}
 %
+% \begin{variable}[int]{\l_@@_internal_fp}
+%   Scratch floating point.
+%    \begin{macrocode}
+\fp_new:N \l_@@_internal_fp
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{macro}[EXP, int]{\@@_parse_exp_after_array_f:w}
 % \begin{macro}[EXP, aux]{\@@_parse_exp_after_stop_f:nw}
 %   This is analoguous to \cs{@@_exp_after_array_f:w}, but it uses
@@ -366,56 +373,199 @@
 % Functions defined here are not necessarily tied to symbolic
 % expressions.
 %
-% \begin{macro}{\fp_new_var:n}
+% \begin{macro}[TF]{\fp_str_if_identifier:n}
+% \begin{macro}[aux, EXP]{\@@_str_if_identifier:N}
+%   If |#1| contains a space, it is not a valid identifier.  Otherwise,
+%   loop through letters in |#1|: if if is not a letter, break the loop
+%   and return \texttt{false}.  If the end of the loop is reached
+%   without finding any non-letter, return \texttt{true}.
 %    \begin{macrocode}
-\cs_new:Npn \fp_new_var:n #1
+\prg_new_protected_conditional:Npnn
+    \fp_str_if_identifier:n #1 { T , F , TF }
   {
-    \cs_if_exist:cTF { @@_parse_word_#1:N }
+    \tl_if_empty:nTF {#1}
+      { \prg_return_false: }
       {
-        \__msg_kernel_error:nnx { fp-symbolic } { word-exists } {#1}
+        \exp_args:Nxx \tl_if_in:nnTF { \tl_to_str:n {#1} } { \c_space_tl }
+          { \prg_return_false: }
+          {
+            \exp_after:wN \@@_str_if_identifier:N \tl_to_str:n {#1}
+              { ? \__prg_break:n \prg_return_true: }
+            \__prg_break_point:
+          }
       }
+  }
+\cs_new:Npn \@@_str_if_identifier:N #1
+  {
+    \use_none:n #1
+    \int_compare:nNnTF { `#1 } < { `A }
+      { \__prg_break:n { \prg_return_false: } }
       {
-        %^^A todo: check that #1 is a valid identifier.
-        \cs_new_protected:cpx { @@_variable_#1_o:w } \s_@@_stop
+        \int_compare:nNnT { `#1 } > { `Z }
           {
-            \s_@@_symbolic \@@_symbolic_chk:w
-              \exp_not:c { @@_variable_#1_o:w } {} ;
-          }
-        \cs_new_nopar:cpx { @@_parse_word_#1:N }
-          {
-            \exp_not:n
+            \int_compare:nNnTF { `#1 } < { `a }
+              { \__prg_break:n \prg_return_false: }
               {
-                \@@_parse_exp_after_symbolic_f:nw
-                  { \@@_parse_infix:NN }
-                  \s_@@_symbolic \@@_symbolic_chk:w
+                \int_compare:nNnT { `#1 } > { `z }
+                  { \__prg_break:n \prg_return_false: }
               }
-            \exp_not:c { @@_variable_#1_o:w } { } ;
           }
+      }
+    \@@_str_if_identifier:N
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_variable_parsing:Nn}
+%   This gives the right incantations for \pkg{l3fp-parse}: when the
+%   parser sees |#1|, it will insert |\__fp_variable_#1_o:w|, and
+%   \cs{@@_parse_exp_after_symbolic_f:nw} will expand after that
+%   symbolic expression, evaluating whatever can be evaluated.  The
+%   scope is controlled by the |_nopar:cpx| assignment function |#1|.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_variable_parsing:Nn #1#2
+  {
+    #1 { @@_parse_word_ \tl_to_str:n {#2} :N }
+      {
+        \exp_not:n
+          {
+            \@@_parse_exp_after_symbolic_f:nw
+              { \@@_parse_infix:NN }
+              \s_@@_symbolic \@@_symbolic_chk:w
+          }
+        \exp_not:c { @@_variable_ \tl_to_str:n {#2} _o:w } { } ;
       }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\fp_set_var:nn}
+% \begin{macro}{\@@_variable_unknown:Nn}
+%   Set the identifier |#2| to be a variable.  This is acheived by
+%   defining the appropriate auxiliary to expand to itself in a way
+%   somewhat similar to |\protect|-ed macros in \LaTeXe{}.  Loops are
+%   avoided by making the function protected: it will still
+%   \texttt{f}-expand as appropriate.  The scope is controlled by the
+%   |_protected:cpx| assignment function |#1|.
 %    \begin{macrocode}
-\cs_new:Npn \fp_set_var:nn #1#2
+\cs_new_protected:Npn \@@_variable_unknown:Nn #1#2
   {
-    \cs_set_protected:cpx { @@_variable_#1_o:w } \s_@@_stop
+    #1 { @@_variable_ \tl_to_str:n {#2} _o:w } \s_@@_stop
       {
-        \@@_parse:n {#2}
+        \exp_not:n
+          { \@@_exp_after_symbolic_f:nw { \exp_after:wN \exp_stop_f: } }
+        \s_@@_symbolic \@@_symbolic_chk:w
+          \exp_not:c { @@_variable_ \tl_to_str:n {#2} _o:w } { } ;
       }
   }
 %    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\fp_new_variable:n}
+%   Check that |#1| is a valid identifier.  If the identifier is already
+%   in use, complain, and undefine two functions to avoid further
+%   errors.  Then set |\__fp_parse_word_#1:N| to use
+%   |\__fp_variable_#1_o:w|, and define this second function to evaluate
+%   the variable to itself.
+%    \begin{macrocode}
+\cs_new_protected:Npn \fp_new_variable:n #1
+  {
+    \fp_str_if_identifier:nTF {#1}
+      {
+        \cs_if_exist:cT { @@_parse_word_ \tl_to_str:n {#1} :N }
+          {
+            \__msg_kernel_error:nnn
+              { fp } { identifier-already-defined } {#1}
+            \cs_undefine:c { @@_parse_word_ \tl_to_str:n {#1} :N }
+            \cs_undefine:c { @@_variable_ \tl_to_str:n {#1} _o:w }
+          }
+        \@@_variable_parsing:Nn \cs_new_nopar:cpx {#1}
+        \@@_variable_unknown:Nn \cs_new_protected:cpx {#1}
+      }
+      { \__msg_kernel_error:nnn { fp } { invalid-identifier } {#1} }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\fp_set_variable:nn, \fp_gset_variable:nn}
+% \begin{macro}[aux]{\@@_set_variable:Nnn}
+%   Refuse invalid identifiers.  If the variable does not exist yet,
+%   define it just as in \cs{fp_new_variable:nn} (but without
+%   unnecessary checks).  Then evaluate |#3|.  If the result contains
+%   the identifier |#2|, we would later get a loop in cases such as
+%   \begin{quote}
+%     \cs{fp_set_variable:nn} |{A}| |{A}|\\
+%     \cs{fp_show:n} |{A}|
+%   \end{quote}
+%   To detect this, define |\__fp_variable_#2_o:w| to raise the
+%   |internal| flag, and evaluate to \texttt{nan}.  Then re-evaluate
+%   \cs{l_@@_internal_fp}, and store the result in |#2|.  If the flag is
+%   raised, |#2| was present in \cs{l_@@_internal_fp}.  In all cases,
+%   the |#2|-free result ends up in |\__fp_variable_#2_o:w|.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \fp_set_variable:nn
+  { \@@_set_variable:Nnn \cs_set_protected:cpx }
+\cs_new_protected_nopar:Npn \fp_gset_variable:nn
+  { \@@_set_variable:Nnn \cs_gset_protected:cpx }
+\cs_new_protected:Npn \@@_set_variable:Nnn #1#2#3
+  {
+    \fp_str_if_identifier:nTF {#2}
+      {
+        \cs_if_exist:cF { @@_parse_word_#2:N }
+          {
+            \@@_variable_parsing:Nn \cs_new_nopar:cpx {#2}
+            \@@_variable_unknown:Nn \cs_new_protected:cpx {#2}
+          }
+        \fp_set:Nn \l_@@_internal_fp {#3}
+        #1 { @@_variable_ \tl_to_str:n {#2} _o:w } \s_@@_stop
+          {
+            \exp_not:n
+              {
+                \fp_flag_on:n { internal }
+                \exp_after:wN \c_nan_fp
+              }
+          }
+        \fp_flag_off:n { internal }
+        #1 { @@_variable_ \tl_to_str:n {#2} _o:w } \s_@@_stop
+          { \@@_parse:n { \l_@@_internal_fp } }
+        \fp_if_flag_on:nT { internal }
+          {
+            \__msg_kernel_error:nnxxx { fp } { identifier-loop }
+              { \tl_to_str:n {#2} }
+              { \tl_to_str:n {#3} }
+              { \fp_to_tl:N \l_@@_internal_fp }
+          }
+      }
+      { \__msg_kernel_error:nnn { fp } { invalid-identifier } {#2} }
+  }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \subsection{Messages}
 %
 %    \begin{macrocode}
-\__msg_kernel_new:nnnn { fp-symbolic } { word-exists }
-  { Floating~point~word~'#1'~exists. }
+\__msg_kernel_new:nnnn { fp } { invalid-identifier }
+  { Floating~point~identifier~'#1'~invalid. }
   {
-    The~word~'#1'~already~has~a~meaning~in~floating~point~expressions,~
-    and~it~cannot~be~defined~again.
+    \c_msg_coding_error_text_tl
+    LaTeX~has~been~asked~to~create~a~new~floating~point~identifier~'#1'~
+    but~this~may~only~contain~ASCII~letters.
+  }
+\__msg_kernel_new:nnnn { fp } { identifier-already-defined }
+  { Floating~point~identifier~'#1'~already~defined. }
+  {
+    \c_msg_coding_error_text_tl
+    LaTeX~has~been~asked~to~create~a~new~floating~point~identifier~'#1'~
+    but~this~name~has~already~been~used~elsewhere.
+  }
+\__msg_kernel_new:nnnn { fp } { identifier-loop }
+  { Variable~'#1'~used~in~'#1's~definition. }
+  {
+    \c_msg_coding_error_text_tl
+    LaTeX~has~been~asked~to~set~the~floating~point~identifier~'#1'~
+    to~the~expression~'#2'.~Evaluting~this~expression~yields~'#3',~
+    which~contains~'#1'~itself.
   }
 %    \end{macrocode}
 %
