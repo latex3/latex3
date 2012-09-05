@@ -78,6 +78,10 @@ rem Makefile for LaTeX3 "xfrac" files
 
 :main
 
+  rem Cross-compatibility with *nix
+  
+  if /i [%1] == [-s] shift
+
   if /i [%1] == [check]        goto check
   if /i [%1] == [clean]        goto clean
   if /i [%1] == [cleanall]     goto clean
