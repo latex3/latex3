@@ -82,6 +82,10 @@ rem Makefile for LaTeX3 "l3kernel" files
 
 :main
 
+  rem Cross-compatibility with *nix
+  
+  if /i [%1] == [-s] shift
+
   if /i [%1] == [check]        goto check
   if /i [%1] == [checkcmd]     goto checkcmd
   if /i [%1] == [checkcmds]    goto checkcmds
