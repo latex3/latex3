@@ -608,10 +608,10 @@ rem Makefile for LaTeX3 "l3kernel" files
 :tds
 
   call :zip
-  if errorlevel 1 goto :end
+  if errorlevel 1 goto :EOF
 
   call :sourcedoc
-  if errorlevel 1 goto :end
+  if errorlevel 1 goto :EOF
 
   echo.
   echo Creating archive
@@ -662,23 +662,27 @@ rem Makefile for LaTeX3 "l3kernel" files
 
 :zip
 
-  if not defined ZIPFLAG set ZIPFLAG=-r -q -X -ll
+  set PATHCOPY=%PATH%
 
-  if defined ZIPEXE goto :end
+:zip-loop
 
-  for %%I in (zip.exe "%~dp0zip.exe") do (
-    if not defined ZIPEXE if exist %%I set ZIPEXE=%%I
+  rem Search for INFO-Zip, or another similar tool
+
+  if defined ZIPEXE goto :EOF
+
+  for /f "delims=; tokens=1,2*" %%I in ("%PATHCOPY%") do (
+    if exist "%%I\zip.exe" (
+      set ZIPEXE=zip
+      set ZIPFLAG=-ll -q -r -X
+    )
+    set PATHCOPY=%%J;%%K
   )
-
-  for %%I in (zip.exe) do (
-    if not defined ZIPEXE set ZIPEXE="%%~$PATH:I"
-  )
+  if not "%PATHCOPY%" == ";" goto :zip-loop
 
   if not defined ZIPEXE (
     echo.
-    echo This procedure requires a zip program,
-    echo but one could not be found.
-    echo.
+    echo This procedure requires a zip program, but one could not be found.
+    echo
     echo If you do have a command-line zip program installed,
     echo set ZIPEXE to the full executable path and ZIPFLAG to the
     echo appropriate flag to create an archive.
