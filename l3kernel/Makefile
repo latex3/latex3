@@ -503,6 +503,7 @@ tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).markdown) sourcedoc
 	mkdir -p $(TDSDIR)/tex/$(PACKAGEROOT)/
 	cd $(TESTDIR) ; \
 	cp -f *.cls $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
+	cp -f *.def $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
 	cp -f l3docstrip.tex $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
 	cp -f *.dtx $(TDSDIR)/source/$(PACKAGEROOT)/ ; \
 	cp -f *.ist $(TDSDIR)/makeindex/$(PACKAGE)/ ; \
