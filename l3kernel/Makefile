@@ -368,11 +368,6 @@ checktest: support unpack
 	  pdflatex --interaction=batchmode "\PassOptionsToClass{checktest}{l3doc} \input $$I.dtx" ; \
 	done
 
-test: support unpack
-	@echo "Checking functions in $$F.dtx have tests" ; \
-	cd $(TESTDIR) ; \
-        pdflatex --interaction=batchmode "\PassOptionsToClass{checktest}{l3doc} \input $$F.dtx" ; \
-
 checkdoc: unpack
 	echo "Checking compilation"
 	cd $(TESTDIR) ; \
@@ -526,6 +521,11 @@ tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).markdown) sourcedoc
 	zip -ll -q -r -X $(PACKAGE).tds.zip .
 	cd $(TESTDIR) ; \
 	cp $(TDSDIR)/$(PACKAGE).tds.zip ./
+	
+test: support unpack
+	@echo "Checking functions in $$F.dtx have tests" ; \
+	cd $(TESTDIR) ; \
+        pdflatex --interaction=batchmode "\PassOptionsToClass{checktest}{l3doc} \input $$F.dtx" ; \
 
 unpack: $(foreach FILE,$(DTX) $(UNPACK),$(TESTDIR)/$(FILE))
 	echo "Unpacking files"
