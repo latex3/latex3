@@ -955,6 +955,14 @@
 % The \texttt{native-drivers} option instructs \LaTeX3 not to use the \LaTeXe{}
 % graphics driver code. Setting this option \texttt{true} uses the
 % driver code intended for a \LaTeX3 format.
+% 
+% \DescribeOption{driver}
+% When \texttt{native-drivers = true}, it is possible to aid \LaTeX3 in
+% selecting the correct driver to use. The \texttt{driver} option recognises
+% four values: \texttt{dvipdfmx}, \texttt{dvips}, \texttt{pdfmode} and
+% \texttt{xdvipdfmx}. If appropriate, this will be used to load the correct
+% driver code. In DVI-output mode, the \texttt{dvips} driver will be selected
+% if no \texttt{driver} option is given.
 %
 % \section{The \LaTeX3 Project}
 %
@@ -1035,13 +1043,14 @@
 % \begin{variable}[int]
 %   {
 %     \l@expl@check@declarations@bool ,
-%     \l@expl@log@functions@bool      ,
-%     \l@expl@native@drivers@bool
+%     \l@expl@log@functions@bool
 %   }
-% \begin{variable}[int]{\l@expl@driver@tl}
+% \begin{variable}[int]{\l@expl@options@tl}
 %   Options to be set up.
 %   These have to be done by hand as there is no \pkg{expl3} yet: the logging
-%   option is needed before loading \pkg{l3basics}!
+%   option is needed before loading \pkg{l3basics}! Only a minimal set of
+%   options are handled here: others are left for a proper key--value approach
+%   once the kernel is loaded.
 %    \begin{macrocode}
 \newcommand \expl@create@bool@option [ 2 ]
   {
@@ -1052,22 +1061,16 @@
   }
 \expl@create@bool@option { check-declarations } \l@expl@check@declarations@bool
 \expl@create@bool@option { log-functions }      \l@expl@log@functions@bool
-\expl@create@bool@option { native-drivers }     \l@expl@native@drivers@bool
 \let \expl@create@bool@option \@undefined
-%    \end{macrocode}
-%   Set up the \texttt{driver} option: only the
-%   \texttt{dvips}/\texttt{dvipdfmx} choice is meaningful, but for consistency
-%   set up all of the drivers we define.
-%    \begin{macrocode}
-\newcommand* \l@expl@driver@tl { }
-\DeclareOption { driver = dvipdfmx }
-  { \renewcommand* \l@expl@driver@tl { dvipdfmx } }
-\DeclareOption { driver = dvips }
-  { \renewcommand* \l@expl@driver@tl { dvips } }
-\DeclareOption { driver = pdfmode }
-  { \renewcommand* \l@expl@driver@tl { pdfmode } }
-\DeclareOption { driver = xdvipdfmx }
-  { \renewcommand* \l@expl@driver@tl { xdvipdfmx } }
+\newcommand* \l@expl@options@tl { }
+\DeclareOption*
+  {
+    \ifx \l@expl@options@tl \@empty
+      \let \l@expl@options@tl \CurrentOption
+    \else
+      \edef \l@expl@options@tl { \l@expl@options@tl , \CurrentOption }
+    \fi
+  }
 \ProcessOptions \relax
 %    \end{macrocode}
 % \end{variable}
@@ -1268,10 +1271,33 @@
   }
 %    \end{macrocode}
 % \end{macro}
+% 
+% \begin{variable}[int]{\l__expl_driver_tl}
+% \begin{variable}[int]{\l__expl_native_drivers_bool}
+%   With the code now loaded, options can be handled using a real key--value
+%   interpreter. The \enquote{faked} options are also included so that any
+%   erroneous input will be mopped up (\emph{e.g.}~\texttt{log-function =
+%   foo}).
+%    \begin{macrocode}
+\tl_new:N \g_expl_driver_tl
+\keys_define:nn { expl }
+  {
+    check-declarations .bool_set:N = \l@expl@check@declarations@bool,
+    driver             .choices:nn =
+      { dvipdfmx , dvips , pdfmode , xdvipdfmx }
+      { \tl_set_eq:NN \l_expl_driver_tl \l__keys_choice_tl },
+    log-functions      .bool_set:N = \l@expl@log@functions@bool,
+    native-drivers     .bool_set:N = \l__expl_native_drivers_bool,
+    native-drivers     .initial:n  = false
+  }
+\keys_set:nV { expl } \l@expl@options@tl
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
 %
 %   If the native drivers are being used, they can be loaded now.
 %    \begin{macrocode}
-\bool_if:nTF { \l@expl@native@drivers@bool }
+\bool_if:NTF \l__expl_native_drivers_bool
   {
     \xetex_if_engine:TF
       { \file_input:n { l3xdvipdfmx.def } }
@@ -1280,7 +1306,7 @@
         \ifpdf
           \file_input:n { l3pdfmode.def }
         \else
-          \str_if_eq:xxTF { \l@expl@driver@tl } { dvipdfmx }
+          \str_if_eq:nVTF { dvipdfmx } \l__expl_driver_tl 
             { \file_input:n { l3dvipdfmx.def } }
             { \file_input:n { l3dvips.def } }
         \fi
