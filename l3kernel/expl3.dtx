@@ -950,19 +950,21 @@
 % purposes, as it means that there is a complete list of all functions
 % created by each module loaded (with the exceptions of a very small number
 % required by the bootstrap code for \LaTeX3).
-%
-% \DescribeOption{native-drivers}
-% The \texttt{native-drivers} option instructs \LaTeX3 not to use the \LaTeXe{}
-% graphics driver code. Setting this option \texttt{true} uses the
-% driver code intended for a \LaTeX3 format.
 % 
 % \DescribeOption{driver}
-% When \texttt{native-drivers = true}, it is possible to aid \LaTeX3 in
-% selecting the correct driver to use. The \texttt{driver} option recognises
-% four values: \texttt{dvipdfmx}, \texttt{dvips}, \texttt{pdfmode} and
-% \texttt{xdvipdfmx}. If appropriate, this will be used to load the correct
-% driver code. In DVI-output mode, the \texttt{dvips} driver will be selected
-% if no \texttt{driver} option is given.
+% Selects the driver to be used for color, graphics and related operations that
+% are driver-dependent. Options available are
+% \begin{itemize}[font = \texttt]
+%   \item[latex2e] Use the \pkg{graphics} package to select the driver, rather
+%     than \LaTeX3 code. This is the standard setting.
+%   \item[auto] Let \LaTeX3 determine the correct driver. With DVI output, this
+%     will select the \texttt{dvips} back-end.
+%   \item[dvips] Use the \texttt{dvips} driver.
+%   \item[dvipdfmx] Use the \texttt{dvipdfmx} driver.
+%   \item[pdfmode] Use the \texttt{pdfmode} driver (direct PDF output from
+%     \pdfTeX{} or \LuaTeX{}).
+%   \item[xdvipdfmx] Use the \texttt{xdvipdfmx} driver (\XeTeX{} only).
+% \end{itemize}
 %
 % \section{The \LaTeX3 Project}
 %
@@ -1283,45 +1285,121 @@
 %   With the code now loaded, options can be handled using a real key--value
 %   interpreter. The \enquote{faked} options are also included so that any
 %   erroneous input will be mopped up (\emph{e.g.}~\texttt{log-function =
-%   foo}).
+%   foo}). The checks on driver choice are set up here, so when actually
+%   the driver it's a straight forward operation.
 %    \begin{macrocode}
+\RequirePackage{ifpdf}
+\__msg_kernel_new:nnnn { expl } { wrong-driver }
+  { Driver~request~inconsistent~with~engine:~using~'#2'~driver. }
+  {
+    You~have~requested~driver~'#1',~but~this~is~not~suitable~for~use~with~the~
+    active~engine.~LaTeX3~will~use~the~'#2'~driver~instead.
+  }
 \tl_new:N \l__expl_driver_tl
 \keys_define:nn { expl }
   {
+    driver .choice:,
+    driver / auto .code:n =
+      {
+        \xetex_if_engine:TF
+          { \tl_set:Nn \l__expl_driver_tl { xdvipdfmx } }
+          {
+            \ifpdf
+              \tl_set:Nn \l__expl_driver_tl { pdfmode }
+            \else
+              \tl_set:Nn \l__expl_driver_tl { dvips }
+            \fi
+          }
+      },
+    driver / dvipdfmx .code:n =
+      {
+        \tl_set:Nn \l__expl_driver_tl { dvipdfmx }
+        \xetex_if_engine:TF
+          {
+            \__msg_kernel_error:nnnn { expl } { wrong-driver }
+              { dvipdfmx } { xdvipdfmx }
+            \tl_set:Nn \l__expl_driver_tl { xdvipdmx }
+          }
+          {
+            \ifpdf
+              \__msg_kernel_error:nnnn { expl } { wrong-driver }
+                { dvipdfmx } { pdfmode }
+              \tl_set:Nn \l__expl_driver_tl { pdfmode }
+            \fi
+          }
+      },
+    driver / dvips .code:n =
+      {
+        \tl_set:Nn \l__expl_driver_tl { dvips }
+        \xetex_if_engine:TF
+          {
+            \__msg_kernel_error:nnnn { expl } { wrong-driver }
+              { dvips } { xdvipdfmx }
+            \tl_set:Nn \l__expl_driver_tl { xdvipdfmx }
+          }
+          {
+            \ifpdf
+              \__msg_kernel_error:nnnn { expl } { wrong-driver }
+                { dvips } { pdfmode }
+              \tl_set:Nn \l__expl_driver_tl { pdfmode }
+            \fi
+          }
+      },
+    driver / latex2e .code:n =
+      { \tl_set:Nn \l__expl_driver_tl { latex2e } },
+    driver / pdfmode .code:n =
+      {
+        \tl_set:Nn \l__expl_driver_tl { pdfmode }
+        \xetex_if_engine:TF
+          {
+            \__msg_kernel_error:nnnn { expl } { wrong-driver }
+              { pdfmode } { xdvipdfmx }
+            \tl_set:Nn \l__expl_driver_tl { xdvipdfmx }
+          }
+          {
+            \ifpdf
+            \else
+              \__msg_kernel_error:nnnn { expl } { wrong-driver }
+                { pdfmode } { dvips }
+              \tl_set:Nn \l__expl_driver_tl { dvips }
+            \fi
+          }
+      },
+    driver / xdvipdfmx .code:n =
+      {
+        \tl_set:Nn \l__expl_driver_tl { xdvipdfmx }
+        \xetex_if_engine:F
+          {
+            \ifpdf
+              \__msg_kernel_error:nnnn { expl } { wrong-driver }
+                { xdvipdfmx } { pdfmode }
+              \tl_set:Nn \l__expl_driver_tl { pdfmode }
+            \else
+              \__msg_kernel_error:nnnn { expl } { wrong-driver }
+                { xdvipdfmx } { dvips }
+              \tl_set:Nn \l__expl_driver_tl { dvips }
+            \fi
+          }
+      },
+    driver         .initial:n      = { latex2e } ,
+    native-drivers .choice:,
+    native-drivers .default:n      = { true },
+    native-drivers / false .meta:n = { driver = latex2e },
+    native-drivers / true  .meta:n = { driver = auto }
+  }
+%    \end{macrocode}
+%   Mop up any incorrect settings for the other options.
+%    \begin{macrocode}
+\keys_define:nn { expl }
+  {
     check-declarations .bool_set:N = \l@expl@check@declarations@bool,
-    driver             .choices:nn =
-      { dvipdfmx , dvips , pdfmode , xdvipdfmx }
-      { \tl_set_eq:NN \l__expl_driver_tl \l_keys_choice_tl },
-    log-functions      .bool_set:N = \l@expl@log@functions@bool,
-    native-drivers     .bool_set:N = \l__expl_native_drivers_bool,
-    native-drivers     .initial:n  = false
+    log-functions      .bool_set:N = \l@expl@log@functions@bool
   }
 \keys_set:nV { expl } \l@expl@options@clist
 %    \end{macrocode}
 % \end{variable}
 % \end{variable}
 %
-% \begin{variable}[int]{\c__expl_def_ext_tl}
-%   If the native drivers are being used, they can be loaded now.
-%    \begin{macrocode}
-\tl_const:Nn \c__expl_def_ext_tl { def }
-\bool_if:NTF \l__expl_native_drivers_bool
-  {
-    \xetex_if_engine:TF
-      { \@onefilewithoptions { l3xdvipdfmx } [ ] [ ] \c__expl_def_ext_tl }
-      {
-        \RequirePackage { ifpdf }
-        \ifpdf
-          \@onefilewithoptions { l3pdfmode } [ ] [ ] \c__expl_def_ext_tl
-        \else
-          \str_if_eq:nVTF { dvipdfmx } \l__expl_driver_tl
-            { \@onefilewithoptions { l3dvipdfmx } [ ] [ ] \c__expl_def_ext_tl }
-            { \@onefilewithoptions { l3dvips } [ ] [ ] \c__expl_def_ext_tl }
-        \fi
-      }
-  }
-%    \end{macrocode}
-% \end{variable}
 % \begin{macro}
 %   {
 %     \box_rotate:Nn,
@@ -1330,11 +1408,13 @@
 %     \box_resize_to_wd:Nn,
 %     \box_scale:Nnn
 %   }
-%   If not, alter various definitions to use the \pkg{graphics} package
+%   For the \LaTeXe{} drivers, 
+%   alter various definitions to use the \pkg{graphics} package
 %   instead. The package is loaded right at the start of the hook
 %   as there is otherwise a potential issue with \pkg{(x)color}: see
 %   \url{http://groups.google.com/group/comp.text.tex/msg/c9de8913c756ef4c}.
 %    \begin{macrocode}
+\str_if_eq:nVTF { latex2e } \l__expl_driver_tl
   {
     \tl_gput_left:Nn \@begindocumenthook { \RequirePackage { graphics } }
     \__msg_kernel_new:nnnn { box } { clipping-not-available }
@@ -1388,6 +1468,15 @@
   }
 %    \end{macrocode}
 % \end{macro}
+% \begin{variable}[int]{\c__expl_def_ext_tl}
+%   For native drivers, just load the appropriate file.
+%    \begin{macrocode}
+  {
+    \tl_const:Nn \c__expl_def_ext_tl { def }
+    \@onefilewithoptions { l3 \l__expl_driver_tl } [ ] [ ] \c__expl_def_ext_tl
+  }
+%    \end{macrocode}
+% \end{variable}
 %
 % \begin{macro}{\ExplSyntaxOff, \ExplSyntaxOn}
 %   These are redefined here to reduce unnecessary work when switching.
