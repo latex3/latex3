@@ -85,10 +85,12 @@ UNPACK    = l3.ins l3doc.dtx
 # Files for the check systems                                #
 ##############################################################
 
-CHECKFILES = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/m3*.tlg)))
-SCRIPTS    = log2tlg
-TESTAUX    = filetest.txt
-VALIDATE   = commands-check.tex regression-test.tex
+CHECKFILES  = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/m3*.tlg)))
+DRIVERFILES = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/d3*.tlg)))
+SCRIPTS     = log2tlg
+TESTAUX     = filetest.txt
+TESTINPUT   = driver.tex
+VALIDATE    = commands-check.tex regression-test.tex
 
 ##############################################################
 # Clean-up information                                       #
@@ -170,6 +172,9 @@ $(TESTAUXDIR)/%.txt: $(TESTFILEDIR)/%.txt
 ################################################################
 
 $(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
+	@cp -fp $< $@
+	
+$(TESTDIR)/driver.tex: $(TESTFILEDIR)/driver.tex
 	@cp -fp $< $@
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
@@ -275,6 +280,7 @@ $(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex $(TESTDIR)/source3body.tex $(TEST
 support: \
 	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
 	$(foreach FILE,$(TESTAUX),$(TESTAUXDIR)/$(FILE)) \
+	$(foreach FILE,$(TESTINPUT),$(TESTDIR)/$(FILE)) \
 	$(foreach FILE,$(VALIDATE),$(TESTDIR)/$(FILE))
 
 ################################################################
@@ -302,8 +308,8 @@ support: \
 alldoc: $(foreach FILE,$(DTXFILES),$(TESTDIR)/$(FILE).pdf) source3.pdf
 
 check: \
-	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).lvt) \
-	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).tlg) \
+	$(foreach FILE,$(CHECKFILES) $(DRIVERFILES),$(TESTDIR)/$(FILE).lvt) \
+	$(foreach FILE,$(CHECKFILES) $(DRIVERFILES),$(TESTDIR)/$(FILE).tlg) \
 	support unpack
 	echo "Running checks on"
 	cd $(TESTDIR) ; \
@@ -314,6 +320,23 @@ check: \
 	  echo "  $$I" ; \
 	  pdflatex $$I.lvt > /dev/null ; \
 	  pdflatex $$I.lvt > /dev/null ; \
+	  perl $(SCRIPTDIR)/log2tlg $$I < $$I.log > $$I.new.log ; \
+	  if !(cmp -s $$I.tlg $$I.new.log) ; then \
+	    diff -c $$I.tlg $$I.new.log > $$I.diff ; \
+	  fi ; \
+	  for J in $(AUXFILES) lvt pdf tlg ; do \
+	    rm -f $$I.$$J ; \
+	  done ; \
+	done ; \
+	echo " d3dvipdfmx" ; \
+	latex d3dvipdfmx.lvt > /dev/null ; \
+	echo " d3dvips" ; \
+	latex d3dvips.lvt > /dev/null ; \
+	echo " d3pdfmode" ; \
+	pdflatex d3pdfmode.lvt > /dev/null ; \
+	echo " d3xdvipdfmx" ; \
+	xelatex d3xdvipdfmx.lvt > /dev/null ; \
+	for I in $(DRIVERFILES) ; do \
 	  perl $(SCRIPTDIR)/log2tlg $$I < $$I.log > $$I.new.log ; \
 	  if !(cmp -s $$I.tlg $$I.new.log) ; then \
 	    diff -c $$I.tlg $$I.new.log > $$I.diff ; \

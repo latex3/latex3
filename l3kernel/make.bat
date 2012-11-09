@@ -120,10 +120,23 @@ rem Makefile for LaTeX3 "l3kernel" files
   echo.
   echo Running checks on
 
-  for %%I in (*.tlg) do (
+  for %%I in (m3*.tlg) do (
     echo   %%~nI
-    call :check-aux-2 %%~nI
+ rem   call :check-aux-2 %%~nI
   )
+  
+  echo   d3dvipdfmx
+  latex d3dvipdfmx.lvt %REDIRECT%
+  call :check-aux-3 d3dvipdfmx
+  echo   d3dvips
+  latex d3dvips.lvt %REDIRECT%
+  call :check-aux-3 d3dvips
+  echo   d3pdfmode
+  pdflatex d3pdfmode.lvt %REDIRECT%
+  call :check-aux-3 d3pdfmode
+  echo   d3xdvipdfmx
+  xelatex d3xdvipdfmx.lvt %REDIRECT%
+  call :check-aux-3 d3xdvipdfmx
 
   for %%I in (*.fc) do (
     for /f "skip=1 tokens=1" %%J in (%%~nI.fc) do (
@@ -175,6 +188,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   for %%I in (regression-test.tex) do (
     copy /y %VALIDATE%\%%I > nul
   )
+  copy /y %CHECKDIR%\driver.tex > nul
 
   goto :EOF
 
@@ -182,7 +196,14 @@ rem Makefile for LaTeX3 "l3kernel" files
 
   for /l %%I in (1,1,%CHECKRUNS%) do (
       %CHECKEXE% %1.lvt %REDIRECT%
-    )
+  )
+    
+  call :check-aux-3 %1
+
+  goto :EOF
+  
+:check-aux-3
+
   %PERLEXE% log2tlg %1 < %1.log > %1.new.log
   del /q %1.log > nul
   ren %1.new.log %~n1.log > nul
@@ -328,7 +349,7 @@ rem Makefile for LaTeX3 "l3kernel" files
     if exist *.%%I del /q *.%%I
   )
 
-  for %%I in (log2tlg commands-check.tex regression-test.tex) do (
+  for %%I in (log2tlg commands-check.tex driver.tex regression-test.tex) do (
     if exist %%I del /q %%I
   )
 
