@@ -122,7 +122,7 @@ rem Makefile for LaTeX3 "l3kernel" files
 
   for %%I in (m3*.tlg) do (
     echo   %%~nI
- rem   call :check-aux-2 %%~nI
+    call :check-aux-2 %%~nI
   )
   
   echo   d3dvipdfmx
