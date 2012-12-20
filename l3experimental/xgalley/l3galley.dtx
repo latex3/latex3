@@ -268,6 +268,24 @@
 %   ongoing basis within the scope of the current \TeX{} group.
 % \end{function}
 %
+% \begin{function}
+%   {
+%     \galley_cutout_left:nn,
+%     \galley_cutout_right:nn
+%   }
+%   \begin{syntax}
+%     \cs{galley_cutout_left:nn} \Arg{unaltered lines} \Arg{indents}
+%     \cs{galley_cutout_right:nn} \Arg{unaltered lines} \Arg{indents}
+%   \end{syntax}
+%   Adds a cutout section to the active paragraph shape, leaving
+%   \meta{unaltered lines} unchanged and then applying the \meta{indents}
+%   (a comma list). The cutout will be places on the left or right as indicated
+%   by the function name, and will apply to exactly the number of lines
+%   specified (the total of the \meta{unaltered lines} and the number of
+%   entries in the \meta{indents} list). Several cutouts may be applied
+%   sequentially: these act in an additive sense.
+% \end{function}
+%
 % \subsection{Formatting inside the paragraph}
 %
 % The settings described here apply \enquote{inside} the paragraph, and so
@@ -673,6 +691,13 @@
 %
 % Functions or settings which are needed by the galley but perhaps also
 % elsewhere.
+% 
+% \begin{macro}{\seq_map_function:Nc}
+%   Used to allow a mapping to choose the outcome using a passed option.
+%    \begin{macrocode}
+\cs_generate_variant:Nn \seq_map_function:NN { Nc }
+%    \end{macrocode}
+% \end{macro}
 %
 % The default hyphenation character should be set and hyphenation should be
 % enabled.
@@ -681,6 +706,22 @@
 \tex_defaulthyphenchar:D 45 \scan_stop:
 %</initex>
 %    \end{macrocode}
+%    
+% \subsection{Scratch variables}
+%
+% \begin{variable}{\l_@@_tmp_int}
+% \begin{variable}{\l_@@_tmpa_seq, \l_@@_tmpb_seq}
+% \begin{variable}{\l_@@_tmpa_tl}
+%   Used for manipulating cutouts and paragraph shapes.
+%    \begin{macrocode}
+\int_new:N \l_@@_tmp_int
+\seq_new:N \l_@@_tmpa_seq
+\seq_new:N \l_@@_tmpb_seq
+\tl_new:N \l_@@_tmp_tl
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
+% \end{variable}
 %
 % \subsection{Galley settings}
 %
@@ -1582,15 +1623,44 @@
 % \end{macro}
 % 
 % \begin{macro}{\@@_parshape_reset:}
-%   Test for paragraph shapes to be removed. At present, this just covers the
-%   basic case of a single paragraph shape.
+%   Test for paragraph shapes to be removed: a multi-step procedure! First,
+%   check to see if there is a shape at all. If there is, the second check
+%   looks for cutouts. If there are no cutouts to worry about, the final
+%   check is whether the current shape applies to one paragraph or on an
+%   ongoing sense.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \@@_parshape_reset:
   {
     \int_compare:nNnF \tex_parshape:D = \c_zero
       {
-        \bool_if:NF \l_@@_parshape_multipar_bool
-          { \@@_parshape_measure: }
+        \bool_if:nTF
+          { 
+               \seq_if_empty_p:N \g_@@_cutout_left_seq
+            && \seq_if_empty_p:N \g_@@_cutout_right_seq 
+          }
+          {
+            \bool_if:NF \l_@@_parshape_multipar_bool
+              { \@@_parshape_measure: }
+          }
+%    \end{macrocode}
+%   If there was a cutout active, the \enquote{done} part is removed from
+%   the tracking sequences. The \enquote{normal} paragraph shape is then
+%   reapplied before removing the cutout parts. This is done using separate
+%   loops as in general that is as easy as trying to work out all of the
+%   parts in advance (the same number of loops would still be needed).
+%    \begin{macrocode}
+          {
+            \prg_replicate:nn \g@@_previous_par_lines_int
+              {
+                \seq_gpop:NN \g_@@_cutout_left_seq \l_@@_tmp_tl
+                \seq_gpop:NN \g_@@_cutout_right_seq \l_@@_tmp_tl
+              }
+            \bool_if:NTF \l_@@_parshape_multipar_bool
+              { \@@_parshape_set: }
+              { \@@_parshape_measure: }
+            \@@_cutout_set:Nn \g_@@_cutout_left_seq { left }
+            \@@_cutout_set:Nn \g_@@_cutout_right_seq { right } 
+          }
       }    
   }
 %    \end{macrocode}
@@ -1685,6 +1755,172 @@
     \__dim_eval_end:
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% 
+% \subsection{Cutouts}
+% 
+% Cutouts are another way of looking at paragraph shapes, but apply to
+% a fixed number of lines within a galley. As such, they require separate
+% handling from the measure and shape.
+% 
+% \begin{macro}{\galley_cutout_left:nn, \galley_cutout_right:nn}
+% \begin{macro}[int]{\@@_cutout:nnn}
+% \begin{macro}[aux]{\@@_cutout_store:nn}
+% \begin{macro}[int]{\@@_cutout_set:Nn}
+% \begin{macro}[aux]{\@@_cutout_left:n, \@@_cutout_right:n, \@@_cutout_end:n}
+%   Setting up cutouts on the two sides of the paragraph is more or less
+%   the same idea with one or two very specific points of difference. As such,
+%   the two interface functions both use the same implementation.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \galley_cutout_left:nn
+  { \@@_cutout:nnn { left } }
+\cs_new_protected_nopar:Npn \galley_cutout_right:nn
+  { \@@_cutout:nnn { right } }
+%    \end{macrocode}
+%   The approach in the main function is first to construct a single sequence
+%   which contains details of all of the altered lines. This sequence is then
+%   used by \cs{@@_cutout_set:Nn}, which actually applies the cutout to the
+%   current paragraph shape. One that is done, information on the cutout just
+%   applied is merged with the global cutout store: this needs to allow for
+%   different cutout lengths. The best way to do that is to loop over whichever
+%   list is longer, build a new list of the result and the copy this back to
+%   the store.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_cutout:nnn #1#2#3
+  {
+    \seq_set_from_clist:Nn \l_@@_tmpa_seq {#3}
+    \prg_replicate:nn {#2}
+      { \seq_put_left:Nn \l_@@_tmpa_seq { 0 pt } }
+    \@@_cutout_set:Nn \l_@@_tmpa_seq {#1}
+    \seq_clear:N \l_@@_tmpb_seq
+    \int_compare:nNnTF
+      { \seq_count:N \l_@@_tmpa_seq } >
+        { \seq_count:c { g_@@_cutout_ #1 _ seq }  }
+      {
+        \seq_map_inline:Nn \l_@@_tmpa_seq
+          { 
+            \@@_cutout_store:nn
+              { \seq_gpop:cNF { g_@@_cutout_ #1 _ seq } }
+              {##1}
+          }
+      }
+      {
+        \seq_map_inline:cn { g_@@_cutout_ #1 _ seq }
+          { 
+            \@@_cutout_store:nn
+              { \seq_pop:NNF \l_@@_tmpa_seq }
+              {##1}
+          }
+      }
+    \seq_gset_eq:cN { g_@@_cutout_ #1 _ seq } \l_@@_tmpb_seq
+  }
+\cs_new_protected:Npn \@@_cutout_store:nn #1#2
+  {
+    #1 \l_@@_tmp_tl
+      { \tl_set:Nn \l_@@_tmp_tl { 0 pt } }
+    \seq_put_right:Nx \l_@@_tmpb_seq
+      { \dim_eval:n { \l_@@_tmp_tl + #2 } }
+  }
+%    \end{macrocode}
+%   Actually applying a cutout is done by using the sequence containing the
+%   cutout shape plus the current paragraph shape to construct a token list
+%   of the required indents and line lengths. That is done in a
+%   non-expansion way to allow for the two different kinds of mapping (to the
+%   sequence and to the parshape). At the end of the process, there is a need
+%   to allow for the last line of \tn{parshape}: depending on any existing
+%   shape and the length of the cutout, this might be the measure or a
+%   repeat of the last values in the shape.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_cutout_set:Nn #1#2
+  {
+    \int_zero:N \l_@@_tmp_int
+    \tl_clear:N \l_@@_tmp_tl
+    \seq_map_function:Nc #1 { _@@_cutout_ #2 :n }
+    \int_compare:nNnTF \tex_parshape:D > \l_@@_tmp_int
+      {
+        \int_step_function:nnnN
+          { \l_@@_tmp_int + \c_one }
+          \c_one
+          \tex_parshape:D
+          \@@_cutout_end:n
+      }
+      {
+        \int_incr:N \l_@@_tmp_int
+        \int_compare:nNnTF \tex_parshape:D = \c_zero
+          {
+            \tl_put_right:Nn \l_@@_tmp_tl
+             { \l@@_total_left_margin_dim \l@@_text_width_dim }
+          }
+          {
+            \tl_put_right:Nx \l_@@_tmp_tl
+              {
+                \dim_eval:n { \etex_parshapeindent:D \tex_parshape:D }
+                \c_space_tl
+                \dim_eval:n { \etex_parshapelength:D \tex_parshape:D }
+                \c_space_tl
+              }
+          }
+      }
+    \tex_parshape:D
+      \l_@@_tmp_int
+      \l_@@_tmp_tl
+  }
+%    \end{macrocode}
+%   The only place where the position of the cutout matters is in working out
+%   the indent and line lengths. That's achieved using two separate auxiliaries
+%   and selection by name.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_cutout_left:n #1
+  {
+    \int_incr:N \l_@@_tmp_int
+    \tl_put_right:Nx \l_@@_tmp_tl
+      {
+        \int_compare:nNnTF \l_@@_tmp_int > \tex_parshape:D
+          {
+            \dim_eval:n { \l@@_total_left_margin_dim + ( #1 ) }
+            \c_space_tl
+            \dim_eval:n { \l@@_text_width_dim - ( #1 ) }
+            \c_space_tl
+          }
+          {
+            \dim_eval:n { \etex_parshapeindent:D \l_@@_tmp_int + ( #1 ) }
+            \c_space_tl
+            \dim_eval:n { \etex_parshapelength:D \l_@@_tmp_int - ( #1 ) }
+            \c_space_tl
+          } 
+      }
+  }
+\cs_new_protected:Npn \@@_cutout_right:n #1
+  {
+    \int_incr:N \l_@@_tmp_int
+    \tl_put_right:Nx \l_@@_tmp_tl
+      { 
+        \dim_eval:n { \etex_parshapeindent:D \l_@@_tmp_int }
+        \c_space_tl
+        \dim_eval:n { \etex_parshapelength:D \l_@@_tmp_int - ( #1 ) }
+        \c_space_tl
+      }
+  }
+%    \end{macrocode}
+%   An auxiliary to \enquote{recycle} the paragraph shape which is already
+%   active \emph{if} the cutout is shorter.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_cutout_end:n #1
+  {
+    \int_incr:N \l_@@_tmp_int
+    \tl_put_right:Nx \l_@@_tmp_tl
+      { 
+        \dim_eval:n { \etex_parshapeindent:D #1 }
+        \c_space_tl
+        \dim_eval:n { \etex_parshapelength:D #1 }
+        \c_space_tl
+      }    
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
