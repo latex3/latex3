@@ -74,7 +74,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   set CTANROOT=ctan
   set ENGINE=pdftex
   set MARKDOWN=README
-  set INCLUDEPDF=expl3 interface3 l3dostrip l3styleguide l3syntax-changes source3
+  set INCLUDEPDF=expl3 interface3 l3docstrip l3styleguide l3syntax-changes source3
   set TDSFILES=%CTANFILES% cls def sty
   set TDSROOT=tds
 
