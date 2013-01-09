@@ -437,23 +437,34 @@
 %   surrounding each \meta{key}.
 % \end{variable}
 %
-% \begin{function}[updated = 2013-01-07]{\__prop_split:NnTF}
+% \begin{variable}{\l__prop_internal_tl}
+%   Token list used to store new key--value pairs to be inserted by
+%   functions of the \cs{prop_put:Nnn} family.
+% \end{variable}
+%
+% \begin{function}[updated = 2013-01-08]{\__prop_split:NnTF}
 %   \begin{syntax}
 %     \cs{__prop_split:NnTF} \meta{property list} \Arg{key} \Arg{true code} \Arg{false code}
 %   \end{syntax}
 %   Splits the \meta{property list} at the \meta{key}, giving three
-%   groups: the \meta{extract} of \meta{property list} before the
+%   token lists: the \meta{extract} of \meta{property list} before the
 %   \meta{key}, the \meta{value} associated with the \meta{key} and the
 %   \meta{extract} of the \meta{property list} after the \meta{value}.
 %   Both \meta{extracts} retain the internal structure of a property
 %   list, and the concatenation of the two \meta{extracts} is a
 %   property list.
 %   If the \meta{key} is present in the \meta{property list} then the
-%   \meta{true code} is left in the input stream, followed by the three
-%   groups: thus the \meta{true code} should properly absorb three arguments.
+%   \meta{true code} is left in the input stream, with |#1|, |#2|, and
+%   |#3| replaced by the first \meta{extract}, the \meta{value}, and the
+%   second extract.
 %   If the \meta{key} is not present in the \meta{property list} then
 %   the \meta{false code} is left in the input stream, with no trailing
 %   material.
+%   Both \meta{true code} and \meta{false code} are used in the
+%   replacement text of a macro defined internally, hence macro
+%   parameter characters should be doubled, except |#1|, |#2|, and |#3|
+%   which stand in the \meta{true code} for the three extracts from the
+%   property list.
 %   The \meta{key} comparison takes place as described for \cs{str_if_eq:nn}.
 % \end{function}
 %
@@ -494,6 +505,14 @@
 \__scan_new:N \s_@@
 %    \end{macrocode}
 % \end{macro}
+%
+% \begin{variable}{\l_@@_internal_tl}
+%   Token list used to store the new key--value pair inserted by
+%   \cs{prop_put:Nnn} and friends.
+%    \begin{macrocode}
+\tl_new:N \l_@@_internal_tl
+%    \end{macrocode}
+% \end{variable}
 %
 % \begin{variable}[tested = m3prop004]{\c_empty_prop}
 %   An empty prop is an empty token list.
@@ -569,39 +588,47 @@
 % \subsection{Accessing data in property lists}
 %
 % \begin{macro}[int]{\@@_split:NnTF}
-% \begin{macro}[aux]{\@@_split_aux:NnTF, \@@_split_aux:nnn, \@@_split_aux:w}
+% \begin{macro}[aux]{\@@_split_aux:NnTF}
+% \begin{macro}[aux, EXP]{\@@_split_aux:w}
 %   This function is used by most of the module, and hence must be fast.
-%   The aim here is to split a property list at a given key into the part
-%   before the key--value pair, the value associated with the key and the part
-%   after the key--value pair. To do this, the key is first detokenized (to
-%   avoid repeatedly doing this), then a delimited function is constructed to
-%   match the key.
+%   It receives a \meta{property list}, a \meta{key}, a \meta{true code}
+%   and a \meta{false code}.  The aim is to split the \meta{property
+%     list} at the given \meta{key} into the \meta{extract_1} before the
+%   key--value pair, the \meta{value} associated with the \meta{key} and
+%   the \meta{extract_2} after the key--value pair.  This is done using
+%   a delimited function, whose definition is as follows, where the
+%   \meta{key} is turned into a string.
+%   \begin{quote}
+%     \cs{cs_set:Npn} \cs{@@_split_aux:w} |#1| \\
+%     \quad \cs{s_@@} \meta{key} \cs{s_@@} |#2| \\
+%     \quad |#3| \cs{q_mark} |#4| |#5| \cs{q_stop} \\
+%     \quad |{| |#4| \Arg{true code} \Arg{false code} |}|
+%   \end{quote}
 %
-%   If the key is present in the property list, the auxiliary will match
-%   \meta{extract_1} \cs{s_@@} \meta{detokenized key} \cs{s_@@}
-%   \Arg{value} \meta{extract_2} \cs{q_mark} \meta{function}
-%   \meta{tokens} \cs{q_stop}, where the \meta{function} |##4| is
-%   \cs{@@_split_aux:nnn}, which removes the \texttt{false} branch, and
-%   places the three brace groups |##1|, |##2| and |##3| in front of the
-%   \texttt{true} branch.
+%   If the \meta{key} is present in the property list,
+%   \cs{@@_split_aux:w}'s |#1| is the part before the \meta{key}, |#2|
+%   is the \meta{value}, |#3| is the part after the \meta{key}, |#4| is
+%   \cs{use_i:nn}, and |#5| is additional tokens that we do not care
+%   about.  The \meta{true code} is left in the input stream, and can
+%   use the parameters |#1|, |#2|, |#3| for the three parts of the
+%   property list as desired.
 %
-%   If the key is not there, then the \meta{function} is
-%   \cs{use_iii:nnn}, which keeps the \texttt{false} branch and removes
-%   everything else.
+%   If the \meta{key} is not there, then the \meta{function} is
+%   \cs{use_ii:nn}, which keeps the \meta{false code}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_split:NnTF #1#2
   { \exp_args:NNo \@@_split_aux:NnTF #1 { \tl_to_str:n {#2} } }
-\cs_new_protected:Npn \@@_split_aux:NnTF #1#2
+\cs_new_protected:Npn \@@_split_aux:NnTF #1#2#3#4
   {
-    \cs_set_protected:Npn \@@_split_aux:w
-      ##1 \s_@@ #2 \s_@@ ##2 ##3 \q_mark ##4 ##5 \q_stop
-      { ##4 { {##1} {##2} {##3} } }
-    \exp_after:wN \@@_split_aux:w #1 \q_mark \@@_split_aux:nnn
-         \s_@@ #2 \s_@@ { } \q_mark \use_iii:nnn \q_stop
+    \cs_set:Npn \@@_split_aux:w ##1
+      \s_@@ #2 \s_@@ ##2 ##3 \q_mark ##4 ##5 \q_stop
+      { ##4 {#3} {#4} }
+    \exp_after:wN \@@_split_aux:w #1 \q_mark \use_i:nn
+      \s_@@ #2 \s_@@ { } \q_mark \use_ii:nn \q_stop
   }
-\cs_new:Npn \@@_split_aux:nnn #1#2#3 { #2 #1 }
-\cs_new_protected:Npn \@@_split_aux:w { }
+\cs_new:Npn \@@_split_aux:w { }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -609,23 +636,27 @@
 %   {\prop_remove:Nn, \prop_remove:NV, \prop_remove:cn, \prop_remove:cV}
 % \begin{macro}[tested = m3prop002]
 %   {\prop_gremove:Nn, \prop_gremove:NV, \prop_gremove:cn, \prop_gremove:cV}
-% \begin{macro}[aux]{\@@_remove:NNnnn}
 %   Deleting from a property starts by splitting the list.
 %   If the key is present in the property list, the returned value is ignored.
 %   If the key is missing, nothing happens.
 %    \begin{macrocode}
 \cs_new_protected:Npn \prop_remove:Nn #1#2
-  { \@@_split:NnTF #1 {#2} { \@@_remove:NNnnn \tl_set:Nn #1 } { } }
+  {
+    \@@_split:NnTF #1 {#2}
+      { \tl_set:Nn #1 { ##1 ##3 } }
+      { }
+  }
 \cs_new_protected:Npn \prop_gremove:Nn #1#2
-  { \@@_split:NnTF #1 {#2} { \@@_remove:NNnnn \tl_gset:Nn #1 } { } }
-\cs_new_protected:Npn \@@_remove:NNnnn #1#2#3#4#5
-  { #1 #2 { #3 #5 } }
+  {
+    \@@_split:NnTF #1 {#2}
+      { \tl_gset:Nn #1 { ##1 ##3 } }
+      { }
+  }
 \cs_generate_variant:Nn \prop_remove:Nn  {     NV }
 \cs_generate_variant:Nn \prop_remove:Nn  { c , cV }
 \cs_generate_variant:Nn \prop_gremove:Nn {     NV }
 \cs_generate_variant:Nn \prop_gremove:Nn { c , cV }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -634,7 +665,6 @@
 %     \prop_get:NnN, \prop_get:NVN, \prop_get:NoN,
 %     \prop_get:cnN, \prop_get:cVN, \prop_get:coN
 %   }
-% \begin{macro}[aux]{\@@_get:Nnnn}
 %   Getting an item from a list is very easy: after splitting,
 %   if the key is in the property list, just set the token list variable
 %   to the return value, otherwise to \cs{q_no_value}.
@@ -642,22 +672,18 @@
 \cs_new_protected:Npn \prop_get:NnN #1#2#3
   {
     \@@_split:NnTF #1 {#2}
-      { \@@_get:Nnnn #3 }
+      { \tl_set:Nn #3 {##2} }
       { \tl_set:Nn #3 { \q_no_value } }
   }
-\cs_new_protected:Npn \@@_get:Nnnn #1#2#3#4
-  { \tl_set:Nn #1 {#3} }
 \cs_generate_variant:Nn \prop_get:NnN {     NV , No }
 \cs_generate_variant:Nn \prop_get:NnN { c , cV , co }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[tested = m3prop002]
 %   {\prop_pop:NnN, \prop_pop:NoN, \prop_pop:cnN, \prop_pop:coN}
 % \begin{macro}[tested = m3prop002]
 %   {\prop_gpop:NnN, \prop_gpop:NoN, \prop_gpop:cnN, \prop_gpop:coN}
-% \begin{macro}[aux]{\@@_pop:NNNnnn}
 %   Popping a value also starts by doing the split.
 %   If the key is present, save the value in the token list and update the
 %   property list as when deleting.
@@ -666,19 +692,20 @@
 \cs_new_protected:Npn \prop_pop:NnN #1#2#3
   {
     \@@_split:NnTF #1 {#2}
-      { \@@_pop:NNNnnn \tl_set:Nn #1 #3 }
+      {
+        \tl_set:Nn #3 {##2}
+        \tl_set:Nn #1 { ##1 ##3 }
+      }
       { \tl_set:Nn #3 { \q_no_value } }
   }
 \cs_new_protected:Npn \prop_gpop:NnN #1#2#3
   {
     \@@_split:NnTF #1 {#2}
-      { \@@_pop:NNNnnn \tl_gset:Nn #1 #3 }
+      {
+        \tl_set:Nn #3 {##2}
+        \tl_gset:Nn #1 { ##1 ##3 }
+      }
       { \tl_set:Nn #3 { \q_no_value } }
-  }
-\cs_new_protected:Npn \@@_pop:NNNnnn #1#2#3#4#5#6
-  {
-    \tl_set:Nn #3 {#5}
-    #1 #2 { #4 #6 }
   }
 \cs_generate_variant:Nn \prop_pop:NnN  {     No }
 \cs_generate_variant:Nn \prop_pop:NnN  { c , co }
@@ -687,11 +714,9 @@
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
-% \end{macro}
 %
 % \begin{macro}[TF, tested = m3prop004]
 %   {\prop_pop:NnN, \prop_pop:cnN, \prop_gpop:NnN, \prop_gpop:cnN}
-% \begin{macro}[aux]{\@@_pop_true:NNNnnn}
 %   Popping an item from a property list, keeping track of whether
 %   the key was present or not, is implemented as a conditional.
 %   If the key was missing, neither the property list, nor the token
@@ -701,20 +726,22 @@
 \prg_new_protected_conditional:Npnn \prop_pop:NnN #1#2#3 { T , F , TF }
   {
     \@@_split:NnTF #1 {#2}
-      { \@@_pop_true:NNNnnn \tl_set:Nn #1 #3 }
+      {
+        \tl_set:Nn #3 {##2}
+        \tl_set:Nn #1 { ##1 ##3 }
+        \prg_return_true:
+      }
       { \prg_return_false: }
   }
 \prg_new_protected_conditional:Npnn \prop_gpop:NnN #1#2#3 { T , F , TF }
   {
     \@@_split:NnTF #1 {#2}
-      { \@@_pop_true:NNNnnn \tl_gset:Nn #1 #3 }
+      {
+        \tl_set:Nn #3 {##2}
+        \tl_gset:Nn #1 { ##1 ##3 }
+        \prg_return_true:
+      }
       { \prg_return_false: }
-  }
-\cs_new_protected:Npn \@@_pop_true:NNNnnn #1#2#3#4#5#6
-  {
-    \tl_set:Nn #3 {#5}
-    #1 #2 { #4 #6 }
-    \prg_return_true:
   }
 \cs_generate_variant:Nn \prop_pop:NnNT   { c }
 \cs_generate_variant:Nn \prop_pop:NnNF   { c }
@@ -723,7 +750,6 @@
 \cs_generate_variant:Nn \prop_gpop:NnNF  { c }
 \cs_generate_variant:Nn \prop_gpop:NnNTF { c }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[tested = m3prop002]
@@ -740,32 +766,31 @@
 %     \prop_gput:cnn, \prop_gput:cnV, \prop_gput:cno, \prop_gput:cnx,
 %     \prop_gput:cVn, \prop_gput:cVV, \prop_gput:con, \prop_gput:coo
 %   }
-% \begin{macro}[aux]{\@@_put:NNNnn, \@@_put:NNnnnnn}
-%   Putting a key--value pair in a property list starts by splitting to
-%   remove any existing value.  If the \meta{key} was absent, append the
-%   new key--value pair.  Otherwise, the property list is reconstructed
-%   from the two remaining parts |#5| and |#7|, and the updated entry.
-%   The updated entry is placed at the same spot as the original
-%   \meta{key} in the property list, preserving the order of entries.
+% \begin{macro}[aux]{\@@_put:NNNnn}
+%   Since the branches of \cs{@@_split:NnTF} are used as the replacement
+%   text of an internal macro, and since the \meta{key} and new
+%   \meta{value} may contain arbitrary tokens, it is not safe to include
+%   them in the argument of \cs{@@_split:NnTF}.  We thus start by
+%   storing in \cs{l_@@_internal_tl} tokens which (after
+%   \texttt{x}-expansion) encode the key--value pair.  This variable can
+%   safely be used in \cs{@@_split:NnTF}.  If the \meta{key} was absent,
+%   append the new key--value to the list.  Otherwise concatenate the
+%   extracts |##1| and |##3| with the new key--value pair
+%   \cs{l_@@_internal_tl}.  The updated entry is placed at the same spot
+%   as the original \meta{key} in the property list, preserving the
+%   order of entries.
 %    \begin{macrocode}
-\cs_new_protected:Npn \prop_put:Nnn
+\cs_new_protected_nopar:Npn \prop_put:Nnn
   { \@@_put:NNNnn \tl_set:Nx \tl_put_right:Nx }
-\cs_new_protected:Npn \prop_gput:Nnn
+\cs_new_protected_nopar:Npn \prop_gput:Nnn
   { \@@_put:NNNnn \tl_gset:Nx \tl_gput_right:Nx }
 \cs_new_protected:Npn \@@_put:NNNnn #1#2#3#4#5
   {
+    \tl_set:Nn \l_@@_internal_tl
+      { \s_@@ \tl_to_str:n {#4} \s_@@ { \exp_not:n {#5} } }
     \@@_split:NnTF #3 {#4}
-      { \@@_put:NNnnnnn #1 #3 {#4} {#5} }
-      { #2 #3 { \s_@@ \tl_to_str:n {#4} \s_@@ \exp_not:n { {#5} } } }
-  }
-\cs_new_protected:Npn \@@_put:NNnnnnn #1#2#3#4#5#6#7
-  {
-    #1 #2
-      {
-        \exp_not:n {#5}
-        \s_@@ \tl_to_str:n {#3} \s_@@ \exp_not:n { {#4} }
-        \exp_not:n {#7}
-      }
+      { #1 #3 { \exp_not:n {##1} \l_@@_internal_tl \exp_not:n {##3} } }
+      { #2 #3 { \l_@@_internal_tl } }
   }
 \cs_generate_variant:Nn \prop_put:Nnn
   {     NnV , Nno , Nnx , NV , NVV , No , Noo }
@@ -796,9 +821,11 @@
   { \@@_put_if_new:NNnn \tl_gput_right:Nx }
 \cs_new_protected:Npn \@@_put_if_new:NNnn #1#2#3#4
   {
+    \tl_set:Nn \l_@@_internal_tl
+      { \s_@@ \tl_to_str:n {#3} \s_@@ \exp_not:n { {#4} } }
     \@@_split:NnTF #2 {#3}
-      { \use_none:nnn }
-      { #1 #2 { \s_@@ \tl_to_str:n {#3} \s_@@ \exp_not:n { {#4} } } }
+      { }
+      { #1 #2 { \l_@@_internal_tl } }
   }
 \cs_generate_variant:Nn \prop_put_if_new:Nnn  { c }
 \cs_generate_variant:Nn \prop_gput_if_new:Nnn { c }
@@ -903,7 +930,6 @@
 %     \prop_get:NnN, \prop_get:NVN, \prop_get:NoN,
 %     \prop_get:cnN, \prop_get:cVN, \prop_get:coN
 %   }
-% \begin{macro}[aux]{\@@_get_true:Nnnn}
 %   Getting the value corresponding to a key, keeping track of whether
 %   the key was present or not, is implemented as a conditional (with
 %   side effects). If the key was absent, the token list is not altered.
@@ -911,13 +937,11 @@
 \prg_new_protected_conditional:Npnn \prop_get:NnN #1#2#3 { T , F , TF }
   {
     \@@_split:NnTF #1 {#2}
-      { \@@_get_true:Nnnn #3 }
+      {
+        \tl_set:Nn #3 {##2}
+        \prg_return_true:
+      }
       { \prg_return_false: }
-  }
-\cs_new_protected:Npn \@@_get_true:Nnnn #1#2#3#4
-  {
-    \tl_set:Nn #1 {#3}
-    \prg_return_true:
   }
 \cs_generate_variant:Nn \prop_get:NnNT  {     NV , No }
 \cs_generate_variant:Nn \prop_get:NnNF  {     NV , No }
@@ -926,7 +950,6 @@
 \cs_generate_variant:Nn \prop_get:NnNF  { c , cV , co }
 \cs_generate_variant:Nn \prop_get:NnNTF { c , cV , co }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \subsection{Mapping to property lists}
