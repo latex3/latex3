@@ -581,6 +581,16 @@ rem Makefile for LaTeX3 "l3kernel" files
   )
 
   echo.
+  echo Typesetting l3docstrip
+
+  pdflatex -interaction=nonstopmode -draftmode l3docstrip.dtx %REDIRECT%
+  if not ERRORLEVEL 1 (
+    pdflatex -interaction=nonstopmode l3docstrip.dtx %REDIRECT%
+  ) else (
+    echo ! l3docstrip compilation failed
+  )
+
+  echo.
   echo Typesetting source3
 
   pdflatex -interaction=nonstopmode -draftmode "\PassOptionsToClass{nocheck}{l3doc} \input source3" %REDIRECT%
