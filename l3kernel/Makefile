@@ -328,13 +328,13 @@ check: \
 	    rm -f $$I.$$J ; \
 	  done ; \
 	done ; \
-	echo " d3dvipdfmx" ; \
+	echo "  d3dvipdfmx" ; \
 	latex d3dvipdfmx.lvt > /dev/null ; \
-	echo " d3dvips" ; \
+	echo "  d3dvips" ; \
 	latex d3dvips.lvt > /dev/null ; \
-	echo " d3pdfmode" ; \
+	echo "  d3pdfmode" ; \
 	pdflatex d3pdfmode.lvt > /dev/null ; \
-	echo " d3xdvipdfmx" ; \
+	echo "  d3xdvipdfmx" ; \
 	xelatex d3xdvipdfmx.lvt > /dev/null ; \
 	for I in $(DRIVERFILES) ; do \
 	  perl $(SCRIPTDIR)/log2tlg $$I < $$I.log > $$I.new.log ; \
