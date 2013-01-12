@@ -645,11 +645,11 @@
   { \@@_name_sanitize:nn {#1} { \@@_add_path:nN } }
 \cs_new_protected:Npn \@@_add_path:nN #1#2
   {
-    \__ior_open:Nn \g__file_internal_ior {#1}
-    \ior_if_eof:NTF \g__file_internal_ior
+    \__ior_open:Nn \g_@@_internal_ior {#1}
+    \ior_if_eof:NTF \g_@@_internal_ior
       { \@@_add_path_search:nN {#1} #2 }
       { \tl_set:Nn #2 {#1} }
-    \ior_close:N \g__file_internal_ior
+    \ior_close:N \g_@@_internal_ior
   }
 \cs_new_protected:Npn \@@_add_path_search:nN #1#2
   {
@@ -665,8 +665,8 @@
 %</package>
     \seq_map_inline:Nn \l_@@_search_path_seq
       {
-        \__ior_open:Nn \g__file_internal_ior { ##1 #1 }
-        \ior_if_eof:NF \g__file_internal_ior
+        \__ior_open:Nn \g_@@_internal_ior { ##1 #1 }
+        \ior_if_eof:NF \g_@@_internal_ior
           {
             \tl_set:Nx #2 { ##1 #1 }
             \seq_map_break:
@@ -823,55 +823,48 @@
 \cs_new_eq:NN \c_term_ior \c_sixteen
 %    \end{macrocode}
 % \end{variable}
-%
+% 
 % \begin{variable}{\c_@@_streams_seq}
-%   The list of streams available, by number.
+%   The list of streams available, by number. Used for stream closing, as
+%   it is easiest to check against this than to check numerical ranges.
 %    \begin{macrocode}
 \seq_new:N \c_@@_streams_seq
 \seq_gset_split:Nnn \c_@@_streams_seq { , }
   { 0 , 1 , 2 , 3 , 4 , 5 , 6 , 7 , 8 , 9 , 10 , 11 , 12 , 13 , 14 , 15 }
 %    \end{macrocode}
 % \end{variable}
-%
-% \begin{variable}{\g_@@_streams_prop}
-%   The allocations for streams are stored in property lists, which
-%   are set up to have a \enquote{full} set of allocations from the start.
-%   In package mode, a few slots are always taken, so these are
-%   blocked off from use.
+% 
+% \begin{variable}{\g_@@_streams_seq}
+%   A list of the currently-available input streams to be used as a stack.
+%   Things are done differently in format and package mode, so the starting
+%   point varies!
 %    \begin{macrocode}
-\prop_new:N \g_@@_streams_prop
-%<*package>
-\prop_put:Nnn \g_@@_streams_prop { 0 } { LaTeX2e~reserved }
-%</package>
+\seq_new:N \g_@@_streams_seq
+%<*initex>
+\seq_gset_eq:NN \g_@@_streams_seq \c_@@_streams_seq
+%</initex>
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_@@_stream_int}
-%   Used to track the number allocated to the stream being created:
-%   this is taken from the property list but does alter.
+% \begin{variable}{\l_@@_stream_tl}
+%   Used to recover the raw stream number from the stack.
 %    \begin{macrocode}
-\int_new:N \l_@@_stream_int
+\tl_new:N \l_@@_stream_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_streams_prop}
+%   The name of the file attached to each stream is tracked in a property
+%   list.
+%    \begin{macrocode}
+\prop_new:N \g_@@_streams_prop
+%<*package>
+\prop_gput:Nnn \g_@@_streams_prop { 0 } { LaTeX2e~reserved }
+%</package>
 %    \end{macrocode}
 % \end{variable}
 %
 % \subsubsection{Stream management}
-%
-% \begin{macro}[int]{\@@_new:N, \@@_new:c}
-%   The lowest level for stream management is actually creating raw \TeX{}
-%   streams. As these are very limited (even with \eTeX{}), this should not
-%   be addressed directly.
-%    \begin{macrocode}
-%<*initex>
-\__alloc_setup_type:nnn { ior } \c_zero \c_sixteen
-\cs_new_protected:Npn \@@_new:N #1
-  { \__alloc_reg:nNN { ior } \tex_chardef:D #1 }
-%</initex>
-%<*package>
-\cs_set_eq:NN \@@_new:N \newread
-%</package>
-\cs_generate_variant:Nn \@@_new:N { c }
-%    \end{macrocode}
-% \end{macro}
 %
 % \begin{macro}{\ior_new:N, \ior_new:c}
 %   Reserving a new stream is done by defining the name as equal to using the
@@ -881,27 +874,14 @@
 \cs_generate_variant:Nn \ior_new:N { c }
 %    \end{macrocode}
 % \end{macro}
-%
-% \begin{variable}{\g__file_internal_ior}
-%   Delayed from the \texttt{file} section so that the mechanisms are in place.
-%    \begin{macrocode}
-\ior_new:N \g__file_internal_ior
-%    \end{macrocode}
-% \end{variable}
-%
+% 
 % \begin{macro}{\ior_open:Nn, \ior_open:cn}
-% \begin{macro}[TF]{\ior_open:Nn}
 % \begin{macro}[aux]{\@@_open_aux:Nn}
-% \begin{macro}[aux]{\@@_open_aux:NnTF}
-% \begin{macro}[aux]{\@@_open:Nn, \@@_open:No}
-%   Opening a stream starts with a call to the closing function: this is
-%   safest. There is then a loop through the  allocation number list to find
-%   the first free stream number. When one is found the allocation can take
-%   place, the information can be stored and finally the file can actually be
-%   opened. Before any actual file operations there is a precaution against
-%   special characters in file names. There is an intermediate auxiliary to
-%   allow path addition, keeping the internal function fast and avoiding an
-%   infinite loop.
+%   Opening an input stream requires a bit of pre-processing. The file name
+%   is sanitized to deal with active characters, before an auxiliary adds a
+%   path and checks that the file really exists. If those two tests pass, then
+%   pass the information on to the lower-level function which deals with
+%   streams.
 %    \begin{macrocode}
 \cs_new_protected:Npn \ior_open:Nn #1#2
   { \__file_name_sanitize:nn {#2} { \@@_open_aux:Nn #1 } }
@@ -913,8 +893,20 @@
       { \__msg_kernel_error:nnx { kernel } { file-not-found } {#2} }
       { \@@_open:No #1 \l__file_internal_name_tl }
   }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% 
+% \begin{macro}[TF]{\ior_open:Nn, \ior_open:cn}
+% \begin{macro}[aux]{\@@_open_aux:NnTF}
+%   Much the same idea for opening a read with a conditional, except the
+%   auxiliary function does not issue an error if the file is not found.
+%    \begin{macrocode}
 \prg_new_protected_conditional:Npnn \ior_open:Nn #1#2 { T , F , TF }
-  { \__file_name_sanitize:nn {#2} { \@@_open_aux:NnTF #1 } }
+  { \__file_name_sanitize:nn {#2} { \@@_open:NnTF #1 } }
+\cs_generate_variant:Nn \ior_open:NnT  { c }
+\cs_generate_variant:Nn \ior_open:NnF  { c }
+\cs_generate_variant:Nn \ior_open:NnTF { c }
 \cs_new_protected:Npn \@@_open_aux:NnTF #1#2
   {
     \file_add_path:nN {#2} \l__file_internal_name_tl
@@ -925,115 +917,62 @@
         \prg_return_true:
       }
   }
-\cs_generate_variant:Nn \ior_open:NnT  { c }
-\cs_generate_variant:Nn \ior_open:NnF  { c }
-\cs_generate_variant:Nn \ior_open:NnTF { c }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% 
+% \begin{macro}[int]{\@@_open:Nn, \@@_open:No}
+% \begin{macro}[aux]{\@@_open_stream:Nn}
+%   The stream allocation itself uses the fact that there is a list of all of
+%   those available, so allocation is simply a question of using the number at
+%   the top of the list. In package mode, life gets more complex as it's
+%   important to keep things in sync. That is done using a two-part approach:
+%   any streams that have already been taken up by \pkg{ior} but are now free
+%   are tracked, so we first try those. If that fails, ask \LaTeXe{} for a new
+%   stream and use that number (after a bit of conversion).
+%    \begin{macrocode}
 \cs_new_protected:Npn \@@_open:Nn #1#2
   {
     \ior_close:N #1
-    \int_set_eq:NN \l_@@_stream_int \c_sixteen
-    \seq_map_inline:Nn \c_@@_streams_seq { \@@_alloc:n {##1} }
-    \int_compare:nNnTF \l_@@_stream_int = \c_sixteen
+    \seq_gpop:NNTF \g_@@_streams_seq \l_@@_stream_tl
+      { \@@_open_stream:Nn #1 {#2} }
+%<*initex>
       { \__msg_kernel_fatal:nn { kernel } { input-streams-exhausted } }
+%</initex>
+%<*package>
       {
-        \@@_alloc:N #1
-        \prop_gput:NVn \g_@@_streams_prop \l_@@_stream_int {#2}
-        \tex_openin:D #1#2 \scan_stop:
+        \newread #1
+        \tl_set:Nx \l_@@_stream_tl { \int_eval:n {#1} }
+        \@@_open_stream:Nn #1 {#2}
       }
+%</package>
   }
 \cs_generate_variant:Nn \@@_open:Nn { No }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[aux]{\@@_alloc:n}
-%   See if a particular stream is available: the property list contains file
-%   names for streams in use, so any unused ones are for the taking.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_alloc:n #1
+\cs_new_protected:Npn \@@_open_stream:Nn #1#2
   {
-    \prop_if_in:NnF \g_@@_streams_prop {#1}
-      {
-        \int_set:Nn \l_@@_stream_int {#1}
-        \seq_map_break:
-      }
+    \tex_global:D \tex_chardef:D #1 = \l_@@_stream_tl \scan_stop:
+    \prop_gput:NVn \g_@@_streams_prop #1 {#2}
+    \tex_openin:D #1 #2 \scan_stop:
   }
 %    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux]{\@@_alloc:N}
-% \begin{macro}[aux]{\@@_alloc:}
-% \begin{variable}{\g_@@_internal_ior}
-%   Allocating a raw stream is much easier in \IniTeX{} mode than for the
-%   package. For the format, all streams will be allocated by \pkg{l3file} and
-%   so there is a simple check to see if a raw stream is actually available. On
-%   the other hand, for the package there will be non-managed streams. So if
-%   the managed one is not open, a check is made to see if some other managed
-%   stream is available before deciding to open a new one. If a new one is
-%   needed, we get the number allocated by \LaTeXe{} to get \enquote{back on
-%   track} with allocation.
-%    \begin{macrocode}
-\ior_new:N \g_@@_internal_ior
-\cs_new_protected:Npn \@@_alloc:N #1
-  {
-    \cs_if_exist:cF { g_ior_ \int_use:N \l_@@_stream_int _ior }
-      {
-%<*package>
-        \@@_alloc:
-        \int_compare:nNnT \l_@@_stream_int = \c_sixteen
-          {
-            \@@_new:N \g_@@_internal_ior
-            \int_set:Nn \l_@@_stream_int { \g_@@_internal_ior }
-            \cs_gset_eq:cN
-              { g_ior_ \int_use:N \l_@@_stream_int _ior } \g_@@_internal_ior
-          }
-%</package>
-%<*initex>
-        \@@_new:c { g_ior_ \int_use:N \l_@@_stream_int _ior }
-%</initex>
-      }
-    \cs_gset_eq:Nc #1 { g_ior_ \int_use:N \l_@@_stream_int _ior }
-  }
-%<*package>
-\cs_new_protected_nopar:Npn \@@_alloc:
-  {
-    \int_incr:N \l_@@_stream_int
-    \int_compare:nNnT \l_@@_stream_int < \c_sixteen
-      {
-        \cs_if_exist:cTF { g_ior_ \int_use:N \l_@@_stream_int _ior }
-          {
-            \prop_if_in:NVT \g_@@_streams_prop \l_@@_stream_int
-              { \@@_alloc: }
-          }
-          { \@@_alloc: }
-      }
-  }
-%</package>
-%    \end{macrocode}
-% \end{variable}
 % \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\ior_close:N, \ior_close:c}
-%   Closing a stream is not quite the reverse of opening one. First,
-%   the close operation is easier than the open one, and second as the
-%   stream is actually a number we can use it directly to show that the
-%   slot has been freed up.
+%   Closing a stream means getting rid of it at the \TeX{} level and removing
+%   from the various data structures. Provided the name passed is a valid
+%   stream number, it can be closed. On the other hand, it only gets added
+%   to the stack if it was not already there, to avoid duplicates building up.
 %    \begin{macrocode}
 \cs_new_protected:Npn \ior_close:N #1
   {
-    \__chk_if_exist_cs:N #1
-    \int_compare:nNnF #1 < \c_zero
+    \seq_if_in:NVT \c_@@_streams_seq #1
       {
-        \int_compare:nNnF #1 > \c_fifteen
-          {
-            \tex_closein:D #1
-            \prop_gremove:NV \g_@@_streams_prop #1
-            \cs_gset_eq:NN #1 \c_term_ior
-          }
+        \tex_closein:D #1
+        \prop_gremove:NV \g_@@_streams_prop #1
+        \seq_if_in:NVF \g_@@_streams_seq #1
+          { \seq_gpush:NV \g_@@_streams_seq #1 }
+        \cs_gset_eq:NN #1 \c_term_ior
       }
   }
 \cs_generate_variant:Nn \ior_close:N { c }
@@ -1118,6 +1057,14 @@
   }
 %    \end{macrocode}
 % \end{macro}
+% 
+% \begin{variable}{\g__file_internal_ior}
+%   Needed by the higher-level code, but cannot be created until here.
+%    \begin{macrocode}
+\ior_new:N \g__file_internal_ior
+%    \end{macrocode}
+% \end{variable}
+% 
 %
 % \subsection{Output operations}
 %
@@ -1126,7 +1073,8 @@
 %    \end{macrocode}
 %
 % There is a lot of similarity here to the input operations, at least for
-% many of the basics. Thus quite a bit is copied from the earlier material.
+% many of the basics. Thus quite a bit is copied from the earlier material
+% with minor alterations.
 %
 % \subsubsection{Variables and constants}
 %
@@ -1141,10 +1089,28 @@
 % \end{variable}
 %
 % \begin{variable}{\c_@@_streams_seq}
-%   The list of streams available, by number: copied from the input
-%   operations.
+%   The list of streams available, by number, again for checking purposes.
 %    \begin{macrocode}
-\cs_new_eq:NN \c_@@_streams_seq \c__ior_streams_seq
+\cs_new_eq:NN \c_@@_streams_seq \c__ior_streams_seq 
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_streams_seq}
+%   A list of the currently-available input streams to be used as a stack.
+%   Things are done differently in format and package mode, so the starting
+%   point varies!
+%    \begin{macrocode}
+\seq_new:N \g_@@_streams_seq
+%<*initex>
+\seq_gset_eq:NN \g_@@_streams_seq \c_@@_streams_seq
+%</initex>
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_stream_tl}
+%   Used to recover the raw stream number from the stack.
+%    \begin{macrocode}
+\tl_new:N \l_@@_stream_tl
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1160,31 +1126,7 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_@@_stream_int}
-%   Used to track the number allocated to the stream being created:
-%   this is taken from the property list but does alter. The two allocation
-%   routines only need one register, so we save one here.
-%    \begin{macrocode}
-\cs_new_eq:NN \l_@@_stream_int \l__ior_stream_int
-%    \end{macrocode}
-% \end{variable}
-%
 % \subsection{Stream management}
-%
-% \begin{macro}[aux]{\@@_new:N, \@@_new:c}
-%   The same idea as for input, but with a separate set of functions.
-%    \begin{macrocode}
-%<*initex>
-\__alloc_setup_type:nnn { iow } \c_zero \c_sixteen
-\cs_new_protected:Npn \@@_new:N #1
-  { \__alloc_reg:nNN { iow } \tex_chardef:D #1 }
-%</initex>
-%<*package>
-\cs_set_eq:NN \@@_new:N \newwrite
-%</package>
-\cs_generate_variant:Nn \@@_new:N { c }
-%    \end{macrocode}
-% \end{macro}
 %
 % \begin{macro}{\iow_new:N, \iow_new:c}
 %   Reserving a new stream is done by defining the name as equal to writing
@@ -1196,8 +1138,10 @@
 % \end{macro}
 %
 % \begin{macro}{\iow_open:Nn, \iow_open:cn}
-% \begin{macro}[aux]{\@@_open:Nn}
-%   The same idea as for reading, but without the path.
+% \begin{macro}[int]{\@@_open:Nn}
+% \begin{macro}[aux]{\@@_open_stream:Nn}
+%   The same idea as for reading, but without the path and without the need
+%   to allow for a conditional version.
 %    \begin{macrocode}
 \cs_new_protected:Npn \iow_open:Nn #1#2
   { \__file_name_sanitize:nn {#2} { \@@_open:Nn #1 } }
@@ -1205,78 +1149,29 @@
 \cs_new_protected:Npn \@@_open:Nn #1#2
   {
     \iow_close:N #1
-    \int_set_eq:NN \l_@@_stream_int \c_sixteen
-    \seq_map_inline:Nn \c_@@_streams_seq { \@@_alloc:n {##1} }
-    \int_compare:nNnTF \l_@@_stream_int = \c_sixteen
-      { \__msg_kernel_fatal:nn { kernel } { output-streams-exhausted } }
-      {
-        \@@_alloc:N #1
-        \prop_gput:NVn \g_@@_streams_prop \l_@@_stream_int {#2}
-        \tex_immediate:D \tex_openout:D #1#2 \scan_stop:
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[aux]{\@@_alloc:n}
-%   Identical to the input routine, but with the appropriate names used
-%   (when \pkg{l3docstrip} has done it's job!).
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_alloc:n #1
-  {
-    \prop_if_in:NnF \g_@@_streams_prop {#1}
-      {
-        \int_set:Nn \l_@@_stream_int {#1}
-        \seq_map_break:
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux]{\@@_alloc:N}
-% \begin{macro}[aux]{\@@_alloc:}
-% \begin{variable}{\g_@@_internal_iow}
-%   Exactly the same as for reading!
-%    \begin{macrocode}
-\iow_new:N \g_@@_internal_iow
-\cs_new_protected:Npn \@@_alloc:N #1
-  {
-    \cs_if_exist:cF { g_iow_ \int_use:N \l_@@_stream_int _iow }
-      {
-%<*package>
-        \@@_alloc:
-        \int_compare:nNnT \l_@@_stream_int = \c_sixteen
-          {
-            \@@_new:N \g_@@_internal_iow
-            \int_set:Nn \l_@@_stream_int { \g_@@_internal_iow }
-            \cs_gset_eq:cN
-              { g_iow_ \int_use:N \l_@@_stream_int _iow } \g_@@_internal_iow
-          }
-%</package>
+    \seq_gpop:NNTF \g_@@_streams_seq \l_@@_stream_tl
+      { \@@_open_stream:Nn #1 {#2} }
 %<*initex>
-        \@@_new:c { g_iow_ \int_use:N \l_@@_stream_int _iow }
+      { \__msg_kernel_fatal:nn { kernel } { output-streams-exhausted } }
 %</initex>
-      }
-    \cs_gset_eq:Nc #1 { g_iow_ \int_use:N \l_@@_stream_int _iow }
-  }
 %<*package>
-\cs_new_protected_nopar:Npn \@@_alloc:
-  {
-    \int_incr:N \l_@@_stream_int
-    \int_compare:nNnT \l_@@_stream_int < \c_sixteen
       {
-        \cs_if_exist:cTF { g_iow_ \int_use:N \l_@@_stream_int _iow }
-          {
-            \prop_if_in:NVT \g_@@_streams_prop \l_@@_stream_int
-              { \@@_alloc: }
-          }
-          { \@@_alloc: }
+        \newwrite #1
+        \tl_set:Nx \l_@@_stream_tl { \int_eval:n {#1} }
+        \@@_open_stream:Nn #1 {#2}
       }
-  }
 %</package>
+  }
+\cs_generate_variant:Nn \@@_open:Nn { No }
+\cs_new_protected:Npn \@@_open_stream:Nn #1#2
+  {
+    \tex_global:D \tex_chardef:D #1 = \l_@@_stream_tl \scan_stop:
+    \prop_gput:NVn \g_@@_streams_prop #1 {#2}
+    \tex_immediate:D \tex_openout:D #1 #2 \scan_stop:
+  }
+
 %    \end{macrocode}
-% \end{variable}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -1288,15 +1183,13 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \iow_close:N #1
   {
-    \__chk_if_exist_cs:N #1
-    \int_compare:nNnF #1 < \c_zero
+    \seq_if_in:NVT \c_@@_streams_seq #1
       {
-        \int_compare:nNnF #1 > \c_fifteen
-          {
-            \tex_immediate:D \tex_closeout:D #1
-            \prop_gremove:NV \g_@@_streams_prop #1
-            \cs_gset_eq:NN #1 \c_term_iow
-          }
+        \tex_immediate:D \tex_closeout:D #1
+        \prop_gremove:NV \g_@@_streams_prop #1
+        \seq_if_in:NVF \g_@@_streams_seq #1
+          { \seq_gpush:NV \g_@@_streams_seq #1 }
+        \cs_gset_eq:NN #1 \c_term_ior
       }
   }
 \cs_generate_variant:Nn \iow_close:N { c }
