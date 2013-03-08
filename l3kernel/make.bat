@@ -431,6 +431,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   set TDSDIR=
 
   if /i "%~x1" == ".cls" set TDSDIR=tex\latex\%BUNDLE%
+  if /i "%~x1" == ".def" set TDSDIR=tex\latex\%BUNDLE%
   if /i "%~x1" == ".dtx" set TDSDIR=source\latex\%BUNDLE%
   if /i "%~x1" == ".ins" set TDSDIR=source\latex\%BUNDLE%
   if /i "%~x1" == ".pdf" set TDSDIR=doc\latex\%BUNDLE%
