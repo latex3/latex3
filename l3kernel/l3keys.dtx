@@ -971,11 +971,11 @@
 %<@@=keys>
 %    \end{macrocode}
 %
-% \begin{variable}{\c_@@_code_root_tl, \c_@@_vars_root_tl}
+% \begin{variable}{\c_@@_code_root_tl, \c_@@_info_root_tl}
 %   The prefixes for the code and variables of the keys themselves.
 %    \begin{macrocode}
 \tl_const:Nn \c_@@_code_root_tl { key~code~>~ }
-\tl_const:Nn \c_@@_vars_root_tl { key~var~>~ }
+\tl_const:Nn \c_@@_info_root_tl { key~info~>~ }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -983,14 +983,6 @@
 %   The prefix for storing properties.
 %    \begin{macrocode}
 \tl_const:Nn \c_@@_props_root_tl { key~prop~>~ }
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{variable}{\c_@@_value_forbidden_tl, \c_@@_value_required_tl}
-%   Two marker token lists.
-%    \begin{macrocode}
-\tl_const:Nn \c_@@_value_forbidden_tl { forbidden }
-\tl_const:Nn \c_@@_value_required_tl  { required }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1262,31 +1254,26 @@
 %
 % \begin{macro}[int]
 %   {\@@_cmd_set:nn, \@@_cmd_set:nx, \@@_cmd_set:Vn, \@@_cmd_set:Vo}
-% \begin{macro}[aux]{\@@_cmd_set:n}
 %   Creating a new command means tidying up the properties and then making
 %   the internal function which actually does the work.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_cmd_set:nn #1#2
   {
-    \@@_cmd_set:n {#1}
+    \prop_clear_new:c { \c_@@_info_root_tl #1 }
     \cs_set:cpn { \c_@@_code_root_tl #1 } ##1 {#2}
   }
 \cs_generate_variant:Nn \@@_cmd_set:nn { nx , Vn , Vo }
-\cs_new_protected:Npn \@@_cmd_set:n #1
-  {
-    \tl_clear_new:c { \c_@@_vars_root_tl #1 .default }
-    \tl_set:cn { \c_@@_vars_root_tl #1 .default } { \q_no_value }
-    \tl_clear_new:c { \c_@@_vars_root_tl #1 .req }
-  }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[int]{\@@_default_set:n}
 %   Setting a default value is easy.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_default_set:n #1
-  { \tl_set:cn { \c_@@_vars_root_tl \l_keys_path_tl .default } {#1} }
+  {
+    \prop_if_exist:cT { { \c_@@_info_root_tl \l_keys_path_tl } }
+      { \prop_put:cnn { \c_@@_info_root_tl \l_keys_path_tl } { default } {#1} }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1362,13 +1349,16 @@
 %
 % \begin{macro}[int]{\@@_value_requirement:n}
 %   Values can be required or forbidden by having the appropriate marker
-%   set.
+%   set. First, both the required and forbidden ones are clear, just in case!
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_value_requirement:n #1
   {
-    \tl_set_eq:cc
-      { \c_@@_vars_root_tl \l_keys_path_tl .req }
-      { c_@@_value_ #1 _tl }
+    \prop_if_exist:cT { \c_@@_info_root_tl \l_keys_path_tl }
+      {
+        \prop_remove:cn { \c_@@_info_root_tl \l_keys_path_tl } { required }
+        \prop_remove:cn { \c_@@_info_root_tl \l_keys_path_tl } { forbidden }
+        \prop_put:cnn { \c_@@_info_root_tl \l_keys_path_tl } {#1} { true }
+    }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1769,18 +1759,12 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_value_or_default:n #1
   {
-    \tl_set:Nn \l_keys_value_tl {#1}
-    \bool_if:NT \l_@@_no_value_bool
+    \bool_if:NTF \l_@@_no_value_bool
       {
-        \quark_if_no_value:cF { \c_@@_vars_root_tl \l_keys_path_tl .default }
-          {
-            \cs_if_exist:cT { \c_@@_vars_root_tl \l_keys_path_tl .default }
-              {
-                \tl_set_eq:Nc \l_keys_value_tl
-                  { \c_@@_vars_root_tl \l_keys_path_tl .default }
-              }
-          }
+        \prop_get:cnNF { \c_@@_info_root_tl \l_keys_path_tl } { default } \l_keys_value_tl
+           { \tl_clear:N \l_keys_value_tl }
       }
+      { \tl_set:Nn \l_keys_value_tl {#1} }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1791,9 +1775,12 @@
 %    \begin{macrocode}
 \prg_new_conditional:Npnn \@@_if_value:n #1 { p }
   {
-    \tl_if_eq:ccTF { c_@@_value_ #1 _tl }
-      { \c_@@_vars_root_tl \l_keys_path_tl .req }
-      { \prg_return_true: }
+    \prop_if_exist:cTF { \c_@@_info_root_tl \l_keys_path_tl }
+      {
+        \prop_if_in:cnTF { \c_@@_info_root_tl \l_keys_path_tl } {#1}
+          { \prg_return_true: }
+          { \prg_return_false: }
+      }
       { \prg_return_false: }
   }
 %    \end{macrocode}
@@ -1963,12 +1950,12 @@
 \cs_new_protected:Npn \@@_choice_code_store:n #1
   {
     \cs_if_exist:cF
-      { \c_@@_vars_root_tl \l_keys_path_tl .choice~code }
+      { \c_@@_info_root_tl \l_keys_path_tl .choice~code }
       {
         \tl_new:c
-          { \c_@@_vars_root_tl \l_keys_path_tl .choice~code }
+          { \c_@@_info_root_tl \l_keys_path_tl .choice~code }
       }
-    \tl_set:cn { \c_@@_vars_root_tl \l_keys_path_tl .choice~code }
+    \tl_set:cn { \c_@@_info_root_tl \l_keys_path_tl .choice~code }
       {#1}
   }
 \cs_generate_variant:Nn \@@_choice_code_store:n { x }
@@ -1993,7 +1980,7 @@
 \cs_new_protected:Npn \@@_choices_generate:n #1
   {
     \cs_if_exist:cTF
-      { \c_@@_vars_root_tl \l_keys_path_tl .choice~code }
+      { \c_@@_info_root_tl \l_keys_path_tl .choice~code }
       {
         \@@_choice_make:
         \int_zero:N \l_keys_choice_int
@@ -2013,7 +2000,7 @@
         \int_set:Nn \exp_not:N \l_keys_choice_int
           { \int_use:N \l_keys_choice_int }
         \exp_not:v
-          { \c_@@_vars_root_tl \l_keys_path_tl .choice~code }
+          { \c_@@_info_root_tl \l_keys_path_tl .choice~code }
       }
   }
 \__msg_kernel_new:nnnn { kernel } { generate-choices-before-code }
