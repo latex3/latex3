@@ -45,8 +45,8 @@ rem Makefile for LaTeX3 "l3kernel" files
 
   rem Clean up settings
 
-  set AUXFILES=aux bbl blg cmds dvi glo gls hd idx ilg ind ist log lvt los out tlg tmp toc
-  set CLEAN=bib bst cls def fc fmt gz ltx orig pdf sty zip
+  set AUXFILES=aux bbl blg cmds dvi glo gls hd idx ilg ind log lvt los out tlg tmp toc
+  set CLEAN=bib bst cls def fc fmt gz ist ltx orig pdf sty zip
 
   rem Check system set up
 
@@ -75,6 +75,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   set ENGINE=pdftex
   set MARKDOWN=README
   set INCLUDEPDF=expl3 interface3 l3docstrip l3styleguide l3syntax-changes source3
+  set INCLUDETEX=interface3 l3styleguide l3syntax-changes source3 source3body
   set TDSFILES=%CTANFILES% cls def sty
   set TDSROOT=tds
 
@@ -375,6 +376,9 @@ rem Makefile for LaTeX3 "l3kernel" files
   for %%I in (%INCLUDEPDF%) do (
     xcopy /q /y %%I.pdf "%CTANDIR%\" > nul
   )
+  for %%I in (%INCLUDETEX%) do (
+    xcopy /q /y %%I.tex "%CTANDIR%\" > nul
+  )
   for %%I in (%CTANFILES%) do (
     xcopy /q /y *.%%I "%CTANDIR%\" > nul
   )
@@ -434,6 +438,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   if /i "%~x1" == ".def" set TDSDIR=tex\latex\%BUNDLE%
   if /i "%~x1" == ".dtx" set TDSDIR=source\latex\%BUNDLE%
   if /i "%~x1" == ".ins" set TDSDIR=source\latex\%BUNDLE%
+  if /i "%~x1" == ".ist" set TDSDIR=makeindex\%BUNDLE%
   if /i "%~x1" == ".pdf" set TDSDIR=doc\latex\%BUNDLE%
   if /i "%~x1" == ".sty" set TDSDIR=tex\latex\%BUNDLE%
   if /i "%~x1" == ".tex" set TDSDIR=doc\latex\%BUNDLE%
@@ -651,8 +656,14 @@ rem Makefile for LaTeX3 "l3kernel" files
   for %%I in (%INCLUDEPDF%) do (
     call :tds-int %%I.pdf
   )
+  for %%I in (%INCLUDETEX%) do (
+    call :tds-int %%I.tex
+  )
   for %%I in (%TDSFILES%) do (
     call :tds-int *.%%I
+  )
+  for %%I in (*.ist) do (
+    call :tds-int %%I
   )
   xcopy /q /y l3docstrip.tex "%TDSROOT%\tex\latex\%BUNDLE%\" > nul
   for %%I in (%MARKDOWN%) do (
