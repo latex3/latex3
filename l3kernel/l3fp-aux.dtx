@@ -1,6 +1,6 @@
 % \iffalse meta-comment
 %
-%% File: l3fp-aux.dtx Copyright(C) 2011-2012 The LaTeX3 Project
+%% File: l3fp-aux.dtx Copyright(C) 2011-2013 The LaTeX3 Project
 %%
 %% It may be distributed and/or modified under the conditions of the
 %% LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -83,6 +83,93 @@
 % ^^A todo: make sanitize and pack more homogeneous between modules.
 %
 % ^^A begin[todo]: move
+% \section{Internal representation}
+%
+% Internally, a floating point number \meta{X} is a
+% token list containing
+% \begin{quote}
+%   \cs{s_@@} \cs{@@_chk:w} \meta{case} \meta{sign} \meta{body} |;|
+% \end{quote}
+% Let us explain each piece separately.
+%
+% Internal floating point numbers will be used in expressions,
+% and in this context will be subject to f-expansion. They must
+% leave a recognizable mark after \texttt{f}-expansion, to prevent the
+% floating point number from being re-parsed. Thus, \cs{s_@@}
+% is simply another name for \tn{relax}.
+%
+% Since floating point numbers are always accessed by the various
+% operations using f-expansion, we can safely let them be protected:
+% \texttt{x}-expansion will then leave them untouched.  However, when
+% used directly without an accessor function, floating points should
+% produce an error.  \cs{s_@@} will do nothing, and \cs{@@_chk:w}
+% produces an error.
+%
+% The (decimal part of the) IEEE-754-2008 standard requires the
+% format to be able to represent special floating point numbers
+% besides the usual positive and negative cases. The various
+% possibilities will be distinguished by their \meta{case}, which
+% is a single digit:\footnote{Bruno: I need to implement subnormal
+%   numbers. Also, quiet and signalling \texttt{nan} must be better
+%   distinguished.}
+% \begin{itemize}
+% \item[0] zeros: |+0| and |-0|,
+% \item[1] \enquote{normal} numbers (positive and negative),
+% \item[2] infinities: |+inf| and |-inf|,
+% \item[3] quiet and signalling \texttt{nan}.
+% \end{itemize}
+% The \meta{sign} is |0| (positive) or |2| (negative),
+% except in the case of \texttt{nan}, which have $\meta{sign} = 1$.
+% This ensures that changing the \meta{sign} digit to $2-\meta{sign}$
+% is exactly equivalent to changing the sign of the number.
+%
+% Special floating point numbers have the form
+% \begin{quote}
+%   \cs{s_@@} \cs{@@_chk:w} \meta{case} \meta{sign} \cs{s_@@_...} |;|
+% \end{quote}
+% where \cs{s_@@_...} is a scan mark carrying information about how the
+% number was formed (useful for debugging).
+%
+% Normal floating point numbers ($\meta{case} = 1$) have the form
+% \begin{quote}
+%   \cs{s_@@} \cs{@@_chk:w} 1 \meta{sign} \Arg{exponent}
+%   \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} |;|
+% \end{quote}
+% Here, the \meta{exponent} is an integer, at most
+% $\cs{c_@@_max_exponent_int} =
+%   \the\csname\detokenize{c__fp_max_exponent_int}\endcsname$
+% in absolute value.  The body consists in four
+% blocks of exactly $4$ digits, $ 0000 \leq \meta{X_i} \leq 9999$,
+% such that
+% \[
+% \meta{X}
+% = (-1)^{\meta{sign}} 10^{-\meta{exponent}}
+% \sum_{i=1}^{4} \meta{X_i} 10^{-4i}
+% \]
+% and such that the \meta{exponent} is minimal. This implies
+% $ 1000 \leq \meta{X_1} \leq 9999 $.
+%
+% \begin{table}\centering
+%   \caption{Internal representation of floating point numbers.}
+%   \label{tab:fp-convert-special}
+%   \begin{tabular}{ll}
+%     \toprule
+%     \multicolumn{1}{c}{Representation} & Meaning \\
+%     \midrule
+%     0 0 \cs{s_@@_...}  \texttt{;} & Positive zero.      \\
+%     0 2 \cs{s_@@_...}  \texttt{;} & Negative zero.      \\
+%     1 0 \Arg{exponent} \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \texttt{;}
+%                                   & Positive floating point. \\
+%     1 2 \Arg{exponent} \Arg{X_1} \Arg{X_2} \Arg{X_3} \Arg{X_4} \texttt{;}
+%                                   & Negative floating point. \\
+%     2 0 \cs{s_@@_...}  \texttt{;} & Positive infinity.  \\
+%     2 2 \cs{s_@@_...}  \texttt{;} & Negative infinity.  \\
+%     3 1 \cs{s_@@_...}  \texttt{;} & Quiet \texttt{nan}.        \\
+%     3 1 \cs{s_@@_...}  \texttt{;} & Signalling \texttt{nan}.   \\
+%     \bottomrule
+%   \end{tabular}
+% \end{table}
+%
 % \section{Internal storage of floating points numbers}
 %
 % A floating point number \meta{X} is stored as
@@ -124,6 +211,7 @@
 %   (typically digits).
 %    \begin{macrocode}
 \cs_new:Npn \@@_use_s:n #1 { #1; }
+\cs_new:Npn \@@_use_braced_s:n #1 { {#1} ; }
 \cs_new:Npn \@@_use_s:nn #1#2 { #1#2; }
 %    \end{macrocode}
 % \end{macro}
@@ -139,11 +227,28 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% ^^A todo: rename to \@@_args_swap:Nww
 % \begin{macro}[int, EXP]{\@@_reverse_args:Nww}
 %   Many internal functions take arguments delimited by semicolons, and
 %   it is occasionally useful to swap two such arguments.
 %    \begin{macrocode}
 \cs_new:Npn \@@_reverse_args:Nww #1 #2; #3; { #1 #3; #2; }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\@@_rrot:www}
+%   Rotate three arguments delimited by semicolons.  This is the inverse
+%   (or the square) of the Forth primitive |ROT|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_rrot:www #1; #2; #3; { #2; #3; #1; }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\@@_use_i:ww}
+%   Many internal functions take arguments delimited by semicolons, and
+%   it is occasionally useful to remove one such argument.
+%    \begin{macrocode}
+\cs_new:Npn \@@_use_i:ww #1; #2; { #1; }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -532,6 +637,7 @@
 % \end{variable}
 % \end{macro}
 %
+% ^^A \@@_pack_Bigg:NNNNNNw = \@@_pack_big:NNNNNNw ?
 % \begin{macro}[int, EXP]{\@@_pack_Bigg:NNNNNNw}
 % \begin{variable}[int]
 %   {
