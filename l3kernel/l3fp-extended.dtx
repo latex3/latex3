@@ -1,6 +1,6 @@
 % \iffalse meta-comment
 %
-%% File: l3fp-extended.dtx Copyright (C) 2011-2012 The LaTeX3 Project
+%% File: l3fp-extended.dtx Copyright (C) 2011-2013 The LaTeX3 Project
 %%
 %% It may be distributed and/or modified under the conditions of the
 %% LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -37,7 +37,7 @@
 %<*driver>
 \RequirePackage{l3bootstrap}
 \GetIdInfo$Id$
-  {L3 Floating-point extended precision fixed-points}
+  {L3 Floating-points with extended precision}
 \documentclass[full]{l3doc}
 \begin{document}
   \DocInput{\jobname.dtx}
@@ -48,7 +48,7 @@
 % \title{The \textsf{l3fp-extended} package\thanks{This file
 %         has version number \ExplFileVersion, last
 %         revised \ExplFileDate.}\\
-% Fixed points with extended precision for internal use}
+% Manipulating numbers with extended precision, for internal use}
 % \author{^^A
 %  The \LaTeX3 Project\thanks
 %    {^^A
@@ -77,10 +77,12 @@
 %<@@=fp>
 %    \end{macrocode}
 %
-% \subsection{Description of extended fixed points}
+% \subsection{Description of fixed point numbers}
 %
-% In this module, we work on (almost) fixed-point numbers with
-% extended ($24$ digits) precision.  This is used in the computation of
+% This module provides a few functions to manipulate positive floating
+% point numbers with extended precision ($24$ digits), but mostly
+% provides functions for fixed-point numbers with this precision ($24$
+% digits).  Those are used in the computation of
 % Taylor series for the logarithm, exponential, and trigonometric
 % functions.  Since we eventually only care about the $16$ first digits
 % of the final result, some of the calculations are not performed with
@@ -93,7 +95,7 @@
 % \end{quote}
 % where each \meta{a_i} is exactly $4$ digits (ranging from |0000| to
 % |9999|), except \meta{a_1}, which may be any \enquote{not-too-large}
-% non-negative integer, with or without trailing zeros.  Here,
+% non-negative integer, with or without leading zeros.  Here,
 % \enquote{not-too-large} depends on the specific function (see the
 % corresponding comments for details).  Checking for overflow is the
 % responsibility of the code calling those functions.  The fixed point
@@ -118,15 +120,16 @@
 % appropriate for computing continued fractions and Taylor series.
 %
 % At the end of the calculation, the result is turned back to a floating
-% point number using \cs{@@_fixed_to_float:Nw}.  This function has to
+% point number using \cs{@@_fixed_to_float:wN}.  This function has to
 % change the exponent of the floating point number: it must be used
 % after starting an integer expression for the overall exponent of the
 % result.
 %
-% \subsection{Helpers for extended fixed points}
+% \subsection{Helpers for numbers with extended precision}
 %
+% ^^A todo: put trailing semicolon here?
 % \begin{variable}[int]{\c_@@_one_fixed_tl}
-%   The extended fixed-point number~$1$, used in \pkg{l3fp-expo}.
+%   The fixed-point number~$1$, used in \pkg{l3fp-expo}.
 %    \begin{macrocode}
 \tl_const:Nn \c_@@_one_fixed_tl
   { {10000} {0000} {0000} {0000} {0000} {0000} }
@@ -157,6 +160,28 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[int, EXP]{\@@_fixed_div_myriad:wn}
+%   Divide a fixed point number by $10000$.  This is a little bit more
+%   subtle than just removing the last group and adding a leading group
+%   of zeros: the first group~|#1| may have any number of digits, and we
+%   must split~|#1| into the new first group and a second group of
+%   exactly $4$~digits.  The choice of shifts allows~|#1| to be in the
+%   range $[0, 5\cdot 10^{8}-1]$.
+%    \begin{macrocode}
+\cs_new:Npn \@@_fixed_div_myriad:wn #1#2#3#4#5#6; #7
+  {
+    \exp_after:wN \@@_fixed_mul_after:wn
+    \int_use:N \__int_eval:w \c_@@_leading_shift_int
+      \exp_after:wN \@@_pack:NNNNNwn
+      \int_use:N \__int_eval:w \c_@@_trailing_shift_int
+        + #1 ; {#7} {#2}{#3}{#4}{#5};
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% ^^A todo:\cs_new:Npn \@@_fixed_mul_after:wn #1; #2; #3 { #3 {#1} #2; }
+% ^^A and do not bring the continuation up while packing.
+% ^^A possibly delete use_braced_s function afterwards.
 % \begin{macro}[aux, EXP]{\@@_fixed_mul_after:wn}
 %   The fixed point operations which involve multiplication end by
 %   calling this auxiliary.  It braces the last block of digits, and
@@ -165,6 +190,51 @@
 %   the packing functions.
 %    \begin{macrocode}
 \cs_new:Npn \@@_fixed_mul_after:wn #1; #2 { #2 {#1} }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Multiplying a fixed point number by a short one}
+%
+% \begin{macro}[int, EXP]{\@@_fixed_mul_short:wwn}
+%   \begin{syntax}
+%     \cs{@@_fixed_mul_short:wwn}
+%     \ \ \Arg{a_1} \Arg{a_2} \Arg{a_3} \Arg{a_4} \Arg{a_5} \Arg{a_6} |;|
+%     \ \ \Arg{b_0} \Arg{b_1} \Arg{b_2} |;| \Arg{continuation}
+%   \end{syntax}
+%   Computes the product $c=ab$ of $a=\sum_i \meta{a_i} 10^{-4i}$ and
+%   $b=\sum_i \meta{b_i} 10^{-4i}$, rounds it to the closest multiple of
+%   $10^{-24}$, and leaves \meta{continuation} \Arg{c_1} \ldots{}
+%   \Arg{c_6} |;| in the input stream, where each of the \meta{c_i} are
+%   blocks of $4$~digits, except \meta{c_1}, which is any \TeX{}
+%   integer.  Note that indices for \meta{b} start at~$0$: a second
+%   operand of |{0001}{0000}{0000}| will leave the first operand
+%   unchanged (rather than dividing it by $10^{4}$, as
+%   \cs{@@_fixed_mul:wwn} would).
+%    \begin{macrocode}
+\cs_new:Npn \@@_fixed_mul_short:wwn #1#2#3#4#5#6; #7#8#9;
+  {
+    \exp_after:wN \@@_fixed_mul_after:wn
+    \int_use:N \__int_eval:w \c_@@_leading_shift_int
+      + #1*#7
+      \exp_after:wN \@@_pack:NNNNNwn
+      \int_use:N \__int_eval:w \c_@@_middle_shift_int
+        + #1*#8 + #2*#7
+        \exp_after:wN \@@_pack:NNNNNwn
+        \int_use:N \__int_eval:w \c_@@_middle_shift_int
+          + #1*#9 + #2*#8 + #3*#7
+          \exp_after:wN \@@_pack:NNNNNwn
+          \int_use:N \__int_eval:w \c_@@_middle_shift_int
+            + #2*#9 + #3*#8 + #4*#7
+            \exp_after:wN \@@_pack:NNNNNwn
+            \int_use:N \__int_eval:w \c_@@_middle_shift_int
+              + #3*#9 + #4*#8 + #5*#7
+              \exp_after:wN \@@_pack:NNNNNwn
+              \int_use:N \__int_eval:w \c_@@_trailing_shift_int
+                + #4*#9 + #5*#8 + #6*#7
+                + ( #5*#9 + #6*#8 + #6*#9 / \c_ten_thousand )
+                / \c_ten_thousand
+                \exp_after:wN ; \@@_use_braced_s:n
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -270,12 +340,13 @@
 %     \cs{@@_fixed_add:wwn} \meta{a} |;| \meta{b} |;| \Arg{continuation}
 %   \end{syntax}
 %   Computes $a+b$ (resp.\ $a-b$) and feeds the result to the
-%   \meta{continuation}.  This function requires $0\leq
-%   a_{1},b_{1}<50000$, and requires the result to be positive (this
-%   happens automatically for addition).  The two functions only differ
+%   \meta{continuation}.  This function requires $0\leq a_{1},b_{1}\leq
+%   114748$, its result must be positive (this happens automatically for
+%   addition) and its first group must have at most~$5$ digits: $(a\pm
+%   b)_{1}<100000$.  The two functions only differ by
 %   a sign, hence use a common auxiliary.  It would be nice to grab the
 %   $12$ brace groups in one go; only $9$ parameters are allowed.  Start
-%   by grabbing the two signs, $a_{1}, \ldots, a_{4}$, the rest of $a$,
+%   by grabbing the sign, $a_{1}, \ldots, a_{4}$, the rest of $a$,
 %   and $b_{1}$ and $b_{2}$.  The second auxiliary receives the rest of
 %   $a$, the sign multiplying $b$, the rest of $b$, and the
 %   \meta{continuation} as arguments.  After going down through the
@@ -309,6 +380,7 @@
 %
 % \subsection{Multiplying fixed points}
 %
+% ^^A todo: may a_1 or b_1 be = 10000?  Used in ediv_epsi later.
 % \begin{macro}[int, EXP]{\@@_fixed_mul:wwn}
 % \begin{macro}[aux, EXP]{\@@_fixed_mul:nnnnnnnwn}
 %   \begin{syntax}
@@ -564,8 +636,579 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsection{Converting from fixed point to floating point}
+% \subsection{Extended-precision floating point numbers}
 %
+% In this section we manipulate floating point numbers with roughly $24$
+% significant figures (``extended-precision'' numbers, in short,
+% ``ep''), which take the form of an integer exponent, followed by a
+% comma, then six groups of digits, ending with a semicolon.  The first
+% group of digit may be any non-negative integer, while other groups of
+% digits have $4$~digits.  In other words, an extended-precision number
+% is an exponent ending in a comma, then a fixed point number.
+%
+% \begin{macro}[int, EXP]{\@@_ep_to_fixed:wwn}
+% \begin{macro}[aux, EXP]
+%   {\@@_ep_to_fixed_auxi:www, \@@_ep_to_fixed_auxii:nnnnnnnwn}
+%   Converts an extended-precision number with an exponent at most~$4$
+%   to a fixed point number whose first block will have $12$~digits,
+%   most often starting with many zeros.
+%    \begin{macrocode}
+\cs_new:Npn \@@_ep_to_fixed:wwn #1,#2
+  {
+    \exp_after:wN \@@_ep_to_fixed_auxi:www
+    \int_use:N \__int_eval:w 1 0000 0000 + #2 \exp_after:wN ;
+    \tex_romannumeral:D -`0
+    \prg_replicate:nn { \c_four - \int_max:nn {#1} { -32 } } { 0 } ;
+  }
+\cs_new:Npn \@@_ep_to_fixed_auxi:www 1#1; #2; #3#4#5#6#7;
+  {
+    \@@_pack_eight:wNNNNNNNN
+    \@@_pack_twice_four:wNNNNNNNN
+    \@@_pack_twice_four:wNNNNNNNN
+    \@@_pack_twice_four:wNNNNNNNN
+    \@@_ep_to_fixed_auxii:nnnnnnnwn ;
+    #2 #1#3#4#5#6#7 0000 !
+  }
+\cs_new:Npn \@@_ep_to_fixed_auxii:nnnnnnnwn #1#2#3#4#5#6#7; #8! #9
+  { #9 {#1#2}{#3}{#4}{#5}{#6}{#7}; }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% ^^A todo: make it work when the arg is zero.
+% ^^A todo: remove the unused(?) 'n' arg.
+% \begin{macro}[aux, EXP]{\@@_ep_to_ep:wwnN}
+% \begin{macro}[aux, rEXP]{\@@_ep_to_ep_loop:N, \@@_ep_to_ep_end:wwwn}
+% \begin{macro}[aux, EXP]{\@@_ep_to_ep_zero:ww}
+%   Normalize an extended-precision number.  More precisely, leading
+%   zeros are removed from the mantissa of the argument, decreasing its
+%   exponent as appropriate.  Then |#8|~is inserted before the digits
+%   (this should be either empty or~|0|, and in the latter case the
+%   exponent will be off by one), which are packed into $6$~groups
+%   of~$4$ (discarding any remaining digit, not rounding).  Finally, the
+%   continuation~|#9| is placed before the resulting exponent--mantissa
+%   pair.  The input exponent may in fact be given as an integer
+%   expression.  The \texttt{loop} auxiliary grabs a digit: if it
+%   is~$0$, decrement the exponent and continue looping, and otherwise
+%   call the \texttt{end} auxiliary, which places all digits in the
+%   right order (the |#8| argument of \cs{@@_ep_to_ep:wwnN}, the digit
+%   that was not~$0$, and any remaining digits), followed by some~$0$,
+%   then packs them up neatly in $3\times2=6$ blocks of four.  At the
+%   end of the day, remove with \cs{@@_use_i:ww} any digit that did not
+%   make it in the final mantissa (typically only zeros, unless the
+%   original first block has more than~$4$ digits).
+%    \begin{macrocode}
+\cs_new:Npn \@@_ep_to_ep:wwnN #1,#2#3#4#5#6#7; #8#9
+  {
+    \exp_after:wN #9
+    \int_use:N \__int_eval:w #1 + \c_four
+      \exp_after:wN \use_i:nn
+      \exp_after:wN \@@_ep_to_ep_loop:N
+      \int_use:N \__int_eval:w 1 0000 0000 + #2 \__int_eval_end:
+      #3#4#5#6#7 ; ; ! {#8}
+  }
+\cs_new:Npn \@@_ep_to_ep_loop:N #1
+  {
+    \if_meaning:w 0 #1
+      - \c_one
+    \else:
+      \@@_ep_to_ep_end:wwwn #1
+    \fi:
+    \@@_ep_to_ep_loop:N
+  }
+\cs_new:Npn \@@_ep_to_ep_end:wwwn
+    #1 \fi: \@@_ep_to_ep_loop:N #2; #3! #4
+  {
+    \fi:
+    \if_meaning:w ; #1
+      - \c_two * \c_@@_max_exponent_int
+      \@@_ep_to_ep_zero:ww
+    \fi:
+    \@@_pack_twice_four:wNNNNNNNN
+    \@@_pack_twice_four:wNNNNNNNN
+    \@@_pack_twice_four:wNNNNNNNN
+    \@@_use_i:ww , ;
+    #4 #1 #2 0000 0000 0000 0000 0000 0000 ;
+  }
+\cs_new:Npn \@@_ep_to_ep_zero:ww \fi: #1; #2; #3;
+  { \fi: , {1000}{0000}{0000}{0000}{0000}{0000} ; }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\@@_ep_compare:wwww}
+% \begin{macro}[aux, EXP]{\@@_ep_compare_aux:wwww}
+%   In \pkg{l3fp-trig} we need to compare two extended-precision
+%   numbers.  This is based on the same function for positive floating
+%   point numbers, with an extra test if comparing only $16$ decimals is
+%   not enough to distinguish the numbers.  Note that this function only
+%   works if the numbers are normalized so that their first block is
+%   in~$[1000,9999]$.
+%    \begin{macrocode}
+\cs_new:Npn \@@_ep_compare:wwww #1,#2#3#4#5#6#7;
+  { \@@_ep_compare_aux:wwww {#1}{#2}{#3}{#4}{#5}; #6#7; }
+\cs_new:Npn \@@_ep_compare_aux:wwww #1;#2;#3,#4#5#6#7#8#9;
+  {
+    \if_case:w
+      \@@_compare_npos:nwnw #1; {#3}{#4}{#5}{#6}{#7}; \exp_stop_f:
+            \if_int_compare:w #2 = #8#9 \exp_stop_f:
+              0
+            \else:
+              \if_int_compare:w #2 < #8#9 - \fi: 1
+            \fi:
+    \or:    1
+    \else: -1
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% ^^A todo: doc that neither operand may be zero (or fix ep_to_ep above)
+% \begin{macro}[int, EXP]{\@@_ep_mul:wwwwn, \@@_ep_mul_raw:wwwwN}
+%   Multiply two extended-precision numbers: first normalize them to
+%   avoid losing too much precision, then multiply the mantissas |#2|
+%   and~|#4| as fixed point numbers, and sum the exponents |#1|
+%   and~|#3|.  The result's first block is in $[100,9999]$.
+%    \begin{macrocode}
+\cs_new:Npn \@@_ep_mul:wwwwn #1,#2; #3,#4;
+  {
+    \@@_ep_to_ep:wwnN #3,#4; { }
+    \@@_fixed_continue:wn
+    {
+      \@@_ep_to_ep:wwnN #1,#2; { }
+      \@@_ep_mul_raw:wwwwN
+    }
+    \@@_fixed_continue:wn
+  }
+\cs_new:Npn \@@_ep_mul_raw:wwwwN #1,#2; #3,#4; #5
+  {
+    \@@_fixed_mul:wwn #2; #4;
+    { \exp_after:wN #5 \int_use:N \__int_eval:w #1 + #3 , }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Dividing extended-precision numbers}
+%
+% \newcommand{\eTeXfrac}[2]{\left[\frac{#1}{#2}\right]}
+%
+% Divisions of extended-precision numbers are difficult to perform with
+% exact rounding: the technique used in \pkg{l3fp-basics} for $16$-digit
+% floating point numbers does not generalize easily to $24$-digit
+% numbers.  Thankfully, there is no need for exact rounding.
+%
+% Let us call \meta{n} the numerator and \meta{d} the denominator.
+% After a simple normalization step, we can assume that
+% $\meta{n}\in[0.1,1)$ and $\meta{d}\in[0.1,1)$, and compute
+% $\meta{n}/(10\meta{d})\in(0.01,1)$.  In terms of the $6$~blocks of
+% digits $\meta{n_1}\cdots\meta{n_6}$ and the $6$~blocks
+% $\meta{d_1}\cdots\meta{d_6}$, the condition translates to
+% $\meta{n_1},\meta{d_1}\in[1000,9999]$.
+%
+% We will first find an integer estimate $a \simeq 10^{8} / \meta{d}$ by
+% computing
+% \begin{align*}
+%   \alpha &= \eTeXfrac{10^{9}}{\meta{d_1}+1} \\
+%   \beta  &= \eTeXfrac{10^{9}}{\meta{d_1}} \\
+%   a &= 10^{3} \alpha + (\beta-\alpha) \cdot
+%   \left(10^{3}-\eTeXfrac{\meta{d_2}}{10}\right) - 1250,
+% \end{align*}
+% where $\eTeXfrac{\bullet}{\bullet}$ denotes \eTeX{}'s rounding
+% division, which rounds ties away from zero.  The idea is to
+% interpolate between $10^{3}\alpha$ and $10^{3}\beta$ with a parameter
+% $\meta{d_2}/10^{4}$, so that when $\meta{d_2}=0$ one gets $a =
+% 10^{3}\beta-1250 \simeq 10^{12} / \meta{d_1} \simeq 10^{8} /
+% \meta{d}$, while when $\meta{d_2}=9999$ one gets $a =
+% 10^{3}\alpha-1250 \simeq 10^{12} / (\meta{d_1} + 1) \simeq 10^{8} /
+% \meta{d}$.  The shift by $1250$ helps to ensure that $a$ is an
+% underestimate of the correct value.  We will prove that
+% \[
+% 1 - 1.755\cdot 10^{-5} < \frac{\meta{d}a}{10^{8}} < 1 .
+% \]
+% We can then compute the inverse of $\meta{d}a/10^{8} = 1 - \epsilon$
+% using the relation $1/(1-\epsilon) \simeq (1+\epsilon)(1+\epsilon^{2})
+% + \epsilon^{4}$, which is correct up to a relative error of
+% $\epsilon^5 < 1.6\cdot 10^{-24}$.  This allows us to find the desired
+% ratio as
+% \[
+% \frac{\meta{n}}{\meta{d}}
+% = \frac{\meta{n}a}{10^{8}}
+% \bigl( (1+\epsilon)(1+\epsilon^{2}) + \epsilon^{4}\bigr) .
+% \]
+%
+% Let us prove the upper bound first (multiplied by $10^{15}$).  Note
+% that $10^{7} \meta{d} < 10^{3} \meta{d_1} + 10^{-1} (\meta{d_2} + 1)$,
+% and that \eTeX{}'s division $\eTeXfrac{\meta{d_2}}{10}$ will at most
+% underestimate $10^{-1}(\meta{d_2} + 1)$ by $0.5$, as can be checked
+% for each possible last digit of \meta{d_2}.  Then,
+% \begin{align}
+%   10^{7} \meta{d}a
+%   & <
+%   \left(10^{3}\meta{d_1}
+%     + \eTeXfrac{\meta{d_2}}{10} + \frac{1}{2}\right)
+%   \left(\left(10^{3}-\eTeXfrac{\meta{d_2}}{10}\right) \beta
+%     + \eTeXfrac{\meta{d_2}}{10} \alpha - 1250\right)
+%   \\
+%   & <
+%   \left(10^{3}\meta{d_1}
+%     + \eTeXfrac{\meta{d_2}}{10} + \frac{1}{2}\right)
+%   \left(
+%     \left(10^{3}-\eTeXfrac{\meta{d_2}}{10}\right)
+%     \left(\frac{10^{9}}{\meta{d_1}} + \frac{1}{2} \right)
+%     + \eTeXfrac{\meta{d_2}}{10}
+%     \left(\frac{10^{9}}{\meta{d_1}+1} + \frac{1}{2} \right)
+%     - 1250
+%   \right)
+%   \\
+%   & <
+%   \left(10^{3} \meta{d_1}
+%     + \eTeXfrac{\meta{d_2}}{10} + \frac{1}{2}\right)
+%   \left(\frac{10^{12}}{\meta{d_1}}
+%     - \eTeXfrac{\meta{d_2}}{10}
+%     \frac{10^{9}}{\meta{d_1}(\meta{d_1}+1)}
+%     - 750\right)
+% \end{align}
+% We recognize a quadratic polynomial in $[\meta{d_2}/10]$ with a
+% negative leading coefficient: this polynomial is bounded above,
+% according to $([\meta{d_2}/10]+a)(b-c[\meta{d_2}/10]) \leq
+% (b+ca)^2/(4c)$.  Hence,
+% \[
+% 10^{7} \meta{d}a
+% < \frac{10^{15}}{\meta{d_1}(\meta{d_1}+1)} \left(
+%   \meta{d_1} + \frac{1}{2} + \frac{1}{4} 10^{-3}
+%   - \frac{3}{8} \cdot 10^{-9} \meta{d_1}(\meta{d_1}+1) \right)^2
+% \]
+% Since \meta{d_1} takes integer values within $[1000,9999]$, it is a
+% simple programming exercise to check that the squared expression is
+% always less than $\meta{d_1}(\meta{d_1}+1)$, hence $10^{7} \meta{d} a
+% < 10^{15}$.  The upper bound is proven.  We also find that
+% $\frac{3}{8}$ can be replaced by slightly smaller numbers, but nothing
+% less than $0.374563\ldots$, and going back through the derivation of
+% the upper bound, we find that $1250$ is as small a shift as we can
+% obtain without breaking the bound.
+%
+% Now, the lower bound.  The same computation as for the upper bound
+% implies
+% \[
+% 10^{7} \meta{d}a
+% > \left(10^{3} \meta{d_1} + \eTeXfrac{\meta{d_2}}{10}
+%   - \frac{1}{2}\right)
+% \left(\frac{10^{12}}{\meta{d_1}}
+%   - \eTeXfrac{\meta{d_2}}{10} \frac{10^{9}}{\meta{d_1}(\meta{d_1}+1)}
+%   - 1750\right)
+% \]
+% This time, we want to find the minimum of this quadratic polynomial.
+% Since the leading coefficient is still negative, the minimum is
+% reached for one of the extreme values $[y/10]=0$ or $[y/10]=100$, and
+% we easily check the bound for those values.
+%
+% We have proven that the algorithm will give us a precise enough
+% answer.  Incidentally, the upper bound that we derived tells us that
+% $a < 10^{8}/\meta{d} \leq 10^{9}$, hence we can compute $a$ safely as
+% a \TeX{} integer, and even add $10^{9}$ to it to ease grabbing of all
+% the digits.  The lower bound implies $10^{8} - 1755 < a$, which we do
+% not care about.
+%
+% ^^A todo: provide ep_inv, not ep_div?
+% ^^A todo: make extra sure that the result's first block cannot be 99
+% ^^A todo: doc that neither operand may be zero (or fix ep_to_ep)
+% \begin{macro}[int, EXP]{\@@_ep_div:wwwwn}
+%   Compute the ratio of two extended-precision numbers.  The result is
+%   an extended-precision number whose first block lies in the range
+%   $[100,9999]$, and is placed after the \meta{continuation} once we
+%   are done.  First normalize the inputs so that both first block lie
+%   in $[1000,9999]$, then call \cs{@@_ep_div_esti:wwwwn}
+%   \meta{denominator} \meta{numerator}, responsible for estimating the
+%   inverse of the denominator.
+%    \begin{macrocode}
+\cs_new:Npn \@@_ep_div:wwwwn #1,#2; #3,#4;
+  {
+    \@@_ep_to_ep:wwnN #1 , #2; { }
+    \@@_fixed_continue:wn
+    {
+      \@@_ep_to_ep:wwnN #3, #4; { }
+      \@@_ep_div_esti:wwwwn
+    }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]
+%   {
+%     \@@_ep_div_esti:wwwwn,
+%     \@@_ep_div_estii:wwnnwwn,
+%     \@@_ep_div_estiii:NNNNNwwwn
+%   }
+%   The \texttt{esti} function evaluates $\alpha=10^{9} / (\meta{d_1} +
+%   1)$, which is used twice in the expression for $a$, and combines the
+%   exponents |#1| and~|#4| (with a shift by~$1$ because we will compute
+%   $\meta{n}/(10\meta{d})$.  Then the \texttt{estii} function evaluates
+%   $10^{9} + a$, and puts the exponent~|#2| after the
+%   continuation~|#7|: from there on we can forget exponents and focus
+%   on the mantissa.  The \texttt{estiii} function multiplies the
+%   denominator~|#7| by $10^{-8}a$ (obtained as $a$ split into the
+%   single digit~|#1| and two blocks of $4$~digits, |#2#3#4#5|
+%   and~|#6|).  The result $10^{-8}a\meta{d}=(1-\epsilon)$, and a
+%   partially packed $10^{-9}a$ (as a block of four digits, and five
+%   individual digits, not packed by lack of available macro parameters
+%   here) are passed to \cs{@@_ep_div_epsi:wnNNNNn}, which computes
+%   $10^{-9}a/(1-\epsilon)$, that is, $1/(10\meta{d})$ and we finally
+%   multiply this by the numerator~|#8|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_ep_div_esti:wwwwn #1,#2#3; #4,
+  {
+    \exp_after:wN \@@_ep_div_estii:wwnnwwn
+    \int_use:N \__int_eval:w 10 0000 0000 / ( #2 + \c_one )
+      \exp_after:wN ;
+    \int_use:N \__int_eval:w #4 - #1 + \c_one ,
+    {#2} #3;
+  }
+\cs_new:Npn \@@_ep_div_estii:wwnnwwn #1; #2,#3#4#5; #6; #7
+  {
+    \exp_after:wN \@@_ep_div_estiii:NNNNNwwwn
+    \int_use:N \__int_eval:w 10 0000 0000 - 1750
+      + #1 000 + (10 0000 0000 / #3 - #1) * (1000 - #4 / 10) ;
+    {#3}{#4}#5; #6; { #7 #2, }
+  }
+\cs_new:Npn \@@_ep_div_estiii:NNNNNwwwn 1#1#2#3#4#5#6; #7;
+  {
+    \@@_fixed_mul_short:wwn #7; {#1}{#2#3#4#5}{#6};
+    \@@_ep_div_epsi:wnNNNNNn {#1#2#3#4}#5#6
+    \@@_fixed_mul:wwn
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]
+%   {
+%     \@@_ep_div_epsi:wnNNNNNn,
+%     \@@_ep_div_eps_pack:NNNNNw,
+%     \@@_ep_div_epsii:wwnNNNNNn,
+%   }
+%   The bounds shown above imply that the \texttt{epsi} function's first
+%   operand is $(1-\epsilon)$ with $\epsilon\in[0,1.755\cdot 10^{-5}]$.
+%   The \texttt{epsi} function computes $\epsilon$ as $1-(1-\epsilon)$.
+%   Since $\epsilon<10^{-4}$, its first block vanishes and there is no
+%   need to explicitly use~|#1| (which is $9999$).  Then \texttt{epsii}
+%   evaluates $10^{-9}a/(1-\epsilon)$ as
+%   $(1+\epsilon^2)(1+\epsilon)(10^{-9}a \epsilon) + 10^{-9}a$.
+%   Importantly, we compute $10^{-9}a \epsilon$ before multiplying it
+%   with the rest, rather than multiplying by $\epsilon$ and then
+%   $10^{-9}a$, as this second option loses more precision.  Also, the
+%   combination of \texttt{short_mul} and \texttt{div_myriad} is both
+%   faster and more precise than a simple \texttt{mul}.
+%    \begin{macrocode}
+\cs_new:Npn \@@_ep_div_epsi:wnNNNNNn #1#2#3#4#5#6;
+  {
+    \exp_after:wN \@@_ep_div_epsii:wwnNNNNNn
+    \int_use:N \__int_eval:w 1 9998 - #2
+      \exp_after:wN \@@_ep_div_eps_pack:NNNNNw
+      \int_use:N \__int_eval:w 1 9999 9998 - #3#4
+        \exp_after:wN \@@_ep_div_eps_pack:NNNNNw
+        \int_use:N \__int_eval:w 2 0000 0000 - #5#6 ; ;
+  }
+\cs_new:Npn \@@_ep_div_eps_pack:NNNNNw #1#2#3#4#5#6;
+  { + #1 ; {#2#3#4#5} {#6} }
+\cs_new:Npn \@@_ep_div_epsii:wwnNNNNNn 1#1; #2; #3#4#5#6#7#8
+  {
+    \@@_fixed_mul:wwn {0000}{#1}#2; {0000}{#1}#2;
+    \@@_fixed_add_one:wN
+    \@@_fixed_mul:wwn {10000} {#1} #2 ;
+    {
+      \@@_fixed_mul_short:wwn {0000}{#1}#2; {#3}{#4#5#6#7}{#8000};
+      \@@_fixed_div_myriad:wn
+      \@@_fixed_mul:wwn
+    }
+    \@@_fixed_add:wwn {#3}{#4#5#6#7}{#8000}{0000}{0000}{0000};
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Inverse square root of extended precision numbers}
+%
+% The idea here is similar to division.  Normalize the input,
+% multiplying by powers of $100$ until we have $x\in[0.01,1)$.  Then
+% find an integer approximation $r \in [101, 1003]$ of
+% $10^{2}/\sqrt{x}$, as the fixed point of iterations of the Newton
+% method: essentially $r \mapsto (r + 10^{8} / (x_{1} r)) / 2$, starting
+% from a guess that optimizes the number of steps before convergence.
+% In fact, just as there is a slight shift when computing divisions to
+% ensure that some inequalities hold, we will replace $10^{8}$ by a
+% slightly larger number which will ensure that $r^2 x \geq 10^{4}$.
+% This also causes $r \in [101, 1003]$.  Another correction to the above
+% is that the input is actually normalized to $[0.1,1)$, and we use
+% either $10^{8}$ or $10^{9}$ in the Newton method, depending on the
+% parity of the exponent.  Skipping those technical hurdles, once we
+% have the approximation~$r$, we set $y = 10^{-4} r^{2} x$ (or rather,
+% the correct power of~$10$ to get $y\simeq 1$) and compute $y^{-1/2}$
+% through another application of Newton's method.  This time, the
+% starting value is $z=1$, each step maps $z \mapsto z(1.5-0.5yz^2)$,
+% and we perform a fixed number of steps.  Our final result combines~$r$
+% with $y^{-1/2}$ as $x^{-1/2} = 10^{-2} r y^{-1/2}$.
+%
+% ^^A todo: doc that the operand may not be zero (or fix ep_to_ep above)
+% \begin{macro}[int, EXP]{\@@_ep_isqrt:wwn}
+% \begin{macro}[aux, EXP]
+%   {\@@_ep_isqrt_aux:wwn, \@@_ep_isqrt_auxii:wwnnnwn}
+%   First normalize the input, then check the parity of the
+%   exponent~|#1|.  If it is even, the result's exponent will be
+%   $-|#1|/2$, otherwise it will be $(|#1|-1)/2$ (except in the case
+%   where the input was an exact power of $100$).  The \texttt{auxii}
+%   function receives as~|#1| the result's exponent just computed, as
+%   |#2| the starting value for the iteration giving~$r$ (the
+%   values~$168$ and~$535$ lead to the least number of iterations before
+%   convergence, on average), as |#3| and~|#4| one empty argument and
+%   one~|0|, depending on the parity of the original exponent, as |#5|
+%   and~|#6| the normalized mantissa ($|#5|\in[1000,9999]$), and as |#7|
+%   the continuation.  It sets up the iteration giving~$r$: the
+%   \texttt{esti} function thus receives the initial two guesses |#2|
+%   and~$0$, an approximation~|#5| of~$10^{4}x$ (its first block of
+%   digits), and the empty/zero arguments |#3| and~|#4|, followed by the
+%   mantissa and an altered continuation where we have stored the
+%   result's exponent.
+%    \begin{macrocode}
+\cs_new:Npn \@@_ep_isqrt:wwn #1,#2;
+  {
+    \@@_ep_to_ep:wwnN #1,#2; { }
+    \@@_ep_isqrt_auxi:wwn
+  }
+\cs_new:Npn \@@_ep_isqrt_auxi:wwn #1,
+  {
+    \exp_after:wN \@@_ep_isqrt_auxii:wwnnnwn
+    \int_use:N \__int_eval:w
+      \int_if_odd:nTF {#1}
+        { (\c_one - #1) / \c_two , 535 , { 0 } { } }
+        { \c_one - #1 / \c_two , 168 , { } { 0 } }
+  }
+\cs_new:Npn \@@_ep_isqrt_auxii:wwnnnwn #1, #2, #3#4 #5#6; #7
+  {
+    \@@_ep_isqrt_esti:wwwnnwn #2, 0, #5, {#3} {#4}
+      {#5} #6 ; { #7 #1 , }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]
+%   {
+%     \@@_ep_isqrt_esti:wwwnnwn,
+%     \@@_ep_isqrt_estii:wwwnnwn,
+%     \@@_ep_isqrt_estiii:NNNNNwwwn
+%   }
+%   If the last two approximations gave the same result, we are done:
+%   call the \texttt{estii} function to clean up.  Otherwise, evaluate
+%   $(\meta{prev} + 1.005 \cdot 10^{\text{$8$ or $9$}} / (\meta{prev}
+%   \cdot x)) / 2$, as the next approximation: omitting the $1.005$
+%   factor, this would be Newton's method.  We can check by brute force
+%   that if |#4| is empty (the original exponent was even), the process
+%   computes an integer slightly larger than $100 / \sqrt{x}$, while if
+%   |#4| is~$0$ (the original exponent was odd), the result is an
+%   integer slightly larger than $100 / \sqrt{x/10}$.  Once we are done,
+%   we evaluate $100 r^2 / 2$ or $10 r^2 / 2$ (when the exponent is even
+%   or odd, respectively) and feed that to \texttt{estiii}.  This third
+%   auxiliary finds $y_{\text{even}} / 2 = 10^{-4} r^2 x / 2$ or
+%   $y_{\text{odd}} / 2 = 10^{-5} r^2 x / 2$ (again, depending on
+%   earlier parity).  A simple program shows that $y\in [1, 1.0201]$.
+%   The number $y/2$ is fed to \cs{@@_ep_isqrt_epsi:wN}, which computes
+%   $1/\sqrt{y}$, and we finally multiply the result by~$r$.
+%    \begin{macrocode}
+\cs_new:Npn \@@_ep_isqrt_esti:wwwnnwn #1, #2, #3, #4
+  {
+    \if_int_compare:w #1 = #2 \exp_stop_f:
+      \exp_after:wN \@@_ep_isqrt_estii:wwwnnwn
+    \fi:
+    \exp_after:wN \@@_ep_isqrt_esti:wwwnnwn
+    \int_use:N \__int_eval:w
+      (#1 + 1 0050 0000 #4 / (#1 * #3)) / \c_two ,
+    #1, #3, {#4}
+  }
+\cs_new:Npn \@@_ep_isqrt_estii:wwwnnwn #1, #2, #3, #4#5
+  {
+    \exp_after:wN \@@_ep_isqrt_estiii:NNNNNwwwn
+    \int_use:N \__int_eval:w 1000 0000 + #2 * #2 #5 * \c_five
+      \exp_after:wN , \int_use:N \__int_eval:w 10000 + #2 ;
+  }
+\cs_new:Npn \@@_ep_isqrt_estiii:NNNNNwwwn 1#1#2#3#4#5#6, 1#7#8; #9;
+  {
+    \@@_fixed_mul_short:wwn #9; {#1} {#2#3#4#5} {#600} ;
+    \@@_ep_isqrt_epsi:wN
+    \@@_fixed_mul_short:wwn {#7} {#80} {0000} ;
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, EXP]{\@@_ep_isqrt_epsi:wN, \@@_ep_isqrt_epsii:wwN}
+%   Here, we receive a fixed point number $y/2$ with $y\in[1,1.0201]$.
+%   Starting from $z = 1$ we iterate $z \mapsto z(3/2 - z^2 y/2)$.  In
+%   fact, we start from the first iteration $z=3/2-y/2$ to avoid useless
+%   multiplications.  The \texttt{epsii} auxiliary receives $z$ as~|#1|
+%   and $y$ as~|#2|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_ep_isqrt_epsi:wN #1;
+  {
+    \@@_fixed_sub:wwn {15000}{0000}{0000}{0000}{0000}{0000}; #1;
+    \@@_ep_isqrt_epsii:wwN #1;
+    \@@_ep_isqrt_epsii:wwN #1;
+    \@@_ep_isqrt_epsii:wwN #1;
+  }
+\cs_new:Npn \@@_ep_isqrt_epsii:wwN #1; #2;
+  {
+    \@@_fixed_mul:wwn #1; #1;
+    \@@_fixed_mul_sub_back:wwwn #2;
+      {15000}{0000}{0000}{0000}{0000}{0000};
+    \@@_fixed_mul:wwn #1;
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Converting from fixed point to floating point}
+% ^^A todo: doc and turn ..._to_float:... -> ..._to_float_o:...
+%
+% After computing Taylor series, we wish to convert the result from
+% extended precision (with or without an exponent) to the public
+% floating point format.  The functions here should be called within an
+% integer expression for the overall exponent of the floating point.
+%
+% \begin{macro}[int, rEXP]{\@@_ep_to_float:wwN, \@@_ep_inv_to_float:wwN}
+%   An extended-precision number is simply a comma-delimited exponent
+%   followed by a fixed point number.  Leave the exponent in the current
+%   integer expression then convert the fixed point number.
+%    \begin{macrocode}
+\cs_new:Npn \@@_ep_to_float:wwN #1,
+  { + \__int_eval:w #1 \@@_fixed_to_float:wN }
+\cs_new:Npn \@@_ep_inv_to_float:wwN #1,#2;
+  {
+    \@@_ep_div:wwwwn 1,{1000}{0000}{0000}{0000}{0000}{0000}; #1,#2;
+    \@@_ep_to_float:wwN
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[rEXP, int]{\@@_fixed_inv_to_float:wN}
+%   Another function which reduces to converting an extended precision
+%   number to a float.
+%    \begin{macrocode}
+\cs_new:Npn \@@_fixed_inv_to_float:wN
+  { \@@_ep_inv_to_float:wwN 0, }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[rEXP, int]{\@@_fixed_to_float_rad:wN}
+%   Converts the fixed point number~|#1| from degrees to radians then to
+%   a floating point number.  This could perhaps remain in
+%   \pkg{l3fp-trig}.
+%    \begin{macrocode}
+\cs_new:Npn \@@_fixed_to_float_rad:wN #1;
+  {
+    \@@_fixed_mul:wwn #1; {5729}{5779}{5130}{8232}{0876}{7981};
+    { \@@_ep_to_float:wwN 2, }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% ^^A todo: make exponents end in ',' consistently throughout l3fp
 % \begin{macro}[int, rEXP]
 %   {\@@_fixed_to_float:wN, \@@_fixed_to_float:Nw}
 %   \begin{syntax}
@@ -586,7 +1229,7 @@
 \cs_new:Npn \@@_fixed_to_float:Nw #1#2; { \@@_fixed_to_float:wN #2; #1 }
 \cs_new:Npn \@@_fixed_to_float:wN #1#2#3#4#5#6; #7
   {
-    + \c_four % for the 8-digit-at-the-start thing.
+    + \__int_eval:w \c_four % for the 8-digit-at-the-start thing.
     \exp_after:wN \exp_after:wN
     \exp_after:wN \@@_fixed_to_loop:N
     \exp_after:wN \use_none:n
@@ -638,206 +1281,6 @@
     \int_use:N \__int_eval:w 1 #1#2
       \exp_after:wN \@@_basics_pack_low:NNNNNw
       \int_use:N \__int_eval:w 1 #3#4 + \c_one ;
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[rEXP, int]{\@@_fixed_inv_to_float:wN, \@@_fixed_div_to_float:ww}
-%   Starting from \texttt{fixed_dtf} $A$ |;| $B$ |;| we want to compute
-%   $A/B$, and express it as a floating point number.  Normalize both
-%   numbers by removing leading brace groups of zeros and leaving the
-%   appropriate exponent shift in the input stream.
-%    \begin{macrocode}
-\cs_new:Npn \@@_fixed_inv_to_float:wN #1#2; #3
-  {
-    + \__int_eval:w % ^^A todo: remove the +?
-        \if_int_compare:w #1 < \c_one_thousand
-          \@@_fixed_dtf_zeros:wNnnnnnn
-        \fi:
-        \@@_fixed_dtf_no_zero:Nwn + {#1} #2 \s_@@
-        \@@_fixed_dtf_approx:n
-        {10000} {0000} {0000} {0000} {0000} {0000} ;
-  }
-\cs_new:Npn \@@_fixed_div_to_float:ww #1#2; #3#4;
-  {
-    \if_int_compare:w #1 < \c_one_thousand
-      \@@_fixed_dtf_zeros:wNnnnnnn
-    \fi:
-    \@@_fixed_dtf_no_zero:Nwn - {#1} #2 \s_@@
-    {
-      \if_int_compare:w #3 < \c_one_thousand
-        \@@_fixed_dtf_zeros:wNnnnnnn
-      \fi:
-      \@@_fixed_dtf_no_zero:Nwn + {#3} #4 \s_@@
-      \@@_fixed_dtf_approx:n
-    }
-  }
-\cs_new:Npn \@@_fixed_dtf_no_zero:Nwn #1#2 \s_@@ #3 { #3 #2; }
-\cs_new:Npn \@@_fixed_dtf_zeros:wNnnnnnn
-    \fi: \@@_fixed_dtf_no_zero:Nwn #1#2#3#4#5#6#7
-  {
-    \fi:
-    #1 \c_minus_one
-    \exp_after:wN \use_i_ii:nnn
-    \exp_after:wN \@@_fixed_dtf_zeros:NN
-    \exp_after:wN #1
-    \int_use:N \__int_eval:w 10 0000 + #2 \__int_eval_end: #3#4#5#6#7
-    ; 1 ;
-  }
-\cs_new:Npn \@@_fixed_dtf_zeros:NN #1#2
-  {
-    \if_meaning:w 0 #2
-      #1 \c_one
-    \else:
-      \@@_fixed_dtf_zeros_end:wNww #2
-    \fi:
-    \@@_fixed_dtf_zeros:NN #1
-  }
-\cs_new:Npn \@@_fixed_dtf_zeros_end:wNww
-    #1 \fi: \@@_fixed_dtf_zeros:NN #2 #3; #4 \s_@@
-  {
-    \fi:
-    \if_meaning:w ; #1
-      #2 \c_two * \c_@@_max_exponent_int
-      \use_i_ii:nnn
-    \fi:
-    \@@_fixed_dtf_zeros_auxi:ww
-    #1#3 0000 0000 0000 0000 0000 0000 ;
-  }
-\cs_new:Npn \@@_fixed_dtf_zeros_auxi:ww
-  {
-    \@@_pack_twice_four:wNNNNNNNN
-    \@@_pack_twice_four:wNNNNNNNN
-    \@@_pack_twice_four:wNNNNNNNN
-    \@@_fixed_dtf_zeros_auxii:ww
-    ;
-  }
-\cs_new:Npn \@@_fixed_dtf_zeros_auxii:ww #1; #2; #3 { #3 #1; }
-%    \end{macrocode}
-%   \newcommand{\eTeXfrac}[2]{\left[\frac{#1}{#2}\right]}
-%   We get
-%   \begin{quote}
-%     \cs{@@_fixed_dtf_approx:n} \meta{B'} |;| \meta{A'} |;|
-%   \end{quote}
-%   where \meta{B'} and \meta{A'} are each $6$ brace groups,
-%   representing fixed point numbers in the range $[0.1,1)$.  Denote by
-%   $x\in[1000,9999]$ and $y\in[0,9999]$ the first two groups of
-%   \meta{B'}.  We first find an estimate $a$ for the inverse of $B'$ by
-%   computing
-%   \begin{align*}
-%     \alpha &= \eTeXfrac{10^{9}}{x+1} \\
-%     \beta  &= \eTeXfrac{10^{9}}{x} \\
-%     a &= 10^{3} \alpha + (\beta-\alpha) \cdot
-%       \left(10^{3}-\eTeXfrac{y}{10}\right) - 1750,
-%   \end{align*}
-%   where $\eTeXfrac{\bullet}{\bullet}$ denotes \eTeX{}'s rounding
-%   division.  The idea is to interpolate between $\alpha$ and $\beta$
-%   with a parameter $y/10^{4}$.  The shift by $1750$ helps to ensure
-%   that $a$ is an underestimate of the correct value.  We will prove
-%   that
-%   \[
-%   1 - 2.255\cdot 10^{-5} < \frac{B'a}{10^{8}} < 1 .
-%   \]
-%   We can then compute the inverse $B'a/10^{8}$ using $1/(1-\epsilon)
-%   \simeq (1+\epsilon)(1+\epsilon^{2})$, which is correct up to a
-%   relative error of $\epsilon^4 < 2.6\cdot 10^{-19}$.  Since we target
-%   a $16$-digit value, this is small enough.
-%
-%   Let us prove the upper bound first.
-%   \begin{align}\label{l3fp-fixed-eTeXfrac}
-%     10^{7} B'a
-%       & < \left(10^{3} x + \eTeXfrac{y}{10} + \frac{3}{2}\right)
-%       \left(\left(10^{3}-\eTeXfrac{y}{10}\right) \beta
-%         + \eTeXfrac{y}{10} \alpha - 1750\right)
-%     \\& < \left(10^{3} x + \eTeXfrac{y}{10} + \frac{3}{2}\right)
-%       \left(\left(10^{3}-\eTeXfrac{y}{10}\right)
-%         \left(\frac{10^{9}}{x} + \frac{1}{2} \right)
-%         + \eTeXfrac{y}{10} \left(\frac{10^{9}}{x+1} + \frac{1}{2} \right)
-%         - 1750\right)
-%     \\& < \left(10^{3} x + \eTeXfrac{y}{10} + \frac{3}{2}\right)
-%       \left(\frac{10^{12}}{x}
-%         - \eTeXfrac{y}{10} \frac{10^{9}}{x(x+1)}
-%         - 1250\right)
-%   \end{align}
-%   We recognize a quadratic polynomial in $[y/10]$ with a negative
-%   leading coefficient, $([y/10]+a)(b-c[y/10]) \leq (b+ca)^2/(4c)$.
-%   Hence,
-%   \[
-%   10^{7} B'a
-%   < \frac{10^{15}}{x(x+1)} \left(
-%     x + \frac{1}{2} + \frac{3}{4} 10^{-3}
-%     - 6.25\cdot 10^{-10} x(x+1) \right)^2
-%   \]
-%   We want to prove that the squared expression is less than $x(x+1)$,
-%   which we do by simplifying the difference, and checking its sign,
-%   \[
-%   x(x+1) - \left(x + \frac{1}{2} + \frac{3}{4} 10^{-3}
-%     - 6.25\cdot 10^{-10} x(x+1) \right)^2
-%   > - \frac{1}{4} (1+1.5\cdot 10^{-3})^2 - 10^{-3} x
-%     + 1.25\cdot 10^{-9} x(x+1)(x+0.5)
-%   > 0.
-%   \]
-%
-%   Now, the lower bound.  The same computation as
-%   \eqref{l3fp-fixed-eTeXfrac} imply
-%   \[
-%     10^{7} B'a
-%       > \left(10^{3} x + \eTeXfrac{y}{10} - \frac{1}{2}\right)
-%       \left(\frac{10^{12}}{x} - \eTeXfrac{y}{10} \frac{10^{9}}{x(x+1)}
-%         - 2250\right)
-%   \]
-%   This time, we want to find the minimum of this quadratic polynomial.
-%   Since the leading coefficient is still negative, the minimum is
-%   reached for one of the extreme values $y=0$ or $y=9999$, and we
-%   easily check the bound for those values.
-%
-%   We have proven that the algorithm will give us a precise enough
-%   answer.  Incidentally, the upper bound that we derived tells us that
-%   $a < 10^{8}/B \leq 10^{9}$, hence we can compute $a$ safely as a
-%   \TeX{} integer, and even add $10^{9}$ to it to ease grabbing of all
-%   the digits.
-%    \begin{macrocode}
-\cs_new:Npn \@@_fixed_dtf_approx:n #1
-  {
-    \exp_after:wN \@@_fixed_dtf_approx:wnn
-    \int_use:N \__int_eval:w 10 0000 0000 / ( #1 + \c_one ) ;
-    {#1}
-  }
-\cs_new:Npn \@@_fixed_dtf_approx:wnn #1; #2#3
-  {
-%<assert>    \assert:n { \tl_count:n {#1} = 6 }
-    \exp_after:wN \@@_fixed_dtf_approx:NNNNNw
-    \int_use:N \__int_eval:w 10 0000 0000 - 1750
-      + #1000 + (10 0000 0000/#2-#1) * (1000-#3/10) ;
-    {#2}{#3}
-  }
-\cs_new:Npn \@@_fixed_dtf_approx:NNNNNw 1#1#2#3#4#5#6; #7; #8;
-  {
-    + \c_four % because of the line below "dtf_epsilon" here.
-    \@@_fixed_mul:wwn {000#1}{#2#3#4#5}{#6}{0000}{0000}{0000} ; #7;
-    \@@_fixed_dtf_epsilon:wN
-    \@@_fixed_mul:wwn {000#1}{#2#3#4#5}{#6}{0000}{0000}{0000} ;
-    \@@_fixed_mul:wwn #8;
-    \@@_fixed_to_float:wN ?
-  }
-\cs_new:Npn \@@_fixed_dtf_epsilon:wN #1#2#3#4#5#6;
-  {
-%<assert>    \assert:n { #1 = 0000 }
-%<assert>    \assert:n { #2 = 9999 }
-    \exp_after:wN \@@_fixed_dtf_epsilon:NNNNNww
-    \int_use:N \__int_eval:w 1 9999 9998 - #3#4 +
-      \exp_after:wN \@@_fixed_dtf_epsilon_pack:NNNNNw
-      \int_use:N \__int_eval:w 2 0000 0000 - #5#6 ; {0000} ;
-  }
-\cs_new:Npn \@@_fixed_dtf_epsilon_pack:NNNNNw #1#2#3#4#5#6;
-  { #1 ; {#2#3#4#5} {#6} }
-\cs_new:Npn \@@_fixed_dtf_epsilon:NNNNNww #1#2#3#4#5#6; #7;
-  {
-    \@@_fixed_mul:wwn %^^A todo: optimize to use \@@_mul_significand.
-      {0000} {#2#3#4#5} {#6} #7 ;
-      {0000} {#2#3#4#5} {#6} #7 ;
-    \@@_fixed_add_one:wN
-    \@@_fixed_mul:wwn {10000} {#2#3#4#5} {#6} #7 ;
   }
 %    \end{macrocode}
 % \end{macro}
