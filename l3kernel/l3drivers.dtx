@@ -103,7 +103,7 @@
 %
 % \section{Box rotation and scaling}
 %
-% \begin{function}[added = 2011-09-01, updated = 2012-05-18]
+% \begin{function}[added = 2011-09-01, updated = 2013-12-27]
 %  {\__driver_box_rotate_begin:, \__driver_box_rotate_end:}
 %   \begin{syntax}
 %     \cs{__driver_box_rotate_begin:}
@@ -119,7 +119,7 @@
 %   required by some drivers to obtain the correct output.
 % \end{function}
 %
-% \begin{function}[added = 2011-09-02, updated = 2012-05-18]
+% \begin{function}[added = 2011-09-02, updated = 2013-12-27]
 %   {\__driver_box_scale_begin:, \__driver_box_scale_end:}
 %   \begin{syntax}
 %     \cs{__driver_box_scale_begin:}
@@ -215,26 +215,26 @@
 %    \end{macrocode}
 %
 % \subsection{Driver utility functions}
-%
-% \begin{macro}{\@@_graphic_state_save:, \@@_graphic_state_restore:}
+% 
+% \begin{macro}{\@@_state_save:, \@@_state_restore:}
 %   All of the drivers have a stack for saving the graphic state. These
 %   have slightly different interfaces. For both \texttt{dvips} and
 %   \texttt{(x)dvipdfmx} this is done using an appropriate special.
 %    \begin{macrocode}
 %<*!pdfmode>
-\cs_new_protected_nopar:Npn \@@_graphic_state_save:
+\cs_new_protected_nopar:Npn \@@_state_save:
 %<*dvips>
   { \tex_special:D { ps:gsave } }
 %</dvips>
 %<*dvipdfmx|xdvipdfmx>
-  { \tex_special:D { pdf:content~q } }
+  { \tex_special:D { pdf:bcontent } }
 %</dvipdfmx|xdvipdfmx>
-\cs_new_protected_nopar:Npn \@@_graphic_state_restore:
+\cs_new_protected_nopar:Npn \@@_state_restore:
 %<*dvips>
   { \tex_special:D { ps:grestore } }
 %</dvips>
 %<*dvipdfmx|xdvipdfmx>
-  { \tex_special:D { pdf:content~Q } }
+  { \tex_special:D { pdf:econtent } }
 %</dvipdfmx|xdvipdfmx>
 %</!pdfmode>
 %    \end{macrocode}
@@ -245,56 +245,67 @@
 %<*pdfmode>
 \cs_if_exist:NTF \pdftex_pdfsave:D
   {
-    \cs_new_eq:NN \@@_graphic_state_save:    \pdftex_pdfsave:D
-    \cs_new_eq:NN \@@_graphic_state_restore: \pdftex_pdfrestore:D
+    \cs_new_eq:NN \@@_state_save:    \pdftex_pdfsave:D
+    \cs_new_eq:NN \@@_state_restore: \pdftex_pdfrestore:D
   }
   {
-    \cs_new_protected_nopar:Npn \@@_graphic_state_save:
+    \cs_new_protected_nopar:Npn \@@_state_save:
       { \pdftex_pdfliteral:D { q } }
-    \cs_new_protected_nopar:Npn \@@_graphic_state_restore:
+    \cs_new_protected_nopar:Npn \@@_state_restore:
       { \pdftex_pdfliteral:D { Q } }
   }
 %</pdfmode>
 %    \end{macrocode}
 % \end{macro}
-%
-% \begin{macro}{\@@_pdf_literal:n, \@@_pdf_literal_direct:n}
-%   Both direct PDF mode and \texttt{(x)dvipdfmx} make use of direct PDF
-%   special insertion. These are slightly different in the two cases.
-%   The |direct| versions do not save the current matrix.
+% 
+% \begin{macro}[int]{\@@_literal:n}
+%   The driver code needs to pass on a lot of \enquote{raw} information to
+%   the underlying binary. The exact command is driver-dependent but the
+%   concept is general enough to use a single function. However, it is
+%   important to remember this is a convenient shortcut: the arguments will
+%   be driver-specific.
 %    \begin{macrocode}
-%<*!dvips>
-\cs_new_protected:Npn \@@_pdf_literal:n #1
+\cs_new_protected:Npn \@@_literal:n #1
+%<*dvipdfmx|xdvipdfmx>
+  { \tex_special:D { pdf:literal~ #1 } }
+%</dvipdfmx|xdvipdfmx>
+%<*dvips>
+  { \tex_special:D { ps: #1 } }
+%</dvips>
 %<*pdfmode>
   { \pdftex_pdfliteral:D {#1} }
 %</pdfmode>
-%<*dvipdfmx|xdvipdfmx>
-  { \tex_special:D { pdf:content~ #1 } }
-%</dvipdfmx|xdvipdfmx>
-\cs_new_protected:Npn \@@_pdf_literal_direct:n #1
-%<*pdfmode>
-  { \pdftex_pdfliteral:D direct~ {#1} }
-%</pdfmode>
-%<*dvipdfmx|xdvipdfmx>
-  { \tex_special:D { pdf:literal~direct~ #1 } }
-%</dvipdfmx|xdvipdfmx>
-%</!dvips>
 %    \end{macrocode}
 % \end{macro}
-%
-% \begin{macro}{\@@_ps_literal:n}
-%   The same concept for PostScript: these are \enquote{direct} by default,
-%   but by keeping the same name life should be a little clearer.
+% 
+% \begin{macro}[int]{\@@_matrix:n}
+%   Here the appropriate function is set up to insert an affine matrix
+%   into the PDF. With a new enough \pdfTeX{} (version~1.40.0 or later)
+%   there is a primitive for this, which only needs the rotation/scaling/skew
+%   part. With an older \pdfTeX{} or with \texttt{(x)dvipdfmx} the matrix
+%   also has to include a translation part: that is always zero and so is
+%   built in here.
 %    \begin{macrocode}
-%<*dvips>
-\cs_new_protected:Npn \@@_ps_literal:n #1
-  { \tex_special:D { ps: #1 } }
-%</dvips>
+%<*pdfmode>
+\cs_if_exist:NTF \pdftex_pdfsetmatrix:D
+  {
+    \cs_new_protected:Npn \@@_matrix:n #1
+      { \pdftex_pdfsetmatrix:D {#1} }
+  }
+  {
+    \cs_new_protected:Npn \@@_matrix:n #1
+      { \@@_literal:n { #1 \c_space_tl 0~0~cm } }
+  }
+%</pdfmode>
+%<*dvipdfmx|xdvipdfmx>
+\cs_new_protected:Npn \@@_matrix:n #1
+  { \@@_literal:n { direct~ #1 \c_space_tl 0~0~cm } }
+%</dvipdfmx|xdvipdfmx>
 %    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Box clipping}
-%
+% 
 % \begin{macro}{\@@_box_use_clip:N}
 %   The overall logic to clipping a box is the same in all cases. The general
 %   method is to save the current location, define a clipping path equivalent
@@ -307,27 +318,15 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_box_use_clip:N #1
   {
-    \@@_graphic_state_save:
-%    \end{macrocode}
-%   The business end of the code sets up the clip box, using the higher-level
-%   rectangle operators rather than the lower level direct line drawing. This
-%   makes sense for a simple rectangular clip. There are a couple of approaches
-%   for \texttt{dvips}. The approach here is to save the current matrix,
-%   then translate to the current \TeX{} position and switch to big point
-%   measurement. The clip box can then be set up using the same conversion
-%   as for direct PDF output: notice that here the $y$-axis is upside down.
-%   The original matrix is then restored, so that \TeX{} inserts material
-%   in the correct place (there is an offset between the PostScript and
-%   \TeX{} current positions).
-%    \begin{macrocode}
 %<*dvips>
-    \@@_ps_literal:n
+    \@@_state_save:
+    \@@_literal:n
       {
         /savedmatrix~matrix~currentmatrix~def~
         currentpoint~translate~
         Resolution~72~div~VResolution~72~div~scale
       }
-    \@@_ps_literal:n
+    \@@_literal:n
       {
         0~
         \__dim_strip_bp:n { \box_dp:N #1 } ~
@@ -335,17 +334,28 @@
         \__dim_strip_bp:n { - \box_ht:N #1 - \box_dp:N #1 } ~
         rectclip
       }
-    \@@_ps_literal:n { savedmatrix~setmatrix }
+    \@@_literal:n { savedmatrix~setmatrix }
 %</dvips>
 %    \end{macrocode}
 %   The PDF box is easier to define as it is automatically in big points and
 %   as the driver deals with the relationship between the \TeX{} and graphics
-%   locations automatically.
+%   locations automatically. The only slight issue is the need to handle
+%   \texttt{(x)dvipdfmx}'s requirements for mixing PostScript and PDF code:
+%   using the standard save/restore stack here fails.
 %    \begin{macrocode}
+%<*dvipdfmx|xdvipdfmx>
+    \tex_special:D { pdf:content~q }
+%</dvipdfmx|xdvipdfmx>
+%<*pdfmode>
+    \@@_state_save:
+%</pdfmode>
 %<*dvipdfmx|pdfmode|xdvipdfmx>
-    \@@_pdf_literal_direct:n
+    \@@_literal:n
       {
-        0 ~
+%<*dvipdfmx|xdvipdfmx>
+        direct~
+%</dvipdfmx|xdvipdfmx>
+        0~
         \__dim_strip_bp:n { - \box_dp:N #1 } ~
         \__dim_strip_bp:n { \box_wd:N #1 } ~
         \__dim_strip_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
@@ -367,9 +377,9 @@
 %   then the extra scope is closed (below).
 %    \begin{macrocode}
 %<*dvipdfmx|xdvipdfmx>
-    \@@_pdf_matrix:n { -1~0~0~-1 }
-    \@@_graphic_state_save:
-    \@@_pdf_matrix:n { -1~0~0~-1 }
+    \@@_matrix:n { -1~0~0~-1 }
+    \tex_special:D { pdf:content~q }
+    \@@_matrix:n { -1~0~0~-1 }
 %</dvipdfmx|xdvipdfmx>
 %    \end{macrocode}
 %   Insert the material in a box of no width, restore the graphic state
@@ -377,9 +387,12 @@
 %    \begin{macrocode}
     \hbox_overlap_right:n { \box_use:N #1 }
 %<*dvipdfmx|xdvipdfmx>
-    \@@_graphic_state_restore:
+    \tex_special:D { pdf:content~Q }
+    \tex_special:D { pdf:content~Q }
 %</dvipdfmx|xdvipdfmx>
-    \@@_graphic_state_restore:
+%<*dvips|pdfmode>
+    \@@_state_restore:
+%</dvips|pdfmode>
     \skip_horizontal:n { \box_wd:N #1 }
   }
 %    \end{macrocode}
@@ -390,7 +403,7 @@
 % \begin{macro}{\@@_box_rotate_begin:, \@@_box_rotate_end:}
 %   The driver for \texttt{dvips} works with a simple rotation angle.
 %   In PDF mode, an affine matrix is used instead. The transformation for
-%   \texttt{xdvipdfmx} can be done either way: to have some code sharing,
+%   \texttt{(x)dvipdfmx} can be done either way: to have some code sharing,
 %   the choice here is to use an affine approach (at least some code is
 %   shared in this way). For the \texttt{dvips}, that odd-looking
 %   |currentpoint| at the beginning is used to put this data onto the
@@ -408,27 +421,14 @@
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \@@_box_rotate_begin:
   {
-    \@@_graphic_state_save:
-%<*dvips>
-    \fp_set:Nn \l__box_angle_fp { round ( \l__box_angle_fp , 5 ) }
-    \@@_ps_literal:n
-      {
-        currentpoint~
-        currentpoint~translate~
-        \fp_compare:nNnTF \l__box_angle_fp = \c_zero_fp
-          { 0 }
-          { \fp_eval:n { - \l__box_angle_fp } }
-        \c_space_tl rotate~
-        neg~exch~neg~exch~translate
-      }
-%</dvips>
+    \@@_state_save:
 %<*dvipdfmx|pdfmode|xdvipdfmx>
     \box_set_wd:Nn \l__box_internal_box \c_zero_dim
     \fp_set:Nn \l__box_cos_fp { round ( \l__box_cos_fp , 5 ) }
     \fp_compare:nNnT \l__box_cos_fp = \c_zero_fp
       { \fp_zero:N \l__box_cos_fp }
     \fp_set:Nn \l__box_sin_fp { round ( \l__box_sin_fp , 5 ) }
-    \@@_pdf_matrix:n
+    \@@_matrix:n
       {
         \fp_use:N \l__box_cos_fp \c_space_tl
         \fp_compare:nNnTF \l__box_sin_fp = \c_zero_fp
@@ -442,25 +442,39 @@
         \fp_use:N \l__box_cos_fp
       }
 %</dvipdfmx|pdfmode|xdvipdfmx>
+%<*dvips>
+    \fp_set:Nn \l__box_angle_fp { round ( \l__box_angle_fp , 5 ) }
+    \@@_literal:n
+      {
+        currentpoint~
+        currentpoint~translate~
+        \fp_compare:nNnTF \l__box_angle_fp = \c_zero_fp
+          { 0 }
+          { \fp_eval:n { - \l__box_angle_fp } }
+        \c_space_tl rotate~
+        neg~exch~neg~exch~translate
+      }
+%</dvips>
   }
 %    \end{macrocode}
+% \end{macro}
 %   The end of a rotation means tidying up the output grouping.
 %    \begin{macrocode}
-\cs_new_eq:NN \@@_box_rotate_end: \@@_graphic_state_restore:
+\cs_new_eq:NN \@@_box_rotate_end: \@@_state_restore:
 %    \end{macrocode}
 % \end{macro}
-%
+% 
 % \begin{macro}{\@@_box_scale_begin:, \@@_box_scale_end:}
 %   Scaling is not dissimilar to rotation, but the calculations are somewhat
 %   less complex.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \@@_box_scale_begin:
   {
+    \@@_state_save:
     \fp_set:Nn \l__box_scale_x_fp { round ( \l__box_scale_x_fp , 5 ) }
     \fp_set:Nn \l__box_scale_y_fp { round ( \l__box_scale_y_fp , 5 ) }
-    \@@_graphic_state_save:
 %<*dvips>
-    \@@_ps_literal:n
+    \@@_literal:n
       {
         currentpoint~
         currentpoint~translate~
@@ -470,7 +484,7 @@
       }
 %</dvips>
 %<*dvipdfmx|pdfmode|xdvipdfmx>
-    \@@_pdf_matrix:n
+    \@@_matrix:n
       {
         \fp_use:N \l__box_scale_x_fp \c_space_tl
         0~0~
@@ -478,58 +492,32 @@
       }
 %</dvipdfmx|pdfmode|xdvipdfmx>
   }
-\cs_new_eq:NN \@@_box_scale_end: \@@_graphic_state_restore:
-%    \end{macrocode}
-% \end{macro}
-% 
-% \begin{macro}{\@@_pdf_matrix:n}
-%   Here the appropriate function is set up to insert an affine matrix
-%   into the PDF. With a new enough \pdfTeX{} (version~1.40.0 or later)
-%   there is a primitive for this, which only needs the rotation/scaling/skew
-%   part. With an older \pdfTeX{} or with \texttt{xdvipdfmx} the matrix
-%   also has to include a translation part: that is always zero and so is
-%   built in here.
-%    \begin{macrocode}
-%<*pdfmode>
-\cs_if_exist:NTF \pdftex_pdfsetmatrix:D
-  {
-    \cs_new_protected:Npn \@@_pdf_matrix:n #1
-      { \pdftex_pdfsetmatrix:D {#1} }
-  }
-  {
-    \cs_new_protected:Npn \@@_pdf_matrix:n #1
-      { \@@_pdf_literal:n { #1 \c_space_tl 0~0~cm } }
-  }
-%</pdfmode>
-%<*dvipdfmx|xdvipdfmx>
-\cs_new_protected:Npn \@@_pdf_matrix:n #1
-  { \@@_pdf_literal_direct:n { #1 \c_space_tl 0~0~cm } }
-%</dvipdfmx|xdvipdfmx>
+\cs_new_eq:NN \@@_box_scale_end: \@@_state_restore:
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsection{Colour support}
+% \subsection{Color support}
 %
 % \begin{variable}{\l_@@_current_color_tl}
 %   The current color is needed by all of the engines, but the way this
 %   is stored varies.
 %    \begin{macrocode}
 \tl_new:N \l_@@_current_color_tl
+%<*dvipdfmx|xdvipdfmx>
+\tl_set:Nn \l_@@_current_color_tl { gray~0 }
+%</dvipdfmx|xdvipdfmx>
 %<*dvips>
 \tl_set:Nn \l_@@_current_color_tl { Black }
 %</dvips>
 %<*pdfmode>
 \tl_set:Nn \l_@@_current_color_tl { 0~g~0~G }
 %</pdfmode>
-%<*dvipdfmx|xdvipdfmx>
-\tl_set:Nn \l_@@_current_color_tl { gray~0 }
-%</dvipdfmx|xdvipdfmx>
-%    \end{macrocode}
+%%    \end{macrocode}
 % \end{variable}
 %
 % \begin{variable}{\l_@@_color_stack_int}
 %   \pdfTeX{} (version~1.40.0 or later) and \LuaTeX{} have multiple stacks
-%   available, and the color stack therefore needs a number.
+%   available, and the color stack therefore needs a number when in PDF mode.
 %    \begin{macrocode}
 %<*pdfmode>
 \int_new:N \l_@@_color_stack_int
@@ -571,11 +559,11 @@
   {
     \cs_new_protected_nopar:Npn \@@_color_ensure_current:
       {
-        \@@_pdf_literal:n { \l_@@_current_color_tl }
+        \@@_literal:n { \l_@@_current_color_tl }
         \group_insert_after:N \@@_color_reset:
       }
     \cs_new_protected_nopar:Npn \@@_color_reset:
-      { \@@_pdf_literal:n { \l_@@_current_color_tl } }
+      { \@@_literal:n { \l_@@_current_color_tl } }
   }
 %</pdfmode>
 %    \end{macrocode}
