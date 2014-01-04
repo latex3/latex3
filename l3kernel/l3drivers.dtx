@@ -263,18 +263,72 @@
 %   the underlying binary. The exact command is driver-dependent but the
 %   concept is general enough to use a single function. However, it is
 %   important to remember this is a convenient shortcut: the arguments will
-%   be driver-specific.
+%   be driver-specific. Note that these functions set the transformation matrix
+%   to the current position: contrast with \cs{\@@_literal_direct:n}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_literal:n #1
 %<*dvipdfmx|xdvipdfmx>
   { \tex_special:D { pdf:literal~ #1 } }
 %</dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%   In the case of \texttt{dvips} there is no build-in saving of the current
+%   position, and so some additional PostScript is required.to set up the
+%   transformation matrix and also to restore it afterwards. Notice the use
+%   of the stack to save the current position \enquote{up front} and to
+%   move back to it at the end of the process.
+%    \begin{macrocode}
 %<*dvips>
-  { \tex_special:D { ps: #1 } }
+  {
+    \tex_special:D
+      {
+        ps:
+          currentpoint~
+          currentpoint~translate~
+          #1 ~
+          neg~exch~neg~exch~translate
+      }
+  }
 %</dvips>
 %<*pdfmode>
   { \pdftex_pdfliteral:D {#1} }
 %</pdfmode>
+%    \end{macrocode}
+% \end{macro}
+% 
+% \begin{macro}[int]{\@@_literal_direct:n}
+%   Even \enquote{lower level} than \cs{\@@_literal:n}, these commands do
+%   not set the transformation matrix but simply dump the driver code directly
+%   into the output.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_literal_direct:n #1
+%<*dvipdfmx|xdvipdfmx>
+  { \tex_special:D { pdf:literal~direct~ #1 } }
+%</dvipdfmx|xdvipdfmx>
+%<*dvips>
+  { \tex_special:D { ps:: #1 } }
+%</dvips>
+%<*pdfmode>
+  { \pdftex_pdfliteral:D direct {#1} }
+%</pdfmode>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\@@_absolute_lengths:n}
+%   The \texttt{dvips} driver scales all absolute dimensions based
+%   on the output resolution selected and any \TeX{} magnification. Thus
+%   for any operation involving absolute lengths there is a correction to
+%   make. This is based on |normalscale| from \texttt{special.pro}.
+%    \begin{macrocode}
+%<*dvips>
+\cs_new:Npn \@@_absolute_lengths:n #1
+  {
+     /savedmatrix~matrix~currentmatrix~def~
+     Resolution~72~div~VResolution~72~div~scale~
+     DVImag~dup~scale~
+     #1 ~
+     savedmatrix~setmatrix
+  }
+%</dvips>
 %    \end{macrocode}
 % \end{macro}
 % 
@@ -318,23 +372,23 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_box_use_clip:N #1
   {
+%    \end{macrocode}
+%   For \texttt{dvips} there is a need to take care of the current matrix and
+%   restore it afterwards.
+%    \begin{macrocode}
 %<*dvips>
     \@@_state_save:
     \@@_literal:n
       {
-        /savedmatrix~matrix~currentmatrix~def~
-        currentpoint~translate~
-        Resolution~72~div~VResolution~72~div~scale
+        \@@_absolute_lengths:n 
+          {
+            0~
+            \__dim_strip_bp:n { \box_dp:N #1 } ~
+            \__dim_strip_bp:n { \box_wd:N #1 } ~
+            \__dim_strip_bp:n { - \box_ht:N #1 - \box_dp:N #1 } ~
+            rectclip
+          }
       }
-    \@@_literal:n
-      {
-        0~
-        \__dim_strip_bp:n { \box_dp:N #1 } ~
-        \__dim_strip_bp:n { \box_wd:N #1 } ~
-        \__dim_strip_bp:n { - \box_ht:N #1 - \box_dp:N #1 } ~
-        rectclip
-      }
-    \@@_literal:n { savedmatrix~setmatrix }
 %</dvips>
 %    \end{macrocode}
 %   The PDF box is easier to define as it is automatically in big points and
@@ -403,11 +457,8 @@
 % \begin{macro}{\@@_box_rotate_begin:, \@@_box_rotate_end:}
 %   The driver for \texttt{dvips} works with a simple rotation angle.
 %   In PDF mode, an affine matrix is used instead. The transformation for
-%   \texttt{(x)dvipdfmx} can be done either way: to have some code sharing,
-%   the choice here is to use an affine approach (at least some code is
-%   shared in this way). For the \texttt{dvips}, that odd-looking
-%   |currentpoint| at the beginning is used to put this data onto the
-%   stack for |neg exch neg exch translate| to pick up.
+%   \texttt{(x)dvipdfmx} can be done either way: the affine approach is
+%   chosen here.
 %   
 %   In both cases, some rounding code is included to limit the floating
 %   point values to five decimal places. There is no point using any more
@@ -446,13 +497,11 @@
     \fp_set:Nn \l__box_angle_fp { round ( \l__box_angle_fp , 5 ) }
     \@@_literal:n
       {
-        currentpoint~
-        currentpoint~translate~
         \fp_compare:nNnTF \l__box_angle_fp = \c_zero_fp
           { 0 }
           { \fp_eval:n { - \l__box_angle_fp } }
-        \c_space_tl rotate~
-        neg~exch~neg~exch~translate
+        \c_space_tl
+        rotate
       }
 %</dvips>
   }
@@ -476,11 +525,9 @@
 %<*dvips>
     \@@_literal:n
       {
-        currentpoint~
-        currentpoint~translate~
         \fp_use:N \l__box_scale_x_fp \c_space_tl
-        \fp_use:N \l__box_scale_y_fp \c_space_tl scale~
-        neg~exch~neg~exch~translate
+        \fp_use:N \l__box_scale_y_fp \c_space_tl
+        scale
       }
 %</dvips>
 %<*dvipdfmx|pdfmode|xdvipdfmx>
