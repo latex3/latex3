@@ -58,7 +58,7 @@ PACKAGEROOT := latex/$(PACKAGE)
 # Details of source files                                    #
 ##############################################################
 
-PACKAGES = l3dt l3sort l3str xcoffins xgalley
+PACKAGES = l3sort l3str xcoffins xgalley
 
 ################################################################
 # File copying: default actions                                #

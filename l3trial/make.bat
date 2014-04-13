@@ -32,7 +32,7 @@ rem Makefile for LaTeX3 "l3trial" files
 
   rem For l3trial, the list of modules is not equal to all of those available
 
-  set MODULES=l3benchmark l3bigint l3check l3fp-extras l3hooks l3kernel-extras l3ldb l3rand l3trace l3tree xbox xfont xmetadata
+  set MODULES=l3benchmark l3bigint l3check l3fp-extras l3hooks l3kernel-extras l3ldb l3rand l3trace l3tree xbox xfont
 
   rem Clean up settings
 
