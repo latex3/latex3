@@ -33,25 +33,12 @@
 %%
 %% -----------------------------------------------------------------------
 %
-%<package>\RequirePackage{l3names}[2012/12/07]
-%<package>\@ifpackagelater{l3names}{2012/12/07}
-%<package>  {}
-%<package>  {%
-%<package>    \PackageError{expl3}{Mismatched LaTeX3 packages detected.}
-%<package>      {%
-%<package>        Please install an up to date version of l3kernel
-%<package>        using your TeX package manager or from CTAN.%
-%<package>        \MessageBreak \MessageBreak
-%<package>        Loading expl3 will abort!%
-%<package>      }%
-%<package>    \endinput
-%<package>  }
-%<*driver|package>
+%<*driver|generic|package>
 \def\ExplFileName{expl3}
-\def\ExplFileDescription{L3 Experimental code bundle wrapper}
+\def\ExplFileDescription{L3 Code bundle wrapper}
 \def\ExplFileDate{2014/01/07}
 \def\ExplFileVersion{4646}
-%</driver|package>
+%</driver|generic|package>
 %<*driver>
 \documentclass[full]{l3doc}
 \begin{document}
@@ -970,6 +957,20 @@
 %   \item[xdvipdfmx] Use the \texttt{xdvipdfmx} driver (\XeTeX{} only).
 % \end{itemize}
 %
+% \section{Using \pkg{expl3} with formats other than \LaTeXe{}}
+%
+% As well as the \LaTeXe{} package \pkg{expl3}, there is also a
+% \enquote{generic} loader for the code, \texttt{expl3.tex}. This may be
+% loaded using the plain \TeX{} syntax
+% \begin{verbatim}
+%   \input expl3 %
+% \end{verbatim}
+% This will enable the programming layer to work with the other formats.
+% As no options are available loading in this way, the \enquote{native}
+% drivers are automatically used. If this \enquote{generic} loader is
+% used with \LaTeXe{} the code will automatically switch to the appropriate
+% package route.
+%
 % \section{The \LaTeX3 Project}
 %
 % Development of \LaTeX3 is carried out by The \LaTeX3 Project. Over time,
@@ -1026,30 +1027,103 @@
 % \begin{implementation}
 %
 % \section{\pkg{expl3} implementation}
+% 
+% The implementation here covers several things. There are two
+% \enquote{loaders} to define: the parts of the code that are specific to
+% \LaTeXe{} or to non-\LaTeXe{} formats. These have to cover the same
+% concepts as each other but in rather different ways: as a result, much
+% of the code is given in separate blocks. There is also a short piece of
+% code for the start of the \enquote{payload}: this is to ensure that
+% loading is always done in the right way.
+% 
+% \subsection{Loader interlock}
+% 
+% A short piece of set up to check that the loader and \enquote{payload}
+% versions match.
+%
+% \begin{macro}{\ExplLoaderFileVersion}
+%   As DocStrip is used to generate \cs{ExplFileVersion}
+%   for all files from the same source, it has to match. Thus the loaders
+%   simply save this information with a new name.
+%    \begin{macrocode}
+%<*loader>
+\let\ExplLoaderFileVersion\ExplFileVersion
+%</loader>
+%    \end{macrocode}
+% \end{macro}
+%  
+% The interlock test itself is simple: \cs{ExplLoaderFileVersion} must be
+% defined and identical to \cs{ExplFileVersion}. As this has to work for
+% both \LaTeXe{} and other formats, there is some auto-detection involved.
+% (Done this way avoids having two very similar blocks for \LaTeXe{} and
+% other formats.)
+%    \begin{macrocode}
+%<*!loader>
+\begingroup
+  \def\next
+    {%
+      \begingroup\expandafter\expandafter\expandafter\endgroup
+      \expandafter\ifx PackageError\endcsname\relax
+        \begingroup
+        \def\PackageError##1##2##3%
+          {%
+            \endgroup
+            \errhelp{##3}%
+            \errmessage{##1 Error: ##2!}
+          }
+        \fi
+        \PackageError{expl3}{Mismatched expl3 files detected.}
+          {%
+            You have attempted to load expl3 with mismatched files:
+            probably you have one or more files 'locally installed' which
+            are in conflict. Loading of expl3 will abort.
+          }%
+      \endinput
+    }
+  \expandafter\ifx\csname ExplLoaderFileVersion\endcsname\relax
+  \else
+    \ifx\ExplLoaderFileVersion\ExplFileVersion
+      \def\next{}
+    \fi  
+  \expandafter\fi
+\expandafter\endgroup
+\next
+%</!loader>
+%    \end{macrocode}
+% 
+% \subsection{\LaTeXe{} loader}
 %
 %    \begin{macrocode}
-%<*package>
+%<*package&loader>
+%    \end{macrocode}
+% 
+% Identify the package.
+%    \begin{macrocode}
+\ProvidesPackage{\ExplFileName}
+  [%
+    \ExplFileDate\space v\ExplFileVersion\space \ExplFileDescription
+  ]
 %    \end{macrocode}
 %
 % Load \pkg{etex} as otherwise we are likely to get into trouble
 % with registers. Some inserts are reserved also as these have to
 % be from the standard pool. The \cs{relax} is here as
-% \cs{reserveinserts} is outer. Most of the time this is fine, but
+% \cs{reserveinserts} is \cs{outer}. Most of the time this is fine, but
 % some packages (for example \pkg{catoptions}) redefine \cs{RequirePackage}
 % such that the trailing optional argument is tested for as a macro argument,
 % which will then lead to an error!
 %    \begin{macrocode}
-\RequirePackage{etex}
-\relax
+\RequirePackage{etex}\relax
 \reserveinserts{32}
 %    \end{macrocode}
-%
-% Do the package identification: this will turn on code syntax.
+% 
+% For handling driver options the \pkg{ifpdf} package will be needed. To
+% avoid issues during package loading, it's most convenient to load this before
+% setting up any of the code environment.
 %    \begin{macrocode}
-\ProvidesExplPackage
-  {\ExplFileName}{\ExplFileDate}{\ExplFileVersion}{\ExplFileDescription}
+\RequirePackage{ifpdf}
 %    \end{macrocode}
-%
+%    
 % \begin{macro}[aux]{\expl@create@bool@option}
 % \begin{variable}[int]
 %   {
@@ -1063,220 +1137,64 @@
 %   options are handled here: others are left for a proper key--value approach
 %   once the kernel is loaded.
 %    \begin{macrocode}
-\newcommand \expl@create@bool@option [ 2 ]
-  {
-    \DeclareOption {#1}            { \renewcommand* #2 { 1 } }
-    \DeclareOption { #1 =  true }  { \renewcommand* #2 { 1 } }
-    \DeclareOption { #1 =  false } { \renewcommand* #2 { 0 } }
-    \newcommand* #2 { 0 }
+\newcommand\expl@create@bool@option[2]%
+  {%
+    \DeclareOption{#1}{\chardef #2=1 }%
+    \DeclareOption{#1=true}{\chardef #2=1 }%
+    \DeclareOption{#1=false}{\chardef #2=0 }%
+    \newcommand*#2{}%
+    \chardef #2=0 %
   }
-\expl@create@bool@option { check-declarations } \l@expl@check@declarations@bool
-\expl@create@bool@option { log-functions }      \l@expl@log@functions@bool
-\let \expl@create@bool@option \@undefined
-\newcommand* \l@expl@options@clist { }
+\expl@create@bool@option{check-declarations}\l@expl@check@declarations@bool
+\expl@create@bool@option{log-functions}\l@expl@log@functions@bool
+\let\expl@create@bool@option\@undefined
+\newcommand*\l@expl@options@clist{}
 \DeclareOption*
-  {
-    \ifx \l@expl@options@clist \@empty
-      \let \l@expl@options@clist \CurrentOption
+  {%
+    \ifx\l@expl@options@clist\@empty
+      \let\l@expl@options@clist\CurrentOption
     \else
-      \edef \l@expl@options@clist
-        {
-          \unexpanded \expandafter \expandafter \expandafter
-            {
-              \expandafter \l@expl@options@clist \expandafter , \CurrentOption
-            }
-        }
+     \expandafter\expandafter\expandafter\def
+       \expandafter\expandafter\expandafter\l@expl@options@clist
+       \expandafter\expandafter\expandafter
+         {\expandafter\l@expl@options@clist\expandafter,\CurrentOption}
     \fi
   }
-\ProcessOptions \relax
+\ProcessOptions\relax
 %    \end{macrocode}
 % \end{variable}
 % \end{variable}
 % \end{macro}
-%
-% We already loaded \pkg{l3names} at the beginning of the \texttt{dtx} file.
-% We now load the base of \LaTeX3, stopping once token list variables are
-% defined.
-%    \begin{macrocode}
-\RequirePackage { l3basics }
-\RequirePackage { l3expan }
-\RequirePackage { l3tl }
-%    \end{macrocode}
-%
-% \begin{macro}[int]{\__cs_check_exists:N}
-%   When used as a package, there is an option to be picky and to
-%   check definitions exist. This part of the process is done now, so that
-%   variable types based on |tl| (for example |clist|, |seq| and |prop|) will
-%   inherit the appropriate definitions.
-%    \begin{macrocode}
-\ifodd \l@expl@check@declarations@bool \relax
-  \cs_new_protected:Npn \__cs_check_exists:N #1
-    {
-      \cs_if_exist:NF #1
-        {
-          \__msg_kernel_error:nnx { check } { non-declared-variable }
-            { \token_to_str:N #1 }
-        }
-    }
-%    \end{macrocode}
-%   No \cs{tl_map_\ldots} yet as the mechanisms are not fully in place. Thus
-%   instead do a more low level set up for a mapping, as in \pkg{l3basics}.
-%    \begin{macrocode}
-  \cs_set_protected:Npn \__cs_tmp:w #1
-    {
-      \if_meaning:w ? #1
-        \exp_after:wN \use_none_delimit_by_q_recursion_stop:w
-      \fi:
-      \use:x
-        {
-          \cs_set_protected:Npn #1 \exp_not:n { ##1 ##2 }
-            {
-              \__cs_check_exists:N \exp_not:n {##1}
-              \exp_not:o { #1 {##1} {##2} }
-            }
-        }
-      \__cs_tmp:w
-    }
-  \__cs_tmp:w
-    \tl_set:Nn  \tl_set:No  \tl_set:Nx
-    \tl_gset:Nn \tl_gset:No \tl_gset:Nx
-    \tl_put_left:Nn   \tl_put_left:NV
-    \tl_put_left:No   \tl_put_left:Nx
-    \tl_gput_left:Nn  \tl_gput_left:NV
-    \tl_gput_left:No  \tl_gput_left:Nx
-    \tl_put_right:Nn  \tl_put_right:NV
-    \tl_put_right:No  \tl_put_right:Nx
-    \tl_gput_right:Nn \tl_gput_right:NV
-    \tl_gput_right:No \tl_gput_right:Nx
-    ? \q_recursion_stop
-%    \end{macrocode}
-%   The two \texttt{set_eq} functions are done by hand as the internals there
-%   are a bit different.
-%    \begin{macrocode}
-  \cs_set_protected:Npn \tl_set_eq:NN #1#2
-    {
-      \__cs_check_exists:N #1
-      \__cs_check_exists:N #2
-      \cs_set_eq:NN #1 #2
-    }
-  \cs_set_protected:Npn \tl_gset_eq:NN #1#2
-    {
-      \__cs_check_exists:N #1
-      \__cs_check_exists:N #2
-      \cs_gset_eq:NN #1 #2
-    }
-%    \end{macrocode}
-%   There is also a need to check all three arguments of the
-%   \texttt{concat} functions: a token list |#2| or |#3| equal to
-%   \cs{scan_stop:} would lead to problems later on.
-%    \begin{macrocode}
-  \cs_set_protected:Npn \tl_concat:NNN #1#2#3
-    {
-      \__cs_check_exists:N #1
-      \__cs_check_exists:N #2
-      \__cs_check_exists:N #3
-      \tl_set:Nx #1 { \exp_not:o {#2} \exp_not:o {#3} }
-    }
-  \cs_set_protected:Npn \tl_gconcat:NNN #1#2#3
-    {
-      \__cs_check_exists:N #1
-      \__cs_check_exists:N #2
-      \__cs_check_exists:N #3
-      \tl_gset:Nx #1 { \exp_not:o {#2} \exp_not:o {#3} }
-    }
-\fi
-%    \end{macrocode}
+% 
+% \begin{macro}{\GetIdInfo}
+%   This is implemented right at the start of \texttt{l3bootstrap.dtx}.
 % \end{macro}
 %
-% The second part of the file can now be loaded, stopping once the boolean
-% data type is defined.
+% \begin{macro}{\ProvidesExplPackage, \ProvidesExplClass, \ProvidesExplFile}
+%   For other packages and classes building on this one it is convenient
+%   not to need \cs{ExplSyntaxOn} each time.
 %    \begin{macrocode}
-\RequirePackage { l3seq }
-\RequirePackage { l3int }
-\RequirePackage { l3quark }
-\RequirePackage { l3prg }
-%    \end{macrocode}
-%
-%  Booleans are not based on token lists but do need checking: another
-%  block of code.
-%    \begin{macrocode}
-\ifodd \l@expl@check@declarations@bool \relax
-  \cs_set_protected:Npn \bool_set_true:N #1
-    {
-      \__cs_check_exists:N #1
-      \cs_set_eq:NN #1 \c_true_bool
-    }
-  \cs_set_protected:Npn \bool_set_false:N #1
-    {
-      \__cs_check_exists:N #1
-      \cs_set_eq:NN #1 \c_false_bool
-    }
-  \cs_set_protected:Npn \bool_gset_true:N #1
-    {
-      \__cs_check_exists:N #1
-      \cs_gset_eq:NN #1 \c_true_bool
-    }
-  \cs_set_protected:Npn \bool_gset_false:N #1
-    {
-      \__cs_check_exists:N #1
-      \cs_gset_eq:NN #1 \c_false_bool
-    }
-  \cs_set_protected:Npn \bool_set_eq:NN  #1
-    {
-      \__cs_check_exists:N #1
-      \cs_set_eq:NN #1
-    }
-  \cs_set_protected:Npn \bool_gset_eq:NN  #1
-    {
-      \__cs_check_exists:N #1
-      \cs_gset_eq:NN #1
-    }
-  \cs_set_protected:Npn \bool_set:Nn #1#2
-    {
-      \__cs_check_exists:N #1
-      \tex_chardef:D #1 = \bool_if_p:n {#2}
-    }
-  \cs_set_protected:Npn \bool_gset:Nn #1#2
-    {
-      \__cs_check_exists:N #1
-      \tex_global:D \tex_chardef:D #1 = \bool_if_p:n {#2}
-    }
-\fi
-%    \end{macrocode}
-%
-% Now everything else can be loaded.
-%    \begin{macrocode}
-\RequirePackage { l3clist }
-\RequirePackage { l3token }
-\RequirePackage { l3prop }
-\RequirePackage { l3msg }
-\RequirePackage { l3file }
-\RequirePackage { l3skip }
-\RequirePackage { l3keys }
-\RequirePackage { l3fp }
-\RequirePackage { l3box }
-\RequirePackage { l3coffins }
-\RequirePackage { l3color }
-\RequirePackage { l3luatex }
-\RequirePackage { l3candidates }
-%    \end{macrocode}
-%
-% The error message for variables cannot be created before now: this means that
-% \pkg{expl3} itself may cause some odd errors.
-%    \begin{macrocode}
-\bool_if:nT { \l@expl@check@declarations@bool }
-  {
-    \__msg_kernel_new:nnnn { check } { non-declared-variable }
-      { The~variable~#1~has~not~been~declared~\msg_line_context:. }
-      {
-        Checking~is~active,~and~you~have~tried~do~so~something~like: \\
-        \ \ \tl_set:Nn ~ #1 ~ \{ ~ ... ~ \} \\
-        without~first~having: \\
-        \ \ \tl_new:N ~ #1  \\
-        \\
-        LaTeX~will~create~the~variable~and~continue.
-      }
+\protected\def\ProvidesExplPackage#1#2#3#4%
+  {%
+    \ProvidesPackage{#1}[#2 v#3 #4]%
+    \ExplSyntaxOn
   }
+\protected\def\ProvidesExplClass#1#2#3#4%
+  {%
+    \ProvidesClass{#1}[#2 v#3 #4]%
+    \ExplSyntaxOn
+  }
+\protected\def\ProvidesExplFile#1#2#3#4%
+  {%
+    \ProvidesFile{#1}[#2 v#3 #4]%
+    \ExplSyntaxOn
+  }
+%    \end{macrocode}
+% \end{macro}
+% 
+%  Load the business end: this will leave \cs{expl3} syntax on.
+%    \begin{macrocode}
+\input{expl3-code.tex}
 %    \end{macrocode}
 %
 % \begin{macro}{\color}
@@ -1299,7 +1217,6 @@
 %   foo}). The checks on driver choice are set up here, so when actually
 %   the driver it's a straight forward operation.
 %    \begin{macrocode}
-\RequirePackage{ifpdf}
 \__msg_kernel_new:nnnn { expl } { wrong-driver }
   { Driver~request~inconsistent~with~engine:~using~'#2'~driver. }
   {
@@ -1480,64 +1397,211 @@
 %    \end{macrocode}
 % \end{macro}
 % \begin{variable}[int]{\c__expl_def_ext_tl}
-%   For native drivers, just load the appropriate file.
+%   For native drivers, just load the appropriate file. As \cs{expl3} syntax
+%   is already on and the full mechanism is only engaged at the end of the
+%   loader, \cs{ProvidesExplFile} is temporarily redefined here.
 %    \begin{macrocode}
   {
+    \cs_set_protected:Npn \ProvidesExplFile #1#2#3#4
+      { \ProvidesFile {#1} [ #2~v#3~#4 ] }
     \tl_const:Nn \c__expl_def_ext_tl { def }
     \@onefilewithoptions { l3 \l__expl_driver_tl } [ ] [ ] \c__expl_def_ext_tl
+    \cs_set_protected:Npn \ProvidesExplFile #1#2#3#4
+      {
+        \ProvidesFile {#1} [ #2~v#3~#4 ]
+        \ExplSyntaxOn
+      }
   }
 %    \end{macrocode}
 % \end{variable}
-%
-% \begin{macro}{\ExplSyntaxOff, \ExplSyntaxOn}
-%   These are redefined here to reduce unnecessary work when switching.
-%   The definition for \cs{ExplSyntaxOff} copies the code from earlier,
-%   so that category codes are restored.
+% 
+% \begin{macro}{\@pushfilename, \@popfilename}
+% \begin{macro}[aux]{\__expl_status_pop:w}
+%   The idea here is to use \LaTeXe{}'s \tn{@pushfilename} and
+%   \tn{@popfilename} to track the current syntax status. This can be
+%   achieved by saving the current status flag at each push to a stack,
+%   then recovering it at the pop stage and checking if the code
+%   environment should still be active.
 %    \begin{macrocode}
-\cs_set_protected_nopar:Npn \ExplSyntaxOn
+\tl_put_left:Nn \@pushfilename
   {
-    \bool_if:NF \l__kernel_expl_bool
+    \tl_put_left:Nx \l__expl_status_stack_tl
       {
-        \cs_set_protected_nopar:Npx \ExplSyntaxOff
-          {
-            \char_set_catcode:nn { 9 }   { \char_value_catcode:n { 9 } }
-            \char_set_catcode:nn { 32 }  { \char_value_catcode:n { 32 } }
-            \char_set_catcode:nn { 34 }  { \char_value_catcode:n { 34 } }
-            \char_set_catcode:nn { 36 }  { \char_value_catcode:n { 36 } }
-            \char_set_catcode:nn { 38 }  { \char_value_catcode:n { 38 } }
-            \char_set_catcode:nn { 58 }  { \char_value_catcode:n { 58 } }
-            \char_set_catcode:nn { 94 }  { \char_value_catcode:n { 94 } }
-            \char_set_catcode:nn { 95 }  { \char_value_catcode:n { 95 } }
-            \char_set_catcode:nn { 124 } { \char_value_catcode:n { 124 } }
-            \char_set_catcode:nn { 126 } { \char_value_catcode:n { 126 } }
-            \tex_endlinechar:D = \tex_the:D \tex_endlinechar:D \scan_stop:
-            \bool_set_false:N \l__kernel_expl_bool
-            \cs_set_protected_nopar:Npn \ExplSyntaxOff { }
-          }
+        \bool_if:NTF \l__kernel_expl_bool
+          { 1 }
+          { 0 }
       }
-    \char_set_catcode_ignore:n           { 9 }   % tab
-    \char_set_catcode_ignore:n           { 32 }  % space
-    \char_set_catcode_other:n            { 34 }  % double quote
-    \char_set_catcode_math_toggle:n      { 36 }  % dollar
-    \char_set_catcode_alignment:n        { 38 }  % ampersand
-    \char_set_catcode_letter:n           { 58 }  % colon
-    \char_set_catcode_math_superscript:n { 94 }  % circumflex
-    \char_set_catcode_letter:n           { 95 }  % underscore
-    \char_set_catcode_other:n            { 124 } % pipe
-    \char_set_catcode_space:n            { 126 } % tilde
-    \tex_endlinechar:D = 32 \scan_stop:
-    \bool_set_true:N \l__kernel_expl_bool
+    \ExplSyntaxOff
   }
-\cs_set_protected_nopar:Npx \ExplSyntaxOff
+\tl_put_right:Nn \@popfilename
   {
-    \exp_not:o \ExplSyntaxOff
-    \cs_set_protected_nopar:Npn \ExplSyntaxOff { }
+    \tl_if_empty:NTF \l__expl_status_stack_tl
+      { \ExplSyntaxOff }
+      { \exp_after:wN \__expl_status_pop:w \l__expl_status_stack_tl \q_stop }
+  }
+%    \end{macrocode}
+%   The pop auxiliary function removes the first item from the stack,
+%   saves the rest of the stack and then does the test. The flag here
+%   is not a proper \texttt{bool}, so a low-level test is used.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__expl_status_pop:w #1#2 \q_stop
+  {
+    \tl_set:Nn \l__expl_status_stack_tl {#2}
+    \int_if_odd:nTF {#1}
+      { \ExplSyntaxOn }
+      { \ExplSyntaxOff }
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+% \begin{variable}{\l__expl_status_stack_tl}
+%   As \pkg{expl3} itself cannot be loaded with the code environment
+%   already active, at the end of the package \cs{ExplSyntaxOff} can
+%   safely be called.
+%    \begin{macrocode}
+\tl_new:N \l__expl_status_stack_tl
+\tl_set:Nn \l__expl_status_stack_tl { 0 }
+%    \end{macrocode}
+% \end{variable}
+%
+%    
+%    \begin{macrocode}
+%</package&loader>
+%    \end{macrocode}
+%    
+% \subsection{Generic loader}
 %
 %    \begin{macrocode}
-%</package>
+%<*generic>
+%    \end{macrocode}
+%   
+% The generic loader starts with a test to ensure that the current format is
+% not \LaTeXe{}!
+%    \begin{macrocode}
+\begingroup
+  \def\tempa{LaTeX2e}
+  \def\next{}
+  \ifx\fmtname\tempa
+    \def\next
+      {%
+        \PackageInfo{expl3}{Switching from generic to LaTeX2e loader}
+        \endinput \RequirePackage{expl3}
+      }
+  \fi
+\expandafter\endgroup
+\next
+%    \end{macrocode}
+%    
+% Reload check and identify the package:
+% no \LaTeXe{} mechanism so this is all pretty basic.
+%    \begin{macrocode}
+\begingroup\expandafter\expandafter\expandafter\endgroup
+\expandafter\ifx\csname ver@expl3.tex\endcsname\relax
+\else
+  \immediate\write-1
+    {%
+      Package \ExplFileName\space Info: The package is already loaded.
+    }%
+  \expandafter\endinput
+\fi
+\immediate\write-1
+  {%
+    Package: \ExplFileName\space
+      \ExplFileDate\space v\ExplFileVersion\space \ExplFileDescription
+  }
+\expandafter\def\csname ver@expl3.tex\endcsname
+  {\ExplFileDate\space v\ExplFileVersion\space \ExplFileDescription}
+%    \end{macrocode}
+% 
+% As for the package loader, the \cs{ifpdf} package is loaded, again
+% early so there is no issue with category codes. Notice that here we do
+% not load \cs{etex} as the appropriate stuff is built into the formats.
+%    \begin{macrocode}
+\input ifpdf.sty %
+%    \end{macrocode}
+%    
+% \begin{variable}[aux]{\l@expl@tidy@tl}
+%   Save the category code of |@| and then set it to \enquote{letter}.
+%    \begin{macrocode}
+\expandafter\edef\csname l@expl@tidy@tl\endcsname
+  {%
+    \catcode64=\the\catcode64\relax
+    \let\expandafter\noexpand\csname l@expl@tidy@tl\endcsname
+      \noexpand\undefined
+  }
+\catcode64=11 %
+%    \end{macrocode}
+% \end{variable}
+%    
+% \begin{variable}[int]
+%   {
+%     \l@expl@check@declarations@bool ,
+%     \l@expl@log@functions@bool
+%   }
+%  In generic mode, there is no convenient option handling and so instead
+%  the two variables are defined to do nothing.
+%  appropriate value before input of the loader.
+%    \begin{macrocode}
+\chardef \l@expl@check@declarations@bool = 0 %
+\chardef \l@expl@log@functions@bool = 0 %
+%    \end{macrocode}
+% \end{variable}
+% 
+% \begin{macro}[aux]{\AtBeginDocument}
+% \begin{macro}[aux]{\expl@AtBeginDocument}
+%   There are a few uses of \cs{AtBeginDocument} in the package code: the
+%   easiest way around that is to simply do nothing for these. As
+%   bundles such as \pkg{miniltx} may have defined \cs{AtBeginDocument}
+%   any existing definition is saved for restoration after the  payload.
+%    \begin{macrocode}
+\let\expl@AtBeginDocument\AtBeginDocument
+\def\AtBeginDocument#1{}
+\expandafter\def\expandafter\l@expl@tidy@tl\expandafter
+  {%
+    \l@expl@tidy@tl
+    \let\AtBeginDocument\expl@AtBeginDocument
+    \let\expl@AtBeginDocument\undefined
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% 
+%  Load the business end: this will leave \cs{expl3} syntax on.
+%    \begin{macrocode}
+\input expl3-code.tex %
+%    \end{macrocode}
+% 
+% For driver loading in generic mode, there are no options: pick the most
+% appropriate case! To allow this loading to take place a temporary
+% definition of \cs{ProvidesExplFile} is provided
+%    \begin{macrocode}
+\cs_set_protected:Npn \ProvidesExplFile #1#2#3#4
+  { \iow_log:n { File:~#1~#2~v#3~#4 } }
+\tex_input:D
+  l3
+  \xetex_if_engine:TF
+    { xdvipdfmx } 
+    {
+      \ifpdf
+        pdfmode
+      \else
+        dvips
+      \fi  
+    }
+  .def \scan_stop:
+\cs_undefine:N \ProvidesExplFile
+%    \end{macrocode}
+%    
+%  For the generic loader, a few final steps to take. Turn of \cs{expl3}
+%  syntax and tidy up the small number of temporary changes.
+%    \begin{macrocode}
+\ExplSyntaxOff
+\l@expl@tidy@tl
+%    \end{macrocode}
+%    
+%    \begin{macrocode}
+%</generic>
 %    \end{macrocode}
 %
 % \end{implementation}

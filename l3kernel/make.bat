@@ -74,6 +74,7 @@ rem Makefile for LaTeX3 "l3kernel" files
   set CTANROOT=ctan
   set ENGINE=pdftex
   set MARKDOWN=README
+  set INCLUDEGEN=expl3 expl3-code l3docstrip
   set INCLUDEPDF=expl3 interface3 l3docstrip l3styleguide l3syntax-changes source3
   set INCLUDETEX=interface3 l3styleguide l3syntax-changes source3 source3body
   set TDSFILES=%CTANFILES% cls def sty
@@ -342,7 +343,9 @@ rem Makefile for LaTeX3 "l3kernel" files
   for %%I in (%CLEAN%) do (
     if exist *.%%I del /q *.%%I
   )
-  if exist l3docstrip.tex del /q l3docstrip.tex
+  for %%I in (%INCLUDEGEN%) do (
+    if exist %%I.* del /q %%I.*
+  )
 
 :clean-int
 
@@ -484,7 +487,9 @@ rem Makefile for LaTeX3 "l3kernel" files
   xcopy /q /y *.def "%INSTALLROOT%\"   > nul
   xcopy /q /y *.sty "%INSTALLROOT%\"   > nul
   
-  xcopy /q /y l3docstrip.tex "%INSTALLROOT%\" > nul
+  for %%I in (%INCLUDEGEN%) do (
+    xcopy /q /y %%I.tex "%INSTALLROOT%\" > nul
+  )
 
   goto :clean-int
 
@@ -665,7 +670,9 @@ rem Makefile for LaTeX3 "l3kernel" files
   for %%I in (*.ist) do (
     call :tds-int %%I
   )
-  xcopy /q /y l3docstrip.tex "%TDSROOT%\tex\latex\%BUNDLE%\" > nul
+  for %%I in (%INCLUDEGEN%) do (
+    xcopy /q /y %%I.tex "%TDSROOT%\tex\latex\%BUNDLE%\" > nul
+  )
   for %%I in (%MARKDOWN%) do (
     copy /y %%I.markdown "%TDSROOT%\doc\latex\%BUNDLE%\" > nul
     ren "%TDSROOT%\doc\latex\%BUNDLE%\%%I.markdown" %%I
