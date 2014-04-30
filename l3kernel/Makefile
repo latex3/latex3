@@ -67,6 +67,7 @@ TDSDIR   := $(TESTDIR)/tds
 # Data for local installation and TDS construction           #
 ##############################################################
 
+INCLUDEGEN  := expl3 expl3-code l3docstrip
 INCLUDEPDF  := expl3 interface3 l3docstrip l3styleguide l3syntax-changes source3
 INCLUDETEX  := interface3 l3styleguide l3syntax-changes source3 source3body
 INCLUDETXT  := README
@@ -89,7 +90,7 @@ CHECKFILES  = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/m3*.tlg)))
 DRIVERFILES = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/d3*.tlg)))
 SCRIPTS     = log2tlg
 TESTAUX     = filetest.txt
-TESTINPUT   = driver.tex
+TESTINPUT   = driver.tex names.tex
 VALIDATE    = commands-check.tex regression-test.tex
 
 ##############################################################
@@ -175,6 +176,9 @@ $(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
 	@cp -fp $< $@
 	
 $(TESTDIR)/driver.tex: $(TESTFILEDIR)/driver.tex
+	@cp -fp $< $@
+	
+$(TESTDIR)/names.tex: $(TESTFILEDIR)/names.tex
 	@cp -fp $< $@
 
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
@@ -439,10 +443,12 @@ clean:
 	rm -rf $(L3TESTDIR)/*
 
 cleanall: clean
-	for I in $(AUXFILES) $(CLEAN) ; do \
+	for I in $(AUXFILES) $(CLEAN); do \
 	  rm -f *.$$I ; \
 	done
-	rm -f l3docstrip.tex
+	for I in $(INCLUDEGEN); do \
+	  rm -f $$I.tex ; \
+	done
 
 ctan: tds
 	echo ""
@@ -461,7 +467,7 @@ ctan: tds
 	for I in $(INCLUDEPDF) ; do \
 	  cp -f $$I.pdf $(CTANDIR)/ ; \
 	done ; \
-	for I in $(INCLUDETEX); do \
+	for I in $(INCLUDEGEN) $(INCLUDETEX); do \
 	  cp -f $$I.tex $(CTANDIR)/ ; \
 	done ; \
 	for I in $(INCLUDETXT); do \
@@ -499,7 +505,9 @@ localinstall: unpack
 	cp *.cls $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp *.def $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
 	cp *.sty $$TEXMFHOME/tex/$(PACKAGEROOT)/ ; \
-	cp l3docstrip.tex $$TEXMFHOME/tex/$(PACKAGEROOT) ; \
+	for I in $(INCLUDEGEN) ; do \
+	  cp $$I.tex $$TEXMFHOME/tex/$(PACKAGEROOT) ; \
+	done ; \
 	cp l3doc.ist $$TEXMFHOME/makeindex/$(PACKAGE)
 
 savetlg: $(TESTDIR)/$(F).lvt support unpack
@@ -527,7 +535,9 @@ tds: $(foreach FILE,$(INCLUDETXT),$(TESTDIR)/$(FILE).markdown) sourcedoc
 	cd $(TESTDIR) ; \
 	cp -f *.cls $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
 	cp -f *.def $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
-	cp -f l3docstrip.tex $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
+	for I in $(INCLUDEGEN) ; do \
+	  cp -f $$I.tex $(TDSDIR)/tex/$(PACKAGEROOT)/ ; \
+	done ; \
 	cp -f *.dtx $(TDSDIR)/source/$(PACKAGEROOT)/ ; \
 	cp -f *.ist $(TDSDIR)/makeindex/$(PACKAGE)/ ; \
 	for I in $(INCLUDEPDF) ; do \
