@@ -263,50 +263,99 @@
 %</initex>
 %    \end{macrocode}
 %
-% For \LuaTeX{} the extra primitives need to be enabled before
-% they can be used. No \tn{ifdefined} yet, so do it the old-fashioned
-% way. The primitive \tn{strcmp} is simulated using some \Lua{}
-% code, which currently has to be applied to every job as the \Lua{}
-% code is not part of the format. Thanks to Taco Hoekwater for this
-% code. The odd \tn{csname} business is needed so that the later
-% deletion code will work.
+% For \LuaTeX{}, the extra primitives need to be enabled. This is not needed
+% in package mode: plain \TeX{} and Con\TeX{}t have the primitives enabled
+% while \LaTeXe{} has them with the prefix \texttt{luatex} (which is handled
+% in \pkg{l3names}).
 %    \begin{macrocode}
 %<*initex>
 \begingroup\expandafter\expandafter\expandafter\endgroup
 \expandafter\ifx\csname directlua\endcsname\relax
-\else
-  \directlua
-    {
-      tex.enableprimitives('',tex.extraprimitives ())
-      lua.bytecode[1] = function ()
-        function strcmp (A, B)
-          if A == B then
-            tex.write("0")
-          elseif A < B then
-            tex.write("-1")
-          else
-            tex.write("1")
-          end
-        end
-      end
-      lua.bytecode[1]()
-    }
-  \everyjob\expandafter
-    {\csname\detokenize{luatex_directlua:D}\endcsname{lua.bytecode[1]()}}
-  \long\edef\pdfstrcmp#1#2%
-     {%
-       \expandafter\noexpand\csname\detokenize{luatex_directlua:D}\endcsname
-         {%
-           strcmp%
-             (%
-               "\noexpand\luaescapestring{#1}",%
-               "\noexpand\luaescapestring{#2}"%
-             )%
-         }%
-     }
+  \directlua{tex.enableprimitives ('', tex.extraprimitives ( ))}
 \fi
 %</initex>
 %    \end{macrocode}
+%    
+% \subsection{The \cs{pdfstrcmp} primitive with \XeTeX{} and \LuaTeX{}}
+% 
+% Only \pdfTeX{} has a primitive called \tn{pdfstrcmp}. The \XeTeX{}
+% version is just \tn{strcmp}, so there is some shuffling to do. As
+% this is still a real primitive, using the \pdfTeX{} name is \enquote{safe}.
+%    \begin{macrocode}
+\begingroup\expandafter\expandafter\expandafter\endgroup
+  \expandafter\ifx\csname pdfstrcmp\endcsname\relax
+  \let\pdfstrcmp\strcmp
+\fi
+%    \end{macrocode}
+% 
+% \begin{macro}{\expl_pdfstrcmp}
+%   If \LuaTeX{} is in use then no primitive \cs{(pdf)strcmp} is available.
+%   However, it can be emulated using some Lua code. Since this is not
+%   the primitive, we do not use a misleading name: instead, a temporary
+%   version is set up as \cs{expl_pdfstrcmp}. The latter is then picked up
+%   and moved to the correct place by \pkg{l3names}. In earlier versions of
+%   the code, the \pkg{pdftexcmds} package was loaded to do this task. However,
+%   that raises some issues in \enquote{generic} (it fails with Con\TeX{}t
+%   MkIV), and also adds a hardly-needed dependency.
+%   
+%   Note that \LuaTeX{} prior to version $0.36$ is not supported by
+%   \pkg{expl3}: here that means simply skipping the definition, which will
+%   then be picked up later. In format mode, the definition needs to be done
+%   both during the format construction process and at the start of each
+%   job. To achieve that while not requiring a separate file, the Lua code
+%   is saved into a macro then used twice. That isn't required for package
+%   mode but it does not harm and keeps code-sharing easier.
+%    \begin{macrocode}
+\begingroup
+  \expandafter\ifx\csname directlua\endcsname\relax
+  \else
+    \ifnum\luatexversion<36 %
+    \else
+      \catcode`\_=11 %
+      \catcode`\:=11 %
+%<*initex>
+      \def\tempa
+%</initex>
+%<*package>
+      \directlua
+%</package>
+        {%
+          l3kernel = { }
+          function l3kernel.strcmp (A, B)
+            A = A or { }
+            B = B or { }
+            if A == B then
+              tex.write ("0")
+            elseif A < B then
+              tex.write ("-1")
+            else
+              tex.write ("1")
+            end
+          end
+        }
+%<*initex>
+      \directlua{\tempa}
+      \global\everyjob\expandafter
+        {%
+          \expandafter\luatex_directlua:D\expandafter{\tempa}%
+        }
+%</initex>
+      \gdef\expl_pdfstrcmp#1#2%
+        {%
+          \luatex_directlua:D
+            {%
+              l3kernel.strcmp
+                (
+                  " \luatex_luaescapestring:D {#1} " ,
+                  " \luatex_luaescapestring:D {#2} "
+                )
+            }%
+        }
+    \fi
+  \fi
+\endgroup
+%    \end{macrocode}
+% \end{macro}
 %
 % \subsection{Package-specific code part one}
 %
@@ -327,14 +376,12 @@
         {%
           \endgroup
 %          \input luatex.sty %
-%          \input pdftexcmds.sty %
         }%
     \else
       \def\tempa
         {%
           \endgroup
           \RequirePackage{luatex}%
-          \RequirePackage{pdftexcmds}%
         }%
     \fi    
   \expandafter\tempa
@@ -342,24 +389,12 @@
 %</package>
 %    \end{macrocode}
 %    
-% \subsection{The \tn{pdfstrcmp} primitive in \XeTeX{}}
-%
-% Only \pdfTeX{} has a primitive called \tn{pdfstrcmp}. The \XeTeX{}
-% version is just \tn{strcmp}, so there is some shuffling to do. As
-% this is still a real primitive, using the \pdfTeX{} name is \enquote{safe}.
-%    \begin{macrocode}
-\begingroup\expandafter\expandafter\expandafter\endgroup
-  \expandafter\ifx\csname pdfstrcmp\endcsname\relax
-  \let\pdfstrcmp\strcmp
-\fi
-%    \end{macrocode}
-%    
 % \subsection{Engine requirements}
 %
 % The code currently requires functionality equivalent to \tn{pdfstrcmp}
-% in addition to \eTeX{}.  In package mode, there is the slight caveat that
-% with \LuaTeX{} emulating this primitive is be done using a different
-% name as the expansion behaviour is different.
+% in addition to \eTeX{}. This is picked up by testing for the \cs{pdfstrcmp}
+% primitive or emulation as \cs{expl_pdfstrcmp}, as the \eTeX{} primitives
+% must be available if it is.
 %    \begin{macrocode}
 \begingroup
   \def\ShortText{Required primitives not found}%
@@ -375,27 +410,27 @@
       \LineBreak
     }%
   \expandafter\ifx\csname pdfstrcmp\endcsname\relax
+    \catcode`\_=11 %
+    \expandafter\ifx\csname expl_pdfstrcmp\endcsname\relax
 %<*initex>
-    \def\LineBreak{^^J}%
-    \edef\Error%
-      {%
-        \endgroup
-        \newlinechar`\noexpand\^^J\relax
-        \errhelp
-          {%
-            \LongText
-            For pdfTeX and XeTeX the '-etex' command-line switch is also
-            needed.\LineBreak
-            \LineBreak
-            Format building will abort!\LineBreak
-          }%
-        \errmessage{\ShortText}%
-        \noexpand\end
-      }%
-  \expandafter\Error
+      \def\LineBreak{^^J}%
+      \edef\Error%
+        {%
+          \endgroup
+          \newlinechar`\noexpand\^^J\relax
+          \errhelp
+            {%
+              \LongText
+              For pdfTeX and XeTeX the '-etex' command-line switch is also
+              needed.\LineBreak
+              \LineBreak
+              Format building will abort!\LineBreak
+            }%
+          \errmessage{\ShortText}%
+          \noexpand\end
+        }%
 %</initex>  
 %<*package>
-    \expandafter\ifx\csname pdf@strcmp\endcsname\relax
       \def\LineBreak{\noexpand\MessageBreak}%
       \edef\Error%
         {%
@@ -404,14 +439,72 @@
             {\LongText Loading of expl3 will abort!}%
           \noexpand\endinput  
         }%
+%</package>
       \expandafter\expandafter\expandafter\Error
     \else
       \endgroup
     \fi
-%</package>
 \else
   \endgroup
 \fi
+%    \end{macrocode}
+%
+% \subsection{Extending allocators}
+% 
+% In format mode, allocating registers is handled by \pkg{l3alloc}. However, in
+% package mode it's much safer to rely on more general code. For example,
+% the ability to extend \TeX{}'s allocation routine to allow for \eTeX{} has
+% been around since 1997 in the \pkg{etex} package.
+% 
+% Loading this support is delayed until here as we are now sure that the
+% \eTeX{} extensions and \cs{pdfstrcmp} or equivalent are available. Thus
+% there is no danger of an \enquote{uncontrolled} error if the engine
+% requirements are not met.
+%
+% For \LaTee{} only, load \pkg{etex} as otherwise we are likely to get into
+% trouble with registers. Some inserts are reserved also as these have to
+% be from the standard pool. Note that \cs{reserveinserts} is \cs{outer}
+% and sois accessed here by csname. In earlier versions, loading \pkg{etex}
+% was done directly and so \cs{reserveinserts} appeared in the code: this
+% then required a \cs{relax} after \cs{RequirePackage} to prevent an error
+% with \enquote{unsafe} definitions as seen for example with \pkg{capoptions}.
+% The optional loading here is done using a group and \cs{ifx} test as we
+% are not quite in the position to have a single name for \cs{pdfstrcmp} just
+% yet.
+%    \begin{macrocode}
+%<*package>
+\begingroup
+  \def\@tempa{LaTeX2e}
+  \def\next{}
+  \ifx\fmtname\@tempa
+    \def\next
+      {%
+        \RequirePackage{etex}%
+        \csname reserveinserts\endcsname{32}%
+      }
+  \fi
+\expandafter\endgroup
+\next
+%</package>
+%    \end{macrocode}
+% 
+% If \LuaTeX{} is in use there are more allocators to create. Con\TeX{}t
+% already does that, so skip any loading in that case: this is done using the
+% \cs{newattribute} allocator.  Otherwise, there is a need for a test to
+% differentiate between \LaTeXe{} and plain.
+%    \begin{macrocode}
+%<*package>
+\ifdefined\directlua
+  \ifdefined\newattribute
+  \else
+    \ifdefined\RequirePackage
+      \RequirePackage{luatex}
+    \else
+      \input luatex.sty %
+    \fi
+  \fi
+\fi
+%</package>
 %    \end{macrocode}
 %
 % \subsection{The \LaTeX3 code environment}
