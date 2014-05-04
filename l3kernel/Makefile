@@ -67,7 +67,7 @@ TDSDIR   := $(TESTDIR)/tds
 # Data for local installation and TDS construction           #
 ##############################################################
 
-INCLUDEGEN  := expl3 expl3-code l3docstrip
+INCLUDEGEN  := expl3-generic expl3-code l3docstrip
 INCLUDEPDF  := expl3 interface3 l3docstrip l3styleguide l3syntax-changes source3
 INCLUDETEX  := interface3 l3styleguide l3syntax-changes source3 source3body
 INCLUDETXT  := README
