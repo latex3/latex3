@@ -884,7 +884,6 @@
     \cs_new_protected:Npn \@@_parse:n #1
       {
         \group_begin:
-          \tl_clear:N \l_@@_sanitise_tl
           \tl_set:Nn \l_@@_sanitise_tl {#1}
           \tl_replace_all:Nnn \l_@@_sanitise_tl { = } { 8 }
           \tl_replace_all:Nnn \l_@@_sanitise_tl { , } { 9 }
@@ -901,39 +900,42 @@
 % \begin{macro}{\@@_parse_elt:w}
 %   Each item to be parsed will have \cs{q_nil} added to the front.
 %   Hence the blank test here can always be used to find a totally
-%   empty argument. If this is the case, the system loops round. If there
-%   is something to parse, there is a check for the end of the input before
-%   handing off.
+%   empty argument. To allow rapid matching for an |=| while not stripping
+%   any braces, another \cs{q_nil} needed before the next phase of the
+%   parser. Finally, loop around for the next item, adding in the
+%   \cs{q_nil}: this happens whatever the nature of the current argument
+%   as the end-of-recursion will clear up in all cases.  
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_parse_elt:w #1 ,
   {
-    \tl_if_blank:oTF { \use_none:n #1 }
-      { \@@_parse_elt:w \q_nil }
+    \tl_if_blank:oF { \use_none:n #1 }
       {
         \quark_if_recursion_tail_stop:o { \use_ii:nn #1 }
-        \@@_split_key_value:w #1 = = \q_stop
-        \@@_parse_elt:w \q_nil
+        \@@_split_key_value:w #1 \q_nil = = \q_stop
       }
+    \@@_parse_elt:w \q_nil
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\@@_split_key_value:w}
-% \begin{macro}[aux, EXP]{\@@_split_key_value:wTF}
-%   The key and value are handled separately. First the key is grabbed and
-%   saved as \cs{l_@@_key_tl}. Then a check is need to see if there is
-%   a value at all: if not then the key name is simply added to the output.
-%   If there is a value then there is a check to ensure that there was
-%   only one |=| in the input (remembering some extra ones are around at
-%   the moment to prevent errors). All being well, there is an
-%   hand-off to find the value: the \cs{q_nil} is there to prevent loss
-%   of braces.
+% \begin{macro}[aux]{\@@_split_key:w}
+%   Split the key and value using a delimited argument. The \cs{q_nil}
+%   values added earlier ensure that no braces will be stripped as part
+%   of this process. A blank test can then be used on |#3|: it is only
+%   empty if there was no |=| in the original input. In that case, strip
+%   a \cs{q_nil} from the end of the key name then hand on to remove other
+%   things and store as \cs{l_@@_key_tl} before adding to the output token
+%   list. In the case where there is an |=|, first tidy up the key, this time
+%   without a trailing \cs{q_nil}, then do a check to ensure that |#3| is
+%   exactly one token (|=|). With that done, the final stage is to hand off
+%   to tidy up the value.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_split_key_value:w #1 = #2 \q_stop
+\cs_new_protected:Npn \@@_split_key_value:w #1 = #2 = #3 \q_stop
   {
-    \@@_split_key:n {#1}
-    \str_if_eq:nnTF {#2} { = }
+    \tl_if_blank:nTF {#3}
       {
+        \@@_split_key:w #1 \q_stop
         \tl_put_right:Nx \l_@@_parse_tl
           {
             \exp_not:c
@@ -942,80 +944,56 @@
           }
       }
       {
-        \@@_split_key_value:wTF #2 \q_no_value \q_stop
-          { \@@_split_value:w \q_nil #2 }
+        \@@_split:Nn \l_@@_key_tl {#1}
+        \tl_if_blank:oTF { \use_none:n #3 }
+          { \@@_split_value:w \q_nil #2 \q_stop }
           { \__msg_kernel_error:nn { kernel } { misplaced-equals-sign } }
       }
   }
-\cs_new:Npn \@@_split_key_value:wTF #1 = #2#3 \q_stop
-  { \tl_if_head_eq_meaning:nNTF {#3} \q_no_value }
+\cs_new_protected:Npn \@@_split_key:w #1 \q_nil \q_stop
+  { \@@_split:Nn \l_@@_key_tl {#1} }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\@@_split_key:n}
-% \begin{macro}[aux]{\@@_split_key:w}
+% \begin{macro}{\@@_split:Nn}
+% \begin{macro}[aux]{\@@_split:Nw}
 %   There are two possible cases here. The first case is that |#1| is
 %   surrounded by braces, in which case the |\use_none:nnn #1 \q_nil \q_nil|
 %   will yield \cs{q_nil}. There, we can remove the leading \cs{q_nil}, the
 %   braces and any spaces around the outside with \cs{use_ii:nnn}. On the
 %   other hand, if there are no braces then the second branch removes the
-%   leading \cs{q_nil} and any surrounding spaces. (This code does not have
-%   to cover the case with no key, as that's already taken out above.)
+%   leading \cs{q_nil} and any surrounding spaces.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_split_key:n #1
+\cs_new_protected:Npn \@@_split:Nn #1#2
   {
-    \quark_if_nil:oTF { \use_none:nnn #1 \q_nil \q_nil }
-      { \tl_set:Nx \l_@@_key_tl { \exp_not:o { \use_ii:nnn #1 \q_nil } } }
-      { \@@_split_key:w #1 \q_stop }
+    \quark_if_nil:oTF { \use_none:nnn #2 \q_nil \q_nil }
+      { \tl_set:Nx #1 { \exp_not:o { \use_ii:nnn #2 \q_nil } } }
+      { \@@_split:Nw #1 #2 \q_stop }
   }
-\cs_new_protected:Npn \@@_split_key:w \q_nil #1 \q_stop
-  { \tl_set:Nx \l_@@_key_tl { \tl_trim_spaces:n {#1} } }
+\cs_new_protected:Npn \@@_split:Nw #1 \q_nil #2 \q_stop
+  { \tl_set:Nx #1 { \tl_trim_spaces:n {#2} } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\@@_split_value:w}
-%   Here the value has to be separated from the equals signs and the
-%   leading \cs{q_nil} added in to keep the brace levels. Fist the
-%   processing function can be added to the output list. If there is no
-%   value, setting \cs{l_@@_value_tl} with three groups removed will
-%   leave nothing at all, and so an empty group can be added to the
-%   parsed list. On the other hand, if the value is entirely contained
-%   within a set of braces then \cs{l_@@_value_tl} will contain
-%   \cs{q_nil} only. In that case, strip off the leading quark using
-%   \cs{use_ii:nnn}, which also deals with any spaces.
+%   As this stage there is just the value to deal with. The leading and
+%   trailing \cs{q_nil} tokens are removed in two steps before storing the
+%   value with spaces stripped (see \cs{@@_split:Nn}). Doing the storage
+%   of key and value in one shot will put exactly the right number of
+%   brace groups into the output.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_split_value:w #1 = =
+\cs_new_protected:Npn \@@_split_value:w #1 \q_nil \q_stop
   {
+    \@@_split:Nn \l_@@_value_tl {#1}
     \tl_put_right:Nx \l_@@_parse_tl
       {
         \exp_not:c
           { @@_key_value_elt_ \int_use:N \g_@@_level_int :nn }
           { \exp_not:o \l_@@_key_tl }
+          { \exp_not:o \l_@@_value_tl }
       }
-    \tl_set:Nx \l_@@_value_tl
-      { \exp_not:o { \use_none:nnn #1 \q_nil \q_nil } }
-    \tl_if_empty:NTF \l_@@_value_tl
-      { \tl_put_right:Nn \l_@@_parse_tl { { } } }
-      {
-        \quark_if_nil:NTF \l_@@_value_tl
-          {
-            \tl_put_right:Nx \l_@@_parse_tl
-              { { \exp_not:o { \use_ii:nnn #1 \q_nil } } }
-          }
-          { \@@_split_value_aux:w #1 \q_stop }
-      }
-  }
-%    \end{macrocode}
-%   A similar idea to the key code: remove the spaces from each end and
-%   deal with one set of braces.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_split_value_aux:w \q_nil #1 \q_stop
-  {
-    \tl_set:Nx \l_@@_value_tl { \tl_trim_spaces:n {#1} }
-    \tl_put_right:Nx \l_@@_parse_tl
-      { { \exp_not:o \l_@@_value_tl } }
   }
 %    \end{macrocode}
 % \end{macro}
