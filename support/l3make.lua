@@ -498,8 +498,9 @@ function ctan ()
   allmodules ("bundlectan")
   dirzip (tdsdir, bundle .. ".tds")
   cp (tdsdir .. "/" .. bundle .. ".tds.zip", ctandir)
-  cp ("README.markdown", ctandir .. "/" .. bundle)
-  mv (ctandir .. "/README.markdown", ctandir .. "/" .. bundle .. "/README")
+  local bundledir = ctandir .. "/" .. bundle
+  cp ("README.markdown", bundledir)
+  mv (bundledir .. "/README.markdown", bundledir .. "/README")
   dirzip (ctandir, bundle)
 end
 
