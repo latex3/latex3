@@ -645,6 +645,9 @@ function main (target, file)
       allmodules ("bundlecheck")
     elseif target == "clean" then
       allmodules ("clean")
+      for _,i in ipairs (cleanfiles) do
+        rm (i)
+      end
     elseif target == "ctan" then
       ctan ()
     elseif target == "localinstall" then
