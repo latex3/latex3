@@ -12,7 +12,6 @@ maindir = "../.."
 
 -- Non-standard settings
 testfiledir  = "" -- No tests
-typesetfiles = {"*.dtx"}
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
