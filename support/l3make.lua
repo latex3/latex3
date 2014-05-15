@@ -201,13 +201,14 @@ function mkdir (dir)
   end
 end
 
--- Move/rename 'quietly'
-function mv (source, dest)
+-- Rename
+function ren (dir, source, dest)
+  local dir = dir .. "/"
   if os_windows then
     os.execute
-      ("ren " .. unix_to_win (source) .. " " .. unix_to_win (dest))
+      ("ren " .. unix_to_win (dir) .. source .. " " .. dest)
   else
-    os.execute ("mv " .. source .. " " .. dest)
+    os.execute ("mv " .. dir .. source .. " " .. dir .. dest)
   end
 end
 
@@ -500,7 +501,7 @@ function ctan ()
   cp (tdsdir .. "/" .. bundle .. ".tds.zip", ctandir)
   local bundledir = ctandir .. "/" .. bundle
   cp ("README.markdown", bundledir)
-  mv (bundledir .. "/README.markdown", bundledir .. "/README")
+  ren (bundledir, "README.markdown", "README")
   dirzip (ctandir, bundle)
 end
 
