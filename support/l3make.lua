@@ -334,7 +334,7 @@ function formatlog (logfile, newfile)
 end
 
 -- Runs a single test: needs the name of the test rather than the .lvt file
-function runcheck (name)
+function runcheck (name, hide)
   local difffile = name .. os_diffext
   local logfile  = name .. ".log"
   local lvtfile  = name .. ".lvt"
@@ -342,7 +342,11 @@ function runcheck (name)
   local tlgfile  = name .. ".tlg"
   cp (testfiledir .. "/" .. lvtfile, testdir)
   cp (testfiledir .. "/" .. tlgfile, testdir)
-  run (testdir, checkexe .. " " .. lvtfile .. " > " .. os_null)
+  run
+    (
+      testdir, checkexe .. " " .. lvtfile .. 
+        (hide and (" > " .. os_null) or "")
+    )
   formatlog (testdir .. "/" .. logfile, testdir .. "/" .. newfile)
   run
     (
@@ -416,7 +420,7 @@ function check ()
   for _,i in ipairs (listfiles (testfiledir, "*.tlg")) do
     local name = stripext (i)
     print ("  " .. name)
-    runcheck (name)
+    runcheck (name, true)
   end
   local failures = listfiles (testdir, "*" .. os_diffext)
   -- As listfiles always returns a table, the key here is whether there are any
