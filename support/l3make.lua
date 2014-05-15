@@ -191,9 +191,11 @@ function listfiles (path, glob)
 end
 
 function mkdir (dir)
-  -- Windows automatically makes the tree, Unix doesn't
   if os_windows then
-    lfs.mkdir (dir)
+    -- Windows (with the extensions) will automatically make directory trees
+    -- but issues a warning if the dir already exists: avoid by including a test
+    local dir = unix_to_win (dir)
+    os.execute ("if not exist "  .. dir .. "\\nul " .. "mkdir " .. dir)
   else
     os.execute ("mkdir -p " .. dir)
   end
