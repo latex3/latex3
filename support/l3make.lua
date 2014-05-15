@@ -554,15 +554,16 @@ function doc ()
         ("makeindex -s l3doc.ist -o " .. name .. ".ind " .. name .. ".idx")
     end
     local function typeset (file)
-       local outcome = os.execute (typesetexe .. " " .. file)
-       return outcome
+       local errorlevel = os.execute (typesetexe .. " " .. file)
+       return errorlevel
     end
     cleanaux (name)
     os.remove (name .. ".pdf")
     print ("Typesetting " .. name)
-    local outcome = typeset (file)
-    if outcome ~= 0 then
+    local errorlevel = typeset (file)
+    if errorlevel ~= 0 then
       print (" ! Compilation failed")
+      return (errorlevel)
     else
       for i = 1, 2 do -- Do twice
         index (name)
@@ -570,11 +571,15 @@ function doc ()
       end
       cleanaux (name)
     end
+    return (errorlevel)
   end
   -- Main loop for doc creation
   for _,i in ipairs (typesetfiles) do
     for _,j in ipairs (listfiles (".", i)) do
-      typeset (j)
+      local errorlevel = typeset (j)
+      if errorlevel ~= 0 then
+        return (errorlevel)
+      end
     end
   end
 end
