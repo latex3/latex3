@@ -235,7 +235,8 @@ end
 
 -- Run a command in a given directory
 function run (dir, cmd)
-  os.execute ("cd " .. dir .. os_concat .. cmd)
+  local errorlevel = os.execute ("cd " .. dir .. os_concat .. cmd)
+  return (errorlevel)
 end
 
 -- Deal with the fact that Windows and Unix use different path separators
@@ -250,9 +251,14 @@ end
 
 -- Do some subtarget for all modules in a bundle
 function allmodules (target)
+  local errorlevel = 0
   for _,i in ipairs (modules) do
-    run (i, "texlua make.lua " .. target)
+    errorlevel = run (i, "texlua make.lua " .. target)
+    if errorlevel > 0 then
+      return (errorlevel)
+    end
   end
+  return (errorlevel)
 end
 
 -- Set up the check system files: needed for checking one or more tests and
@@ -433,8 +439,7 @@ function check ()
     print ("")
     return 1
   else
-    print ("\n  All checks passed")
-    print ("")
+    print ("\n  All checks passed\n")
     return 0
   end
 end
@@ -650,7 +655,11 @@ function main (target, file)
     if target == "doc" then
       allmodules ("doc")
     elseif target == "check" then
-      allmodules ("bundlecheck")
+      local errorlevel = allmodules ("bundlecheck")
+      if errorlevel > 0 then
+        print ("There were errors: checks halted!\n")
+        os.exit (errorlevel)
+      end
     elseif target == "clean" then
       allmodules ("clean")
       for _,i in ipairs (cleanfiles) do
@@ -672,7 +681,8 @@ function main (target, file)
       bundleunpack ()
     elseif target == "bundlecheck" then
       if testfiledir ~= "" then  -- Ignore if there are no testfiles
-        errors = check ()
+        local errorlevel = check ()
+        os.exit (errorlevel)
       end
     elseif target == "bundlectan" then
       bundlectan ()
