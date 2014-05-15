@@ -9,7 +9,7 @@ module  = ""
 modules = {"l3keys2e", "xfrac", "xparse", "xtemplate"}
 
 -- Location of main directory: use Unix-style path separators
-maindir = "../"
+maindir = ".."
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
