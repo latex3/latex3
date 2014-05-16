@@ -466,14 +466,19 @@ end
 function clean ()
   cleandir (unpackdir)
   cleandir (testdir)
-  if modules == "" then -- Clean up fully for bundles
-    cleandir (ctandir)
-    cleandir (tdsdir)
-  end
   cleanaux ()
   for _,i in ipairs (cleanfiles) do
     rm (i)
   end
+end
+
+function bundleclean ()
+  allmodules ("clean")
+  for _,i in ipairs (cleanfiles) do
+    rm (i)
+  end
+  rmdir (ctandir)
+  rmdir (tdsdir)
 end
 
 function ctan ()
@@ -505,15 +510,22 @@ function ctan ()
       )
     cp (dir .. "/" .. zipname, ".")
   end
-  clean ()
+  bundleclean ()
   mkdir (ctandir .. "/" .. bundle)
   mkdir (tdsdir)
   allmodules ("bundlectan")
+  for _,i in pairs (txtfiles) do
+    for _,j in pairs (listfiles (".", i)) do
+      local function installtxt (name, dir)
+        cp (name, dir)
+        ren (dir, name, stripext (name))
+      end
+      installtxt (j, ctandir .. "/" .. bundle)
+      installtxt (j, tdsdir .. "/doc/latex/" .. bundle)
+    end
+  end 
   dirzip (tdsdir, bundle .. ".tds")
   cp (tdsdir .. "/" .. bundle .. ".tds.zip", ctandir)
-  local bundledir = ctandir .. "/" .. bundle
-  cp ("README.markdown", bundledir)
-  ren (bundledir, "README.markdown", "README")
   dirzip (ctandir, bundle)
 end
 
@@ -670,10 +682,7 @@ function main (target, file)
         os.exit (errorlevel)
       end
     elseif target == "clean" then
-      allmodules ("clean")
-      for _,i in ipairs (cleanfiles) do
-        rm (i)
-      end
+      bundleclean ()
     elseif target == "ctan" then
       ctan ()
     elseif target == "localinstall" then
