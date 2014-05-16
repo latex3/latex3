@@ -442,11 +442,10 @@ function check ()
       print ("  - " .. i)
     end
     print ("")
-    return 1
   else
     print ("\n  All checks passed\n")
-    return 0
   end
+  return (errorlevel)
 end
 
 function checklvt (name)
