@@ -216,6 +216,7 @@ end
 -- speed
 function rm (glob)
   if os_windows then
+    local glob = unix_to_win (glob)
     os.execute ("if exist " .. glob .. " del /q " .. glob)
   else
     os.execute ("rm -rf " .. glob)
