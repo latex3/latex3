@@ -266,7 +266,7 @@ end
 function checkinit ()
   unpack ()
   cleandir (testdir)
-  for _,i in pairs (installfiles) do
+  for _,i in ipairs (installfiles) do
     cp (unpackdir .. "/" .. i, testdir)
   end
   cp (supportdir .. "/regression-test.tex", testdir)
@@ -486,7 +486,7 @@ function ctan ()
     local zipname = name .. ".zip"
     local function tab_to_str (table)
       local string = ""
-      for _,i in pairs (table) do
+      for _,i in ipairs (table) do
         string = string .. " " .. "\"" .. i .. "\""
       end
       return string
@@ -514,8 +514,8 @@ function ctan ()
   mkdir (ctandir .. "/" .. bundle)
   mkdir (tdsdir)
   allmodules ("bundlectan")
-  for _,i in pairs (txtfiles) do
-    for _,j in pairs (listfiles (".", i)) do
+  for _,i in ipairs (txtfiles) do
+    for _,j in ipairs (listfiles (".", i)) do
       local function installtxt (name, dir)
         cp (name, dir)
         ren (dir, name, stripext (name))
@@ -533,7 +533,7 @@ function bundlectan ()
   local function install (source, dest, files, ctan)
     local installdir  = tdsdir .. "/"  .. dest .. "/" .. moduledir
     mkdir (installdir)
-    for _,i in pairs (files) do
+    for _,i in ipairs (files) do
       if ctan then
         cp (source .. "/" .. i, ctandir .. "/" .. bundle)
       end
@@ -544,7 +544,7 @@ function bundlectan ()
   doc ()
   -- Convert input names for typesetting into names of PDF files
   local pdffiles = { }
-  for _,i in pairs (typesetfiles) do
+  for _,i in ipairs (typesetfiles) do
     table.insert (pdffiles, (string.gsub (i, "%.%w+$", ".pdf")))
   end
   install (".", "doc", pdffiles, true)
@@ -617,7 +617,7 @@ function localinstall ()
   end
   local installdir = texmfhome .. "/tex/" .. moduledir
   cleandir (installdir)
-  for _,i in pairs (installfiles) do
+  for _,i in ipairs (installfiles) do
     cp (unpackdir .. "/" .. i, installdir)
   end
 end
@@ -648,7 +648,7 @@ end
 -- Split off from the main unpack so it can be used on a bundle and not
 -- leave only one modules files
 function bundleunpack ()
-  for _,i in pairs (unpackfiles) do
+  for _,i in ipairs (unpackfiles) do
     cp (i, unpackdir)
   end
   cp (supportdir .. "/docstrip.tex", unpackdir)
@@ -679,7 +679,7 @@ function main (target, file)
     for entry in lfs.dir (".") do
       if entry ~= "." and entry ~= ".." then
         local attr = lfs.attributes (entry)
-        assert (type(attr) == "table")
+        assert (type (attr) == "table")
         if attr.mode == "directory" then
           table.insert (modules, entry)
         end
