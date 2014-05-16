@@ -150,11 +150,7 @@ lfs = require ("lfs")
 function cleandir (dir)
   mkdir (dir)
   local files = dir .. "/*"
-  if os_windows then
-    os.execute ("del /q " .. unix_to_win (files))
-  else
-    os.execute ("rm -rf " .. files)
-  end
+  rm (files)
 end
 
 -- Copy files 'quietly'
@@ -434,7 +430,10 @@ function check ()
   for _,i in ipairs (listfiles (testfiledir, "*.tlg")) do
     local name = stripext (i)
     print ("  " .. name)
-    errorlevel = runcheck (name, true) or errorlevel
+    local errlevel = runcheck (name, true)
+    if errlevel ~= 0 then
+      errorlevel = 1
+    end  
   end
   if errorlevel ~= 0 then
     print ("\n  Check failed with difference files")
