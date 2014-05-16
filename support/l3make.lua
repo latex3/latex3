@@ -675,6 +675,17 @@ function main (target, file)
   -- If the module name is empty, the script is running in a bundle:
   -- apart from ctan all of the targets are then just mappings
   if module == "" then
+    -- Detect all of the modules
+    modules = { }
+    for entry in lfs.dir (".") do
+      if entry ~= "." and entry ~= ".." then
+        local attr = lfs.attributes (entry)
+        assert (type(attr) == "table")
+        if attr.mode == "directory" then
+          table.insert (modules, entry)
+        end
+      end
+    end
     if target == "doc" then
       allmodules ("doc")
     elseif target == "check" then
