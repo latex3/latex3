@@ -11,6 +11,7 @@ module  = "l3keys2e"
 maindir = "../.."
 
 -- Non-standard settings
+demofiles    = {"l3keys2e-demo.tex"}
 testfiledir  = "" -- No tests
 
 -- Load the common build code: this is the one place that a path needs to be

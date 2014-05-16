@@ -25,6 +25,7 @@ auxfiles     = auxfiles     or
     "*.log", "*.out", "*.synctex.gz", "*.tmp", "*.toc", "*.xref"
   }
 binaryfiles  = binaryfiles  or {"*.pdf", "*.zip"}
+demofiles    = demofiles    or { }
 cleanfiles   = cleanfiles   or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
 excludefiles = excludefiles or {"*~"}             -- Any Emacs stuff
 installfiles = installfiles or {"*.sty"}
@@ -548,6 +549,7 @@ function bundlectan ()
     table.insert (pdffiles, (string.gsub (i, "%.%w+$", ".pdf")))
   end
   install (".", "doc", pdffiles, true)
+  install (".", "doc", demofiles, true)
   install (".", "source", typesetfiles, true)
   install (".", "source", unpackfiles, true)
   install (unpackdir, "tex", installfiles, false)
