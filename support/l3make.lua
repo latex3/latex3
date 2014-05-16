@@ -39,6 +39,9 @@ typesetexe = typesetexe or "pdflatex -interaction=nonstopmode"
 unpackexe  = unpackexe  or "tex"
 zipexe     = "zip -v -r -X"
 
+-- Other required settings
+pdfsettings = pdfsettings or "\\AtBeginDocument{\\DisableImplementation}"
+
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
 -- Simplified substantially: "[...]" syntax not supported as is not
@@ -554,7 +557,8 @@ function doc ()
         ("makeindex -s l3doc.ist -o " .. name .. ".ind " .. name .. ".idx")
     end
     local function typeset (file)
-       local errorlevel = os.execute (typesetexe .. " " .. file)
+       local errorlevel = 
+         os.execute (typesetexe .. " \"" .. pdfsettings .. " \\input " .. file .. "\"")
        return errorlevel
     end
     cleanaux (name)
