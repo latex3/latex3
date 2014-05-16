@@ -378,11 +378,14 @@ function runcheck (name, hide)
     -- First line null using Unix: the Windows test is a backup in case
     -- things died entirely
     os.remove (difffile)
+    return 0
   else
     if b == "FC: no differences encountered" then
       os.remove (difffile)
+      return 0
     end
   end
+  return 1
 end
 
 -- Strip the extension from a file name
@@ -426,18 +429,16 @@ end
 
 function check ()
   checkinit ()
+  local errorlevel = 0
   print ("Running checks on")
   for _,i in ipairs (listfiles (testfiledir, "*.tlg")) do
     local name = stripext (i)
     print ("  " .. name)
-    runcheck (name, true)
+    errorlevel = runcheck (name, true) or errorlevel
   end
-  local failures = listfiles (testdir, "*" .. os_diffext)
-  -- As listfiles always returns a table, the key here is whether there are any
-  -- entries
-  if failures[1] then
+  if errorlevel ~= 0 then
     print ("\n  Check failed with difference files")
-    for _,i in ipairs (failures) do
+    for _,i in ipairs (listfiles (testdir, "*" .. os_diffext)) do
       print ("  - " .. i)
     end
     print ("")
