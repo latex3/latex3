@@ -6,7 +6,6 @@
 -- there is no subdivision
 bundle  = "l3experimental"
 module  = ""
-modules = {"l3sort", "l3str", "xcoffins", "xgalley"}
 
 -- Location of main directory: use Unix-style path separators
 maindir = ".."
