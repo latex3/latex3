@@ -377,7 +377,10 @@ function runcheck (name, hide)
     os.remove (difffile)
     return 0
   else
-    if b == "FC: no differences encountered" then
+    -- Windows fc writes "FC: No differences encountered" if the files
+    -- are the same, but the text is locale-dependent so just check the
+    -- start of the line
+    if string.find (b, "^FC: ") then
       os.remove (difffile)
       return 0
     end
