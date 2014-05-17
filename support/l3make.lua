@@ -347,6 +347,7 @@ function runcheck (name, hide)
   local lvtfile  = name .. ".lvt"
   local newfile  = name .. ".new.log"
   local tlgfile  = name .. ".tlg"
+  local errorlevel = 0
   cp (testfiledir .. "/" .. lvtfile, testdir)
   cp (testfiledir .. "/" .. tlgfile, testdir)
   run
@@ -355,37 +356,17 @@ function runcheck (name, hide)
         (hide and (" > " .. os_null) or "")
     )
   formatlog (testdir .. "/" .. logfile, testdir .. "/" .. newfile)
-  run
+  local errlevel = run
     (
       testdir,
       os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile
     )
-  -- A test to see if there was a difference. The two programs used give
-  -- different results: diff leaves an empty file, fc gives a defined
-  -- second line. The test is done to check both of those so there is no
-  -- need to worry about OS at this stage.
-  difffile  = testdir .. "/" .. difffile -- Add path to reduce repetition
-  file = assert (io.open (difffile, "r"))
-  io.input (file)
-  a = io.read ("*line")  -- First line
-  b = io.read ("*line")  -- Second line
-  io.close (file)
-  -- If there were no differences, remove the diff file
-  if not a and not windows then
-    -- First line null using Unix: the Windows test is a backup in case
-    -- things died entirely
-    os.remove (difffile)
-    return 0
+  if errlevel == 0 then
+    os.remove (testdir .. "/" .. difffile)
   else
-    -- Windows fc writes "FC: No differences encountered" if the files
-    -- are the same, but the text is locale-dependent so just check the
-    -- start of the line
-    if string.find (b, "^FC: ") then
-      os.remove (difffile)
-      return 0
-    end
+    errorlevel = errlevel
   end
-  return 1
+  return (errorlevel)
 end
 
 -- Strip the extension from a file name
