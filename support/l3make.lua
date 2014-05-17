@@ -29,10 +29,10 @@ demofiles    = demofiles    or { }
 cleanfiles   = cleanfiles   or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
 excludefiles = excludefiles or {"*~"}             -- Any Emacs stuff
 installfiles = installfiles or {"*.sty"}
+sourcefiles  = sourcefiles  or {"*.dtx", "*.ins"} -- Files to copy for unpacking
 txtfiles     = txtfiles     or {"*.markdown"}
 typesetfiles = typesetfiles or {"*.dtx"}
-unpackfiles  = unpackfiles  or {"*.dtx", "*.ins"} -- Files to copy for unpacking
-unpacklist   = unpacklist   or {"*.ins"}          -- Files to actually unpack
+unpackfiles   = unpackfiles   or {"*.ins"}          -- Files to actually unpack
 
 -- Executable names plus following options
 checkexe   = checkexe   or "pdflatex -interaction=batchmode"
@@ -535,7 +535,7 @@ function bundlectan ()
   install (".", "doc", pdffiles, true)
   install (".", "doc", demofiles, true)
   install (".", "source", typesetfiles, true)
-  install (".", "source", unpackfiles, true)
+  install (".", "source", sourcefiles, true)
   install (unpackdir, "tex", installfiles, false)
 end
 
@@ -633,11 +633,11 @@ end
 -- Split off from the main unpack so it can be used on a bundle and not
 -- leave only one modules files
 function bundleunpack ()
-  for _,i in ipairs (unpackfiles) do
+  for _,i in ipairs (sourcefiles) do
     cp (i, unpackdir)
   end
   cp (supportdir .. "/docstrip.tex", unpackdir)
-  for _,i in ipairs (unpacklist) do
+  for _,i in ipairs (unpackfiles) do
     for _,j in ipairs (listfiles (unpackdir, i)) do
       run
        (
