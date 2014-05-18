@@ -363,6 +363,10 @@ function runcheck (name, hide)
   local difffile = testdir .. "/" .. name .. os_diffext
   local newfile  = testdir .. "/" .. name .. ".new.log"
   local tlgfile  = testfiledir .. "/" .. name .. ".tlg"
+  -- Only the tlg file path has to be 'correct' for Windows
+  if os_windows then
+    tlgfile = unix_to_win (tlgfile)
+  end
   runtest (name, hide)
   local errorlevel = 0  
   local errlevel = os.execute
@@ -382,10 +386,6 @@ function runtest (name, hide)
   local lvtfile  = testfiledir .. "/" .. name .. ".lvt"
   local tlgfile  = testfiledir .. "/" .. name .. ".tlg"
   local newfile  = testdir .. "/" .. name .. ".new.log"
-  -- Only the tlg file path has to be 'correct' for Windows
-  if os_windows then
-    tlgfile = unix_to_win (tlgfile)
-  end
   local errorlevel = 0
   os.execute
     (
