@@ -319,6 +319,8 @@ function formatlog (logfile, newfile)
     -- Substitutions to remove some non-useful changes
   local function normalize (line)
     local line = line
+    -- Remove localdir from file names
+    line = string.gsub (line, string.gsub (localdir, "%.", "%%."), ".")
     -- Zap ./ at begin of filename
     line = string.gsub (line, "%(%.%/", "(")
     -- Normalise a case where fixing a TeX bug changes the message text
