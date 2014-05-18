@@ -563,7 +563,13 @@ function doc ()
     end
     local function typeset (file)
        local errorlevel = 
-         os.execute (typesetexe .. " \"" .. pdfsettings .. " \\input " .. file .. "\"")
+         os.execute
+           (
+             -- Set TEXINPUTS to look here, local dir, then std tree
+             os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
+               os_pathsep .. os_concat ..
+             typesetexe .. " \"" .. pdfsettings .. " \\input " .. file .. "\""
+           )
        return errorlevel
     end
     cleanaux (name)
