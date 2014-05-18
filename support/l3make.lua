@@ -361,10 +361,27 @@ end
 -- Runs a single test: needs the name of the test rather than the .lvt file
 function runcheck (name, hide)
   local difffile = testdir .. "/" .. name .. os_diffext
-  local logfile  = testdir .. "/" .. name .. ".log"
-  local lvtfile  = testfiledir .. "/" .. name .. ".lvt"
   local newfile  = testdir .. "/" .. name .. ".new.log"
   local tlgfile  = testfiledir .. "/" .. name .. ".tlg"
+  runtest (name, hide)
+  local errorlevel = 0  
+  local errlevel = os.execute
+    (os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile)
+  if errlevel == 0 then
+    os.remove (difffile)
+  else
+    errorlevel = errlevel
+  end
+  return (errorlevel)
+end
+
+-- Run one of the test files: doesn't check the result so suitable for
+-- both creating and verifying .tlg files
+function runtest (name, hide)
+  local logfile  = testdir .. "/" .. name .. ".log"
+  local lvtfile  = testfiledir .. "/" .. name .. ".lvt"
+  local tlgfile  = testfiledir .. "/" .. name .. ".tlg"
+  local newfile  = testdir .. "/" .. name .. ".new.log"
   -- Only the tlg file path has to be 'correct' for Windows
   if os_windows then
     tlgfile = unix_to_win (tlgfile)
@@ -379,14 +396,6 @@ function runcheck (name, hide)
         lvtfile .. (hide and (" > " .. os_null) or "")
     )
   formatlog (logfile, newfile)
-  local errlevel = os.execute
-    (os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile)
-  if errlevel == 0 then
-    os.remove (difffile)
-  else
-    errorlevel = errlevel
-  end
-  return (errorlevel)
 end
 
 -- Strip the extension from a file name
@@ -637,15 +646,12 @@ function localinstall ()
 end
 
 function savetlg (name)
-  local difffile = name .. os_diffext
-  local lvtfile  = name .. ".lvt"
-  local tlgfile  = name .. ".tlg"
-  if fileexists (testfiledir .. "/" .. lvtfile) then
+  local tlgfile = name .. ".tlg"
+  if fileexists (testfiledir .. "/" .. name .. ".lvt") then
     checkinit ()
     print ("Creating and copying " .. tlgfile)
-    cp (testfiledir .. "/" .. lvtfile, testdir)
-    run (testdir, checkexe .. " " .. lvtfile)
-    formatlog (testdir .. "/" .. name .. ".log", testdir .. "/" .. tlgfile)
+    runtest (name, false)
+    ren (testdir, name .. ".new.log", tlgfile)
     cp (testdir .. "/" .. tlgfile, testfiledir)
   else
     print ("Test input \"" .. name .. "\" not found")
