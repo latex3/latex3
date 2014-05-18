@@ -188,9 +188,13 @@ end
 -- Not actually OS-dependent but in the same area
 function listfiles (path, glob)
   local files = { }
+  local pattern
+  if glob then
+    pattern = glob_to_pattern (glob)
+  end
   for entry in lfs.dir (path) do
-    if glob then
-      if string.match (entry, glob_to_pattern (glob)) then
+    if pattern then
+      if string.match (entry, pattern) then
         table.insert (files, entry)
       end
     else
