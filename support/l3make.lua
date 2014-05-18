@@ -9,6 +9,7 @@ module = module or ""
 distribdir  = maindir .. "/distrib"
 
 ctandir     = distribdir .. "/ctan"
+kerneldir   = maindir .. "/l3kernel"
 moduledir   = "latex/" .. bundle .. "/" .. module
 supportdir  = maindir .. "/support"
 tdsdir      = distribdir .. "/tds"
