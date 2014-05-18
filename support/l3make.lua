@@ -33,7 +33,7 @@ installfiles = installfiles or {"*.sty"}
 sourcefiles  = sourcefiles  or {"*.dtx", "*.ins"} -- Files to copy for unpacking
 txtfiles     = txtfiles     or {"*.markdown"}
 typesetfiles = typesetfiles or {"*.dtx"}
-unpackfiles   = unpackfiles   or {"*.ins"}          -- Files to actually unpack
+unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
 
 -- Executable names plus following options
 checkexe   = checkexe   or "pdflatex -interaction=batchmode"
