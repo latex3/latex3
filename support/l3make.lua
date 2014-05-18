@@ -10,6 +10,7 @@ distribdir  = maindir .. "/distrib"
 
 ctandir     = distribdir .. "/ctan"
 kerneldir   = maindir .. "/l3kernel"
+localdir    = maindir .. "/local"
 moduledir   = "latex/" .. bundle .. "/" .. module
 supportdir  = maindir .. "/support"
 tdsdir      = distribdir .. "/tds"
@@ -132,6 +133,7 @@ if string.sub (package.config, 1, 1) == "\\" then
   os_diffext  = ".fc"
   os_diffexe  = "fc /n"
   os_null     = "nul"
+  os_pathsep  = ";"
   os_setenv   = "set"
   os_windows  = true
 else
@@ -139,6 +141,7 @@ else
   os_diffext  = ".diff"
   os_diffexe  = "diff -c"
   os_null     = "/dev/null"
+  os_pathsep  = ":"
   os_setenv   = "export"
   os_windows  = false
 end
@@ -267,11 +270,12 @@ end
 -- for saving the test files
 function checkinit ()
   unpack ()
+  cleandir (localdir)
   cleandir (testdir)
   for _,i in ipairs (installfiles) do
-    cp (unpackdir .. "/" .. i, testdir)
+    cp (unpackdir .. "/" .. i, localdir)
   end
-  cp (supportdir .. "/regression-test.tex", testdir)
+  cp (supportdir .. "/regression-test.tex", localdir)
 end
 
 -- Remove auxiliary files, either all in the simple case or selectively if
@@ -343,27 +347,28 @@ end
 
 -- Runs a single test: needs the name of the test rather than the .lvt file
 function runcheck (name, hide)
-  local difffile = name .. os_diffext
-  local logfile  = name .. ".log"
-  local lvtfile  = name .. ".lvt"
-  local newfile  = name .. ".new.log"
-  local tlgfile  = name .. ".tlg"
+  local difffile = testdir .. "/" .. name .. os_diffext
+  local logfile  = testdir .. "/" .. name .. ".log"
+  local lvtfile  = testfiledir .. "/" .. name .. ".lvt"
+  local newfile  = testdir .. "/" .. name .. ".new.log"
+  local tlgfile  = testfiledir .. "/" .. name .. ".tlg"
+  -- Only the tlg file path has to be 'correct' for Windows
+  if os_windows then
+    tlgfile = unix_to_win (tlgfile)
+  end
   local errorlevel = 0
-  cp (testfiledir .. "/" .. lvtfile, testdir)
-  cp (testfiledir .. "/" .. tlgfile, testdir)
-  run
+  os.execute
     (
-      testdir, checkexe .. " " .. lvtfile .. 
-        (hide and (" > " .. os_null) or "")
+      -- Set TEXINPUTS to look in local dir, then std tree but not 'here'
+      os_setenv .. " TEXINPUTS=" .. localdir .. os_pathsep .. os_concat ..
+      checkexe .. " -output-directory=" .. testdir .. " " ..
+      lvtfile .. (hide and (" > " .. os_null) or "")
     )
-  formatlog (testdir .. "/" .. logfile, testdir .. "/" .. newfile)
-  local errlevel = run
-    (
-      testdir,
-      os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile
-    )
+  formatlog (logfile, newfile)
+  local errlevel = os.execute
+    (os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile)
   if errlevel == 0 then
-    os.remove (testdir .. "/" .. difffile)
+    os.remove (difffile)
   else
     errorlevel = errlevel
   end
@@ -450,8 +455,9 @@ end
 
 -- Remove all generated files
 function clean ()
-  cleandir (unpackdir)
+  cleandir (localdir)
   cleandir (testdir)
+  cleandir (unpackdir)
   cleanaux ()
   for _,i in ipairs (cleanfiles) do
     rm (i)
