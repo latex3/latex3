@@ -386,7 +386,6 @@ function runtest (name, hide)
   local lvtfile  = testfiledir .. "/" .. name .. ".lvt"
   local tlgfile  = testfiledir .. "/" .. name .. ".tlg"
   local newfile  = testdir .. "/" .. name .. ".new.log"
-  local errorlevel = 0
   os.execute
     (
       -- Set TEXINPUTS to look in local dir, then std tree but not 'here'
