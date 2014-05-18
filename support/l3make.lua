@@ -269,9 +269,10 @@ end
 -- Set up the check system files: needed for checking one or more tests and
 -- for saving the test files
 function checkinit ()
-  unpack ()
   cleandir (localdir)
   cleandir (testdir)
+  localkernel ()
+  unpack ()
   for _,i in ipairs (installfiles) do
     cp (unpackdir .. "/" .. i, localdir)
   end
@@ -343,6 +344,12 @@ function formatlog (logfile, newfile)
   local newfile = io.open (newfile, "w")
   newfile:write (newlog)
   io.close (newfile)
+end
+
+-- Unzip the kernel files into the local tree then clean up the unpack dir
+function localkernel ()
+  run (kerneldir, "texlua make.lua unpack")
+  cleandir (unpackdir)
 end
 
 -- Runs a single test: needs the name of the test rather than the .lvt file
@@ -533,6 +540,7 @@ function bundlectan ()
     end
   end
   unpack ()
+  install (unpackdir, "tex", installfiles, false)
   doc ()
   -- Convert input names for typesetting into names of PDF files
   local pdffiles = { }
@@ -543,7 +551,6 @@ function bundlectan ()
   install (".", "doc", demofiles, true)
   install (".", "source", typesetfiles, true)
   install (".", "source", sourcefiles, true)
-  install (unpackdir, "tex", installfiles, false)
 end
 
 -- Typeset all required documents
@@ -572,6 +579,7 @@ function doc ()
            )
        return errorlevel
     end
+    localkernel ()
     cleanaux (name)
     os.remove (name .. ".pdf")
     print ("Typesetting " .. name)
@@ -639,7 +647,7 @@ end
 -- Unpack the package files using an 'isolated' system: this requires
 -- a copy of the 'basic' DocStrip program, which is used then removed
 function unpack ()
-  cleandir (unpackdir)
+  localkernel ()
   bundleunpack ()
 end
 
@@ -649,19 +657,19 @@ function bundleunpack ()
   for _,i in ipairs (sourcefiles) do
     cp (i, unpackdir)
   end
-  cp (supportdir .. "/docstrip.tex", unpackdir)
+  cp (supportdir .. "/docstrip.tex", localdir)
   for _,i in ipairs (unpackfiles) do
     for _,j in ipairs (listfiles (unpackdir, i)) do
-      run
+      os.execute
        (
-          unpackdir,
-          -- Stop TeX system finding any files outside of current dir
---          os_setenv .. " TEXINPUTS=." .. os_concat ..
-          unpackexe .. " " .. j
+          -- Set TEXINPUTS to look in the unpack then local dirs only
+          os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
+            os_concat ..
+          unpackexe .. " -output-directory=" .. unpackdir ..
+            " " .. unpackdir .. "/" .. j
         )
     end
   end
-  os.remove (unpackdir .. "/docstrip.tex")
 end
 
 --
@@ -706,6 +714,7 @@ function main (target, file)
     end
   else
     if target == "bundleunpack" then -- 'Hidden' as only needed 'higher up'
+      localkernel ()
       bundleunpack ()
     elseif target == "bundlecheck" then
       if testfiledir ~= "" then  -- Ignore if there are no testfiles
