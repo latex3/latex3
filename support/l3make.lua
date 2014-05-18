@@ -37,10 +37,16 @@ typesetfiles = typesetfiles or {"*.dtx"}
 unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
 
 -- Executable names plus following options
-checkexe   = checkexe   or "pdflatex -interaction=batchmode"
-typesetexe = typesetexe or "pdflatex -interaction=nonstopmode"
+checkexe   = checkexe   or "pdflatex"
+typesetexe = typesetexe or "pdflatex"
 unpackexe  = unpackexe  or "tex"
-zipexe     = "zip -v -r -X"
+zipexe     = "zip"
+
+checkopts   = checkopts   or "-interaction=batchmode"
+typesetopts = typesetopts or "-interaction=nonstopmode"
+unpackopts  = unpackopts  or ""
+zipopts     = zipopts     or "-v -r -X"
+
 
 -- Other required settings
 pdfsettings = pdfsettings or "\\AtBeginDocument{\\DisableImplementation}"
@@ -368,8 +374,9 @@ function runcheck (name, hide)
     (
       -- Set TEXINPUTS to look in local dir, then std tree but not 'here'
       os_setenv .. " TEXINPUTS=" .. localdir .. os_pathsep .. os_concat ..
-      checkexe .. " -output-directory=" .. testdir .. " " ..
-      lvtfile .. (hide and (" > " .. os_null) or "")
+      checkexe ..  " " .. checkopts .. " -output-directory=" .. 
+        testdir .. " " ..
+        lvtfile .. (hide and (" > " .. os_null) or "")
     )
   formatlog (logfile, newfile)
   local errlevel = os.execute
@@ -497,15 +504,15 @@ function ctan ()
     run
       (
         dir,
-        zipexe .. " -ll ".. zipname .. " " .. "." .. " -x" .. binfiles
-          .. " " .. exclude
+        zipexe .. " " .. zipopts .. " -ll ".. zipname .. " " .. "." .. " -x"
+          .. binfiles .. " " .. exclude
       )
     -- Then add the binary ones
     run
       (
         dir,
-        zipexe .. " -g ".. zipname .. " " .. ". -i" .. binfiles .. " -x"
-          .. exclude
+        zipexe .. " " .. zipopts .. " -g ".. zipname .. " " .. ". -i" .. 
+          binfiles .. " -x" .. exclude
       )
     cp (dir .. "/" .. zipname, ".")
   end
@@ -575,7 +582,8 @@ function doc ()
              -- Set TEXINPUTS to look here, local dir, then std tree
              os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
                os_pathsep .. os_concat ..
-             typesetexe .. " \"" .. pdfsettings .. " \\input " .. file .. "\""
+             typesetexe .. " " .. typesetopts .. " \"" .. pdfsettings ..
+               " \\input " .. file .. "\""
            )
        return errorlevel
     end
@@ -665,8 +673,8 @@ function bundleunpack ()
           -- Set TEXINPUTS to look in the unpack then local dirs only
           os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
             os_concat ..
-          unpackexe .. " -output-directory=" .. unpackdir ..
-            " " .. unpackdir .. "/" .. j
+          unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
+            .. " " .. unpackdir .. "/" .. j
         )
     end
   end
