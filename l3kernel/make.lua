@@ -92,7 +92,7 @@ function main (target, file)
     unpack ()
     -- Additional for l3kernel: put the unpacked files somewhere known
     for _,i in ipairs (installfiles) do
-      cp (unpackdir .. "/" .. i, localdir)
+      cp (i, unpackdir, localdir)
    end
   else
     help ()
