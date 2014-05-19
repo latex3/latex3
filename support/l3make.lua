@@ -331,6 +331,11 @@ function formatlog (logfile, newfile)
     line = string.gsub (line, "\\csname\\endcsname ", "\\csname\\endcsname")
     -- Zap "on line <num>" and replace with "on line ..."
     line = string.gsub (line, "on line %d*", "on line ...")
+    -- Remove spaces at the start of lines: deals with the fact that LuaTeX
+    -- uses a different number to the other engines
+    line = string.gsub (line, "^%s+")
+    -- For the present, remove direction information on boxes
+    line = string.gsub (line, ", direction TLT")
     return line
   end
   local newlog = ""
