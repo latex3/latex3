@@ -164,7 +164,7 @@ end
 
 -- Copy files 'quietly'
 function cp (glob, source, dest)
-  for _,i in ipairs (listfiles (source, glob)) do
+  for _,i in ipairs (filelist (source, glob)) do
     local source = source .. "/" .. i
     if os_windows then
       os.execute
@@ -191,7 +191,7 @@ end
 -- Generate a table containing all file names of the given glob or all files
 -- if absent
 -- Not actually OS-dependent but in the same area
-function listfiles (path, glob)
+function filelist (path, glob)
   local files = { }
   local pattern
   if glob then
@@ -233,7 +233,7 @@ end
 
 -- Remove file(s) based on a glob
 function rm (source, glob)
-  for _,i in ipairs (listfiles (source, glob)) do
+  for _,i in ipairs (filelist (source, glob)) do
     os.remove (source .. "/" .. i)  
   end
 end
@@ -452,7 +452,7 @@ function check ()
   checkinit ()
   local errorlevel = 0
   print ("Running checks on")
-  for _,i in ipairs (listfiles (testfiledir, "*.tlg")) do
+  for _,i in ipairs (filelist (testfiledir, "*.tlg")) do
     local name = stripext (i)
     print ("  " .. name)
     local errlevel = runcheck (name, true)
@@ -462,7 +462,7 @@ function check ()
   end
   if errorlevel ~= 0 then
     print ("\n  Check failed with difference files")
-    for _,i in ipairs (listfiles (testdir, "*" .. os_diffext)) do
+    for _,i in ipairs (filelist (testdir, "*" .. os_diffext)) do
       print ("  - " .. i)
     end
     print ("")
@@ -541,7 +541,7 @@ function ctan ()
   mkdir (tdsdir)
   allmodules ("bundlectan")
   for _,i in ipairs (txtfiles) do
-    for _,j in ipairs (listfiles (".", i)) do
+    for _,j in ipairs (filelist (".", i)) do
       local function installtxt (name, dir)
         cp (name, ".", dir)
         ren (dir, name, stripext (name))
@@ -626,7 +626,7 @@ function doc ()
   end
   -- Main loop for doc creation
   for _,i in ipairs (typesetfiles) do
-    for _,j in ipairs (listfiles (".", i)) do
+    for _,j in ipairs (filelist (".", i)) do
       local errorlevel = typeset (j)
       if errorlevel ~= 0 then
         return (errorlevel)
@@ -684,7 +684,7 @@ function bundleunpack ()
   end
   cp ("docstrip.tex", supportdir, localdir)
   for _,i in ipairs (unpackfiles) do
-    for _,j in ipairs (listfiles (unpackdir, i)) do
+    for _,j in ipairs (filelist (unpackdir, i)) do
       os.execute
        (
           -- Set TEXINPUTS to look in the unpack then local dirs only
