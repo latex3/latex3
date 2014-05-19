@@ -100,4 +100,4 @@ function main (target, file)
 end
 
 -- Call the main function which is defined in l3make.lua
-main (arg[1], arg[2])
+main (arg[1], arg[2], arg[3])
