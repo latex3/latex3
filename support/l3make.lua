@@ -159,17 +159,22 @@ lfs = require ("lfs")
 -- For cleaning out a directory, which also ensures that it exists
 function cleandir (dir)
   mkdir (dir)
-  local files = dir .. "/*"
-  rm (files)
+  rm (dir, "*")
 end
 
 -- Copy files 'quietly'
-function cp (source, dest)
-  if os_windows then
-    os.execute
-      ("copy /y " .. unix_to_win (source) .. " " .. unix_to_win (dest) .. " > nul")
-  else
-    os.execute ("cp -f " .. source .. " " .. dest)
+function cp (glob, source, dest)
+  for _,i in ipairs (listfiles (source, glob)) do
+    local source = source .. "/" .. i
+    if os_windows then
+      os.execute
+        (
+          "copy /y " .. unix_to_win (source) " "
+            .. unix_to_win (dest) .. " > nul"
+        )
+    else
+      os.execute ("cp -f " .. source .. " " .. dest)
+    end    
   end
 end
 
@@ -226,14 +231,10 @@ function ren (dir, source, dest)
   end
 end
 
--- Remove file(s) based on a glob: done using the OS-dependent commands for
--- speed
-function rm (glob)
-  if os_windows then
-    local glob = unix_to_win (glob)
-    os.execute ("if exist " .. glob .. " del /q " .. glob)
-  else
-    os.execute ("rm -rf " .. glob)
+-- Remove file(s) based on a glob
+function rm (source, glob)
+  for _,i in ipairs (listfiles (source, glob)) do
+    os.remove (source .. "/" .. i)  
   end
 end
 
@@ -284,9 +285,9 @@ function checkinit ()
   localkernel ()
   unpack ()
   for _,i in ipairs (installfiles) do
-    cp (unpackdir .. "/" .. i, localdir)
+    cp (i, unpackdir, localdir)
   end
-  cp (supportdir .. "/regression-test.tex", localdir)
+  cp ("regression-test.tex", supportdir, localdir)
 end
 
 -- Remove auxiliary files, either all in the simple case or selectively if
@@ -294,9 +295,9 @@ end
 function cleanaux (name)
   for _,i in ipairs (auxfiles) do
     if not name then
-      rm (i)
+      rm (".", i)
     else
-      rm (name .. string.gsub (i, "^.*%.", "."))
+      rm (".", name .. string.gsub (i, "^.*%.", "."))
     end
   end
 end
@@ -493,14 +494,14 @@ function clean ()
   cleandir (unpackdir)
   cleanaux ()
   for _,i in ipairs (cleanfiles) do
-    rm (i)
+    rm (".", i)
   end
 end
 
 function bundleclean ()
   allmodules ("clean")
   for _,i in ipairs (cleanfiles) do
-    rm (i)
+    rm (".", i)
   end
   rmdir (ctandir)
   rmdir (tdsdir)
@@ -533,7 +534,7 @@ function ctan ()
         zipexe .. " " .. zipopts .. " -g ".. zipname .. " " .. ". -i" .. 
           binfiles .. " -x" .. exclude
       )
-    cp (dir .. "/" .. zipname, ".")
+    cp (zipname, dir, ".")
   end
   bundleclean ()
   mkdir (ctandir .. "/" .. bundle)
@@ -542,7 +543,7 @@ function ctan ()
   for _,i in ipairs (txtfiles) do
     for _,j in ipairs (listfiles (".", i)) do
       local function installtxt (name, dir)
-        cp (name, dir)
+        cp (name, ".", dir)
         ren (dir, name, stripext (name))
       end
       installtxt (j, ctandir .. "/" .. bundle)
@@ -550,7 +551,7 @@ function ctan ()
     end
   end 
   dirzip (tdsdir, bundle .. ".tds")
-  cp (tdsdir .. "/" .. bundle .. ".tds.zip", ctandir)
+  cp (bundle .. ".tds.zip", tdsdir, ctandir)
   dirzip (ctandir, bundle)
 end
 
@@ -560,9 +561,9 @@ function bundlectan ()
     mkdir (installdir)
     for _,i in ipairs (files) do
       if ctan then
-        cp (source .. "/" .. i, ctandir .. "/" .. bundle)
+        cp (i, source, ctandir .. "/" .. bundle)
       end
-      cp (source .. "/" .. i, installdir)
+      cp (i, source, installdir)
     end
   end
   unpack ()
@@ -651,7 +652,7 @@ function localinstall ()
   local installdir = texmfhome .. "/tex/" .. moduledir
   cleandir (installdir)
   for _,i in ipairs (installfiles) do
-    cp (unpackdir .. "/" .. i, installdir)
+    cp (i, unpackdir, installdir)
   end
 end
 
@@ -662,7 +663,7 @@ function savetlg (name)
     print ("Creating and copying " .. tlgfile)
     runtest (name, false)
     ren (testdir, name .. ".new.log", tlgfile)
-    cp (testdir .. "/" .. tlgfile, testfiledir)
+    cp (tlgfile, testdir, testfiledir)
   else
     print ("Test input \"" .. name .. "\" not found")
   end
@@ -679,9 +680,9 @@ end
 -- leave only one modules files
 function bundleunpack ()
   for _,i in ipairs (sourcefiles) do
-    cp (i, unpackdir)
+    cp (i, ".", unpackdir)
   end
-  cp (supportdir .. "/docstrip.tex", localdir)
+  cp ("docstrip.tex", supportdir, localdir)
   for _,i in ipairs (unpackfiles) do
     for _,j in ipairs (listfiles (unpackdir, i)) do
       os.execute
