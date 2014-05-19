@@ -37,7 +37,6 @@ typesetfiles = typesetfiles or {"*.dtx"}
 unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
 
 -- Executable names plus following options
-checkexe   = checkexe   or "pdflatex"
 typesetexe = typesetexe or "pdflatex"
 unpackexe  = unpackexe  or "tex"
 zipexe     = "zip"
@@ -46,6 +45,10 @@ checkopts   = checkopts   or "-interaction=batchmode"
 typesetopts = typesetopts or "-interaction=nonstopmode"
 unpackopts  = unpackopts  or ""
 zipopts     = zipopts     or "-v -r -X"
+
+-- Engines for testing
+chkengines = chkengines or {"pdftex", "xetex", "luatex"}
+stdengine  = stdengine  or "pdftex"
 
 
 -- Other required settings
@@ -334,9 +337,9 @@ function formatlog (logfile, newfile)
     line = string.gsub (line, "on line %d*", "on line ...")
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
-    line = string.gsub (line, "^%s+")
+    line = string.gsub (line, "^%s+", "")
     -- For the present, remove direction information on boxes
-    line = string.gsub (line, ", direction TLT")
+    line = string.gsub (line, ", direction TLT", "")
     return line
   end
   local newlog = ""
@@ -371,38 +374,50 @@ function localkernel ()
 end
 
 -- Runs a single test: needs the name of the test rather than the .lvt file
-function runcheck (name, hide)
-  local difffile = testdir .. "/" .. name .. os_diffext
-  local newfile  = testdir .. "/" .. name .. ".new.log"
-  local tlgfile  = testfiledir .. "/" .. name .. ".tlg"
-  -- Only the tlg file path has to be 'correct' for Windows
-  if os_windows then
-    tlgfile = unix_to_win (tlgfile)
+-- One 'test' here may apply to multiple engines
+function runcheck (name, engine, hide)
+  local chkengines = chkengines
+  if engine then
+    chkengines = {engine}
   end
-  runtest (name, hide)
-  local errorlevel = 0  
-  local errlevel = os.execute
-    (os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile)
-  if errlevel == 0 then
-    os.remove (difffile)
-  else
-    errorlevel = errlevel
+  local errorlevel = 0
+  for _,i in ipairs (chkengines) do
+    runtest (name, i, hide)
+    local testname = name .. "." .. i
+    local difffile = testdir .. "/" .. testname .. os_diffext
+    local newfile  = testdir .. "/" .. testname .. ".log"
+    -- Use engine-specific file if available
+    local tlgfile  = testfiledir .. "/" .. name ..  "." .. i .. ".tlg"
+    if not fileexists (tlgfile) then
+      tlgfile  = testfiledir .. "/" .. name .. ".tlg"
+    end
+    local errlevel = os.execute
+      (os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile)
+    local errlevel = os.execute
+      (os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile)
+    if errlevel == 0 then
+      os.remove (difffile)
+    else
+      errorlevel = errlevel
+    end
   end
   return (errorlevel)
 end
 
 -- Run one of the test files: doesn't check the result so suitable for
 -- both creating and verifying .tlg files
-function runtest (name, hide)
-  local logfile  = testdir .. "/" .. name .. ".log"
-  local lvtfile  = testfiledir .. "/" .. name .. ".lvt"
-  local tlgfile  = testfiledir .. "/" .. name .. ".tlg"
-  local newfile  = testdir .. "/" .. name .. ".new.log"
+function runtest (name, engine, hide)
+  local engine = engine or stdengine
+  -- Engine name doesn't include the "la" for LaTeX!
+  local cmd = string.gsub (engine, "tex$", "latex")
+  local logfile = testdir .. "/" .. name .. ".log"
+  local lvtfile = testfiledir .. "/" .. name .. ".lvt"
+  local newfile = testdir .. "/" .. name .. "." .. engine .. ".log"
   os.execute
     (
       -- Set TEXINPUTS to look in local dir, then std tree but not 'here'
       os_setenv .. " TEXINPUTS=" .. localdir .. os_pathsep .. os_concat ..
-      checkexe ..  " " .. checkopts .. " -output-directory=" .. 
+      cmd ..  " " .. checkopts .. " -output-directory=" .. 
         testdir .. " " ..
         lvtfile .. (hide and (" > " .. os_null) or "")
     )
@@ -416,8 +431,7 @@ function stripext (file)
 end
 
 function testexists (test)
-  if fileexists (testfiledir .. "/" .. test .. ".lvt")
-    and fileexists (testfiledir .. "/" .. test .. ".tlg") then
+  if fileexists (testfiledir .. "/" .. test .. ".lvt") then
     return true
   else
     return false
@@ -430,21 +444,23 @@ end
 function help ()
   print ""
   if testfiledir ~= "" then
-    print " make check           - run automated check system       "
+    print " make check                    - run automated check system       "
   end
   if module ~= "" and testfiledir ~= "" then
-    print " make checklvt <name> - check one test file <name>       "
+    print " make checklvt <name>          - check one test file <name> for all engines"
+    print " make checklvt <name> <engine> - check one test file <name> for <engine>   "
   end
   if module == "" then
-    print " make ctan            - create CTAN-ready archive        "
+    print " make ctan                     - create CTAN-ready archive        "
   end
-  print " make doc             - runs all documentation files     "
-  print " make clean           - clean out directory tree         "
-  print " make localinstall    - install files in local texmf tree"
+  print " make doc                      - runs all documentation files     "
+  print " make clean                    - clean out directory tree         "
+  print " make localinstall             - install files in local texmf tree"
   if module ~= "" and testfiledir ~= "" then
-    print " make savetlg <name>  - save test log for <name>         "
+    print " make savetlg <name>           - save test log for <name> for all engines"
+    print " make savetlg <name> <engine>  - save test log for <name> for <engine>   "
   end
-  print " make unpack          - extract packages                 "
+  print " make unpack                   - extract packages                 "
   print ""
 end
 
@@ -452,10 +468,10 @@ function check ()
   checkinit ()
   local errorlevel = 0
   print ("Running checks on")
-  for _,i in ipairs (filelist (testfiledir, "*.tlg")) do
+  for _,i in ipairs (filelist (testfiledir, "*.lvt")) do
     local name = stripext (i)
     print ("  " .. name)
-    local errlevel = runcheck (name, true)
+    local errlevel = runcheck (name, nil, true)
     if errlevel ~= 0 then
       errorlevel = 1
     end  
@@ -472,12 +488,13 @@ function check ()
   return (errorlevel)
 end
 
-function checklvt (name)
+function checklvt (name, engine)
+  local engine = engine or strengine
   if testexists (name) then
     checkinit ()
     print ("Running checks on " .. name)
-    runcheck (name)
-    if fileexists (testdir .. "/" .. name .. os_diffext) then
+    runcheck (name, engine)
+    if fileexists (testdir .. "/" .. name .. "." .. engine .. os_diffext) then
       print ("  Check fails")
     else
       print ("  Check passes")
@@ -656,13 +673,14 @@ function localinstall ()
   end
 end
 
-function savetlg (name)
-  local tlgfile = name .. ".tlg"
+function savetlg (name, engine)
+  local tlgfile = name .. (engine and ("." .. engine) or "") .. ".tlg"
+  local newfile = name .. "." .. (engine or stdengine) .. ".log"
   if fileexists (testfiledir .. "/" .. name .. ".lvt") then
     checkinit ()
     print ("Creating and copying " .. tlgfile)
-    runtest (name, false)
-    ren (testdir, name .. ".new.log", tlgfile)
+    runtest (name, engine, false)
+    ren (testdir, newfile, tlgfile)
     cp (tlgfile, testdir, testfiledir)
   else
     print ("Test input \"" .. name .. "\" not found")
@@ -701,7 +719,7 @@ end
 -- The overall main function
 --
 
-function main (target, file)
+function main (target, file, engine)
   -- If the module name is empty, the script is running in a bundle:
   -- apart from ctan all of the targets are then just mappings
   if module == "" then
@@ -754,7 +772,7 @@ function main (target, file)
       check ()
     elseif target == "checklvt" and testfiledir ~= "" then
       if file then
-        checklvt (file)
+        checklvt (file, engine)
       else
         help ()
       end
@@ -764,7 +782,7 @@ function main (target, file)
       localinstall ()
     elseif target == "savetlg" and testfiledir ~= "" then
       if file then
-        savetlg (file)
+        savetlg (file, engine)
       else
         help ()
       end

@@ -20,4 +20,4 @@ installfiles = {"*.def", "*.sty"}
 dofile (maindir .. "/support/l3make.lua")
 
 -- Call the main function which is defined in l3make.lua
-main (arg[1], arg[2])
+main (arg[1], arg[2], arg[3])
