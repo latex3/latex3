@@ -173,7 +173,7 @@ function cp (glob, source, dest)
     if os_windows then
       os.execute
         (
-          "copy /y " .. unix_to_win (source) " "
+          "copy /y " .. unix_to_win (source) .. " "
             .. unix_to_win (dest) .. " > nul"
         )
     else
