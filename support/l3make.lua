@@ -392,6 +392,9 @@ function runcheck (name, engine, hide)
     if not fileexists (tlgfile) then
       tlgfile  = testfiledir .. "/" .. name .. ".tlg"
     end
+    if os_windows then
+      tlgfile = unix_to_win (tlgfile)
+    end
     local errlevel = os.execute
       (os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile)
     local errlevel = os.execute
