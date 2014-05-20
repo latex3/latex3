@@ -3,6 +3,7 @@
 
 -- Ensure the module exists: empty if not applicable
 module = module or ""
+bundle = bundle or ""
 
 -- Directory structure for the build system
 -- Use Unix-style path separators

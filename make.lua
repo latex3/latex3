@@ -2,10 +2,6 @@
 
 -- Make script for LaTeX3 files
 
---  No bundle or module here, but these have to be defined
-bundle  = ""
-module  = ""
-
 -- A couple of custom variables: the order here is set up for 'importance'
 bundles     = {"l3kernel", "l3packages", "l3experimental"} -- l3trial to be added
 ctanbundles = {"l3kernel", "l3packages", "l3experimental"}
