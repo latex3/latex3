@@ -37,14 +37,16 @@ moduledir   = "latex/" .. bundle
 -- l3kernel does all of the targets itself
 function help ()
   print ""
-  print " make check           - run automated check system       "
-  print " make checklvt <name> - check one test file <name>       "
-  print " make ctan            - create CTAN-ready archive        "
-  print " make doc             - runs all documentation files     "
-  print " make clean           - clean out directory tree         "
-  print " make localinstall    - install files in local texmf tree"
-  print " make savetlg <name>  - save test log for <name>         "
-  print " make unpack          - extract packages                 "
+  print " make check                    - run automated check system                "
+  print " make checklvt <name>          - check one test file <name> for all engines"
+  print " make checklvt <name> <engine> - check one test file <name> for <engine>   "
+  print " make ctan                     - create CTAN-ready archive                 "
+  print " make doc                      - runs all documentation files              "
+  print " make clean                    - clean out directory tree                  "
+  print " make localinstall             - install files in local texmf tree         "
+  print " make savetlg <name>           - save test log for <name> for all engines  "
+  print " make savetlg <name> <engine>  - save test log for <name> for <engine>     "
+  print " make unpack                   - extract packages                          "
   print ""
 end
 
@@ -62,14 +64,14 @@ function unpack ()
 end
 
 -- l3kernel does all of the targets itself
-function main (target, file)
+function main (target, file, engine)
   if target == "check" then
     print ("Not implemented yet!")
     -- check ()
   elseif target == "checklvt"  then
     if file then
       print ("Not implemented yet!")
-      -- checklvt (file)
+      -- checklvt (file, engine)
     else
       help ()
     end
@@ -84,7 +86,7 @@ function main (target, file)
   elseif target == "savetlg" then
     if file then
       print ("Not implemented yet!")
-      -- savetlg (file)
+      -- savetlg (file, engine)
     else
       help ()
     end
