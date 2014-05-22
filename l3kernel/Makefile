@@ -90,7 +90,7 @@ CHECKFILES  = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/m3*.tlg)))
 DRIVERFILES = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/d3*.tlg)))
 SCRIPTS     = log2tlg
 TESTAUX     = filetest.txt
-TESTINPUT   = driver.tex m3token004.def
+TESTINPUT   = driver.tex
 VALIDATE    = commands-check.tex regression-test.tex
 
 ##############################################################
@@ -178,9 +178,6 @@ $(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
 $(TESTDIR)/driver.tex: $(TESTFILEDIR)/driver.tex
 	@cp -fp $< $@
 	
-$(TESTDIR)/m3token004.def: $(TESTFILEDIR)/m3token004.def
-	@cp -fp $< $@
-
 $(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
 	@cp -fp $< $@
 
