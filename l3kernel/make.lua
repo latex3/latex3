@@ -65,8 +65,13 @@ end
 
 -- l3kernel does all of the targets itself
 function main (target, file, engine)
+  local errorlevel
   if target == "check" then
-    check ()
+    errorlevel = check ()
+      if errorlevel ~=0 then
+        print ("There were errors: checks halted!\n")
+        os.exit (errorlevel)
+      end
   elseif target == "checklvt"  then
     if file then
       checklvt (file, engine)

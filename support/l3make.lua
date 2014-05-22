@@ -773,7 +773,7 @@ function main (target, file, engine)
       allmodules ("doc")
     elseif target == "check" then
       local errorlevel = allmodules ("bundlecheck")
-      if errorlevel > 0 then
+      if errorlevel ~=0 then
         print ("There were errors: checks halted!\n")
         os.exit (errorlevel)
       end
