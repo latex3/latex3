@@ -17,6 +17,7 @@ supportdir  = maindir .. "/support"
 tdsdir      = distribdir .. "/tds"
 testdir     = maindir .. "/test"
 testfiledir = testfiledir or "testfiles" -- Set to "" to cancel any tests
+testsupdir  = testdupdir  or testfiledir .. "/support"
 unpackdir   = maindir .. "/unpacked"
 
 -- File types for various operations
@@ -186,6 +187,21 @@ function cp (glob, source, dest)
   end
 end
 
+-- OS-dependent test for a directory
+function direxists (dir)
+  local errorlevel
+  if os_windows then
+    errorlevel =
+      os.execute ("if not exist \"" .. unix_to_win (dir) .. "\" exit 1")
+  else
+    errorlevel = os.execute ("[ -d " .. dir .. " ]")
+  end
+  if errorlevel ~= 0 then
+    return (false)
+  end
+  return (true)
+end
+
 function fileexists (file)
   local f = io.open (file, "r")
   if f ~= nil then
@@ -294,6 +310,11 @@ function checkinit ()
   unpack ()
   for _,i in ipairs (installfiles) do
     cp (i, unpackdir, localdir)
+  end
+  if direxists (testsupdir) then
+    for _,i in ipairs (filelist (testsupdir, "*")) do
+      cp (i, testsupdir, localdir)
+    end
   end
   cp ("regression-test.tex", supportdir, localdir)
 end
@@ -427,7 +448,7 @@ function runtest (name, engine, hide)
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
   os.execute
     (
-      -- Set TEXINPUTS to look in local dir, then std tree but not 'here'
+      -- Set TEXINPUTS to look in local dir then std tree
       os_setenv .. " TEXINPUTS=" .. localdir .. os_pathsep .. os_concat ..
       cmd ..  " " .. checkopts .. " -output-directory=" .. 
         testdir .. " " ..
