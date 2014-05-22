@@ -51,9 +51,13 @@ zipopts     = zipopts     or "-v -r -X"
 chkengines = chkengines or {"pdftex", "xetex", "luatex"}
 stdengine  = stdengine  or "pdftex"
 
-
 -- Other required settings
 pdfsettings = pdfsettings or "\\AtBeginDocument{\\DisableImplementation}"
+
+-- Extensions for various file types: used to abstract out stuff a bit
+logext = ".log"
+lvtext = ".lvt"
+tlgext = ".tlg"
 
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
@@ -329,7 +333,7 @@ function formatlog (logfile, newfile)
   local function normalize (line)
     local line = line
     -- Remove test file name from lines
-    line = string.gsub (line, string.match (logfile, ".*/(.*)%.log$"), "")
+    line = string.gsub (line, string.match (logfile, ".*/(.*)%" .. logext .. "$"), "")
     -- Remove localdir from file names
     line = string.gsub (line, string.gsub (localdir, "%.", "%%."), ".")
     -- Zap ./ at begin of filename
@@ -388,11 +392,11 @@ function runcheck (name, engine, hide)
     runtest (name, i, hide)
     local testname = name .. "." .. i
     local difffile = testdir .. "/" .. testname .. os_diffext
-    local newfile  = testdir .. "/" .. testname .. ".log"
+    local newfile  = testdir .. "/" .. testname .. logext
     -- Use engine-specific file if available
-    local tlgfile  = testfiledir .. "/" .. name ..  "." .. i .. ".tlg"
+    local tlgfile  = testfiledir .. "/" .. name ..  "." .. i .. tlgext
     if not fileexists (tlgfile) then
-      tlgfile  = testfiledir .. "/" .. name .. ".tlg"
+      tlgfile  = testfiledir .. "/" .. name .. tlgext
     end
     if os_windows then
       tlgfile = unix_to_win (tlgfile)
@@ -416,9 +420,9 @@ function runtest (name, engine, hide)
   local engine = engine or stdengine
   -- Engine name doesn't include the "la" for LaTeX!
   local cmd = string.gsub (engine, "tex$", "latex")
-  local logfile = testdir .. "/" .. name .. ".log"
-  local lvtfile = testfiledir .. "/" .. name .. ".lvt"
-  local newfile = testdir .. "/" .. name .. "." .. engine .. ".log"
+  local logfile = testdir .. "/" .. name .. logext
+  local lvtfile = testfiledir .. "/" .. name .. lvtext
+  local newfile = testdir .. "/" .. name .. "." .. engine .. logext
   os.execute
     (
       -- Set TEXINPUTS to look in local dir, then std tree but not 'here'
@@ -437,7 +441,7 @@ function stripext (file)
 end
 
 function testexists (test)
-  if fileexists (testfiledir .. "/" .. test .. ".lvt") then
+  if fileexists (testfiledir .. "/" .. test .. lvtext) then
     return true
   else
     return false
@@ -474,7 +478,7 @@ function check ()
   checkinit ()
   local errorlevel = 0
   print ("Running checks on")
-  for _,i in ipairs (filelist (testfiledir, "*.lvt")) do
+  for _,i in ipairs (filelist (testfiledir, "*" .. lvtext)) do
     local name = stripext (i)
     print ("  " .. name)
     local errlevel = runcheck (name, nil, true)
@@ -680,9 +684,9 @@ function localinstall ()
 end
 
 function savetlg (name, engine)
-  local tlgfile = name .. (engine and ("." .. engine) or "") .. ".tlg"
-  local newfile = name .. "." .. (engine or stdengine) .. ".log"
-  if fileexists (testfiledir .. "/" .. name .. ".lvt") then
+  local tlgfile = name .. (engine and ("." .. engine) or "") .. tlgext
+  local newfile = name .. "." .. (engine or stdengine) .. logext
+  if fileexists (testfiledir .. "/" .. name .. lvtext) then
     checkinit ()
     print ("Creating and copying " .. tlgfile)
     runtest (name, engine, false)
