@@ -493,7 +493,7 @@ function check ()
 end
 
 function checklvt (name, engine)
-  local engine = engine or strengine
+  local engine = engine or stdengine
   if testexists (name) then
     checkinit ()
     print ("Running checks on " .. name)
