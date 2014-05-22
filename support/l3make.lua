@@ -336,6 +336,8 @@ function formatlog (logfile, newfile)
     line = string.gsub (line, string.match (logfile, ".*/(.*)%" .. logext .. "$"), "")
     -- Remove localdir from file names
     line = string.gsub (line, string.gsub (localdir, "%.", "%%."), ".")
+    -- Remove testdir from file names
+    line = string.gsub (line, string.gsub (testdir, "%.", "%%."), ".")
     -- Zap ./ at begin of filename
     line = string.gsub (line, "%(%.%/", "(")
     -- Normalise a case where fixing a TeX bug changes the message text
