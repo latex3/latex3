@@ -66,12 +66,10 @@ end
 -- l3kernel does all of the targets itself
 function main (target, file, engine)
   if target == "check" then
-    print ("Not implemented yet!")
-    -- check ()
+    check ()
   elseif target == "checklvt"  then
     if file then
-      print ("Not implemented yet!")
-      -- checklvt (file, engine)
+      checklvt (file, engine)
     else
       help ()
     end
@@ -85,8 +83,7 @@ function main (target, file, engine)
     localinstall ()
   elseif target == "savetlg" then
     if file then
-      print ("Not implemented yet!")
-      -- savetlg (file, engine)
+      savetlg (file, engine)
     else
       help ()
     end
