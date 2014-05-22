@@ -191,7 +191,7 @@ rem Makefile for LaTeX3 "l3kernel" files
     copy /y %VALIDATE%\%%I > nul
   )
   copy /y %CHECKDIR%\driver.tex > nul
-  copy /y %CHECKDIR%\names.tex > nul
+  copy /y %CHECKDIR%\m3token004.def > nul
 
   goto :EOF
 
@@ -354,7 +354,7 @@ rem Makefile for LaTeX3 "l3kernel" files
     if exist *.%%I del /q *.%%I
   )
 
-  for %%I in (log2tlg commands-check.tex driver.tex names.tex regression-test.tex) do (
+  for %%I in (log2tlg commands-check.tex driver.tex m3token004.def regression-test.tex) do (
     if exist %%I del /q %%I
   )
 
