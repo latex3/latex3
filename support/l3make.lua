@@ -314,7 +314,7 @@ function checkinit ()
     cp (i, unpackdir, localdir)
   end
   if direxists (testsupdir) then
-    for _,i in ipairs (filelist (testsupdir, "*")) do
+    for _,i in ipairs (filelist (testsupdir)) do
       cp (i, testsupdir, localdir)
     end
   end
