@@ -328,6 +328,8 @@ function formatlog (logfile, newfile)
     -- Substitutions to remove some non-useful changes
   local function normalize (line)
     local line = line
+    -- Remove test file name from lines
+    line = string.gsub (line, string.match (logfile, ".*/(.*)%.log$"), "")
     -- Remove localdir from file names
     line = string.gsub (line, string.gsub (localdir, "%.", "%%."), ".")
     -- Zap ./ at begin of filename
