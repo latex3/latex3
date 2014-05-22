@@ -55,6 +55,7 @@ stdengine  = stdengine  or "pdftex"
 pdfsettings = pdfsettings or "\\AtBeginDocument{\\DisableImplementation}"
 
 -- Extensions for various file types: used to abstract out stuff a bit
+defext = ".def"
 logext = ".log"
 lvtext = ".lvt"
 tlgext = ".tlg"
@@ -423,6 +424,9 @@ function runtest (name, engine, hide)
   local logfile = testdir .. "/" .. name .. logext
   local lvtfile = testfiledir .. "/" .. name .. lvtext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
+  if fileexists (testfiledir .. "/" .. name .. defext) then
+    cp (name .. defext, testfiledir, localdir)
+  end
   os.execute
     (
       -- Set TEXINPUTS to look in local dir, then std tree but not 'here'
