@@ -227,7 +227,9 @@ function filelist (path, glob)
         table.insert (files, entry)
       end
     else
-      table.insert (files, entry)
+      if entry ~= "." and entry ~= ".." then
+        table.insert (files, entry)
+      end
     end
   end
   return files

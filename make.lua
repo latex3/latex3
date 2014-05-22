@@ -37,11 +37,10 @@ function main (target)
     local errorlevel = 0
     for _,i in ipairs (bundles) do
       errorlevel = run (i, "texlua make.lua " .. target)
-      if errorlevel > 0 then
-        return (errorlevel)
+      if errorlevel ~= 0 then
+        break
       end
     end
-    return (errorlevel)
   end
   if target == "check" then
     dobundles (bundles, "check")
