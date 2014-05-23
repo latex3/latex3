@@ -308,17 +308,20 @@ end
  function checkinit ()
   cleandir (localdir)
   cleandir (testdir)
-  localkernel ()
+  unpack_kernel ()
+  for _,i in ipairs (filelist (localdir)) do
+    cp (i, localdir, testdir)
+  end  
   unpack ()
   for _,i in ipairs (installfiles) do
-    cp (i, unpackdir, localdir)
+    cp (i, unpackdir, testdir)
   end
   if direxists (testsupdir) then
     for _,i in ipairs (filelist (testsupdir)) do
-      cp (i, testsupdir, localdir)
+      cp (i, testsupdir, testdir)
     end
   end
-  cp ("regression-test.tex", supportdir, localdir)
+  cp ("regression-test.tex", supportdir, testdir)
 end
 
 -- Remove auxiliary files, either all in the simple case or selectively if
@@ -400,7 +403,7 @@ end
 end
 
 -- Unzip the kernel files into the local tree then clean up the unpack dir
- function localkernel ()
+ function unpack_kernel ()
   run (kerneldir, "texlua make.lua unpack")
   cleandir (unpackdir)
 end
@@ -442,19 +445,20 @@ end
 -- Run one of the test files: doesn't check the result so suitable for
 -- both creating and verifying .tlg files
  function runtest (name, engine, hide)
+  cp (name .. lvtext, testfiledir, testdir)
   local engine = engine or stdengine
   -- Engine name doesn't include the "la" for LaTeX!
   local cmd = string.gsub (engine, "tex$", "latex")
   local logfile = testdir .. "/" .. name .. logext
-  local lvtfile = testfiledir .. "/" .. name .. lvtext
+  local lvtfile = name .. lvtext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
-  os.execute
+  run
     (
-      -- Set TEXINPUTS to look in local dir then std tree
-      os_setenv .. " TEXINPUTS=" .. localdir .. os_pathsep .. os_concat ..
-      cmd ..  " " .. checkopts .. " -output-directory=" .. 
-        testdir .. " " ..
-        lvtfile .. (hide and (" > " .. os_null) or "")
+      testdir,
+      -- Set TEXINPUTS to look 'here' then std tree
+      os_setenv .. " TEXINPUTS=." .. os_pathsep .. os_concat ..
+      cmd ..  " " .. checkopts .. " " .. lvtfile .. 
+        (hide and (" > " .. os_null) or "")
     )
   formatlog (logfile, newfile)
 end
@@ -659,7 +663,7 @@ end
            )
        return errorlevel
     end
-    localkernel ()
+    unpack_kernel ()
     cleanaux (name)
     os.remove (name .. ".pdf")
     print ("Typesetting " .. name)
@@ -725,8 +729,14 @@ end
 -- Unpack the package files using an 'isolated' system: this requires
 -- a copy of the 'basic' DocStrip program, which is used then removed
  function unpack ()
-  localkernel ()
+  unpack_kernel ()
   bundleunpack ()
+end
+
+-- Unpack the kernel files
+local function unpack_kernel ()
+  run (kerneldir, "texlua make.lua unpack")
+  cleandir (unpackdir)
 end
 
 -- Split off from the main unpack so it can be used on a bundle and not
@@ -792,7 +802,7 @@ function main (target, file, engine)
     end
   else
     if target == "bundleunpack" then -- 'Hidden' as only needed 'higher up'
-      localkernel ()
+      unpack_kernel ()
       bundleunpack ()
     elseif target == "bundlecheck" then
       if testfiledir ~= "" then  -- Ignore if there are no testfiles
