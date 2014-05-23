@@ -657,7 +657,7 @@ function doc ()
         ("makeindex -s l3doc.ist -o " .. name .. ".ind " .. name .. ".idx")
     end
     local function typeset (file)
-       local errorlevel = 
+       local errorlevel =
          os.execute
            (
              -- Set TEXINPUTS to look here, local dir, then std tree
@@ -758,6 +758,11 @@ function bundleunpack ()
       os.execute
        (
           -- Set TEXINPUTS to look in the unpack then local dirs only
+          -- Notice tht os.excute is used from 'here' as this ensures that
+          -- localdir points to the correct place: running 'inside'
+          -- upackdir would avoid the need for setting -output-directory
+          -- but at the cost of needing to correct the relative position
+          -- of localdir w.r.t. unpackdir
           os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
             os_concat ..
           unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
