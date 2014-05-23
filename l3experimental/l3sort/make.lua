@@ -4,13 +4,11 @@
 
 -- Identify the bundle and module: the module may be empty in the case where
 -- there is no subdivision
-bundle  = "l3experimental"
-module  = "l3sort"
+bundle = "l3experimental"
+module = "l3sort"
 
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
-
--- Non-standard settings
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
