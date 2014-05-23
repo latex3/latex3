@@ -165,7 +165,7 @@ $(TESTDIR)/%.tex: $(SOURCEDIR)/%.tex
 $(TESTDIR)/%.tlg: $(TESTFILEDIR)/%.tlg
 	@cp -fp $< $@
 
-$(TESTAUXDIR)/%.txt: $(TESTFILEDIR)/%.txt
+$(TESTDIR)/%.txt: $(TESTFILEDIR)/%.txt
 	@cp -fp $< $@
 
 ################################################################
@@ -280,7 +280,7 @@ $(TESTDIR)/source3.pdf: $(TESTDIR)/source3.tex $(TESTDIR)/source3body.tex $(TEST
 
 support: \
 	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
-	$(foreach FILE,$(TESTAUX),$(TESTAUXDIR)/$(FILE)) \
+	$(foreach FILE,$(TESTAUX),$(TESTDIR)/$(FILE)) \
 	$(foreach FILE,$(TESTINPUT),$(TESTDIR)/$(FILE)) \
 	$(foreach FILE,$(VALIDATE),$(TESTDIR)/$(FILE))
 
