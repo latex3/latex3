@@ -747,6 +747,8 @@ function bundleunpack ()
   cp ("docstrip.tex", supportdir, localdir)
   for _,i in ipairs (unpackfiles) do
     for _,j in ipairs (filelist (unpackdir, i)) do
+      -- Note this is all run from 'here' as otherwise the localdir var 
+      -- willnot point to the correct place to find e.g. l3docstrip
       os.execute
        (
           -- Set TEXINPUTS to look in the unpack then local dirs only
