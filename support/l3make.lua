@@ -35,7 +35,8 @@ cleanfiles   = cleanfiles   or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
 excludefiles = excludefiles or {"*~"}             -- Any Emacs stuff
 installfiles = installfiles or {"*.sty"}
 sourcefiles  = sourcefiles  or {"*.dtx", "*.ins"} -- Files to copy for unpacking
-supportfiles = supportfiles or {"minimal.cls", "*.sty", "regression-test.tex"}
+supportfiles = supportfiles or
+  {"minimal.cls", "lualatexquotejobname.lua", "*.sty", "regression-test.tex"}
 txtfiles     = txtfiles     or {"*.markdown"}
 typesetfiles = typesetfiles or {"*.dtx"}
 unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
