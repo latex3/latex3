@@ -4,8 +4,8 @@
 
 -- Identify the bundle and module: the module may be empty in the case where
 -- there is no subdivision
-bundle  = "l3packages"
-module  = "xfrac"
+bundle = "l3packages"
+module = "xfrac"
 
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."

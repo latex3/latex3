@@ -4,8 +4,8 @@
 
 -- Identify the bundle and module: the module may be empty in the case where
 -- there is no subdivision
-bundle  = "l3experimental"
-module  = "l3str"
+bundle = "l3experimental"
+module = "l3str"
 
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."

@@ -4,8 +4,8 @@
 
 -- Identify the bundle and module: the module may be empty in the case where
 -- there is no subdivision
-bundle  = "l3experimental"
-module  = "xcoffins"
+bundle = "l3experimental"
+module = "xcoffins"
 
 -- Location of main directory: use Unix-style path separators\includegraphics[]{C:/Users/Public/Documents/LaTeX/LaTeX3/trunk/l3experimental/xcoffins/elementare-typographie-title.jpg}
 
