@@ -41,6 +41,7 @@ function help ()
   print " make check                    - run automated check system                "
   print " make checklvt <name>          - check one test file <name> for all engines"
   print " make checklvt <name> <engine> - check one test file <name> for <engine>   "
+  print " make cmdcheck                 - check commands documented are defined     "
   print " make ctan                     - create CTAN-ready archive                 "
   print " make doc                      - runs all documentation files              "
   print " make clean                    - clean out directory tree                  "
@@ -64,6 +65,32 @@ function unpack ()
   bundleunpack ()
 end
 
+-- Check commands are defined: somewhat hard-coded at present
+function cmdcheck ()
+  cleandir (localdir)
+  cleandir (testdir)
+  unpack_kernel ()
+  local cmd = string.gsub (stdengine, "tex$", "latex")
+  print ("Checking source files")
+  for _,i in ipairs (filelist (".", "*.dtx")) do
+    print ("  " .. stripext (i))
+    os.execute
+      (
+        -- Set TEXINPUTS to look here, local dir, then std tree
+        os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
+          os_pathsep .. os_concat ..
+        cmd .. " " .. checkopts .. " -output-directory=" .. testdir ..
+          " \"\\PassOptionsToClass{check}{l3doc} \\input " .. i .. "\""
+          .. " > " .. os_null
+      )
+    for line in io.lines (testdir .. "/" .. stripext (i) .. ".cmds") do
+      if string.match (line, "^%!") then
+        print ("   - " .. string.match (line, "^%! (.*)"))
+      end
+    end
+  end
+end
+
 -- l3kernel does all of the targets itself
 function main (target, file, engine)
   local errorlevel
@@ -79,6 +106,8 @@ function main (target, file, engine)
     else
       help ()
     end
+  elseif target == "cmdcheck" then
+    cmdcheck ()
   elseif target == "clean" then
     clean ()
   elseif target == "ctan" then
