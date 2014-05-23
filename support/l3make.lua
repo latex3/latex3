@@ -430,8 +430,6 @@ function runcheck (name, engine, hide)
     end
     local errlevel = os.execute
       (os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile)
-    local errlevel = os.execute
-      (os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile)
     if errlevel == 0 then
       os.remove (difffile)
     else
