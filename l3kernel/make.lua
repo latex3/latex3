@@ -41,10 +41,12 @@ function help ()
   print " make check                    - run automated check system                "
   print " make checklvt <name>          - check one test file <name> for all engines"
   print " make checklvt <name> <engine> - check one test file <name> for <engine>   "
+  print " make clean                    - clean out directory tree                  "
   print " make cmdcheck                 - check commands documented are defined     "
   print " make ctan                     - create CTAN-ready archive                 "
   print " make doc                      - runs all documentation files              "
-  print " make clean                    - clean out directory tree                  "
+  print " make format                   - create a format file using pdfTeX         "
+  print " make format <engine>          - create a format file using <engine>       "
   print " make localinstall             - install files in local texmf tree         "
   print " make savetlg <name>           - save test log for <name> for all engines  "
   print " make savetlg <name> <engine>  - save test log for <name> for <engine>     "
@@ -127,10 +129,10 @@ function main (target, file, engine)
     else
       help ()
     end
-  elseif target == "cmdcheck" then
-    cmdcheck ()
   elseif target == "clean" then
     clean ()
+  elseif target == "cmdcheck" then
+    cmdcheck ()
   elseif target == "ctan" then
     ctan ()
   elseif target == "doc" then
