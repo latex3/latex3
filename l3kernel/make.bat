@@ -191,7 +191,7 @@ rem Makefile for LaTeX3 "l3kernel" files
     copy /y %VALIDATE%\%%I > nul
   )
   copy /y %CHECKDIR%\driver.tex > nul
-  copy /y %CHECKDIR%\m3token004.def > nul
+  copy /y %CHECKDIR%\filetest.txt > nul
 
   goto :EOF
 
