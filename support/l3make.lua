@@ -314,8 +314,8 @@ function checkinit ()
   unpack_kernel ()
   for _,i in ipairs (filelist (localdir)) do
     cp (i, localdir, testdir)
-  end  
-  unpack ()
+  end
+  bundleunpack ()
   for _,i in ipairs (installfiles) do
     cp (i, unpackdir, testdir)
   end
