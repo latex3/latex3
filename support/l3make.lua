@@ -17,7 +17,7 @@ supportdir  = maindir .. "/support"
 tdsdir      = distribdir .. "/tds"
 testdir     = maindir .. "/test"
 testfiledir = testfiledir or "testfiles" -- Set to "" to cancel any tests
-testsupdir  = testdupdir  or testfiledir .. "/support"
+testsupdir  = testsupdir  or testfiledir .. "/support"
 unpackdir   = maindir .. "/unpacked"
 
 -- File types for various operations
