@@ -29,6 +29,7 @@ auxfiles     = auxfiles     or
     "*.log", "*.out", "*.synctex.gz", "*.tmp", "*.toc", "*.xref"
   }
 binaryfiles  = binaryfiles  or {"*.pdf", "*.zip"}
+checkfiles   = checkfiles   or { } -- Extra files unpacked purely for tests
 demofiles    = demofiles    or { }
 cleanfiles   = cleanfiles   or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
 excludefiles = excludefiles or {"*~"}             -- Any Emacs stuff
@@ -314,6 +315,9 @@ function checkinit ()
   end  
   unpack ()
   for _,i in ipairs (installfiles) do
+    cp (i, unpackdir, testdir)
+  end
+  for _,i in ipairs (checkfiles) do
     cp (i, unpackdir, testdir)
   end
   if direxists (testsupdir) then

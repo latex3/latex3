@@ -11,6 +11,7 @@ module = ""
 maindir = ".."
 
 -- Non-standard settings
+checkfiles   = {"l3names.def"}
 installfiles = {"*.def", "*.cls", "*.sty", "*.tex"}
 typesetfiles =
   {
