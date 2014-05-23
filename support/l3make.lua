@@ -396,7 +396,8 @@ function formatlog (logfile, newfile)
     end
   end
   local newfile = io.open (newfile, "w")
-  newfile:write (newlog)
+  io.output (newfile)
+  io.write (newlog)
   io.close (newfile)
 end
 
