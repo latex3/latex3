@@ -36,7 +36,7 @@ excludefiles = excludefiles or {"*~"}             -- Any Emacs stuff
 installfiles = installfiles or {"*.sty"}
 sourcefiles  = sourcefiles  or {"*.dtx", "*.ins"} -- Files to copy for unpacking
 supportfiles = supportfiles or
-  {"minimal.cls", "lualatexquotejobname.lua", "*.sty", "regression-test.tex"}
+  {"*.cls", "lualatexquotejobname.lua", "*.sty", "*.tex"}
 txtfiles     = txtfiles     or {"*.markdown"}
 typesetfiles = typesetfiles or {"*.dtx"}
 unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
@@ -657,16 +657,16 @@ function doc ()
         ("makeindex -s gind.ist -o " .. name .. ".ind " .. name .. ".idx")
     end
     local function typeset (file)
-       local errorlevel =
-         os.execute
-           (
-             -- Set TEXINPUTS to look here, local dir, then std tree
-             os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
-               os_pathsep .. os_concat ..
-             typesetexe .. " " .. typesetopts .. " \"" .. pdfsettings ..
-               " \\input " .. file .. "\""
-           )
-       return errorlevel
+      local errorlevel =
+        os.execute
+          (
+            -- Set TEXINPUTS to look here, local dir, then std tree
+            os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
+              os_pathsep .. os_concat ..
+            typesetexe .. " " .. typesetopts .. " \"" .. pdfsettings ..
+              " \\input " .. file .. "\""
+          )
+      return errorlevel
     end
     unpack_kernel ()
     cleanaux (name)
