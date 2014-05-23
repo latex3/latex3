@@ -1,64 +1,64 @@
 -- Common material for LaTeX3 make scripts
 -- Functions needed for both building single modules and bundles
-do
+
 -- Ensure the module exists: empty if not applicable
- module = module or ""
+module = module or ""
 bundlelocal  = bundle or ""
 
 -- Directory structure for the build system
 -- Use Unix-style path separators
- distribdir  = maindir .. "/distrib"
+distribdir  = maindir .. "/distrib"
 
- ctandir     = distribdir .. "/ctan"
- kerneldir   = maindir .. "/l3kernel"
- localdir    = maindir .. "/local"
- moduledir   = "latex/" .. bundle .. "/" .. module
- supportdir  = maindir .. "/support"
- tdsdir      = distribdir .. "/tds"
- testdir     = maindir .. "/test"
- testfiledir = testfiledir or "testfiles" -- Set to "" to cancel any tests
- testsupdir  = testdupdir  or testfiledir .. "/support"
- unpackdir   = maindir .. "/unpacked"
+ctandir     = distribdir .. "/ctan"
+kerneldir   = maindir .. "/l3kernel"
+localdir    = maindir .. "/local"
+moduledir   = "latex/" .. bundle .. "/" .. module
+supportdir  = maindir .. "/support"
+tdsdir      = distribdir .. "/tds"
+testdir     = maindir .. "/test"
+testfiledir = testfiledir or "testfiles" -- Set to "" to cancel any tests
+testsupdir  = testdupdir  or testfiledir .. "/support"
+unpackdir   = maindir .. "/unpacked"
 
 -- File types for various operations
 -- Use Unix-style globs
 -- All of these may be set earlier, so a initialised conditionally
- auxfiles     = auxfiles     or
+auxfiles     = auxfiles     or
   {
     "*.aux", "*.cmds", "*.glo", "*.gls", "*.hd", "*.idx", "*.ilg", "*.ind",
     "*.log", "*.out", "*.synctex.gz", "*.tmp", "*.toc", "*.xref"
   }
- binaryfiles  = binaryfiles  or {"*.pdf", "*.zip"}
- demofiles    = demofiles    or { }
- cleanfiles   = cleanfiles   or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
- excludefiles = excludefiles or {"*~"}             -- Any Emacs stuff
- installfiles = installfiles or {"*.sty"}
- sourcefiles  = sourcefiles  or {"*.dtx", "*.ins"} -- Files to copy for unpacking
- txtfiles     = txtfiles     or {"*.markdown"}
- typesetfiles = typesetfiles or {"*.dtx"}
- unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
+binaryfiles  = binaryfiles  or {"*.pdf", "*.zip"}
+demofiles    = demofiles    or { }
+cleanfiles   = cleanfiles   or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
+excludefiles = excludefiles or {"*~"}             -- Any Emacs stuff
+installfiles = installfiles or {"*.sty"}
+sourcefiles  = sourcefiles  or {"*.dtx", "*.ins"} -- Files to copy for unpacking
+txtfiles     = txtfiles     or {"*.markdown"}
+typesetfiles = typesetfiles or {"*.dtx"}
+unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
 
 -- Executable names plus following options
- typesetexe = typesetexe or "pdflatex"
- unpackexe  = unpackexe  or "tex"
- zipexe     = "zip"
+typesetexe = typesetexe or "pdflatex"
+unpackexe  = unpackexe  or "tex"
+zipexe     = "zip"
 
- checkopts   = checkopts   or "-interaction=batchmode"
- typesetopts = typesetopts or "-interaction=nonstopmode"
- unpackopts  = unpackopts  or ""
- zipopts     = zipopts     or "-v -r -X"
+checkopts   = checkopts   or "-interaction=batchmode"
+typesetopts = typesetopts or "-interaction=nonstopmode"
+unpackopts  = unpackopts  or ""
+zipopts     = zipopts     or "-v -r -X"
 
 -- Engines for testing
- chkengines = chkengines or {"pdftex", "xetex", "luatex"}
- stdengine  = stdengine  or "pdftex"
+chkengines = chkengines or {"pdftex", "xetex", "luatex"}
+stdengine  = stdengine  or "pdftex"
 
 -- Other required settings
- pdfsettings = pdfsettings or "\\AtBeginDocument{\\DisableImplementation}"
+pdfsettings = pdfsettings or "\\AtBeginDocument{\\DisableImplementation}"
 
 -- Extensions for various file types: used to abstract out stuff a bit
- logext = ".log"
- lvtext = ".lvt"
- tlgext = ".tlg"
+logext = ".log"
+lvtext = ".lvt"
+tlgext = ".tlg"
 
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
@@ -91,7 +91,7 @@ bundlelocal  = bundle or ""
   (end license)
 
 --]]
- function glob_to_pattern (glob)
+function glob_to_pattern (glob)
 
   local pattern = "^" -- pattern being built
   local i = 0 -- index in glob
@@ -166,13 +166,13 @@ end
 lfs = require ("lfs")
 
 -- For cleaning out a directory, which also ensures that it exists
- function cleandir (dir)
+function cleandir (dir)
   mkdir (dir)
   rm (dir, "*")
 end
 
 -- Copy files 'quietly'
- function cp (glob, source, dest)
+function cp (glob, source, dest)
   for _,i in ipairs (filelist (source, glob)) do
     local source = source .. "/" .. i
     if os_windows then
@@ -188,7 +188,7 @@ end
 end
 
 -- OS-dependent test for a directory
- function direxists (dir)
+function direxists (dir)
   local errorlevel
   if os_windows then
     errorlevel =
@@ -202,7 +202,7 @@ end
   return (true)
 end
 
- function fileexists (file)
+function fileexists (file)
   local f = io.open (file, "r")
   if f ~= nil then
     io.close(f)
@@ -215,7 +215,7 @@ end
 -- Generate a table containing all file names of the given glob or all files
 -- if absent
 -- Not actually OS-dependent but in the same area
- function filelist (path, glob)
+function filelist (path, glob)
   local files = { }
   local pattern
   if glob then
@@ -235,7 +235,7 @@ end
   return files
 end
 
- function mkdir (dir)
+function mkdir (dir)
   if os_windows then
     -- Windows (with the extensions) will automatically make directory trees
     -- but issues a warning if the dir already exists: avoid by including a test
@@ -247,7 +247,7 @@ end
 end
 
 -- Rename
- function ren (dir, source, dest)
+function ren (dir, source, dest)
   local dir = dir .. "/"
   if os_windows then
     os.execute
@@ -258,14 +258,14 @@ end
 end
 
 -- Remove file(s) based on a glob
- function rm (source, glob)
+function rm (source, glob)
   for _,i in ipairs (filelist (source, glob)) do
     os.remove (source .. "/" .. i)  
   end
 end
 
 -- Remove a directory tree
- function rmdir (dir)
+function rmdir (dir)
   -- First, make sure it exists to avoid any errors
   mkdir (dir)
   if os_windows then
@@ -276,13 +276,13 @@ end
 end
 
 -- Run a command in a given directory
- function run (dir, cmd)
+function run (dir, cmd)
   local errorlevel = os.execute ("cd " .. dir .. os_concat .. cmd)
   return (errorlevel)
 end
 
 -- Deal with the fact that Windows and Unix use different path separators
- function unix_to_win (path)
+function unix_to_win (path)
   local path = string.gsub (path, "/", "\\")
   return path
 end
@@ -292,7 +292,7 @@ end
 --
 
 -- Do some subtarget for all modules in a bundle
- function allmodules (target)
+function allmodules (target)
   local errorlevel = 0
   for _,i in ipairs (modules) do
     errorlevel = run (i, "texlua make.lua " .. target)
@@ -305,7 +305,7 @@ end
 
 -- Set up the check system files: needed for checking one or more tests and
 -- for saving the test files
- function checkinit ()
+function checkinit ()
   cleandir (localdir)
   cleandir (testdir)
   unpack_kernel ()
@@ -326,7 +326,7 @@ end
 
 -- Remove auxiliary files, either all in the simple case or selectively if
 -- a file name stem is given
- function cleanaux (name)
+function cleanaux (name)
   for _,i in ipairs (auxfiles) do
     if not name then
       rm (".", i)
@@ -338,7 +338,7 @@ end
 
 -- Convert the raw log file into one for comparison/storage: keeps only
 -- the 'business' part from the tests and removes system-dependent stuff
- function formatlog (logfile, newfile)
+function formatlog (logfile, newfile)
   local function killcheck (line)
     local line = line
       -- Skip lines containing file dates
@@ -403,14 +403,14 @@ end
 end
 
 -- Unzip the kernel files into the local tree then clean up the unpack dir
- function unpack_kernel ()
+function unpack_kernel ()
   run (kerneldir, "texlua make.lua unpack")
   cleandir (unpackdir)
 end
 
 -- Runs a single test: needs the name of the test rather than the .lvt file
 -- One 'test' here may apply to multiple engines
- function runcheck (name, engine, hide)
+function runcheck (name, engine, hide)
   local chkengines = chkengines
   if engine then
     chkengines = {engine}
@@ -444,7 +444,7 @@ end
 
 -- Run one of the test files: doesn't check the result so suitable for
 -- both creating and verifying .tlg files
- function runtest (name, engine, hide)
+function runtest (name, engine, hide)
   cp (name .. lvtext, testfiledir, testdir)
   local engine = engine or stdengine
   -- Engine name doesn't include the "la" for LaTeX!
@@ -464,12 +464,12 @@ end
 end
 
 -- Strip the extension from a file name
- function stripext (file)
+function stripext (file)
   local name = string.gsub (file, "%..*$", "")
   return name
 end
 
- function testexists (test)
+function testexists (test)
   if fileexists (testfiledir .. "/" .. test .. lvtext) then
     return true
   else
@@ -480,7 +480,7 @@ end
 -- Standard versions of the main targets for building modules
 
 -- Simply print out how to use the build system
- function help ()
+function help ()
   print ""
   if testfiledir ~= "" then
     print " make check                    - run automated check system       "
@@ -503,7 +503,7 @@ end
   print ""
 end
 
- function check ()
+function check ()
   checkinit ()
   local errorlevel = 0
   print ("Running checks on")
@@ -527,7 +527,7 @@ end
   return (errorlevel)
 end
 
- function checklvt (name, engine)
+function checklvt (name, engine)
   local engine = engine or stdengine
   if testexists (name) then
     checkinit ()
@@ -544,7 +544,7 @@ end
 end
 
 -- Remove all generated files
- function clean ()
+function clean ()
   cleandir (localdir)
   cleandir (testdir)
   cleandir (unpackdir)
@@ -554,7 +554,7 @@ end
   end
 end
 
- function bundleclean ()
+function bundleclean ()
   allmodules ("clean")
   for _,i in ipairs (cleanfiles) do
     rm (".", i)
@@ -563,7 +563,7 @@ end
   rmdir (tdsdir)
 end
 
- function ctan ()
+function ctan ()
   local function dirzip (dir, name)
     local zipname = name .. ".zip"
     local function tab_to_str (table)
@@ -611,7 +611,7 @@ end
   dirzip (ctandir, bundle)
 end
 
- function bundlectan ()
+function bundlectan ()
   local function install (source, dest, files, ctan)
     local installdir  = tdsdir .. "/"  .. dest .. "/" .. moduledir
     mkdir (installdir)
@@ -642,7 +642,7 @@ end
 -- Notice that the first step taken is to remove all auxiliary files and
 -- any existing PDF associated with the current file: this hopefully avoids
 -- errors 'hanging about'
- function doc ()
+function doc ()
   local function typeset (file)
     local name = stripext (file)
     -- A couple of short functions to deal with the repeated steps in a
@@ -692,7 +692,7 @@ end
 end
 
 -- Locally install files: only deals with those extracted, not docs etc.
- function localinstall ()
+function localinstall ()
   unpack ()
   -- The variable TEXMFHOME may not be set: if so, get the value using
   -- kpsewhich.
@@ -712,7 +712,7 @@ end
   end
 end
 
- function savetlg (name, engine)
+function savetlg (name, engine)
   local tlgfile = name .. (engine and ("." .. engine) or "") .. tlgext
   local newfile = name .. "." .. (engine or stdengine) .. logext
   if fileexists (testfiledir .. "/" .. name .. lvtext) then
@@ -728,7 +728,7 @@ end
 
 -- Unpack the package files using an 'isolated' system: this requires
 -- a copy of the 'basic' DocStrip program, which is used then removed
- function unpack ()
+function unpack ()
   unpack_kernel ()
   bundleunpack ()
 end
@@ -741,7 +741,7 @@ end
 
 -- Split off from the main unpack so it can be used on a bundle and not
 -- leave only one modules files
- function bundleunpack ()
+function bundleunpack ()
   for _,i in ipairs (sourcefiles) do
     cp (i, ".", unpackdir)
   end
@@ -837,6 +837,4 @@ function main (target, file, engine)
       help ()
     end
   end
-end
-
 end
