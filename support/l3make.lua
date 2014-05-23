@@ -35,6 +35,7 @@ cleanfiles   = cleanfiles   or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
 excludefiles = excludefiles or {"*~"}             -- Any Emacs stuff
 installfiles = installfiles or {"*.sty"}
 sourcefiles  = sourcefiles  or {"*.dtx", "*.ins"} -- Files to copy for unpacking
+supportfiles = supportfiles or {"*.sty", "*.tex"}
 txtfiles     = txtfiles     or {"*.markdown"}
 typesetfiles = typesetfiles or {"*.dtx"}
 unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
@@ -325,7 +326,9 @@ function checkinit ()
       cp (i, testsupdir, testdir)
     end
   end
-  cp ("regression-test.tex", supportdir, testdir)
+  for _,i in ipairs (supportfiles) do
+    cp (i, supportdir, testdir)
+  end
 end
 
 -- Remove auxiliary files, either all in the simple case or selectively if
