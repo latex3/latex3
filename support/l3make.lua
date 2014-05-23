@@ -654,7 +654,7 @@ function doc ()
     -- clear way
     local function index (name)
       os.execute
-        ("makeindex -s l3doc.ist -o " .. name .. ".ind " .. name .. ".idx")
+        ("makeindex -s gind.ist -o " .. name .. ".ind " .. name .. ".idx")
     end
     local function typeset (file)
        local errorlevel =
@@ -754,7 +754,7 @@ function bundleunpack ()
   for _,i in ipairs (unpackfiles) do
     for _,j in ipairs (filelist (unpackdir, i)) do
       -- Note this is all run from 'here' as otherwise the localdir var 
-      -- willnot point to the correct place to find e.g. l3docstrip
+      -- will not point to the correct place to find e.g. l3docstrip
       os.execute
        (
           -- Set TEXINPUTS to look in the unpack then local dirs only
