@@ -360,8 +360,6 @@ function formatlog (logfile, newfile)
     local line = line
     -- Remove test file name from lines
     line = string.gsub (line, string.match (logfile, ".*/(.*)%" .. logext .. "$"), "")
-    -- Remove localdir from file names
-    line = string.gsub (line, string.gsub (localdir, "%.", "%%."), ".")
     -- Remove testdir from file names
     line = string.gsub (line, string.gsub (testdir, "%.", "%%."), ".")
     -- Zap ./ at begin of filename
