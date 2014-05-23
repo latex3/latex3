@@ -91,6 +91,27 @@ function cmdcheck ()
   end
 end
 
+function format (engine)
+  local engine = engine or "pdftex"
+  unpack ()
+  os.execute
+   (
+      -- Set TEXINPUTS to look in the unpack then local dirs only
+      -- See notes in l3make.lua for unpack ()
+      os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
+        os_concat ..
+      unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
+        .. " " .. unpackdir .. "/" .. "l3format.ins"
+    )
+  run
+    (
+      unpackdir,
+      -- Only look 'here'
+      os_setenv .. " TEXINPUTS=." .. os_concat ..
+      engine .. " -ini \"*l3format.ltx\""
+    )
+end
+
 -- l3kernel does all of the targets itself
 function main (target, file, engine)
   local errorlevel
@@ -114,6 +135,9 @@ function main (target, file, engine)
     ctan ()
   elseif target == "doc" then
     doc ()
+  elseif target == "format" then
+    local engine = file -- Args are a bit wrong!
+    format (engine)
   elseif target == "localinstall" then
     localinstall ()
   elseif target == "savetlg" then
