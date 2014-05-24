@@ -397,6 +397,13 @@ function formatlog (logfile, newfile)
       (line, "glue set (%d+.%d%d%d%d)%dfil", "glue set %1fil")
     -- For the present, remove direction information on boxes
     line = string.gsub (line, ", direction TLT", "")
+    -- LuaTeX displaces ligatures slightly differently in box logs: tidy up
+    -- the one that pops up in the tests
+    line = string.gsub (line, "  (ligature ffi)", " ^^N (ligature ffi)")
+    -- Minor LuaTeX bug: it prints an extra "'" in one message: add enough
+    -- context to hopefully hit only the bug
+    line = string.gsub
+      (line, "I''m going to assume", "I'm going to assume")
     return line
   end
   local newlog = ""
