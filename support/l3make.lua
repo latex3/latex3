@@ -388,6 +388,10 @@ function formatlog (logfile, newfile)
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
     line = string.gsub (line, "^%s+", "")
+    -- LuaTeX can give slightly different glue setting to pdfTeX:
+    -- handle this by restricting to four decimal places
+    line = string.gsub
+      (line, "glue set (%d+.%d%d%d%d)%dfil", "glue set %1fil")
     -- For the present, remove direction information on boxes
     line = string.gsub (line, ", direction TLT", "")
     return line
