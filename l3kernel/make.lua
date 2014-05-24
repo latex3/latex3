@@ -110,7 +110,7 @@ function format (engine)
       unpackdir,
       -- Only look 'here'
       os_setenv .. " TEXINPUTS=." .. os_concat ..
-      engine .. " -ini \"*l3format.ltx\""
+      engine .. " -etex -ini l3format.ltx"
     )
 end
 
