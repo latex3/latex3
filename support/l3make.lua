@@ -381,6 +381,9 @@ function formatlog (logfile, newfile)
     line = string.gsub (line, string.gsub (testdir, "%.", "%%."), ".")
     -- Zap ./ at begin of filename
     line = string.gsub (line, "%(%.%/", "(")
+    -- XeTeX knows only the smaller set of dimension units
+    line = string.gsub
+      (line, "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp")
     -- Normalise a case where fixing a TeX bug changes the message text
     line = string.gsub (line, "\\csname\\endcsname ", "\\csname\\endcsname")
     -- Zap "on line <num>" and replace with "on line ..."
