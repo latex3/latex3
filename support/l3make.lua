@@ -359,7 +359,16 @@ function formatlog (logfile, newfile)
         string.match
           (string.gsub (line, "^\\openin", "\\openout"), "^\\openout%d = ")
           then
-          line = ""
+          line = "" 
+      elseif
+        -- Various things that only LuaTeX adds to boxes: at least while
+        -- we don't have bidi tests these lines can be removed
+        string.match (line, "^%.*\\whatsit$")                 or
+        string.match (line, "^%.*\\localinterlinepenalty=0$") or
+        string.match (line, "^%.*\\localbrokenpenalty=0$")    or
+        string.match (line, "^%.*\\localleftbox=null$")       or
+        string.match (line, "^%.*\\localrightbox=null$")      then
+        line = ""
       end
     return line
   end
