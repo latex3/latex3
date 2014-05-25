@@ -18,7 +18,7 @@ cmdchkfiles  = -- Need to miss a few .dtx files
     "expl3.dtx", "l3alloc.dtx", "l3basics.dtx", "l3bootstrap.dtx",
     "l3box.dtx", "l3candidates.dtx", "l3clist.dtx", "l3coffins.dtx",
     "l3color.dtx", "l3docstrip.dtx", "l3drivers.dtx", "l3expan.dtx",
-    "l3file.dtx", "l3final.dtx", "l3int.dtx", "l3keys.dtx", "l3luatex.dtx",
+    "l3file.dtx", "l3final.dtx", "l3int.dtx", "l3keys.dtx",
     "l3msg.dtx", "l3names.dtx", "l3prg.dtx", "l3prop.dtx", "l3quark.dtx",
     "l3seq.dtx", "l3skip.dtx", "l3tl.dtx", "l3token.dtx"
   }
