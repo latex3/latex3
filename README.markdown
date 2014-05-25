@@ -59,18 +59,18 @@ changes, additions, _etc._ should be addressed to the list
 
 You can subscribe to this list by sending mail to
 
-  listserv@urz.uni-heidelberg.de
+    listserv@urz.uni-heidelberg.de
 
 with the body containing
 
-  subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
+    subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
 
 Bugs
 ----
 
 The issue tracker for LaTeX3 bugs is currently located at
 
-  https://github.com/latex3/svn-mirror/issues
+    https://github.com/latex3/svn-mirror/issues
 
 Please report specific issues with LaTeX3 code there; more general
 discussion should be directed to the [LaTeX-L list](#Discussion).
@@ -107,5 +107,5 @@ the [LaTeX-L list](#Discussion) should be used .
 
 -----
 
-Copyright (C) 2011,2012 The LaTeX3 Project
+Copyright (C) 2011,2012,2014 The LaTeX3 Project
 All rights reserved
