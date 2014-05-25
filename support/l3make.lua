@@ -30,6 +30,7 @@ auxfiles     = auxfiles     or
   }
 binaryfiles  = binaryfiles  or {"*.pdf", "*.zip"}
 checkfiles   = checkfiles   or { } -- Extra files unpacked purely for tests
+cmdchkfiles  = cmdchkfiles  or {"*.dtx"}
 demofiles    = demofiles    or { }
 cleanfiles   = cleanfiles   or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
 excludefiles = excludefiles or {"*~"}             -- Any Emacs stuff
@@ -47,6 +48,7 @@ unpackexe  = unpackexe  or "tex"
 zipexe     = "zip"
 
 checkopts   = checkopts   or "-interaction=batchmode"
+cmdchkopts  = cmdchkopts  or "-interaction=batchmode"
 typesetopts = typesetopts or "-interaction=nonstopmode"
 unpackopts  = unpackopts  or ""
 zipopts     = zipopts     or "-v -r -X"
@@ -511,23 +513,24 @@ end
 function help ()
   print ""
   if testfiledir ~= "" then
-    print " make check                    - run automated check system       "
+    print " make check                    - run automated check system                "
   end
   if module ~= "" and testfiledir ~= "" then
     print " make checklvt <name>          - check one test file <name> for all engines"
     print " make checklvt <name> <engine> - check one test file <name> for <engine>   "
   end
+  print " make clean                    - clean out directory tree                  "
+  print " make cmdcheck                 - check commands documented are defined     "
   if module == "" then
-    print " make ctan                     - create CTAN-ready archive        "
+    print " make ctan                     - create CTAN-ready archive                 "
   end
-  print " make doc                      - runs all documentation files     "
-  print " make clean                    - clean out directory tree         "
-  print " make localinstall             - install files in local texmf tree"
+  print " make doc                      - runs all documentation files              "
+  print " make localinstall             - install files in local texmf tree         "
   if module ~= "" and testfiledir ~= "" then
-    print " make savetlg <name>           - save test log for <name> for all engines"
-    print " make savetlg <name> <engine>  - save test log for <name> for <engine>   "
+    print " make savetlg <name>           - save test log for <name> for all engines  "
+    print " make savetlg <name> <engine>  - save test log for <name> for <engine>     "
   end
-  print " make unpack                   - extract packages                 "
+  print " make unpack                   - extract packages                          "
   print ""
 end
 
@@ -589,6 +592,34 @@ function bundleclean ()
   end
   rmdir (ctandir)
   rmdir (tdsdir)
+end
+
+-- Check commands are defined
+function cmdcheck ()
+  cleandir (localdir)
+  cleandir (testdir)
+  unpack_kernel ()
+  local engine = string.gsub (stdengine, "tex$", "latex")
+  print ("Checking source files")
+  for _,i in ipairs (cmdchkfiles) do
+    for _,j in ipairs (filelist (".", i)) do
+      print ("  " .. stripext (j))
+      os.execute
+        (
+          -- Set TEXINPUTS to look here, local dir, then std tree
+          os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
+            os_pathsep .. os_concat ..
+          engine .. " " .. cmdchkopts .. " -output-directory=" .. testdir ..
+            " \"\\PassOptionsToClass{check}{l3doc} \\input " .. j .. "\""
+            .. " > " .. os_null
+        )
+      for line in io.lines (testdir .. "/" .. stripext (j) .. ".cmds") do
+        if string.match (line, "^%!") then
+          print ("   - " .. string.match (line, "^%! (.*)"))
+        end
+      end
+    end
+  end
 end
 
 function ctan ()
@@ -824,6 +855,8 @@ function main (target, file, engine)
       end
     elseif target == "clean" then
       bundleclean ()
+    elseif target == "cmdcheck" then
+      allmodules ("cmdcheck")
     elseif target == "ctan" then
       ctan ()
     elseif target == "localinstall" then
@@ -858,6 +891,8 @@ function main (target, file, engine)
       end
     elseif target == "clean" then
       clean ()
+    elseif target == "cmdcheck" then
+      cmdcheck ()
     elseif target == "localinstall" then
       localinstall ()
     elseif target == "savetlg" and testfiledir ~= "" then

@@ -12,6 +12,16 @@ maindir = ".."
 
 -- Non-standard settings
 checkfiles   = {"l3names.def"}
+cmdchkfiles  = -- Need to miss a few .dtx files
+  {
+    -- Missing l3doc, l3fp and subfiles
+    "expl3.dtx", "l3alloc.dtx", "l3basics.dtx", "l3bootstrap.dtx",
+    "l3box.dtx", "l3candidates.dtx", "l3clist.dtx", "l3coffins.dtx",
+    "l3color.dtx", "l3docstrip.dtx", "l3drivers.dtx", "l3expan.dtx",
+    "l3file.dtx", "l3final.dtx", "l3int.dtx", "l3keys.dtx", "l3luatex.dtx",
+    "l3msg.dtx", "l3names.dtx", "l3prg.dtx", "l3prop.dtx", "l3quark.dtx",
+    "l3seq.dtx", "l3skip.dtx", "l3tl.dtx", "l3token.dtx"
+  }
 installfiles = {"*.def", "*.cls", "*.sty", "*.tex"}
 typesetfiles =
   {
@@ -65,32 +75,6 @@ end
 function unpack ()
   cleandir (unpackdir)
   bundleunpack ()
-end
-
--- Check commands are defined: somewhat hard-coded at present
-function cmdcheck ()
-  cleandir (localdir)
-  cleandir (testdir)
-  unpack_kernel ()
-  local cmd = string.gsub (stdengine, "tex$", "latex")
-  print ("Checking source files")
-  for _,i in ipairs (filelist (".", "*.dtx")) do
-    print ("  " .. stripext (i))
-    os.execute
-      (
-        -- Set TEXINPUTS to look here, local dir, then std tree
-        os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
-          os_pathsep .. os_concat ..
-        cmd .. " " .. checkopts .. " -output-directory=" .. testdir ..
-          " \"\\PassOptionsToClass{check}{l3doc} \\input " .. i .. "\""
-          .. " > " .. os_null
-      )
-    for line in io.lines (testdir .. "/" .. stripext (i) .. ".cmds") do
-      if string.match (line, "^%!") then
-        print ("   - " .. string.match (line, "^%! (.*)"))
-      end
-    end
-  end
 end
 
 function format (engine)
