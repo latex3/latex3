@@ -401,7 +401,7 @@ function formatlog (logfile, newfile)
     line = string.gsub (line, ", direction TLT", "")
     -- LuaTeX displaces ligatures slightly differently in box logs: tidy up
     -- the one that pops up in the tests
-    line = string.gsub (line, "  (ligature ffi)", " ^^N (ligature ffi)")
+    line = string.gsub (line, "  %(ligature ffi%)", " ^^N (ligature ffi)")
     -- Minor LuaTeX bug: it prints an extra "'" in one message: add enough
     -- context to hopefully hit only the bug
     line = string.gsub
