@@ -22,7 +22,11 @@ cmdchkfiles  = -- Need to miss a few .dtx files
     "l3msg.dtx", "l3names.dtx", "l3prg.dtx", "l3prop.dtx", "l3quark.dtx",
     "l3seq.dtx", "l3skip.dtx", "l3tl.dtx", "l3token.dtx"
   }
-installfiles = {"*.def", "*.cls", "*.sty", "*.tex"}
+installfiles =
+  {
+    "l3dvipdfmx.def", "l3dvips.def", "l3pdfmode.def", "l3xdvipdfmx.def",
+    "*.cls", "*.sty", "*.tex"
+  }
 typesetfiles =
   {
     "expl3.dtx", "l3docstrip.dtx", "interface3.tex", "l3syntax-changes.tex",
