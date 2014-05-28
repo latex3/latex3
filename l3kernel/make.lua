@@ -84,8 +84,7 @@ end
 function format (engine)
   local engine = engine or "pdftex"
   unpack ()
-  os.execute
-   (
+  os.execute (
       -- Set TEXINPUTS to look in the unpack then local dirs only
       -- See notes in l3make.lua for unpack ()
       os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
@@ -93,8 +92,7 @@ function format (engine)
       unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
         .. " " .. unpackdir .. "/" .. "l3format.ins"
     )
-  run
-    (
+  run (
       unpackdir,
       -- Only look 'here'
       os_setenv .. " TEXINPUTS=." .. os_concat ..
