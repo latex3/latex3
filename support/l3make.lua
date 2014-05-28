@@ -40,7 +40,7 @@ txtfiles     = txtfiles     or {"*.markdown"}
 typesetfiles = typesetfiles or {"*.dtx"}
 unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
 
--- Roots which should be unpacked to support unpacking/testing/typsetting
+-- Roots which should be unpacked to support unpacking/testing/typesetting
 reqmodules = reqmodules or {maindir .. "/l3kernel"}
 
 -- Executable names plus following options
