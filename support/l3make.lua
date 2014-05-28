@@ -534,7 +534,7 @@ function help ()
     print " make ctan                     - create CTAN-ready archive                 "
   end
   print " make doc                      - runs all documentation files              "
-  print " make localinstall             - install files in local texmf tree         "
+  print " make install                  - install files in local texmf tree         "
   if module ~= "" and testfiledir ~= "" then
     print " make savetlg <name>           - save test log for <name> for all engines  "
     print " make savetlg <name> <engine>  - save test log for <name> for <engine>     "
@@ -757,7 +757,7 @@ function doc ()
 end
 
 -- Locally install files: only deals with those extracted, not docs etc.
-function localinstall ()
+function install ()
   unpack ()
   -- The variable TEXMFHOME may not be set: if so, get the value using
   -- kpsewhich.
@@ -866,8 +866,8 @@ function main (target, file, engine)
       allmodules ("cmdcheck")
     elseif target == "ctan" then
       ctan ()
-    elseif target == "localinstall" then
-      allmodules ("localinstall")
+    elseif target == "install" then
+      allmodules ("install")
     elseif target == "unpack" then
       -- bundleunpack avoids cleaning out the dir, so do it once here
       cleandir (unpackdir)
@@ -900,8 +900,8 @@ function main (target, file, engine)
       clean ()
     elseif target == "cmdcheck" then
       cmdcheck ()
-    elseif target == "localinstall" then
-      localinstall ()
+    elseif target == "install" then
+      install ()
     elseif target == "savetlg" and testfiledir ~= "" then
       if file then
         savetlg (file, engine)
