@@ -798,7 +798,7 @@ end
 
 -- Unpack the kernel files
 function unpack_kernel ()
-  run (kerneldir, "texlua make.lua unpack")
+  run (kerneldir, "texlua " .. scriptname .. " unpack")
   cleandir (unpackdir)
 end
 
