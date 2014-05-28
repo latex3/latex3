@@ -182,8 +182,7 @@ function cp (glob, source, dest)
   for _,i in ipairs (filelist (source, glob)) do
     local source = source .. "/" .. i
     if os_windows then
-      os.execute
-        (
+      os.execute (
           "copy /y " .. unix_to_win (source) .. " "
             .. unix_to_win (dest) .. " > nul"
         )
@@ -256,8 +255,7 @@ end
 function ren (dir, source, dest)
   local dir = dir .. "/"
   if os_windows then
-    os.execute
-      ("ren " .. unix_to_win (dir) .. source .. " " .. dest)
+    os.execute ("ren " .. unix_to_win (dir) .. source .. " " .. dest)
   else
     os.execute ("mv " .. dir .. source .. " " .. dir .. dest)
   end
@@ -360,8 +358,9 @@ function formatlog (logfile, newfile)
       -- Skip \openin/\openout lines in web2c 7.x
       -- As Lua doesn't allow "(in|out)", a slightly complex approach:
       -- do a substitution to check the line is exactly what is required!
-        string.match
-          (string.gsub (line, "^\\openin", "\\openout"), "^\\openout%d = ")
+        string.match (
+            string.gsub (line, "^\\openin", "\\openout"), "^\\openout%d = "
+          )
           then
           line = "" 
       elseif
@@ -394,8 +393,9 @@ function formatlog (logfile, newfile)
     -- Zap ./ at begin of filename
     line = string.gsub (line, "%(%.%/", "(")
     -- XeTeX knows only the smaller set of dimension units
-    line = string.gsub
-      (line, "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp")
+    line = string.gsub (
+        line, "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
+      )
     -- Normalise a case where fixing a TeX bug changes the message text
     line = string.gsub (line, "\\csname\\endcsname ", "\\csname\\endcsname")
     -- Zap "on line <num>" and replace with "on line ..."
@@ -405,8 +405,9 @@ function formatlog (logfile, newfile)
     line = string.gsub (line, "^%s+", "")
     -- LuaTeX can give slightly different glue setting to pdfTeX:
     -- handle this by restricting to four decimal places
-    line = string.gsub
-      (line, "glue set (%d+.%d%d%d%d)%dfil", "glue set %1fil")
+    line = string.gsub (
+        line, "glue set (%d+.%d%d%d%d)%dfil", "glue set %1fil"
+      )
     -- For the present, remove direction information on boxes
     line = string.gsub (line, ", direction TLT", "")
     -- LuaTeX displaces ligatures slightly differently in box logs: tidy up
@@ -414,8 +415,9 @@ function formatlog (logfile, newfile)
     line = string.gsub (line, "  %(ligature ffi%)", " ^^N (ligature ffi)")
     -- Minor LuaTeX bug: it prints an extra "'" in one message: add enough
     -- context to hopefully hit only the bug
-    line = string.gsub
-      (line, "I''m going to assume", "I'm going to assume")
+    line = string.gsub (
+        line, "I''m going to assume", "I'm going to assume"
+      )
     return line
   end
   local newlog = ""
@@ -472,8 +474,9 @@ function runcheck (name, engine, hide)
     if os_windows then
       tlgfile = unix_to_win (tlgfile)
     end
-    local errlevel = os.execute
-      (os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile)
+    local errlevel = os.execute (
+        os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile
+      )
     if errlevel == 0 then
       os.remove (difffile)
     else
@@ -493,13 +496,12 @@ function runtest (name, engine, hide)
   local logfile = testdir .. "/" .. name .. logext
   local lvtfile = name .. lvtext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
-  run
-    (
+  run (
       testdir,
       -- Set TEXINPUTS to look 'here' then std tree
       os_setenv .. " TEXINPUTS=." .. os_pathsep .. os_concat ..
-      cmd ..  " " .. checkopts .. " " .. lvtfile .. 
-        (hide and (" > " .. os_null) or "")
+      cmd ..  " " .. checkopts .. " " .. lvtfile
+        .. (hide and (" > " .. os_null) or "")
     )
   formatlog (logfile, newfile)
 end
@@ -615,8 +617,7 @@ function cmdcheck ()
   for _,i in ipairs (cmdchkfiles) do
     for _,j in ipairs (filelist (".", i)) do
       print ("  " .. stripext (j))
-      os.execute
-        (
+      os.execute (
           -- Set TEXINPUTS to look here, local dir, then std tree
           os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
             os_pathsep .. os_concat ..
@@ -647,15 +648,13 @@ function ctan ()
     local binfiles = tab_to_str (binaryfiles)
     local exclude = tab_to_str (excludefiles)
     -- First, zip up all of the text files
-    run
-      (
+    run (
         dir,
         zipexe .. " " .. zipopts .. " -ll ".. zipname .. " " .. "." .. " -x"
           .. binfiles .. " " .. exclude
       )
     -- Then add the binary ones
-    run
-      (
+    run (
         dir,
         zipexe .. " " .. zipopts .. " -g ".. zipname .. " " .. ". -i" .. 
           binfiles .. " -x" .. exclude
@@ -718,13 +717,13 @@ function doc ()
     -- A couple of short functions to deal with the repeated steps in a
     -- clear way
     local function index (name)
-      os.execute
-        ("makeindex -s gind.ist -o " .. name .. ".ind " .. name .. ".idx")
+      os.execute (
+          "makeindex -s gind.ist -o " .. name .. ".ind " .. name .. ".idx"
+        )
     end
     local function typeset (file)
       local errorlevel =
-        os.execute
-          (
+        os.execute (
             -- Set TEXINPUTS to look here, local dir, then std tree
             os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
               os_pathsep .. os_concat ..
@@ -820,8 +819,7 @@ function bundleunpack ()
     for _,j in ipairs (filelist (unpackdir, i)) do
       -- Note this is all run from 'here' as otherwise the localdir var 
       -- will not point to the correct place to find e.g. l3docstrip
-      os.execute
-       (
+      os.execute (
           -- Set TEXINPUTS to look in the unpack then local dirs only
           -- Notice tht os.excute is used from 'here' as this ensures that
           -- localdir points to the correct place: running 'inside'
