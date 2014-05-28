@@ -61,7 +61,7 @@ function help ()
   print " make doc                      - runs all documentation files              "
   print " make format                   - create a format file using pdfTeX         "
   print " make format <engine>          - create a format file using <engine>       "
-  print " make localinstall             - install files in local texmf tree         "
+  print " make install                  - install files in local texmf tree         "
   print " make savetlg <name>           - save test log for <name> for all engines  "
   print " make savetlg <name> <engine>  - save test log for <name> for <engine>     "
   print " make unpack                   - extract packages                          "
@@ -128,8 +128,8 @@ function main (target, file, engine)
   elseif target == "format" then
     local engine = file -- Args are a bit wrong!
     format (engine)
-  elseif target == "localinstall" then
-    localinstall ()
+  elseif target == "install" then
+    install ()
   elseif target == "savetlg" then
     if file then
       savetlg (file, engine)
