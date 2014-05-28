@@ -756,6 +756,14 @@ function doc ()
   end
 end
 
+-- Unpack then install
+function localinstall ()
+  unpack ()
+  for _,i in ipairs (installfiles) do
+    cp (i, unpackdir, localdir)
+  end
+end
+
 -- Locally install files: only deals with those extracted, not docs etc.
 function install ()
   unpack ()
@@ -801,7 +809,7 @@ end
 -- Unpack files needed to support testing/typesetting/unpacking
 function unpack_required ()
   for _,i in ipairs (reqmodules) do
-    run (i, "texlua " .. scriptname .. " unpack")
+    run (i, "texlua " .. scriptname .. " localinstall")
     cleandir (unpackdir)
   end
 end
@@ -902,6 +910,8 @@ function main (target, file, engine)
       cmdcheck ()
     elseif target == "install" then
       install ()
+    elseif target == "localinstall" then -- 'Hidden' target
+      localinstall ()
     elseif target == "savetlg" and testfiledir ~= "" then
       if file then
         savetlg (file, engine)
