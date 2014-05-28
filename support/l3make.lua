@@ -447,12 +447,6 @@ function formatlog (logfile, newfile)
   io.close (newfile)
 end
 
--- Unzip the kernel files into the local tree then clean up the unpack dir
-function unpack_kernel ()
-  run (kerneldir, "texlua make.lua unpack")
-  cleandir (unpackdir)
-end
-
 -- Runs a single test: needs the name of the test rather than the .lvt file
 -- One 'test' here may apply to multiple engines
 function runcheck (name, engine, hide)
