@@ -10,7 +10,6 @@ bundlelocal  = bundle or ""
 distribdir  = maindir .. "/distrib"
 
 ctandir     = distribdir .. "/ctan"
-kerneldir   = maindir .. "/l3kernel"
 localdir    = maindir .. "/local"
 moduledir   = "latex/" .. bundle .. "/" .. module
 supportdir  = maindir .. "/support"
@@ -41,6 +40,9 @@ supportfiles = supportfiles or
 txtfiles     = txtfiles     or {"*.markdown"}
 typesetfiles = typesetfiles or {"*.dtx"}
 unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
+
+-- Roots which should be unpacked to support unpacking/testing/typsetting
+reqmodules = reqmodules or {maindir .. "/l3kernel"}
 
 -- Executable names plus following options
 typesetexe = typesetexe or "pdflatex"
@@ -312,7 +314,7 @@ end
 function checkinit ()
   cleandir (localdir)
   cleandir (testdir)
-  unpack_kernel ()
+  unpack_required ()
   for _,i in ipairs (filelist (localdir)) do
     cp (i, localdir, testdir)
   end
@@ -605,7 +607,7 @@ end
 function cmdcheck ()
   cleandir (localdir)
   cleandir (testdir)
-  unpack_kernel ()
+  unpack_required ()
   local engine = string.gsub (stdengine, "tex$", "latex")
   print ("Checking source files")
   for _,i in ipairs (cmdchkfiles) do
@@ -726,7 +728,7 @@ function doc ()
           )
       return errorlevel
     end
-    unpack_kernel ()
+    unpack_required ()
     cleanaux (name)
     os.remove (name .. ".pdf")
     print ("Typesetting " .. name)
@@ -792,14 +794,16 @@ end
 -- Unpack the package files using an 'isolated' system: this requires
 -- a copy of the 'basic' DocStrip program, which is used then removed
 function unpack ()
-  unpack_kernel ()
+  unpack_required ()
   bundleunpack ()
 end
 
--- Unpack the kernel files
-function unpack_kernel ()
-  run (kerneldir, "texlua " .. scriptname .. " unpack")
-  cleandir (unpackdir)
+-- Unpack files needed to support testing/typesetting/unpacking
+function unpack_required ()
+  for _,i in ipairs (reqmodules) do
+    run (i, "texlua " .. scriptname .. " unpack")
+    cleandir (unpackdir)
+  end
 end
 
 -- Split off from the main unpack so it can be used on a bundle and not
@@ -873,7 +877,7 @@ function main (target, file, engine)
     end
   else
     if target == "bundleunpack" then -- 'Hidden' as only needed 'higher up'
-      unpack_kernel ()
+      unpack_required ()
       bundleunpack ()
     elseif target == "bundlecheck" then
       if testfiledir ~= "" then  -- Ignore if there are no testfiles
