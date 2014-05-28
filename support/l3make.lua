@@ -59,6 +59,7 @@ stdengine  = stdengine  or "pdftex"
 
 -- Other required settings
 pdfsettings = pdfsettings or "\\AtBeginDocument{\\DisableImplementation}"
+scriptname  = scriptname or "make.lua" -- Script used in each directory
 
 -- Extensions for various file types: used to abstract out stuff a bit
 logext = ".log"
@@ -300,7 +301,7 @@ end
 function allmodules (target)
   local errorlevel = 0
   for _,i in ipairs (modules) do
-    errorlevel = run (i, "texlua make.lua " .. target)
+    errorlevel = run (i, "texlua " .. scriptname .. " " .. target)
     if errorlevel > 0 then
       return (errorlevel)
     end
