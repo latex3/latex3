@@ -34,6 +34,11 @@ typesetfiles =
   }
 unpackfiles  = {"l3.ins"}
 
+-- No deps
+checkdeps   = { }
+typesetdeps = { }
+unpackdeps  = { }
+
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
 -- As the build system is 'self-contained' there is no module set up here: just
@@ -73,12 +78,6 @@ end
 -- allows code sharing
 function allmodules (target)
   bundlectan ()
-end
-
--- Avoid an infinite loop
-function unpack ()
-  cleandir (unpackdir)
-  bundleunpack ()
 end
 
 function format (engine)
