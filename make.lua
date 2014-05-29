@@ -22,12 +22,12 @@ dofile (maindir .. "/support/l3make.lua")
 -- Help for the master script is simple
 function help ()
   print ""
-  print " make check  - run automated check system       "
-  print " make ctan   - create CTAN-ready archive        "
-  print " make doc    - runs all documentation files     "
-  print " make clean  - clean out directory tree         "
-  print " make local  - install files in local texmf tree"
-  print " make unpack - extract packages                 "
+  print " make check   - run automated check system       "
+  print " make ctan    - create CTAN-ready archive        "
+  print " make doc     - runs all documentation files     "
+  print " make clean   - clean out directory tree         "
+  print " make install - install files in local texmf tree"
+  print " make unpack  - extract packages                 "
   print ""
 end
 
