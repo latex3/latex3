@@ -65,7 +65,6 @@ rem Makefile for LaTeX3 "xor" files
   set MAINDIR=..\..
   set KERNELDIR=%MAINDIR%\l3kernel
   set SCRIPTDIR=%MAINDIR%\support
-  set VALIDATE=%MAINDIR%\validate
 
   rem Set up redirection of output
 
@@ -110,7 +109,7 @@ rem Makefile for LaTeX3 "xor" files
   )
 
   copy /y %SCRIPTDIR%\log2tlg            > nul
-  copy /y %VALIDATE%\regression-test.tex > nul
+  copy /y %SCRIPTDIR%\regression-test.tex > nul
 
   rem Copy all test files for which there is a matching reference log
 
@@ -287,7 +286,7 @@ rem Makefile for LaTeX3 "xor" files
   )
 
   copy /y %SCRIPTDIR%\log2tlg            > nul
-  copy /y %VALIDATE%\regression-test.tex > nul
+  copy /y %SCRIPTDIR%\regression-test.tex > nul
   copy /y %CHECKDIR%\%2.lvt              > nul
 
   echo.
