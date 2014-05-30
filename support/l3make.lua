@@ -506,8 +506,8 @@ function runtest (name, engine, hide)
   for i = 1, checkruns, 1 do
     run (
         testdir,
-        -- Set TEXINPUTS to look 'here' then std tree
-        os_setenv .. " TEXINPUTS=." .. os_pathsep .. os_concat ..
+        -- Set TEXINPUTS to look 'here'
+        os_setenv .. " TEXINPUTS=." .. os_concat ..
         cmd ..  " " .. checkopts .. " " .. lvtfile
           .. (hide and (" > " .. os_null) or "")
       )
