@@ -36,7 +36,6 @@ BASEDIR     := ../..
 EXPL3DIR    := $(BASEDIR)/l3kernel
 SUPPORTDIR  := $(BASEDIR)/support
 TESTFILEDIR := $(SOURCEDIR)/testfiles
-VALIDATEDIR := $(BASEDIR)/validate
 
 ##############################################################
 # Directory structure for test system                        #
@@ -68,7 +67,7 @@ UNPACK    = xotrace.ins
 
 CHECKFILES = $(subst .tlg,,$(notdir $(wildcard $(TESTFILEDIR)/*.tlg)))
 SCRIPTS    = log2tlg
-VALIDATE   = commands-check.tex regression-test.tex
+VALIDATE   = regression-test.tex
 
 ##############################################################
 # Clean-up information                                       #
@@ -139,10 +138,7 @@ $(TESTDIR)/%.txt: $(SOURCEDIR)/%.txt
 # File copying: specials                                       #
 ################################################################
 
-$(TESTDIR)/commands-check.tex: $(VALIDATEDIR)/commands-check.tex
-	@cp -fp $< $@	
-
-$(TESTDIR)/regression-test.tex: $(VALIDATEDIR)/regression-test.tex
+$(TESTDIR)/regression-test.tex: $(SUPPORTDIR)/regression-test.tex
 	@cp -fp $< $@	
 
 ################################################################
