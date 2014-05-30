@@ -421,9 +421,10 @@ function formatlog (logfile, newfile)
       )
     -- For the present, remove direction information on boxes
     line = string.gsub (line, ", direction TLT", "")
-    -- LuaTeX displaces ligatures slightly differently in box logs: tidy up
-    -- the one that pops up in the tests
-    line = string.gsub (line, "  %(ligature ffi%)", " ^^N (ligature ffi)")
+    -- LuaTeX displays low chars differently: tidy up to ^^ notation
+    for i = 0, 31, 1 do
+      line = string.gsub (line, string.char (i), "^^" .. string.char (64 + i))
+    end
     -- Minor LuaTeX bug: it prints an extra "'" in one message: add enough
     -- context to hopefully hit only the bug
     line = string.gsub (
