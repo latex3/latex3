@@ -61,8 +61,9 @@ chkengines = chkengines or {"pdftex", "xetex", "luatex"}
 stdengine  = stdengine  or "pdftex"
 
 -- Other required settings
+checkruns   = checkruns   or 1
 pdfsettings = pdfsettings or "\\AtBeginDocument{\\DisableImplementation}"
-scriptname  = scriptname or "make.lua" -- Script used in each directory
+scriptname  = scriptname  or "make.lua" -- Script used in each directory
 
 -- Extensions for various file types: used to abstract out stuff a bit
 logext = ".log"
@@ -502,13 +503,15 @@ function runtest (name, engine, hide)
   local logfile = testdir .. "/" .. name .. logext
   local lvtfile = name .. lvtext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
-  run (
-      testdir,
-      -- Set TEXINPUTS to look 'here' then std tree
-      os_setenv .. " TEXINPUTS=." .. os_pathsep .. os_concat ..
-      cmd ..  " " .. checkopts .. " " .. lvtfile
-        .. (hide and (" > " .. os_null) or "")
-    )
+  for i = 1, checkruns, 1 do
+    run (
+        testdir,
+        -- Set TEXINPUTS to look 'here' then std tree
+        os_setenv .. " TEXINPUTS=." .. os_pathsep .. os_concat ..
+        cmd ..  " " .. checkopts .. " " .. lvtfile
+          .. (hide and (" > " .. os_null) or "")
+      )
+  end
   formatlog (logfile, newfile)
 end
 
