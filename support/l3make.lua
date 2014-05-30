@@ -192,7 +192,7 @@ function cp (glob, source, dest)
         )
     else
       os.execute ("cp -f " .. source .. " " .. dest)
-    end    
+    end
   end
 end
 
@@ -268,7 +268,7 @@ end
 -- Remove file(s) based on a glob
 function rm (source, glob)
   for _,i in ipairs (filelist (source, glob)) do
-    os.remove (source .. "/" .. i)  
+    os.remove (source .. "/" .. i)
   end
 end
 
@@ -374,7 +374,7 @@ function formatlog (logfile, newfile)
             string.gsub (line, "^\\openin", "\\openout"), "^\\openout%d = "
           )
           then
-          line = "" 
+          line = ""
       elseif
         -- Various things that only LuaTeX adds to boxes: at least while
         -- we don't have bidi tests these lines can be removed
@@ -566,7 +566,7 @@ function check ()
     local errlevel = runcheck (name, nil, true)
     if errlevel ~= 0 then
       errorlevel = 1
-    end  
+    end
   end
   if errorlevel ~= 0 then
     print ("\n  Check failed with difference files")
@@ -665,7 +665,7 @@ function ctan ()
     -- Then add the binary ones
     run (
         dir,
-        zipexe .. " " .. zipopts .. " -g ".. zipname .. " " .. ". -i" .. 
+        zipexe .. " " .. zipopts .. " -g ".. zipname .. " " .. ". -i" ..
           binfiles .. " -x" .. exclude
       )
     cp (zipname, dir, ".")
@@ -683,7 +683,7 @@ function ctan ()
       installtxt (j, ctandir .. "/" .. bundle)
       installtxt (j, tdsdir .. "/doc/latex/" .. bundle)
     end
-  end 
+  end
   dirzip (tdsdir, bundle .. ".tds")
   cp (bundle .. ".tds.zip", tdsdir, ctandir)
   dirzip (ctandir, bundle)
@@ -828,7 +828,7 @@ function bundleunpack ()
   cp ("docstrip.tex", supportdir, localdir)
   for _,i in ipairs (unpackfiles) do
     for _,j in ipairs (filelist (unpackdir, i)) do
-      -- Note this is all run from 'here' as otherwise the localdir var 
+      -- Note this is all run from 'here' as otherwise the localdir var
       -- will not point to the correct place to find e.g. l3docstrip
       os.execute (
           -- Set TEXINPUTS to look in the unpack then local dirs only
