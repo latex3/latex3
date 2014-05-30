@@ -423,7 +423,7 @@ function formatlog (logfile, newfile)
     -- For the present, remove direction information on boxes
     line = string.gsub (line, ", direction TLT", "")
     -- LuaTeX displays low chars differently: tidy up to ^^ notation
-    for i = 0, 31, 1 do
+    for i = 1, 31, 1 do
       line = string.gsub (line, string.char (i), "^^" .. string.char (64 + i))
     end
     -- Minor LuaTeX bug: it prints an extra "'" in one message: add enough
