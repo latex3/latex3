@@ -176,12 +176,7 @@ $(TESTDIR)/%.pdf: $(TESTDIR)/%.dtx
 ################################################################
 
 .PHONY = \
-	expl3 \
 	support
-
-expl3:
-	cd $(EXPL3DIR) ; \
-	make localinstall
 
 support: \
 	$(foreach FILE,$(SCRIPTS),$(SCRIPTDIR)/$(FILE))  \
@@ -218,7 +213,7 @@ cleanall: clean
 check: \
 	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).lvt) \
 	$(foreach FILE,$(CHECKFILES),$(TESTDIR)/$(FILE).tlg) \
-	expl3 support unpack
+	support unpack
 	@echo "Running checks on"
 	@cd $(TESTDIR) ; \
 	for I in $(AUXFILES) diff ; do \
