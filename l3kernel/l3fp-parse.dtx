@@ -474,7 +474,7 @@
 % \begin{itemize}
 %   \item
 %   \item If the next token is a control sequence, it could be the
-%     end-marker \cs{s_@@_mark}, which has the lowest precedence, and
+%     special marker \cs{s_@@_mark}, and
 %     otherwise it is a case of juxtaposing numbers, such as
 %     |2\c_three|, with an implied multiplication.
 %   \item If the next token is a letter, it is also a case of
@@ -2039,8 +2039,12 @@
 %   Start a \tn{romannumeral} expansion so that \cs{@@_parse:n} expands
 %   in two steps.  The \cs{@@_parse_operand:Nw} function will perform
 %   computations until reaching an operation with precedence
-%   \cs{c_minus_one} or less.  Then stop the initial expansion with
-%   \cs{c_zero}.
+%   \cs{c_minus_one} or less, namely, the end of the expression.  The
+%   marker \cs{s_@@_mark} indicates that the next token is an already
+%   parsed version of an infix operator, and \cs{@@_parse_infix_end:N}
+%   has infinitely negative precedence.  Finally, clean up a
+%   (well-defined) set of extra tokens and stop the initial expansion
+%   with \cs{c_zero}.
 %    \begin{macrocode}
 \cs_new:Npn \@@_parse:n #1
   {
@@ -2048,11 +2052,12 @@
       \exp_after:wN \@@_parse_after:ww
       \tex_romannumeral:D
         \@@_parse_operand:Nw \c_minus_one
-        \@@_parse_expand:w #1 \s_@@_mark
+        \@@_parse_expand:w #1
+        \s_@@_mark \@@_parse_infix_end:N
       \s_@@_stop
   }
 \cs_new:Npn \@@_parse_after:ww
-    #1@ \@@_parse_infix_end:N \s_@@_mark \s_@@_stop
+    #1@ \@@_parse_infix_end:N \s_@@_stop
   { \c_zero #1 }
 %    \end{macrocode}
 % \end{macro}
@@ -2114,7 +2119,7 @@
             \__str_if_eq_x:nn { \s_@@_mark } { \exp_not:N #2 }
             = \c_zero
           \exp_after:wN \exp_after:wN
-          \exp_after:wN \@@_parse_infix_end:N
+          \exp_after:wN \@@_parse_infix_mark:NNN
         \else:
           \exp_after:wN \exp_after:wN
           \exp_after:wN \@@_parse_infix_juxtapose:N
@@ -2157,6 +2162,16 @@
 % \end{macro}
 %
 % \subsubsection{Closing parentheses and commas}
+%
+% \begin{macro}[aux, EXP]{\@@_parse_infix_mark:NNN}
+%   As an infix operator, \cs{s_@@_mark} means that the next
+%   token~(|#3|) has already gone through \cs{@@_parse_infix:NN} and
+%   should be provided the precedence~|#1|.  The scan mark~|#2| is
+%   discarded.
+%    \begin{macrocode}
+\cs_new:Npn \@@_parse_infix_mark:NNN #1#2#3 { #3 #1 }
+%    \end{macrocode}
+% \end{macro}
 %
 % \begin{macro}[aux, EXP]{\@@_parse_infix_end:N}
 %   This one is a little bit odd: force every previous operator to end,
@@ -2571,43 +2586,56 @@
 % \subsection{Candidate: defining new \pkg{l3fp} functions}
 %
 % \begin{macro}[EXP]{\fp_function:Nw}
-%   This relies on the definition of the character |^^B| (chosen
-%   arbitrarily, not |^^@| because of a \LuaTeX{} bug, not a visible
-%   character which could be an actual operator) as a prefix operator
-%   with very specific semantics.
+%   Parse the argument of the function~|#1| using
+%   \cs{@@_parse_operand:Nw} with a precedence of~$16$, and pass the
+%   function and argument to \cs{@@_function_apply:nw}.
 %    \begin{macrocode}
-\group_begin:
-  \char_set_catcode_other:N \^^B
-  \cs_new:Npn \fp_function:Nw #1 { ^^B ; { \exp_after:wN #1 } }
-\group_end:
+\cs_new:Npn \fp_function:Nw #1
+  {
+    \exp_after:wN \@@_function_apply:nw
+    \exp_after:wN #1
+    \tex_romannumeral:D
+      \@@_parse_operand:Nw \c_sixteen \@@_parse_expand:w
+  }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\fp_new_function:Npn}
+% \begin{macro}[aux]{\@@_new_function:NNnnn, \@@_new_function:Ncfnn}
 % \begin{macro}[aux]{\@@_function_args:Nwn}
-%   This relies on the definition of the character |^^B| as a prefix
-%   operator with very specific semantics.
+%   Save the code provided by the user in the control sequence
+%   |\__fp_user_#1|.  Define |#1| to call \cs{@@_function_apply:nw}
+%   after parsing one operand using \cs{@@_parse_operand:Nw} with
+%   precedence~$16$.  The auxiliary \cs{@@_function_args:Nwn} receives
+%   the user function and the number of arguments (half of the number of
+%   tokens in the parameter text~|#2|), followed by the operand (as a
+%   token list of floating points).  It checks the number of arguments,
+%   and applies the user function to the arguments (without the outer
+%   brace group).
 %    \begin{macrocode}
-\group_begin:
-  \char_set_catcode_other:N \^^B
-  \cs_new_protected:Npn \fp_new_function:Npn #1#2#
-    {
-      \cs_new:Npx #1
-        {
-          ^^B ;
-            {
-              \exp_not:N \exp_after:wN
-              \exp_not:N \@@_function_args:Nwn
-              \exp_not:N \exp_after:wN
-              \exp_not:c { @@_user_ \cs_to_str:N #1 }
-              \exp_not:N \__int_value:w
-              \int_eval:n { \tl_count:n {#2} / \c_two }
-              \exp_not:N \exp_after:wN ;
-            }
-        }
-      \cs_new:cpn { @@_user_ \cs_to_str:N #1 } #2
-    }
-\group_end:
+\cs_new_protected:Npn \fp_new_function:Npn #1#2#
+  {
+    \@@_new_function:Ncfnn #1
+      { @@_user_ \cs_to_str:N #1 }
+      { \int_eval:n { \tl_count:n {#2} / \c_two } }
+      {#2}
+  }
+\cs_new_protected:Npn \@@_new_function:NNnnn #1#2#3#4#5
+  {
+    \cs_new_nopar:Npn #1
+      {
+        \exp_after:wN \@@_function_apply:nw \exp_after:wN
+          {
+            \exp_after:wN \@@_function_args:Nwn
+            \exp_after:wN #2
+            \__int_value:w #3 \exp_after:wN ; \exp_after:wN
+          }
+        \tex_romannumeral:D
+          \@@_parse_operand:Nw \c_sixteen \@@_parse_expand:w
+      }
+    \cs_new:Npn #2 #4 {#5}
+  }
+\cs_generate_variant:Nn \@@_new_function:NNnnn { Ncf }
 \cs_new:Npn \@@_function_args:Nwn #1#2; #3
   {
     \int_compare:nNnTF { \tl_count:n {#3} } = {#2}
@@ -2621,49 +2649,44 @@
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
-%
-% \begingroup\catcode`^=12\relax % ^^A hack
-% \begin{macro}[EXP, aux]{\@@_parse_prefix_^^B:Nw}
-%    \begin{macrocode}
-\group_begin:
-  \char_set_catcode_other:N \^^B
-  \cs_new:cpn { @@_parse_prefix_ ^^B :Nw } #1 ; #2
-    {
-      \exp_after:wN \@@_function_apply:NnwN
-      \exp_after:wN #1
-      \exp_after:wN { #2 \exp_after:wN }
-      \tex_romannumeral:D
-        \@@_parse_operand:Nw \c_sixteen \@@_parse_expand:w
-    }
-\group_end:
-%    \end{macrocode}
 % \end{macro}
-% \endgroup
 %
 % \begin{macro}[aux, EXP]
 %   {
-%     \@@_function_apply:NnwN,
+%     \@@_function_apply:nw,
 %     \@@_function_store:wwNwnn,
 %     \@@_function_store_end:wnnn
 %   }
+%   The auxiliary \cs{@@_function_apply:nw} is called after parsing an
+%   operand, so it receives some code~|#1|, then the operand ending
+%   with~|@|, then a function such as \cs{@@_parse_infix_+:N} (but not
+%   always of this form, see comparisons for instance).  Package the
+%   operand (an array) into a token list with floating point items: this
+%   is the role of \cs{@@_function_store:wwNwnn} and
+%   \cs{@@_function_store_end:wnnn}.  Then apply \cs{@@_parse:n} to the
+%   code~|#1| followed by a brace group with this token list.  This
+%   results in a floating point result, which will correctly be parsed
+%   as the next operand of whatever was looking for one.  The trailing
+%   \cs{s_@@_mark} is used as a special infix operator to indicate that
+%   the next token has already gone through \cs{@@_parse_infix:NN}.
 %    \begin{macrocode}
-\cs_new:Npn \@@_function_apply:NnwN #1#2#3@#4
+\cs_new:Npn \@@_function_apply:nw #1#2 @
   {
-    \exp_after:wN \@@_exp_after_array_f:w
-      \tex_romannumeral:D -`0
-      \@@_function_store:wwNwnn #3
-        \s_@@_mark \@@_function_store:wwNwnn ;
-        \s_@@_mark \@@_function_store_end:wnnn
-      \s_@@_stop { } { } {#2}
-    \s_@@_stop
-    #4 #1
+    \@@_parse:n
+      {
+        \@@_function_store:wwNwnn #2
+          \s_@@_mark \@@_function_store:wwNwnn ;
+          \s_@@_mark \@@_function_store_end:wnnn
+        \s_@@_stop { } { } {#1}
+      }
+    \s_@@_mark
   }
 \cs_new:Npn \@@_function_store:wwNwnn
     #1; #2 \s_@@_mark #3#4 \s_@@_stop #5#6
   { #3 #2 \s_@@_mark #3#4 \s_@@_stop { #5 #6 } { { #1; } } }
 \cs_new:Npn \@@_function_store_end:wnnn
     #1 \s_@@_stop #2#3#4
-  { \@@_parse:n { #4 {#2} } }
+  { #4 {#2} }
 %    \end{macrocode}
 % \end{macro}
 %
