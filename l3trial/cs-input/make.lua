@@ -10,6 +10,9 @@ module = "cs-input"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
+-- Non-standard settings
+testfiledir = ""
+
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
 -- As the build system is 'self-contained' there is no module set up here: just
