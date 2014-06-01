@@ -1,6 +1,6 @@
 #!/usr/bin/env texlua
 
--- Build Script for LaTeX3 files
+-- Build script for LaTeX3 files
 
 --  No bundle or module here, but these have to be defined
 bundle  = ""
