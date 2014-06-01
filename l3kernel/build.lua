@@ -1,6 +1,6 @@
 #!/usr/bin/env texlua
 
--- Make script for LaTeX3 "l3kernel" files
+-- Build script for LaTeX3 "l3kernel" files
 
 -- Identify the bundle and module: the module may be empty in the case where
 -- there is no subdivision
@@ -43,7 +43,7 @@ unpackdeps  = { }
 -- hard-coded
 -- As the build system is 'self-contained' there is no module set up here: just
 --load the file in a similar way to a TeX \input
-dofile (maindir .. "/support/l3make.lua")
+dofile (maindir .. "/support/l3build.lua")
 
 -- Unlike other parts of the build system, l3kernel has quite a number of
 -- non-standard requirements and so a number of the functions are rewritten
@@ -57,19 +57,19 @@ moduledir   = "latex/" .. bundle
 -- l3kernel does all of the targets itself
 function help ()
   print ""
-  print " make check                    - run automated check system                "
-  print " make checklvt <name>          - check one test file <name> for all engines"
-  print " make checklvt <name> <engine> - check one test file <name> for <engine>   "
-  print " make clean                    - clean out directory tree                  "
-  print " make cmdcheck                 - check commands documented are defined     "
-  print " make ctan                     - create CTAN-ready archive                 "
-  print " make doc                      - runs all documentation files              "
-  print " make format                   - create a format file using pdfTeX         "
-  print " make format <engine>          - create a format file using <engine>       "
-  print " make install                  - install files in local texmf tree         "
-  print " make savetlg <name>           - save test log for <name> for all engines  "
-  print " make savetlg <name> <engine>  - save test log for <name> for <engine>     "
-  print " make unpack                   - extract packages                          "
+  print " build check                    - run automated check system                "
+  print " build checklvt <name>          - check one test file <name> for all engines"
+  print " build checklvt <name> <engine> - check one test file <name> for <engine>   "
+  print " build clean                    - clean out directory tree                  "
+  print " build cmdcheck                 - check commands documented are defined     "
+  print " build ctan                     - create CTAN-ready archive                 "
+  print " build doc                      - runs all documentation files              "
+  print " build format                   - create a format file using pdfTeX         "
+  print " build format <engine>          - create a format file using <engine>       "
+  print " build install                  - install files in local texmf tree         "
+  print " build savetlg <name>           - save test log for <name> for all engines  "
+  print " build savetlg <name> <engine>  - save test log for <name> for <engine>     "
+  print " build unpack                   - extract packages                          "
   print ""
 end
 
@@ -85,7 +85,7 @@ function format (engine)
   unpack ()
   os.execute (
       -- Set TEXINPUTS to look in the unpack then local dirs only
-      -- See notes in l3make.lua for unpack ()
+      -- See notes in l3build.lua for unpack ()
       os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
         os_concat ..
       unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
@@ -142,5 +142,5 @@ function main (target, file, engine)
   end
 end
 
--- Call the main function which is defined in l3make.lua
+-- Call the main function which is defined in l3build.lua
 main (arg[1], arg[2], arg[3])
