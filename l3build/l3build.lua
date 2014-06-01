@@ -7,7 +7,7 @@ bundle = bundle or ""
 
 -- Directory structure for the build system
 -- Use Unix-style path separators
-maindir     = maindir or "./"
+maindir     = maindir or "."
 
 -- Structure within a development area
 distribdir  = maindir .. "/distrib"
