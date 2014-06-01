@@ -1,0 +1,245 @@
+\documentclass[a4paper]{ltugboat}
+
+\usepackage{fancyvrb}
+\usepackage{microtype}
+
+\begin{document}
+\title{DRAFT / A modern Lua test suite for \TeX\ programming}
+\author{The \LaTeX3 team}
+
+\newcommand\drivername{build.lua}
+\newcommand\makename{l3make.lua}
+\newcommand\execname{texlua \makename}
+\newcommand\compdirname{test/}
+
+\maketitle
+
+\section{Introduction}
+
+Regression test suites are an important tool in any moderately-complex programming environment.
+They allow the programmer to make extensive changes to their code while providing confidence that something that used to work still does.
+Extensive regression test suites have been an essential component of the maintenance and development of \LaTeXe{} and \LaTeX3.
+
+A regression test suite is typically composed of a number of individual files that contain one or more testable units of the code being tested. A testable unit might be either a certain computation with an expected outcome, a series of logic tests, or --- in particular for \TeX{}-based code --- material that is typeset and intended to achieve some particular formatting.
+
+During code development and before any new code is released to the public, this test suite can be compiled to ensure that any changes to the code have not introduced bugs or changed the behaviour compared to previous versions.
+
+As bugs in the code are reported, minimal examples demonstrating the bug often form test files of their own, showing that the bug has been fixed and won't re-occur in the future.
+
+As \TeX{}-based code operates in at least three different `modes' (mouth, stomach, and output), regression testing is more complex than simply asserting the outcome of certain programming logic.
+As part of the work of the \LaTeX3 project, a new Lua-based testing environment has been written to support ongoing development.
+This testing environment is suitable for use by the general community.
+
+\section{Overview}
+\label{sec:overview}
+
+Consider an arbitrary package \textsf{abc} with a collection of source files in the following layout.
+\begin{Verbatim}
+  abc/
+      abc.dtx
+      abc.ins
+      build.lua
+      README
+      testfiles/
+                test1.lvt
+                test1.tlg
+                ...
+      support/
+                abc-test.cls
+\end{Verbatim}
+Tests and their outputs are located within folder `\texttt{testfiles/}' with, resp., extensions \texttt{.lvt} and \texttt{.tlg}.
+The files in \texttt{support/} are used when running the test files.
+Upon running the test suite, a new folder `\texttt{test}' is created in which the package is unpacked, support files are copied across, and each test file is run in turn and compared to their original \texttt{.tlg} file.
+
+\subsection{Modes of testing}
+
+The best way to perform regression tests for \TeX{} programming is to use the \texttt{.log} file; only here can not just logical and programmatic constructs be tested but box content as well.
+Box content is essential for checking from the very highest level that code changes do not result in different typeset output.
+
+\TeX{} programming can be either \emph{expandable} or not.
+(The \TeX book parlance for these terms is whether the processing occurs in \TeX's mouth or stomach, respectively.)
+Code that is expected to be expandable should be tested as such.
+Expandable tests can be evaluated within \cs{typeout}, and non-expandable tests should output their results using \cs{typeout} once they have been evaluated.
+
+The macros loaded for setting up the test system provide a number of commands to aid producing a structured test suite. \cs{TYPE} is used to write material to the \texttt{.log} file, like \cs{typeout}, but it allows `long' input.
+
+A variety of commands, following, that use \cs{TYPE} to output strings to the \texttt{.log} file.
+\begin{itemize}
+\item
+\cs{SEPARATOR} inserts a long line of \texttt{=} symbols to break up the output.
+\item
+\cs{TRUE}, \cs{FALSE}, \cs{YES}, \cs{NO} output what you'd expect.
+\item
+\cs{ERROR} is not defined but is commonly used to indicate a code path that should never be reached.
+\end{itemize}
+Finally, the \cs{TEST} environment surrounds its contents with some \cs{SEPARATOR}s and a title.
+\begin{Verbatim}
+\begin{TEST}{bool_set, lazy evaluation}
+  \bool_set:Nn \l_tmpa_bool
+   {
+    \int_compare_p:nNn 1=1
+    && \bool_if_p:n
+     {
+      \int_compare_p:nNn 2=3 ||
+      \int_compare_p:nNn 4=4 ||
+      \int_compare_p:nNn 1=\ERROR % is skipped
+     }
+    && \int_compare_p:nNn 2=2
+   }
+  \bool_if:NTF \l_tmpa_bool \TRUE \FALSE
+\end{TEST}
+\end{Verbatim}
+This test will produce the following in the output.
+\begin{Verbatim}
+==========================================
+TEST 8: bool_set, lazy evaluation
+==========================================
+TRUE
+==========================================
+\end{Verbatim}
+(Only if it's the eighth test in the file of course.)
+
+\section{Use of the regression test system}
+
+Consider the case that a \LaTeX\ package consists of one or more \texttt{.dtx} files, say, in a flat directory structure.
+By default, to set up a regression test suite, you would create a driver file named `\texttt{\drivername}' and sub-folder named `\texttt{testfiles/}' to contain the test files.
+An example driver file is shown in Section~\ref{sec:example}.
+
+The test files can be called basically anything (but should be logical in some way), and must have extension \texttt{.lvt}.
+These are accompanied by a pre-saved \texttt{.tlg} file which contains the `results' of the test file to be checked against subsequent compilation of that test.
+
+\subsection{Creating test output and checking tests}
+
+The first time a \texttt{.lvt} test file is written, it will need to be compiled to obtain the necessary \texttt{.tlg} output for future tests.
+This is performed with:
+\begin{quote}\ttfamily
+\execname~savetlg~\meta{test name}
+\end{quote}
+This command can be re-run as many times as necessary until the test file demonstrates the necessary behaviour being tested.
+
+At this point, 
+\begin{quote}\ttfamily
+\execname~checklvt~\meta{test name}
+\end{quote}
+will then re-run the \texttt{.lvt} file and compare the result to the original \texttt{.tlg} output.
+Presuming no code has changed to affect the output of the test, the console output of this command will be the usual console output from a \TeX{} compilation followed by
+\begin{quote}\ttfamily
+~~Check passes
+\end{quote}
+These compilations take place in the subdirectory `\texttt{\compdirname}', and if a test fails a diff file is deposited here with the information about what has changed in the output of the test file.
+
+\subsection{An example driver file}
+\label{sec:example}
+
+For a simple case such as showed in the overview in Section~\ref{sec:overview}, the driver file (\texttt{\drivername}) is quite simple.
+An example of a driver file is shown in Figure~\ref{fig:driver}; it need do little more than inform the build system the name of the package and set some flags according to whether the regression tests should use a standard \texttt{texmf} tree or not.
+
+\begin{figure}
+\begin{Verbatim}[frame=single,fontsize=\small]
+#!/usr/bin/env texlua
+
+-- Make script for breqn
+
+module = "breqn"
+
+checkdeps   = {}
+unpackdeps  = {}
+typesetdeps = {}
+texmfsearch = true
+
+cleanfiles  = {} -- don't delete PDFs
+
+-- #################### --
+-- Run the build system --
+
+kpse.set_program_name(arg[-1])
+buildscript = kpse.lookup("l3make.lua")
+dofile (buildscript)
+scriptname = arg[0]
+main (arg[1], arg[2], arg[3])
+\end{Verbatim}
+\caption{Driver file for the \textsf{breqn} package.}
+\label{fig:driver}
+\end{figure}
+
+
+\subsection{Structure of test files}
+
+As mentioned previously, the method of using the \texttt{.log} file allows various types of tests to be conducted.
+The most simple test might load a package and execute some commands to produce a small section of typeset output.
+A complete example of such a test is shown in Figure~\ref{fig:breqn}.
+Some points to note.
+\begin{enumerate}
+\item The first line, \verb|\input{regression-test}| loads the necessary settings and commands to format the \texttt{.log} file properly for testing.
+\item It is not necessary to load a particular document class; a package author may wish to adjust page margins, etc., without repeating the commands for each test.
+\item The test begins proper at \cs{START}, and \cs{AUTHOR} is an optional way of indicating who might know how to fix the problem should the test ever begin failing.
+\item \cs{showoutput} prints the contents of the page to the \texttt{.log} file.
+\item \cs{END}, \emph{not} the stardard \verb|\end{document}| tidies up nicely.
+\end{enumerate}
+Not shown is the \cs{OMIT} \dots \cs{TIMO} construction, which puts flags into the \texttt{.log} file between which no test comparisons should be made.
+This can be used when, say, loading maths fonts for the first time in a \LaTeX{} document halfway through a test.
+
+\begin{figure}
+\begin{Verbatim}[frame=single,fontsize=\small]
+\input{regression-test}
+
+\documentclass{breqn-test}
+\usepackage{breqn}
+\begin{document}
+
+\START
+\AUTHOR{Will Robertson}
+
+\begin{dmath}
+a+b+c+d+e+f+g+h+i+j+k+l+m+
+  n+o+p+q+r+s+t+u+v+w+x+y+z
+\end{dmath}
+
+\showoutput
+\newpage
+\END
+\end{Verbatim}
+\caption{Example test from \textsf{breqn}.}
+\label{fig:breqn}
+\end{figure}
+
+An example of a more structured test is shown in Figure~\ref{fig:nonexp}.
+Here, a number of different tests are contained within a single file, and one of these is included in the example.
+The content of the test is not important here, except to note that the output is logged using the command \verb|\cs_show:N| (similar to \TeX's primitive \cs{show}) \Dash since this command prints output to the \texttt{.log} file, no explicit \cs{TYPE} commands are required.
+Note also that test files are run in `\texttt{nonstopmode}', so commands such as \cs{show} that would normally pause typesetting here do not.
+
+\begin{figure}
+\begin{Verbatim}[frame=single,fontsize=\small]
+\input{regression-test}
+\documentclass{minimal}
+\RequirePackage{expl3}
+\begin{document}
+\START
+\AUTHOR{LaTeX3 Project}
+\ExplSyntaxOn
+
+% more tests here omitted
+
+\begin{TEST}{Char~set~active~(setting)}
+  \char_set_active:Npn A  { Works }
+  \char_gset_active:Npn B { Works }
+  \group_begin:
+    \char_set_active:Npn  C { Works }
+    \char_gset_active:Npn D { Works }
+  \group_end:
+  
+  \cs_show:N A
+  \cs_show:N B
+  \SEPARATOR
+  \cs_show:N C
+  \cs_show:N D
+\end{TEST}
+\end{Verbatim}
+\caption{Example of a non-expandable test.}
+\label{fig:nonexp}
+\end{figure}
+
+
+
+
+\end{document}
