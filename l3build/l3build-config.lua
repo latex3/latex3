@@ -4,4 +4,4 @@ checkdeps   = checkdeps   or {maindir .. "/l3kernel"}
 typesetdeps = typesetdeps or {maindir .. "/l3kernel"}
 unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 
-pdfsettings = "\\AtBeginDocument{\\DisableImplementation}"
+typesetcmds = "\\AtBeginDocument{\\DisableImplementation}"

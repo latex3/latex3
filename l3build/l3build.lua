@@ -70,7 +70,7 @@ stdengine  = stdengine  or "pdftex"
 
 -- Other required settings
 checkruns   = checkruns   or 1
-pdfsettings = pdfsettings or ""
+typesetcmds = typesetcmds or ""
 scriptname  = scriptname  or "build.lua" -- Script used in each directory
 
 -- Extensions for various file types: used to abstract out stuff a bit
@@ -746,7 +746,7 @@ function doc ()
             -- Set TEXINPUTS to look here, local dir, then std tree
             os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
               os_pathsep .. os_concat ..
-            typesetexe .. " " .. typesetopts .. " \"" .. pdfsettings ..
+            typesetexe .. " " .. typesetopts .. " \"" .. typesetcmds ..
               " \\input " .. file .. "\""
           )
       return errorlevel
