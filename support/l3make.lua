@@ -780,17 +780,8 @@ end
 -- Locally install files: only deals with those extracted, not docs etc.
 function install ()
   unpack ()
-  -- The variable TEXMFHOME may not be set: if so, get the value using
-  -- kpsewhich.
-  local texmfhome = os.getenv ("TEXMFHOME")
-  if not texmfhome then
-    os.execute ("kpsewhich --var-value=TEXMFHOME > texmf.tmp")
-    local tmp = assert (io.open ("texmf.tmp", "rb"))
-    io.input (tmp)
-    texmfhome = io.read ("*line")
-    io.close (tmp)
-    os.remove ("texmf.tmp")
-  end
+  kpse.set_program_name ("latex")
+  local texmfhome = kpse.var_value ("TEXMFHOME")
   local installdir = texmfhome .. "/tex/" .. moduledir
   cleandir (installdir)
   for _,i in ipairs (installfiles) do
