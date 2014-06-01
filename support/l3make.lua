@@ -801,7 +801,10 @@ function savetlg (name, engine)
     ren (testdir, newfile, tlgfile)
     cp (tlgfile, testdir, testfiledir)
   else
-    print ("Test input \"" .. name .. "\" not found")
+    print (
+      "Test input \"" .. testfiledir .. "/" .. name .. lvtext ..
+        "\" not found"
+      )
   end
 end
 
