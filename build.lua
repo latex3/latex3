@@ -1,6 +1,6 @@
 #!/usr/bin/env texlua
 
--- Make script for LaTeX3 files
+-- Build Script for LaTeX3 files
 
 --  No bundle or module here, but these have to be defined
 bundle  = ""
@@ -17,17 +17,17 @@ maindir = "."
 -- hard-coded
 -- As the build system is 'self-contained' there is no module set up here: just
 --load the file in a similar way to a TeX \input
-dofile (maindir .. "/support/l3make.lua")
+dofile (maindir .. "/support/l3build.lua")
 
 -- Help for the master script is simple
 function help ()
   print ""
-  print " make check   - run automated check system       "
-  print " make ctan    - create CTAN-ready archive        "
-  print " make doc     - runs all documentation files     "
-  print " make clean   - clean out directory tree         "
-  print " make install - install files in local texmf tree"
-  print " make unpack  - extract packages                 "
+  print " build check   - run automated check system       "
+  print " build ctan    - create CTAN-ready archive        "
+  print " build doc     - runs all documentation files     "
+  print " build clean   - clean out directory tree         "
+  print " build install - install files in local texmf tree"
+  print " build unpack  - extract packages                 "
   print ""
 end
 
@@ -36,7 +36,7 @@ function main (target)
   local function dobundles (bundles, target)
     local errorlevel = 0
     for _,i in ipairs (bundles) do
-      errorlevel = run (i, "texlua make.lua " .. target)
+      errorlevel = run (i, "texlua " .. scriptname .. " " .. target)
       if errorlevel ~= 0 then
         break
       end

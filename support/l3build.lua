@@ -63,7 +63,7 @@ stdengine  = stdengine  or "pdftex"
 -- Other required settings
 checkruns   = checkruns   or 1
 pdfsettings = pdfsettings or "\\AtBeginDocument{\\DisableImplementation}"
-scriptname  = scriptname  or "make.lua" -- Script used in each directory
+scriptname  = scriptname  or "build.lua" -- Script used in each directory
 
 -- Extensions for various file types: used to abstract out stuff a bit
 logext = ".log"
@@ -537,24 +537,24 @@ end
 function help ()
   print ""
   if testfiledir ~= "" then
-    print " make check                    - run automated check system                "
+    print " build check                    - run automated check system                "
   end
   if module ~= "" and testfiledir ~= "" then
-    print " make checklvt <name>          - check one test file <name> for all engines"
-    print " make checklvt <name> <engine> - check one test file <name> for <engine>   "
+    print " build checklvt <name>          - check one test file <name> for all engines"
+    print " build checklvt <name> <engine> - check one test file <name> for <engine>   "
   end
-  print " make clean                    - clean out directory tree                  "
-  print " make cmdcheck                 - check commands documented are defined     "
+  print " build clean                    - clean out directory tree                  "
+  print " build cmdcheck                 - check commands documented are defined     "
   if module == "" then
-    print " make ctan                     - create CTAN-ready archive                 "
+    print " build ctan                     - create CTAN-ready archive                 "
   end
-  print " make doc                      - runs all documentation files              "
-  print " make install                  - install files in local texmf tree         "
+  print " build doc                      - runs all documentation files              "
+  print " build install                  - install files in local texmf tree         "
   if module ~= "" and testfiledir ~= "" then
-    print " make savetlg <name>           - save test log for <name> for all engines  "
-    print " make savetlg <name> <engine>  - save test log for <name> for <engine>     "
+    print " build savetlg <name>           - save test log for <name> for all engines  "
+    print " build savetlg <name> <engine>  - save test log for <name> for <engine>     "
   end
-  print " make unpack                   - extract packages                          "
+  print " build unpack                   - extract packages                          "
   print ""
 end
 
