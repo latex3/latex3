@@ -1,6 +1,6 @@
 #!/usr/bin/env texlua
 
--- Build Script for LaTeX3 "xgalley" files
+-- Build script for LaTeX3 "xgalley" files
 
 -- Identify the bundle and module: the module may be empty in the case where
 -- there is no subdivision
