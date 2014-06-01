@@ -68,6 +68,19 @@ zipopts     = zipopts     or "-v -r -X"
 chkengines = chkengines or {"pdftex", "xetex", "luatex"}
 stdengine  = stdengine  or "pdftex"
 
+-- Enable access to trees outside of the repo
+-- As these may be set false, a more elaborate test than normal is needed
+-- here
+if checksearch == nil then
+  checksearch = true
+end
+if typesetsearch == nil then
+  typesetsearch = true
+end
+if unpacksearch == nil then
+  unpacksearch = true
+end
+
 -- Other required settings
 checkruns   = checkruns   or 1
 typesetcmds = typesetcmds or ""
@@ -516,8 +529,8 @@ function runtest (name, engine, hide)
   for i = 1, checkruns, 1 do
     run (
         testdir,
-        -- Set TEXINPUTS to look 'here'
-        os_setenv .. " TEXINPUTS=." .. os_concat ..
+        os_setenv .. " TEXINPUTS=." .. (checksearch and os_pathsep or "")
+          .. os_concat ..
         cmd ..  " " .. checkopts .. " " .. lvtfile
           .. (hide and (" > " .. os_null) or "")
       )
@@ -637,9 +650,8 @@ function cmdcheck ()
     for _,j in ipairs (filelist (".", i)) do
       print ("  " .. stripext (j))
       os.execute (
-          -- Set TEXINPUTS to look here, local dir, then std tree
           os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
-            os_pathsep .. os_concat ..
+            (checksearch and os_pathsep or "") .. os_concat ..
           engine .. " " .. cmdchkopts .. " -output-directory=" .. testdir ..
             " \"\\PassOptionsToClass{check}{l3doc} \\input " .. j .. "\""
             .. " > " .. os_null
@@ -743,9 +755,8 @@ function doc ()
     local function typeset (file)
       local errorlevel =
         os.execute (
-            -- Set TEXINPUTS to look here, local dir, then std tree
             os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
-              os_pathsep .. os_concat ..
+              (typesetsearch and os_pathsep or "")  .. os_concat ..
             typesetexe .. " " .. typesetopts .. " \"" .. typesetcmds ..
               " \\input " .. file .. "\""
           )
@@ -835,14 +846,13 @@ function bundleunpack ()
       -- Note this is all run from 'here' as otherwise the localdir var
       -- will not point to the correct place to find e.g. l3docstrip
       os.execute (
-          -- Set TEXINPUTS to look in the unpack then local dirs only
           -- Notice that os.execute is used from 'here' as this ensures that
           -- localdir points to the correct place: running 'inside'
           -- unpackdir would avoid the need for setting -output-directory
           -- but at the cost of needing to correct the relative position
           -- of localdir w.r.t. unpackdir
           os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
-            os_concat ..
+            (unpacksearch and os_pathsep or "") .. os_concat ..
           unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
             .. " " .. unpackdir .. "/" .. j
         )
