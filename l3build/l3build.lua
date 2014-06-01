@@ -2,22 +2,30 @@
 -- Functions needed for both building single modules and bundles
 
 -- Ensure the module exists: empty if not applicable
-module = module or ""
+module       = module or ""
 bundlelocal  = bundle or ""
 
 -- Directory structure for the build system
 -- Use Unix-style path separators
-distribdir  = maindir .. "/distrib"
+maindir     = maindir or "./"
 
-ctandir     = distribdir .. "/ctan"
+-- Structure within a development area
+distribdir  = maindir .. "/distrib"
 localdir    = maindir .. "/local"
-moduledir   = "latex/" .. bundle .. "/" .. module
 supportdir  = maindir .. "/support"
-tdsdir      = distribdir .. "/tds"
 testdir     = maindir .. "/test"
+unpackdir   = maindir .. "/unpacked"
+
+-- Substructure for CTAN release material
+ctandir     = distribdir .. "/ctan"
+tdsdir      = distribdir .. "/tds"
+
+-- Substructure for tests
 testfiledir = testfiledir or "testfiles" -- Set to "" to cancel any tests
 testsupdir  = testsupdir  or testfiledir .. "/support"
-unpackdir   = maindir .. "/unpacked"
+
+-- Location for installation on CTAN or in TEXMFHOME
+moduledir   = "latex/" .. (bundle and (bundle .. "/") or "") .. module
 
 -- File types for various operations
 -- Use Unix-style globs
