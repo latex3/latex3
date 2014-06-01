@@ -49,9 +49,9 @@ typesetfiles = typesetfiles or {"*.dtx"}
 unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
 
 -- Roots which should be unpacked to support unpacking/testing/typesetting
-checkdeps   = checkdeps   or {maindir .. "/l3kernel"}
-typesetdeps = typesetdeps or {maindir .. "/l3kernel"}
-unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
+checkdeps   = checkdeps   or { }
+typesetdeps = typesetdeps or { }
+unpackdeps  = unpackdeps  or { }
 
 -- Executable names plus following options
 typesetexe = typesetexe or "pdflatex"
@@ -70,7 +70,7 @@ stdengine  = stdengine  or "pdftex"
 
 -- Other required settings
 checkruns   = checkruns   or 1
-pdfsettings = pdfsettings or "\\AtBeginDocument{\\DisableImplementation}"
+pdfsettings = pdfsettings or ""
 scriptname  = scriptname  or "build.lua" -- Script used in each directory
 
 -- Extensions for various file types: used to abstract out stuff a bit
