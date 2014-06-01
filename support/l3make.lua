@@ -303,6 +303,7 @@ end
 function allmodules (target)
   local errorlevel = 0
   for _,i in ipairs (modules) do
+    print ("Running script " .. scriptname .. " with " .. target)
     errorlevel = run (i, "texlua " .. scriptname .. " " .. target)
     if errorlevel > 0 then
       return (errorlevel)
@@ -352,6 +353,7 @@ end
 -- Unpack files needed to support testing/typesetting/unpacking
 function depinstall (deps)
   for _,i in ipairs (deps) do
+    print ("Installing dependency: " .. i)
     run (i, "texlua " .. scriptname .. " localinstall")
     cleandir (unpackdir)
   end
