@@ -7,7 +7,7 @@ bundle  = ""
 module  = ""
 
 -- A couple of custom variables: the order here is set up for 'importance'
-bundles     = {"l3kernel", "l3packages", "l3experimental"} -- l3trial to be added
+bundles     = {"l3kernel", "l3packages", "l3experimental", "l3trial"}
 ctanbundles = {"l3kernel", "l3packages", "l3experimental"}
 
 -- Location of main directory: use Unix-style path separators
@@ -17,7 +17,7 @@ maindir = "."
 -- hard-coded
 -- As the build system is 'self-contained' there is no module set up here: just
 --load the file in a similar way to a TeX \input
-dofile (maindir .. "/support/l3build.lua")
+dofile (maindir .. "/l3build/l3build.lua")
 
 -- Help for the master script is simple
 function help ()
