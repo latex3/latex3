@@ -10,15 +10,15 @@ bundle = bundle or ""
 maindir     = maindir or "."
 
 -- Structure within a development area
-distribdir  = maindir .. "/distrib"
-localdir    = maindir .. "/local"
-supportdir  = maindir .. "/support"
-testdir     = maindir .. "/test"
-unpackdir   = maindir .. "/unpacked"
+distribdir  = distribdir or maindir .. "/distrib"
+localdir    = localdir   or maindir .. "/local"
+supportdir  = supportdir or maindir .. "/support"
+testdir     = testdir    or maindir .. "/test"
+unpackdir   = unpackdir  or maindir .. "/unpacked"
 
 -- Substructure for CTAN release material
-ctandir     = distribdir .. "/ctan"
-tdsdir      = distribdir .. "/tds"
+ctandir     = ctandir or distribdir .. "/ctan"
+tdsdir      = tdsdir  or distribdir .. "/tds"
 
 -- Substructure for tests
 testfiledir = testfiledir or "testfiles" -- Set to "" to cancel any tests
