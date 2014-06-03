@@ -11,6 +11,7 @@ module = ""
 maindir = ".."
 
 -- Non-standard settings
+cleanfiles   = {"*.pdf", "*.tex", "*.zip"}
 installfiles = {"l3build.lua", "regression-test.tex"}
 sourcefiles  = {"*.dtx", "l3build.lua"}
 typesetcmds  = "\\AtBeginDocument{\\DisableImplementation}"
