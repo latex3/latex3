@@ -13,7 +13,7 @@ maindir = ".."
 -- Non-standard settings
 cleanfiles   = {"*.pdf", "*.tex", "*.zip"}
 installfiles = {"l3build.lua", "regression-test.tex"}
-sourcefiles  = {"*.dtx", "l3build.lua"}
+sourcefiles  = {"*.dtx", "l3build.lua", "*.ins"}
 typesetcmds  = "\\AtBeginDocument{\\DisableImplementation}"
 
 -- Load the common build code: this is the one place that a path needs to be
