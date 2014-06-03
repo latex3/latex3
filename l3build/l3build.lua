@@ -25,7 +25,7 @@ testfiledir = testfiledir or "testfiles" -- Set to "" to cancel any tests
 testsupdir  = testsupdir  or testfiledir .. "/support"
 
 -- Location for installation on CTAN or in TEXMFHOME
-if bundle = "" then
+if bundle == "" then
   moduledir = "latex/" .. module
 else
   moduledir = "latex/" .. bundle .. "/" .. module
