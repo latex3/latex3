@@ -2,10 +2,9 @@
 
 -- Build script for LaTeX3 "l3kernel" files
 
--- Identify the bundle and module: the module may be empty in the case where
--- there is no subdivision
-bundle = "l3kernel"
-module = ""
+-- Identify the bundle and module
+module = "l3kernel"
+bundle = ""
 
 -- Location of main directory: use Unix-style path separators
 maindir = ".."
@@ -51,9 +50,6 @@ dofile (maindir .. "/l3build/l3build.lua")
 -- with modification here
 -- Some of these are as simple as the fact that there is no module/bundle
 -- variation here
-
--- There are no modules: just use the bundle name
-moduledir   = "latex/" .. bundle
 
 -- l3kernel does all of the targets itself
 function help ()
@@ -120,7 +116,7 @@ function main (target, file, engine)
   elseif target == "cmdcheck" then
     cmdcheck ()
   elseif target == "ctan" then
-    ctan ()
+    ctan (true)
   elseif target == "doc" then
     doc ()
   elseif target == "format" then
