@@ -1,9 +1,16 @@
 -- Common material for LaTeX3 make scripts
 -- Functions needed for both building single modules and bundles
 
--- Ensure the module exists: empty if not applicable
+-- Ensure the module and bundle exist
 module = module or ""
 bundle = bundle or ""
+
+if module == "" then
+  if bundle == "" then
+    print ("l3build error: must supply a module or bundle name")
+    os.exit (1)
+  end
+end
 
 -- Directory structure for the build system
 -- Use Unix-style path separators
@@ -573,7 +580,7 @@ function help ()
   end
   print " build clean                    - clean out directory tree                  "
   print " build cmdcheck                 - check commands documented are defined     "
-  if module == "" then
+  if module == "" or bundle == "" then
     print " build ctan                     - create CTAN-ready archive                 "
   end
   print " build doc                      - runs all documentation files              "
@@ -672,7 +679,7 @@ function cmdcheck ()
   end
 end
 
-function ctan ()
+function ctan (standalone)
   local function dirzip (dir, name)
     local zipname = name .. ".zip"
     local function tab_to_str (table)
@@ -699,10 +706,16 @@ function ctan ()
       )
     cp (zipname, dir, ".")
   end
-  bundleclean ()
+  if not standalone then
+    bundleclean ()
+  end
   mkdir (ctandir .. "/" .. bundle)
   mkdir (tdsdir)
-  allmodules ("bundlectan")
+  if standalone then
+    bundlectan ()
+  else
+    allmodules ("bundlectan")
+  end
   for _,i in ipairs (txtfiles) do
     for _,j in ipairs (filelist (".", i)) do
       local function installtxt (name, dir)
@@ -934,6 +947,8 @@ function main (target, file, engine)
       clean ()
     elseif target == "cmdcheck" then
       cmdcheck ()
+    elseif target == "ctan" and bundle == "" then  -- Stand-alone module
+      ctan (true)
     elseif target == "install" then
       install ()
     elseif target == "localinstall" then -- 'Hidden' target
