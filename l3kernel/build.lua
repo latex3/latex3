@@ -52,9 +52,6 @@ dofile (maindir .. "/l3build/l3build.lua")
 -- Some of these are as simple as the fact that there is no module/bundle
 -- variation here
 
--- There are no modules: just use the bundle name
-moduledir   = "latex/" .. bundle
-
 -- l3kernel does all of the targets itself
 function help ()
   print ""
