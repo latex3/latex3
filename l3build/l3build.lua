@@ -209,18 +209,15 @@ end
 
 -- Copy files 'quietly'
 function cp (glob, source, dest)
-  if direxists(source) then
-    mkdir (dest)
-    for _,i in ipairs (filelist (source, glob)) do
-      local source = source .. "/" .. i
-      if os_windows then
-        os.execute (
-            "copy /y " .. unix_to_win (source) .. " "
-              .. unix_to_win (dest) .. " > nul"
-          )
-      else
-        os.execute ("cp -f " .. source .. " " .. dest)
-      end
+  for _,i in ipairs (filelist (source, glob)) do
+    local source = source .. "/" .. i
+    if os_windows then
+      os.execute (
+          "copy /y " .. unix_to_win (source) .. " "
+            .. unix_to_win (dest) .. " > nul"
+        )
+    else
+      os.execute ("cp -f " .. source .. " " .. dest)
     end
   end
 end
