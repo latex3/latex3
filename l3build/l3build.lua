@@ -39,18 +39,19 @@ auxfiles     = auxfiles     or
     "*.aux", "*.cmds", "*.glo", "*.gls", "*.hd", "*.idx", "*.ilg", "*.ind",
     "*.log", "*.out", "*.synctex.gz", "*.tmp", "*.toc", "*.xref"
   }
-binaryfiles  = binaryfiles  or {"*.pdf", "*.zip"}
-checkfiles   = checkfiles   or { } -- Extra files unpacked purely for tests
-cmdchkfiles  = cmdchkfiles  or {"*.dtx"}
-demofiles    = demofiles    or { }
-cleanfiles   = cleanfiles   or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
-excludefiles = excludefiles or {"*~"}             -- Any Emacs stuff
-installfiles = installfiles or {"*.sty"}
-sourcefiles  = sourcefiles  or {"*.dtx", "*.ins"} -- Files to copy for unpacking
-supportfiles = supportfiles or {"*.cls", "*.lua", "*.sty", "*.tex"}
-txtfiles     = txtfiles     or {"*.markdown"}
-typesetfiles = typesetfiles or {"*.dtx"}
-unpackfiles  = unpackfiles  or {"*.ins"}          -- Files to actually unpack
+binaryfiles     = binaryfiles     or {"*.pdf", "*.zip"}
+checkfiles      = checkfiles      or { } -- Extra files unpacked purely for tests
+checksuppfiles  = checksuppfiles  or {"*.cls", "*.def", "*.lua", "*.sty", "*.tex"}
+cmdchkfiles     = cmdchkfiles     or {"*.dtx"}
+demofiles       = demofiles       or { }
+cleanfiles      = cleanfiles      or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
+excludefiles    = excludefiles    or {"*~"}             -- Any Emacs stuff
+installfiles    = installfiles    or {"*.sty"}
+sourcefiles     = sourcefiles     or {"*.dtx", "*.ins"} -- Files to copy for unpacking
+txtfiles        = txtfiles        or {"*.markdown"}
+typesetfiles    = typesetfiles    or {"*.dtx"}
+unpackfiles     = unpackfiles     or {"*.ins"}          -- Files to actually unpack
+unpacksuppfiles = unpacksuppfiles or { }
 
 -- Roots which should be unpacked to support unpacking/testing/typesetting
 checkdeps   = checkdeps   or { }
@@ -361,7 +362,7 @@ function checkinit ()
       cp (i, testsupdir, testdir)
     end
   end
-  for _,i in ipairs (supportfiles) do
+  for _,i in ipairs (checksuppfiles) do
     cp (i, supportdir, testdir)
   end
 end
@@ -855,7 +856,9 @@ function bundleunpack ()
   for _,i in ipairs (sourcefiles) do
     cp (i, ".", unpackdir)
   end
-  cp ("docstrip.tex", supportdir, localdir)
+  for _,i in ipairs (unpacksuppfiles) do
+    cp (i, supportdir, localdir)
+  end
   for _,i in ipairs (unpackfiles) do
     for _,j in ipairs (filelist (unpackdir, i)) do
       -- Note this is all run from 'here' as otherwise the localdir var
