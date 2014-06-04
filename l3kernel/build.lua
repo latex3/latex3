@@ -70,13 +70,6 @@ function help ()
   print ""
 end
 
--- ctan () uses allmodules () to deal with each module
--- As this is the only use relied on in l3kernel, a simple change here
--- allows code sharing
-function allmodules (target)
-  bundlectan ()
-end
-
 function format (engine)
   local engine = engine or "pdftex"
   unpack ()
