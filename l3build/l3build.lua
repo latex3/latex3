@@ -271,14 +271,16 @@ function filelist (path, glob)
   if glob then
     pattern = glob_to_pattern (glob)
   end
-  for entry in lfs.dir (path) do
-    if pattern then
-      if string.match (entry, pattern) then
-        table.insert (files, entry)
-      end
-    else
-      if entry ~= "." and entry ~= ".." then
-        table.insert (files, entry)
+  if direxists (path) then
+    for entry in lfs.dir (path) do
+      if pattern then
+        if string.match (entry, pattern) then
+          table.insert (files, entry)
+        end
+      else
+        if entry ~= "." and entry ~= ".." then
+          table.insert (files, entry)
+        end
       end
     end
   end

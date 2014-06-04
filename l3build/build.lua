@@ -13,6 +13,7 @@ maindir = ".."
 cleanfiles   = {"*.pdf", "*.tex", "*.zip"}
 installfiles = {"l3build.lua", "regression-test.tex"}
 sourcefiles  = {"*.dtx", "l3build.lua", "*.ins"}
+testfiledir  = ""
 unpackdeps   = { }
 
 -- Load the common build code: this is the one place that a path needs to be
