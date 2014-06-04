@@ -5,9 +5,6 @@
 module = module or ""
 bundle = bundle or ""
 
--- For bundles to allow selection of only some directories
-modules = modules or { }
-
 -- Directory structure for the build system
 -- Use Unix-style path separators
 maindir     = maindir or "."
@@ -887,14 +884,13 @@ function main (target, file, engine)
   -- apart from ctan all of the targets are then just mappings
   if module == "" then
     -- Detect all of the modules
-    if next (modules) == nil then
-      for entry in lfs.dir (".") do
-        if entry ~= "." and entry ~= ".." then
-          local attr = lfs.attributes (entry)
-          assert (type (attr) == "table")
-          if attr.mode == "directory" then
-            table.insert (modules, entry)
-          end
+    modules = { }
+    for entry in lfs.dir (".") do
+      if entry ~= "." and entry ~= ".." then
+        local attr = lfs.attributes (entry)
+        assert (type (attr) == "table")
+        if attr.mode == "directory" then
+          table.insert (modules, entry)
         end
       end
     end
