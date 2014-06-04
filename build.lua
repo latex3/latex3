@@ -3,7 +3,7 @@
 -- Build script for LaTeX3 files
 
 --  No bundle or module here, but these have to be defined
-bundle  = ""
+bundle  = "LaTeX3"
 module  = ""
 
 -- A couple of custom variables: the order here is set up for 'importance'

@@ -5,12 +5,8 @@
 module = module or ""
 bundle = bundle or ""
 
-if module == "" then
-  if bundle == "" then
-    print ("l3build error: must supply a module or bundle name")
-    os.exit (1)
-  end
-end
+-- For bundles to allow selection of only some directories
+modules = modules or { }
 
 -- Directory structure for the build system
 -- Use Unix-style path separators
@@ -706,7 +702,9 @@ function ctan (standalone)
       )
     cp (zipname, dir, ".")
   end
-  if not standalone then
+  if standalone then
+    bundle = module
+  else
     bundleclean ()
   end
   mkdir (ctandir .. "/" .. bundle)
@@ -889,13 +887,14 @@ function main (target, file, engine)
   -- apart from ctan all of the targets are then just mappings
   if module == "" then
     -- Detect all of the modules
-    modules = { }
-    for entry in lfs.dir (".") do
-      if entry ~= "." and entry ~= ".." then
-        local attr = lfs.attributes (entry)
-        assert (type (attr) == "table")
-        if attr.mode == "directory" then
-          table.insert (modules, entry)
+    if next (modules) == nil then
+      for entry in lfs.dir (".") do
+        if entry ~= "." and entry ~= ".." then
+          local attr = lfs.attributes (entry)
+          assert (type (attr) == "table")
+          if attr.mode == "directory" then
+            table.insert (modules, entry)
+          end
         end
       end
     end
