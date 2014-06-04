@@ -1,5 +1,20 @@
--- Common material for LaTeX3 make scripts
--- Functions needed for both building single modules and bundles
+--[[
+
+  File l3build.lua (C) Copyright 2014 The LaTeX3 Project
+  
+ It may be distributed and/or modified under the conditions of the
+ LaTeX Project Public License (LPPL), either version 1.3c of this
+ license or (at your option) any later version.  The latest version
+ of this license is in the file
+
+    http://www.latex-project.org/lppl.txt
+
+ This file is part of the "l3build bundle" (The Work in LPPL)
+ and all files in that bundle must be distributed together.
+
+ The released version of this bundle is available from CTAN.
+
+--]]
 
 -- Ensure the module and bundle exist
 module = module or ""
