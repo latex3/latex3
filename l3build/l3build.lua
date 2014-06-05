@@ -587,7 +587,7 @@ function help ()
     print " build checklvt <name> <engine> - check one test file <name> for <engine>   "
   end
   print " build clean                    - clean out directory tree                  "
-  if next (cmdchfiles) ~= nil then
+  if next (cmdchkfiles) ~= nil then
     print " build cmdcheck                 - check commands documented are defined     "
   end
   if module == "" or bundle == "" then
