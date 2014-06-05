@@ -57,7 +57,7 @@ auxfiles     = auxfiles     or
 binaryfiles     = binaryfiles     or {"*.pdf", "*.zip"}
 checkfiles      = checkfiles      or { } -- Extra files unpacked purely for tests
 checksuppfiles  = checksuppfiles  or {"*.cls", "*.def", "*.lua", "*.sty", "*.tex"}
-cmdchkfiles     = cmdchkfiles     or {"*.dtx"}
+cmdchkfiles     = cmdchkfiles     or { }
 demofiles       = demofiles       or { }
 cleanfiles      = cleanfiles      or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
 excludefiles    = excludefiles    or {"*~"}             -- Any Emacs stuff
@@ -587,7 +587,9 @@ function help ()
     print " build checklvt <name> <engine> - check one test file <name> for <engine>   "
   end
   print " build clean                    - clean out directory tree                  "
-  print " build cmdcheck                 - check commands documented are defined     "
+  if next (cmdchfiles) ~= nil then
+    print " build cmdcheck                 - check commands documented are defined     "
+  end
   if module == "" or bundle == "" then
     print " build ctan                     - create CTAN-ready archive                 "
   end
@@ -921,7 +923,7 @@ function main (target, file, engine)
       end
     elseif target == "clean" then
       bundleclean ()
-    elseif target == "cmdcheck" then
+    elseif target == "cmdcheck" and next (cmdchkfiles) ~= nil then
       allmodules ("cmdcheck")
     elseif target == "ctan" then
       ctan ()
@@ -957,7 +959,7 @@ function main (target, file, engine)
       end
     elseif target == "clean" then
       clean ()
-    elseif target == "cmdcheck" then
+    elseif target == "cmdcheck" and next (cmdchkfiles) ~= nil then
       cmdcheck ()
     elseif target == "ctan" and bundle == "" then  -- Stand-alone module
       ctan (true)
