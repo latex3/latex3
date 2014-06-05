@@ -18,23 +18,45 @@
 \regex_new:N \g_foo_regex
 \seq_new:N \l_foo_seq
 
+% \__test_wrap:n turns "{#1}~" to a string, replaces each space by a
+% braced space, then applies \__test_wrap_auxiii:n to each character.
+% That auxiliary replaces unprintable characters (i.e., chars less than
+% 32, except 10) by the "^^X" escape.  We don't bother producing a
+% stringy result nor being f-expandable, as the result is fed to
+% \iow_term:x.
+%
+\cs_new:Npn \__test_wrap:n #1
+  {
+    \exp_after:wN \__test_wrap_auxi:w \tl_to_str:n { {#1} ~ }
+    \q_nil { \__test_wrap_auxi:w } ~
+    \q_nil { \__test_wrap_auxii:w } \q_stop
+  }
+\cs_new:Npn \__test_wrap_auxi:w #1 ~ #2 \q_nil #3
+  { #3 #1 {~} #2 \q_nil #3 }
+\cs_new:Npn \__test_wrap_auxii:w #1 \q_nil #2 \q_stop
+  { \tl_map_function:nN {#1} \__test_wrap_auxiii:n }
+\cs_new:Npn \__test_wrap_auxiii:n #1
+  {
+    \int_compare:nNnTF { `#1 } < { `\  }
+      {
+        \int_compare:nNnTF { `#1 } = { 10 }
+          {#1} { ^ ^ \__str_output_byte:n { `#1 + `@ } }
+      }
+      { \int_compare:nNnTF { `#1 } = { 127 } { ^ ^ ? } {#1} }
+  }
+
+
 \cs_new_protected:Npn \test:nn #1 #2
   {
     \regex_match:nnTF {#1} {#2} { \TRUE } { \FALSE }
-    \seq_clear:N \l_foo_seq
     \regex_extract_all:nnN {#1} {#2} \l_foo_seq
-    \seq_map_inline:Nn \l_foo_seq
-      { \tex_message:D { \exp_not:n { {##1} } } }
-    \tex_message:D { \iow_newline: }
+    \iow_term:x { \seq_map_function:NN \l_foo_seq \__test_wrap:n }
   }
 \cs_new_protected:Npn \test:Nn #1 #2
   {
     \regex_match:NnTF #1 {#2} { \TRUE } { \FALSE }
-    \seq_clear:N \l_foo_seq
     \regex_extract_all:NnN #1 {#2} \l_foo_seq
-    \seq_map_inline:Nn \l_foo_seq
-      { \tex_message:D { \exp_not:n { {##1} } } }
-    \tex_message:D { \iow_newline: }
+    \iow_term:x { \seq_map_function:NN \l_foo_seq \__test_wrap:n }
   }
 
 \TIMO
@@ -57,8 +79,13 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \OMIT
-\tl_const:Nx \c_all_chars_str
+\tl_new:N \g_ascii_chars_str
+\tl_gset:Nx \g_ascii_chars_str
   { \int_step_function:nnnN { 0 } { 1 } { 127 } \__str_output_byte:n }
+\tl_greplace_once:Nnn \g_ascii_chars_str { ' } { ' ^^J }
+\tl_greplace_once:Nnn \g_ascii_chars_str { ` } { ^^J ` }
+% We add a couple line-breaks to avoid over-long lines
+\cs_generate_variant:Nn \test:nn { no }
 \TIMO
 
 \TEST { Simple~strings~n }
@@ -68,18 +95,21 @@
     \test:nn { a } { }
     \test:nn { aa } { a }
     \test:nn { ab } { baba }
-    \exp_args:Nno \test:nn
+    \test:no
       {
-        \^^@\^^A\^^B\^^C\^^D\^^E\^^F\^^G\^^H\^^I\^^J\^^K\^^L\^^M\^^N\^^O
-        \^^P\^^Q\^^R\^^S\^^T\^^U\^^V\^^W\^^X\^^Y\^^Z\^^[\^^\\^^]\^^^\^^_
-        \ \!\"\#\$\%\&\'\(\)\*\+\,\-\.\/
+        \^^A\^^B\^^C\^^D\^^E\^^F\^^G
+        \^^H\^^I\^^J\^^K\^^L\^^M\^^N\^^O
+        \^^P\^^Q\^^R\^^S\^^T\^^U\^^V\^^W
+        \^^X\^^Y\^^Z\^^[\^^\\^^]\^^^\^^_
+        \ \!\"\#\$\%\&\'        \^^J
+        \(\)\*\+\,\-\.\/
         0123456789\:\;\<\=\>\?
         \@ABCDEFGHIJKLMNO
-        PQRSTUVWXYZ\[\\\]\^\_
+        PQRSTUVWXYZ\[\\\]\^\_   \^^J
         \`abcdefghijklmno
         pqrstuvwxyz\{\|\}\~\^^?
       }
-      { \c_all_chars_str }
+      { \g_ascii_chars_str }
   }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
