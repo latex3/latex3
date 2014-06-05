@@ -894,6 +894,10 @@ function bundleunpack ()
   end
 end
 
+function version ()
+  print ("\nl3build Release 2014-06-05")
+end
+
 --
 -- The overall main function
 --
@@ -933,6 +937,8 @@ function main (target, file, engine)
       -- bundleunpack avoids cleaning out the dir, so do it once here
       cleandir (unpackdir)
       allmodules ("bundleunpack")
+    elseif target == "version" then
+      version ()
     else
       help ()
     end
@@ -975,6 +981,8 @@ function main (target, file, engine)
       end
     elseif target == "unpack" then
       unpack ()
+    elseif target == "version" then
+      version ()
     else
       help ()
     end

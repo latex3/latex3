@@ -127,6 +127,8 @@ function main (target, file, engine)
     end
   elseif target == "unpack" then
     unpack ()
+  elseif target == "version" then
+    version ()
   else
     help ()
   end

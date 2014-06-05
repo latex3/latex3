@@ -62,6 +62,8 @@ function main (target)
     dobundles (bundles, "install")
   elseif target == "unpack" then
     dobundles (bundles, "unpack")
+  elseif target == "version" then
+      version ()
   else
     help ()
   end
