@@ -38,18 +38,7 @@ checkdeps   = { }
 typesetdeps = { }
 unpackdeps  = { }
 
--- Load the common build code: this is the one place that a path needs to be
--- hard-coded
--- As the build system is 'self-contained' there is no module set up here: just
---load the file in a similar way to a TeX \input
-dofile (maindir .. "/l3build/l3build-config.lua")
-dofile (maindir .. "/l3build/l3build.lua")
-
--- Unlike other parts of the build system, l3kernel has quite a number of
--- non-standard requirements and so a number of the functions are rewritten
--- with modification here
--- Some of these are as simple as the fact that there is no module/bundle
--- variation here
+-- Some customised functions
 
 -- l3kernel does all of the targets itself
 function help ()
@@ -134,5 +123,9 @@ function main (target, file, engine)
   end
 end
 
--- Call the main function which is defined in l3build.lua
-main (arg[1], arg[2], arg[3])
+-- Load the common build code: this is the one place that a path needs to be
+-- hard-coded
+-- As the build system is 'self-contained' there is no module set up here: just
+--load the file in a similar way to a TeX \input
+dofile (maindir .. "/l3build/l3build-config.lua")
+dofile (maindir .. "/l3build/l3build.lua")
