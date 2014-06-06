@@ -107,9 +107,9 @@ typesetcmds = typesetcmds or ""
 scriptname  = scriptname  or "build.lua" -- Script used in each directory
 
 -- Extensions for various file types: used to abstract out stuff a bit
-logext = ".log"
-lvtext = ".lvt"
-tlgext = ".tlg"
+logext = logext or ".log"
+lvtext = lvtext or ".lvt"
+tlgext = tlgext or ".tlg"
 
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
