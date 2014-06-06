@@ -184,8 +184,7 @@ end
 
 -- File operation support
 -- Much of this is OS-dependent as Lua offers a very limited range of file
--- operations 'natively', and looping over individual files to apply for
--- example os.remove is not really attractive!
+-- operations 'natively'.
 
 -- Detect the operating system in use
 -- See http://www.lua.org/manual/5.2/manual.html#pdf-package.config for details
