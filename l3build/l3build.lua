@@ -345,7 +345,9 @@ end
 function allmodules (target)
   local errorlevel = 0
   for _,i in ipairs (modules) do
-    print ("Running script " .. scriptname .. " with " .. target)
+    print (
+        "Running script " .. scriptname .. " with target \"" .. target .. "\""
+      )
     errorlevel = run (i, "texlua " .. scriptname .. " " .. target)
     if errorlevel > 0 then
       return (errorlevel)
