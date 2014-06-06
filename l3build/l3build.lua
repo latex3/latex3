@@ -577,7 +577,7 @@ end
 -- Standard versions of the main targets for building modules
 
 -- Simply print out how to use the build system
-function help ()
+help = help or function ()
   print ""
   if testfiledir ~= "" then
     print " build check                    - run automated check system                "
@@ -902,7 +902,7 @@ end
 -- The overall main function
 --
 
-function main (target, file, engine)
+main = main or function (target, file, engine)
   -- If the module name is empty, the script is running in a bundle:
   -- apart from ctan all of the targets are then just mappings
   if module == "" then
@@ -988,3 +988,6 @@ function main (target, file, engine)
     end
   end
 end
+
+-- Call the main function
+main (arg[1], arg[2], arg[3])

@@ -13,13 +13,6 @@ ctanbundles = {"l3build", "l3kernel", "l3packages", "l3experimental"}
 -- Location of main directory: use Unix-style path separators
 maindir = "."
 
--- Load the common build code: this is the one place that a path needs to be
--- hard-coded
--- As the build system is 'self-contained' there is no module set up here: just
---load the file in a similar way to a TeX \input
-dofile (maindir .. "/l3build/l3build-config.lua")
-dofile (maindir .. "/l3build/l3build.lua")
-
 -- Help for the master script is simple
 function help ()
   print ""
@@ -33,6 +26,8 @@ function help ()
 end
 
 -- A custom main function
+-- While almost all of this is customise, the need to be able to cp and
+-- rm files means that loading l3build.lua is very useful
 function main (target)
   local function dobundles (bundles, target)
     local errorlevel = 0
@@ -69,5 +64,8 @@ function main (target)
   end
 end
 
--- Call the main function
-main (arg[1])
+-- Load the common build code: this is the one place that a path needs to be
+-- hard-coded
+-- As the build system is 'self-contained' there is no module set up here: just
+--load the file in a similar way to a TeX \input
+dofile (maindir .. "/l3build/l3build.lua")
