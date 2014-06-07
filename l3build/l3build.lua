@@ -103,8 +103,8 @@ end
 
 -- Other required settings
 checkruns   = checkruns   or 1
-typesetcmds = typesetcmds or ""
 scriptname  = scriptname  or "build.lua" -- Script used in each directory
+typesetcmds = typesetcmds or ""
 
 -- Extensions for various file types: used to abstract out stuff a bit
 logext = logext or ".log"
