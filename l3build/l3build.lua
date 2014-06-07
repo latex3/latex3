@@ -446,8 +446,6 @@ function formatlog (logfile, newfile)
     local line = line
     -- Remove test file name from lines
     line = string.gsub (line, string.match (logfile, ".*/(.*)%" .. logext .. "$"), "")
-    -- Remove testdir from file names
-    line = string.gsub (line, string.gsub (testdir, "%.", "%%."), ".")
     -- Zap ./ at begin of filename
     line = string.gsub (line, "%(%.%/", "(")
     -- XeTeX knows only the smaller set of dimension units
