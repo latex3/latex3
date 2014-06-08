@@ -24,20 +24,20 @@ bundle = bundle or ""
 -- Use Unix-style path separators
 maindir     = maindir or "."
 
+-- Substructure for tests and support files
+testfiledir = testfiledir or "testfiles" -- Set to "" to cancel any tests
+testsupdir  = testsupdir  or testfiledir .. "/support"
+supportdir  = supportdir  or maindir .. "/support"
+
 -- Structure within a development area
-distribdir  = distribdir or maindir .. "/distrib"
-localdir    = localdir   or maindir .. "/local"
-supportdir  = supportdir or maindir .. "/support"
-testdir     = testdir    or maindir .. "/test"
-unpackdir   = unpackdir  or maindir .. "/unpacked"
+distribdir  = distribdir or maindir .. "/build/distrib"
+localdir    = localdir   or maindir .. "/build/local"
+testdir     = testdir    or maindir .. "/build/test"
+unpackdir   = unpackdir  or maindir .. "/build/unpacked"
 
 -- Substructure for CTAN release material
 ctandir     = ctandir or distribdir .. "/ctan"
 tdsdir      = tdsdir  or distribdir .. "/tds"
-
--- Substructure for tests
-testfiledir = testfiledir or "testfiles" -- Set to "" to cancel any tests
-testsupdir  = testsupdir  or testfiledir .. "/support"
 
 -- Location for installation on CTAN or in TEXMFHOME
 if bundle == "" then
