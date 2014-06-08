@@ -38,12 +38,13 @@ unpackdir   = unpackdir  or maindir .. "/build/unpacked"
 -- Substructure for CTAN release material
 ctandir     = ctandir or distribdir .. "/ctan"
 tdsdir      = tdsdir  or distribdir .. "/tds"
+tdsroot     = tdsroot or "latex"
 
 -- Location for installation on CTAN or in TEXMFHOME
 if bundle == "" then
-  moduledir = "latex/" .. module
+  moduledir = tdsroot .. "/" .. module
 else
-  moduledir = "latex/" .. bundle .. "/" .. module
+  moduledir = tdsroot .. "/" .. bundle .. "/" .. module
 end
 
 -- File types for various operations
