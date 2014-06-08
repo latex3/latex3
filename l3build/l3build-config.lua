@@ -9,5 +9,9 @@ unpacksuppfiles = {"docstrip.tex"}
 
 typesetcmds = "\\AtBeginDocument{\\DisableImplementation}"
 
-checksearch  = false
-unpacksearch = false
+if checksearch == nil then
+  checksearch = false
+end
+if unpacksearch == nil then
+  unpacksearch = false
+end
