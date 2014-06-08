@@ -11,7 +11,8 @@ module = "l3htoks"
 maindir = "../.."
 
 -- Non-standard settings
-checkruns = 2
+checkruns   = 2
+checksearch = true
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
