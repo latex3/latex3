@@ -14,8 +14,10 @@ maindir = "../.."
 installfiles = {"*.cfg", "*.ltx", "*.sty"}
 sourcefiles  = {"*.dtx", "*.ins", "*.ltx"}
 
-checkdeps   = {maindir .. "/l3kernel", "../l3hooks"}
+checkdeps   = {maindir .. "/l3kernel", maindir .. "/l3packages/xparse", "../l3hooks"}
 typesetdeps = {maindir .. "/l3kernel", "../l3hooks"}
+
+checksearch = true
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
