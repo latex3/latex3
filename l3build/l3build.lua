@@ -1,7 +1,7 @@
 --[[
 
   File l3build.lua (C) Copyright 2014 The LaTeX3 Project
-  
+
  It may be distributed and/or modified under the conditions of the
  LaTeX Project Public License (LPPL), either version 1.3c of this
  license or (at your option) any later version.  The latest version
@@ -362,6 +362,7 @@ end
 function checkinit ()
   cleandir (localdir)
   cleandir (testdir)
+  cleandir (unpackdir)
   depinstall (checkdeps)
   for _,i in ipairs (filelist (localdir)) do
     cp (i, localdir, testdir)
