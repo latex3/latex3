@@ -66,6 +66,7 @@ installfiles    = installfiles    or {"*.sty"}
 sourcefiles     = sourcefiles     or {"*.dtx", "*.ins"} -- Files to copy for unpacking
 txtfiles        = txtfiles        or {"*.markdown"}
 typesetfiles    = typesetfiles    or {"*.dtx"}
+typesetsuppfiles = typesetsuppfiles or { }
 unpackfiles     = unpackfiles     or {"*.ins"}          -- Files to actually unpack
 unpacksuppfiles = unpacksuppfiles or { }
 
@@ -817,6 +818,9 @@ function doc ()
     return (errorlevel)
   end
   -- Main loop for doc creation
+  for _,i in ipairs (typesetsuppfiles) do
+    cp (i, supportdir, localdir)
+  end
   for _,i in ipairs (typesetfiles) do
     for _,j in ipairs (filelist (".", i)) do
       local errorlevel = typeset (j)
