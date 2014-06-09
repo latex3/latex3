@@ -198,7 +198,6 @@ end
 if string.sub (package.config, 1, 1) == "\\" then
   os_concat   = "&"
   os_diffext  = ".fc"
-  os_dirsep   = "\\"
   os_diffexe  = "fc /n"
   os_null     = "nul"
   os_pathsep  = ";"
@@ -207,7 +206,6 @@ if string.sub (package.config, 1, 1) == "\\" then
 else
   os_concat   = ";"
   os_diffext  = ".diff"
-  os_dirsep   = "/"
   os_diffexe  = "diff -c"
   os_null     = "/dev/null"
   os_pathsep  = ":"
@@ -622,7 +620,7 @@ function check ()
   if errorlevel ~= 0 then
     print ("\n  Check failed with difference files")
     for _,i in ipairs (filelist (testdir, "*" .. os_diffext)) do
-      print ("  - " .. testdir .. os_dirsep .. i)
+      print ("  - " .. testdir .. "/" .. i)
     end
     print ("")
   else
