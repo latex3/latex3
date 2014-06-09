@@ -741,7 +741,7 @@ function ctan (standalone)
         ren (dir, name, stripext (name))
       end
       installtxt (j, ctandir .. "/" .. bundle)
-      installtxt (j, tdsdir .. "/doc/latex/" .. bundle)
+      installtxt (j, tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
     end
   end
   dirzip (tdsdir, bundle .. ".tds")
