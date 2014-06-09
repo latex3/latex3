@@ -795,7 +795,7 @@ function doc ()
             os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
               (typesetsearch and os_pathsep or "")  .. os_concat ..
             typesetexe .. " " .. typesetopts .. " \"" .. typesetcmds ..
-              " \\input " .. file .. "\""
+              "\\input " .. file .. "\""
           )
       return errorlevel
     end
