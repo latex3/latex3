@@ -55,20 +55,20 @@ auxfiles     = auxfiles     or
     "*.aux", "*.cmds", "*.glo", "*.gls", "*.hd", "*.idx", "*.ilg", "*.ind",
     "*.log", "*.out", "*.synctex.gz", "*.tmp", "*.toc", "*.xref"
   }
-binaryfiles      = binaryfiles     or {"*.pdf", "*.zip"}
-checkfiles       = checkfiles      or { } -- Extra files unpacked purely for tests
-checksuppfiles   = checksuppfiles  or {"*.cls", "*.def", "*.lua", "*.sty", "*.tex"}
-cmdchkfiles      = cmdchkfiles     or { }
-demofiles        = demofiles       or { }
-cleanfiles       = cleanfiles      or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
-excludefiles     = excludefiles    or {"*~"}             -- Any Emacs stuff
-installfiles     = installfiles    or {"*.sty"}
-sourcefiles      = sourcefiles     or {"*.dtx", "*.ins"} -- Files to copy for unpacking
-txtfiles         = txtfiles        or {"*.markdown"}
-typesetfiles     = typesetfiles    or {"*.dtx"}
+binaryfiles      = binaryfiles      or {"*.pdf", "*.zip"}
+checkfiles       = checkfiles       or { } -- Extra files unpacked purely for tests
+checksuppfiles   = checksuppfiles   or {"*.cls", "*.def", "*.lua", "*.sty", "*.tex"}
+cmdchkfiles      = cmdchkfiles      or { }
+demofiles        = demofiles        or { }
+cleanfiles       = cleanfiles       or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
+excludefiles     = excludefiles     or {"*~"}             -- Any Emacs stuff
+installfiles     = installfiles     or {"*.sty"}
+sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"} -- Files to copy for unpacking
+txtfiles         = txtfiles         or {"*.markdown"}
+typesetfiles     = typesetfiles     or {"*.dtx"}
 typesetsuppfiles = typesetsuppfiles or { }
-unpackfiles      = unpackfiles     or {"*.ins"}          -- Files to actually unpack
-unpacksuppfiles  = unpacksuppfiles or { }
+unpackfiles      = unpackfiles      or {"*.ins"}          -- Files to actually unpack
+unpacksuppfiles  = unpacksuppfiles  or { }
 
 -- Roots which should be unpacked to support unpacking/testing/typesetting
 checkdeps   = checkdeps   or { }
