@@ -581,7 +581,7 @@ end
 -- Standard versions of the main targets for building modules
 
 -- Simply print out how to use the build system
-function help ()
+help = help or function ()
   print ""
   if testfiledir ~= "" then
     print " build check                    - run automated check system                "
