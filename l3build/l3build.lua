@@ -804,7 +804,6 @@ function doc ()
           )
       return errorlevel
     end
-    depinstall (typesetdeps)
     print ("Typesetting " .. name)
     local errorlevel = typeset (file)
     if errorlevel ~= 0 then
@@ -819,8 +818,10 @@ function doc ()
     end
     return (errorlevel)
   end
+  cleandir (localdir)
   cleandir (typesetdir)
   -- Install support files
+  depinstall (typesetdeps)
   for _,i in ipairs (typesetsuppfiles) do
     cp (i, supportdir, localdir)
   end
