@@ -33,6 +33,7 @@ supportdir  = supportdir  or maindir .. "/support"
 distribdir  = distribdir or maindir .. "/build/distrib"
 localdir    = localdir   or maindir .. "/build/local"
 testdir     = testdir    or maindir .. "/build/test"
+typesetdir  = typesetdir or maindir .. "/build/doc"
 unpackdir   = unpackdir  or maindir .. "/build/unpacked"
 
 -- Substructure for CTAN release material
@@ -651,6 +652,7 @@ end
 function clean ()
   cleandir (localdir)
   cleandir (testdir)
+  cleandir (typesetdir)
   cleandir (unpackdir)
   cleanaux ()
   for _,i in ipairs (cleanfiles) do
@@ -784,23 +786,25 @@ function doc ()
     -- A couple of short functions to deal with the repeated steps in a
     -- clear way
     local function index (name)
-      os.execute (
+      run (
+          typesetdir ,
           "makeindex -s gind.ist -o " .. name .. ".ind " .. name .. ".idx"
         )
     end
     local function typeset (file)
       local errorlevel =
         os.execute (
-            os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
+            -- As for bundleunpack, notice that the command is run 'here' so that
+            -- relative paths are correct
+            os_setenv .. " TEXINPUTS=" .. typesetdir .. os_pathsep .. localdir ..
               (typesetsearch and os_pathsep or "")  .. os_concat ..
-            typesetexe .. " " .. typesetopts .. " \"" .. typesetcmds ..
+            typesetexe .. " " .. typesetopts .. " -output-directory=" .. typesetdir ..
+              " \"" .. typesetcmds ..
               "\\input " .. file .. "\""
           )
       return errorlevel
     end
     depinstall (typesetdeps)
-    cleanaux (name)
-    os.remove (name .. ".pdf")
     print ("Typesetting " .. name)
     local errorlevel = typeset (file)
     if errorlevel ~= 0 then
@@ -811,14 +815,16 @@ function doc ()
         index (name)
         typeset (file)
       end
-      cleanaux (name)
+      cp (name .. ".pdf", typesetdir, ".")
     end
     return (errorlevel)
   end
-  -- Main loop for doc creation
+  cleandir (typesetdir)
+  -- Install support files
   for _,i in ipairs (typesetsuppfiles) do
     cp (i, supportdir, localdir)
   end
+  -- Main loop for doc creation
   for _,i in ipairs (typesetfiles) do
     for _,j in ipairs (filelist (".", i)) do
       local errorlevel = typeset (j)
