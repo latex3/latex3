@@ -591,25 +591,27 @@ help = help or function ()
 end
 
 function check ()
-  checkinit ()
   local errorlevel = 0
-  print ("Running checks on")
-  for _,i in ipairs (filelist (testfiledir, "*" .. lvtext)) do
-    local name = stripext (i)
-    print ("  " .. name)
-    local errlevel = runcheck (name, nil, true)
-    if errlevel ~= 0 then
-      errorlevel = 1
+  if testfiledir ~= "" and direxists (testfiledir) then
+    checkinit ()
+    print ("Running checks on")
+    for _,i in ipairs (filelist (testfiledir, "*" .. lvtext)) do
+      local name = stripext (i)
+      print ("  " .. name)
+      local errlevel = runcheck (name, nil, true)
+      if errlevel ~= 0 then
+        errorlevel = 1
+      end
     end
-  end
-  if errorlevel ~= 0 then
-    print ("\n  Check failed with difference files")
-    for _,i in ipairs (filelist (testdir, "*" .. os_diffext)) do
-      print ("  - " .. testdir .. "/" .. i)
+    if errorlevel ~= 0 then
+      print ("\n  Check failed with difference files")
+      for _,i in ipairs (filelist (testdir, "*" .. os_diffext)) do
+        print ("  - " .. testdir .. "/" .. i)
+      end
+      print ("")
+    else
+      print ("\n  All checks passed\n")
     end
-    print ("")
-  else
-    print ("\n  All checks passed\n")
   end
   return (errorlevel)
 end
@@ -962,10 +964,8 @@ function stdmain (target, file, engine)
       depinstall (unpackdeps)
       bundleunpack ()
     elseif target == "bundlecheck" then
-      if testfiledir ~= "" then  -- Ignore if there are no testfiles
-        local errorlevel = check ()
-        os.exit (errorlevel)
-      end
+      local errorlevel = check ()
+      os.exit (errorlevel)
     elseif target == "bundlectan" then
       bundlectan ()
     elseif target == "doc" then
