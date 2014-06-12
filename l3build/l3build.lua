@@ -386,18 +386,6 @@ function checkinit ()
   end
 end
 
--- Remove auxiliary files, either all in the simple case or selectively if
--- a file name stem is given
-function cleanaux (name)
-  for _,i in ipairs (auxfiles) do
-    if not name then
-      rm (".", i)
-    else
-      rm (".", name .. string.gsub (i, "^.*%.", "."))
-    end
-  end
-end
-
 -- Unpack files needed to support testing/typesetting/unpacking
 function depinstall (deps)
   for _,i in ipairs (deps) do
@@ -654,7 +642,9 @@ function clean ()
   cleandir (testdir)
   cleandir (typesetdir)
   cleandir (unpackdir)
-  cleanaux ()
+  for _,i in ipairs (auxfiles) do
+    rm (".", i)
+  end
   for _,i in ipairs (cleanfiles) do
     rm (".", i)
   end
