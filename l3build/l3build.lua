@@ -706,19 +706,23 @@ function ctan (standalone)
           binfiles .. " -x" .. exclude
       )
   end
+  local errorlevel
   if standalone then
     clean ()
+    errorlevel = check ()
     bundle = module
   else
     bundleclean ()
+    errorlevel = allmodules ("bundlecheck")
   end
-  mkdir (ctandir .. "/" .. bundle)
-  mkdir (tdsdir)
-  local errorlevel
-  if standalone then
-    errorlevel = bundlectan ()
-  else
-    errorlevel = allmodules ("bundlectan")
+  if errorlevel == 0 then
+    mkdir (ctandir .. "/" .. bundle)
+    mkdir (tdsdir)
+    if standalone then
+      errorlevel = bundlectan ()
+    else
+      errorlevel = allmodules ("bundlectan")
+    end
   end
   if errorlevel == 0 then
     for _,i in ipairs (txtfiles) do
