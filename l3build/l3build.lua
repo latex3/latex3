@@ -892,6 +892,8 @@ end
 -- Split off from the main unpack so it can be used on a bundle and not
 -- leave only one modules files
 function bundleunpack ()
+  mkdir (unpackdir)
+  mkdir (localdir)
   for _,i in ipairs (sourcefiles) do
     cp (i, ".", unpackdir)
   end
