@@ -705,6 +705,7 @@ function ctan (standalone)
       )
   end
   if standalone then
+    clean ()
     bundle = module
   else
     bundleclean ()
