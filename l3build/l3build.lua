@@ -703,7 +703,6 @@ function ctan (standalone)
         zipexe .. " " .. zipopts .. " -g ".. zipname .. " " .. ". -i" ..
           binfiles .. " -x" .. exclude
       )
-    cp (zipname, dir, ".")
   end
   if standalone then
     bundle = module
@@ -732,6 +731,7 @@ function ctan (standalone)
     dirzip (tdsdir, bundle .. ".tds")
     cp (bundle .. ".tds.zip", tdsdir, ctandir)
     dirzip (ctandir, bundle)
+    cp (bundle .. ".zip", ctandir, ".")
   else
     print ("\n====================")
     print ("Zip creation failed!")
