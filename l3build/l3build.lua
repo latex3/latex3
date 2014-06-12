@@ -842,6 +842,7 @@ function doc ()
       end
     end
   end
+  return 0
 end
 
 -- Unpack then install
