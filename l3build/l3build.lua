@@ -51,17 +51,12 @@ end
 -- File types for various operations
 -- Use Unix-style globs
 -- All of these may be set earlier, so a initialised conditionally
-auxfiles     = auxfiles     or
-  {
-    "*.aux", "*.cmds", "*.glo", "*.gls", "*.hd", "*.idx", "*.ilg", "*.ind",
-    "*.log", "*.out", "*.synctex.gz", "*.tmp", "*.toc", "*.xref"
-  }
 binaryfiles      = binaryfiles      or {"*.pdf", "*.zip"}
 checkfiles       = checkfiles       or { } -- Extra files unpacked purely for tests
 checksuppfiles   = checksuppfiles   or {"*.cls", "*.def", "*.lua", "*.sty", "*.tex"}
 cmdchkfiles      = cmdchkfiles      or { }
 demofiles        = demofiles        or { }
-cleanfiles       = cleanfiles       or {"*.cls", "*.def", "*.pdf", "*.sty", "*.zip"}
+cleanfiles       = cleanfiles       or {"*.pdf", "*.zip"}
 excludefiles     = excludefiles     or {"*~"}             -- Any Emacs stuff
 installfiles     = installfiles     or {"*.sty"}
 sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"} -- Files to copy for unpacking
@@ -643,9 +638,6 @@ function clean ()
   cleandir (testdir)
   cleandir (typesetdir)
   cleandir (unpackdir)
-  for _,i in ipairs (auxfiles) do
-    rm (".", i)
-  end
   for _,i in ipairs (cleanfiles) do
     rm (".", i)
   end
@@ -778,9 +770,6 @@ end
 -- Typeset all required documents
 -- This function has several sub-parts, but as most are not needed anywhere
 -- else everything is done locally within the main function
--- Notice that the first step taken is to remove all auxiliary files and
--- any existing PDF associated with the current file: this hopefully avoids
--- errors 'hanging about'
 function doc ()
   local function typeset (file)
     local name = stripext (file)
