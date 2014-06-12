@@ -636,6 +636,8 @@ end
 
 -- Remove all generated files
 function clean ()
+  rmdir (distribdir)
+  mkdir (distribdir)
   cleandir (localdir)
   cleandir (testdir)
   cleandir (typesetdir)
