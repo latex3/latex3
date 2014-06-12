@@ -720,24 +720,31 @@ function ctan (standalone)
   end
   mkdir (ctandir .. "/" .. bundle)
   mkdir (tdsdir)
+  local errorlevel
   if standalone then
-    bundlectan ()
+    errorlevel = bundlectan ()
   else
-    allmodules ("bundlectan")
+    errorlevel = allmodules ("bundlectan")
   end
-  for _,i in ipairs (txtfiles) do
-    for _,j in ipairs (filelist (".", i)) do
-      local function installtxt (name, dir)
-        cp (name, ".", dir)
-        ren (dir, name, stripext (name))
+  if errorlevel == 0 then
+    for _,i in ipairs (txtfiles) do
+      for _,j in ipairs (filelist (".", i)) do
+        local function installtxt (name, dir)
+          cp (name, ".", dir)
+          ren (dir, name, stripext (name))
+        end
+        installtxt (j, ctandir .. "/" .. bundle)
+        installtxt (j, tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
       end
-      installtxt (j, ctandir .. "/" .. bundle)
-      installtxt (j, tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
     end
+    dirzip (tdsdir, bundle .. ".tds")
+    cp (bundle .. ".tds.zip", tdsdir, ctandir)
+    dirzip (ctandir, bundle)
+  else
+    print ("\n====================")
+    print ("Zip creation failed!")
+    print ("====================\n")
   end
-  dirzip (tdsdir, bundle .. ".tds")
-  cp (bundle .. ".tds.zip", tdsdir, ctandir)
-  dirzip (ctandir, bundle)
 end
 
 function bundlectan ()
@@ -753,16 +760,19 @@ function bundlectan ()
   end
   unpack ()
   install (unpackdir, "tex", installfiles, false)
-  doc ()
-  -- Convert input names for typesetting into names of PDF files
-  local pdffiles = { }
-  for _,i in ipairs (typesetfiles) do
-    table.insert (pdffiles, (string.gsub (i, "%.%w+$", ".pdf")))
+  local errorlevel = doc ()
+  if errorlevel == 0 then
+    -- Convert input names for typesetting into names of PDF files
+    local pdffiles = { }
+    for _,i in ipairs (typesetfiles) do
+      table.insert (pdffiles, (string.gsub (i, "%.%w+$", ".pdf")))
+    end
+    install (".", "doc", pdffiles, true)
+    install (".", "doc", demofiles, true)
+    install (".", "source", typesetfiles, true)
+    install (".", "source", sourcefiles, true)
   end
-  install (".", "doc", pdffiles, true)
-  install (".", "doc", demofiles, true)
-  install (".", "source", typesetfiles, true)
-  install (".", "source", sourcefiles, true)
+  return (errorlevel)
 end
 
 -- Typeset all required documents
