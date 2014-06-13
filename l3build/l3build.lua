@@ -53,7 +53,7 @@ end
 -- All of these may be set earlier, so a initialised conditionally
 binaryfiles      = binaryfiles      or {"*.pdf", "*.zip"}
 checkfiles       = checkfiles       or { } -- Extra files unpacked purely for tests
-checksuppfiles   = checksuppfiles   or {"*.cls", "*.def", "*.lua", "*.sty", "*.tex"}
+checksuppfiles   = checksuppfiles   or { }
 cmdchkfiles      = cmdchkfiles      or { }
 demofiles        = demofiles        or { }
 cleanfiles       = cleanfiles       or {"*.pdf", "*.zip"}
