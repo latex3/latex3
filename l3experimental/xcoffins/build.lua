@@ -12,7 +12,7 @@ module = "xcoffins"
 maindir = "../.."
 
 -- Non-standard settings
-checkdeps   = {maindir .. "/l3kernel", maindir .. "/l3packages/xparse"}
+checkdeps   = {maindir .. "/l3kernel", maindir .. "/l3build", maindir .. "/l3packages/xparse"}
 typesetdeps = {maindir .. "/l3kernel", maindir .. "/l3packages/xparse"}
 
 -- Load the common build code: this is the one place that a path needs to be
