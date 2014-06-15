@@ -16,6 +16,10 @@
 
 --]]
 
+-- Version information: should be identical to that in l3build.dtx
+release_date = "2014/06/15"
+release_ver  = "5135"
+
 -- Ensure the module and bundle exist
 module = module or ""
 bundle = bundle or ""
@@ -919,7 +923,10 @@ function bundleunpack ()
 end
 
 function version ()
-  print ("\nl3build Release 2014-06-05")
+  print (
+    "\nl3build Release " .. string.gsub (release_date, "/", "-") ..
+    " (SVN r" .. release_ver .. ")\n"
+  )
 end
 
 --
