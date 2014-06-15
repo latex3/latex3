@@ -18,7 +18,7 @@
 
 -- Version information: should be identical to that in l3build.dtx
 release_date = "2014/06/15"
-release_ver  = "5135"
+release_ver  = "5141"
 
 -- Ensure the module and bundle exist
 module = module or ""
