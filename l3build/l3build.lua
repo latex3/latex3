@@ -362,6 +362,9 @@ function checkinit ()
   cleandir (testdir)
   cleandir (unpackdir)
   depinstall (checkdeps)
+  -- Copy dependencies to the test directory itself: this makes the paths
+  -- a lot easier to manage, and is important for dealing with the log and
+  -- with file input/output tests
   for _,i in ipairs (filelist (localdir)) do
     cp (i, localdir, testdir)
   end
@@ -890,8 +893,8 @@ end
 -- Split off from the main unpack so it can be used on a bundle and not
 -- leave only one modules files
 function bundleunpack ()
-  mkdir (unpackdir)
   mkdir (localdir)
+  mkdir (unpackdir)
   for _,i in ipairs (sourcefiles) do
     cp (i, ".", unpackdir)
   end
@@ -900,8 +903,6 @@ function bundleunpack ()
   end
   for _,i in ipairs (unpackfiles) do
     for _,j in ipairs (filelist (unpackdir, i)) do
-      -- Note this is all run from 'here' as otherwise the localdir var
-      -- will not point to the correct place to find e.g. l3docstrip
       os.execute (
           -- Notice that os.execute is used from 'here' as this ensures that
           -- localdir points to the correct place: running 'inside'
