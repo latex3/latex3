@@ -33,8 +33,8 @@ typesetfiles =
   }
 unpackfiles  = {"l3.ins"}
 
--- No deps
-checkdeps   = { }
+-- No deps other than the test system
+checkdeps   = {maindir .. "/l3build"}
 typesetdeps = { }
 unpackdeps  = { }
 
