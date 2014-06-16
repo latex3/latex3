@@ -632,7 +632,7 @@ function checklvt (name, engine)
     if fileexists (testdir .. "/" .. name .. "." .. engine .. os_diffext) then
       print ("  Check fails with diff file")
       print (
-        "  " .. testdir .. os_dirsep .. name .. "." .. engine .. os_diffext)
+        "  " .. testdir .. "/" .. name .. "." .. engine .. os_diffext)
     else
       print ("  Check passes")
     end
