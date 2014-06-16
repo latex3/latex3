@@ -6,7 +6,7 @@ unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 
 cmdchkfiles     = {"*.dtx"}
 checksuppfiles  =
-  {"etex.sty", "lualatexquotejobname.lua", "minimal.cls", "regression-test.cfg"}
+  {"etex.sty", "lualatexquotejobname.lua", "minimal.cls", "regression-test.cfg", "regression-test.tex"}
 unpacksuppfiles = {"docstrip.tex"}
 
 typesetcmds = "\\AtBeginDocument{\\DisableImplementation}"
