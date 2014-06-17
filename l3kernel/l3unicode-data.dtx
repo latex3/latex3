@@ -1,0 +1,557 @@
+% \iffalse meta-comment
+%
+%% File: l3unicode-data.dtx Copyright(C) 2014 The LaTeX3 Project
+%%
+%% It may be distributed and/or modified under the conditions of the
+%% LaTeX Project Public License (LPPL), either version 1.3c of this
+%% license or (at your option) any later version.  The latest version
+%% of this license is in the file
+%%
+%%    http://www.latex-project.org/lppl.txt
+%%
+%% This file is part of the "l3kernel bundle" (The Work in LPPL)
+%% and all files in that bundle must be distributed together.
+%%
+%% The released version of this bundle is available from CTAN.
+%%
+%% -----------------------------------------------------------------------
+%%
+%% The development version of the bundle can be found at
+%%
+%%    http://www.latex-project.org/svnroot/experimental/trunk/
+%%
+%% for those people who are interested.
+%%
+%%%%%%%%%%%
+%% NOTE: %%
+%%%%%%%%%%%
+%%
+%%   Snapshots taken from the repository represent work in progress and may
+%%   not work or may contain conflicting material!  We therefore ask
+%%   people _not_ to put them into distributions, archives, etc. without
+%%   prior consultation with the LaTeX Project Team.
+%%
+%% -----------------------------------------------------------------------
+%%
+%
+% Both the driver and the script need \pkg{expl3}: as the script runs with
+% plain \TeX{}, set up in generic mode.
+%<*driver|script>
+\input expl3-generic\relax
+\GetIdInfo$Id: l3gen-case-data.dtx 4156 2012-08-29 11:10:09Z joseph $
+  {L3 Case data script}
+%</driver|script>
+%
+% The same approach as used in \pkg{DocStrip}: if \cs{documentclass}
+% is undefined then skip the driver, allowing the file to be used directly.
+% This works as the \cs{fi} is only seen if \LaTeX{} is not in use. The odd
+% \cs{jobname} business allows the extraction to work with \LaTeX{} provided
+% an appropriate \texttt{.ins} file is set up.
+%<*gobble>
+\ifx\jobname\relax
+  \let\documentclass\undefined
+\fi
+\begingroup\expandafter\expandafter\expandafter\endgroup
+\expandafter\ifx\csname documentclass\endcsname\relax
+\else
+  \csname fi\endcsname
+%</gobble>
+%
+%<*driver>
+  \documentclass[full]{l3doc}
+  \begin{document}
+    \DocInput{\jobname.dtx}
+  \end{document}
+%<*gobble>
+\fi
+%</gobble>
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \textsf{l3unicode-data} script\\Unicode data script^^A
+%   \thanks{This file describes v\ExplFileVersion,
+%     last revised \ExplFileDate.}^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released \ExplFileDate}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% The Unicode Consortium provide comprehensive data on the standard
+% mapping of characters (or more formally codepoints) when carrying
+% out various different case-changing functions:
+% \begin{itemize}
+%    \item Uppercasing
+%    \item Lowercasing
+%    \item Titlecasing (used for the first codepoint of a word:
+%      may be subtly different to uppercasing)
+%    \item Folding (removing case for comparison purposes: close
+%      but not indentical to lowercasing)
+% \end{itemize}
+% This data is available in machine readable format, such that many of
+% the basics of case changing can be set up on an automated basis.
+%
+% This file provides a script which will read the raw Unicode files
+% and convert the material to a form which can be used by \pkg{expl3}.
+% As the conversions here cover the entire UTF-8 range, this cannot
+% be carried out by pdf\TeX{}: at present, the script works only
+% with Lua\TeX{}.
+%
+% Note that this file is designed such that running \LaTeX{} will typeset
+% the documentation using any engine: the script will be run if the file
+% is processed by plain \TeX{}, specifically the |luatex| command.
+% This process requires the files |CaseFolding.txt|, |SpecialCasing.txt|
+% and |UnicodeData.txt| from the \href{http://www.unicode.org/}^^A
+% {Unicode Consortium website}.
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3unicode-data} Implementation}
+%
+%    \begin{macrocode}
+%<*script>
+%    \end{macrocode}
+%
+% The driver part has loaded \pkg{expl3}: turn on the syntax environment.
+%    \begin{macrocode}
+\ExplSyntaxOn
+%    \end{macrocode}
+%
+% \subsection{Setup}
+%
+% \begin{macro}{\str_case_x:nvF}
+%   One handy variant.
+%    \begin{macrocode}
+\cs_generate_variant:Nn \str_case_x:nnF { nv }
+%    \end{macrocode}
+% \end{macro}
+%
+% The first step is to generate a series of temporary variables to
+% contain the data as it's extracted. This requires a nested loop
+% to give a total of $100$ token lists. Two sets are generated for
+% use in the upper/lower case part of the script.
+%    \begin{macrocode}
+\tl_map_inline:nn { 0123456789 }
+  {
+    \tl_map_inline:nn { 0123456789 }
+      {
+        \tl_new:c { l__unicode_a_ #1 _ ##1 _tl }
+        \tl_new:c { l__unicode_b_ #1 _ ##1 _tl }
+      }
+  }
+%    \end{macrocode}
+%
+% \begin{variable}{\g__unicode_data_ior}
+% \begin{variable}{\g__unicode_result_iow}
+%   Streams for reading and writing the data.
+%    \begin{macrocode}
+\ior_new:N \g__unicode_data_ior
+\iow_new:N \g__unicode_result_iow
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
+%
+% Open the data file for writing.
+%    \begin{macrocode}
+\iow_open:Nn \g__unicode_result_iow { l3unicode-data.def }
+%    \end{macrocode}
+%
+% Write an identification line to the file: the file data here can't be set
+% automatically and so will need to be edited by hand. As such, the data here
+% the standard SVN filler.
+%    \begin{macrocode}
+\iow_now:Nx \g__unicode_result_iow
+  {
+    \exp_not:N \ProvidesExplFile
+      { l3unicode-data.def } ~ { 0000/00/00 } ~ { -1 } ~ { L3~Unicode~data }
+  }
+%    \end{macrocode}
+%
+% \subsection{Case folding}
+%
+% \begin{macro}{\__unicode_parse_line:w}
+% \begin{macro}[aux]{\__unicode_parse_line_auxi:Nw}
+% \begin{macro}[aux]{\__unicode_parse_line_auxii:w}
+% \begin{macro}[aux]{\__unicode_parse_line_auxiii:nw}
+% \begin{macro}[aux]{\__unicode_parse_line_auxiv:nn}
+% \begin{macro}[aux]{\__unicode_parse_line_auxv:wnn}
+%   The format of |CaseFolding.txt| allows for both blank lines and
+%   C-style comments starting with |#|. Thus the first two steps of
+%   the parsing routine are set up to deal with these cases.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line:w #1 \q_stop
+  {
+    \tl_if_blank:nF {#1}
+      { \__unicode_parse_line_auxi:Nw #1 \q_stop }
+  }
+\cs_new_protected:Npn \__unicode_parse_line_auxi:Nw #1#2 \q_stop
+  {
+    \str_if_eq_x:nnF { \exp_not:n {#1} } { \cs_to_str:N \# }
+      { \__unicode_parse_line_auxii:w #1#2 \q_stop }
+  }
+%    \end{macrocode}
+%   For lines actually containing data, there will be four entries separated by
+%   |;| tokens: the hex code for the char itself, which folding regim\'{e}s
+%   the line applies to, the hex code(s) for the folded char and a
+%   description. Of these, we need all but the last one. In the simple
+%   case of core foldings, the mapping is one--one and this information
+%   can be passed directly to the next stage. We also handle the full
+%   mappings (dropping simple ones plus any Turkic variation): an additional
+%   step is needed to parse this case.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxii:w #1 ;~ #2 ; #3 ; #4 \q_stop
+  {
+    \str_if_eq:nnTF {#2} { C }
+      {
+        \__unicode_parse_line_auxiv:nn
+          {#1} { \luatex_Uchar:D "#3 \c_space_tl }
+      }
+      {
+        \str_if_eq:nnT {#2} { F }
+          { \__unicode_parse_line_auxiii:nw {#1} #3 ~ \q_stop }
+      }
+  }
+%    \end{macrocode}
+%   Full folding produces two or three Unicode code points from a single
+%   input char. To deal with this, we split the relevant part of the input
+%   and check how many chars to generate. The entire folding output is
+%   braced so that when read back \TeX{} will see this as a group in our
+%   replacement code.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxiii:nw #1 ~ #2 ~ #3 ~ #4 \q_stop
+  {
+    \__unicode_parse_line_auxiv:nn
+      {#1}
+      {
+        {
+          \luatex_Uchar:D "#2 \c_space_tl
+          \luatex_Uchar:D "#3 \c_space_tl
+          \tl_if_empty:nF {#4}
+            { \luatex_Uchar:D "#4 \c_space_tl }
+        }
+      }
+  }
+%    \end{macrocode}
+%   The final stage of extracting the mapping is to split the various cases
+%   up such that comparison and replacement does not need to check every
+%   character. That is done by taking the charcode modulo $100$: this splits
+%   the list of chars into $100$ much shorter lists. With that done, the
+%   input and output chars are added to the appropriate token lists.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxiv:nn #1#2
+  {
+    \exp_last_unbraced:Nf \__unicode_parse_line_auxv:wnn
+      { \int_eval:n { 1000000 + "#1 } } \q_stop
+      {#1} {#2}
+  }
+%    \end{macrocode}
+%   As the input is read in string mode, there is a need for a rescan
+%   here since \tn{Uchar} requires letters for hexadecimal digits
+%   beyond~$9$.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxv:wnn
+  #1#2#3#4#5#6#7 \q_stop #8#9
+  {
+    \tl_rescan:nn
+      { }
+      {
+        \tl_put_right:cx { l__unicode_a_ #6 _ #7 _tl }
+          {
+             \luatex_Uchar:D "#8 \c_space_tl
+             #9
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% The main loop can now take place, reading the source data and saving all of
+% the information in the token list array.
+%    \begin{macrocode}
+\ior_open:Nn \g__unicode_data_ior { CaseFolding.txt }
+\ior_str_map_inline:Nn \g__unicode_data_ior
+  { \__unicode_parse_line:w #1 \q_stop }
+\ior_close:N \g__unicode_data_ior
+%    \end{macrocode}
+%
+% The write loop is simple: map over the array and write everything to the
+% output. The saved data is also cleared to save a second loop later on when
+% dealing with case mappings. The data could be written here using a shorter
+% form (just the two numbers and the results), but that then requires more
+% complexity in reading back so is avoided.
+%    \begin{macrocode}
+\tl_map_inline:nn { 0123456789 }
+  {
+    \tl_map_inline:nn { 0123456789 }
+      {
+        \iow_now:Nx \g__unicode_result_iow
+          {
+            \tl_const:cn
+              { ~ c__str_fold_ #1 _ ##1 _ tl ~ } ~
+              { ~ \exp_not:v { l__unicode_a_ #1 _ ##1 _tl } ~ }
+          }
+        \tl_clear:c { l__unicode_a_ #1 _ ##1 _tl }
+      }
+  }
+%    \end{macrocode}
+%
+% \subsection{Upper/lower/title casing}
+%
+% Unlike the case folding data, case changing data is split into two parts
+% which we need to combine into a single data structure. There are therefore
+% two parts to this process: first to read the exceptions, then to read the
+% main data and combine it.
+%
+% \begin{macro}^^A
+%   {
+%     \l__unicode_lower_exceptions_tl,
+%     \l__unicode_title_exceptions_tl,
+%     \l__unicode_upper_exceptions_tl
+%    }
+%   There are special cases for lower, title and uppercase changes: these
+%   all get read in to appropriate lists. Exceptions could be saved as
+%   property lists but that would make life a bit more complex with the
+%   titlecase exceptions and wouldn't really gain much (this is after all
+%   \enquote{disposable} data).
+%    \begin{macrocode}
+\tl_new:N \l__unicode_lower_exceptions_tl
+\tl_new:N \l__unicode_title_exceptions_tl
+\tl_new:N \l__unicode_upper_exceptions_tl
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\__unicode_parse_line_auxii:w}
+% \begin{macro}[aux]{\__unicode_parse_line_auxiii:nnn}
+% \begin{macro}[aux]{\__unicode_parse_line_auxiv:nwn}
+% \begin{macro}[aux]{\__unicode_brace:n}
+%   The format of the special cases data is similar to that of the folding
+%   data: as such only some of the parsing is altered. This file has four
+%   important data fields: the char at it's lower, title and uppercase
+%   equivalents. As most of the titlecase exceptions are also uppercase
+%   exceptions, a test is made so that we are only storing truly useful
+%   exceptions for titlecase.
+%    \begin{macrocode}
+\cs_set_protected:Npn \__unicode_parse_line_auxii:w
+  #1 ;~ #2 ;~ #3 ;~ #4 ; #5 \q_stop
+  {
+    \__unicode_parse_line_auxiii:nnn {#1} {#2} { lower }
+    \str_if_eq:nnF {#3} {#4}
+      { \__unicode_parse_line_auxiii:nnn {#1} {#3} { title } }
+    \__unicode_parse_line_auxiii:nnn {#1} {#4} { upper }
+  }
+%    \end{macrocode}
+%   Unlike the folding data, the special cases file always has a value for
+%   each of the three entries. Some of these have only one hex number in.
+%   After a bit of a trick to allow for ease of parsing, we check if there
+%   are at least two numbers for the case-changed char. If there are, then
+%   save the exception. If not, then the value will also be in the main
+%   table and we can ignore it here. There is also a test to see if the
+%   current value is a titlecase exception: they don't need extra braces
+%   for those.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxiii:nnn #1#2#3
+  { \use:n { \__unicode_parse_line_auxiv:nwn {#1} #2 ~ } ~ \q_stop {#3} }
+\cs_new_protected:Npn \__unicode_parse_line_auxiv:nwn #1#2 ~ #3 ~ #4 \q_stop #5
+  {
+    \tl_if_empty:nF {#3}
+      {
+      \str_if_eq:nnTF {#5} { title }
+        { \cs_set_eq:NN \__unicode_brace:n \use:n }
+        { \cs_set:Npn \__unicode_brace:n ##1 { { ##1 } } }
+        \tl_rescan:nn
+          { }
+          {
+            \tl_put_right:cx { l__unicode_ #5 _exceptions_tl }
+              {
+                \luatex_Uchar:D "#1 \c_space_tl
+                {
+                  \__unicode_brace:n
+                    {
+                      \luatex_Uchar:D "#2 \c_space_tl
+                      \luatex_Uchar:D "#3 \c_space_tl
+                      \tl_if_empty:nF {#4}
+                        { \luatex_Uchar:D "#4 \c_space_tl }
+                    }
+                }
+              }
+          }
+      }
+  }
+\cs_new_eq:NN \__unicode_brace:n \use:n
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% Parsing set up, read the special cases file. The input contains both
+% general special cases and ones dependent on context. We only want to read
+% the former, so there is a check for the line that splits the two:
+% at that point, simply stop parsing.
+%    \begin{macrocode}
+\ior_open:Nn \g__unicode_data_ior { SpecialCasing.txt }
+\ior_str_map_inline:Nn \g__unicode_data_ior
+  {
+    \str_if_eq_x:nnTF {#1} { \cs_to_str:N \# \c_space_tl Conditional~Mappings }
+      { \ior_map_break: }
+      { \__unicode_parse_line:w #1 \q_stop }
+  }
+\ior_close:N \g__unicode_data_ior
+%    \end{macrocode}
+%
+% \begin{macro}{\__unicode_parse_line:w}
+% \begin{macro}[aux]{\__unicode_parse_line_auxi:w}
+% \begin{macro}[aux]{\__unicode_parse_line_auxii:nnNn}
+% \begin{macro}[aux]{\__unicode_parse_line_auxiii:wnnNn}
+% \begin{macro}[aux]{\__unicode_parse_line_auxiv:nnNNNn}
+%   Much the same as for the case folding set up: parse the lines of
+%   data. Here, the lines are longer but always have one--one mappings.
+%    \begin{macrocode}
+\cs_set_protected:Npn \__unicode_parse_line:w
+  #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 ; #9 ;
+  { \__unicode_parse_line_auxi:w #1 ; }
+%    \end{macrocode}
+%   With some data items removed, at this stage the hexadecimal
+%   representation of the char is |#1|, the upper case char is |#5|,
+%   the lower case one |#6| and the title case one |#7|. These may or
+%   may not be present and the upper and titlecase values may be
+%   identical. Where there are values for upper/lowercase, they are
+%   saved into the arrays. For titlecase, since the number of exceptions
+%   is small: they are added to the existing list of exceptions we've
+%   already started.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxi:w
+  #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 \q_stop
+  {
+    \tl_if_empty:nF {#5}
+      {
+        \__unicode_parse_line_auxii:nnNn {#1} {#5} a { upper }
+        \str_if_eq:nnF {#5} {#7}
+          {
+            \tl_put_right:Nx \l__unicode_title_exceptions_tl
+              {
+                \luatex_Uchar:D "#1 \c_space_tl
+                \luatex_Uchar:D "#7 \c_space_tl
+              }
+          }
+      }
+    \tl_if_empty:nF {#6}
+      { \__unicode_parse_line_auxii:nnNn {#1} {#6} b { lower } }
+  }
+%    \end{macrocode}
+%   The array structure here is the same as before, except now there
+%   are two separate ones to manage.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxii:nnNn #1#2#3
+  {
+    \exp_last_unbraced:Nf \__unicode_parse_line_auxiii:wnnNn
+      { \int_eval:n { 1000000 + "#1 } } \q_stop
+      {#1} {#2} #3
+  }
+\cs_new_protected:Npn \__unicode_parse_line_auxiii:wnnNn
+  #1#2#3#4#5#6#7 \q_stop #8#9
+  { \__unicode_parse_line_auxiv:nnNNNn {#8} {#9} #6 #7 }
+%    \end{macrocode}
+%   The final test required here is to look for the special cases and where
+%   appropriate use that rather than the one--one mapping value.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxiv:nnNNNn #1#2#3#4#5#6
+  {
+    \tl_rescan:nn
+      { }
+      {
+        \tl_put_right:cx { l__unicode_ #5 _ #3 _ #4 _tl }
+          {
+             \luatex_Uchar:D "#1 \c_space_tl
+             \str_case_x:nvF
+               { \luatex_Uchar:D "#1 \c_space_tl }
+               { l__unicode_ #6 _exceptions_tl }
+               { \luatex_Uchar:D "#2 \c_space_tl }
+          }
+     }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% Everything is set up and so the read loop can take place: this time
+% there are no comment chars to worry about and so normal category
+% codes apply.
+%    \begin{macrocode}
+\ior_open:Nn \g__unicode_data_ior { UnicodeData.txt }
+\ior_map_inline:Nn \g__unicode_data_ior
+  { \__unicode_parse_line:w #1 \q_stop }
+\ior_close:N \g__unicode_data_ior
+%    \end{macrocode}
+%
+% Saving the data uses a single file, with the uppercase array
+% followed by the lowercase one and finally the titlecase exceptions.
+% Note that the naming of the data arrays here may change!
+%    \begin{macrocode}
+\tl_map_inline:nn { 0123456789 }
+  {
+    \tl_map_inline:nn { 0123456789 }
+      {
+        \iow_now:Nx \g__unicode_result_iow
+          {
+            \tl_const:cn
+              { ~ c__unicode_upper_ #1 _ ##1 _tl ~ } ~
+              { ~ \exp_not:v { l__unicode_a_ #1 _ ##1 _tl } ~ }
+          }
+      }
+  }
+\tl_map_inline:nn { 0123456789 }
+  {
+    \tl_map_inline:nn { 0123456789 }
+      {
+        \iow_now:Nx \g__unicode_result_iow
+          {
+            \tl_const:cn
+              { ~ c__unicode_lower_ #1 _ ##1 _tl ~ } ~
+              { ~ \exp_not:v { l__unicode_b_ #1 _ ##1 _tl } ~ }
+          }
+      }
+  }
+\iow_now:Nx \g__unicode_result_iow
+  {
+    \tl_const:Nn
+      \exp_not:N \c__unicode_title_exceptions_tl \c_space_tl
+      { ~ \exp_not:V \l__unicode_title_exceptions_tl \c_space_tl }
+  }
+%    \end{macrocode}
+%
+% Job done, end the \TeX{} run.
+%    \begin{macrocode}
+\iow_close:N \g__unicode_result_iow
+\tex_end:D
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</script>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex
