@@ -230,6 +230,19 @@
 % \end{macro}
 % \end{macro}
 %
+% \subsection{Shared data}
+%
+% There are some data items which can be stored as numbers rather than as
+% literal UTF-8 chars. These could go into the main source files, but as they
+% conceptually go with everything else here this makes more sense. They are
+% safe for use with \pdfTeX{} so are given first.
+%    \begin{macrocode}
+\__unicode_verb:
+\clist_const:Nn \c__tl_after_final_sigma_clist
+  { 0021 , 0022 , 0029 , 002C , 002E , 003A , 003B , 003F , 005D , 007D }
+\__unicode_verb_end:
+%    \end{macrocode}
+%
 % \subsection{\pdfTeX{} support}
 %
 % As \pdfTeX{} does not support UTF-8 input natively, most of the data
@@ -242,7 +255,13 @@
 % The idea here is simple: map over all of the letters of the Latin
 % alphabet and create appropriate token lists, then add all of the rest
 % of the data structures. For case folding, the tokens are all stored as
-% strings.
+% strings. For the lower case letters, to ensure there are always three
+% digits a bit of maths is used.
+% 
+% After the mapping, the small number of fixed data structures that are
+% used for the special case conversions are created. These are mainly empty,
+% but for cases where a match is possible (as the test char is in the \pdfTeX{}
+% range), no-op data is included (as the \emph{output} would be out-of-range).
 %    \begin{macrocode}
 \__unicode_verb:
 \pdftex_if_engine:T
@@ -251,17 +270,19 @@
       \cs_set_protected:Npn \__unicode_tmp:NN #1#2
         {
           \quark_if_recursion_tail_stop:N #1
-          \tl_const:cx
-            {
-              c__str_fold_
-              \exp_after:wN \use_i:nn  \tex_number:D `#1
-              _
-              \exp_after:wN \use_ii:nn \tex_number:D `#1
-              _tl
-            }
-            { \tl_to_str:n { #1#2 } }
+          \exp_after:wN \__unicode_tmp:NNNNNNN
+            \tex_number:D \__int_eval:w `#1 \exp_after:wN \__int_eval_end:
+            \tex_number:D \__int_eval:w 100 + `#2 \__int_eval_end:
+            #1 #2
           \__unicode_tmp:NN
         }
+       \cs_set_protected:Npn \__unicode_tmp:NNNNNNN #1#2#3#4#5#6#7
+         {
+           \tl_const:cx { c__str_fold_ #1 _ #2 _ tl }
+             { \tl_to_str:n { #6#7 } }
+           \tl_const:cn { c__tl_lower_ #1 _ #2 _ tl } { #6#7 }
+           \tl_const:cn { c__tl_upper_ #4 _ #5 _ tl } { #7#6 }
+         }
        \__unicode_tmp:NN
          AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
         \q_recursion_tail ? \q_recursion_stop
@@ -274,8 +295,23 @@
               {
                 \tl_const:cn { c__str_fold_ #1 _ ##1 _ tl } { }
               }
+            \tl_if_exist:cF { c__tl_lower_ #1 _ ##1 _ tl }
+              {
+                \tl_const:cn { c__tl_lower_ #1 _ ##1 _ tl } { }
+              }
+            \tl_if_exist:cF { c__tl_upper_ #1 _ ##1 _ tl }
+              {
+                \tl_const:cn { c__tl_upper_ #1 _ ##1 _ tl } { }
+              }
           }
       }
+    \tl_const:Nn \c__tl_title_exceptions_tl { }
+    \tl_const:Nn \c__tl_std_sigma_tl   { }
+    \tl_const:Nn \c__tl_final_sigma_tl { }
+    \tl_const:Nn \c__tl_accents_lt_tl  { }
+    \tl_const:Nn \c__tl_dot_above_tl   { }
+    \tl_const:Nn \c__tl_dotless_i_tl   { I }
+    \tl_const:Nn \c__tl_dotted_I_tl    { i }
     \tex_endinput:D
   }
 \__unicode_verb_end:
@@ -564,7 +600,9 @@
 %    \begin{macrocode}
 \cs_set_protected:Npn \__unicode_parse_line:w
   #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 ; #9 ;
-  { \__unicode_parse_line_auxi:w #1 ; }
+  {
+    \__unicode_parse_line_auxi:w #1 ;
+  }
 %    \end{macrocode}
 %   With some data items removed, at this stage the hexadecimal
 %   representation of the char is |#1|, the upper case char is |#5|,
@@ -644,9 +682,7 @@
 %
 % Saving the data uses a single file, with the uppercase array
 % followed by the lowercase one and finally the titlecase exceptions.
-% Note that the naming of the data arrays here may change!
 %    \begin{macrocode}
-\if_false:
 \tl_map_inline:nn { 0123456789 }
   {
     \tl_map_inline:nn { 0123456789 }
@@ -654,7 +690,7 @@
         \iow_now:Nx \g__unicode_result_iow
           {
             \tl_const:cn
-              { ~ c__unicode_upper_ #1 _ ##1 _tl ~ } ~
+              { ~ c__tl_upper_ #1 _ ##1 _tl ~ } ~
               { ~ \exp_not:v { l__unicode_a_ #1 _ ##1 _tl } ~ }
           }
       }
@@ -666,7 +702,7 @@
         \iow_now:Nx \g__unicode_result_iow
           {
             \tl_const:cn
-              { ~ c__unicode_lower_ #1 _ ##1 _tl ~ } ~
+              { ~ c__tl_lower_ #1 _ ##1 _tl ~ } ~
               { ~ \exp_not:v { l__unicode_b_ #1 _ ##1 _tl } ~ }
           }
       }
@@ -674,10 +710,44 @@
 \iow_now:Nx \g__unicode_result_iow
   {
     \tl_const:Nn
-      \exp_not:N \c__unicode_title_exceptions_tl \c_space_tl
+      \exp_not:N \c__tl_title_exceptions_tl \c_space_tl
       { ~ \exp_not:V \l__unicode_title_exceptions_tl \c_space_tl }
   }
-\fi:
+%    \end{macrocode}
+%
+% Data for the special cases is now needed. This is mainly a series of simple
+% token lists with appropriate names and content, but there is also one place
+% where a small mapping list is required.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_special_case:nn #1#2
+  {
+    \quark_if_recursion_tail_stop:n {#1}
+    \iow_now:Nx \g__unicode_result_iow
+      {
+        \tl_const:Nn \exp_not:c { c__tl_ #1 _tl } { \luatex_Uchar:D "#2 }
+      }
+    \__unicode_special_case:nn
+  }
+\__unicode_special_case:nn
+  { std_sigma }     { 03C3 }
+  { final_sigma }   { 03C2 }
+  { dotless_i }     { 0131 }
+  { dot_above }     { 0307 }
+  { dotted_I }      { 0130 }
+  \q_recursion_tail {      }
+  \q_recursion_stop
+\iow_now:Nx \g__unicode_result_iow
+  {
+    \tl_const:Nn \exp_not:N \c__tl_accents_lt_tl
+      {
+        \luatex_Uchar:D "00CC
+          { \luatex_Uchar:D "0069 \luatex_Uchar:D "0307 \luatex_Uchar:D "0300 }
+        \luatex_Uchar:D "00CD
+          { \luatex_Uchar:D "0069 \luatex_Uchar:D "0307 \luatex_Uchar:D "0301 }
+        \luatex_Uchar:D "0128
+          { \luatex_Uchar:D "0069 \luatex_Uchar:D "0307 \luatex_Uchar:D "0303 }
+      }
+  }
 %    \end{macrocode}
 %
 % Job done, end the \TeX{} run.
