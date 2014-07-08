@@ -88,6 +88,7 @@ zipopts     = zipopts     or "-v -r -X"
 
 -- Engines for testing
 chkengines = chkengines or {"pdftex", "xetex", "luatex"}
+chkformat  = chkformat  or "latex"
 stdengine  = stdengine  or "pdftex"
 
 -- Enable access to trees outside of the repo
@@ -538,7 +539,10 @@ function runtest (name, engine, hide)
   cp (name .. lvtext, testfiledir, testdir)
   local engine = engine or stdengine
   -- Engine name doesn't include the "la" for LaTeX!
-  local cmd = string.gsub (engine, "tex$", "latex")
+  local cmd = engine
+  if chkformat == "latex" then
+    cmd = string.gsub (engine, "tex$", "latex")
+  end
   local logfile = testdir .. "/" .. name .. logext
   local lvtfile = name .. lvtext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
