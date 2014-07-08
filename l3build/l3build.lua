@@ -795,6 +795,12 @@ function doc ()
     local name = stripext (file)
     -- A couple of short functions to deal with the repeated steps in a
     -- clear way
+    local function glossary (name)
+      run (
+          typesetdir ,
+          "makeindex -s gglo.ist -o " .. name .. ".gls " .. name .. ".glo"
+        )
+    end
     local function index (name)
       run (
           typesetdir ,
@@ -821,10 +827,14 @@ function doc ()
       print (" ! Compilation failed")
       return (errorlevel)
     else
-      for i = 1, 2 do -- Do twice
-        index (name)
-        typeset (file)
+      if fileexists (typesetdir .. "/" .. name .. ".idx") then
+       index (name)
       end
+      if fileexists (typesetdir .. "/" .. name .. ".glo") then
+        glossary (name)
+      end
+      typeset (file)
+      typeset (file)
       cp (name .. ".pdf", typesetdir, ".")
     end
     return (errorlevel)
