@@ -87,9 +87,9 @@ unpackopts  = unpackopts  or ""
 zipopts     = zipopts     or "-v -r -X"
 
 -- Engines for testing
-chkengines = chkengines or {"pdftex", "xetex", "luatex"}
-chkformat  = chkformat  or "latex"
-stdengine  = stdengine  or "pdftex"
+checkengines = checkengines or {"pdftex", "xetex", "luatex"}
+checkformat  = checkformat  or "latex"
+stdengine    = stdengine  or "pdftex"
 
 -- Enable access to trees outside of the repo
 -- As these may be set false, a more elaborate test than normal is needed
@@ -521,12 +521,12 @@ end
 -- Runs a single test: needs the name of the test rather than the .lvt file
 -- One 'test' here may apply to multiple engines
 function runcheck (name, engine, hide)
-  local chkengines = chkengines
+  local checkengines = checkengines
   if engine then
-    chkengines = {engine}
+    checkengines = {engine}
   end
   local errorlevel = 0
-  for _,i in ipairs (chkengines) do
+  for _,i in ipairs (checkengines) do
     runtest (name, i, hide)
     local testname = name .. "." .. i
     local difffile = testdir .. "/" .. testname .. os_diffext
@@ -558,7 +558,7 @@ function runtest (name, engine, hide)
   local engine = engine or stdengine
   -- Engine name doesn't include the "la" for LaTeX!
   local cmd = engine
-  if chkformat == "latex" then
+  if checkformat == "latex" then
     cmd = string.gsub (engine, "tex$", "latex")
   end
   local logfile = testdir .. "/" .. name .. logext
