@@ -37,6 +37,7 @@ function main (target)
         break
       end
     end
+    return (errorlevel)
   end
   if target == "check" then
     dobundles (bundles, "check")
@@ -48,6 +49,7 @@ function main (target)
     local errorlevel = dobundles (ctanbundles, "ctan")
     if errorlevel == 0 then
       for _,i in ipairs (ctanbundles) do
+        print(i)
         cp (i .. ".zip", i, ".")
       end
     end
