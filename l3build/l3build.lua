@@ -363,9 +363,7 @@ end
 -- Set up the check system files: needed for checking one or more tests and
 -- for saving the test files
 function checkinit ()
-  cleandir (localdir)
   cleandir (testdir)
-  cleandir (unpackdir)
   depinstall (checkdeps)
   -- Copy dependencies to the test directory itself: this makes the paths
   -- a lot easier to manage, and is important for dealing with the log and
@@ -395,7 +393,6 @@ function depinstall (deps)
   for _,i in ipairs (deps) do
     print ("Installing dependency: " .. i)
     run (i, "texlua " .. scriptname .. " localinstall")
-    cleandir (unpackdir)
   end
 end
 
@@ -665,6 +662,9 @@ end
 
 -- Remove all generated files
 function clean ()
+  -- To make sure that distribdir never contains any stray subdirs,
+  -- it is entirely removed then recreated rather than simply deleting
+  -- all of the files
   rmdir (distribdir)
   mkdir (distribdir)
   cleandir (localdir)
@@ -687,7 +687,7 @@ end
 
 -- Check commands are defined
 function cmdcheck ()
-  cleandir (localdir)
+  mkdir (localdir)
   cleandir (testdir)
   depinstall (checkdeps)
   local engine = string.gsub (stdengine, "tex$", "latex")
@@ -739,11 +739,9 @@ function ctan (standalone)
   end
   local errorlevel
   if standalone then
-    clean ()
     errorlevel = check ()
     bundle = module
   else
-    bundleclean ()
     errorlevel = allmodules ("bundlecheck")
   end
   if errorlevel == 0 then
@@ -858,8 +856,7 @@ function doc ()
     return (errorlevel)
   end
   -- Set up
-  cleandir (localdir)
-  mkdir (typesetdir)
+  cleandir (typesetdir)
   for _,i in ipairs (sourcefiles) do
     cp (i, ".", typesetdir)
   end
@@ -930,7 +927,7 @@ end
 -- leave only one modules files
 function bundleunpack ()
   mkdir (localdir)
-  mkdir (unpackdir)
+  cleandir (unpackdir)
   for _,i in ipairs (sourcefiles) do
     cp (i, ".", unpackdir)
   end
@@ -988,8 +985,6 @@ function stdmain (target, file, engine)
     elseif target == "install" then
       allmodules ("install")
     elseif target == "unpack" then
-      -- bundleunpack avoids cleaning out the dir, so do it once here
-      cleandir (unpackdir)
       allmodules ("bundleunpack")
     elseif target == "version" then
       version ()
