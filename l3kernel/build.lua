@@ -108,8 +108,6 @@ function main (target, file, engine)
     format (engine)
   elseif target == "install" then
     install ()
-  elseif target == "localinstall" then -- 'Hidden' target
-      localinstall ()
   elseif target == "savetlg" then
     if file then
       savetlg (file, engine)

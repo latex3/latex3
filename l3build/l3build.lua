@@ -392,7 +392,7 @@ end
 function depinstall (deps)
   for _,i in ipairs (deps) do
     print ("Installing dependency: " .. i)
-    run (i, "texlua " .. scriptname .. " localinstall")
+    run (i, "texlua " .. scriptname .. " unpack")
   end
 end
 
@@ -867,7 +867,7 @@ function doc ()
     cp (i, supportdir, localdir)
   end
   depinstall (typesetdeps)
-  localinstall ()
+  unpack ()
   -- Main loop for doc creation
   for _,i in ipairs (typesetfiles) do
     for _,j in ipairs (filelist (".", i)) do
@@ -878,14 +878,6 @@ function doc ()
     end
   end
   return 0
-end
-
--- Unpack then install
-function localinstall ()
-  unpack ()
-  for _,i in ipairs (installfiles) do
-    cp (i, unpackdir, localdir)
-  end
 end
 
 -- Locally install files: only deals with those extracted, not docs etc.
@@ -922,6 +914,9 @@ end
 function unpack ()
   depinstall (unpackdeps)
   bundleunpack ()
+  for _,i in ipairs (installfiles) do
+    cp (i, unpackdir, localdir)
+  end
 end
 
 -- Split off from the main unpack so it can be used on a bundle and not
@@ -1019,8 +1014,6 @@ function stdmain (target, file, engine)
       ctan (true)
     elseif target == "install" then
       install ()
-    elseif target == "localinstall" then -- 'Hidden' target
-      localinstall ()
     elseif target == "savetlg" and testfiledir ~= "" then
       if file then
         savetlg (file, engine)
