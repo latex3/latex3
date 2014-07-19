@@ -864,7 +864,7 @@ function doc ()
     cp (i, ".", typesetdir)
   end
   for _,i in ipairs (typesetsuppfiles) do
-    cp (i, supportdir, localdir)
+    cp (i, supportdir, typesetdir)
   end
   depinstall (typesetdeps)
   unpack ()
