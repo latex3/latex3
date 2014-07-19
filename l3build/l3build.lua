@@ -867,6 +867,7 @@ function doc ()
     cp (i, supportdir, localdir)
   end
   depinstall (typesetdeps)
+  localinstall ()
   -- Main loop for doc creation
   for _,i in ipairs (typesetfiles) do
     for _,j in ipairs (filelist (".", i)) do
