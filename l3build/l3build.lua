@@ -745,7 +745,9 @@ function ctan (standalone)
     errorlevel = allmodules ("bundlecheck")
   end
   if errorlevel == 0 then
+    rmdir (ctandir)
     mkdir (ctandir .. "/" .. bundle)
+    rmdir (tdsdir)
     mkdir (tdsdir)
     if standalone then
       errorlevel = bundlectan ()
