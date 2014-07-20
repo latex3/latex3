@@ -32,6 +32,7 @@ function main (target)
   local function dobundles (bundles, target)
     local errorlevel = 0
     for _,i in ipairs (bundles) do
+      run (i, "texlua " .. scriptname .. " clean")
       errorlevel = run (i, "texlua " .. scriptname .. " " .. target)
       if errorlevel ~= 0 then
         break
