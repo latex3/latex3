@@ -30,7 +30,7 @@ maindir     = maindir or "."
 
 -- Substructure for tests and support files
 testfiledir = testfiledir or "testfiles" -- Set to "" to cancel any tests
-testsupdir  = testsupdir  or testfiledir .. "/support"
+testsuppdir = testsuppdir or testfiledir .. "/support"
 supportdir  = supportdir  or maindir .. "/support"
 
 -- Structure within a development area
@@ -378,9 +378,9 @@ function checkinit ()
   for _,i in ipairs (checkfiles) do
     cp (i, unpackdir, testdir)
   end
-  if direxists (testsupdir) then
-    for _,i in ipairs (filelist (testsupdir)) do
-      cp (i, testsupdir, testdir)
+  if direxists (testsuppdir) then
+    for _,i in ipairs (filelist (testsuppdir)) do
+      cp (i, testsuppdir, testdir)
     end
   end
   for _,i in ipairs (checksuppfiles) do
