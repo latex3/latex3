@@ -524,6 +524,7 @@ function runcheck (name, engine, hide)
   end
   local errorlevel = 0
   for _,i in ipairs (checkengines) do
+    cp (name .. tlgext, testfiledir, testdir)
     runtest (name, i, hide)
     local testname = name .. "." .. i
     local difffile = testdir .. "/" .. testname .. os_diffext
@@ -552,7 +553,6 @@ end
 -- both creating and verifying .tlg files
 function runtest (name, engine, hide)
   cp (name .. lvtext, testfiledir, testdir)
-  cp (name .. tlgext, testfiledir, testdir)
   local engine = engine or stdengine
   -- Engine name doesn't include the "la" for LaTeX!
   local cmd = engine
