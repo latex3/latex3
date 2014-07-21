@@ -441,6 +441,10 @@ function formatlog (logfile, newfile)
     line = string.gsub (line, string.match (logfile, ".*/(.*)%" .. logext .. "$"), "")
     -- Zap ./ at begin of filename
     line = string.gsub (line, "%(%.%/", "(")
+    -- Zap paths if places other than 'here' are accessible
+    if checksearch then
+      line = string.gsub (line, "%(.*/(%w+%.%w+)%s*$", "(../%1")
+    end
     -- XeTeX knows only the smaller set of dimension units
     line = string.gsub (
         line, "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
