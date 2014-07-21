@@ -1,6 +1,6 @@
 #!/usr/bin/env texlua
 
--- Build script for LaTeX3 "l3benchmark" files
+-- Build script for LaTeX3 "l3auxdata" files
 
 -- Identify the bundle and module: the module may be empty in the case where
 -- there is no subdivision
