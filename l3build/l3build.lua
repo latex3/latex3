@@ -20,6 +20,13 @@
 release_date = "2014/07/19"
 release_ver  = "5240"
 
+-- "module" is a deprecated function in Lua 5.2: as we want the name
+-- for other purposes, and it should eventually be 'free', simply
+-- remove the built-in
+if type (module) == "function" then
+  module = nil
+end
+
 -- Ensure the module and bundle exist
 module = module or ""
 bundle = bundle or ""
