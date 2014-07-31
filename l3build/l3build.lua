@@ -31,6 +31,22 @@ end
 module = module or ""
 bundle = bundle or ""
 
+-- Sanity check
+if module == "" and bundle == "" then
+  if string.match (arg[0], ".*l3build%.lua$") then
+    print (
+        "\n" ..
+        "Error: Call l3build using a configuration file, not directly.\n"
+      )
+  else
+    print (
+      "\n" ..
+      "Error: Specify either bundle or module in cofiguration script.\n"
+      )
+  end
+  os.exit (1)
+end
+
 -- Directory structure for the build system
 -- Use Unix-style path separators
 maindir     = maindir or "."
