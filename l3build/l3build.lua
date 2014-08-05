@@ -41,7 +41,7 @@ if module == "" and bundle == "" then
   else
     print (
       "\n" ..
-      "Error: Specify either bundle or module in cofiguration script.\n"
+      "Error: Specify either bundle or module in configuration script.\n"
       )
   end
   os.exit (1)
