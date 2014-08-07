@@ -643,8 +643,8 @@ help = help or function ()
   print " build doc                      - runs all documentation files              "
   print " build install                  - install files in local texmf tree         "
   if module ~= "" and testfiledir ~= "" then
-    print " build savetlg <name>           - save test log for <name> for all engines  "
-    print " build savetlg <name> <engine>  - save test log for <name> for <engine>     "
+    print " build save <name>              - save test log for <name> for all engines  "
+    print " build save <name> <engine>     - save test log for <name> for <engine>     "
   end
   print " build unpack                   - extract packages                          "
   print ""
@@ -928,7 +928,7 @@ function install ()
   end
 end
 
-function savetlg (name, engine)
+function save (name, engine)
   local tlgfile = name .. (engine and ("." .. engine) or "") .. tlgext
   local newfile = name .. "." .. (engine or stdengine) .. logext
   if fileexists (testfiledir .. "/" .. name .. lvtext) then
@@ -1050,9 +1050,9 @@ function stdmain (target, file, engine)
       ctan (true)
     elseif target == "install" then
       install ()
-    elseif target == "savetlg" and testfiledir ~= "" then
+    elseif target == "save" and testfiledir ~= "" then
       if file then
-        savetlg (file, engine)
+        save (file, engine)
       else
         help ()
       end
