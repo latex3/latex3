@@ -674,11 +674,7 @@ function checkall ()
       end
     end
     if errorlevel ~= 0 then
-      print ("\n  Check failed with difference files")
-      for _,i in ipairs (filelist (testdir, "*" .. os_diffext)) do
-        print ("  - " .. testdir .. "/" .. i)
-      end
-      print ("")
+      checkdiff ()
     else
       print ("\n  All checks passed\n")
     end
@@ -687,21 +683,30 @@ function checkall ()
 end
 
 function checklvt (name, engine)
-  local engine = engine or stdengine
   if testexists (name) then
     checkinit ()
     print ("Running checks on " .. name)
-    runcheck (name, engine)
-    if fileexists (testdir .. "/" .. name .. "." .. engine .. os_diffext) then
-      print ("  Check fails with diff file")
-      print (
-        "  " .. testdir .. "/" .. name .. "." .. engine .. os_diffext)
+    local errorlevel = runcheck (name, engine)
+    if errorlevel ~= 0 then
+      checkdiff ()
     else
-      print ("  Check passes")
+      if engine then
+        print ("  Check passes")
+      else
+        print ("\n  All checks passed\n")
+      end
     end
   else
     print ("Test \"" .. name .. "\" not set up!")
   end
+end
+
+function checkdiff ()
+  print ("\n  Check failed with difference files")
+  for _,i in ipairs (filelist (testdir, "*" .. os_diffext)) do
+    print ("  - " .. testdir .. "/" .. i)
+  end
+  print ("")
 end
 
 -- Remove all generated files
