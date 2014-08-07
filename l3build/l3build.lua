@@ -701,6 +701,7 @@ function checklvt (name, engine)
   end
 end
 
+-- A short auxiliary to print the list of differences for check
 function checkdiff ()
   print ("\n  Check failed with difference files")
   for _,i in ipairs (filelist (testdir, "*" .. os_diffext)) do
