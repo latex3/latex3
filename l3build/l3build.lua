@@ -627,30 +627,40 @@ end
 help = help or function ()
   print ""
   if testfiledir ~= "" then
-    print " build check                    - run automated check system                "
+    print " build check                 - run all automated tests for all engines"
   end
   if module ~= "" and testfiledir ~= "" then
-    print " build checklvt <name>          - check one test file <name> for all engines"
-    print " build checklvt <name> <engine> - check one test file <name> for <engine>   "
+    print " build check <name>          - check one test file <name> for all engines"
+    print " build check <name> <engine> - check one test file <name> for <engine>   "
   end
-  print " build clean                    - clean out directory tree                  "
+  print " build clean                 - clean out directory tree                  "
   if next (cmdchkfiles) ~= nil then
-    print " build cmdcheck                 - check commands documented are defined     "
+    print " build cmdcheck              - check commands documented are defined     "
   end
   if module == "" or bundle == "" then
-    print " build ctan                     - create CTAN-ready archive                 "
+    print " build ctan                  - create CTAN-ready archive                 "
   end
-  print " build doc                      - runs all documentation files              "
-  print " build install                  - install files in local texmf tree         "
+  print " build doc                   - runs all documentation files              "
+  print " build install               - install files in local texmf tree         "
   if module ~= "" and testfiledir ~= "" then
-    print " build save <name>              - save test log for <name> for all engines  "
-    print " build save <name> <engine>     - save test log for <name> for <engine>     "
+    print " build save <name>           - save test log for <name> for all engines  "
+    print " build save <name> <engine>  - save test log for <name> for <engine>     "
   end
-  print " build unpack                   - extract packages                          "
+  print " build unpack                - extract packages                          "
   print ""
 end
 
-function check ()
+function check (name, engine)
+  local errorlevel = 0
+  if name then
+    errorlevel = checklvt (name, engine)
+  else
+    errorlevel = checkall ()
+  end
+  return (errorlevel)
+end
+
+function checkall ()
   local errorlevel = 0
   if testfiledir ~= "" and direxists (testfiledir) then
     checkinit ()
@@ -1035,13 +1045,7 @@ function stdmain (target, file, engine)
     elseif target == "doc" then
       doc ()
     elseif target == "check" and testfiledir ~= "" then
-      check ()
-    elseif target == "checklvt" and testfiledir ~= "" then
-      if file then
-        checklvt (file, engine)
-      else
-        help ()
-      end
+      check (file, engine)
     elseif target == "clean" then
       clean ()
     elseif target == "cmdcheck" and next (cmdchkfiles) ~= nil then
