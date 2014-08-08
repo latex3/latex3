@@ -493,7 +493,7 @@ function formatlog (logfile, newfile)
     -- Minor LuaTeX difference: it does not include parentheses in one message
     line = string.gsub (
         line,
-        "(If you're confused by all this, try typing `I}' now.)",
+        "%(If you're confused by all this, try typing `I}' now%.%)",
         "If you're confused by all this, try typing `I}' now."
       )
     -- Minor LuaTeX bug: it prints an extra "'" in one message: add enough
