@@ -45,19 +45,19 @@ unpackdeps  = { }
 -- l3kernel does all of the targets itself
 function help ()
   print ""
-  print " build check                    - run automated check system                "
-  print " build checklvt <name>          - check one test file <name> for all engines"
-  print " build checklvt <name> <engine> - check one test file <name> for <engine>   "
-  print " build clean                    - clean out directory tree                  "
-  print " build cmdcheck                 - check commands documented are defined     "
-  print " build ctan                     - create CTAN-ready archive                 "
-  print " build doc                      - runs all documentation files              "
-  print " build format                   - create a format file using pdfTeX         "
-  print " build format <engine>          - create a format file using <engine>       "
-  print " build install                  - install files in local texmf tree         "
-  print " build savetlg <name>           - save test log for <name> for all engines  "
-  print " build savetlg <name> <engine>  - save test log for <name> for <engine>     "
-  print " build unpack                   - extract packages                          "
+  print " build check                 - run automated check system                "
+  print " build check <name>          - check one test file <name> for all engines"
+  print " build check <name> <engine> - check one test file <name> for <engine>   "
+  print " build clean                 - clean out directory tree                  "
+  print " build cmdcheck              - check commands documented are defined     "
+  print " build ctan                  - create CTAN-ready archive                 "
+  print " build doc                   - runs all documentation files              "
+  print " build format                - create a format file using pdfTeX         "
+  print " build format <engine>       - create a format file using <engine>       "
+  print " build install               - install files in local texmf tree         "
+  print " build save <name>           - save test log for <name> for all engines  "
+  print " build save <name> <engine>  - save test log for <name> for <engine>     "
+  print " build unpack                - extract packages                          "
   print ""
 end
 
@@ -84,17 +84,7 @@ end
 function main (target, file, engine)
   local errorlevel
   if target == "check" then
-    errorlevel = check ()
-      if errorlevel ~=0 then
-        print ("There were errors: checks halted!\n")
-        os.exit (errorlevel)
-      end
-  elseif target == "checklvt"  then
-    if file then
-      checklvt (file, engine)
-    else
-      help ()
-    end
+    check (file, engine)
   elseif target == "clean" then
     clean ()
   elseif target == "cmdcheck" then
@@ -108,9 +98,9 @@ function main (target, file, engine)
     format (engine)
   elseif target == "install" then
     install ()
-  elseif target == "savetlg" then
+  elseif target == "save" then
     if file then
-      savetlg (file, engine)
+      save (file, engine)
     else
       help ()
     end
