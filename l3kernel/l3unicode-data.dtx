@@ -160,6 +160,15 @@
   }
 %    \end{macrocode}
 %
+% \begin{variable}{\l__unicode_compat_seq}
+%   A sequence to hold the list of compatibility chars currently defined by
+%   Unicode. This is needed for both case mapping and case folding (it's
+%   defined by information in the master file |UnicodeData.txt|).
+%    \begin{macrocode}
+\seq_new:N \l__unicode_compat_seq
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\g__unicode_data_ior}
 % \begin{variable}{\g__unicode_result_iow}
 %   Streams for reading and writing the data.
@@ -319,6 +328,338 @@
 \__unicode_verb_end:
 %    \end{macrocode}
 %
+% \subsection{Upper/lower/title casing}
+%
+% Case changing data is split into two parts which we need to combine into a
+% single data structure. There are therefore two parts to this process: first
+% to read the exceptions, then to read the main data and combine it.
+%
+% \begin{macro}^^A
+%   {
+%     \l__unicode_lower_exceptions_tl,
+%     \l__unicode_title_exceptions_tl,
+%     \l__unicode_upper_exceptions_tl
+%   }
+%   There are special cases for lower, title and upper case changes: these
+%   all get read in to appropriate lists. Exceptions could be saved as
+%   property lists but that would make life a bit more complex with the
+%   title case exceptions and wouldn't really gain much (this is after all
+%   \enquote{disposable} data). Note that for our purposes, what Unicode call
+%   title case is stored in the output as `mixed' case.
+%    \begin{macrocode}
+\tl_new:N \l__unicode_lower_exceptions_tl
+\tl_new:N \l__unicode_title_exceptions_tl
+\tl_new:N \l__unicode_upper_exceptions_tl
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\__unicode_parse_line:w}
+% \begin{macro}[aux]{\__unicode_parse_line_auxi:Nw}
+% \begin{macro}[aux]{\__unicode_parse_line_auxii:w}
+% \begin{macro}[aux]{\__unicode_parse_line_auxiii:nnn}
+% \begin{macro}[aux]{\__unicode_parse_line_auxiv:nwn}
+% \begin{macro}[aux]{\__unicode_brace:n}
+%   The file |SpecialCasing.txt| uses C-style comments and may contain
+%   blank lines: those two awkward situations need to be filtered out before
+%   parsing the real data in the line.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line:w #1 \q_stop
+  {
+    \tl_if_blank:nF {#1}
+      { \__unicode_parse_line_auxi:Nw #1 \q_stop }
+  }
+\cs_new_protected:Npn \__unicode_parse_line_auxi:Nw #1#2 \q_stop
+  {
+    \str_if_eq_x:nnF { \exp_not:n {#1} } { \cs_to_str:N \# }
+      { \__unicode_parse_line_auxii:w #1#2 \q_stop }
+  }
+%    \end{macrocode}
+%   Here, |#1| is the code point for the input, |#2| is the lower case mapping,
+%   |#3| the title case mapping and |#4| the upper case mapping: all three
+%   mappings are always given even if they are also in |UnicodeData.txt|.  As
+%   most of the title case exceptions are also upper case exceptions, a test is
+%   made so that we are only storing truly useful exceptions for title case.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxii:w
+  #1 ;~ #2 ;~ #3 ;~ #4 ; #5 \q_stop
+  {
+    \__unicode_parse_line_auxiii:nnn {#1} {#2} { lower }
+    \str_if_eq:nnF {#3} {#4}
+      { \__unicode_parse_line_auxiii:nnn {#1} {#3} { title } }
+    \__unicode_parse_line_auxiii:nnn {#1} {#4} { upper }
+  }
+%    \end{macrocode}
+%   For each mapping there may be one, two or three code points in the
+%   output. After a bit of a trick to allow for ease of parsing, we check if
+%   there are at least two numbers for the case-changed char. If there are,
+%   then save the exception. If not, then the value will also be in the main
+%   table and we can ignore it here. There is also a test to see if the
+%   current value is a title case exception: they don't need extra braces
+%   for those.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxiii:nnn #1#2#3
+  { \use:n { \__unicode_parse_line_auxiv:nwn {#1} #2 ~ } ~ \q_stop {#3} }
+\cs_new_protected:Npn \__unicode_parse_line_auxiv:nwn #1#2 ~ #3 ~ #4 \q_stop #5
+  {
+    \tl_if_empty:nF {#3}
+      {
+        \str_if_eq:nnTF {#5} { title }
+          { \cs_set_eq:NN \__unicode_brace:n \use:n }
+          { \cs_set:Npn \__unicode_brace:n ##1 { { ##1 } } }
+        \tl_rescan:nn
+          { }
+          {
+            \tl_put_right:cx { l__unicode_ #5 _exceptions_tl }
+              {
+                { \luatex_Uchar:D "#1 \c_space_tl }
+                {
+                  \__unicode_brace:n
+                    {
+                      \luatex_Uchar:D "#2 \c_space_tl
+                      \luatex_Uchar:D "#3 \c_space_tl
+                      \tl_if_empty:nF {#4}
+                        { \luatex_Uchar:D "#4 \c_space_tl }
+                    }
+                }
+              }
+          }
+      }
+  }
+\cs_new_eq:NN \__unicode_brace:n \use:n
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% Parsing set up, read the special cases file. The input contains both
+% general special cases and ones dependent on context. We only want to read
+% the former, so there is a check for the line that splits the two:
+% at that point, simply stop parsing.
+%    \begin{macrocode}
+\ior_open:Nn \g__unicode_data_ior { SpecialCasing.txt }
+\ior_str_map_inline:Nn \g__unicode_data_ior
+  {
+    \str_if_eq_x:nnTF {#1} { \cs_to_str:N \# \c_space_tl Conditional~Mappings }
+      { \ior_map_break: }
+      { \__unicode_parse_line:w #1 \q_stop }
+  }
+\ior_close:N \g__unicode_data_ior
+%    \end{macrocode}
+%
+% \begin{macro}{\__unicode_parse_line:w}
+% \begin{macro}[aux]{\__unicode_parse_line_auxi:w}
+% \begin{macro}[aux]{\__unicode_parse_line_auxii:nw}
+% \begin{macro}[aux]{\__unicode_parse_line_auxiii:nw}
+% \begin{macro}[aux]{\__unicode_parse_line_auxiv:nnNn}
+% \begin{macro}[aux]{\__unicode_parse_line_auxv:wnnNn}
+% \begin{macro}[aux]{\__unicode_parse_line_auxvi:nnNNNn}
+%  For parsing |UnicodeData.txt| there is no need to worry about funny lines:
+%  the file has no comments or blank lines. Each line also contains a
+%  one-to-one mapping for the case mappings, so they are easy to deal with.
+%  The slight complication here is that the lines are rather long, so a
+%  multi-part approach is needed to grab the correct parts of the line as
+%  arguments. Of the first set of arguments, the two that needed are |#1|
+%  (the code point) and |#6| (details about the code point which may include
+%  the fact it's a compatibility char).
+%    \begin{macrocode}
+\cs_set_protected:Npn \__unicode_parse_line:w
+  #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 ; #9 ;
+  {
+    \__unicode_parse_line_auxi:w #1 ; #6 ;
+  }
+%    \end{macrocode}
+%   With some data items removed, at this stage the hexadecimal
+%   representation of the char is |#1|, any compatibility char information is
+%   in |#2|, the upper case char is |#6|, the lower case one |#7| and the
+%   title case one |#8|. These may or may not be present and the upper and
+%   title case values may be identical. The compatibility data is first
+%   extracted into a sequence, then the main information is processed.
+%   Where there are values for upper/lower case, they are saved into the
+%   arrays. For title case, since the number of exceptions is small: they are
+%   added to the existing list of exceptions we've already started. Note
+%   that there is a space at the end of |#8| as we are reading the data in
+%   with spaces not ignored: that has to be allowed for to get the equality
+%   test right.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxi:w
+  #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 \q_stop
+  {
+    \use:x
+      { 
+        \__unicode_parse_line_auxii:nw {#1} #2 \tl_to_str:n { <compat> }
+          \c_space_tl \exp_not:N \q_stop
+      }
+    \tl_if_empty:nF {#6}
+      {
+        \__unicode_parse_line_auxiv:nnNn {#1} {#6} a { upper }
+        \str_if_eq:nnF {#6} {#8}
+          {
+            \tl_put_right:Nx \l__unicode_title_exceptions_tl
+              {
+                \luatex_Uchar:D "#1 \c_space_tl
+                \luatex_Uchar:D "#8 \c_space_tl
+              }
+          }
+      }
+    \tl_if_empty:nF {#7}
+      { \__unicode_parse_line_auxiv:nnNn {#1} {#7} b { lower } }
+  }
+%    \end{macrocode}
+%   Compatibility chars have information as the marker |<compat>| then a list
+%   of one to three resulting code points. The one-to-one cases are not an
+%   issue for dealing the the data, so it's only the more complex versions that
+%   need to be recorded.
+%    \begin{macrocode}
+\use:x
+  {
+    \cs_new_protected:Npn \exp_not:N \__unicode_parse_line_auxii:nw
+      ##1##2 \tl_to_str:n { <compat> } ~ ##3 \exp_not:N \q_stop
+  }
+  {
+    \tl_if_blank:nF {#3}
+      {
+        \__unicode_parse_line_auxiii:nw {#1} #3 ~ \q_stop
+      }
+  }
+\cs_new_protected:Npn \__unicode_parse_line_auxiii:nw #1#2 ~ #3 \q_stop
+  {
+    \tl_if_blank:nF {#3}
+      {
+        \seq_put_right:Nn \l__unicode_compat_seq {#1}
+      }
+  }
+%    \end{macrocode}
+%   The array structure here is in two parts, one for upper and one
+%   for lower case mappings.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxiv:nnNn #1#2#3
+  {
+    \exp_last_unbraced:Nf \__unicode_parse_line_auxv:wnnNn
+      { \int_eval:n { 1000000 + "#1 } } \q_stop
+      {#1} {#2} #3
+  }
+\cs_new_protected:Npn \__unicode_parse_line_auxv:wnnNn
+  #1#2#3#4#5#6#7 \q_stop #8#9
+  { \__unicode_parse_line_auxvi:nnNNNn {#8} {#9} #6 #7 }
+%    \end{macrocode}
+%   There are two final tests. First, for entries in the the compatibility list
+%   there is a need to add braces around the chars in case there is any
+%   normalisation during file reading. Second, any special cases have to be
+%   allowed for: these are checked in the exception list built up earlier.
+%   Entries in the latter are always braced, so there is no need to add another
+%   one.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_parse_line_auxvi:nnNNNn #1#2#3#4#5#6
+  {
+    \seq_if_in:NnTF \l__unicode_compat_seq {#1}
+      { \cs_set:Npn \__unicode_brace:n ##1 { { ##1 } } }
+      { \cs_set_eq:NN \__unicode_brace:n \use:n }
+    \tl_rescan:nn
+      { }
+      {
+        \tl_put_right:cx { l__unicode_ #5 _ #3 _ #4 _tl }
+          {
+            \__unicode_brace:n
+              { \luatex_Uchar:D "#1 \c_space_tl }
+            \str_case_x:nvF
+              { \luatex_Uchar:D "#1 \c_space_tl }
+              { l__unicode_ #6 _exceptions_tl }
+              { \__unicode_brace:n { \luatex_Uchar:D "#2 \c_space_tl } }
+          }
+     }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% Everything is set up and so the read loop can take place.
+%    \begin{macrocode}
+\ior_open:Nn \g__unicode_data_ior { UnicodeData.txt }
+\ior_str_map_inline:Nn \g__unicode_data_ior
+  { \__unicode_parse_line:w #1\q_stop }
+\ior_close:N \g__unicode_data_ior
+%    \end{macrocode}
+%
+% Saving the data uses a single file, with the upper case array
+% followed by the lower case one and finally the title case exceptions.
+% The saved data in the \texttt{a} storage array is also cleared to save a
+% second loop later on when dealing with case folding.
+%    \begin{macrocode}
+\tl_map_inline:nn { 0123456789 }
+  {
+    \tl_map_inline:nn { 0123456789 }
+      {
+        \iow_now:Nx \g__unicode_result_iow
+          {
+            \tl_const:cn
+              { ~ c__tl_upper_ #1 _ ##1 _tl ~ } ~
+              { ~ \exp_not:v { l__unicode_a_ #1 _ ##1 _tl } ~ }
+          }
+        \tl_clear:c { l__unicode_a_ #1 _ ##1 _tl }
+      }
+  }
+\tl_map_inline:nn { 0123456789 }
+  {
+    \tl_map_inline:nn { 0123456789 }
+      {
+        \iow_now:Nx \g__unicode_result_iow
+          {
+            \tl_const:cn
+              { ~ c__tl_lower_ #1 _ ##1 _tl ~ } ~
+              { ~ \exp_not:v { l__unicode_b_ #1 _ ##1 _tl } ~ }
+          }
+      }
+  }
+\iow_now:Nx \g__unicode_result_iow
+  {
+    \tl_const:Nn
+      \exp_not:N \c__tl_mixed_exceptions_tl \c_space_tl
+      { ~ \exp_not:V \l__unicode_title_exceptions_tl \c_space_tl }
+  }
+%    \end{macrocode}
+%
+% Data for the special cases is now stored. This is mainly a series of simple
+% token lists with appropriate names and content, but there is also one place
+% where a small mapping list is required.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__unicode_special_case:nn #1#2
+  {
+    \quark_if_recursion_tail_stop:n {#1}
+    \iow_now:Nx \g__unicode_result_iow
+      {
+        \tl_const:Nn \exp_not:c { c__tl_ #1 _tl } { \luatex_Uchar:D "#2 }
+      }
+    \__unicode_special_case:nn
+  }
+\__unicode_special_case:nn
+  { std_sigma }     { 03C3 }
+  { final_sigma }   { 03C2 }
+  { dotless_i }     { 0131 }
+  { dot_above }     { 0307 }
+  { dotted_I }      { 0130 }
+  \q_recursion_tail {      }
+  \q_recursion_stop
+\iow_now:Nx \g__unicode_result_iow
+  {
+    \tl_const:Nn \exp_not:N \c__tl_accents_lt_tl
+      {
+        \luatex_Uchar:D "00CC
+          { \luatex_Uchar:D "0069 \luatex_Uchar:D "0307 \luatex_Uchar:D "0300 }
+        \luatex_Uchar:D "00CD
+          { \luatex_Uchar:D "0069 \luatex_Uchar:D "0307 \luatex_Uchar:D "0301 }
+        \luatex_Uchar:D "0128
+          { \luatex_Uchar:D "0069 \luatex_Uchar:D "0307 \luatex_Uchar:D "0303 }
+      }
+  }
+%    \end{macrocode}
+%
 % \subsection{Case folding}
 %
 % \begin{macro}{\__unicode_parse_line:w}
@@ -327,16 +668,15 @@
 % \begin{macro}[aux]{\__unicode_parse_line_auxiii:nw}
 % \begin{macro}[aux]{\__unicode_parse_line_auxiv:nn}
 % \begin{macro}[aux]{\__unicode_parse_line_auxv:wnn}
-%   The format of |CaseFolding.txt| allows for both blank lines and
-%   C-style comments starting with |#|. Thus the first two steps of
-%   the parsing routine are set up to deal with these cases.
+%   As for |SpecialCasing.txt|, the format of |CaseFolding.txt| allows both
+%   blank lines and C-style comments starting with |#|.
 %    \begin{macrocode}
-\cs_new_protected:Npn \__unicode_parse_line:w #1 \q_stop
+\cs_set_protected:Npn \__unicode_parse_line:w #1 \q_stop
   {
     \tl_if_blank:nF {#1}
       { \__unicode_parse_line_auxi:Nw #1 \q_stop }
   }
-\cs_new_protected:Npn \__unicode_parse_line_auxi:Nw #1#2 \q_stop
+\cs_set_protected:Npn \__unicode_parse_line_auxi:Nw #1#2 \q_stop
   {
     \str_if_eq_x:nnF { \exp_not:n {#1} } { \cs_to_str:N \# }
       { \__unicode_parse_line_auxii:w #1#2 \q_stop }
@@ -351,7 +691,7 @@
 %   mappings (dropping simple ones plus any Turkic variation): an additional
 %   step is needed to parse this case.
 %    \begin{macrocode}
-\cs_new_protected:Npn \__unicode_parse_line_auxii:w #1 ;~ #2 ; #3 ; #4 \q_stop
+\cs_set_protected:Npn \__unicode_parse_line_auxii:w #1 ;~ #2 ; #3 ; #4 \q_stop
   {
     \str_if_eq:nnTF {#2} { C }
       {
@@ -368,18 +708,23 @@
 %   input char. To deal with this, we split the relevant part of the input
 %   and check how many chars to generate. The entire folding output is
 %   braced so that when read back \TeX{} will see this as a group in our
-%   replacement code.
+%   replacement code: the only exceptions occur when the input char is on
+%   the compatibility list, as that would lead to an extra set of braces.
 %    \begin{macrocode}
-\cs_new_protected:Npn \__unicode_parse_line_auxiii:nw #1 ~ #2 ~ #3 ~ #4 \q_stop
+\cs_set_protected:Npn \__unicode_parse_line_auxiii:nw #1 ~ #2 ~ #3 ~ #4 \q_stop
   {
-    \__unicode_parse_line_auxiv:nn
+    \seq_if_in:NnTF \l__unicode_compat_seq {#1}
+      { \cs_set_eq:NN \__unicode_brace:n \use:n }
+      { \cs_set:Npn \__unicode_brace:n ##1 { { ##1 } } }
+    \exp_args:Nno \__unicode_parse_line_auxiv:nn
       {#1}
       {
-        {
-          \luatex_Uchar:D "#2 \c_space_tl
-          \luatex_Uchar:D "#3 \c_space_tl
-          \tl_if_empty:nF {#4}
-            { \luatex_Uchar:D "#4 \c_space_tl }
+        \__unicode_brace:n
+          {
+            \luatex_Uchar:D "#2 \c_space_tl
+            \luatex_Uchar:D "#3 \c_space_tl
+            \tl_if_empty:nF {#4}
+              { \luatex_Uchar:D "#4 \c_space_tl }
         }
       }
   }
@@ -404,13 +749,16 @@
 \cs_new_protected:Npn \__unicode_parse_line_auxv:wnn
   #1#2#3#4#5#6#7 \q_stop #8#9
   {
-     \tl_rescan:nn
+    \seq_if_in:NnTF \l__unicode_compat_seq {#8}
+      { \cs_set:Npn \__unicode_brace:n ##1 { { ##1 } } }
+      { \cs_set_eq:NN \__unicode_brace:n \use:n }
+    \tl_rescan:nn
       { }
       {
         \tl_put_right:cx { l__unicode_a_ #6 _ #7 _tl }
           {
-             \luatex_Uchar:D "#8 \c_space_tl
-             #9
+             \__unicode_brace:n { \luatex_Uchar:D "#8 \c_space_tl }
+             \__unicode_brace:n { #9 }
           }
       }
   }
@@ -468,8 +816,7 @@
 % \end{macro}
 %
 % The write loop is simple: map over the array and write everything to the
-% output. The saved data is also cleared to save a second loop later on when
-% dealing with case mappings. The group used for the temporary stuff in the
+% output. The group used for the temporary stuff in the
 % |.def| file is also closed at this point.
 %    \begin{macrocode}
 \tl_map_inline:nn { 0123456789 }
@@ -482,275 +829,9 @@
             \exp_not:N \__str_tmp:NNn #1 ~ ##1 ~
               { ~ \exp_not:v { l__unicode_a_ #1 _ ##1 _tl } ~ }
           }
-        \tl_clear:c { l__unicode_a_ #1 _ ##1 _tl }
       }
   }
 \iow_now:Nn \g__unicode_result_iow { \group_end: }
-%    \end{macrocode}
-%
-% \subsection{Upper/lower/title casing}
-%
-% Unlike the case folding data, case changing data is split into two parts
-% which we need to combine into a single data structure. There are therefore
-% two parts to this process: first to read the exceptions, then to read the
-% main data and combine it.
-%
-% \begin{macro}^^A
-%   {
-%     \l__unicode_lower_exceptions_tl,
-%     \l__unicode_title_exceptions_tl,
-%     \l__unicode_upper_exceptions_tl
-%    }
-%   There are special cases for lower, title and uppercase changes: these
-%   all get read in to appropriate lists. Exceptions could be saved as
-%   property lists but that would make life a bit more complex with the
-%   titlecase exceptions and wouldn't really gain much (this is after all
-%   \enquote{disposable} data). Note that for our purposes, what Unicode call
-%   title case is stored in the output as `mixed' case.
-%    \begin{macrocode}
-\tl_new:N \l__unicode_lower_exceptions_tl
-\tl_new:N \l__unicode_title_exceptions_tl
-\tl_new:N \l__unicode_upper_exceptions_tl
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux]{\__unicode_parse_line_auxii:w}
-% \begin{macro}[aux]{\__unicode_parse_line_auxiii:nnn}
-% \begin{macro}[aux]{\__unicode_parse_line_auxiv:nwn}
-% \begin{macro}[aux]{\__unicode_brace:n}
-%   The format of the special cases data is similar to that of the folding
-%   data: as such only some of the parsing is altered. This file has four
-%   important data fields: the char at it's lower, title and uppercase
-%   equivalents. As most of the titlecase exceptions are also uppercase
-%   exceptions, a test is made so that we are only storing truly useful
-%   exceptions for titlecase.
-%    \begin{macrocode}
-\cs_set_protected:Npn \__unicode_parse_line_auxii:w
-  #1 ;~ #2 ;~ #3 ;~ #4 ; #5 \q_stop
-  {
-    \__unicode_parse_line_auxiii:nnn {#1} {#2} { lower }
-    \str_if_eq:nnF {#3} {#4}
-      { \__unicode_parse_line_auxiii:nnn {#1} {#3} { title } }
-    \__unicode_parse_line_auxiii:nnn {#1} {#4} { upper }
-  }
-%    \end{macrocode}
-%   Unlike the folding data, the special cases file always has a value for
-%   each of the three entries. Some of these have only one hex number in.
-%   After a bit of a trick to allow for ease of parsing, we check if there
-%   are at least two numbers for the case-changed char. If there are, then
-%   save the exception. If not, then the value will also be in the main
-%   table and we can ignore it here. There is also a test to see if the
-%   current value is a titlecase exception: they don't need extra braces
-%   for those.
-%    \begin{macrocode}
-\cs_new_protected:Npn \__unicode_parse_line_auxiii:nnn #1#2#3
-  { \use:n { \__unicode_parse_line_auxiv:nwn {#1} #2 ~ } ~ \q_stop {#3} }
-\cs_new_protected:Npn \__unicode_parse_line_auxiv:nwn #1#2 ~ #3 ~ #4 \q_stop #5
-  {
-    \tl_if_empty:nF {#3}
-      {
-      \str_if_eq:nnTF {#5} { title }
-        { \cs_set_eq:NN \__unicode_brace:n \use:n }
-        { \cs_set:Npn \__unicode_brace:n ##1 { { ##1 } } }
-        \tl_rescan:nn
-          { }
-          {
-            \tl_put_right:cx { l__unicode_ #5 _exceptions_tl }
-              {
-                \luatex_Uchar:D "#1 \c_space_tl
-                {
-                  \__unicode_brace:n
-                    {
-                      \luatex_Uchar:D "#2 \c_space_tl
-                      \luatex_Uchar:D "#3 \c_space_tl
-                      \tl_if_empty:nF {#4}
-                        { \luatex_Uchar:D "#4 \c_space_tl }
-                    }
-                }
-              }
-          }
-      }
-  }
-\cs_new_eq:NN \__unicode_brace:n \use:n
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% Parsing set up, read the special cases file. The input contains both
-% general special cases and ones dependent on context. We only want to read
-% the former, so there is a check for the line that splits the two:
-% at that point, simply stop parsing.
-%    \begin{macrocode}
-\ior_open:Nn \g__unicode_data_ior { SpecialCasing.txt }
-\ior_str_map_inline:Nn \g__unicode_data_ior
-  {
-    \str_if_eq_x:nnTF {#1} { \cs_to_str:N \# \c_space_tl Conditional~Mappings }
-      { \ior_map_break: }
-      { \__unicode_parse_line:w #1 \q_stop }
-  }
-\ior_close:N \g__unicode_data_ior
-%    \end{macrocode}
-%
-% \begin{macro}{\__unicode_parse_line:w}
-% \begin{macro}[aux]{\__unicode_parse_line_auxi:w}
-% \begin{macro}[aux]{\__unicode_parse_line_auxii:nnNn}
-% \begin{macro}[aux]{\__unicode_parse_line_auxiii:wnnNn}
-% \begin{macro}[aux]{\__unicode_parse_line_auxiv:nnNNNn}
-%   Much the same as for the case folding set up: parse the lines of
-%   data. Here, the lines are longer but always have one--one mappings.
-%    \begin{macrocode}
-\cs_set_protected:Npn \__unicode_parse_line:w
-  #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 ; #9 ;
-  {
-    \__unicode_parse_line_auxi:w #1 ;
-  }
-%    \end{macrocode}
-%   With some data items removed, at this stage the hexadecimal
-%   representation of the char is |#1|, the upper case char is |#5|,
-%   the lower case one |#6| and the title case one |#7|. These may or
-%   may not be present and the upper and titlecase values may be
-%   identical. Where there are values for upper/lowercase, they are
-%   saved into the arrays. For titlecase, since the number of exceptions
-%   is small: they are added to the existing list of exceptions we've
-%   already started.
-%    \begin{macrocode}
-\cs_new_protected:Npn \__unicode_parse_line_auxi:w
-  #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 \q_stop
-  {
-    \tl_if_empty:nF {#5}
-      {
-        \__unicode_parse_line_auxii:nnNn {#1} {#5} a { upper }
-        \str_if_eq:nnF {#5} {#7}
-          {
-            \tl_put_right:Nx \l__unicode_title_exceptions_tl
-              {
-                \luatex_Uchar:D "#1 \c_space_tl
-                \luatex_Uchar:D "#7 \c_space_tl
-              }
-          }
-      }
-    \tl_if_empty:nF {#6}
-      { \__unicode_parse_line_auxii:nnNn {#1} {#6} b { lower } }
-  }
-%    \end{macrocode}
-%   The array structure here is the same as before, except now there
-%   are two separate ones to manage.
-%    \begin{macrocode}
-\cs_new_protected:Npn \__unicode_parse_line_auxii:nnNn #1#2#3
-  {
-    \exp_last_unbraced:Nf \__unicode_parse_line_auxiii:wnnNn
-      { \int_eval:n { 1000000 + "#1 } } \q_stop
-      {#1} {#2} #3
-  }
-\cs_new_protected:Npn \__unicode_parse_line_auxiii:wnnNn
-  #1#2#3#4#5#6#7 \q_stop #8#9
-  { \__unicode_parse_line_auxiv:nnNNNn {#8} {#9} #6 #7 }
-%    \end{macrocode}
-%   The final test required here is to look for the special cases and where
-%   appropriate use that rather than the one--one mapping value.
-%    \begin{macrocode}
-\cs_new_protected:Npn \__unicode_parse_line_auxiv:nnNNNn #1#2#3#4#5#6
-  {
-    \tl_rescan:nn
-      { }
-      {
-        \tl_put_right:cx { l__unicode_ #5 _ #3 _ #4 _tl }
-          {
-             \luatex_Uchar:D "#1 \c_space_tl
-             \str_case_x:nvF
-               { \luatex_Uchar:D "#1 \c_space_tl }
-               { l__unicode_ #6 _exceptions_tl }
-               { \luatex_Uchar:D "#2 \c_space_tl }
-          }
-     }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% Everything is set up and so the read loop can take place: this time
-% there are no comment chars to worry about and so normal category
-% codes apply.
-%    \begin{macrocode}
-\ior_open:Nn \g__unicode_data_ior { UnicodeData.txt }
-\ior_map_inline:Nn \g__unicode_data_ior
-  { \__unicode_parse_line:w #1 \q_stop }
-\ior_close:N \g__unicode_data_ior
-%    \end{macrocode}
-%
-% Saving the data uses a single file, with the uppercase array
-% followed by the lowercase one and finally the titlecase exceptions.
-%    \begin{macrocode}
-\tl_map_inline:nn { 0123456789 }
-  {
-    \tl_map_inline:nn { 0123456789 }
-      {
-        \iow_now:Nx \g__unicode_result_iow
-          {
-            \tl_const:cn
-              { ~ c__tl_upper_ #1 _ ##1 _tl ~ } ~
-              { ~ \exp_not:v { l__unicode_a_ #1 _ ##1 _tl } ~ }
-          }
-      }
-  }
-\tl_map_inline:nn { 0123456789 }
-  {
-    \tl_map_inline:nn { 0123456789 }
-      {
-        \iow_now:Nx \g__unicode_result_iow
-          {
-            \tl_const:cn
-              { ~ c__tl_lower_ #1 _ ##1 _tl ~ } ~
-              { ~ \exp_not:v { l__unicode_b_ #1 _ ##1 _tl } ~ }
-          }
-      }
-  }
-\iow_now:Nx \g__unicode_result_iow
-  {
-    \tl_const:Nn
-      \exp_not:N \c__tl_mixed_exceptions_tl \c_space_tl
-      { ~ \exp_not:V \l__unicode_title_exceptions_tl \c_space_tl }
-  }
-%    \end{macrocode}
-%
-% Data for the special cases is now needed. This is mainly a series of simple
-% token lists with appropriate names and content, but there is also one place
-% where a small mapping list is required.
-%    \begin{macrocode}
-\cs_new_protected:Npn \__unicode_special_case:nn #1#2
-  {
-    \quark_if_recursion_tail_stop:n {#1}
-    \iow_now:Nx \g__unicode_result_iow
-      {
-        \tl_const:Nn \exp_not:c { c__tl_ #1 _tl } { \luatex_Uchar:D "#2 }
-      }
-    \__unicode_special_case:nn
-  }
-\__unicode_special_case:nn
-  { std_sigma }     { 03C3 }
-  { final_sigma }   { 03C2 }
-  { dotless_i }     { 0131 }
-  { dot_above }     { 0307 }
-  { dotted_I }      { 0130 }
-  \q_recursion_tail {      }
-  \q_recursion_stop
-\iow_now:Nx \g__unicode_result_iow
-  {
-    \tl_const:Nn \exp_not:N \c__tl_accents_lt_tl
-      {
-        \luatex_Uchar:D "00CC
-          { \luatex_Uchar:D "0069 \luatex_Uchar:D "0307 \luatex_Uchar:D "0300 }
-        \luatex_Uchar:D "00CD
-          { \luatex_Uchar:D "0069 \luatex_Uchar:D "0307 \luatex_Uchar:D "0301 }
-        \luatex_Uchar:D "0128
-          { \luatex_Uchar:D "0069 \luatex_Uchar:D "0307 \luatex_Uchar:D "0303 }
-      }
-  }
 %    \end{macrocode}
 %
 % Job done, end the \TeX{} run.
