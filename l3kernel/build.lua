@@ -37,7 +37,7 @@ unpackfiles  = {"l3.ins"}
 
 -- No deps other than the test system
 checkdeps   = {maindir .. "/l3build"}
-typesetdeps = { }
+typesetdeps = {maindir .. "/l3packages/xparse"}
 unpackdeps  = { }
 
 -- Some customised functions
