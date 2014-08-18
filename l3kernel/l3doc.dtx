@@ -557,6 +557,7 @@ Do not distribute a modified version of this file.
 %     \tl_replace_all:Nnx,
 %     \tl_replace_all:NVn,
 %     \tl_replace_all:NnV,
+%     \prop_get:NxNTF,
 %     \prop_put:Nxx,
 %     \prop_gput:NVx,
 %   }
@@ -565,6 +566,7 @@ Do not distribute a modified version of this file.
 \cs_generate_variant:Nn \tl_to_str:n { o }
 \cs_generate_variant:Nn \tl_remove_all:Nn   { Nx }
 \cs_generate_variant:Nn \tl_replace_all:Nnn { Nx , Nnx, NV , NnV }
+\cs_generate_variant:Nn \prop_get:NnNTF { Nx }
 \cs_generate_variant:Nn \prop_put:Nnn { Nxx }
 \cs_generate_variant:Nn \prop_gput:Nnn { NVx }
 %    \end{macrocode}
@@ -738,6 +740,33 @@ Do not distribute a modified version of this file.
 \tl_new:N \l_@@_tmpa_tl
 \tl_new:N \l_@@_tmpb_tl
 \int_new:N \l_@@_tmpa_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}[int]{\l_@@_functions_block_prop}
+%   Contains information about the functions to typeset and their
+%   variants.
+%    \begin{macrocode}
+\prop_new:N \l_@@_functions_block_prop
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}[int]{\l_@@_function_clist}
+%   The argument of the \env{function} environment, once it is cleaned
+%   up.
+%    \begin{macrocode}
+\clist_new:N \l_@@_function_clist
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}[int]
+%   {\l_@@_function_name_prefix_tl, \c_@@_backslash_tl}
+%   The \enquote{prefix} of the current function is a backslash if the
+%   function starts with it, and otherwise is empty.  We also need a
+%   string containing a single backslash.
+%    \begin{macrocode}
+\tl_new:N \g_@@_function_name_prefix_tl
+\tl_const:Nx \c_@@_backslash_tl { \iow_char:N \\ }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1118,31 +1147,39 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 % \end{environment}
 %
+% \begin{macro}[aux]{\@@_documentation:, \@@_implementation:}
+%   Change the definition of the \env{variable} environment depending on
+%   whether it is in the documentation or the implementation section.
+%    \begin{macrocode}
+\cs_new:Npn \@@_documentation:
+  {
+    \DeclareDocumentEnvironment { variable } { O{} +v }
+      { \@@_function:nnw {##1} {##2} }
+      { \@@_function_end: }
+  }
+\cs_new:Npn \@@_implementation:
+  {
+    \DeclareDocumentEnvironment { variable } { O{} +v }
+      { \@@_macro:nnw { var , ##1 } {##2} }
+      { \@@_macro_end: }
+  }
+\AtEndOfPackage { \@@_documentation: }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{environment}{documentation}
 % \begin{environment}{implementation}
 % \begin{macro}{\EnableDocumentation, \EnableImplementation}
 % \begin{macro}{\DisableDocumentation, \DisableImplementation}
 %    \begin{macrocode}
-\cs_new:Npn \@@_implementation:
-  {
-    \DeclareDocumentCommand { \variable } { O{} }
-      { \@@_macro:n { var , ##1 } }
-    \cs_set_eq:NN \endvariable \endmacro
-  }
-\cs_new:Npn \@@_docu:
-  {
-    \cs_set_eq:NN \variable \variabledoc
-    \cs_set_eq:NN \endvariable \endvariabledoc
-  }
-\AtEndOfPackage { \@@_docu: }
-\newenvironment { documentation } { \@@_docu: } { }
+\newenvironment { documentation } { \@@_documentation: } { }
 \newenvironment { implementation } { \@@_implementation: } { }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
 \NewDocumentCommand \EnableDocumentation { }
   {
-    \renewenvironment { documentation } { \@@_docu: } { }
+    \renewenvironment { documentation } { \@@_documentation: } { }
   }
 \NewDocumentCommand \EnableImplementation { }
   {
@@ -1216,44 +1253,241 @@ Do not distribute a modified version of this file.
 %
 % \begin{environment}{function}
 % \begin{environment}{variabledoc}
-%   Environment for documenting function(s).  Stick the function names
-%   in a box.  Allow |<...>| to be used as markup for |\meta{...}|.
-%   Ignore spaces and sanitize with catcodes before reading argument.
+%   Environment for documenting function(s).  The two environments are
+%   identical, but simply setting |\variabledoc| equal to |\function|
+%   and |\endvariabledoc| equal to |\endfunction| would lead to bad
+%   error messages.
 %    \begin{macrocode}
 \DeclareDocumentEnvironment { function } { O{} +v }
+  { \@@_function:nnw {#1} {#2} }
+  { \@@_function_end: }
+\DeclareDocumentEnvironment { variabledoc } { O{} +v }
+  { \@@_function:nnw {#1} {#2} }
+  { \@@_function_end: }
+%    \end{macrocode}
+% \end{environment}
+% \end{environment}
+%
+% \begin{macro}[int]{\@@_function:nnw}
+%   \begin{arguments}
+%     \item Key--value list.
+%     \item Comma-separated list of functions; input has already been
+%       sanitised by catcode changes before reading the argument.
+%   \end{arguments}
+% \begin{macro}[int]{\@@_function_end:}
+%   Make sure any paragraph is finished, and similar safe practices at
+%   the beginning of an environment which will typeset material.
+%   Initialize some variables.  Parse the key--value list.  Clean up the
+%   list of functions, then go through them to extract some data.  After
+%   this, typeset the function names in the coffin
+%   \cs{l_@@_names_coffin} and measure it to know if it fits in the
+%   margin.  Finally, start a vertical coffin for the main part of the
+%   environment.  This coffin stops when the environment ends, then all
+%   the pieces are assembled into a single coffin, which is typeset.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_function:nnw #1#2
+  {
+    \@@_function_typeset_start:
+    \@@_function_init:
+    \keys_set:nn { l3doc/function } {#1}
+    \@@_verb_get_clist:nN {#2} \l_@@_function_clist
+    \@@_function_parse:
+    \@@_function_typeset:
+    \@@_function_descr_start:w
+  }
+\cs_new_protected_nopar:Npn \@@_function_end:
+  {
+    \@@_function_descr_stop:
+    \@@_function_assemble:
+    \@@_function_typeset_stop:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]
+%   {\@@_function_typeset_start:, \@@_function_typeset_stop:}
+%   Before performing any assignment, close the last paragraph, and set
+%   up the typesetting scene.  Eventually, the code typesets a coffin at
+%   the current position.  After that, end a paragraph and allow a page
+%   break.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_function_typeset_start:
   {
     \par \bigskip \noindent
     \phantomsection
-
+  }
+\cs_new_protected_nopar:Npn \@@_function_typeset_stop:
+  {
+    \par
+    \allowbreak
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_function_init:}
+%   Allow |<...>| to be used as markup for |\meta{...}|.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_function_init:
+  {
     \coffin_clear:N \l_@@_descr_coffin
     \box_gclear:N \g_@@_syntax_box
     \coffin_clear:N \l_@@_syntax_coffin
     \coffin_clear:N \l_@@_names_coffin
-
     \bool_set_false:N \l_@@_meta_TF_bool
     \bool_set_false:N \l_@@_meta_pTF_bool
     \bool_set_false:N \l_@@_meta_EXP_bool
     \bool_set_false:N \l_@@_meta_rEXP_bool
-
-    \keys_set:nn { l3doc/function } {#1}
-
     \char_set_active:Npn < ##1 > { \meta {##1} }
-
-    \tl_set:Nx \l_@@_tmpa_tl { \tl_to_str:n {#2} }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_verb_get_clist:nN}
+%   The argument is given with catcodes $10$ (space), $12$ (other) and
+%   $13$ (active).  Turn active characters to other.  Remove any
+%   \enquote{\%} character at the beginning of a line.  Remove tabs and
+%   newlines.  The result is a comma list of function/macro names.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_verb_get_clist:nN #1#2
+  {
+    \tl_set:Nx \l_@@_tmpa_tl { \tl_to_str:n {#1} }
+    \tl_remove_all:Nx \l_@@_tmpa_tl
+      { \iow_char:N \^^M \iow_char:N \% }
+    \tl_remove_all:Nx \l_@@_tmpa_tl { \tl_to_str:n { ^ ^ A } }
     \tl_remove_all:Nx \l_@@_tmpa_tl { \iow_char:N \^^I }
     \tl_remove_all:Nx \l_@@_tmpa_tl { \iow_char:N \^^M }
-    \tl_remove_all:Nx \l_@@_tmpa_tl { \iow_char:N \    }
-    \tl_remove_all:Nx \l_@@_tmpa_tl { \iow_char:N \%   }
-    \tl_replace_all:Nxn \l_@@_tmpa_tl { \iow_char:N \~ } { ~ }
-    \exp_args:NV \@@_function:n \l_@@_tmpa_tl
+    \clist_set:NV #2 \l_@@_tmpa_tl
   }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]
+%   {
+%     \@@_function_parse:,
+%     \@@_function_parse_one:n,
+%     \@@_function_parse_cs:N,
+%     \@@_function_parse_cs_aux:nnn
+%   }
+%   The idea here is to populate \cs{l_@@_functions_block_prop} with
+%   information about the functions being typeset and their variants.
+%   The property list uses a specific format: the keys contained are the
+%   function \enquote{names} (stripped of signature) with values
+%   specified by a comma-separated list containing two brace groups per
+%   item:
+%   \begin{center}
+%     |>  {my_function}  =>  {| \Arg{Nargs_1} \Arg{sig_1} |,| \Arg{Nargs_2} \Arg{sig_2} |, ... }|
+%   \end{center}
+%   This somewhat arcane syntax is chosen to distinguish between all
+%   variants of control sequence that may be being documented
+%   here.  (With or without \pkg{expl3} function syntax.)
+%
+%   If |#1| does not start with |\| then the \enquote{name prefix} is
+%   empty and we store |{-1}{}| as the value for the key |#1|, not
+%   bothering with variants.  If instead |#1| starts with |\| then the
+%   \enquote{name prefix} is |\| and we omit the first character of |#1|
+%   subsequently.  If the next character is |:| then we have one of the
+%   weird functions named |\::N| and so on, and we ignore variants,
+%   putting |{-1}{}| directly as the value for the key |::N|.
+%   Otherwise, we have a regular control sequence, which we decompose
+%   using \cs{@@_function_parse_cs:N}.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_function_parse:
   {
-    \vcoffin_set_end:
+    \tl_gclear:N \g_@@_macro_tl
+    \clist_map_function:NN
+      \l_@@_function_clist \@@_function_parse_one:n
+  }
+\cs_new_protected:Npn \@@_function_parse_one:n #1
+  {
+    \exp_last_unbraced:Nno \tl_if_head_eq_charcode:nNTF {#1}
+      \c_@@_backslash_tl
+      {
+        \tl_gset_eq:NN \g_@@_function_name_prefix_tl \c_@@_backslash_tl
+        \exp_args:No \tl_if_head_eq_charcode:nNTF { \use_none:n #1 } :
+          {
+            \prop_put:Nxx \l_@@_functions_block_prop
+              { \use_none:n #1 } { {-1} { } }
+          }
+          {
+            \exp_args:Nc \@@_function_parse_cs:N
+              { \use_none:n #1 }
+          }
+      }
+      {
+        \tl_gclear:N \g_@@_function_name_prefix_tl
+        \prop_put:Nnx \l_@@_functions_block_prop {#1} { {-1} { } }
+      }
+  }
+\cs_new_protected:Npn \@@_function_parse_cs:N #1
+  {
+    \use:x
+      {
+        \@@_function_parse_cs_aux:nnn
+          { \__cs_get_function_name:N #1 }
+          { \__cs_count_signature:N #1 }
+          { \__cs_get_function_signature:N #1 }
+      }
+  }
+\cs_new_protected:Npn \@@_function_parse_cs_aux:nnn #1#2#3
+  {
+    \prop_get:NnNF
+      \l_@@_functions_block_prop {#1} \l_@@_tmpb_tl
+      { \tl_set:Nn \l_@@_tmpb_tl { \use_none:n } }
+    \prop_put:Nnx \l_@@_functions_block_prop
+      {#1} { \l_@@_tmpb_tl , {#2} {#3} }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_function_typeset:}
+%   Typeset in the coffin \cs{l_@@_names_coffin} the functions listed in
+%   \cs{l_@@_functions_block_prop} and the relevant dates, then set
+%   \cs{l_@@_long_name_bool} to be \texttt{true} if this coffin is
+%   larger than the available width in the margin.  The function
+%   \cs{@@_typeset_names:} is quite involved hence given later.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_function_typeset:
+  {
+    \dim_zero:N \l_@@_trial_width_dim
+    \hcoffin_set:Nn \l_@@_names_coffin { \@@_typeset_names: }
+    \dim_set:Nn \l_@@_trial_width_dim
+      { \box_wd:N \l_@@_names_coffin }
+    \bool_set:Nn \l_@@_long_name_bool
+      { \dim_compare_p:nNn \l_@@_trial_width_dim > \marginparwidth }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]
+%   {\@@_function_descr_start:w, \@@_function_descr_stop:}
+%   The last step in \cs{@@_function:nnw} (the beginning of a
+%   \env{function} environment) is to open a coffin which will capture
+%   the description of the function, namely the body of the
+%   \env{function} environment.  This is closed by \cs{@@_function_end:}
+%   (the end of a \env{function} environment).
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_function_descr_start:w
+  {
+    \vcoffin_set:Nnw \l_@@_descr_coffin { \textwidth }
+      \noindent \ignorespaces
+  }
+\cs_new_protected_nopar:Npn \@@_function_descr_stop:
+  { \vcoffin_set_end: }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_function_assemble:}
+%   The box \cs{g_@@_syntax_box} contains the contents of the syntax
+%   environment if it was used.  Now that we have all the pieces, join
+%   together the syntax coffin, the names coffin, and the description
+%   coffin.  The relative positions depend on whether the names coffin
+%   fits in the margin.  Then typeset the combination.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_function_assemble:
+  {
     \hcoffin_set:Nn  \l_@@_syntax_coffin
       { \box_use:N \g_@@_syntax_box }
-%    \end{macrocode}
-% \cs{g_@@_syntax_box} is filled by the syntax environment.
-%    \begin{macrocode}
     \bool_if:NTF \l_@@_long_name_bool
       {
         \coffin_join:NnnNnnnn
@@ -1285,71 +1519,28 @@ Do not distribute a modified version of this file.
           \l_@@_output_coffin {l} {t}
           \l_@@_names_coffin  {r} {t}
           {-\marginparsep} {0pt}
-
         \coffin_typeset:Nnnnn \l_@@_output_coffin
           {\l_@@_syntax_coffin-l} {\l_@@_syntax_coffin-T}
           {0pt} {0pt}
       }
-    \par
-    \allowbreak
   }
-\cs_set_eq:NN \variabledoc \function
-\cs_set_eq:NN \endvariabledoc \endfunction
 %    \end{macrocode}
+% \end{macro}
 %
-%
-% \begin{macro}{\@@_function:n}
-%   \begin{arguments}
-%     \item Comma-separated list of functions; input has already been
-%       sanitised by catcode changes before reading the argument.
-%   \end{arguments}
+% \begin{macro}[aux]{\@@_typeset_names:}
+%   This function builds the \cs{l_@@_names_coffin} by typesetting the
+%   function names (with variants) and the relevant dates in a
+%   \env{tabular} environment.  The use of rules \tn{toprule},
+%   \tn{midrule} and \tn{bottomrule} requires whatever lies between the
+%   last |\\| and the rule to be expandable, making our lives a bit
+%   complicated.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_function:n #1
+\cs_new_protected_nopar:Npn \@@_typeset_names:
   {
-    \tl_set:Nn \l_@@_function_input_tl {#1}
-
-    \dim_zero:N \l_@@_trial_width_dim
-    \hcoffin_set:Nn \l_@@_names_coffin { \@@_function_typeset:n {#1} }
-    \dim_set:Nn \l_@@_trial_width_dim
-      { \box_wd:N \l_@@_names_coffin }
-
-    \bool_set:Nn \l_@@_long_name_bool
-      { \dim_compare_p:nNn \l_@@_trial_width_dim > \marginparwidth }
-
-    \vcoffin_set:Nnw \l_@@_descr_coffin {\textwidth}
-      \noindent\ignorespaces
-  }
-\cs_new:Npn \@@_function_typeset:n #1
-  {
-    \tl_gclear:N \g_@@_macro_tl
-
-    % populate |\l_@@_functions_block_prop| with info on the functions
-    % present:  with a hack as we don't currently read verbatim and that
-    % means that |\q_recursion_tail| is an issue!
-    \str_if_eq:nnTF {#1} { \q_recursion_tail }
-      {
-        \prop_put:Nxx \l_@@_functions_block_prop
-          { \cs_to_str:N \q_recursion_tail }
-          { { -1 } { } }
-      }
-      {
-        \clist_map_inline:nn {#1}
-          {
-            \exp_args:Nnx \tl_if_head_eq_charcode:nNTF
-              {##1} { \iow_char:N \\ }
-              {
-                \exp_args:Nc \@@_parse_functions:n
-                  { \use_none:n ##1 }
-              }
-              { \@@_parse_functions:n {##1} }
-          }
-      }
-
     \small\ttfamily
-    \begin{tabular}{ @{} l @{} r @{} }
+    \begin{tabular} { @{} l @{} r @{} }
       \toprule
-      \prop_map_function:NN \l_@@_functions_block_prop
-        \@@_typeset_functions:nn
+      \@@_typeset_functions:
       \@@_typeset_dates:
       \bottomrule
     \end{tabular}
@@ -1358,87 +1549,32 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_parse_functions:n}
-%   The idea here is to populate \cs{l_@@_functions_block_prop} with
-%   information about the functions being typeset and their variants.
-%   The property list uses a specific format: the keys contained are the
-%   function \enquote{names} (stripped of signature) with values
-%   specified by a comma-separated list containing two brace groups per
-%   item:
-%   \begin{center}
-%     |>  {my_function}  =>  {| \Arg{Nargs_1} \Arg{sig_1} |,| \Arg{Nargs_2} \Arg{sig_2} |, ... }|
-%   \end{center}
-%   This somewhat arcane syntax is chosen to distinguish between all
-%   variants of control sequence that may be being documented
-%   here.  (With or without \pkg{expl3} function syntax.)
-%    \begin{macrocode}
-\prop_new:N \l_@@_functions_block_prop
-\cs_new:Npn \@@_parse_functions:n #1
-  {
-    \exp_args:Nxx \tl_if_head_eq_charcode:nNTF
-      { \token_to_str:N #1 } { \cs_to_str:N \\ }
-      { % TODO global?
-        \tl_gset_eq:NN \l_@@_function_name_prefix_tl \@backslashchar
-        % for the weird functions named |\::N| and so on:
-        \exp_args:Nx \tl_if_head_eq_charcode:nNTF { \cs_to_str:N #1 } :
-          {
-            % again, no variants:
-            \prop_put:Nxx \l_@@_functions_block_prop
-              { \cs_to_str:N #1 } { {-1} {} }
-          }
-          {
-            % finally, for regular old csnames:
-            \exp_args:NNf \prop_get:NnNTF
-              \l_@@_functions_block_prop
-              { \__cs_get_function_name:N #1 } \l_@@_tmpb_tl
-              {
-                \prop_put:Nxx \l_@@_functions_block_prop
-                  { \__cs_get_function_name:N #1 }
-                  {
-                    \l_@@_tmpb_tl ,
-                    { \__cs_count_signature:N #1 }
-                    { \__cs_get_function_signature:N #1 }
-                  }
-              }
-              {
-                \prop_put:Nxx \l_@@_functions_block_prop
-                  { \__cs_get_function_name:N #1 }
-                  {
-                    {\__cs_count_signature:N #1}
-                    {\__cs_get_function_signature:N #1}
-                  }
-              }
-          }
-      }
-%    \end{macrocode}
-% False branch for keys and things that aren't actually csnames:
-%    \begin{macrocode}
-      {
-        % for now don't bother splitting into variants:
-        \tl_gclear:N \l_@@_function_name_prefix_tl
-        \prop_put:Nxx \l_@@_functions_block_prop
-          { \tl_to_str:n {#1} } { {-1} {} }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{environment}
-% \end{environment}
-%
-%
-% \begin{macro}{\@@_typeset_functions:nn}
+% \begin{macro}[aux]{\@@_typeset_functions:}
+% \begin{macro}[aux]{\@@_typeset_functions_auxi:nn}
 %   \begin{arguments}
 %     \item Function/macro/variable name (stripped of signature in the
 %       first case, if any)
 %     \item Comma-list containing information about the signature
 %       variants being documented (if any)
 %   \end{arguments}
+%   The mapping to \cs{l_@@_functions_block_prop} cannot use
+%   \cs{prop_map_inline:Nn} because the code following |\\| would not be
+%   expandable, thus breaking \tn{bottomrule}.  The loop goes as
+%   follows: store the list of variants in \cs{l_@@_variants_clist},
+%   remove the first, which will be displayed more prominently, and
+%   reconstruct its actual name, passing it to the
+%   \cs{@@_typeset_functions_auxii:N} auxiliary.
 %    \begin{macrocode}
-\cs_new:Npn \@@_typeset_functions:nn #1#2
+\cs_new_protected_nopar:Npn \@@_typeset_functions:
+  {
+    \prop_map_function:NN \l_@@_functions_block_prop
+      \@@_typeset_functions_auxi:nn
+  }
+\cs_new_protected:Npn \@@_typeset_functions_auxi:nn #1#2
   {
     \clist_gset:Nn \l_@@_variants_clist {#2} % TODO: global?
     \clist_gpop:NN \l_@@_variants_clist \l_@@_tmpb_tl
-    \exp_args:Nc \@@_typeset_functions_aux:N
+    \exp_args:Nc \@@_typeset_functions_auxii:N
       {
         #1
         \int_compare:nT
@@ -1450,13 +1586,19 @@ Do not distribute a modified version of this file.
       }
     \\
   }
-\cs_new:Npn \@@_typeset_functions_aux:N #1
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_typeset_functions_auxii:N}
+%    \begin{macrocode}
+\cs_new:Npn \@@_typeset_functions_auxii:N #1
   {
     \bool_if:NT \l_@@_meta_pTF_bool
       {
         \tl_set:Nx \l_@@_pTF_name_tl
           {
-            \l_@@_function_name_prefix_tl
+            \g_@@_function_name_prefix_tl
             \@@_predicate_from_base:N #1
           }
         \@@_special_main_index:o { \l_@@_pTF_name_tl }
@@ -1467,7 +1609,7 @@ Do not distribute a modified version of this file.
       }
     \tl_set:Nx \l_@@_tmpa_tl
       {
-        \l_@@_function_name_prefix_tl
+        \g_@@_function_name_prefix_tl
         \cs_to_str:N #1
         \bool_if:NT \l_@@_meta_TF_bool { \tl_to_str:n {TF} }
       }
@@ -1503,20 +1645,20 @@ Do not distribute a modified version of this file.
     \tl_gset:Nx \l_@@_function_sig_tl % TODO: global?
       { \__cs_get_function_signature:N #1 }
     \tl_gset:Nx \g_@@_macro_tl
-      { \l_@@_function_name_prefix_tl \l_@@_function_name_tl }
+      { \g_@@_function_name_prefix_tl \l_@@_function_name_tl }
 
     \@@_typeset_function_basename:N #1
     \bool_if:NT \l_@@_meta_TF_bool { \@@_typeset_TF: }
     \@@_typeset_expandability:
     \clist_if_empty:NF \l_@@_variants_clist
-      { \@@_typeset_variants: }
+      { \@@_typeset_variant_list: }
     \bool_if:NT \g_@@_full_bool { \@@_label_function:N #1 }
   }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
 \cs_new:Npn \@@_typeset_function_basename:N #1
-  { \l_@@_function_name_prefix_tl \cs_to_str:N #1 }
+  { \g_@@_function_name_prefix_tl \cs_to_str:N #1 }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
@@ -1537,7 +1679,7 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-\cs_new_nopar:Npn \@@_typeset_variants:
+\cs_new_nopar:Npn \@@_typeset_variant_list:
   {
     \\
     \@@_typeset_aux:n \g_@@_macro_tl :
@@ -1570,7 +1712,7 @@ Do not distribute a modified version of this file.
 \cs_new:Npn \@@_label_function:N #1
   {
     \tl_set:Nx \l_@@_tmpa_tl
-      { \l_@@_function_name_prefix_tl \cs_to_str:N #1 }
+      { \g_@@_function_name_prefix_tl \cs_to_str:N #1 }
     \tl_replace_all:Nxn \l_@@_tmpa_tl { \iow_char:N \_ } { / }
     \tl_replace_all:Nxn \l_@@_tmpa_tl { \iow_char:N \\ } {   }
     \exp_args:Nx \label {doc/function//\l_@@_tmpa_tl}
@@ -1662,11 +1804,7 @@ Do not distribute a modified version of this file.
 %
 % \subsubsection{The \env{macro} environment}
 %
-% \begin{environment}{macro}
-%   We want to extend the old definition to allow comma-separated lists
-%   of macros, rather than one at a time.
-%
-%   Keyval:
+% Keyval for the \env{macro} environment.
 %    \begin{macrocode}
 \keys_define:nn { l3doc/macro }
   {
@@ -1691,9 +1829,18 @@ Do not distribute a modified version of this file.
   }
 %    \end{macrocode}
 %
+% \begin{environment}{macro}
 %    \begin{macrocode}
-\RenewDocumentCommand { \macro } { O{} } { \@@_macro:n {#1} }
-\cs_new_protected:Npn \@@_macro:n #1
+\DeclareDocumentEnvironment { macro } { O{} +v }
+  { \@@_macro:nnw {#1} {#2} }
+  { \@@_macro_end: }
+%    \end{macrocode}
+% \end{environment}
+%
+% We want to extend the old definition to allow comma-separated lists of
+% macros, rather than one at a time.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_macro:nnw #1#2
   {
     \int_incr:N \l_@@_nested_macro_int
 
@@ -1711,33 +1858,15 @@ Do not distribute a modified version of this file.
 
     \cs_set_eq:NN \testfile \@@_print_testfile:n
 
-    \peek_meaning_ignore_spaces:NTF \c_group_begin_token
-      {
-        \group_begin:
-          \MakePrivateLetters
-          \char_set_catcode_letter:N \\
-          \char_set_catcode_ignore:N \ % space
-          \char_set_catcode_ignore:N \^^M
-          \char_set_catcode_ignore:N \^^I
-          \@@_macro_aux:n
-      }
-      {
-        \@@_macro_verbatim:w
-      }
-  }
-\NewDocumentCommand { \@@_macro_verbatim:w } {v}
-  {
-    \group_begin: % pretty useless
-    \@@_macro_aux:n {#1}
+    \@@_verb_get_clist:nN {#2} \l_@@_macro_input_clist
+    \@@_macro_aux:
   }
 %    \end{macrocode}
 % After changing the catcodes, parse the arguments:
 %    \begin{macrocode}
 \clist_new:N \l_@@_macro_input_clist
-\cs_new:Npn \@@_macro_aux:n #1
+\cs_new_protected_nopar:Npn \@@_macro_aux:
   {
-    \group_end:
-    \clist_set:Nn \l_@@_macro_input_clist {#1}
     \bool_if:NTF \l_@@_macro_pTF_bool
       {
         \clist_map_inline:Nn \l_@@_macro_input_clist
@@ -1757,18 +1886,20 @@ Do not distribute a modified version of this file.
   }
 %    \end{macrocode}
 %
-% \end{environment}
-%
 %    \begin{macrocode}
 \cs_new:Npn \@@_predicate_from_base:N #1
   {
     \__cs_get_function_name:N #1 _p:
     \__cs_get_function_signature:N #1
   }
-\cs_new:Npn \@@_predicate_from_base:w #1 : #2 \q_nil
+\group_begin:
+\char_set_lccode:nn { `; } { `: }
+\tl_to_lowercase:n
   {
-    #1 _p: #2
+    \group_end:
+    \cs_new:Npn \@@_predicate_from_base:w #1 ; #2 \q_nil
   }
+      { \tl_to_str:n { #1 _p: #2 } }
 %    \end{macrocode}
 %
 % \begin{macro}{\@@_macro_single:n}
@@ -1786,7 +1917,7 @@ Do not distribute a modified version of this file.
   {
     \int_incr:N \l_@@_macro_int
 
-    \tl_set:Nx \l_@@_at_replaced_macro_tl { \token_to_str:N #1 }
+    \tl_set:Nn \l_@@_at_replaced_macro_tl {#1}
     \@@_replace_at_at:N \l_@@_at_replaced_macro_tl
     \tl_set_eq:NN \saved@macroname \l_@@_at_replaced_macro_tl
 
@@ -2042,7 +2173,7 @@ Do not distribute a modified version of this file.
 %   go inline in the definition of \cs{endmacro}, but somehow the |#|
 %   doesn't go through some \LaTeXe{} internals.
 %    \begin{macrocode}
-\cs_gset:Npn \endmacro
+\cs_new:Npn \@@_macro_end:
   {
     \int_compare:nT { \l_@@_nested_macro_int < 1 }
       {
