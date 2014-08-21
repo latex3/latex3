@@ -661,6 +661,34 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[aux,rEXP]
+%   {\@@_signature_base_form:n, \@@_signature_base_form_aux:n}
+%   Expands to the \enquote{base form} of the signature.  For instance,
+%   given |noxcfvV| it would obtain |nnnNnnn|, or given |ow| it would
+%   obtain |nw|.  The loop stops at the first token that is not
+%   recognized.
+%    \begin{macrocode}
+\cs_new:Npn \@@_signature_base_form:n #1
+  { \@@_signature_base_form_aux:n #1 \c_empty_tl }
+\cs_new:Npn \@@_signature_base_form_aux:n #1
+  {
+    \str_case:nnTF {#1}
+      {
+        { N } { N }
+        { c } { N }
+        { n } { n }
+        { o } { n }
+        { f } { n }
+        { x } { n }
+        { V } { n }
+        { v } { n }
+      }
+      { \@@_signature_base_form_aux:n }
+      {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[aux]{\@@_predicate_from_base:N}
 %   Get predicate from a function's base name.  This \enquote{works} for
 %   functions with no signature too.
@@ -954,6 +982,16 @@ Do not distribute a modified version of this file.
 \bool_new:N \g_@@_typeset_implementation_bool
 \bool_set_true:N \g_@@_typeset_documentation_bool
 \bool_set_true:N \g_@@_typeset_implementation_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_base_name_tl, \l_@@_variants_prop}
+%   The name of the macro which is being documented (without its
+%   signature), and a property list mapping base forms of variants to
+%   all variants which have the same base form.
+%    \begin{macrocode}
+\tl_new:N \g_@@_base_name_tl
+\prop_new:N \l_@@_variants_prop
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1809,7 +1847,8 @@ Do not distribute a modified version of this file.
 % \end{macro}
 %
 % \begin{macro}[aux]{\@@_typeset_functions:}
-% \begin{macro}[aux]{\@@_typeset_functions_auxi:nn}
+% \begin{macro}[aux]
+%   {\@@_typeset_functions_auxi:nn, \@@_typeset_functions_auxii:nn}
 %   \begin{arguments}
 %     \item Function/macro/variable name (stripped of signature in the
 %       first case, if any)
@@ -1819,10 +1858,18 @@ Do not distribute a modified version of this file.
 %   The mapping to \cs{l_@@_functions_block_prop} cannot use
 %   \cs{prop_map_inline:Nn} because the code following |\\| would not be
 %   expandable, thus breaking \tn{bottomrule}.  The loop goes as
-%   follows: store the list of variants in \cs{g_@@_variants_clist},
-%   remove the first, which will be displayed more prominently, and
-%   reconstruct its actual name, passing it to the
-%   \cs{@@_typeset_functions_auxii:N} auxiliary.
+%   follows: go through the list of variants |#2|, and collect them by
+%   \enquote{base form} in a \cs{l_@@_variants_prop} whose keys are the
+%   base form and whose values are the variants which can be obtained
+%   from that base form using \cs{cs_generate_variant:Nn}.  Then start a
+%   nested loop through these base forms, calling
+%   \cs{@@_typeset_functions_auxii:nn}.  This auxiliary does not care
+%   about the base form.  It stores the variants it receives in
+%   \cs{g_@@_variants_clist}, remove the first, which will be displayed
+%   more prominently, and reconstructs its actual name, passing it to
+%   the \cs{@@_typeset_functions_auxiii:N} auxiliary.
+%
+%   Braces around |##1| are crucial since this item can be empty.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \@@_typeset_functions:
   {
@@ -1831,25 +1878,42 @@ Do not distribute a modified version of this file.
   }
 \cs_new_protected:Npn \@@_typeset_functions_auxi:nn #1#2
   {
+    \tl_gset:Nn \g_@@_base_name_tl {#1}
+    \prop_clear:N \l_@@_variants_prop
+    \clist_map_inline:nn {#2}
+      {
+        \tl_set:Nx \l_@@_tmpa_tl
+          { \@@_signature_base_form:n {##1} }
+        \prop_get:NoNTF \l_@@_variants_prop
+          \l_@@_tmpa_tl \l_@@_tmpb_tl
+          { \tl_put_right:Nn \l_@@_tmpb_tl { , {##1} } }
+          { \tl_set:Nn \l_@@_tmpb_tl { {##1} } }
+        \prop_put:Noo \l_@@_variants_prop
+          \l_@@_tmpa_tl \l_@@_tmpb_tl
+      }
+    \prop_map_function:NN \l_@@_variants_prop
+      \@@_typeset_functions_auxii:nn
+  }
+\cs_new_protected:Npn \@@_typeset_functions_auxii:nn #1#2
+  {
     \clist_gset:Nn \g_@@_variants_clist {#2}
     \clist_gpop:NN \g_@@_variants_clist \l_@@_tmpb_tl
-    \exp_args:Nc \@@_typeset_functions_auxii:N
+    \exp_args:Nc \@@_typeset_functions_auxiii:N
       {
-        #1
+        \g_@@_base_name_tl
         \exp_last_unbraced:Nf \token_if_eq_meaning:NNF
           { \tl_head:f { \l_@@_tmpb_tl ? } }
           \scan_stop:
           { : \l_@@_tmpb_tl }
       }
-    \\
   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[aux]{\@@_typeset_functions_auxii:N}
+% \begin{macro}[aux]{\@@_typeset_functions_auxiii:N}
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_typeset_functions_auxii:N #1
+\cs_new_protected:Npn \@@_typeset_functions_auxiii:N #1
   {
     \bool_if:NT \l_@@_macro_pTF_bool
       {
@@ -1864,13 +1928,10 @@ Do not distribute a modified version of this file.
       }
     \bool_if:NT \l_@@_macro_pTF_bool
       {
-        \bool_set_false:N \l_@@_macro_TF_bool
-        \exp_args:Nc \@@_typeset_function_block:N
-          { \l_@@_pTF_name_tl }
-        \bool_set_true:N \l_@@_macro_TF_bool
-        \\
+        \exp_args:Nc \@@_typeset_function_block:NN
+          { \l_@@_pTF_name_tl } \c_false_bool
       }
-    \@@_typeset_function_block:N #1
+    \@@_typeset_function_block:NN #1 \l_@@_macro_TF_bool
   }
 \cs_new_protected:Npn \@@_function_index:x #1
   {
@@ -1882,17 +1943,20 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[internal]{\@@_typeset_function_block:N}
+% \begin{macro}[internal]{\@@_typeset_function_block:NN}
+%   The first argument is a control sequence, the second a boolean which
+%   controls whether to typeset |TF| or not.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_typeset_function_block:N #1
+\cs_new_protected:Npn \@@_typeset_function_block:NN #1#2
   {
     \@@_function_label:x
       { \g_@@_function_name_prefix_tl \cs_to_str:N #1 }
     \g_@@_function_name_prefix_tl \cs_to_str:N #1
-    \bool_if:NT \l_@@_macro_TF_bool { \@@_typeset_TF: }
+    \bool_if:NT #2 { \@@_typeset_TF: }
     \@@_typeset_expandability:
     \clist_if_empty:NF \g_@@_variants_clist
-      { \@@_typeset_variant_list:N #1 }
+      { \@@_typeset_variant_list:NN #1#2 }
+    \\
   }
 %    \end{macrocode}
 %
@@ -1914,7 +1978,7 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_typeset_variant_list:N #1
+\cs_new_protected:Npn \@@_typeset_variant_list:NN #1#2
   {
     \\
     \@@_typeset_aux:n
@@ -1930,7 +1994,7 @@ Do not distribute a modified version of this file.
           \clist_use:Nn \g_@@_variants_clist { \textrm| }
         \textrm)
       }
-    \bool_if:NT \l_@@_macro_TF_bool { \@@_typeset_TF: }
+    \bool_if:NT #2 { \@@_typeset_TF: }
     \@@_typeset_expandability:
   }
 %    \end{macrocode}
