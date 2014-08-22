@@ -7,7 +7,7 @@
 bundle = "l3experimental"
 module = "xcoffins"
 
--- Location of main directory: use Unix-style path separators\includegraphics[]{C:/Users/Public/Documents/LaTeX/LaTeX3/trunk/l3experimental/xcoffins/elementare-typographie-title.jpg}
+-- Location of main directory: use Unix-style path separators
 
 maindir = "../.."
 
