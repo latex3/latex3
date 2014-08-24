@@ -353,6 +353,13 @@
 %   at the point where the function is used but \emph{not} when the
 %   resulting tokens are written to the \meta{stream}
 %   (\emph{cf.}~\cs{iow_shipout_x:Nn}).
+%   \begin{texnote}
+%     When using \pkg{expl3} with a format other than \LaTeX{}, new line
+%     characters inserted using \cs{iow_newline:} or using the
+%     line-wrapping code \cs{iow_wrap:nnnN} will not be recognized in
+%     the argument of \cs{iow_shipout:Nn}.  This may lead to the
+%     insertion of additionnal unwanted line-breaks.
+%   \end{texnote}
 % \end{function}
 %
 % \begin{function}[updated = 2012-09-08]{\iow_shipout_x:Nn, \iow_shipout_x:Nx, \iow_shipout_x:cn, \iow_shipout_x:cx}
@@ -367,6 +374,11 @@
 %   the page building process (such as the page number integer).
 %   \begin{texnote}
 %     This is a wrapper around the \TeX{} primitive \tn{write}.
+%     When using \pkg{expl3} with a format other than \LaTeX{}, new line
+%     characters inserted using \cs{iow_newline:} or using the
+%     line-wrapping code \cs{iow_wrap:nnnN} will not be recognized in
+%     the argument of \cs{iow_shipout:Nn}.  This may lead to the
+%     insertion of additionnal unwanted line-breaks.
 %   \end{texnote}
 % \end{function}
 %
@@ -391,6 +403,13 @@
 %   Function to add a new line within the \meta{tokens} written to a
 %   file. The function has no effect if writing is taking place without
 %   expansion (\emph{e.g.}~in the second argument of \cs{iow_now:Nn}).
+%   \begin{texnote}
+%     When using \pkg{expl3} with a format other than \LaTeX{}, the
+%     character inserted by \cs{iow_newline:} will not be recognized by
+%     \TeX{}, which may lead to the insertion of additionnal unwanted
+%     line-breaks.  This issue only affects \cs{iow_shipout:Nn},
+%     \cs{iow_shipout_x:Nn} and direct uses of primitive operations.
+%   \end{texnote}
 % \end{function}
 %
 % \subsection{Wrapping lines in output}
@@ -538,6 +557,19 @@
 %   functions which have already fully expanded the \meta{file name} and which
 %   need to perform multiple open or close operations. See for example the
 %   implementation of \cs{file_add_path:nN},
+% \end{function}
+%
+% \begin{function}[added = 2014-08-23]{\__iow_with:Nnn}
+%   \begin{syntax}
+%     \cs{__iow_with:Nnn} \meta{integer} \Arg{value} \Arg{code}
+%   \end{syntax}
+%   If the \meta{integer} is equal to the \meta{value} then this
+%   function simply runs the \meta{code}.  Otherwise it saves the
+%   current value of the \meta{integer}, sets it to the \meta{value},
+%   runs the \meta{code}, and restores the \meta{integer} to its former
+%   value.  This is used to ensure that the \tn{newlinechar} is~$10$
+%   when writing to a stream, which lets \cs{iow_newline:} work, and
+%   that \tn{errorcontextlines} is $-1$ when displaying a message.
 % \end{function}
 %
 % \end{documentation}
@@ -1319,6 +1351,27 @@
 %
 % \subsubsection{Immediate writing}
 %
+% \begin{macro}[aux]{\@@_with:Nnn, \@@_with_aux:nNnn}
+%   If the integer~|#1| is equal to~|#2|, just leave~|#3| in the input
+%   stream.  Otherwise, pass the old value to an auxiliary, which sets
+%   the integer to the new value, runs the code, and restores the
+%   integer.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_with:Nnn #1#2
+  {
+    \int_compare:nNnTF {#1} = {#2}
+      { \use:n }
+      { \exp_args:No \@@_with_aux:nNnn { \int_use:N #1 } #1 {#2} }
+  }
+\cs_new_protected:Npn \@@_with_aux:nNnn #1#2#3#4
+  {
+    \int_set:Nn #2 {#3}
+    #4
+    \int_set:Nn #2 {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\iow_now:Nn,\iow_now:Nx,\iow_now:cn,\iow_now:cx}
 %   This routine writes the second argument onto the output stream without
 %   expansion. If this stream isn't open, the output goes to the terminal
@@ -1326,10 +1379,17 @@
 %   internal error.  We don't use the expansion done by \tn{write} to
 %   get the |Nx| variant, because it differs in subtle ways from
 %   \texttt{x}-expansion, namely, macro parameter characters would not
-%   need to be doubled.
+%   need to be doubled.  We set the \tn{newlinechar} to~$10$ using
+%   \cs{@@_with:Nnn} to support formats such as plain \TeX{}: otherwise,
+%   \cs{iow_newline:} would not work.  We do not do this for
+%   \cs{iow_shipout:Nn} or \cs{iow_shipout_x:Nn}, as \TeX{} looks at the
+%   value of the \tn{newlinechar} at shipout time in those cases.
 %    \begin{macrocode}
 \cs_new_protected:Npn \iow_now:Nn #1#2
-  { \tex_immediate:D \tex_write:D #1 { \exp_not:n {#2} } }
+  {
+    \@@_with:Nnn \tex_newlinechar:D { `\^^J }
+      { \tex_immediate:D \tex_write:D #1 { \exp_not:n {#2} } }
+  }
 \cs_generate_variant:Nn \iow_now:Nn { c, Nx, cx }
 %    \end{macrocode}
 % \end{macro}
