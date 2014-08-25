@@ -2103,145 +2103,91 @@
 %
 % \subsection{Converting from other formats to integers}
 %
-% \begin{macro}[int]{\@@_get_sign:n}
-% \begin{macro}[int]{\@@_get_digits:n}
-% \begin{macro}[aux]
-%   {\@@_get_sign_and_digits:nNNN, \@@_get_sign_and_digits:oNNN}
-%   Finding a number and its sign requires dealing with an arbitrary
-%   list of |+| and |-| symbols. This is done by working through token
-%   by token until there is something else at the start of the input.
-%   The sign of the input is tracked by the first Boolean used by the
-%   auxiliary function.
+% \begin{macro}[aux,rEXP]{\@@_pass_signs:wn, \@@_pass_signs_end:wn}
+%   Called as \cs{@@_pass_signs:wn} \meta{signs and digits} \cs{q_stop}
+%   \Arg{code}, this function leaves in the input stream any sign it
+%   finds, then inserts the \meta{code} before the first non-sign token
+%   (and removes \cs{q_stop}).  More precisely, it deletes any~|+| and
+%   passes any~|-| to the input stream, hence should be called in an
+%   integer expression.
 %    \begin{macrocode}
-\cs_new:Npn \@@_get_sign:n #1
+\cs_new:Npn \@@_pass_signs:wn #1
   {
-    \@@_get_sign_and_digits:nNNN {#1}
-      \c_true_bool \c_true_bool \c_false_bool
+    \if:w + \if:w - \exp_not:N #1 + \fi: \exp_not:N #1
+      \exp_after:wN \@@_pass_signs:wn
+    \else:
+      \exp_after:wN \@@_pass_signs_end:wn
+      \exp_after:wN #1
+    \fi:
   }
-\cs_new:Npn \@@_get_digits:n #1
-  {
-    \@@_get_sign_and_digits:nNNN {#1}
-      \c_true_bool \c_false_bool \c_true_bool
-  }
+\cs_new:Npn \@@_pass_signs_end:wn #1 \q_stop #2 { #2 #1 }
 %    \end{macrocode}
-%   The auxiliary loops through, finding sign tokens and removing them.
-%   The sign itself is carried through as a flag.
-%    \begin{macrocode}
-\cs_new:Npn \@@_get_sign_and_digits:nNNN #1#2#3#4
-  {
-    \exp_args:Nf \tl_if_head_eq_charcode:nNTF {#1} -
-      {
-        \bool_if:NTF #2
-          {
-            \@@_get_sign_and_digits:oNNN
-              { \use_none:n #1 } \c_false_bool #3#4
-          }
-          {
-            \@@_get_sign_and_digits:oNNN
-              { \use_none:n #1 } \c_true_bool #3#4
-          }
-      }
-      {
-        \exp_args:Nf \tl_if_head_eq_charcode:nNTF {#1} +
-          { \@@_get_sign_and_digits:oNNN { \use_none:n #1 } #2#3#4 }
-          {
-            \bool_if:NT #3 { \bool_if:NF #2 - }
-            \bool_if:NT #4 {#1}
-          }
-      }
-  }
-\cs_generate_variant:Nn \@@_get_sign_and_digits:nNNN { o }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\int_from_alph:n}
 % \UnitTested
-% \begin{macro}[aux]{\@@_from_alph:n}
-% \begin{macro}[aux]{\@@_from_alph:nN}
-% \begin{macro}[aux]{\@@_from_alph:N}
-%   The aim here is to iterate through the input, converting one letter at
-%   a time to a number. The same approach is also used for base
-%   conversion, but this needs a different final auxiliary.
+% \begin{macro}[aux]{\@@_from_alph:nN, \@@_from_alph:N}
+%   First take care of signs then loop through the input using the
+%   \texttt{recursion} quarks.  The \cs{@@_from_alph:nN} auxiliary
+%   collects in its first argument the value obtained so far, and the
+%   auxiliary \cs{@@_from_alph:N} converts one letter to an expression
+%   which evaluates to the correct number.
 %    \begin{macrocode}
 \cs_new:Npn \int_from_alph:n #1
   {
     \int_eval:n
       {
-        \@@_get_sign:n {#1}
-        \exp_args:Nf \@@_from_alph:n { \@@_get_digits:n {#1} }
+        \@@_pass_signs:wn #1
+          \q_stop { \@@_from_alph:nN { 0 } }
+        \q_recursion_tail \q_recursion_stop
       }
   }
-\cs_new:Npn \@@_from_alph:n #1
-  { \@@_from_alph:nN { 0 } #1 \q_nil }
 \cs_new:Npn \@@_from_alph:nN #1#2
   {
-    \quark_if_nil:NTF #2
-      {#1}
-      {
-        \exp_args:Nf \@@_from_alph:nN
-          { \int_eval:n { #1 * 26 + \@@_from_alph:N #2 } }
-      }
+    \quark_if_recursion_tail_stop_do:Nn #2 {#1}
+    \exp_args:Nf \@@_from_alph:nN
+      { \int_eval:n { #1 * 26 + \@@_from_alph:N #2 } }
   }
 \cs_new:Npn \@@_from_alph:N #1
-  {
-    \int_eval:n
-      { `#1 - \int_compare:nNnTF { `#1 } < { 91 } { 64 } { 96 } }
-  }
+  { `#1 - \int_compare:nNnTF { `#1 } < { 91 } { 64 } { 96 } }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\int_from_base:nn}
 % \UnitTested
-% \begin{macro}[aux]{\@@_from_base:nn}
-% \begin{macro}[aux]{\@@_from_base:nnN}
-% \begin{macro}[aux]{\@@_from_base:N}
-%   Conversion to base ten means stripping off the sign then iterating
-%   through the input one token at a time. The total number is then added
-%   up as the code loops.
+% \begin{macro}[aux]{\@@_from_base:nnN, \@@_from_base:N}
+%   Leave the signs into the integer expression, then loop through
+%   characters, collecting the value found so far in the first argument
+%   of \cs{@@_from_base:nnN}.  To convert a single character,
+%   \cs{@@_from_base:N} checks first for digits, then distinguishes
+%   lower from upper case letters, turning them into the appropriate
+%   number.  Note that this auxiliary does not use \cs{int_eval:n},
+%   hence is not safe for general use.
 %    \begin{macrocode}
 \cs_new:Npn \int_from_base:nn #1#2
   {
     \int_eval:n
       {
-        \@@_get_sign:n {#1}
-        \exp_args:Nf \@@_from_base:nn
-          { \@@_get_digits:n {#1} } {#2}
+        \@@_pass_signs:wn #1
+          \q_stop { \@@_from_base:nnN { 0 } {#2} }
+        \q_recursion_tail \q_recursion_stop
       }
   }
-\cs_new:Npn \@@_from_base:nn #1#2
-  { \@@_from_base:nnN { 0 } { #2 } #1 \q_nil }
 \cs_new:Npn \@@_from_base:nnN #1#2#3
   {
-    \quark_if_nil:NTF #3
-      {#1}
-      {
-        \exp_args:Nf \@@_from_base:nnN
-          { \int_eval:n { #1 * #2 + \@@_from_base:N #3 } }
-          {#2}
-      }
+    \quark_if_recursion_tail_stop_do:Nn #3 {#1}
+    \exp_args:Nf \@@_from_base:nnN
+      { \int_eval:n { #1 * #2 + \@@_from_base:N #3 } }
+      {#2}
   }
-%    \end{macrocode}
-%   The conversion here will take lower or upper case letters and turn
-%   them into the appropriate number, hence the two-part nature of the
-%   function.
-%    \begin{macrocode}
 \cs_new:Npn \@@_from_base:N #1
   {
     \int_compare:nNnTF { `#1 } < { 58 }
       {#1}
-      {
-        \int_eval:n
-          { `#1 - \int_compare:nNnTF { `#1 } < { 91 } { 55 } { 87 } }
-      }
+      { `#1 - \int_compare:nNnTF { `#1 } < { 91 } { 55 } { 87 } }
   }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
