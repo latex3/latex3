@@ -57,7 +57,6 @@ function help ()
   print " build install               - install files in local texmf tree         "
   print " build save <name>           - save test log for <name> for all engines  "
   print " build save <name> <engine>  - save test log for <name> for <engine>     "
-  print " build unpack                - extract packages                          "
   print ""
 end
 

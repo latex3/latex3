@@ -650,7 +650,6 @@ help = help or function ()
     print " build save <name>           - save test log for <name> for all engines  "
     print " build save <name> <engine>  - save test log for <name> for <engine>     "
   end
-  print " build unpack                - extract packages                          "
   print ""
 end
 
