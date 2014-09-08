@@ -21,7 +21,6 @@ function help ()
   print " build doc     - runs all documentation files     "
   print " build clean   - clean out directory tree         "
   print " build install - install files in local texmf tree"
-  print " build unpack  - extract packages                 "
   print ""
 end
 
