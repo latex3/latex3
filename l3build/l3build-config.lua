@@ -9,6 +9,8 @@ checksuppfiles  =
   {"etex.sty", "lualatexquotejobname.lua", "minimal.cls", "regression-test.cfg"}
 unpacksuppfiles = {"docstrip.tex"}
 
+releasetds  = true
+
 typesetcmds = "\\AtBeginDocument{\\DisableImplementation}"
 
 if checksearch == nil then

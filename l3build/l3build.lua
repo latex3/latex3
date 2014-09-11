@@ -129,6 +129,7 @@ end
 
 -- Other required settings
 checkruns   = checkruns   or 1
+releasetds  = releasetds  or false -- Not actually needed but clearer
 scriptname  = scriptname  or "build.lua" -- Script used in each directory
 typesetcmds = typesetcmds or ""
 
@@ -819,8 +820,10 @@ function ctan (standalone)
         installtxt (j, tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
       end
     end
-    dirzip (tdsdir, bundle .. ".tds")
-    cp (bundle .. ".tds.zip", tdsdir, ctandir)
+    if releasetds then
+      dirzip (tdsdir, bundle .. ".tds")
+      cp (bundle .. ".tds.zip", tdsdir, ctandir)
+    end
     dirzip (ctandir, bundle)
     cp (bundle .. ".zip", ctandir, ".")
   else
