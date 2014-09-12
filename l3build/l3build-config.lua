@@ -9,7 +9,7 @@ checksuppfiles  =
   {"etex.sty", "lualatexquotejobname.lua", "minimal.cls", "regression-test.cfg"}
 unpacksuppfiles = {"docstrip.tex"}
 
-releasetds  = true
+packtdszip  = true
 
 typesetcmds = "\\AtBeginDocument{\\DisableImplementation}"
 
