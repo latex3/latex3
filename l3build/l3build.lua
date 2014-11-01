@@ -828,7 +828,7 @@ function ctan (standalone)
     cp (bundle .. ".zip", ctandir, ".")
   else
     print ("\n====================")
-    print ("Zip creation failed!")
+    print ("Tests failed, zip stage skipped!")
     print ("====================\n")
   end
 end
