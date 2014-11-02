@@ -228,6 +228,7 @@ if string.sub (package.config, 1, 1) == "\\" then
   os_pathsep  = ";"
   os_setenv   = "set"
   os_windows  = true
+  os_yes      = "for /l %I in (1,1,200) do @echo y"
 else
   os_concat   = ";"
   os_diffext  = ".diff"
@@ -236,6 +237,7 @@ else
   os_pathsep  = ":"
   os_setenv   = "export"
   os_windows  = false
+  os_yes      = "printf 'y\\n%.0s' {1..200}"
 end
 
 -- File operations are aided by the LuaFileSystem module, which is available
@@ -990,6 +992,13 @@ function bundleunpack ()
   end
   for _,i in ipairs (unpackfiles) do
     for _,j in ipairs (filelist (unpackdir, i)) do
+      -- This 'yes' business is needed to pass a series of "y\n" to
+      -- TeX if \askforoverwrite is true
+      -- That is all done using a file as it's the only way on Windows and
+      -- on Unix the "yes" command can't be used inside os.execute (it never
+      -- stops, which confuses Lua)
+      rm (".", "yes")
+      os.execute (os_yes .. ">> yes")
       os.execute (
           -- Notice that os.execute is used from 'here' as this ensures that
           -- localdir points to the correct place: running 'inside'
@@ -999,8 +1008,9 @@ function bundleunpack ()
           os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
             (unpacksearch and os_pathsep or "") .. os_concat ..
           unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
-            .. " " .. unpackdir .. "/" .. j
+            .. " " .. unpackdir .. "/" .. j .. " < yes"
         )
+      rm (".", "yes")
     end
   end
 end
