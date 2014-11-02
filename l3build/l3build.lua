@@ -602,14 +602,14 @@ function runtest (name, engine, hide)
   local logfile = testdir .. "/" .. name .. logext
   local lvtfile = name .. lvtext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
-  os.execute (os_many ("") .. ">>" .. localdir .. "enter")
+  os.execute (os_many ("") .. ">>" .. localdir .. "/enter")
   for i = 1, checkruns, 1 do
     run (
         testdir,
         os_setenv .. " TEXINPUTS=." .. (checksearch and os_pathsep or "")
           .. os_concat ..
         cmd ..  " " .. checkopts .. " " .. lvtfile
-          .. " < " .. localdir .. "enter"
+          .. " < " .. localdir .. "/enter"
           .. (hide and (" > " .. os_null) or "")
       )
   end
@@ -999,7 +999,7 @@ function bundleunpack ()
       -- That is all done using a file as it's the only way on Windows and
       -- on Unix the "yes" command can't be used inside os.execute (it never
       -- stops, which confuses Lua)
-      os.execute (os_many ("y") .. ">>" .. localdir .. "yes")
+      os.execute (os_many ("y") .. ">>" .. localdir .. "/yes")
       os.execute (
           -- Notice that os.execute is used from 'here' as this ensures that
           -- localdir points to the correct place: running 'inside'
@@ -1009,7 +1009,7 @@ function bundleunpack ()
           os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
             (unpacksearch and os_pathsep or "") .. os_concat ..
           unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
-            .. " " .. unpackdir .. "/" .. j .. " < " .. localdir .. " yes"
+            .. " " .. unpackdir .. "/" .. j .. " < " .. localdir .. "/yes"
         )
     end
   end
