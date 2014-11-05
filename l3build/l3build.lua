@@ -464,8 +464,17 @@ function formatlog (logfile, newfile)
   local function normalize (line)
     local line = line
     -- Remove test file name from lines
+    -- This needs ato extract the base name from the log name,
+    -- and one to allow for the case that there might be "-" chars
+    -- in the name (other cases are ignored)
     line = string.gsub (
-      line, string.match ("/" .. logfile, ".*/(.*)%" .. logext .. "$"), ""
+      line,
+      string.gsub (
+        string.match ("/" .. logfile, ".*/(.*)%" .. logext .. "$"),
+        "-",
+        "%%-"
+      ),
+      ""
     )
     -- Zap ./ at begin of filename
     line = string.gsub (line, "%(%.%/", "(")
