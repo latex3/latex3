@@ -441,8 +441,8 @@ function formatlog (logfile, newfile)
           then
           line = ""
       elseif
-        -- Various things that only LuaTeX adds to boxes: at least while
-        -- we don't have bidi tests these lines can be removed
+        -- Various things that only LuaTeX adds to boxes:
+        -- Remove the 'no-op' versions
         string.match (line, "^%.*\\whatsit$")                 or
         string.match (line, "^%.*\\localinterlinepenalty=0$") or
         string.match (line, "^%.*\\localbrokenpenalty=0$")    or
@@ -493,7 +493,8 @@ function formatlog (logfile, newfile)
     line = string.gsub (
         line, "glue set (%d+.%d%d%d%d)%dfil", "glue set %1fil"
       )
-    -- For the present, remove direction information on boxes
+    -- Remove 'normal' direction information on boxes in LuaTeX:
+    -- any bidi/vertical stuff will still show
     line = string.gsub (line, ", direction TLT", "")
     -- LuaTeX displays low chars differently: tidy up to ^^ notation
     for i = 1, 31, 1 do
