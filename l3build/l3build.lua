@@ -86,6 +86,7 @@ demofiles        = demofiles        or { }
 cleanfiles       = cleanfiles       or {"*.pdf", "*.zip"}
 excludefiles     = excludefiles     or {"*~"}             -- Any Emacs stuff
 installfiles     = installfiles     or {"*.sty"}
+istfiles         = istfiles         or {"*.ist"}
 sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"} -- Files to copy for unpacking
 txtfiles         = txtfiles         or {"*.md", "*.markdown", "*.txt"}
 typesetfiles     = typesetfiles     or {"*.dtx"}
@@ -812,6 +813,7 @@ function ctan (standalone)
   else
     errorlevel = allmodules ("bundlecheck")
   end
+  errorlevel = 0
   if errorlevel == 0 then
     rmdir (ctandir)
     mkdir (ctandir .. "/" .. bundle)
@@ -849,8 +851,23 @@ function ctan (standalone)
 end
 
 function bundlectan ()
-  local function install (source, dest, files, ctan)
-    local installdir  = tdsdir .. "/"  .. dest .. "/" .. moduledir
+  local function install (source, dest, files, ctan, tool)
+    local installdir
+    local moduledir = moduledir
+    -- For material associated with secondary tools (BibTeX, MakeIndex)
+    -- the structure needed is slightly different from those items going
+    -- into the tex/doc/source trees
+    if tool then
+      -- "base" is reserved for the tools themselves: make the assumption
+      -- in this case that the tdsroot name is the right place for stuff to
+      -- go (really just for the team)
+      if module == "base" then
+        moduledir = tdsroot
+      else
+        moduledir = module
+      end
+    end
+    installdir = tdsdir .. "/" .. dest .. "/" .. moduledir
     mkdir (installdir)
     for _,i in ipairs (files) do
       if ctan then
@@ -860,6 +877,7 @@ function bundlectan ()
     end
   end
   unpack ()
+  install (unpackdir, "makeindex", istfiles, false, true)
   install (unpackdir, "tex", installfiles, false)
   local errorlevel = doc ()
   if errorlevel == 0 then
