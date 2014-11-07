@@ -845,6 +845,7 @@ function ctan (standalone)
     print ("Tests failed, zip stage skipped!")
     print ("====================\n")
   end
+  return (errorlevel)
 end
 
 function bundlectan ()
@@ -1037,29 +1038,29 @@ end
 --
 
 function stdmain (target, file, engine)
+  local errorlevel
   -- If the module name is empty, the script is running in a bundle:
   -- apart from ctan all of the targets are then just mappings
   if module == "" then
     -- Detect all of the modules
     modules = modules or listmodules ()
     if target == "doc" then
-      allmodules ("doc")
+      errorlevel = allmodules ("doc")
     elseif target == "check" then
-      local errorlevel = allmodules ("bundlecheck")
+      errorlevel = allmodules ("bundlecheck")
       if errorlevel ~=0 then
         print ("There were errors: checks halted!\n")
-        os.exit (errorlevel)
       end
     elseif target == "clean" then
-      bundleclean ()
+      errorlevel = bundleclean ()
     elseif target == "cmdcheck" and next (cmdchkfiles) ~= nil then
-      allmodules ("cmdcheck")
+      errorlevel = allmodules ("cmdcheck")
     elseif target == "ctan" then
-      ctan ()
+      errorlevel = ctan ()
     elseif target == "install" then
-      allmodules ("install")
+      errorlevel = allmodules ("install")
     elseif target == "unpack" then
-      allmodules ("bundleunpack")
+      errorlevel = allmodules ("bundleunpack")
     elseif target == "version" then
       version ()
     else
@@ -1068,27 +1069,26 @@ function stdmain (target, file, engine)
   else
     if target == "bundleunpack" then -- 'Hidden' as only needed 'higher up'
       depinstall (unpackdeps)
-      bundleunpack ()
+      errorlevel = bundleunpack ()
     elseif target == "bundlecheck" then
-      local errorlevel = check ()
-      os.exit (errorlevel)
+      errorlevel = check ()
     elseif target == "bundlectan" then
-      bundlectan ()
+      errorlevel = bundlectan ()
     elseif target == "doc" then
-      doc ()
+      errorlevel = doc ()
     elseif target == "check" and testfiledir ~= "" then
-      check (file, engine)
+      errorlevel = check (file, engine)
     elseif target == "clean" then
-      clean ()
+      errorlevel = clean ()
     elseif target == "cmdcheck" and next (cmdchkfiles) ~= nil then
-      cmdcheck ()
+      errorlevel = cmdcheck ()
     elseif target == "ctan" and bundle == "" then  -- Stand-alone module
-      ctan (true)
+      errorlevel = ctan (true)
     elseif target == "install" then
-      install ()
+      errorlevel = install ()
     elseif target == "save" and testfiledir ~= "" then
       if file then
-        save (file, engine)
+        errorlevel = save (file, engine)
       else
         help ()
       end
@@ -1100,6 +1100,7 @@ function stdmain (target, file, engine)
       help ()
     end
   end
+  os.exit (errorlevel)
 end
 
 -- Allow main function to be disabled 'higher up'
