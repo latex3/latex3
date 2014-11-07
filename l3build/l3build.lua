@@ -112,7 +112,7 @@ zipopts     = zipopts     or "-v -r -X"
 -- Engines for testing
 checkengines = checkengines or {"pdftex", "xetex", "luatex"}
 checkformat  = checkformat  or "latex"
-stdengine    = stdengine  or "pdftex"
+stdengine    = stdengine    or "pdftex"
 
 -- Enable access to trees outside of the repo
 -- As these may be set false, a more elaborate test than normal is needed
