@@ -86,7 +86,7 @@ demofiles        = demofiles        or { }
 cleanfiles       = cleanfiles       or {"*.pdf", "*.zip"}
 excludefiles     = excludefiles     or {"*~"}             -- Any Emacs stuff
 installfiles     = installfiles     or {"*.sty"}
-istfiles         = istfiles         or {"*.ist"}
+makeindexfiles   = makeindexfiles   or {"*.ist"}
 sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"} -- Files to copy for unpacking
 txtfiles         = txtfiles         or {"*.md", "*.markdown", "*.txt"}
 typesetfiles     = typesetfiles     or {"*.dtx"}
@@ -127,6 +127,10 @@ end
 if unpacksearch == nil then
   unpacksearch = true
 end
+
+-- Additional settings to fine-tune typesetting
+glossarystyle = glossarystyle or "gglo.ist"
+indexstyle    = indexstyle    or "gind.ist"
 
 -- Other required settings
 checkruns   = checkruns   or 1
@@ -629,7 +633,7 @@ end
 
 -- Strip the extension from a file name
 function stripext (file)
-  local name = string.gsub (file, "%..*$", "")
+  local name = string.match (file, "^(.*)%.")
   return name
 end
 
@@ -877,7 +881,7 @@ function bundlectan ()
     end
   end
   unpack ()
-  install (unpackdir, "makeindex", istfiles, false, true)
+  install (unpackdir, "makeindex", makeindexfiles, false, true)
   install (unpackdir, "tex", installfiles, false)
   local errorlevel = doc ()
   if errorlevel == 0 then
@@ -902,17 +906,14 @@ function doc ()
     local name = stripext (file)
     -- A couple of short functions to deal with the repeated steps in a
     -- clear way
-    local function glossary (name)
-      run (
+    local function makeindex (name, inext, outext, logext, style)
+      if fileexists (typesetdir .. "/" .. name .. inext) then
+        run (
           typesetdir ,
-          "makeindex -s gglo.ist -o " .. name .. ".gls " .. name .. ".glo"
-        )
-    end
-    local function index (name)
-      run (
-          typesetdir ,
-          "makeindex -s gind.ist -o " .. name .. ".ind " .. name .. ".idx"
-        )
+          "makeindex -s " .. style .. " -o " .. name .. outext
+            .. " -t " .. name .. logext .. " "  .. name .. inext
+          )        
+      end
     end
     local function typeset (file)
       local errorlevel =
@@ -934,12 +935,8 @@ function doc ()
       print (" ! Compilation failed")
       return (errorlevel)
     else
-      if fileexists (typesetdir .. "/" .. name .. ".idx") then
-       index (name)
-      end
-      if fileexists (typesetdir .. "/" .. name .. ".glo") then
-        glossary (name)
-      end
+      makeindex (name, ".glo", ".gls", ".glg", glossarystyle)
+      makeindex (name, ".idx", ".ind", ".ilg", indexstyle)
       typeset (file)
       typeset (file)
       cp (name .. ".pdf", typesetdir, ".")
