@@ -87,8 +87,9 @@ cleanfiles       = cleanfiles       or {"*.pdf", "*.zip"}
 excludefiles     = excludefiles     or {"*~"}             -- Any Emacs stuff
 installfiles     = installfiles     or {"*.sty"}
 makeindexfiles   = makeindexfiles   or {"*.ist"}
+readmefiles      = readmefiles      or {".md", "*.markdown", "*.txt"}
 sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"} -- Files to copy for unpacking
-txtfiles         = txtfiles         or {"*.md", "*.markdown", "*.txt"}
+textfiles        = textfiles        or { }
 typesetfiles     = typesetfiles     or {"*.dtx"}
 typesetsuppfiles = typesetsuppfiles or { }
 unpackfiles      = unpackfiles      or {"*.ins"}          -- Files to actually unpack
@@ -830,7 +831,7 @@ function ctan (standalone)
     end
   end
   if errorlevel == 0 then
-    for _,i in ipairs (txtfiles) do
+    for _,i in ipairs (readmefiles) do
       for _,j in ipairs (filelist (".", i)) do
         local function installtxt (name, dir)
           cp (name, ".", dir)
@@ -892,6 +893,7 @@ function bundlectan ()
     end
     install (".", "doc", pdffiles, true)
     install (".", "doc", demofiles, true)
+    install (".", "doc", textfiles, true)
     install (".", "source", typesetfiles, true)
     install (".", "source", sourcefiles, true)
   end
