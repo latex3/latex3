@@ -237,7 +237,7 @@ if string.sub (package.config, 1, 1) == "\\" then
 else
   os_concat   = ";"
   os_diffext  = ".diff"
-  os_diffexe  = "diff -c"
+  os_diffexe  = "diff -c --strip-trailing-cr"
   os_null     = "/dev/null"
   os_pathsep  = ":"
   os_setenv   = "export"
