@@ -87,7 +87,7 @@ cleanfiles       = cleanfiles       or {"*.pdf", "*.zip"}
 excludefiles     = excludefiles     or {"*~"}             -- Any Emacs stuff
 installfiles     = installfiles     or {"*.sty"}
 makeindexfiles   = makeindexfiles   or {"*.ist"}
-readmefiles      = readmefiles      or {".md", "*.markdown", "*.txt"}
+readmefiles      = readmefiles      or {"*.md", "*.markdown", "*.txt"}
 sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"} -- Files to copy for unpacking
 textfiles        = textfiles        or { }
 typesetfiles     = typesetfiles     or {"*.dtx"}
@@ -880,6 +880,8 @@ function bundlectan ()
       end
       cp (i, source, installdir)
     end
+  end
+  local function indexinstall (source, files)
   end
   unpack ()
   install (unpackdir, "makeindex", makeindexfiles, false, true)
