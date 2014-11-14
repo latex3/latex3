@@ -86,7 +86,7 @@ demofiles        = demofiles        or { }
 cleanfiles       = cleanfiles       or {"*.pdf", "*.zip"}
 excludefiles     = excludefiles     or {"*~"}             -- Any Emacs stuff
 installfiles     = installfiles     or {"*.sty"}
-makeindexfiles   = makeindexfiles   or {"*.ist"}
+makeindexfiles   = makeindexfiles   or { }
 readmefiles      = readmefiles      or {"*.md", "*.markdown", "*.txt"}
 sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"} -- Files to copy for unpacking
 textfiles        = textfiles        or { }
@@ -881,10 +881,10 @@ function bundlectan ()
       cp (i, source, installdir)
     end
   end
-  local function indexinstall (source, files)
-  end
   unpack ()
-  install (unpackdir, "makeindex", makeindexfiles, false, true)
+  if next (makeindexfiles) ~= nil then
+    install (unpackdir, "makeindex", makeindexfiles, false, true)
+  end
   install (unpackdir, "tex", installfiles, false)
   local errorlevel = doc ()
   if errorlevel == 0 then
