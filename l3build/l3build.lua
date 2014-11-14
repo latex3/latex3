@@ -818,7 +818,6 @@ function ctan (standalone)
   else
     errorlevel = allmodules ("bundlecheck")
   end
-  errorlevel = 0
   if errorlevel == 0 then
     rmdir (ctandir)
     mkdir (ctandir .. "/" .. bundle)
