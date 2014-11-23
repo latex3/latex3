@@ -138,12 +138,22 @@
 %
 % \subsection{Setup}
 %
-% \begin{macro}{\str_case_x:nvF}
+% \begin{macro}{\str_case:nv}
+% \begin{macro}{\str_case:nvF}
 %   One handy variant.
 %    \begin{macrocode}
-\cs_generate_variant:Nn \str_case_x:nnF { nv }
+\cs_generate_variant:Nn \str_case:nn  { nv }
+\cs_generate_variant:Nn \str_case:nnF { nv }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+% 
+% \begin{variable}{\l__unicode_tmp_tl}
+%   Scratch space.
+%    \begin{macrocode}
+\tl_new:N \l__unicode_tmp_tl
+%    \end{macrocode}
+% \end{variable}
 %
 % The first step is to generate a series of temporary variables to
 % contain the data as it's extracted. This requires a nested loop
@@ -334,7 +344,7 @@
 % single data structure. There are therefore two parts to this process: first
 % to read the exceptions, then to read the main data and combine it.
 %
-% \begin{macro}^^A
+% \begin{variable}^^A
 %   {
 %     \l__unicode_lower_exceptions_tl,
 %     \l__unicode_title_exceptions_tl,
@@ -351,7 +361,7 @@
 \tl_new:N \l__unicode_title_exceptions_tl
 \tl_new:N \l__unicode_upper_exceptions_tl
 %    \end{macrocode}
-% \end{macro}
+% \end{variable}
 %
 % \begin{macro}{\__unicode_parse_line:w}
 % \begin{macro}[aux]{\__unicode_parse_line_auxii:w}
@@ -408,7 +418,7 @@
           {
             \tl_put_right:cx { l__unicode_ #5 _exceptions_tl }
               {
-                { \luatex_Uchar:D "#1 \c_space_tl }
+                { #1 }
                 {
                   \__unicode_brace:n
                     {
@@ -452,14 +462,14 @@
 % \begin{macro}[aux]{\__unicode_parse_line_auxiv:nnNn}
 % \begin{macro}[aux]{\__unicode_parse_line_auxv:wnnNn}
 % \begin{macro}[aux]{\__unicode_parse_line_auxvi:nnNNNn}
-%  For parsing |UnicodeData.txt| there is no need to worry about funny lines:
-%  the file has no comments or blank lines. Each line also contains a
-%  one-to-one mapping for the case mappings, so they are easy to deal with.
-%  The slight complication here is that the lines are rather long, so a
-%  multi-part approach is needed to grab the correct parts of the line as
-%  arguments. Of the first set of arguments, the two that needed are |#1|
-%  (the code point) and |#6| (details about the code point which may include
-%  the fact it's a compatibility char).
+%   For parsing |UnicodeData.txt| there is no need to worry about funny lines:
+%   the file has no comments or blank lines. Each line also contains a
+%   one-to-one mapping for the case mappings, so they are easy to deal with.
+%   The slight complication here is that the lines are rather long, so a
+%   multi-part approach is needed to grab the correct parts of the line as
+%   arguments. Of the first set of arguments, the two that needed are |#1|
+%   (the code point) and |#6| (details about the code point which may include
+%   the fact it's a compatibility char).
 %    \begin{macrocode}
 \cs_set_protected:Npn \__unicode_parse_line:w
   #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 ; #9 ;
@@ -478,7 +488,9 @@
 %   added to the existing list of exceptions we've already started. Note
 %   that there is a space at the end of |#8| as we are reading the data in
 %   with spaces not ignored: that has to be allowed for to get the equality
-%   test right.
+%   test right. The `business end' of the code here is inside a rescan block
+%   so the later parts of the code do not need to be concerned with string
+%   \emph{versus} standard category codes.
 %    \begin{macrocode}
 \cs_new_protected:Npn \__unicode_parse_line_auxi:w
   #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 \q_stop
@@ -488,20 +500,23 @@
         \__unicode_parse_line_auxii:nw {#1} #2 \tl_to_str:n { <compat> }
           \c_space_tl \exp_not:N \q_stop
       }
-    \tl_if_empty:nF {#6}
+    \tl_rescan:nn { }
       {
         \__unicode_parse_line_auxiv:nnNn {#1} {#6} a { upper }
-        \str_if_eq:nnF {#6} {#8}
+        \__unicode_parse_line_auxiv:nnNn {#1} {#7} b { lower }
+        \bool_if:nF
+          {
+               \tl_if_empty_p:n {#6}
+            || \str_if_eq_p:nn {#6} {#8}
+          }
           {
             \tl_put_right:Nx \l__unicode_title_exceptions_tl
               {
-                \luatex_Uchar:D "#1 \c_space_tl
-                \luatex_Uchar:D "#8 \c_space_tl
+                {#1}
+                { \luatex_Uchar:D "#8 \c_space_tl }
               }
           }
       }
-    \tl_if_empty:nF {#7}
-      { \__unicode_parse_line_auxiv:nnNn {#1} {#7} b { lower } }
   }
 %    \end{macrocode}
 %   Compatibility chars have information as the marker |<compat>| then a list
@@ -541,31 +556,40 @@
   #1#2#3#4#5#6#7 \q_stop #8#9
   { \__unicode_parse_line_auxvi:nnNNNn {#8} {#9} #6 #7 }
 %    \end{macrocode}
-%   There are two final tests. First, for entries in the the compatibility list
-%   there is a need to add braces around the chars in case there is any
-%   normalisation during file reading. Second, any special cases have to be
-%   allowed for: these are checked in the exception list built up earlier.
-%   Entries in the latter are always braced, so there is no need to add another
-%   one.
+%   For entries in the the compatibility list there is a need to add braces
+%   around the chars in case there is any normalisation during file reading.
+%   After that check, there is is question of whether the current code point
+%   is on the list of exceptions. If it is, that mapping is stored. Otherwise,
+%   the standard mapping is stored if there is one, otherwise the code point
+%   is simply skipped.
 %    \begin{macrocode}
 \cs_new_protected:Npn \__unicode_parse_line_auxvi:nnNNNn #1#2#3#4#5#6
   {
     \seq_if_in:NnTF \l__unicode_compat_seq {#1}
       { \cs_set:Npn \__unicode_brace:n ##1 { { ##1 } } }
       { \cs_set_eq:NN \__unicode_brace:n \use:n }
-    \tl_rescan:nn
-      { }
+    \tl_set:Nx \l__unicode_tmp_tl
+      { \str_case:nv {#1} { l__unicode_ #6 _exceptions_tl } }
+    \tl_if_empty:NTF \l__unicode_tmp_tl
+      {
+        \tl_if_empty:nF {#2}
+          {
+            \tl_put_right:cx { l__unicode_ #5 _ #3 _ #4 _tl }
+              {
+                \__unicode_brace:n
+                  { \luatex_Uchar:D "#1 \c_space_tl }
+                \__unicode_brace:n { \luatex_Uchar:D "#2 \c_space_tl }
+              }
+          }
+      }
       {
         \tl_put_right:cx { l__unicode_ #5 _ #3 _ #4 _tl }
           {
             \__unicode_brace:n
               { \luatex_Uchar:D "#1 \c_space_tl }
-            \str_case_x:nvF
-              { \luatex_Uchar:D "#1 \c_space_tl }
-              { l__unicode_ #6 _exceptions_tl }
-              { \__unicode_brace:n { \luatex_Uchar:D "#2 \c_space_tl } }
+            \__unicode_brace:n { \tl_use:N \l__unicode_tmp_tl }
           }
-     }
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -587,7 +611,7 @@
 % Saving the data uses a single file, with the upper case array
 % followed by the lower case one and finally the title case exceptions.
 % The saved data in the \texttt{a} storage array is also cleared to save a
-% second loop later on when dealing with case folding.
+% second loop later on when dealing with case folding. 
 %    \begin{macrocode}
 \tl_map_inline:nn { 0123456789 }
   {
@@ -614,13 +638,40 @@
           }
       }
   }
+%    \end{macrocode}
+%
+% \begin{macro}[EXP]{\unicode_title_exceptions:N}
+% \begin{macro}[EXP, aux]{\__unicode_title_exceptions:nn}
+%   The exceptions list for title case conversion needs to be converted from
+%   using numbers to chars for the lookup part. Everything will already have
+%   the correct category codes, so it's just a case of an expansion-based
+%   loop.
+%    \begin{macrocode}
+\cs_new:Npn \unicode_title_exceptions:N #1
+  {
+    \exp_after:wN \__unicode_title_exceptions:nn #1
+      \q_recursion_tail ? \q_recursion_stop
+  }
+\cs_new:Npn \__unicode_title_exceptions:nn #1#2
+  {
+    \quark_if_recursion_tail_stop:n {#1}
+    { \luatex_Uchar:D "#1 \c_space_tl }
+    { #2 }
+    \__unicode_title_exceptions:nn
+  }
 \iow_now:Nx \g__unicode_result_iow
   {
     \tl_const:Nn
-      \exp_not:N \c__tl_mixed_exceptions_tl \c_space_tl
-      { ~ \exp_not:V \l__unicode_title_exceptions_tl \c_space_tl }
+      \exp_not:N \c__tl_mixed_exceptions_tl
+      { 
+       \c_space_tl
+       \unicode_title_exceptions:N \l__unicode_title_exceptions_tl
+       \c_space_tl
+      }
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 %
 % Data for the special cases is now stored. This is mainly a series of simple
 % token lists with appropriate names and content, but there is also one place
@@ -631,7 +682,8 @@
     \quark_if_recursion_tail_stop:n {#1}
     \iow_now:Nx \g__unicode_result_iow
       {
-        \tl_const:Nn \exp_not:c { c__tl_ #1 _tl } { \luatex_Uchar:D "#2 }
+        \tl_const:Nn \exp_not:c { c__tl_ #1 _tl }
+          { ~ \luatex_Uchar:D "#2 \c_space_tl \c_space_tl }
       }
     \__unicode_special_case:nn
   }
@@ -776,20 +828,18 @@
 \ior_close:N \g__unicode_data_ior
 %    \end{macrocode}
 %
-% \begin{macro}[aux]{\__str_tmp:NNn}
-% \begin{macro}[aux, EXP]{\__str_tmp:Nw}
-%   To ensure that the output of the case-folding function is a string, all of
-%   the stored results need to be detokenized. That is done by including a loop
-%   in the |.def| file which will do the necessary change. To set that up, a
-%   slightly complicated bit of secondary work: write the functions which do
-%   the job into the |.def| file itself, using a group to trap the temporary
-%   code. There is also a test in the following so that the result only has
-%   braces around items which need it: this is a slight performance tweak when
-%   the code actually gets used. Notice that everything in the token list is
-%   detokenized except for the |{| and |}| chars needed for grouping: if the
-%   search part of the list is not detokenized there are issues with \XeTeX{}
-%   and chars beyond $0\mathrm{xFFFF}$ (probably a bug, but can be worked
-%   around!).
+% To ensure that the output of the case-folding function is a string, all of
+% the stored results need to be detokenized. That is done by including a loop
+% in the |.def| file which will do the necessary change. To set that up, a
+% slightly complicated bit of secondary work: write the functions which do
+% the job into the |.def| file itself, using a group to trap the temporary
+% code. There is also a test in the following so that the result only has
+% braces around items which need it: this is a slight performance tweak when
+% the code actually gets used. Notice that everything in the token list is
+% detokenized except for the |{| and |}| chars needed for grouping: if the
+% search part of the list is not detokenized there are issues with \XeTeX{}
+% and chars beyond $0\mathrm{xFFFF}$ (probably a bug, but can be worked
+% around!).
 %    \begin{macrocode}
 \__unicode_verb:
 \group_begin:
@@ -809,8 +859,6 @@
     }
 \__unicode_verb_end:
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 %
 % The write loop is simple: map over the array and write everything to the
 % output. The group used for the temporary stuff in the
