@@ -510,6 +510,8 @@ function formatlog (logfile, newfile)
     line = string.gsub (
         line, "glue set (%d+.%d%d%d%d)%dfil", "glue set %1fil"
       )
+    -- Remove 'display' at end of display math boxes: LuaTeX omits this
+    line = string.gsub (line, "(\\hbox%(.*), display$", "%1")
     -- Remove 'normal' direction information on boxes in LuaTeX:
     -- any bidi/vertical stuff will still show
     line = string.gsub (line, ", direction TLT", "")
