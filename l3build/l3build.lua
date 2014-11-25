@@ -488,6 +488,8 @@ function formatlog (logfile, newfile)
     if checksearch then
       line = string.gsub (line, "%(.*/([%w-]+%.[%w-]+)%s*$", "(../%1")
     end
+    -- Zap map loading on first page output
+    line = string.gsub (line, "%[1{[%w/%-]*/pdftex%.map}%]", "[1]")
     -- XeTeX knows only the smaller set of dimension units
     line = string.gsub (
         line, "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
