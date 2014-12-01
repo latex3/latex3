@@ -636,10 +636,10 @@ function runtest (name, engine, hide)
   formatlog (logfile, newfile)
 end
 
--- Strip the extension from a file name
+-- Strip the extension from a file name (if present)
 function stripext (file)
   local name = string.match (file, "^(.*)%.")
-  return name
+  return name or file
 end
 
 function testexists (test)
