@@ -899,8 +899,31 @@ function bundlectan ()
     install (".", "doc", pdffiles, true)
     install (".", "doc", demofiles, true)
     install (".", "doc", textfiles, true)
-    install (".", "source", typesetfiles, true)
     install (".", "source", sourcefiles, true)
+    -- Find documentation sources that are not also code sources
+    -- These go into "doc" not "source"
+    do
+      local docfiles   = { }
+      local sourcelist = { }
+      -- First, get a full list of source files
+      -- Two loops are needed here as there may be multiple globs
+      for _,i in ipairs (sourcefiles) do
+        for _,j in ipairs (filelist (".", i)) do
+          sourcelist[j] = true
+        end
+      end
+      -- Now loop over everything typeset to check if it has already
+      -- been covered
+      for _,i in ipairs (typesetfiles) do
+        for _,j in ipairs (filelist (".", i)) do
+          if sourcelist[j] then
+          else
+            table.insert (docfiles, j)
+          end
+        end
+      end
+      install (".", "doc", docfiles, true)
+    end
   end
   return (errorlevel)
 end
