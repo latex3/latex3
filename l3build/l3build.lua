@@ -420,6 +420,57 @@ function checkinit ()
   end
 end
 
+-- Copy files to the main CTAN release directory
+function copyctan ()
+  -- Do all of the copying in one go
+  for _,i in ipairs ({demofiles, pdffiles, sourcefiles, textfiles, typesetlist}) do
+    for _,j in ipairs (i) do
+      cp (j, ".", ctandir .. "/" .. bundle)
+    end
+  end
+end
+
+-- Copy files to the correct places in the TDS tree
+function copytds ()
+  local function install (source, dest, files, tool)
+    local moduledir = moduledir
+    -- For material associated with secondary tools (BibTeX, MakeIndex)
+    -- the structure needed is slightly different from those items going
+    -- into the tex/doc/source trees
+    if tool then
+      -- "base" is reserved for the tools themselves: make the assumption
+      -- in this case that the tdsroot name is the right place for stuff to
+      -- go (really just for the team)
+      if module == "base" then
+        moduledir = tdsroot
+      else
+        moduledir = module
+      end
+    end
+    local installdir = tdsdir .. "/" .. dest .. "/" .. moduledir
+    -- Convert the file table(s) to a list of individual files
+    local filenames = { }
+    for _,i in ipairs (files) do
+      for _,j in ipairs (i) do
+        for _,k in ipairs (filelist (source, j)) do
+          table.insert (filenames, k)
+        end
+      end
+    end
+    -- The target is only created if there are actual files to install
+    if next (filenames) ~= nil then
+      mkdir (installdir)
+      for _,i in ipairs (filenames) do
+        cp (i, source, installdir)
+      end
+    end  
+  end
+  install (".", "doc", {demofiles, pdffiles, textfiles, typesetlist})
+  install (unpackdir, "makeindex", {makeindexfiles}, true)
+  install (".", "source", {sourcelist})
+  install (unpackdir, "tex", {installfiles})
+end
+
 -- Unpack files needed to support testing/typesetting/unpacking
 function depinstall (deps)
   for _,i in ipairs (deps) do
@@ -859,71 +910,40 @@ function ctan (standalone)
 end
 
 function bundlectan ()
-  local function install (source, dest, files, ctan, tool)
-    local installdir
-    local moduledir = moduledir
-    -- For material associated with secondary tools (BibTeX, MakeIndex)
-    -- the structure needed is slightly different from those items going
-    -- into the tex/doc/source trees
-    if tool then
-      -- "base" is reserved for the tools themselves: make the assumption
-      -- in this case that the tdsroot name is the right place for stuff to
-      -- go (really just for the team)
-      if module == "base" then
-        moduledir = tdsroot
-      else
-        moduledir = module
+  -- Generate a list of individual file names excluding those in the second
+  -- argument: the latter is a table
+  local function excludelist (include, exclude)
+    local includelist = { }
+    local excludelist = { }
+    for _,i in ipairs (exclude) do
+      for _,j in ipairs (i) do
+        for _,k in ipairs (filelist (".", j)) do
+          excludelist[k] = true
+        end
       end
     end
-    installdir = tdsdir .. "/" .. dest .. "/" .. moduledir
-    mkdir (installdir)
-    for _,i in ipairs (files) do
-      if ctan then
-        cp (i, source, ctandir .. "/" .. bundle)
+    for _,i in ipairs (include) do
+      for _,j in ipairs (filelist (".", i)) do
+        if excludelist[j] then
+        else
+          table.insert (includelist, j)
+        end
       end
-      cp (i, source, installdir)
     end
+    return (includelist)
   end
-  unpack ()
-  if next (makeindexfiles) ~= nil then
-    install (unpackdir, "makeindex", makeindexfiles, false, true)
-  end
-  install (unpackdir, "tex", installfiles, false)
+  unpack()
   local errorlevel = doc ()
   if errorlevel == 0 then
-    -- Convert input names for typesetting into names of PDF files
-    local pdffiles = { }
+    -- Work out what PDF files are available
+    pdffiles = { }
     for _,i in ipairs (typesetfiles) do
       table.insert (pdffiles, (string.gsub (i, "%.%w+$", ".pdf")))
     end
-    install (".", "doc", pdffiles, true)
-    install (".", "doc", demofiles, true)
-    install (".", "doc", textfiles, true)
-    install (".", "source", sourcefiles, true)
-    -- Find documentation sources that are not also code sources
-    -- These go into "doc" not "source"
-    do
-      local docfiles   = { }
-      local sourcelist = { }
-      -- First, get a full list of source files
-      -- Two loops are needed here as there may be multiple globs
-      for _,i in ipairs (sourcefiles) do
-        for _,j in ipairs (filelist (".", i)) do
-          sourcelist[j] = true
-        end
-      end
-      -- Now loop over everything typeset to check if it has already
-      -- been covered
-      for _,i in ipairs (typesetfiles) do
-        for _,j in ipairs (filelist (".", i)) do
-          if sourcelist[j] then
-          else
-            table.insert (docfiles, j)
-          end
-        end
-      end
-      install (".", "doc", docfiles, true)
-    end
+    typesetlist = excludelist (typesetfiles, {sourcefiles})
+    sourcelist = excludelist (sourcefiles, {installfiles, makeindexfiles})
+    copyctan ()
+    copytds ()
   end
   return (errorlevel)
 end
