@@ -883,6 +883,11 @@ function ctan (standalone)
     else
       errorlevel = allmodules ("bundlectan")
     end
+  else
+    print ("\n====================")
+    print ("Tests failed, zip stage skipped!")
+    print ("====================\n")
+    return (errorlevel)
   end
   if errorlevel == 0 then
     for _,i in ipairs (readmefiles) do
@@ -903,7 +908,7 @@ function ctan (standalone)
     cp (bundle .. ".zip", ctandir, ".")
   else
     print ("\n====================")
-    print ("Tests failed, zip stage skipped!")
+    print ("Typesetting failed, zip stage skipped!")
     print ("====================\n")
   end
   return (errorlevel)
