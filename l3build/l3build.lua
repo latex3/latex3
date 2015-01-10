@@ -667,10 +667,12 @@ end
 function runtest (name, engine, hide)
   cp (name .. lvtext, testfiledir, testdir)
   local engine = engine or stdengine
-  -- Engine name doesn't include the "la" for LaTeX!
-  local cmd = engine
-  if checkformat == "latex" then
-    cmd = string.gsub (engine, "tex$", "latex")
+  -- Set up the format file name if it's one ending "...tex"
+  local format
+  if string.match (checkformat, "tex$") then
+    format = " -fmt=" .. string.gsub (engine, "(.*)tex$", "%1") .. checkformat
+  else
+    format = ""
   end
   local logfile = testdir .. "/" .. name .. logext
   local lvtfile = name .. lvtext
@@ -680,7 +682,7 @@ function runtest (name, engine, hide)
         testdir,
         os_setenv .. " TEXINPUTS=." .. (checksearch and os_pathsep or "")
           .. os_concat ..
-        cmd ..  " " .. checkopts .. " " .. lvtfile
+        engine ..  format .. " " .. checkopts .. " " .. lvtfile
           .. (hide and (" > " .. os_null) or "")
       )
   end
