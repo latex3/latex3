@@ -570,6 +570,13 @@ function formatlog (logfile, newfile)
     for i = 1, 31, 1 do
       line = string.gsub (line, string.char (i), "^^" .. string.char (64 + i))
     end
+    -- For normalising UTF-8 to ASCII
+    local utf8 = unicode.utf8
+    -- Unicode engines display chars in the upper half of the 8-bit range:
+    -- tidy up to match pdfTeX.
+    for i = 128, 255, 1 do
+      line = string.gsub (line, utf8.char (i), "^^" .. string.format ("%02x", i))
+    end
     -- Minor LuaTeX difference: it does not include parentheses in one message
     line = string.gsub (
         line,
