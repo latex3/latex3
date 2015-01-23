@@ -698,7 +698,9 @@ function runtest (name, engine, hide)
   for _,i in ipairs (filelist (testdir, name .. ".???")) do
     local ext = string.match (i, "%....")
     if ext ~= lvtext and ext ~= tlgext and ext ~= logext then
-      ren (testdir, i, string.gsub (i, name, name .. "." .. engine ))
+      if not fileexists (testsuppdir .. "/" .. i) then
+        ren (testdir, i, string.gsub (i, name, name .. "." .. engine ))
+      end
     end
   end
 end
