@@ -694,6 +694,13 @@ function runtest (name, engine, hide)
       )
   end
   formatlog (logfile, newfile)
+  -- Store secondary files for this engine
+  for _,i in ipairs (filelist (testdir, name .. ".???")) do
+    local ext = string.match (i, "%....")
+    if ext ~= lvtext and ext ~= tlgext and ext ~= logext then
+      ren (testdir, i, string.gsub (i, name, name .. "." .. engine ))
+    end
+  end
 end
 
 -- Strip the extension from a file name (if present)
