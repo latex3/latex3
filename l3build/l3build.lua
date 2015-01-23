@@ -665,9 +665,6 @@ end
 -- Run one of the test files: doesn't check the result so suitable for
 -- both creating and verifying .tlg files
 function runtest (name, engine, hide)
-  -- Remove any auxiliary files that might be left from running the same test with
-  -- other engines
-  rm (testdir, name .. ".*")
   cp (name .. lvtext, testfiledir, testdir)
   local engine = engine or stdengine
   -- Set up the format file name if it's one ending "...tex"
