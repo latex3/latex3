@@ -667,7 +667,7 @@ end
 function runtest (name, engine, hide)
   -- Remove any auxiliary files that might be left from running the same test with
   -- other engines
-  rm (name .. ".*", testdir)
+  rm (testdir, name .. ".*")
   cp (name .. lvtext, testfiledir, testdir)
   local engine = engine or stdengine
   -- Set up the format file name if it's one ending "...tex"
