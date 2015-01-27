@@ -1,6 +1,6 @@
 --[[
 
-  File l3build.lua (C) Copyright 2014 The LaTeX3 Project
+  File l3build.lua (C) Copyright 2014-2015 The LaTeX3 Project
 
  It may be distributed and/or modified under the conditions of the
  LaTeX Project Public License (LPPL), either version 1.3c of this
