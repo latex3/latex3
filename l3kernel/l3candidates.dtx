@@ -3021,12 +3021,15 @@
 % or automatically), which is covered by \pkg{l3unicode-data}.
 % 
 % \begin{macro}[EXP]{\str_case:nvF}
+% \begin{macro}[EXP]{\tl_if_blank:fTF}
 % \begin{macro}[EXP]{\tl_if_head_eq_catcode:oNTF}
 %   Required variants.
 %    \begin{macrocode}
 \cs_generate_variant:Nn \str_case:nnF { nv }
+\cs_generate_variant:Nn \tl_if_blank:nTF { f }
 \cs_generate_variant:Nn \tl_if_head_eq_catcode:nNTF { o }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -3063,6 +3066,8 @@
 % \begin{macro}[aux, EXP]{\@@_change_case_cs_four:w}
 % \begin{macro}[aux, EXP]{\@@_change_case_cs_type:Nnn}
 % \begin{macro}[aux, EXP]{\@@_change_case_cs_cyr:NnNNNNw}
+% \begin{macro}[aux, EXP]{\@@_change_case_cs_expand:N}
+% \begin{macro}[aux, EXP]{\@@_change_case_cs_expand:NNw}
 % \begin{macro}[aux, EXP]^^A
 %   {
 %     \@@_change_case_lower_sigma:Nnn ,
@@ -3210,23 +3215,25 @@
 %   fourth character can be used for a second split based on the character
 %   code.
 %   
-%   Note that as much of this is dependent on \LaTeXe{} in format mode only
-%   the short names are currently \enquote{fished out}.
+%   Note that as this is dependent on \LaTeXe{}, in format mode the code
+%   goes straight to the final phase of handling control sequences.
 %    \begin{macrocode}
-\cs_new:Npn \@@_change_case_cs:Nn #1
+\cs_new:Npn \@@_change_case_cs:Nn #1#2
   {
+%<*initex>
+    \@@_change_case_cs_expand:N #1
+%</initex>
+%<*package>
     \exp_args:Nf \@@_change_case_cs_letter:nNn
-      { \cs_to_str:N #1 } #1
+      { \cs_to_str:N #1 } #1 {#2}
+%</package>
   }
+%<*package>
 \cs_new:Npn \@@_change_case_cs_letter:nNn #1#2#3
   {
     \tl_if_head_eq_catcode:oNTF { \use_none:nnn #1 a a a a } a
       { \@@_change_case_cs_type:Nnn #2 { latin } {#3} }
       {
-%<*initex>
-        \exp_not:n {#2}
-%</initex>
-%<*package>
         \str_if_eq_x:nnTF
           { \@@_change_case_cs_three:w #1 \q_nil }
           { \str_if_eq:nnTF {#3} { lower } { CYR } { cyr } }
@@ -3244,17 +3251,15 @@
                   { \@@_change_case_cs_type:Nnn #2 { misc } {#3} }
               }
           }
-%</package>
       }
   }
-%<*package>
 \cs_new:Npn \@@_change_case_cs_three:w #1#2#3#4 \q_nil { #1#2#3 }
 \cs_new:Npn \@@_change_case_cs_four:w #1#2#3#4#5 \q_nil { #1#2#3#4 }
 \cs_new:Npn \@@_change_case_cs_type:Nnn #1#2#3
   {
     \str_case:nvF #1
       { c_@@_change_case_ #2 _ #3 _ tl }
-      { \exp_not:n {#1} }
+      { \@@_change_case_cs_expand:N #1 }
   }
 \cs_new:Npn \@@_change_case_cs_cyr:NnNNNNw #1#2#3#4#5#6#7 \q_stop
   {
@@ -3274,6 +3279,34 @@
       }
   }
 %</package>
+%    \end{macrocode}
+%   If none of the above tests work, see if the control sequence supplied is
+%   expandable, and is so expand and process it. As the loop step is already
+%   in the input stream there is a shuffle. The test here is package mode
+%   will pick up robust commands as well as engine-protected ones.
+%    \begin{macrocode}
+\cs_new:Npn \@@_change_case_cs_expand:N #1
+  {
+%<*initex>
+    \token_if_expandable:NTF #1
+%</initex>
+%<*package>
+    \bool_if:nTF
+      {
+           \token_if_expandable_p:N #1
+        && ! \cs_if_exist_p:c { \cs_to_str:N #1 ~ }
+      }
+%</package>
+      { \@@_change_case_cs_expand:NNw #1 }
+%<*initex>
+      { #1 }
+%</initex>
+%<*package>
+      { \exp_not:n {#1} }
+%</package>
+  }
+\cs_new:Npn \@@_change_case_cs_expand:NNw #1#2#3 \q_recursion_stop
+  { \exp_after:wN \@@_change_case_loop:wnn #1#3 \q_recursion_stop }
 %    \end{macrocode}
 %   If the current char is an upper case sigma, the a check is made on the next
 %   item in the input. If it is another \texttt{N}-type token then further tests
@@ -3328,6 +3361,8 @@
 \cs_new_eq:NN \@@_change_case_upper_sigma:Nnn \use_iii:nnn
 \cs_new_eq:NN \@@_change_case_mixed_sigma:Nnn \use_iii:nnn
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -3424,7 +3459,11 @@
 %   to do: retain the char and switch the looping system to stick with the
 %   title loop rather than the lower case one. That means swapping an
 %   auxiliary and removing a trailing |{ lower }|, which is easiest to do
-%   with a dedicated function.
+%   with a dedicated function. When dealing with a brace group there is a
+%   need to test if there is any content in it: that affects whether to keep
+%   looking for the first character or not after the group. If there is
+%   anything non-expandable at all in it then that will be treated as the
+%   first \enquote{character}.
 %    \begin{macrocode}
 \cs_new:Npn \@@_mixed_case_skip:Nwn #1#2 ,
   {
@@ -3445,11 +3484,15 @@
   }
 \cs_new:Npn \@@_mixed_case_group:nwn #1#2 \q_recursion_stop #3
   {
-    {
-      \@@_mixed_case_loop:wn #1
-        \q_recursion_tail \q_recursion_stop {#3}
-    }
-    \@@_change_case_loop:wnn #2 \q_recursion_stop { lower } {#3}
+    \tl_if_blank:fTF {#1}
+      { { } \@@_mixed_case_loop:wn #2 \q_recursion_stop {#3} }
+      {
+        {
+          \@@_mixed_case_loop:wn #1
+            \q_recursion_tail \q_recursion_stop {#3}
+        }
+        \@@_change_case_loop:wnn #2 \q_recursion_stop { lower } {#3}
+      }
   }
 \exp_last_unbraced:NNo \cs_new:Npn \@@_mixed_case_space:wn \c_space_tl
   {
