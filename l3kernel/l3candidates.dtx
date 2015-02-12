@@ -828,13 +828,14 @@
 % should be converted to engine-protected versions using for example the
 % \tn{robustify} command from the \pkg{etoolbox} package. Begin-group and
 % end-group characters in the \meta{tokens} are normalized and become |{| and
-% |}|, respectively. Case changing will take place inside groups so for example
+% |}|, respectively. Case changing will take place inside groups but not in
+% math mode material so for example
 % \begin{verbatim}
 %   \tl_upper_case:n { Some~text~$y = mx + c$~with~{Braces} }
 % \end{verbatim}
 % will become
 % \begin{verbatim}
-%   SOME~TEXT~$Y = MX + C$~WITH~{BRACES}
+%   SOME~TEXT~$y = mx + c$~WITH~{BRACES}
 % \end{verbatim}
 %   
 % \begin{variable}{\l_tl_case_change_exclude_tl}
@@ -858,8 +859,18 @@
 %   the escape functions: it is left to other code to provide suitable
 %   definitions (typically equivalent to \cs{use:n}).
 %   
-%   When used with \LaTeXe{} the commands |\cite|, |\label| and |\ref|
-%   are automatically included in the list for exclusion from case changing.
+%   When used with \LaTeXe{} the commands |\cite|, |\ensuremath|, |\label|
+%   and |\ref| are automatically included in the list for exclusion from
+%   case changing.
+% \end{variable}
+% 
+% \begin{variable}{\l_tl_case_change_math_tl}
+%   Case changing is automatically skipped in math mode. This is controlled
+%   by the list of tokens in \cs{l_tl_case_change_math_tl}, which should
+%   be in open--close pairs. In package mode the standard setings is
+%   \begin{verbatim}
+%     $ $ \( \)
+%   \end{verbatim}
 % \end{variable}
 %
 % In addition to this functionality, the case change system will also
@@ -3056,9 +3067,16 @@
 % \begin{macro}[aux, EXP]{\@@_change_case:nnn}
 % \begin{macro}[aux, EXP]{\@@_change_case_loop:wnn}
 % \begin{macro}[aux, EXP]{\@@_change_case_N_type:Nwnn}
+% \begin{macro}[aux, EXP]{\@@_change_case_N_type:NNN}
+% \begin{macro}[aux, EXP]{\@@_change_case_N_type:Nnnn}
 % \begin{macro}[aux, EXP]{\@@_change_case_group:nwnn}
 % \begin{macro}[aux, EXP]{\@@_change_case_space:wnn}
 % \begin{macro}[aux, EXP]{\@@_change_case_char:NNNNNNNNn}
+% \begin{macro}[aux, EXP]{\@@_change_case_math:NNNn}
+% \begin{macro}[aux, EXP]{\@@_change_case_math_loop:wNN}
+% \begin{macro}[aux, EXP]{\@@_change_case_math:NwNN}
+% \begin{macro}[aux, EXP]{\@@_change_case_math_group:nwNN}
+% \begin{macro}[aux, EXP]{\@@_change_case_math_space:wNN}
 % \begin{macro}[aux, EXP]{\@@_change_case_cs:Nnnn}
 % \begin{macro}[aux, EXP]{\@@_change_case_cs:nNnnn}
 % \begin{macro}[aux, EXP]{\@@_change_case_cs_three:w}
@@ -3087,9 +3105,11 @@
 %   treatment). In contrast to \cs{@@_act:NNNnn}, there is no need for this
 %   process to be \texttt{f}-type expandable: things are done using only
 %   \texttt{x}-type requirements. Also, for \enquote{normal} tokens there is
-%   a bit more work to do here: to allow selection of case matches using
-%   character code, it's important that control sequences are filtered out
-%   before doing the lookup.
+%   a bit more work to do here. To allow math mode escape for paired tokens,
+%   there is first a search to see if we've picked up on of the possible
+%   openers. If we have, there is a separate route to follow. Otherwise
+%   we need to choose between control sequences and characters: only the
+%   latter allow character code to be used for the conversion lookup.
 %    \begin{macrocode}
 \cs_new:Npn \@@_change_case:nnn #1#2#3
   {
@@ -3107,9 +3127,29 @@
       }
     #1 \q_recursion_stop
   }
-\cs_new:Npn \@@_change_case_N_type:Nwnn #1#2 \q_recursion_stop #3#4
+\cs_new:Npn \@@_change_case_N_type:Nwnn #1#2 \q_recursion_stop
   {
-    \quark_if_recursion_tail_stop_do:Nn #1 { \use_none:nn }
+    \quark_if_recursion_tail_stop_do:Nn #1 { \use_none:nnn }
+    \exp_after:wN \@@_change_case_N_type:NNN
+      \exp_after:wN #1 \l_tl_case_change_math_tl
+      \q_recursion_tail ? \q_recursion_stop {#2}
+  }
+\cs_new:Npn \@@_change_case_N_type:NNN #1#2#3
+  {
+    \quark_if_recursion_tail_stop_do:Nn #2
+      { \@@_change_case_N_type:Nnnn #1 }
+    \token_if_eq_meaning:NNTF #1 #2
+      {
+        \use_i_delimit_by_q_recursion_stop:nw
+           {
+             \@@_change_case_math:NNNn #1 #3
+               \@@_change_case_loop:wnn 
+           }
+      }
+      { \@@_change_case_N_type:NNN #1 }
+  }
+\cs_new:Npn \@@_change_case_N_type:Nnnn #1#2#3#4
+  {
     \token_if_cs:NTF #1
 %<*initex>
       { \@@_change_case_cs:N #1 }
@@ -3154,7 +3194,7 @@
 %   compromise between performance and hash name use. The fastest approach
 %   would be to create one token list for each char (and could cover special
 %   case control sequences too) and use a hash table lookup. That is
-%   quite \eqnuote{expensive}, so instead a \cs{str_case:nvF}
+%   quite \enquote{expensive}, so instead a \cs{str_case:nvF}
 %   approach is used. One big list would be most efficient in name usage
 %   but then gets slow for entries later in the list. Doing a split into
 %   $100$ bins falls somewhere between the two extremes.
@@ -3164,6 +3204,54 @@
     \str_case:nvF #8
       { c_@@_ #9 _ #6 _X_ #7 _tl }
       { \exp_not:n {#8} }
+  }
+%    \end{macrocode}
+%   When dealing with a token that can open math mode, the idea is to
+%   loop to find the closing token and to preserve everything as-is.
+%   The loop therefore looks much the same as the normal one, but with
+%   a check to look for end-of-math mode. Once that is found or once we
+%   hit the end of the input, the \enquote{normal} loop is restarted. That
+%   is done so that the code here works for both standard case changing and
+%   for the mixed case version: the clean up needed is different but the
+%   loop functions passes (as |#4| to \cs{@@_change_case_math:NNNn}) deal
+%   with that.
+%    \begin{macrocode}
+\cs_new:Npn \@@_change_case_math:NNNn #1#2#3#4
+  {
+    \exp_not:n {#1}
+    \@@_change_case_math_loop:wNN #4 \q_recursion_stop #2 #3
+  }
+\cs_new:Npn \@@_change_case_math_loop:wNN #1 \q_recursion_stop
+  {
+    \tl_if_head_is_N_type:nTF {#1}
+      { \@@_change_case_math:NwNN }
+      {
+        \tl_if_head_is_group:nTF {#1}
+          { \@@_change_case_math_group:nwNN }
+          { \@@_change_case_math_space:wNN }
+      }
+    #1 \q_recursion_stop
+  }
+\cs_new:Npn \@@_change_case_math:NwNN #1#2 \q_recursion_stop #3#4
+  {
+    \token_if_eq_meaning:NNTF \q_recursion_tail #1
+      { #4 \q_recursion_tail \q_recursion_stop }
+      {
+        \exp_not:n {#1}
+        \token_if_eq_meaning:NNTF #1 #3
+          { #4 #2 \q_recursion_stop }
+          { \@@_change_case_math_loop:wNN #2 \q_recursion_stop #3#4 }
+      }
+  }
+\cs_new:Npn \@@_change_case_math_group:nwNN #1#2 \q_recursion_stop
+  {
+    { \exp_not:n {#1} }
+    \@@_change_case_math_loop:wNN #2 \q_recursion_stop
+  }
+\exp_last_unbraced:NNo \cs_new:Npn \@@_change_case_math_space:wNN \c_space_tl
+  {
+    \c_space_tl
+    \@@_change_case_math_loop:wNN
   }
 %    \end{macrocode}
 %   If a control sequence has been given as the argument and it is not on
@@ -3371,10 +3459,19 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 %
 % \begin{macro}[aux, EXP]{\@@_mixed_case:nn}
 % \begin{macro}[aux, EXP]{\@@_mixed_case_loop:wn}
 % \begin{macro}[aux, EXP]{\@@_mixed_case_N_type:Nwn}
+% \begin{macro}[aux, EXP]{\@@_mixed_case_N_type:NNN}
+% \begin{macro}[aux, EXP]{\@@_mixed_case_N_type:Nnn}
 % \begin{macro}[aux, EXP]{\@@_mixed_case_skip:Nwn}
 % \begin{macro}[aux, EXP]{\@@_mixed_case_skip_tidy:nNwn}
 % \begin{macro}[aux, EXP]{\@@_mixed_case_group:nwn}
@@ -3409,9 +3506,29 @@
       }
     #1 \q_recursion_stop
   }
-\cs_new:Npn \@@_mixed_case_N_type:Nwn #1#2 \q_recursion_stop #3
+\cs_new:Npn \@@_mixed_case_N_type:Nwn #1#2 \q_recursion_stop
   {
     \quark_if_recursion_tail_stop_do:Nn #1 { \use_none:nn }
+    \exp_after:wN \@@_mixed_case_N_type:NNN
+      \exp_after:wN #1 \l_tl_case_change_math_tl
+      \q_recursion_tail ? \q_recursion_stop {#2}
+  }
+\cs_new:Npn \@@_mixed_case_N_type:NNN #1#2#3
+  {
+    \quark_if_recursion_tail_stop_do:Nn #2
+      { \@@_mixed_case_N_type:Nnn #1 }
+    \token_if_eq_meaning:NNTF #1 #2
+      {
+        \use_i_delimit_by_q_recursion_stop:nw
+          {
+            \@@_change_case_math:NNNn #1 #3
+              \@@_mixed_case_loop:wn
+          }
+      }
+      { \@@_mixed_case_N_type:NNN #1 }
+  }
+\cs_new:Npn \@@_mixed_case_N_type:Nnn #1#2#3
+  {
     \token_if_cs:NTF #1
 %<*initex>
       {
@@ -3503,6 +3620,8 @@
     \@@_mixed_case_loop:wn
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -3696,13 +3815,25 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{variable}{\l_tl_case_change_math_tl}
+%   The list of token pairs which are treated as math mode and so
+%   not case changed.
+%    \begin{macrocode}
+\tl_new:N \l_tl_case_change_math_tl
+%<*package>
+\tl_set:Nn \l_tl_case_change_math_tl
+  { $ $ \( \) }
+%</package>
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_tl_case_change_exclude_tl}
-%   The list of commands for which an argument is not case changed
+%   The list of commands for which an argument is not case changed.
 %    \begin{macrocode}
 \tl_new:N \l_tl_case_change_exclude_tl
 %<*package>
 \tl_set:Nn \l_tl_case_change_exclude_tl
-  { \cite \label \ref }
+  { \cite \ensuremath \label \ref }
 %</package>
 %    \end{macrocode}
 % \end{variable}
