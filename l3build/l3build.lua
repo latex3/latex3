@@ -674,7 +674,9 @@ end
 -- Run one of the test files: doesn't check the result so suitable for
 -- both creating and verifying .tlg files
 function runtest (name, engine, hide)
-  cp (name .. lvtext, testfiledir, testdir)
+  local lvtfile = name .. lvtext
+  cp (lvtfile, fileexists (testfiledir .. "/" .. lvtfile)
+    and testfiledir or unpackdir, testdir)
   local engine = engine or stdengine
   -- Set up the format file name if it's one ending "...tex"
   local format
@@ -684,7 +686,6 @@ function runtest (name, engine, hide)
     format = ""
   end
   local logfile = testdir .. "/" .. name .. logext
-  local lvtfile = name .. lvtext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
   for i = 1, checkruns, 1 do
     run (
