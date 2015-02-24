@@ -1070,7 +1070,7 @@ end
 function save (name, engine)
   local tlgfile = name .. (engine and ("." .. engine) or "") .. tlgext
   local newfile = name .. "." .. (engine or stdengine) .. logext
-  if fileexists (testfiledir .. "/" .. name .. lvtext) then
+  if testexists (name) then
     checkinit ()
     print ("Creating and copying " .. tlgfile)
     runtest (name, engine, false)
