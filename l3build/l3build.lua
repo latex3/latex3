@@ -659,8 +659,6 @@ function runcheck (name, engine, hide)
   end
   local errorlevel = 0
   for _,i in ipairs (checkengines) do
-    cp (name .. tlgext, testfiledir, testdir)
-    runtest (name, i, hide, lvtext)
     local testname = name .. "." .. i
     local difffile = testdir .. "/" .. testname .. os_diffext
     local newfile  = testdir .. "/" .. testname .. logext
@@ -673,6 +671,9 @@ function runcheck (name, engine, hide)
       print ("Error: failed to find " .. tlgext .. " file for " .. name .. "!")
       os.exit (1)
     end
+    cp (name .. tlgext, testfiledir, testdir)
+    runtest (name, i, hide, lvtext)
+    -- compare test result with goal
     if os_windows then
       tlgfile = unix_to_win (tlgfile)
     end
