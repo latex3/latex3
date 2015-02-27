@@ -143,6 +143,7 @@ typesetcmds = typesetcmds or ""
 logext = logext or ".log"
 lvtext = lvtext or ".lvt"
 tlgext = tlgext or ".tlg"
+lveext = lveext or ".lve"
 
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
@@ -716,7 +717,8 @@ function runtest (name, engine, hide, ext)
   -- Store secondary files for this engine
   for _,i in ipairs (filelist (testdir, name .. ".???")) do
     local ext = string.match (i, "%....")
-    if ext ~= lvtext and ext ~= tlgext and ext ~= logext then
+    if ext ~= lvtext and ext ~= tlgext and
+      ext ~= lveext and ext ~= logext then
       if not fileexists (testsuppdir .. "/" .. i) then
         ren (
           testdir, i, string.gsub (
