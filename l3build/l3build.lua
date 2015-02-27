@@ -659,7 +659,7 @@ function runcheck (name, engine, hide)
   local errorlevel = 0
   for _,i in ipairs (checkengines) do
     cp (name .. tlgext, testfiledir, testdir)
-    runtest (name, i, hide)
+    runtest (name, i, hide, lvtext)
     local testname = name .. "." .. i
     local difffile = testdir .. "/" .. testname .. os_diffext
     local newfile  = testdir .. "/" .. testname .. logext
@@ -689,8 +689,8 @@ end
 
 -- Run one of the test files: doesn't check the result so suitable for
 -- both creating and verifying .tlg files
-function runtest (name, engine, hide)
-  local lvtfile = name .. lvtext
+function runtest (name, engine, hide, ext)
+  local lvtfile = name .. (ext or lvtext)
   cp (lvtfile, fileexists (testfiledir .. "/" .. lvtfile)
     and testfiledir or unpackdir, testdir)
   local engine = engine or stdengine
@@ -1091,7 +1091,7 @@ function save (name, engine)
   checkinit ()
   if testexists (name) then
     print ("Creating and copying " .. tlgfile)
-    runtest (name, engine, false)
+    runtest (name, engine, false, lvtext)
     ren (testdir, newfile, tlgfile)
     cp (tlgfile, testdir, testfiledir)
     if fileexists (unpackdir .. "/" .. tlgfile) then
