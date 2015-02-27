@@ -666,7 +666,7 @@ function runcheck (name, engine, hide)
     -- Use engine-specific file if available
     local tlgfile  = locate (
       {testfiledir, unpackdir},
-      {name ..  "." .. i .. tlgext, name .. tlgext}
+      {testname .. tlgext, name .. tlgext}
     )
     if not tlgfile then
       print ("Error: failed to find " .. tlgext .. " file for " .. name .. "!")
