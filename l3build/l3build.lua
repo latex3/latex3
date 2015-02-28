@@ -770,13 +770,19 @@ function checkall ()
   if testfiledir ~= "" and direxists (testfiledir) then
     checkinit ()
     print ("Running checks on")
-    for _,i in ipairs (filelist (testfiledir, "*" .. lvtext)) do
+    function execute(i)
       local name = stripext (i)
       print ("  " .. name)
       local errlevel = runcheck (name, nil, true)
       if errlevel ~= 0 then
         errorlevel = 1
       end
+    end
+    for _,i in ipairs (filelist (testfiledir, "*" .. lvtext)) do
+      execute(i)
+    end
+    for _,i in ipairs (filelist (unpackdir, "*" .. lvtext)) do
+      execute(i)
     end
     if errorlevel ~= 0 then
       checkdiff ()
