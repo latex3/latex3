@@ -718,13 +718,21 @@ function stripext (file)
   return name or file
 end
 
-function testexists (test)
-  if fileexists (testfiledir .. "/" .. test .. lvtext) or
-    fileexists(unpackdir .. "/" .. test .. lvtext) then
-    return true
-  else
-    return false
+-- Look for filenames, directory by directory, and return the first existing.
+function locate (directories, filenames)
+  for _, directory in ipairs (directories) do
+    for _, filename in ipairs (filenames) do
+      local path = directory .. "/" .. filename
+      if fileexists (path) then
+        return path
+      end
+    end
   end
+  return nil
+end
+
+function testexists (test)
+  return locate ({testfiledir, unpackdir}, {test .. lvtext})
 end
 
 -- Standard versions of the main targets for building modules
