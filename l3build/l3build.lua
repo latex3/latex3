@@ -553,6 +553,8 @@ function formatlog (logfile, newfile)
     line = string.gsub (line, "\\csname\\endcsname ", "\\csname\\endcsname")
     -- Zap "on line <num>" and replace with "on line ..."
     line = string.gsub (line, "on line %d*", "on line ...")
+    -- Zap line numbers from \show, \showbox, \box_show and the like
+    line = string.gsub (line, "^l.%d* (\\[^ ]*show)", "l. ... %1")
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
     line = string.gsub (line, "^%s+", "")
