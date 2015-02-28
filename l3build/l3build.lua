@@ -667,11 +667,21 @@ function runcheck (name, engine, hide)
       {testfiledir, unpackdir},
       {testname .. tlgext, name .. tlgext}
     )
-    if not tlgfile then
-      print ("Error: failed to find " .. tlgext .. " file for " .. name .. "!")
-      os.exit (1)
+    if tlgfile then
+      cp (name .. tlgext, testfiledir, testdir)
+    else
+      -- generate missing test goal from expectation
+      tlgfile = testdir .. "/" .. testname .. tlgext
+      if not locate ({unpackdir, testfiledir}, {name .. lveext}) then
+        print (
+          "Error: failed to find " .. tlgext .. " or "
+          .. lveext .. " file for " .. name .. "!"
+        )
+        os.exit (1)
+      end
+      runtest(name, i, hide, lveext)
+      ren(testdir, testname .. logext, testname .. tlgext)
     end
-    cp (name .. tlgext, testfiledir, testdir)
     runtest (name, i, hide, lvtext)
     -- compare test result with goal
     if os_windows then
