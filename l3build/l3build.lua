@@ -719,7 +719,8 @@ function stripext (file)
 end
 
 function testexists (test)
-  if fileexists (testfiledir .. "/" .. test .. lvtext) then
+  if fileexists (testfiledir .. "/" .. test .. lvtext) or
+    fileexists(unpackdir .. "/" .. test .. lvtext) then
     return true
   else
     return false
