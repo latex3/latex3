@@ -652,9 +652,11 @@ function runcheck (name, engine, hide)
     local difffile = testdir .. "/" .. testname .. os_diffext
     local newfile  = testdir .. "/" .. testname .. logext
     -- Use engine-specific file if available
-    local tlgfile  = testfiledir .. "/" .. name ..  "." .. i .. tlgext
-    if not fileexists (tlgfile) then
-      tlgfile  = testfiledir .. "/" .. name .. tlgext
+    local tlgfile  = locate({testfiledir, unpackdir},
+      {name ..  "." .. i .. tlgext, name ..tlgext})
+    if not tlgfile then
+      print ("unable to find test goal for " .. name)
+      tlgfile = os_null
     end
     if os_windows then
       tlgfile = unix_to_win (tlgfile)
