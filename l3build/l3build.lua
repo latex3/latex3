@@ -1086,6 +1086,9 @@ function save (name, engine)
     runtest (name, engine, false)
     ren (testdir, newfile, tlgfile)
     cp (tlgfile, testdir, testfiledir)
+    if fileexists (unpackdir .. "/" .. tlgfile) then
+      print ("This masks an unpacked test goal of the same name")
+    end
   else
     print (
       "Test input \"" .. testfiledir .. "/" .. name .. lvtext ..
