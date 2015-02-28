@@ -403,7 +403,7 @@ function checkinit ()
   for _,i in ipairs (filelist (localdir)) do
     cp (i, localdir, testdir)
   end
-  bundleunpack ()
+  bundleunpack ({".", testfiledir})
   for _,i in ipairs (installfiles) do
     cp (i, unpackdir, testdir)
   end
@@ -1109,11 +1109,14 @@ end
 
 -- Split off from the main unpack so it can be used on a bundle and not
 -- leave only one modules files
-function bundleunpack ()
+function bundleunpack (sourcedir)
   mkdir (localdir)
   cleandir (unpackdir)
-  for _,i in ipairs (sourcefiles) do
-    cp (i, ".", unpackdir)
+  for _,i in ipairs (sourcedir or {"."}) do
+    for _,j in ipairs (sourcefiles) do
+      print(j, i, unpackdir)
+      cp (j, i, unpackdir)
+    end
   end
   for _,i in ipairs (unpacksuppfiles) do
     cp (i, supportdir, localdir)
