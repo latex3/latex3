@@ -191,7 +191,66 @@
 %
 % \section{String manipulation}
 %
-% \begin{function}[rEXP, added = 2014-06-19]{\str_fold_case:n}
+% \begin{function}[rEXP, added = 2015-03-01]
+%    {
+%      \str_lower_case:n, \str_lower_case:f, 
+%      \str_upper_case:n, \str_upper_case:f
+%   }
+%   \begin{syntax}
+%     \cs{str_lower_case:n} \Arg{tokens}
+%     \cs{str_upper_case:n} \Arg{tokens}
+%   \end{syntax}
+%   Converts the input \meta{tokens} to their string representation, as
+%   described for \cs{tl_to_str:n}, and then converts to the lower or upper
+%   case representation using a one-to-one mapping as described by the
+%   Unicode Consortium |UnicodeData.txt| data file.
+%   
+%   These functions are intended for case changing programmatic data in
+%   places where upper/lower case distinctions are meaningful. One example
+%   would be automatically generating a function name from user input where
+%   some case changing is needed. In this situation the input is programmatic,
+%   not textual, case does have meaning and a one-to-one mapping is
+%   appropriate. For example
+%   \begin{verbatim}
+%     \cs_new_protected:Npn \myfunc:nn #1#2
+%       {
+%         \cs_set_protected:cpn
+%           {
+%             user
+%             \str_upper_case:f { \tl_head:n {#1} }
+%             \str_lower_case:f { \tl_tail:n {#1} }
+%           }
+%           { #2 }
+%       }
+%   \end{verbatim}
+%   would be used to generate a user-level command in which the first token
+%   of the user data is upper case and the remaining tokens are lower case.
+%   
+%   These functions should \emph{not} be used for
+%   \begin{itemize}
+%     \item Caseless comparisons: use \cs{str_fold_case:n} for this
+%       situation (case folding is district from lower casing)
+%     \item Case changing text for typesetting: see the \cs{tl_lower_case:n(n)},
+%       \cs{tl_upper_case:n(n)} and \cs{tl_mixed_case:n(n)} functions which
+%       correctly deal with context-dependence and other factors appropriate
+%       to text case changing.
+%   \end{itemize}
+%
+%   \begin{texnote}
+%     As with all \pkg{expl3} functions, the input supported by
+%     \cs{str_fold_case:n} is \emph{engine-native} characters which are or
+%     interoperate with \textsc{utf-8}. As such, when used with \pdfTeX{}
+%     \emph{only} the Latin alphabet characters A--Z will be case-folded
+%     (\emph{i.e.}~the \textsc{ascii} range which coincides with
+%     \textsc{utf-8}). Full \textsc{utf-8} support is available with both
+%     \XeTeX{} and \LuaTeX{}, subject only to the fact that \XeTeX{} in
+%     particular has issues with characters of code above hexadecimal
+%     $0\mathrm{xFFF}$ when interacting with \cs{tl_to_str:n}.
+%   \end{texnote}
+% \end{function}
+%
+% \begin{function}[rEXP, added = 2014-06-19, updated = 2015-03-01]
+%   {\str_fold_case:n}
 %   \begin{syntax}
 %     \cs{str_fold_case:n} \Arg{tokens}
 %   \end{syntax}
@@ -492,65 +551,71 @@
 %
 % \subsection{String manipulation}
 %
-% \begin{macro}[EXP]{\str_fold_case:n}
-% \begin{macro}[aux, EXP]{\@@_fold_auxi:w}
-% \begin{macro}[aux, EXP]{\@@_fold_auxii:N}
-% \begin{macro}[aux, EXP]{\@@_fold_auxiii:NNNNNNNN}
-% \begin{macro}[aux, EXP]{\@@_fold_end:w}
-%   To convert a string to the \enquote{caseless} form, the first stage is to
-%   remove tokenization. Once that is done, provided the transformed chars are
-%   also detokenized then there is no need to worry about category codes.
-%   Spaces need to be retained as part of the mapping, so there is a little
-%   work to do in the set up. Data to support this process is loaded later in
-%   the \pkg{expl3} bundle.
+% \begin{macro}[EXP]
+%   {
+%     \str_fold_case:n,
+%     \str_lower_case:n, \str_lower_case:f,
+%     \str_upper_case:n, \str_upper_case:f
+%   }
+% \begin{macro}[aux, EXP]{\__str_change_case:nn}
+% \begin{macro}[aux, EXP]{\__str_change_case_aux:nn}
+% \begin{macro}[aux, EXP]{\__str_change_case_loop:nw}
+% \begin{macro}[aux, EXP]{\__str_change_case_space:n}
+% \begin{macro}[aux, EXP]{\__str_change_case_char:nN}
+% \begin{macro}[aux, EXP]{\__str_change_case_char:NNNNNNNNn}
+%   Case changing for programmatic reasons is done by first detokenizing
+%   input then doing a simple loop that only has to worry about spaces
+%   and everything else. The output is detokenized to allow data sharing
+%   with text-based case changing. The key idea here of splitting up the
+%   data files based on the character code of the current character is
+%   shared with the text case changer too.
 %    \begin{macrocode}
-\cs_new:Npn \str_fold_case:n #1
+\cs_new:Npn \str_fold_case:n #1 { \__str_change_case:nn {#1} { fold } }
+\cs_new:Npn \str_lower_case:n #1 { \__str_change_case:nn {#1} { lower } }
+\cs_new:Npn \str_upper_case:n #1 { \__str_change_case:nn {#1} { upper } }
+\cs_generate_variant:Nn \str_lower_case:n { f }
+\cs_generate_variant:Nn \str_upper_case:n { f }
+\cs_new:Npn \__str_change_case:nn #1
   {
-    \exp_after:wN \@@_fold_auxi:w \tl_to_str:n {#1}
-    { ~ \c_empty_tl } \@@_fold_end:w ? ~
+    \exp_after:wN \__str_change_case_aux:nn \exp_after:wN 
+      { \tl_to_str:n {#1} }
   }
-%    \end{macrocode}
-%   A loop using spaces as delimiters: done in this way there is no issue with
-%   spaces in the input. Notice that there is a second inner loop with
-%   \cs{@@_fold_auxii:N} for each \enquote{word}.
-%    \begin{macrocode}
-\cs_new:Npn \@@_fold_auxi:w #1 ~
+\cs_new:Npn \__str_change_case_aux:nn #1#2
   {
-    \@@_fold_auxii:N #1 { ~ \c_space_tl }
-    \@@_fold_auxi:w
+    \__str_change_case_loop:nw {#2} #1 \q_recursion_tail \q_recursion_stop
   }
-%    \end{macrocode}
-%   The idea here is to take a single token and convert it to its decimal
-%   character code. This can then be used to split up the input into $100$
-%   separate manageable lists for comparison on a case-by-case basis.
-%    \begin{macrocode}
-\cs_new:Npn \@@_fold_auxii:N #1
+\cs_new:Npn \__str_change_case_loop:nw #1#2 \q_recursion_stop
   {
-    \exp_after:wN \@@_fold_auxiii:NNNNNNNN
-    \int_use:N \__int_eval:w 1000000 + `#1 \__int_eval_end: #1
+    \tl_if_head_is_space:nTF {#2}
+      { \__str_change_case_space:n }
+      { \__str_change_case_char:nN }
+    {#1} #2 \q_recursion_stop
   }
-%    \end{macrocode}
-%   At this stage, use a slow-but-expandable string case selection to look
-%   for a matching char. If one is not found then retain the input as-is.
-%   This also does some cleanup to allow a simple termination of the two
-%   loops.
-%    \begin{macrocode}
-\cs_new:Npn \@@_fold_auxiii:NNNNNNNN #1#2#3#4#5#6#7#8
+\use:x
+  { \cs_new:Npn \exp_not:N \__str_change_case_space:n ##1 \c_space_tl }
   {
-    \exp_args:NNv \str_case_x:nnF #8
-      { c_@@_fold_ #6 _X_ #7 _tl }
+    \c_space_tl
+    \__str_change_case_loop:nw {#1}
+  }
+\cs_new:Npn \__str_change_case_char:nN #1#2
+  {
+    \quark_if_recursion_tail_stop:N #2
+    \exp_args:Nf \tl_to_str:n
       {
-        #8
-        \exp_after:wN \use_none:n #8
+        \exp_after:wN \__str_change_case_char:NNNNNNNNn
+          \int_use:N \__int_eval:w 1000000 + `#2 \__int_eval_end: #2 {#1}
       }
-    \@@_fold_auxii:N
+    \__str_change_case_loop:nw {#1}
+  }
+\cs_new:Npn \__str_change_case_char:NNNNNNNNn #1#2#3#4#5#6#7#8#9
+  {
+    \str_case:nvF #8
+      { c__unicode_ #9 _ #6 _X_ #7 _tl }
+      { #8 }
   }
 %    \end{macrocode}
-%   When the end is reached, clean everything up leaving the converted
-%   string in the input stream.
-%    \begin{macrocode}
-\cs_new:Npn \@@_fold_end:w ? #1 \@@_fold_auxi:w { }
-%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
