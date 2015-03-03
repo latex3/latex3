@@ -1112,6 +1112,11 @@ function save (name, engine)
         "Saved " .. tlgext
           .. " file overrides unpacked version of the same name"
       )
+    elseif locate({unpackdir, testfiledir}, {name .. lveext}) then
+      print (
+        "Saved " .. tlgext .. " file overrides a "
+        .. lveext .. " file of the same name"
+      )
     end
   else
     print (
