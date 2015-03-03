@@ -403,7 +403,7 @@ function checkinit ()
   for _,i in ipairs (filelist (localdir)) do
     cp (i, localdir, testdir)
   end
-  bundleunpack ()
+  bundleunpack ({".", testfiledir})
   for _,i in ipairs (installfiles) do
     cp (i, unpackdir, testdir)
   end
@@ -652,9 +652,11 @@ function runcheck (name, engine, hide)
     local difffile = testdir .. "/" .. testname .. os_diffext
     local newfile  = testdir .. "/" .. testname .. logext
     -- Use engine-specific file if available
-    local tlgfile  = testfiledir .. "/" .. name ..  "." .. i .. tlgext
-    if not fileexists (tlgfile) then
-      tlgfile  = testfiledir .. "/" .. name .. tlgext
+    local tlgfile  = locate({testfiledir, unpackdir},
+      {name ..  "." .. i .. tlgext, name ..tlgext})
+    if not tlgfile then
+      print ("unable to find test goal for " .. name)
+      tlgfile = os_null
     end
     if os_windows then
       tlgfile = unix_to_win (tlgfile)
@@ -674,7 +676,9 @@ end
 -- Run one of the test files: doesn't check the result so suitable for
 -- both creating and verifying .tlg files
 function runtest (name, engine, hide)
-  cp (name .. lvtext, testfiledir, testdir)
+  local lvtfile = name .. lvtext
+  cp (lvtfile, fileexists (testfiledir .. "/" .. lvtfile)
+    and testfiledir or unpackdir, testdir)
   local engine = engine or stdengine
   -- Set up the format file name if it's one ending "...tex"
   local format
@@ -684,7 +688,6 @@ function runtest (name, engine, hide)
     format = ""
   end
   local logfile = testdir .. "/" .. name .. logext
-  local lvtfile = name .. lvtext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
   for i = 1, checkruns, 1 do
     run (
@@ -717,12 +720,21 @@ function stripext (file)
   return name or file
 end
 
-function testexists (test)
-  if fileexists (testfiledir .. "/" .. test .. lvtext) then
-    return true
-  else
-    return false
+-- Look for filenames, directory by directory, and return the first existing.
+function locate (directories, filenames)
+  for _, directory in ipairs (directories) do
+    for _, filename in ipairs (filenames) do
+      local path = directory .. "/" .. filename
+      if fileexists (path) then
+        return path
+      end
+    end
   end
+  return nil
+end
+
+function testexists (test)
+  return locate ({testfiledir, unpackdir}, {test .. lvtext})
 end
 
 -- Standard versions of the main targets for building modules
@@ -768,13 +780,19 @@ function checkall ()
   if testfiledir ~= "" and direxists (testfiledir) then
     checkinit ()
     print ("Running checks on")
-    for _,i in ipairs (filelist (testfiledir, "*" .. lvtext)) do
+    function execute(i)
       local name = stripext (i)
       print ("  " .. name)
       local errlevel = runcheck (name, nil, true)
       if errlevel ~= 0 then
         errorlevel = 1
       end
+    end
+    for _,i in ipairs (filelist (testfiledir, "*" .. lvtext)) do
+      execute(i)
+    end
+    for _,i in ipairs (filelist (unpackdir, "*" .. lvtext)) do
+      execute(i)
     end
     if errorlevel ~= 0 then
       checkdiff ()
@@ -786,8 +804,8 @@ function checkall ()
 end
 
 function checklvt (name, engine)
+  checkinit ()
   if testexists (name) then
-    checkinit ()
     print ("Running checks on " .. name)
     local errorlevel = runcheck (name, engine)
     if errorlevel ~= 0 then
@@ -1060,14 +1078,17 @@ function install ()
 end
 
 function save (name, engine)
+  checkinit ()
   local tlgfile = name .. (engine and ("." .. engine) or "") .. tlgext
   local newfile = name .. "." .. (engine or stdengine) .. logext
-  if fileexists (testfiledir .. "/" .. name .. lvtext) then
-    checkinit ()
+  if testexists (name) then
     print ("Creating and copying " .. tlgfile)
     runtest (name, engine, false)
     ren (testdir, newfile, tlgfile)
     cp (tlgfile, testdir, testfiledir)
+    if fileexists (unpackdir .. "/" .. tlgfile) then
+      print ("This masks an unpacked test goal of the same name")
+    end
   else
     print (
       "Test input \"" .. testfiledir .. "/" .. name .. lvtext ..
@@ -1088,11 +1109,14 @@ end
 
 -- Split off from the main unpack so it can be used on a bundle and not
 -- leave only one modules files
-function bundleunpack ()
+function bundleunpack (sourcedir)
   mkdir (localdir)
   cleandir (unpackdir)
-  for _,i in ipairs (sourcefiles) do
-    cp (i, ".", unpackdir)
+  for _,i in ipairs (sourcedir or {"."}) do
+    for _,j in ipairs (sourcefiles) do
+      print(j, i, unpackdir)
+      cp (j, i, unpackdir)
+    end
   end
   for _,i in ipairs (unpacksuppfiles) do
     cp (i, supportdir, localdir)
