@@ -804,8 +804,8 @@ function checkall ()
 end
 
 function checklvt (name, engine)
+  checkinit ()
   if testexists (name) then
-    checkinit ()
     print ("Running checks on " .. name)
     local errorlevel = runcheck (name, engine)
     if errorlevel ~= 0 then
@@ -1078,10 +1078,10 @@ function install ()
 end
 
 function save (name, engine)
+  checkinit ()
   local tlgfile = name .. (engine and ("." .. engine) or "") .. tlgext
   local newfile = name .. "." .. (engine or stdengine) .. logext
   if testexists (name) then
-    checkinit ()
     print ("Creating and copying " .. tlgfile)
     runtest (name, engine, false)
     ren (testdir, newfile, tlgfile)
