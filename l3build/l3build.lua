@@ -619,6 +619,18 @@ function formatlog (logfile, newfile)
   io.close (newfile)
 end
 
+-- Look for files, directory by directory, and return the first existing
+function locate (dirs, names)
+  for _,i in ipairs (dirs) do
+    for _,j in ipairs (names) do
+      local path = i .. "/" .. j
+      if fileexists (path) then
+        return (path)
+      end
+    end
+  end
+end
+
 -- List all modules
 function listmodules ()
   local modules = { }
@@ -652,9 +664,13 @@ function runcheck (name, engine, hide)
     local difffile = testdir .. "/" .. testname .. os_diffext
     local newfile  = testdir .. "/" .. testname .. logext
     -- Use engine-specific file if available
-    local tlgfile  = testfiledir .. "/" .. name ..  "." .. i .. tlgext
-    if not fileexists (tlgfile) then
-      tlgfile  = testfiledir .. "/" .. name .. tlgext
+    local tlgfile  = locate (
+      {testfiledir, unpackdir},
+      {name ..  "." .. i .. tlgext, name .. tlgext}
+    )
+    if not tlgfile then
+      print ("Error: failed to find " .. tlgext .. " file for " .. name .. "!")
+      os.exit (1)
     end
     if os_windows then
       tlgfile = unix_to_win (tlgfile)
@@ -674,7 +690,9 @@ end
 -- Run one of the test files: doesn't check the result so suitable for
 -- both creating and verifying .tlg files
 function runtest (name, engine, hide)
-  cp (name .. lvtext, testfiledir, testdir)
+  local lvtfile = name .. lvtext
+  cp (lvtfile, fileexists (testfiledir .. "/" .. lvtfile)
+    and testfiledir or unpackdir, testdir)
   local engine = engine or stdengine
   -- Set up the format file name if it's one ending "...tex"
   local format
@@ -684,7 +702,6 @@ function runtest (name, engine, hide)
     format = ""
   end
   local logfile = testdir .. "/" .. name .. logext
-  local lvtfile = name .. lvtext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
   for i = 1, checkruns, 1 do
     run (
@@ -717,12 +734,9 @@ function stripext (file)
   return name or file
 end
 
+-- Look for a test: could be in the testfiledir or the unpackdir
 function testexists (test)
-  if fileexists (testfiledir .. "/" .. test .. lvtext) then
-    return true
-  else
-    return false
-  end
+  return (locatefile ({testfiledir, unpackdir}, test .. lvtext))
 end
 
 -- Standard versions of the main targets for building modules
@@ -766,15 +780,21 @@ end
 function checkall ()
   local errorlevel = 0
   if testfiledir ~= "" and direxists (testfiledir) then
-    checkinit ()
-    print ("Running checks on")
-    for _,i in ipairs (filelist (testfiledir, "*" .. lvtext)) do
-      local name = stripext (i)
+    local function execute (name)
+      local name = stripext (name)
       print ("  " .. name)
       local errlevel = runcheck (name, nil, true)
       if errlevel ~= 0 then
         errorlevel = 1
       end
+    end
+    checkinit ()
+    print ("Running checks on")
+    for _,i in ipairs (filelist (testfiledir, "*" .. lvtext)) do
+      execute (i)
+    end
+    for _,i in ipairs (filelist (unpackdir, "*" .. lvtext)) do
+      execute (i)
     end
     if errorlevel ~= 0 then
       checkdiff ()
@@ -786,8 +806,8 @@ function checkall ()
 end
 
 function checklvt (name, engine)
+  checkinit ()
   if testexists (name) then
-    checkinit ()
     print ("Running checks on " .. name)
     local errorlevel = runcheck (name, engine)
     if errorlevel ~= 0 then
@@ -1062,16 +1082,22 @@ end
 function save (name, engine)
   local tlgfile = name .. (engine and ("." .. engine) or "") .. tlgext
   local newfile = name .. "." .. (engine or stdengine) .. logext
-  if fileexists (testfiledir .. "/" .. name .. lvtext) then
-    checkinit ()
+  checkinit ()
+  if testexists (name) then
     print ("Creating and copying " .. tlgfile)
     runtest (name, engine, false)
     ren (testdir, newfile, tlgfile)
     cp (tlgfile, testdir, testfiledir)
+    if fileexists (unpackdir .. "/" .. tlgfile) then
+      print (
+        "Saved " .. tlgext
+          .. " file overrides unpacked version of the same name"
+      )
+    end
   else
     print (
-      "Test input \"" .. testfiledir .. "/" .. name .. lvtext ..
-        "\" not found"
+      "Test input \"" .. testfiledir .. "/" .. name .. lvtext
+        .. "\" not found"
       )
   end
 end
