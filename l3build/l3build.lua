@@ -736,7 +736,7 @@ end
 
 -- Look for a test: could be in the testfiledir or the unpackdir
 function testexists (test)
-  return (locatefile ({testfiledir, unpackdir}, test .. lvtext))
+  return (locate ({testfiledir, unpackdir}, {test .. lvtext}))
 end
 
 -- Standard versions of the main targets for building modules
