@@ -794,7 +794,13 @@ function checkall ()
       execute (i)
     end
     for _,i in ipairs (filelist (unpackdir, "*" .. lvtext)) do
-      execute (i)
+      if fileexists (testfiledir .. "/" .. i) then
+        print ("Duplicate test file: " .. i)
+        errorlevel = 1
+        break
+      else
+        execute (i)
+      end
     end
     if errorlevel ~= 0 then
       checkdiff ()
