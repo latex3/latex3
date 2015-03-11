@@ -143,6 +143,7 @@ typesetcmds = typesetcmds or ""
 logext = logext or ".log"
 lvtext = lvtext or ".lvt"
 tlgext = tlgext or ".tlg"
+lveext = lveext or ".lve"
 
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
@@ -658,20 +659,31 @@ function runcheck (name, engine, hide)
   end
   local errorlevel = 0
   for _,i in ipairs (checkengines) do
-    cp (name .. tlgext, testfiledir, testdir)
-    runtest (name, i, hide)
     local testname = name .. "." .. i
     local difffile = testdir .. "/" .. testname .. os_diffext
     local newfile  = testdir .. "/" .. testname .. logext
     -- Use engine-specific file if available
     local tlgfile  = locate (
       {testfiledir, unpackdir},
-      {name ..  "." .. i .. tlgext, name .. tlgext}
+      {testname .. tlgext, name .. tlgext}
     )
-    if not tlgfile then
-      print ("Error: failed to find " .. tlgext .. " file for " .. name .. "!")
-      os.exit (1)
+    if tlgfile then
+      cp (name .. tlgext, testfiledir, testdir)
+    else
+      -- generate missing test goal from expectation
+      tlgfile = testdir .. "/" .. testname .. tlgext
+      if not locate ({unpackdir, testfiledir}, {name .. lveext}) then
+        print (
+          "Error: failed to find " .. tlgext .. " or "
+          .. lveext .. " file for " .. name .. "!"
+        )
+        os.exit (1)
+      end
+      runtest(name, i, hide, lveext)
+      ren(testdir, testname .. logext, testname .. tlgext)
     end
+    runtest (name, i, hide, lvtext)
+    -- compare test result with goal
     if os_windows then
       tlgfile = unix_to_win (tlgfile)
     end
@@ -689,8 +701,8 @@ end
 
 -- Run one of the test files: doesn't check the result so suitable for
 -- both creating and verifying .tlg files
-function runtest (name, engine, hide)
-  local lvtfile = name .. lvtext
+function runtest (name, engine, hide, ext)
+  local lvtfile = name .. (ext or lvtext)
   cp (lvtfile, fileexists (testfiledir .. "/" .. lvtfile)
     and testfiledir or unpackdir, testdir)
   local engine = engine or stdengine
@@ -716,7 +728,8 @@ function runtest (name, engine, hide)
   -- Store secondary files for this engine
   for _,i in ipairs (filelist (testdir, name .. ".???")) do
     local ext = string.match (i, "%....")
-    if ext ~= lvtext and ext ~= tlgext and ext ~= logext then
+    if ext ~= lvtext and ext ~= tlgext and
+      ext ~= lveext and ext ~= logext then
       if not fileexists (testsuppdir .. "/" .. i) then
         ren (
           testdir, i, string.gsub (
@@ -1091,13 +1104,18 @@ function save (name, engine)
   checkinit ()
   if testexists (name) then
     print ("Creating and copying " .. tlgfile)
-    runtest (name, engine, false)
+    runtest (name, engine, false, lvtext)
     ren (testdir, newfile, tlgfile)
     cp (tlgfile, testdir, testfiledir)
     if fileexists (unpackdir .. "/" .. tlgfile) then
       print (
         "Saved " .. tlgext
           .. " file overrides unpacked version of the same name"
+      )
+    elseif locate({unpackdir, testfiledir}, {name .. lveext}) then
+      print (
+        "Saved " .. tlgext .. " file overrides a "
+        .. lveext .. " file of the same name"
       )
     end
   else
