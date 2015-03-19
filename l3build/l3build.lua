@@ -1021,8 +1021,7 @@ function doc ()
       end
     end
     local function typeset (file)
-      local errorlevel =
-        os.execute (
+      return os.execute (
             os_setenv .. " TEXINPUTS=" .. typesetdir .. 
               os_pathsep .. localdir .. (typesetsearch and os_pathsep or "") ..
               os_concat ..
@@ -1031,7 +1030,12 @@ function doc ()
               " \"" .. typesetcmds .. 
               "\\input " .. typesetdir .. "/" .. file .. "\""
           )
-      return errorlevel
+    end
+    local function biber (file)
+      return os.execute (
+        "biber --input-directory " .. localdir
+        .. " " .. typesetdir .. "/" .. name
+      )
     end
     os.remove (name .. ".pdf")
     print ("Typesetting " .. name)
@@ -1042,6 +1046,9 @@ function doc ()
     else
       makeindex (name, ".glo", ".gls", ".glg", glossarystyle)
       makeindex (name, ".idx", ".ind", ".ilg", indexstyle)
+      if fileexists (typesetdir .. "/" .. name .. ".bcf") then
+        biber (name)
+      end
       typeset (file)
       typeset (file)
       cp (name .. ".pdf", typesetdir, ".")
