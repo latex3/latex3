@@ -1021,8 +1021,7 @@ function doc ()
       end
     end
     local function typeset (file)
-      local errorlevel =
-        os.execute (
+      return os.execute (
             os_setenv .. " TEXINPUTS=" .. typesetdir .. 
               os_pathsep .. localdir .. (typesetsearch and os_pathsep or "") ..
               os_concat ..
@@ -1031,7 +1030,6 @@ function doc ()
               " \"" .. typesetcmds .. 
               "\\input " .. typesetdir .. "/" .. file .. "\""
           )
-      return errorlevel
     end
     os.remove (name .. ".pdf")
     print ("Typesetting " .. name)
