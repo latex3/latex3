@@ -464,7 +464,7 @@ function copytds ()
       for _,i in ipairs (filenames) do
         cp (i, source, installdir)
       end
-    end  
+    end
   end
   install (".", "doc", {demofiles, pdffiles, textfiles, typesetlist})
   install (unpackdir, "makeindex", {makeindexfiles}, true)
@@ -547,7 +547,7 @@ function formatlog (logfile, newfile)
         line, "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
       )
     -- Normalise a case where a LuaTeX bug misprints \csname\endcsname
-    -- This comes before the normalisation of the appearance of 
+    -- This comes before the normalisation of the appearance of
     -- \csname\endcsname in case we alter that!
     line = string.gsub (line, "\\ycsnam\\rendcsnam", "\\csname\\endcsname")
     -- Normalise a case where fixing a TeX bug changes the message text
@@ -1024,18 +1024,18 @@ function doc ()
           typesetdir ,
           "makeindex -s " .. style .. " -o " .. name .. outext
             .. " -t " .. name .. logext .. " "  .. name .. inext
-          )        
+          )
       end
     end
     local function typeset (file)
       return (
         os.execute (
-            os_setenv .. " TEXINPUTS=" .. typesetdir .. 
+            os_setenv .. " TEXINPUTS=" .. typesetdir ..
               os_pathsep .. localdir .. (typesetsearch and os_pathsep or "") ..
               os_concat ..
-            typesetexe .. " " .. typesetopts .. 
+            typesetexe .. " " .. typesetopts ..
               " -output-directory=" .. typesetdir ..
-              " \"" .. typesetcmds .. 
+              " \"" .. typesetcmds ..
               "\\input " .. typesetdir .. "/" .. file .. "\""
           )
       )
