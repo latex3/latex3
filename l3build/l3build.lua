@@ -78,12 +78,13 @@ end
 -- File types for various operations
 -- Use Unix-style globs
 -- All of these may be set earlier, so a initialised conditionally
+auxfiles         = auxfiles         or {"*.aux", "*.toc"}
 binaryfiles      = binaryfiles      or {"*.pdf", "*.zip"}
 checkfiles       = checkfiles       or { } -- Extra files unpacked purely for tests
 checksuppfiles   = checksuppfiles   or { }
 cmdchkfiles      = cmdchkfiles      or { }
 demofiles        = demofiles        or { }
-cleanfiles       = cleanfiles       or {"*.pdf", "*.zip"}
+cleanfiles       = cleanfiles       or {"*.log", "*.pdf", "*.zip"}
 excludefiles     = excludefiles     or {"*~"}             -- Any Emacs stuff
 installfiles     = installfiles     or {"*.sty"}
 makeindexfiles   = makeindexfiles   or {"*.ist"}
@@ -855,6 +856,12 @@ function clean ()
   end
 end
 
+function auxclean ()
+  for _,i in ipairs (auxfiles) do
+    rm (".", i)
+  end
+end
+
 function bundleclean ()
   allmodules ("clean")
   for _,i in ipairs (cleanfiles) do
@@ -1033,6 +1040,7 @@ function doc ()
           )
       )
     end
+    auxclean ()
     os.remove (name .. ".pdf")
     print ("Typesetting " .. name)
     local errorlevel = typeset (file)
