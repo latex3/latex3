@@ -1020,11 +1020,13 @@ function doc ()
     -- clear way
     local function makeindex (name, inext, outext, logext, style)
       if fileexists (typesetdir .. "/" .. name .. inext) then
-        run (
-          typesetdir ,
-          "makeindex -s " .. style .. " -o " .. name .. outext
-            .. " -t " .. name .. logext .. " "  .. name .. inext
-          )
+        return (
+          run (
+            typesetdir ,
+            "makeindex -s " .. style .. " -o " .. name .. outext
+              .. " -t " .. name .. logext .. " "  .. name .. inext
+            )
+        )
       end
     end
     local function typeset (file)
