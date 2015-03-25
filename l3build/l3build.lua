@@ -1018,6 +1018,11 @@ function doc ()
     local name = stripext (file)
     -- A couple of short functions to deal with the repeated steps in a
     -- clear way
+    local function biber (name)
+      if fileexists (typesetdir .. "/" .. name .. ".bcf") then
+        return (run (typesetdir, "biber " .. name))
+      end
+    end
     local function makeindex (name, inext, outext, logext, style)
       if fileexists (typesetdir .. "/" .. name .. inext) then
         return (
@@ -1026,7 +1031,7 @@ function doc ()
             "makeindex -s " .. style .. " -o " .. name .. outext
               .. " -t " .. name .. logext .. " "  .. name .. inext
             )
-        )
+          )
       end
     end
     local function typeset (file)
@@ -1050,6 +1055,7 @@ function doc ()
       print (" ! Compilation failed")
       return (errorlevel)
     else
+      biber (name)
       makeindex (name, ".glo", ".gls", ".glg", glossarystyle)
       makeindex (name, ".idx", ".ind", ".ilg", indexstyle)
       typeset (file)
