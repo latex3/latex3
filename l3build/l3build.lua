@@ -138,6 +138,7 @@ indexstyle    = indexstyle    or "gind.ist"
 checkruns   = checkruns   or 1
 packtdszip  = packtdszip  or false -- Not actually needed but clearer
 scriptname  = scriptname  or "build.lua" -- Script used in each directory
+tdszipname  = tdszipname  or bundle -- Allow non-standard names
 typesetcmds = typesetcmds or ""
 
 -- Extensions for various file types: used to abstract out stuff a bit
@@ -957,9 +958,9 @@ function ctan (standalone)
         installtxt (j, tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
       end
     end
-    dirzip (tdsdir, bundle .. ".tds")
+    dirzip (tdsdir, tdszipname .. ".tds")
     if packtdszip then
-      cp (bundle .. ".tds.zip", tdsdir, ctandir)
+      cp (tdszipname .. ".tds.zip", tdsdir, ctandir)
     end
     dirzip (ctandir, bundle)
     cp (bundle .. ".zip", ctandir, ".")
