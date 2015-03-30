@@ -71,11 +71,11 @@ tdsroot     = tdsroot or "latex"
 -- Location for installation on CTAN or in TEXMFHOME
 if bundle == "" then
   moduledir = tdsroot .. "/" .. module
+  ctanpkg   = ctanpkg or module
 else
   moduledir = tdsroot .. "/" .. bundle .. "/" .. module
+  ctanpkg   = ctanpkg or bundle
 end
--- For a few cases the name on CTAN isn't the bundle name
-ctanpkg     = ctanpkg or bundle
 
 -- File types for various operations
 -- Use Unix-style globs
