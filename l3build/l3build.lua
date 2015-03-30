@@ -74,6 +74,8 @@ if bundle == "" then
 else
   moduledir = tdsroot .. "/" .. bundle .. "/" .. module
 end
+-- For a few cases the name on CTAN isn't the bundle name
+ctanpkg     = ctanpkg or bundle
 
 -- File types for various operations
 -- Use Unix-style globs
@@ -138,7 +140,6 @@ indexstyle    = indexstyle    or "gind.ist"
 checkruns   = checkruns   or 1
 packtdszip  = packtdszip  or false -- Not actually needed but clearer
 scriptname  = scriptname  or "build.lua" -- Script used in each directory
-tdszipname  = tdszipname  or bundle -- Allow non-standard names
 typesetcmds = typesetcmds or ""
 
 -- Extensions for various file types: used to abstract out stuff a bit
@@ -958,12 +959,12 @@ function ctan (standalone)
         installtxt (j, tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
       end
     end
-    dirzip (tdsdir, tdszipname .. ".tds")
+    dirzip (tdsdir, ctanpkg .. ".tds")
     if packtdszip then
-      cp (tdszipname .. ".tds.zip", tdsdir, ctandir)
+      cp (ctanpkg .. ".tds.zip", tdsdir, ctandir)
     end
-    dirzip (ctandir, bundle)
-    cp (bundle .. ".zip", ctandir, ".")
+    dirzip (ctandir, ctanpkg)
+    cp (ctanpkg .. ".zip", ctandir, ".")
   else
     print ("\n====================")
     print ("Typesetting failed, zip stage skipped!")
