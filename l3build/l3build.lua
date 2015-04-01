@@ -428,7 +428,7 @@ function copyctan ()
   -- Do all of the copying in one go
   for _,i in ipairs ({demofiles, pdffiles, sourcefiles, textfiles, typesetlist}) do
     for _,j in ipairs (i) do
-      cp (j, ".", ctandir .. "/" .. bundle)
+      cp (j, ".", ctandir .. "/" .. ctanpkg)
     end
   end
 end
@@ -934,7 +934,7 @@ function ctan (standalone)
   end
   if errorlevel == 0 then
     rmdir (ctandir)
-    mkdir (ctandir .. "/" .. bundle)
+    mkdir (ctandir .. "/" .. ctanpkg)
     rmdir (tdsdir)
     mkdir (tdsdir)
     if standalone then
@@ -955,7 +955,7 @@ function ctan (standalone)
           cp (name, ".", dir)
           ren (dir, name, stripext (name))
         end
-        installtxt (j, ctandir .. "/" .. bundle)
+        installtxt (j, ctandir .. "/" .. ctanpkg)
         installtxt (j, tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
       end
     end
