@@ -71,8 +71,10 @@ tdsroot     = tdsroot or "latex"
 -- Location for installation on CTAN or in TEXMFHOME
 if bundle == "" then
   moduledir = tdsroot .. "/" .. module
+  ctanpkg   = ctanpkg or module
 else
   moduledir = tdsroot .. "/" .. bundle .. "/" .. module
+  ctanpkg   = ctanpkg or bundle
 end
 
 -- File types for various operations
@@ -426,7 +428,7 @@ function copyctan ()
   -- Do all of the copying in one go
   for _,i in ipairs ({demofiles, pdffiles, sourcefiles, textfiles, typesetlist}) do
     for _,j in ipairs (i) do
-      cp (j, ".", ctandir .. "/" .. bundle)
+      cp (j, ".", ctandir .. "/" .. ctanpkg)
     end
   end
 end
@@ -932,7 +934,7 @@ function ctan (standalone)
   end
   if errorlevel == 0 then
     rmdir (ctandir)
-    mkdir (ctandir .. "/" .. bundle)
+    mkdir (ctandir .. "/" .. ctanpkg)
     rmdir (tdsdir)
     mkdir (tdsdir)
     if standalone then
@@ -953,16 +955,16 @@ function ctan (standalone)
           cp (name, ".", dir)
           ren (dir, name, stripext (name))
         end
-        installtxt (j, ctandir .. "/" .. bundle)
+        installtxt (j, ctandir .. "/" .. ctanpkg)
         installtxt (j, tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
       end
     end
-    dirzip (tdsdir, bundle .. ".tds")
+    dirzip (tdsdir, ctanpkg .. ".tds")
     if packtdszip then
-      cp (bundle .. ".tds.zip", tdsdir, ctandir)
+      cp (ctanpkg .. ".tds.zip", tdsdir, ctandir)
     end
-    dirzip (ctandir, bundle)
-    cp (bundle .. ".zip", ctandir, ".")
+    dirzip (ctandir, ctanpkg)
+    cp (ctanpkg .. ".zip", ctandir, ".")
   else
     print ("\n====================")
     print ("Typesetting failed, zip stage skipped!")
