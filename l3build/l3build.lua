@@ -1138,7 +1138,7 @@ end
 
 -- Split off from the main unpack so it can be used on a bundle and not
 -- leave only one modules files
-function bundleunpack ()
+bundleunpack = bundleunpack or function ()
   mkdir (localdir)
   cleandir (unpackdir)
   for _,i in ipairs (sourcefiles) do
