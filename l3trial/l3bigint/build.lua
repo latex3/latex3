@@ -11,7 +11,7 @@ module = "l3bigint"
 maindir = "../.."
 
 -- Non-standard settings
-checkdeps   = {maindir .. "/l3kernel", maindir .. "/l3experimental/l3str"}
+checkdeps   = {maindir .. "/l3kernel", maindir .. "/l3build", maindir .. "/l3experimental/l3str"}
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
