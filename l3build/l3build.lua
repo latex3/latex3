@@ -579,6 +579,12 @@ function formatlog (logfile, newfile)
     for i = 1, 31, 1 do
       line = string.gsub (line, string.char (i), "^^" .. string.char (64 + i))
     end
+    -- LuaTeX includes U+ notation in the "Missing character" message
+    line = string.gsub (
+        line,
+        "Missing character: There is no (%^%^..) %(U%+(....)%)",
+        "Missing character: There is no %1"
+      )
     -- For normalising UTF-8 to ASCII
     local utf8 = unicode.utf8
     -- Unicode engines display chars in the upper half of the 8-bit range:
