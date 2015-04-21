@@ -137,7 +137,7 @@ glossarystyle = glossarystyle or "gglo.ist"
 indexstyle    = indexstyle    or "gind.ist"
 
 -- Supporting binaries
-biberexe     = biberexe     or "makeindex"
+biberexe     = biberexe     or "biber"
 makeindexexe = makeindexexe or "makeindex"
 
 -- Other required settings
