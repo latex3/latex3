@@ -528,7 +528,7 @@ function formatlog (logfile, newfile)
   local function normalize (line)
     local line = line
     -- Remove test file name from lines
-    -- This needs ato extract the base name from the log name,
+    -- This needs to extract the base name from the log name,
     -- and one to allow for the case that there might be "-" chars
     -- in the name (other cases are ignored)
     line = string.gsub (
