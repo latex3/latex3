@@ -552,10 +552,6 @@ function formatlog (logfile, newfile)
     line = string.gsub (
         line, "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
       )
-    -- Normalise a case where a LuaTeX bug misprints \csname\endcsname
-    -- This comes before the normalisation of the appearance of
-    -- \csname\endcsname in case we alter that!
---    line = string.gsub (line, "\\ycsnam\\rendcsnam", "\\csname\\endcsname")
     -- Normalise a case where fixing a TeX bug changes the message text
     line = string.gsub (line, "\\csname\\endcsname ", "\\csname\\endcsname")
     -- Zap "on line <num>" and replace with "on line ..."
@@ -592,17 +588,6 @@ function formatlog (logfile, newfile)
     for i = 128, 255, 1 do
       line = string.gsub (line, utf8.char (i), "^^" .. string.format ("%02x", i))
     end
-    -- Minor LuaTeX difference: it does not include parentheses in one message
---    line = string.gsub (
---        line,
---        "%(If you're confused by all this, try typing `I}' now%.%)",
---        "If you're confused by all this, try typing `I}' now."
---      )
-    -- Minor LuaTeX bug: it prints an extra "'" in one message: add enough
-    -- context to hopefully hit only the bug
---    line = string.gsub (
---        line, "I''m going to assume", "I'm going to assume"
---      )
     return line
   end
   local newlog = ""
