@@ -20,5 +20,5 @@ unpackdeps   = { }
 -- hard-coded
 -- As the build system is 'self-contained' there is no module set up here: just
 --load the file in a similar way to a TeX \input
-dofile (maindir .. "/l3build/l3build-config.lua")
+dofile (maindir .. "/build-config.lua")
 dofile (maindir .. "/l3build/l3build.lua")
