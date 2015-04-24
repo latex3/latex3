@@ -701,6 +701,9 @@ function runcheck (name, engine, hide)
       and tlgfile ~= name ..  "." .. i .. tlgext
       and stdengine ~= "luatex" then
       local luatlgfile = testdir .. "/" .. name .. ".luatex" ..  tlgext
+      if os_windows then
+        luatlgfile = unix_to_win (luatlgfile)
+      end
       local luanewfile = string.gsub (
           newfile, "%" .. tlgext .. "$", ".luatex" .. tlgext
         )
