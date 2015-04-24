@@ -612,6 +612,32 @@ function formatlog (logfile, newfile)
   io.close (newfile)
 end
 
+-- Additional normalization for LuaTeX
+function formatlualog (logfile, newfile)
+  local function normalize (line)
+    local line = line
+    -- Find glue setting and round out the last place
+    line = string.gsub (
+        line,
+        "glue set (%-? ?)%d+.%d+fil$",
+        "glue set %1" .. string.format (
+            "%.4f", string.match (line, "glue set %-? ?(%d+.%d+)fil$") or 0
+          )
+          .. "fil"
+      )
+    return (line)
+  end
+  local newlog = ""
+  for line in io.lines (logfile) do
+    line = normalize (line)
+    newlog = newlog .. line .. "\n"
+  end
+  local newfile = io.open (newfile, "w")
+  io.output (newfile)
+  io.write (newlog)
+  io.close (newfile)
+end
+
 -- Look for files, directory by directory, and return the first existing
 function locate (dirs, names)
   for _,i in ipairs (dirs) do
@@ -668,9 +694,27 @@ function runcheck (name, engine, hide)
     if os_windows then
       tlgfile = unix_to_win (tlgfile)
     end
-    local errlevel = os.execute (
+    local errlevel
+    -- Do additional log formatting if the engine is LuaTeX, there is no
+    -- LuaTeX-specific .tlg file and the default engine is not LuaTeX
+    if i == "luatex"
+      and tlgfile ~= name ..  "." .. i .. tlgext
+      and stdengine ~= "luatex" then
+      local luatlgfile = testdir .. "/" .. name .. ".luatex" ..  tlgext
+      local luanewfile = string.gsub (
+          newfile, "%" .. tlgext .. "$", ".luatex" .. tlgext
+        )
+      formatlualog (tlgfile, luatlgfile)
+      formatlualog (newfile, luanewfile)
+      errlevel = os.execute (
+        os_diffexe .. " " .. luatlgfile .. " " .. luanewfile
+          .. " > " .. difffile
+      )      
+    else
+      errlevel = os.execute (
         os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile
       )
+    end
     if errlevel == 0 then
       os.remove (difffile)
     else
