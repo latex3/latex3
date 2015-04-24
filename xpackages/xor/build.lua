@@ -10,6 +10,7 @@ bundle = ""
 maindir = "../.."
 
 -- Non-standard settings
+checkengines = {"pdftex"}
 checkruns   = 3
 checksearch = true
 
