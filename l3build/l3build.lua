@@ -489,12 +489,10 @@ end
 -- Convert the raw log file into one for comparison/storage: keeps only
 -- the 'business' part from the tests and removes system-dependent stuff
 function formatlog (logfile, newfile)
-  local function killcheck (line, kill)
-    local killnext = false
-    local line = line
+  local function killcheck (line)
       -- Skip lines containing file dates
       if string.match (line, "[^<]%d%d%d%d/%d%d/%d%d") then
-        line = ""
+        return (true)
       elseif
       -- Skip \openin/\openout lines in web2c 7.x
       -- As Lua doesn't allow "(in|out)", a slightly complex approach:
@@ -502,8 +500,8 @@ function formatlog (logfile, newfile)
         string.match (
             string.gsub (line, "^\\openin", "\\openout"), "^\\openout%d = "
           )
-          then
-          line = ""
+        then
+        return (true)
       elseif
         -- Various things that only LuaTeX adds to boxes:
         -- Remove the 'no-op' versions
@@ -512,17 +510,9 @@ function formatlog (logfile, newfile)
         string.match (line, "^%.*\\localbrokenpenalty=0$")    or
         string.match (line, "^%.*\\localleftbox=null$")       or
         string.match (line, "^%.*\\localrightbox=null$")      then
-        line = ""
-      -- Pick up LuaTeX's \discretionary line and remove it and the next
-      -- line
-      elseif
-        string.match (line, "%.+\\discretionary") then
-          line = ""
-          killnext = true
-      elseif kill then
-        line = ""
+          return (true)
       end
-    return line, killnext
+    return (false)
   end
     -- Substitutions to remove some non-useful changes
   local function normalize (line)
@@ -588,7 +578,6 @@ function formatlog (logfile, newfile)
   local newlog = ""
   local prestart = true
   local skipping = false
-  local killnext = false
   for line in io.lines (logfile) do
     if line == "START-TEST-LOG" then
       prestart = false
@@ -598,9 +587,8 @@ function formatlog (logfile, newfile)
       skipping = true
     elseif line == "TIMO" then
       skipping = false
-    elseif not prestart and not skipping then
+    elseif not prestart and not skipping and not killcheck (line) then
       line = normalize (line)
-      line, killnext = killcheck (line, killnext)
       if not string.match (line, "^ *$") then
         newlog = newlog .. line .. "\n"
       end
@@ -614,8 +602,12 @@ end
 
 -- Additional normalization for LuaTeX
 function formatlualog (logfile, newfile)
-  local function normalize (line)
+  local function normalize (line, lastline, dropping)
     local line = line
+    -- Find discretionary lines skip: may get re-added
+    if string.match (line, "^%.+\\discretionary ?%w*") then
+      return "", line, false
+    end
     -- Find glue setting and round out the last place
     line = string.gsub (
         line,
@@ -625,12 +617,34 @@ function formatlualog (logfile, newfile)
           )
           .. "fil"
       )
-    return (line)
+    -- Where the last line was a discretionary, looks for the
+    -- info one level in about what it represents
+    if string.match (lastline, "^%.+\\discretionary ?%w*") then
+      prefix = string.gsub (string.match (lastline, "^(%.+)"), "%.", "%%.")
+      if string.match (line, prefix .. "%.") or
+         string.match (line, prefix .. "%|") then
+        return "", lastline, true
+      else
+        if dropping then
+          -- End of a \discretionary block
+          return line, "", false
+        else
+          -- A normal (TeX90) discretionary:
+          -- add with the line break reintroduced
+          return lastline .. "\n" .. line, ""
+        end
+      end
+    end
+    return line, lastline, false
   end
   local newlog = ""
+  local lastline = ""
+  local dropping = false
   for line in io.lines (logfile) do
-    line = normalize (line)
-    newlog = newlog .. line .. "\n"
+    line, lastline, dropping = normalize (line, lastline, dropping)
+    if not string.match (line, "^ *$") then
+      newlog = newlog .. line .. "\n"
+    end
   end
   local newfile = io.open (newfile, "w")
   io.output (newfile)
