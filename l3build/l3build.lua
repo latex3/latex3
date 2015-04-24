@@ -498,19 +498,9 @@ function formatlog (logfile, newfile)
       -- As Lua doesn't allow "(in|out)", a slightly complex approach:
       -- do a substitution to check the line is exactly what is required!
         string.match (
-            string.gsub (line, "^\\openin", "\\openout"), "^\\openout%d = "
-          )
-        then
+            string.gsub (line, "^\\openin", "\\openout"), "^\\openout%d%d? = "
+          ) then
         return true
-      elseif
-        -- Various things that only LuaTeX adds to boxes:
-        -- Remove the 'no-op' versions
-        string.match (line, "^%.*\\whatsit$")                 or
-        string.match (line, "^%.*\\localinterlinepenalty=0$") or
-        string.match (line, "^%.*\\localbrokenpenalty=0$")    or
-        string.match (line, "^%.*\\localleftbox=null$")       or
-        string.match (line, "^%.*\\localrightbox=null$")      then
-          return true
       end
     return false
   end
@@ -538,7 +528,7 @@ function formatlog (logfile, newfile)
     end
     -- Zap map loading on first page output
     line = string.gsub (line, "%[1{[%w/%-]*/pdftex%.map}%]", "[1]")
-    -- XeTeX knows only the smaller set of dimension units
+    -- TeX90/XeTeX knows only the smaller set of dimension units
     line = string.gsub (
         line, "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
       )
@@ -551,25 +541,9 @@ function formatlog (logfile, newfile)
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
     line = string.gsub (line, "^%s+", "")
-    -- Remove 'display' at end of display math boxes: LuaTeX omits this
-    line = string.gsub (line, "(\\hbox%(.*), display$", "%1")
-    -- Remove 'normal' direction information on boxes in LuaTeX:
-    -- any bidi/vertical stuff will still show
-    line = string.gsub (line, ", direction TLT", "")
-    -- LuaTeX displays low chars differently: tidy up to ^^ notation
-    for i = 1, 31, 1 do
-      line = string.gsub (line, string.char (i), "^^" .. string.char (64 + i))
-    end
-    -- LuaTeX includes U+ notation in the "Missing character" message
-    line = string.gsub (
-        line,
-        "Missing character: There is no (%^%^..) %(U%+(....)%)",
-        "Missing character: There is no %1"
-      )
-    -- For normalising UTF-8 to ASCII
-    local utf8 = unicode.utf8
     -- Unicode engines display chars in the upper half of the 8-bit range:
-    -- tidy up to match pdfTeX.
+    -- tidy up to match pdfTeX
+    local utf8 = unicode.utf8
     for i = 128, 255, 1 do
       line = string.gsub (line, utf8.char (i), "^^" .. string.format ("%02x", i))
     end
@@ -605,7 +579,11 @@ function formatlualog (logfile, newfile)
   local function normalize (line, lastline, dropping)
     local line = line
     -- Find discretionary lines skip: may get re-added
-    if string.match (line, "^%.+\\discretionary ?%w*") then
+    if string.match (line, "^%.+\\discretionary$") then
+      return "", line, false
+    end
+    -- Find whatsit lines skip: may get re-added
+    if string.match (line, "^%.+\\whatsit$") then
       return "", line, false
     end
     -- Find glue setting and round out the last place
@@ -617,9 +595,25 @@ function formatlualog (logfile, newfile)
           )
           .. "fil"
       )
+    -- Tidy up to ^^ notation
+    for i = 1, 31, 1 do
+      line = string.gsub (line, string.char (i), "^^" .. string.char (64 + i))
+    end
+    -- Remove U+ notation in the "Missing character" message
+    line = string.gsub (
+        line,
+        "Missing character: There is no (%^%^..) %(U%+(....)%)",
+        "Missing character: There is no %1"
+      )
+    -- Remove 'display' at end of display math boxes:
+    -- LuaTeX omits this as it includes direction in all cases
+    line = string.gsub (line, "(\\hbox%(.*), display$", "%1")
+    -- Remove 'normal' direction information on boxes:
+    -- any bidi/vertical stuff will still show
+    line = string.gsub (line, ", direction TLT", "")
     -- Where the last line was a discretionary, looks for the
     -- info one level in about what it represents
-    if string.match (lastline, "^%.+\\discretionary ?%w*") then
+    if string.match (lastline, "^%.+\\discretionary$") then
       prefix = string.gsub (string.match (lastline, "^(%.+)"), "%.", "%%.")
       if string.match (line, prefix .. "%.") or
          string.match (line, prefix .. "%|") then
@@ -633,6 +627,17 @@ function formatlualog (logfile, newfile)
           -- add with the line break reintroduced
           return lastline .. "\n" .. line, ""
         end
+      end
+    end
+    -- Much the same idea when the last line was a whatsit,
+    -- but things are simpler in this case
+    if string.match (lastline, "^%.+\\whatsit$") then
+      prefix = string.gsub (string.match (lastline, "^(%.+)"), "%.", "%%.")
+      if string.match (line, prefix .. "%.") then
+        return "", lastline, true
+      else
+        -- End of a \whatsit block
+        return line, "", false
       end
     end
     return line, lastline, false
