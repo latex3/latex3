@@ -288,9 +288,9 @@ function direxists (dir)
     errorlevel = os.execute ("[ -d " .. dir .. " ]")
   end
   if errorlevel ~= 0 then
-    return (false)
+    return false
   end
-  return (true)
+  return true
 end
 
 function fileexists (file)
@@ -370,7 +370,7 @@ end
 -- Run a command in a given directory
 function run (dir, cmd)
   local errorlevel = os.execute ("cd " .. dir .. os_concat .. cmd)
-  return (errorlevel)
+  return errorlevel
 end
 
 -- Deal with the fact that Windows and Unix use different path separators
@@ -393,10 +393,10 @@ function allmodules (target)
       )
     errorlevel = run (i, "texlua " .. scriptname .. " " .. target)
     if errorlevel > 0 then
-      return (errorlevel)
+      return errorlevel
     end
   end
-  return (errorlevel)
+  return errorlevel
 end
 
 -- Set up the check system files: needed for checking one or more tests and
@@ -492,7 +492,7 @@ function formatlog (logfile, newfile)
   local function killcheck (line)
       -- Skip lines containing file dates
       if string.match (line, "[^<]%d%d%d%d/%d%d/%d%d") then
-        return (true)
+        return true
       elseif
       -- Skip \openin/\openout lines in web2c 7.x
       -- As Lua doesn't allow "(in|out)", a slightly complex approach:
@@ -501,7 +501,7 @@ function formatlog (logfile, newfile)
             string.gsub (line, "^\\openin", "\\openout"), "^\\openout%d = "
           )
         then
-        return (true)
+        return true
       elseif
         -- Various things that only LuaTeX adds to boxes:
         -- Remove the 'no-op' versions
@@ -510,9 +510,9 @@ function formatlog (logfile, newfile)
         string.match (line, "^%.*\\localbrokenpenalty=0$")    or
         string.match (line, "^%.*\\localleftbox=null$")       or
         string.match (line, "^%.*\\localrightbox=null$")      then
-          return (true)
+          return true
       end
-    return (false)
+    return false
   end
     -- Substitutions to remove some non-useful changes
   local function normalize (line)
@@ -658,7 +658,7 @@ function locate (dirs, names)
     for _,j in ipairs (names) do
       local path = i .. "/" .. j
       if fileexists (path) then
-        return (path)
+        return path
       end
     end
   end
@@ -679,7 +679,7 @@ function listmodules ()
       end
     end
   end
-  return (modules)
+  return modules
 end
 
 -- Runs a single test: needs the name of the test rather than the .lvt file
@@ -738,7 +738,7 @@ function runcheck (name, engine, hide)
       errorlevel = errlevel
     end
   end
-  return (errorlevel)
+  return errorlevel
 end
 
 -- Run one of the test files: doesn't check the result so suitable for
@@ -828,7 +828,7 @@ function check (name, engine)
   else
     errorlevel = checkall ()
   end
-  return (errorlevel)
+  return errorlevel
 end
 
 function checkall ()
@@ -862,7 +862,7 @@ function checkall ()
       print ("\n  All checks passed\n")
     end
   end
-  return (errorlevel)
+  return errorlevel
 end
 
 function checklvt (name, engine)
@@ -997,7 +997,7 @@ function ctan (standalone)
     print ("\n====================")
     print ("Tests failed, zip stage skipped!")
     print ("====================\n")
-    return (errorlevel)
+    return errorlevel
   end
   if errorlevel == 0 then
     for _,i in ipairs (readmefiles) do
@@ -1021,7 +1021,7 @@ function ctan (standalone)
     print ("Typesetting failed, zip stage skipped!")
     print ("====================\n")
   end
-  return (errorlevel)
+  return errorlevel
 end
 
 function bundlectan ()
@@ -1045,7 +1045,7 @@ function bundlectan ()
         end
       end
     end
-    return (includelist)
+    return includelist
   end
   unpack()
   local errorlevel = doc ()
@@ -1060,7 +1060,7 @@ function bundlectan ()
     copyctan ()
     copytds ()
   end
-  return (errorlevel)
+  return errorlevel
 end
 
 -- Typeset all required documents
@@ -1106,7 +1106,7 @@ function doc ()
     local errorlevel = typeset (file)
     if errorlevel ~= 0 then
       print (" ! Compilation failed")
-      return (errorlevel)
+      return errorlevel
     else
       biber (name)
       makeindex (name, ".glo", ".gls", ".glg", glossarystyle)
@@ -1115,7 +1115,7 @@ function doc ()
       typeset (file)
       cp (name .. ".pdf", typesetdir, ".")
     end
-    return (errorlevel)
+    return errorlevel
   end
   -- Set up
   cleandir (typesetdir)
@@ -1135,7 +1135,7 @@ function doc ()
     for _,j in ipairs (filelist (".", i)) do
       local errorlevel = typeset (j)
       if errorlevel ~= 0 then
-        return (errorlevel)
+        return errorlevel
       end
     end
   end
