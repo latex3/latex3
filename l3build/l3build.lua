@@ -538,6 +538,10 @@ function formatlog (logfile, newfile)
     line = string.gsub (line, "on line %d*", "on line ...")
     -- Zap line numbers from \show, \showbox, \box_show and the like
     line = string.gsub (line, "^l%.%d+ ", "l. ...")
+    -- Tidy up to ^^ notation
+    for i = 1, 31, 1 do
+      line = string.gsub (line, string.char (i), "^^" .. string.char (64 + i))
+    end
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
     line = string.gsub (line, "^%s+", "")
@@ -586,6 +590,12 @@ function formatlualog (logfile, newfile)
     if string.match (line, "^%.+\\whatsit$") then
       return "", line, false
     end
+    -- Remove 'display' at end of display math boxes:
+    -- LuaTeX omits this as it includes direction in all cases
+    line = string.gsub (line, "(\\hbox%(.*), display$", "%1")
+    -- Remove 'normal' direction information on boxes:
+    -- any bidi/vertical stuff will still show
+    line = string.gsub (line, ", direction TLT", "")
     -- Find glue setting and round out the last place
     line = string.gsub (
         line,
@@ -595,22 +605,12 @@ function formatlualog (logfile, newfile)
           )
           .. "fil"
       )
-    -- Tidy up to ^^ notation
-    for i = 1, 31, 1 do
-      line = string.gsub (line, string.char (i), "^^" .. string.char (64 + i))
-    end
     -- Remove U+ notation in the "Missing character" message
     line = string.gsub (
         line,
         "Missing character: There is no (%^%^..) %(U%+(....)%)",
         "Missing character: There is no %1"
       )
-    -- Remove 'display' at end of display math boxes:
-    -- LuaTeX omits this as it includes direction in all cases
-    line = string.gsub (line, "(\\hbox%(.*), display$", "%1")
-    -- Remove 'normal' direction information on boxes:
-    -- any bidi/vertical stuff will still show
-    line = string.gsub (line, ", direction TLT", "")
     -- Where the last line was a discretionary, looks for the
     -- info one level in about what it represents
     if string.match (lastline, "^%.+\\discretionary$") then
@@ -723,13 +723,10 @@ function runcheck (name, engine, hide)
       if os_windows then
         luatlgfile = unix_to_win (luatlgfile)
       end
-      local luanewfile = string.gsub (
-          newfile, "%" .. tlgext .. "$", ".luatex" .. tlgext
-        )
       formatlualog (tlgfile, luatlgfile)
-      formatlualog (newfile, luanewfile)
+      formatlualog (newfile, newfile)
       errlevel = os.execute (
-        os_diffexe .. " " .. luatlgfile .. " " .. luanewfile
+        os_diffexe .. " " .. luatlgfile .. " " .. newfile
           .. " > " .. difffile
       )      
     else
