@@ -1097,9 +1097,22 @@ function doc ()
     local name = stripext (file)
     -- A few short functions to deal with the repeated steps in a
     -- clear way
+    local function runtool (envvar, command)
+      return (
+        run (
+          typesetdir,
+          os_setenv .. " " .. envvar .. "=." .. os_pathsep .. localdir
+            .. (typesetsearch and os_pathsep or "") ..
+          os_concat ..
+          command         
+        )
+      )
+    end
     local function biber (name)
       if fileexists (typesetdir .. "/" .. name .. ".bcf") then
-        return (run (typesetdir, biberexe .. " " .. biberopts .. " " .. name))
+        return (
+          runtool ("BIBINPUTS",  biberexe .. " " .. biberopts .. " " .. name)
+        )
       end
     end
     local function bibtex (name)
@@ -1113,33 +1126,37 @@ function doc ()
           )
           == 0 then
           return (
-              run (typesetdir, bibtexexe .. " " .. bibtexopts .. " " .. name)
+            -- Cheat slightly as we need to set two variables
+            runtool (
+              "BIBINPUTS",
+              os_setenv .. " BSTINPUTS=." .. os_pathsep .. localdir
+                .. (typesetsearch and os_pathsep or "") ..
+              os_concat .. 
+              bibtexexe .. " " .. bibtexopts .. " " .. name
             )
+          )
         end
       end
     end
     local function makeindex (name, inext, outext, logext, style)
       if fileexists (typesetdir .. "/" .. name .. inext) then
         return (
-          run (
-            typesetdir ,
+          runtool (
+            "INDEXSTYLE",
             makeindexexe .. " " .. makeindexopts .. " "
               .. " -s " .. style .. " -o " .. name .. outext
               .. " -t " .. name .. logext .. " "  .. name .. inext
-            )
           )
+        )
       end
     end
     local function typeset (file)
       return (
-        run (
-            typesetdir,
-            os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir
-              .. (typesetsearch and os_pathsep or "") ..
-              os_concat ..
-            typesetexe .. " " .. typesetopts .. " \"" .. typesetcmds
-              .. "\\input " .. file .. "\""
-          )
+        runtool (
+          "TEXINPUTS",
+          typesetexe .. " " .. typesetopts .. " \"" .. typesetcmds
+            .. "\\input " .. file .. "\""
+        )
       )
     end
     os.remove (name .. ".pdf")
