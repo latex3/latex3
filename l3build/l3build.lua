@@ -139,6 +139,8 @@ indexstyle    = indexstyle    or "gind.ist"
 -- Supporting binaries and options
 biberexe      = biberexe      or "biber"
 biberopts     = biberopts     or ""
+bibtexexe     = bibtexexe     or "bibtex8"
+bibtexopts    = bibtexopts    or "-W"
 makeindexexe  = makeindexexe  or "makeindex"
 makeindexopts = makeindexopts or ""
 
@@ -239,6 +241,7 @@ if string.sub (package.config, 1, 1) == "\\" then
   os_concat   = "&"
   os_diffext  = ".fc"
   os_diffexe  = "fc /n"
+  os_grepexe  = "grep"
   os_null     = "nul"
   os_pathsep  = ";"
   os_setenv   = "set"
@@ -248,6 +251,7 @@ else
   os_concat   = ";"
   os_diffext  = ".diff"
   os_diffexe  = "diff -c --strip-trailing-cr"
+  os_grepexe  = "findstr /r"
   os_null     = "/dev/null"
   os_pathsep  = ":"
   os_setenv   = "export"
@@ -1073,11 +1077,27 @@ end
 function doc ()
   local function typeset (file)
     local name = stripext (file)
-    -- A couple of short functions to deal with the repeated steps in a
+    -- A few short functions to deal with the repeated steps in a
     -- clear way
     local function biber (name)
       if fileexists (typesetdir .. "/" .. name .. ".bcf") then
         return (run (typesetdir, biberexe .. " " .. biberopts .. " " .. name))
+      end
+    end
+    local function bibtex (name)
+      if fileexists (typesetdir .. "/" .. name .. ".aux") then
+        -- LaTeX always generates an .aux file, so there is a need to
+        -- look inside it for a \citation line
+        if run (
+            typesetdir,
+            os_grepexe .. " \"^\\\\citation{\" " .. name .. ".aux > "
+              .. os_null
+          )
+          == 0 then
+          return (
+              run (typesetdir, bibtexexe .. " " .. bibtexopts .. " " .. name)
+            )
+        end
       end
     end
     local function makeindex (name, inext, outext, logext, style)
@@ -1114,6 +1134,7 @@ function doc ()
       return errorlevel
     else
       biber (name)
+      bibtex (name)
       makeindex (name, ".glo", ".gls", ".glg", glossarystyle)
       makeindex (name, ".idx", ".ind", ".ilg", indexstyle)
       typeset (file)
