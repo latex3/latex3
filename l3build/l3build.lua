@@ -136,9 +136,11 @@ end
 glossarystyle = glossarystyle or "gglo.ist"
 indexstyle    = indexstyle    or "gind.ist"
 
--- Supporting binaries
-biberexe     = biberexe     or "biber"
-makeindexexe = makeindexexe or "makeindex"
+-- Supporting binaries and options
+biberexe      = biberexe      or "biber"
+biberopts     = biberopts     or ""
+makeindexexe  = makeindexexe  or "makeindex"
+makeindexopts = makeindexopts or ""
 
 -- Other required settings
 checkruns   = checkruns   or 1
@@ -1075,7 +1077,7 @@ function doc ()
     -- clear way
     local function biber (name)
       if fileexists (typesetdir .. "/" .. name .. ".bcf") then
-        return (run (typesetdir, biberexe .. " " .. name))
+        return (run (typesetdir, biberexe .. " " .. biberopts .. " " .. name))
       end
     end
     local function makeindex (name, inext, outext, logext, style)
@@ -1083,7 +1085,8 @@ function doc ()
         return (
           run (
             typesetdir ,
-            makeindexexe .." -s " .. style .. " -o " .. name .. outext
+            makeindexexe .. " " .. makeindexopts .. " "
+              .. " -s " .. style .. " -o " .. name .. outext
               .. " -t " .. name .. logext .. " "  .. name .. inext
             )
           )
