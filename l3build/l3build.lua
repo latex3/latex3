@@ -80,7 +80,6 @@ end
 -- File types for various operations
 -- Use Unix-style globs
 -- All of these may be set earlier, so a initialised conditionally
-auxfiles         = auxfiles         or {"*.aux", "*.toc"}
 binaryfiles      = binaryfiles      or {"*.pdf", "*.zip"}
 checkfiles       = checkfiles       or { } -- Extra files unpacked purely for tests
 checksuppfiles   = checksuppfiles   or { }
@@ -343,6 +342,29 @@ function mkdir (dir)
   else
     os.execute ("mkdir -p " .. dir)
   end
+end
+
+-- Find the relationship between two directories
+function relpath (target, source)
+  -- A shortcut for the case where the two are the same
+  if target == source then
+    return ""
+  end
+  local resultdir = ""
+  local trimpattern = "^[^/]*/"
+  -- Trim off identical leading directories
+  while 
+    (string.match (target, trimpattern) or "X") ==
+    (string.match (target, trimpattern) or "Y") do
+    target = string.gsub (target, trimpattern, "")
+    source = string.gsub (source, trimpattern, "")
+  end
+  -- Go up from the source 
+  for i = 0, select(2, string.gsub (target, "/", "")) do
+    resultdir = resultdir .. "../"
+  end
+  -- Return the relative part plus the unique part of the target
+  return resultdir .. target
 end
 
 -- Rename
@@ -765,9 +787,11 @@ function runtest (name, engine, hide)
   end
   local logfile = testdir .. "/" .. name .. logext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
-  for i = 1, checkruns, 1 do
+  for i = 1, checkruns do
     run (
         testdir,
+        -- No use of localdir here as the files get copied to testdir:
+        -- avoids any paths in the logs
         os_setenv .. " TEXINPUTS=." .. (checksearch and os_pathsep or "")
           .. os_concat ..
         engine ..  format .. " " .. checkopts .. " " .. lvtfile
@@ -913,12 +937,6 @@ function clean ()
   cleandir (typesetdir)
   cleandir (unpackdir)
   for _,i in ipairs (cleanfiles) do
-    rm (".", i)
-  end
-end
-
-function auxclean ()
-  for _,i in ipairs (auxfiles) do
     rm (".", i)
   end
 end
@@ -1114,20 +1132,19 @@ function doc ()
     end
     local function typeset (file)
       return (
-        os.execute (
-            os_setenv .. " TEXINPUTS=" .. typesetdir ..
-              os_pathsep .. localdir .. (typesetsearch and os_pathsep or "") ..
+        run (
+            typesetdir,
+            os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir
+              .. (typesetsearch and os_pathsep or "") ..
               os_concat ..
-            typesetexe .. " " .. typesetopts ..
-              " -output-directory=" .. typesetdir ..
-              " \"" .. typesetcmds ..
-              "\\input " .. typesetdir .. "/" .. file .. "\""
+            typesetexe .. " " .. typesetopts .. " \"" .. typesetcmds
+              .. "\\input " .. file .. "\""
           )
       )
     end
-    auxclean ()
     os.remove (name .. ".pdf")
     print ("Typesetting " .. name)
+    local localdir = relpath (localdir, typesetdir)
     local errorlevel = typeset (file)
     if errorlevel ~= 0 then
       print (" ! Compilation failed")
