@@ -825,6 +825,108 @@ function testexists (test)
   return (locate ({testfiledir, unpackdir}, {test .. lvtext}))
 end
 
+--
+-- Auxiliary functions for typesetting: need to be generally available
+--
+
+-- An auxiliary used to set up the environmental variables
+function runtool (envvar, command)
+  return (
+    run (
+      typesetdir,
+      os_setenv .. " " .. envvar .. "=." .. os_pathsep
+        .. relpath (localdir, typesetdir)
+        .. (typesetsearch and os_pathsep or "") ..
+      os_concat ..
+      command         
+    )
+  )
+end
+
+function biber (name)
+  if fileexists (typesetdir .. "/" .. name .. ".bcf") then
+    return (
+      runtool ("BIBINPUTS",  biberexe .. " " .. biberopts .. " " .. name)
+    )
+  end
+end
+
+function bibtex (name)
+  if fileexists (typesetdir .. "/" .. name .. ".aux") then
+    -- LaTeX always generates an .aux file, so there is a need to
+    -- look inside it for a \citation line
+    if run (
+        typesetdir,
+        os_grepexe .. " \"^\\\\citation{\" " .. name .. ".aux > "
+          .. os_null
+      )
+      == 0 then
+      return (
+        -- Cheat slightly as we need to set two variables
+        runtool (
+          "BIBINPUTS",
+          os_setenv .. " BSTINPUTS=." .. os_pathsep .. localdir
+            .. (typesetsearch and os_pathsep or "") ..
+          os_concat .. 
+          bibtexexe .. " " .. bibtexopts .. " " .. name
+       )
+      )
+    end
+  end
+end
+
+function makeindex (name, inext, outext, logext, style)
+  if fileexists (typesetdir .. "/" .. name .. inext) then
+    return (
+      runtool (
+        "INDEXSTYLE",
+        makeindexexe .. " " .. makeindexopts .. " "
+          .. " -s " .. style .. " -o " .. name .. outext
+          .. " -t " .. name .. logext .. " "  .. name .. inext
+      )
+    )
+  end
+end
+
+function tex (file)
+  return (
+    runtool (
+      "TEXINPUTS",
+      typesetexe .. " " .. typesetopts .. " \"" .. typesetcmds
+        .. "\\input " .. file .. "\""
+    )
+  )
+end
+
+function typesetpdf (file)
+  local name = stripext (file)
+  print ("Typesetting " .. name)
+  local errorlevel = typeset (file)
+  if errorlevel == 0 then
+    os.remove (name .. ".pdf")
+    cp (name .. ".pdf", typesetdir, ".")
+  else
+    print (" ! Compilation failed")
+  end
+  return errorlevel
+end
+
+typeset = typeset or function (file)
+  local errorlevel = tex (file)
+  local name = stripext (file)
+  if errorlevel ~= 0 then
+    return errorlevel
+  else
+    biber (name)
+    bibtex (name)
+    makeindex (name, ".glo", ".gls", ".glg", glossarystyle)
+    makeindex (name, ".idx", ".ind", ".ilg", indexstyle)
+    tex (file)
+    tex (file)
+  end
+  return errorlevel
+end
+
 -- Standard versions of the main targets for building modules
 
 -- Simply print out how to use the build system
@@ -1090,93 +1192,8 @@ function bundlectan ()
 end
 
 -- Typeset all required documents
--- This function has several sub-parts, but as most are not needed anywhere
--- else everything is done locally within the main function
+-- Uses a set of dedicated auxiliaries that need to be available to others
 function doc ()
-  local function typeset (file)
-    local name = stripext (file)
-    -- A few short functions to deal with the repeated steps in a
-    -- clear way
-    local function runtool (envvar, command)
-      return (
-        run (
-          typesetdir,
-          os_setenv .. " " .. envvar .. "=." .. os_pathsep .. localdir
-            .. (typesetsearch and os_pathsep or "") ..
-          os_concat ..
-          command         
-        )
-      )
-    end
-    local function biber (name)
-      if fileexists (typesetdir .. "/" .. name .. ".bcf") then
-        return (
-          runtool ("BIBINPUTS",  biberexe .. " " .. biberopts .. " " .. name)
-        )
-      end
-    end
-    local function bibtex (name)
-      if fileexists (typesetdir .. "/" .. name .. ".aux") then
-        -- LaTeX always generates an .aux file, so there is a need to
-        -- look inside it for a \citation line
-        if run (
-            typesetdir,
-            os_grepexe .. " \"^\\\\citation{\" " .. name .. ".aux > "
-              .. os_null
-          )
-          == 0 then
-          return (
-            -- Cheat slightly as we need to set two variables
-            runtool (
-              "BIBINPUTS",
-              os_setenv .. " BSTINPUTS=." .. os_pathsep .. localdir
-                .. (typesetsearch and os_pathsep or "") ..
-              os_concat .. 
-              bibtexexe .. " " .. bibtexopts .. " " .. name
-            )
-          )
-        end
-      end
-    end
-    local function makeindex (name, inext, outext, logext, style)
-      if fileexists (typesetdir .. "/" .. name .. inext) then
-        return (
-          runtool (
-            "INDEXSTYLE",
-            makeindexexe .. " " .. makeindexopts .. " "
-              .. " -s " .. style .. " -o " .. name .. outext
-              .. " -t " .. name .. logext .. " "  .. name .. inext
-          )
-        )
-      end
-    end
-    local function typeset (file)
-      return (
-        runtool (
-          "TEXINPUTS",
-          typesetexe .. " " .. typesetopts .. " \"" .. typesetcmds
-            .. "\\input " .. file .. "\""
-        )
-      )
-    end
-    os.remove (name .. ".pdf")
-    print ("Typesetting " .. name)
-    local localdir = relpath (localdir, typesetdir)
-    local errorlevel = typeset (file)
-    if errorlevel ~= 0 then
-      print (" ! Compilation failed")
-      return errorlevel
-    else
-      biber (name)
-      bibtex (name)
-      makeindex (name, ".glo", ".gls", ".glg", glossarystyle)
-      makeindex (name, ".idx", ".ind", ".ilg", indexstyle)
-      typeset (file)
-      typeset (file)
-      cp (name .. ".pdf", typesetdir, ".")
-    end
-    return errorlevel
-  end
   -- Set up
   cleandir (typesetdir)
   for _,i in ipairs (sourcefiles) do
@@ -1193,7 +1210,7 @@ function doc ()
   -- Main loop for doc creation
   for _,i in ipairs (typesetfiles) do
     for _,j in ipairs (filelist (".", i)) do
-      local errorlevel = typeset (j)
+      local errorlevel = typesetpdf (j)
       if errorlevel ~= 0 then
         return errorlevel
       end
