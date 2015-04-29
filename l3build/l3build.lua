@@ -81,20 +81,20 @@ end
 -- Use Unix-style globs
 -- All of these may be set earlier, so a initialised conditionally
 binaryfiles      = binaryfiles      or {"*.pdf", "*.zip"}
-checkfiles       = checkfiles       or { } -- Extra files unpacked purely for tests
+checkfiles       = checkfiles       or { }
 checksuppfiles   = checksuppfiles   or { }
 cmdchkfiles      = cmdchkfiles      or { }
 demofiles        = demofiles        or { }
 cleanfiles       = cleanfiles       or {"*.log", "*.pdf", "*.zip"}
-excludefiles     = excludefiles     or {"*~"}             -- Any Emacs stuff
+excludefiles     = excludefiles     or {"*~"}
 installfiles     = installfiles     or {"*.sty"}
 makeindexfiles   = makeindexfiles   or {"*.ist"}
 readmefiles      = readmefiles      or {"README.md", "README.markdown", "README.txt"}
-sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"} -- Files to copy for unpacking
+sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"}
 textfiles        = textfiles        or { }
 typesetfiles     = typesetfiles     or {"*.dtx"}
 typesetsuppfiles = typesetsuppfiles or { }
-unpackfiles      = unpackfiles      or {"*.ins"}          -- Files to actually unpack
+unpackfiles      = unpackfiles      or {"*.ins"}
 unpacksuppfiles  = unpacksuppfiles  or { }
 
 -- Roots which should be unpacked to support unpacking/testing/typesetting
