@@ -1287,17 +1287,15 @@ bundleunpack = bundleunpack or function ()
       -- on Unix the "yes" command can't be used inside os.execute (it never
       -- stops, which confuses Lua)
       os.execute (os_yes .. ">>" .. localdir .. "/yes")
-      os.execute (
-          -- Notice that os.execute is used from 'here' as this ensures that
-          -- localdir points to the correct place: running 'inside'
-          -- unpackdir would avoid the need for setting -output-directory
-          -- but at the cost of needing to correct the relative position
-          -- of localdir w.r.t. unpackdir
-          os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
-            (unpacksearch and os_pathsep or "") .. os_concat ..
-          unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
-            .. " " .. unpackdir .. "/" .. j .. " < " .. localdir .. "/yes"
-        )
+      local localdir = relpath (localdir, unpackdir)
+      run (
+        unpackdir,
+        os_setenv .. " TEXINPUTS=." .. os_pathsep
+          .. localdir .. (unpacksearch and os_pathsep or "") ..
+        os_concat ..
+        unpackexe .. " " .. unpackopts .. " " .. j .. " < " 
+          .. localdir .. "/yes"
+      )
     end
   end
 end
