@@ -1058,17 +1058,21 @@ function cmdcheck ()
   cleandir (testdir)
   depinstall (checkdeps)
   local engine = string.gsub (stdengine, "tex$", "latex")
+  local localdir = relpath (localdir, testdir)
   print ("Checking source files")
   for _,i in ipairs (cmdchkfiles) do
     for _,j in ipairs (filelist (".", i)) do
       print ("  " .. stripext (j))
-      os.execute (
-          os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir ..
-            (checksearch and os_pathsep or "") .. os_concat ..
-          engine .. " " .. cmdchkopts .. " -output-directory=" .. testdir ..
-            " \"\\PassOptionsToClass{check}{l3doc} \\input " .. j .. "\""
-            .. " > " .. os_null
-        )
+      cp (j, ".", testdir)
+      run (
+        testdir,
+        os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir
+          .. os_pathsep ..
+        os_concat ..
+        engine .. " " .. cmdchkopts .. 
+          " \"\\PassOptionsToClass{check}{l3doc} \\input " .. j .. "\""
+          .. " > " .. os_null
+      )
       for line in io.lines (testdir .. "/" .. stripext (j) .. ".cmds") do
         if string.match (line, "^%!") then
           print ("   - " .. string.match (line, "^%! (.*)"))
