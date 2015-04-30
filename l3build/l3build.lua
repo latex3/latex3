@@ -80,7 +80,9 @@ end
 -- File types for various operations
 -- Use Unix-style globs
 -- All of these may be set earlier, so a initialised conditionally
+bibfiles         = bibfiles         or {"*.bib"}
 binaryfiles      = binaryfiles      or {"*.pdf", "*.zip"}
+bstfiles         = bstfiles         or {"*.bst"}
 checkfiles       = checkfiles       or { }
 checksuppfiles   = checksuppfiles   or { }
 cmdchkfiles      = cmdchkfiles      or { }
@@ -458,7 +460,9 @@ end
 -- Copy files to the main CTAN release directory
 function copyctan ()
   -- Do all of the copying in one go
-  for _,i in ipairs ({demofiles, pdffiles, sourcefiles, textfiles, typesetlist}) do
+  for _,i in ipairs (
+      {bibfiles, demofiles, pdffiles, sourcefiles, textfiles, typesetlist}
+    ) do
     for _,j in ipairs (i) do
       cp (j, ".", ctandir .. "/" .. ctanpkg)
     end
@@ -500,8 +504,9 @@ function copytds ()
       end
     end
   end
-  install (".", "doc", {demofiles, pdffiles, textfiles, typesetlist})
+  install (".", "doc", {bibfiles, demofiles, pdffiles, textfiles, typesetlist})
   install (unpackdir, "makeindex", {makeindexfiles}, true)
+  install (unpackdir, "bibtex/bst", {bstfiles}, true)
   install (".", "source", {sourcelist})
   install (unpackdir, "tex", {installfiles})
 end
@@ -849,30 +854,38 @@ function biber (name)
       runtool ("BIBINPUTS",  biberexe .. " " .. biberopts .. " " .. name)
     )
   end
+  return 0
 end
 
 function bibtex (name)
   if fileexists (typesetdir .. "/" .. name .. ".aux") then
     -- LaTeX always generates an .aux file, so there is a need to
     -- look inside it for a \citation line
+    local grep
+    if os_windows then
+      grep = "\\\\"
+    else
+     grep = "\\\\\\\\"
+    end
     if run (
         typesetdir,
-        os_grepexe .. " \"^\\\\citation{\" " .. name .. ".aux > "
+        os_grepexe .. " \"^" .. grep .. "citation{\" " .. name .. ".aux > "
           .. os_null
-      )
-      == 0 then
+      ) then
       return (
         -- Cheat slightly as we need to set two variables
         runtool (
           "BIBINPUTS",
-          os_setenv .. " BSTINPUTS=." .. os_pathsep .. localdir
+          os_setenv .. " BSTINPUTS=." .. os_pathsep
+            .. relpath (localdir, typesetdir)
             .. (typesetsearch and os_pathsep or "") ..
           os_concat .. 
           bibtexexe .. " " .. bibtexopts .. " " .. name
-       )
+        )
       )
     end
   end
+  return 0
 end
 
 function makeindex (name, inext, outext, logext, style)
@@ -886,6 +899,7 @@ function makeindex (name, inext, outext, logext, style)
       )
     )
   end
+  return 0
 end
 
 function tex (file)
@@ -913,18 +927,21 @@ end
 
 typeset = typeset or function (file)
   local errorlevel = tex (file)
-  local name = stripext (file)
   if errorlevel ~= 0 then
     return errorlevel
   else
-    biber (name)
-    bibtex (name)
-    makeindex (name, ".glo", ".gls", ".glg", glossarystyle)
-    makeindex (name, ".idx", ".ind", ".ilg", indexstyle)
-    tex (file)
-    tex (file)
+    local name = stripext (file)
+    -- Return a non-zero errorlevel if something goes wrong
+    -- without having loads of nested tests
+    return (
+      biber (name)  +
+      bibtex (name) +
+      makeindex (name, ".glo", ".gls", ".glg", glossarystyle) +
+      makeindex (name, ".idx", ".ind", ".ilg", indexstyle)    +
+      tex (file) +
+      tex (file)
+    )
   end
-  return errorlevel
 end
 
 -- Standard versions of the main targets for building modules
@@ -1188,7 +1205,9 @@ function bundlectan ()
       table.insert (pdffiles, (string.gsub (i, "%.%w+$", ".pdf")))
     end
     typesetlist = excludelist (typesetfiles, {sourcefiles})
-    sourcelist = excludelist (sourcefiles, {installfiles, makeindexfiles})
+    sourcelist = excludelist (
+      sourcefiles, {bstfiles, installfiles, makeindexfiles}
+    )
     copyctan ()
     copytds ()
   end
@@ -1200,11 +1219,10 @@ end
 function doc ()
   -- Set up
   cleandir (typesetdir)
-  for _,i in ipairs (sourcefiles) do
-    cp (i, ".", typesetdir)
-  end
-  for _,i in ipairs (typesetfiles) do
-    cp (i, ".", typesetdir)
+  for _,i in ipairs ({bibfiles, sourcefiles, typesetfiles}) do
+    for _,j in ipairs (i) do
+      cp (j, ".", typesetdir)
+    end
   end
   for _,i in ipairs (typesetsuppfiles) do
     cp (i, supportdir, typesetdir)
