@@ -18,7 +18,7 @@
 
 -- Version information: should be identical to that in l3build.dtx
 release_date = "2015/04/30"
-release_ver  = "5601"
+release_ver  = "5602"
 
 -- "module" is a deprecated function in Lua 5.2: as we want the name
 -- for other purposes, and it should eventually be 'free', simply
@@ -871,7 +871,7 @@ function bibtex (name)
         typesetdir,
         os_grepexe .. " \"^" .. grep .. "citation{\" " .. name .. ".aux > "
           .. os_null
-      ) then
+      ) == 0 then
       return (
         -- Cheat slightly as we need to set two variables
         runtool (
