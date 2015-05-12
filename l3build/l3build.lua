@@ -871,6 +871,10 @@ function bibtex (name)
         typesetdir,
         os_grepexe .. " \"^" .. grep .. "citation{\" " .. name .. ".aux > "
           .. os_null
+      ) + run (
+        typesetdir,
+        os_grepexe .. " \"^" .. grep .. "bibdata{\" " .. name .. ".aux > "
+          .. os_null
       ) == 0 then
       return (
         -- Cheat slightly as we need to set two variables
