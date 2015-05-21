@@ -956,9 +956,8 @@
 %   input is left unchanged.
 %
 % Context-sensitive mappings are enabled: language-dependent cases are
-% discussed below. All context detection works before any expansion of
-% following tokens and thus any control sequences are taken as the end of
-% the current \enquote{word}/character context.
+% discussed below. Context detection will expand input but treats any
+% unexpandable control sequences as \enquote{failures} to match a context.
 %
 %   Language-sensitive conversions are enabled using the \meta{language}
 %   argument, and follow Unicode Consortium guidelines. Currently, the
@@ -3133,6 +3132,7 @@
 % \begin{macro}[aux, EXP]{\@@_change_case_cs:N}
 % \begin{macro}[aux, EXP]{\@@_change_case_cs:NN}
 % \begin{macro}[aux, EXP]{\@@_change_case_cs:NNn}
+% \begin{macro}[aux, EXP]{\@@_change_case_if_expandable:NTF}
 % \begin{macro}[aux, EXP]{\@@_change_case_cs_expand:Nnw}
 % \begin{macro}[aux, EXP]{\@@_change_case_cs_expand:NN}
 %   The mechanism for the core conversion of case is based on the idea that
@@ -3488,22 +3488,30 @@
 %   When a control sequence is not on the exclude list the other test if
 %   to see if it is expandable. Once again, if there is a hit then the loop
 %   function is grabbed as part of the clean-up and reinserted before the
-%   now expanded material.
+%   now expanded material. The test for expandablity has to check for
+%   end-of-recursion as it is needed by the look-ahead code which might hit
+%   the end of the input.
 %    \begin{macrocode}
-\cs_new:Npn \@@_change_case_cs_expand:Nnw #1#2
+\cs_new:Npn \@@_change_case_if_expandable:NTF #1
   {
     \bool_if:nTF
       {
              \token_if_expandable_p:N           #1
         && ! \token_if_protected_macro_p:N      #1
         && ! \token_if_protected_long_macro_p:N #1
+        && ! \token_if_eq_meaning_p:NN \q_recursion_tail #1
       }
+  }
+\cs_new:Npn \@@_change_case_cs_expand:Nnw #1#2
+  {
+    \@@_change_case_if_expandable:NTF #1
       { \@@_change_case_cs_expand:NN #1 }
       { #2 }
   }
 \cs_new:Npn \@@_change_case_cs_expand:NN #1#2
   { \exp_after:wN #2 #1 }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -3555,15 +3563,22 @@
   }
 \cs_new:Npn \@@_change_case_lower_sigma:w #1 \q_recursion_stop
   {
-      \tl_if_head_is_N_type:nTF {#1}
-        { \@@_change_case_lower_sigma:Nw #1 \q_recursion_stop }
-        { \c__unicode_final_sigma_tl }
+    \tl_if_head_is_N_type:nTF {#1}
+      { \@@_change_case_lower_sigma:Nw #1 \q_recursion_stop }
+      { \c__unicode_final_sigma_tl }
   }
 \cs_new:Npn \@@_change_case_lower_sigma:Nw #1#2 \q_recursion_stop
   {
-    \token_if_letter:NTF #1
-      { \c__unicode_std_sigma_tl }
-      { \c__unicode_final_sigma_tl }
+    \@@_change_case_if_expandable:NTF #1
+      {
+        \exp_after:wN \@@_change_case_lower_sigma:w #1
+          #2 \q_recursion_stop
+      }
+      {
+        \token_if_letter:NTF #1
+          { \c__unicode_std_sigma_tl }
+          { \c__unicode_final_sigma_tl }
+      }
   }
 %    \end{macrocode}
 %   Simply skip to the final step for upper casing.
@@ -3613,15 +3628,22 @@
   }
 \cs_new:Npn \@@_change_case_lower_tr_auxii:Nw #1#2 \q_recursion_stop
   {
-    \bool_if:nTF
+    \@@_change_case_if_expandable:NTF #1
       {
-           \token_if_cs_p:N #1
-        || ! ( \int_compare_p:nNn { `#1 } = { "0307 } )
+        \exp_after:wN \@@_change_case_lower_tr_auxi:Nw #1
+          #2 \q_recursion_stop
       }
-      { \@@_change_case_output:Vwn \c__unicode_dotless_i_tl }
       {
-        \@@_change_case_output:nwn { i }
-        \use_i:nn
+        \bool_if:nTF
+          {
+               \token_if_cs_p:N #1
+            || ! ( \int_compare_p:nNn { `#1 } = { "0307 } )
+          }
+          { \@@_change_case_output:Vwn \c__unicode_dotless_i_tl }
+          {
+            \@@_change_case_output:nwn { i }
+            \use_i:nn
+          }
       }
   }
 %    \end{macrocode}
@@ -3712,18 +3734,25 @@
   }
 \cs_new:Npn \@@_change_case_lower_lt:NNw #1#2#3 \q_recursion_stop
   {
-    \bool_if:nT
+    \@@_change_case_if_expandable:NTF #2
       {
-        ! \token_if_cs_p:N #2
-        &&
-          (
-               \int_compare_p:nNn { `#2 } = { "0300 }
-            || \int_compare_p:nNn { `#2 } = { "0301 }
-            || \int_compare_p:nNn { `#2 } = { "0303 }
-          )
+        \exp_after:wN \@@_change_case_lower_lt:Nw \exp_after:wN #1 #2
+          #3 \q_recursion_stop
       }
-      { \@@_change_case_output:Vwn \c__unicode_dot_above_tl }
-    #1 #2#3 \q_recursion_stop
+      {
+        \bool_if:nT
+          {
+            ! \token_if_cs_p:N #2
+            &&
+              (
+                   \int_compare_p:nNn { `#2 } = { "0300 }
+                || \int_compare_p:nNn { `#2 } = { "0301 }
+                || \int_compare_p:nNn { `#2 } = { "0303 }
+              )
+          }
+          { \@@_change_case_output:Vwn \c__unicode_dot_above_tl }
+        #1 #2#3 \q_recursion_stop
+      }
   }
 %    \end{macrocode}
 %   For upper casing, the test required is for a dot-above char after an I,
@@ -3760,14 +3789,21 @@
   }
 \cs_new:Npn \@@_change_case_upper_lt:NNw #1#2#3 \q_recursion_stop
   {
-    \bool_if:nTF
+    \@@_change_case_if_expandable:NTF #2
       {
-           ! \token_if_cs_p:N #2
-        && \int_compare_p:nNn { `#2 } = { "0307 }
+        \exp_after:wN \@@_change_case_upper_lt:Nw \exp_after:wN #1 #2
+          #3 \q_recursion_stop
       }
-      { #1 }
-      { #1 #2 }
-    #3 \q_recursion_stop
+      {
+        \bool_if:nTF
+          {
+               ! \token_if_cs_p:N #2
+            && \int_compare_p:nNn { `#2 } = { "0307 }
+          }
+          { #1 }
+          { #1 #2 }
+        #3 \q_recursion_stop
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3998,21 +4034,28 @@
   }
 \cs_new:Npn \@@_change_case_mixed_nl:NNw #1#2#3 \q_recursion_stop
   {
-    \bool_if:nTF
+    \@@_change_case_if_expandable:NTF #2
       {
-        ! ( \token_if_cs_p:N #2 )
-        &&
-          (
-               \int_compare_p:nNn { `#2 } = { `j }
-            || \int_compare_p:nNn { `#2 } = { `J }
-          )
+        \exp_after:wN \@@_change_case_mixed_nl:Nw \exp_after:wN #1 #2
+          #3 \q_recursion_stop
       }
       {
-        \@@_change_case_output:nwn { J }
-        #1
+        \bool_if:nTF
+          {
+            ! ( \token_if_cs_p:N #2 )
+            &&
+              (
+                   \int_compare_p:nNn { `#2 } = { `j }
+                || \int_compare_p:nNn { `#2 } = { `J }
+              )
+          }
+          {
+            \@@_change_case_output:nwn { J }
+            #1
+          }
+          { #1 #2 }
+        #3 \q_recursion_stop
       }
-      { #1 #2 }
-    #3 \q_recursion_stop
   }
 %    \end{macrocode}
 % \end{macro}
