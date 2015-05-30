@@ -332,7 +332,7 @@
 %   Under these circumstances, \cs{l_galley_last_line_fit_int} is active, and
 %   applies as follows:
 %   \begin{itemize}
-%     \item when set to $0$, the last line of the paragraph is set with
+%     \item when set to~$0$, the last line of the paragraph is set with
 %       the inter-word spacing at natural width;
 %    \item when set to a $1000$ (or above), the inter-word spacing in the last
 %      line is stretched by the same factor as that applied to the penultimate
@@ -706,13 +706,6 @@
 % Functions or settings which are needed by the galley but perhaps also
 % elsewhere.
 %
-% \begin{macro}{\seq_map_function:Nc}
-%   Used to allow a mapping to choose the outcome using a passed option.
-%    \begin{macrocode}
-\cs_generate_variant:Nn \seq_map_function:NN { Nc }
-%    \end{macrocode}
-% \end{macro}
-%
 % The default hyphenation character should be set and hyphenation should be
 % enabled.
 %    \begin{macrocode}
@@ -724,13 +717,14 @@
 % \subsection{Scratch variables}
 %
 % \begin{variable}{\l_@@_tmp_int}
-% \begin{variable}{\l_@@_tmpa_seq, \l_@@_tmpb_seq}
-% \begin{variable}{\l_@@_tmpa_tl}
+% \begin{variable}{\g_@@_tmpa_seq, \g_@@_tmpb_seq, \l_@@_tmp_seq}
+% \begin{variable}{\l_@@_tmp_tl}
 %   Used for manipulating cutouts and paragraph shapes.
 %    \begin{macrocode}
 \int_new:N \l_@@_tmp_int
-\seq_new:N \l_@@_tmpa_seq
-\seq_new:N \l_@@_tmpb_seq
+\seq_new:N \g_@@_tmpa_seq
+\seq_new:N \g_@@_tmpb_seq
+\seq_new:N \l_@@_tmp_seq
 \tl_new:N \l_@@_tmp_tl
 %    \end{macrocode}
 % \end{variable}
@@ -741,6 +735,16 @@
 %
 % Settings for application by the galley respect the usual \TeX{} grouping and
 % so are all local variables.
+% 
+% \begin{variable}
+%   {\l_@@_cutout_left_indent_seq, \l_@@_cutout_right_indent_seq}
+%   Essentially scratch space, used when setting up a cutout in a paragrph,
+%   but named as there is quite a bit to do in that code.
+%    \begin{macrocode}
+\seq_new:N \l_@@_cutout_left_indent_seq
+\seq_new:N \l_@@_cutout_right_indent_seq
+%    \end{macrocode}
+% \end{variable}
 %
 % \begin{variable}{\l_@@_parshape_multipar_bool}
 %   Indicates whether the paragraph shape in use applies to one paragraph
@@ -889,9 +893,10 @@
 % \end{variable}
 %
 % \begin{variable}
-%   {\g_galley_previous_par_lines_int, \l_@@_previous_par_lines_int}
-% \begin{variable}
-%   {\g_@@_current_par_lines_int, \l_@@_current_par_lines_int}
+%   {
+%     \g_galley_previous_par_lines_int, \l_@@_previous_par_lines_int,
+%     \g_@@_current_par_lines_int, \l_@@_current_par_lines_int
+%   }
 %   The number of lines in the previous typeset paragraph. This is reset at
 %   the start of the paragraph and \emph{added to} when each \cs{tex_par:D}
 %   primitive is used: \LaTeX{} uses the primitive in places that do not end
@@ -971,9 +976,9 @@
 % boxes and so this is a reasonable requirements.
 %
 % \begin{macro}{\@@_initialise_variables:}
-%   At the start of a galley level, both the global and local variables
-%   will need to be reset to standard values. For example, the measure
-%   is set to the galley width and any paragraph shape is cleared.
+%   At the start of a galley level the global variables need to be reset to
+%   standard values. For example, the measure is set to the galley width and
+%   any paragraph shape is cleared.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \@@_initialise_variables:
   {
@@ -998,10 +1003,16 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_initialise_settings:}
-%   This sets the local values of the various galley settings.
+%   This sets the local values of the various galley settings. The
+%   flag \cs{l_@@_parshape_multipar_bool} is set \texttt{true} here
+%   as it allows an efficency saving in parshape setting: only
+%   when it is actively set \texttt{false} is action needed.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \@@_initialise_settings:
   {
+    \bool_set_true:N \l_@@_parshape_multipar_bool
+    \seq_clear:N \l_@@_parshape_left_indent_seq
+    \seq_clear:N \l_@@_parshape_right_indent_seq
     \dim_set_eq:NN \l_galley_text_width_dim \l_galley_width_dim
     \dim_zero:N \l_galley_total_left_margin_dim
     \dim_zero:N \l_galley_total_right_margin_dim
@@ -1124,8 +1135,9 @@
 % \end{variable}
 %
 % \begin{macro}{\galley_par:}
-% \begin{macro}[aux]{\@@_par_auxi:, \@@_par_auxii:}
+% \begin{macro}[aux]{\@@_par_auxi:, \@@_par_auxii:, \@@_par_auxiii:}
 % \begin{macro}[aux]{\@@_par_aux:N}
+% \begin{macro}[int]{\@@_par_set_cutout:, \@@_par_update_cutout:}
 %   The idea here is to expand the next token in exactly the same way as \TeX{}
 %   would do anyway. The \texttt{f}-type expansion will ignore any protection,
 %   but will stop at a scan marker. Thus the code can test for an
@@ -1165,22 +1177,30 @@
         \group_end:
       }
 %    \end{macrocode}
-%   In horizontal mode, the paragraph shape is set \enquote{just in time}
-%   before inserting \cs{tex_par:D}.  Once the
-%   paragraph has been typeset, the number of lines is \emph{added} to the
-%   running total. It's possible that the conceptual paragraph contains
-%   display-like material, and simply setting the number of lines equal to
-%   \cs{tex_prevgraf:D} would \enquote{lose} these.
+%   In horizontal mode, after the end-of-paragraph hook we check if there
+%   is a cutout active. If there is, the paragraph shape has to be set.
+%   Inserting \cs{tex_par:D} will then carry out the typesetting
+%   operation. Once the paragraph has been typeset, the number of lines is
+%   added to the running total. It's possible that the conceptual paragraph
+%   contains display-like material, and simply setting the number of lines
+%   equal to \cs{tex_prevgraf:D} would lose these. 
 %    \begin{macrocode}
       {
         \g_galley_par_end_hook_tl
-        \@@_parshape_reset:
+        \@@_par_set_cutout:
         \group_begin:
           \tex_par:D
         \group_end:
         \int_gset:Nn \g_galley_previous_par_lines_int
           { \tex_prevgraf:D + \g_@@_current_par_lines_int }
         \int_gzero:N \g_@@_current_par_lines_int
+        \bool_if:NF \l_@@_parshape_multipar_bool
+          {
+            \seq_clear:N \l_@@_parshape_left_indent_seq
+            \seq_clear:N \l_@@_parshape_right_indent_seq
+            \bool_set_true:N \l_@@_parshape_multipar_bool
+          }
+        \@@_par_update_cutout:
       }
     \g_galley_par_reset_hook_tl
     \tl_gclear:N \g_galley_par_reset_hook_tl
@@ -1193,6 +1213,39 @@
     \tex_penalty:D \c_ten_thousand
   }
 %    \end{macrocode}
+%   When cutouts are active, there is a need to set the paragraph shape
+%   \enquote{just in time}. After the typesetting, the lines remaining in
+%   the cutout has to be updated for the next run. This is all done for
+%   each paragraph to avoid any grouping issues and without needing to set
+%   \cs{tex_parshape:n} globally.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_par_set_cutout:
+  {
+    \bool_if:nF
+      {
+           \seq_if_empty_p:N \g_@@_cutout_left_seq
+        && \seq_if_empty_p:N \g_@@_cutout_right_seq
+      }
+      { \@@_parshape_set: }
+  }
+\cs_new_protected_nopar:Npn \@@_par_update_cutout:
+  {
+    \bool_if:nF
+      {
+           \seq_if_empty_p:N \g_@@_cutout_left_seq
+        && \seq_if_empty_p:N \g_@@_cutout_right_seq
+      }
+      {
+        \prg_replicate:nn \tex_prevgraf:D
+          {
+            \seq_gpop_left:NN \g_@@_cutout_left_seq  \l_@@_tmp_tl
+            \seq_gpop_left:NN \g_@@_cutout_right_seq \l_@@_tmp_tl
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -1322,7 +1375,10 @@
 %   paragraph from the display. In that case, the assumption from above is
 %   undone and the indent is turned back on. On the other hand, for the
 %   case where \TeX{} is in horizontal mode then a \cs{tex_par:D} primitive
-%   is required in the same way as in \cs{galley_standard_par:}.
+%   is required in the same way as in \cs{galley_standard_par:}. Most of
+%   the settings for a conceptual paragraph will carry over there but any
+%   cutout will have to be updated as it depends on the number of lines
+%   \TeX{} has typeset.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npn \@@_display_par:
   {
@@ -1335,10 +1391,13 @@
         \@@_display_vspace:N  \l_galley_display_end_par_vspace_tl
       }
       {
+        \@@_par_set_cutout:
         \group_begin:
           \tex_par:D
         \group_end:
         \int_gadd:Nn \g_@@_current_par_lines_int \tex_prevgraf:D
+        \bool_set_false:N \l_@@_tmp_bool
+        \@@_par_update_cutout:
         \@@_display_penalty:N \l_galley_display_end_penalty_tl
         \@@_display_vspace:N  \l_galley_display_end_vspace_tl
       }
@@ -1555,10 +1614,9 @@
 %
 % \begin{macro}
 %   {\galley_margins_set_absolute:nn, \galley_margins_set_relative:nn}
-% \begin{macro}[aux]{\@@_save_margins:, \@@_set_measure:}
-% \begin{macro}[aux, rEXP]{\@@_set_measure_aux:n}
 %   Setting the measure is just a question of adjusting margins, either
-%   in a relative or absolute sense.
+%   in a relative or absolute sense. One the settings are sorted, the
+%   paragraph shape can be reset.
 %    \begin{macrocode}
 \cs_new_protected:Npn \galley_margins_set_absolute:nn #1#2
   {
@@ -1571,7 +1629,7 @@
         - \l_galley_total_left_margin_dim
         - \l_galley_total_right_margin_dim
       }
-    \@@_set_measure:
+    \@@_parshape_set:
   }
 \cs_new_protected:Npn \galley_margins_set_relative:nn #1#2
   {
@@ -1584,148 +1642,9 @@
         - \l_galley_total_left_margin_dim
         - \l_galley_total_right_margin_dim
       }
-    \@@_set_measure:
+    \@@_parshape_set:
   }
 %    \end{macrocode}
-%   Saves the previous margin state so that it can be used for calculation
-%   during the update.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \@@_save_margins:
-  {
-    \dim_set_eq:NN \l_@@_total_left_margin_dim
-      \l_galley_total_left_margin_dim
-    \dim_set_eq:NN \l_@@_total_right_margin_dim
-      \l_galley_total_right_margin_dim
-  }
-%    \end{macrocode}
-%   Setting the measure first requires a quick test to see if there is any
-%   existing shape: if not, just use the values directly. Assuming we do need
-%   to allow for the existing shape, the idea is to preserve whatever shape
-%   has already been applied and adjust the edges. This can be done by
-%   iterating though the existing shape, recovering the values and applying
-%   the changes.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \@@_set_measure:
-  {
-    \int_compare:nNnTF \tex_parshape:D = \c_zero
-      { \@@_parshape_set_measure: }
-      {
-        \dim_sub:Nn \l_@@_total_left_margin_dim
-          \l_galley_total_left_margin_dim
-        \dim_sub:Nn \l_@@_total_right_margin_dim
-          \l_galley_total_right_margin_dim
-        \tex_parshape:D
-          \tex_parshape:D
-          \int_step_function:nnnN
-            \c_one \c_one \tex_parshape:D
-            \@@_set_measure_aux:n
-      }
-  }
-\cs_new:Npn \@@_set_measure_aux:n #1
-  {
-    \__dim_eval:w
-      \etex_parshapeindent:D #1 - \l_@@_total_left_margin_dim
-    \__dim_eval_end:
-    \__dim_eval:w
-      \etex_parshapelength:D #1
-        + \l_@@_total_left_margin_dim + \l_@@_total_right_margin_dim
-    \__dim_eval_end:
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\@@_parshape_reset:}
-%   Test for paragraph shapes to be removed: a multi-step procedure! First,
-%   check to see if there is a shape at all. If there is, the second check
-%   looks for cutouts. If there are no cutouts to worry about, the final
-%   check is whether the current shape applies to one paragraph or on an
-%   ongoing sense.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \@@_parshape_reset:
-  {
-    \int_compare:nNnF \tex_parshape:D = \c_zero
-      {
-        \bool_if:nTF
-          {
-               \seq_if_empty_p:N \g_@@_cutout_left_seq
-            && \seq_if_empty_p:N \g_@@_cutout_right_seq
-          }
-          {
-            \bool_if:NF \l_@@_parshape_multipar_bool
-              { \@@_parshape_set_measure: }
-          }
-%    \end{macrocode}
-%   If there was a cutout active, the \enquote{done} part is removed from
-%   the tracking sequences. The \enquote{normal} paragraph shape is then
-%   reapplied before removing the cutout parts. This is done using separate
-%   loops as in general that is as easy as trying to work out all of the
-%   parts in advance (the same number of loops would still be needed).
-%    \begin{macrocode}
-          {
-            \prg_replicate:nn \g_galley_previous_par_lines_int
-              {
-                \seq_gpop:NN \g_@@_cutout_left_seq \l_@@_tmp_tl
-                \seq_gpop:NN \g_@@_cutout_right_seq \l_@@_tmp_tl
-              }
-            \bool_if:NTF \l_@@_parshape_multipar_bool
-              { \@@_parshape_set_margins: }
-              { \@@_parshape_set_measure: }
-            \@@_cutout_set:Nn \g_@@_cutout_left_seq { left }
-            \@@_cutout_set:Nn \g_@@_cutout_right_seq { right }
-          }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_parshape_set_measure:}
-% \begin{macro}[int]{\@@_parshape_set_margins:}
-% \begin{macro}[aux, rEXP]{\@@_parshape_set_margins:nn}
-%   Sets the parshape to the full measure at the current time: used in a few
-%   places, so worth spinning out. If both margins are zero, there is no
-%   paragraph shape active at all and we can let \TeX{} work more rapidly
-%   by removing it.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \@@_parshape_set_measure:
-  {
-    \bool_if:nTF
-      {
-           \dim_compare_p:nNn \l_galley_total_left_margin_dim  = \c_zero_dim
-        && \dim_compare_p:nNn \l_galley_total_right_margin_dim = \c_zero_dim
-      }
-      { \tex_parshape:D \c_zero }
-      {
-        \tex_parshape:D
-          \c_one
-          \l_galley_total_left_margin_dim
-          \l_galley_text_width_dim
-      }
-  }
-\cs_new_protected_nopar:Npn \@@_parshape_set_margins:
-  {
-    \tex_parshape:D
-      \__int_eval:w
-        \int_min:nn
-          { \seq_count:N \l_@@_parshape_left_indent_seq }
-          { \seq_count:N \l_@@_parshape_right_indent_seq }
-      \__int_eval_end:
-      \seq_mapthread_function:NNN
-        \l_@@_parshape_left_indent_seq
-        \l_@@_parshape_right_indent_seq
-        \@@_parshape_set_margins:nn
-  }
-\cs_new:Npn \@@_parshape_set_margins:nn #1#2
-  {
-    \__dim_eval:w \l_galley_total_left_margin_dim + ( #1 ) \__dim_eval_end:
-    \__dim_eval:w
-      \l_galley_text_width_dim - ( ( #1 ) + ( #2 ) )
-    \__dim_eval_end:
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 %
 % \subsection{Paragraph shape}
@@ -1778,6 +1697,7 @@
         \seq_put_right:Nn \l_@@_parshape_left_indent_seq { 0pt }
         \seq_put_right:Nn \l_@@_parshape_right_indent_seq { 0pt }
       }
+    \@@_parshape_set:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1789,10 +1709,8 @@
 % handling from the measure and shape.
 %
 % \begin{macro}{\galley_cutout_left:nn, \galley_cutout_right:nn}
-% \begin{macro}[int]{\@@_cutout:nnn}
-% \begin{macro}[aux]{\@@_cutout_store:nn}
-% \begin{macro}[int]{\@@_cutout_set:Nn}
-% \begin{macro}[aux]{\@@_cutout_left:n, \@@_cutout_right:n, \@@_cutout_end:n}
+% \begin{macro}[aux]{\@@_cutout:nnn}
+% \begin{macro}[int]{\@@_cutout:NN, \@@_cutout:cN, \@@_cutout:Nc}
 %   Setting up cutouts on the two sides of the paragraph is more or less
 %   the same idea with one or two very specific points of difference. As such,
 %   the two interface functions both use the same implementation.
@@ -1802,155 +1720,241 @@
 \cs_new_protected_nopar:Npn \galley_cutout_right:nn
   { \@@_cutout:nnn { right } }
 %    \end{macrocode}
-%   The approach in the main function is first to construct a single sequence
-%   which contains details of all of the altered lines. This sequence is then
-%   used by \cs{@@_cutout_set:Nn}, which actually applies the cutout to the
-%   current paragraph shape. One that is done, information on the cutout just
-%   applied is merged with the global cutout store: this needs to allow for
-%   different cutout lengths. The best way to do that is to loop over whichever
-%   list is longer, build a new list of the result and the copy this back to
-%   the store.
+%   The cutout information needs to be saved in in the appropriate sequence.
+%   First, the input is converted to a (temporary) sequence. If there is
+%   no existing cutout defined, this is simply stored. On the other hand,
+%   if there is a cutout already active, the new one needs to be added to
+%   it. To achieve that, we iterate over whichever sequence is longer
+%   (so that every relevant line is covered). At the end of this process,
+%   the paragraph shape needs to be activated. Notice here that we use
+%   a global temporary sequence: this allows the auxiliary \cs{@@_cutout:NN}
+%   to apply \cs{seq_gpop_left:NNF } with whichever sequence is shorter.
+%   The parshape is not set at this stage as cutouts need handling
+%   on a per-paragraph level.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_cutout:nnn #1#2#3
   {
-    \seq_set_from_clist:Nn \l_@@_tmpa_seq {#3}
+    \seq_gset_from_clist:Nn \g_@@_tmpa_seq {#3}
     \prg_replicate:nn {#2}
-      { \seq_put_left:Nn \l_@@_tmpa_seq { 0pt } }
-    \@@_cutout_set:Nn \l_@@_tmpa_seq {#1}
-    \seq_clear:N \l_@@_tmpb_seq
-    \int_compare:nNnTF
-      { \seq_count:N \l_@@_tmpa_seq } >
-        { \seq_count:c { g_@@_cutout_ #1 _ seq }  }
+      { \seq_gput_left:Nn \g_@@_tmpa_seq { 0pt } }
+    \seq_if_empty:cTF { g_@@_cutout_ #1 _seq }
+      { \seq_gset_eq:cN { g_@@_cutout_ #1 _seq } \g_@@_tmpa_seq }
       {
-        \seq_map_inline:Nn \l_@@_tmpa_seq
-          {
-            \@@_cutout_store:nn
-              { \seq_gpop:cNF { g_@@_cutout_ #1 _ seq } }
-              {##1}
-          }
+        \int_compare:nNnTF
+          { \seq_count:c { g_@@_cutout_ #1 _seq } } >
+            { \seq_count:N \g_@@_tmpa_seq }
+          { \@@_cutout:cN { g_@@_cutout_ #1 _seq } \g_@@_tmpa_seq }
+          { \@@_cutout:Nc \g_@@_tmpa_seq { g_@@_cutout_ #1 _seq } }
+        \seq_gset_eq:cN { g_@@_cutout_ #1 _seq } \l_@@_tmp_seq
       }
-      {
-        \seq_map_inline:cn { g_@@_cutout_ #1 _ seq }
-          {
-            \@@_cutout_store:nn
-              { \seq_pop:NNF \l_@@_tmpa_seq }
-              {##1}
-          }
-      }
-    \seq_gset_eq:cN { g_@@_cutout_ #1 _ seq } \l_@@_tmpb_seq
   }
-\cs_new_protected:Npn \@@_cutout_store:nn #1#2
+\cs_new_protected:Npn \@@_cutout:NN #1#2
   {
-    #1 \l_@@_tmp_tl
-      { \tl_set:Nn \l_@@_tmp_tl { 0pt } }
-    \seq_put_right:Nx \l_@@_tmpb_seq
-      { \dim_eval:n { \l_@@_tmp_tl + #2 } }
+    \seq_clear:N \l_@@_tmp_seq
+    \seq_map_inline:Nn #1
+      {
+        \seq_gpop_left:NNF #2 \l_@@_tmp_tl
+          { \tl_set:Nn \l_@@_tmp_tl { 0pt } }
+        \seq_put_right:Nx \l_@@_tmp_seq
+          { \dim_eval:n { ##1 + \l_@@_tmp_tl } }
+      }
   }
+\cs_generate_variant:Nn \@@_cutout:NN { c , Nc }
 %    \end{macrocode}
-%   Actually applying a cutout is done by using the sequence containing the
-%   cutout shape plus the current paragraph shape to construct a token list
-%   of the required indents and line lengths. That is done in a
-%   non-expansion way to allow for the two different kinds of mapping (to the
-%   sequence and to the parshape). At the end of the process, there is a need
-%   to allow for the last line of \tn{parshape}: depending on any existing
-%   shape and the length of the cutout, this might be the measure or a
-%   repeat of the last values in the shape.
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Setting the primitive paragraph shape}
+% 
+% \begin{macro}[int]{\@@_parshape_set:}
+% \begin{macro}[aux]
+%   {
+%     \@@_parshape_set_margins:,
+%     \@@_parshape_set_indents:,
+%     \@@_parshape_set_cutouts:
+%   }
+% \begin{macro}[aux]{\@@_parshape_set_indents:NN}
+% \begin{macro}[aux, rEXP]{\@@_parshape_set_indents:nn}
+% \begin{macro}[aux]{\@@_parshape_set_cutouts:n}
+% \begin{macro}[aux]{\@@_parshape_set_cutouts:N}
+%   The real paragraph shape (\cs{tex_parshape:D}) is set whenever any
+%   of the conceptual elements (margins, measure, cutouts) are set and
+%   potentially at the end of a paragraph in the cases where a single-paragraph
+%   measure or a cutout was active. Rather than try to track different
+%   combinations of the elements, as was done in earlier versions of this
+%   code, the approach taken here is always to reset the entire shape. This
+%   is done in three stages, one for each conceptual element.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_cutout_set:Nn #1#2
+\cs_new_protected_nopar:Npn \@@_parshape_set:
   {
-    \int_zero:N \l_@@_tmp_int
-    \tl_clear:N \l_@@_tmp_tl
-    \seq_map_function:Nc #1 { _@@_cutout_ #2 :n }
-    \int_compare:nNnTF \tex_parshape:D > \l_@@_tmp_int
+    \@@_parshape_set_margins:
+    \@@_parshape_set_indents:
+    \@@_parshape_set_cutouts:
+    \tl_set:Nx \l_@@_tmp_tl
       {
-        \int_step_function:nnnN
-          { \l_@@_tmp_int + \c_one }
+        \int_use:N \tex_parshape:D
+        \int_step_function:nnnN \c_one \c_one \tex_parshape:D
+ \tmp
+      }
+%    \tl_show:N \l_@@_tmp_tl
+  }
+  \def\tmp#1{%
+            \c_space_tl
+            \int_use:N \etex_parshapeindent:D #1 \c_space_tl \c_space_tl
+            \int_use:N  \etex_parshapelength:D #1 \c_space_tl
+          }
+%    \end{macrocode}
+%   Setting the margins is simple. Either they are zero, using the full measure,
+%   or they are not. This is always set even if there are other elements to
+%   apply as these settings are very fast, so it is not worth doing a check
+%   at this stage for further parts to apply. 
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_parshape_set_margins:
+  {
+    \bool_if:nTF
+      {
+           \dim_compare_p:nNn \l_galley_total_left_margin_dim  = \c_zero_dim
+        && \dim_compare_p:nNn \l_galley_total_right_margin_dim = \c_zero_dim
+      }
+      { \tex_parshape:D \c_zero }
+      {
+        \tex_parshape:D
           \c_one
-          \tex_parshape:D
-          \@@_cutout_end:n
+          \l_galley_total_left_margin_dim
+          \l_galley_text_width_dim
+      }
+  }
+%    \end{macrocode}
+%   If there is a measure (indent) to apply this simply overwrites the
+%   settings for the margins. As there are two sequences to use it is
+%   convenient to use a thread mapping, which means that the shorter sequence
+%   will always apply. The margins are reapplied at this stage as part of
+%   the auxiliary for the calculation of indentation.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_parshape_set_indents:
+  {
+    \bool_if:nF
+      {
+           \seq_if_empty_p:N \l_@@_parshape_left_indent_seq
+        && \seq_if_empty_p:N \l_@@_parshape_right_indent_seq
       }
       {
-        \int_incr:N \l_@@_tmp_int
-        \int_compare:nNnTF \tex_parshape:D = \c_zero
-          {
-            \tl_put_right:Nn \l_@@_tmp_tl
-             { \l_@@_total_left_margin_dim \l_galley_text_width_dim }
-          }
-          {
-            \tl_put_right:Nx \l_@@_tmp_tl
-              {
-                \dim_eval:n { \etex_parshapeindent:D \tex_parshape:D }
-                \c_space_tl
-                \dim_eval:n { \etex_parshapelength:D \tex_parshape:D }
-                \c_space_tl
-              }
-          }
+        \@@_parshape_set_indents:NN
+          \l_@@_parshape_left_indent_seq
+          \l_@@_parshape_right_indent_seq
       }
+  }
+\cs_new_protected:Npn \@@_parshape_set_indents:NN #1#2
+  {
     \tex_parshape:D
-      \l_@@_tmp_int
-      \l_@@_tmp_tl
+      \__int_eval:w
+        \int_min:nn { \seq_count:N #1 } { \seq_count:N #2 }
+      \__int_eval_end:
+      \seq_mapthread_function:NNN #1 #2
+        \@@_parshape_set_indents:nn
+  }
+\cs_new:Npn \@@_parshape_set_indents:nn #1#2
+  {
+    \__dim_eval:w \l_galley_total_left_margin_dim + ( #1 ) \__dim_eval_end:
+    \__dim_eval:w
+      \l_galley_text_width_dim - ( ( #1 ) + ( #2 ) )
+    \__dim_eval_end:
   }
 %    \end{macrocode}
-%   The only place where the position of the cutout matters is in working out
-%   the indent and line lengths. That's achieved using two separate auxiliaries
-%   and selection by name.
+%   Calculating cutouts is by far the most complex operation here. The
+%   first step is to establish if this needs to be done at all. If so,
+%   the cutout list and the matching measure (indent) are stored in two
+%   temporary sequences so that they can safely be \enquote{chomped} by
+%   \cs{@@_cutout:NN}. We then construct the overall list of indents required
+%   and store them in dedicated temporary storage. That is necessary as to get
+%   the indents corret on both sides is to use a thread mapping. That also
+%   means that the two sequences need to be of the same length.  That is
+%   done by finding the length difference then applying an auxiliary to
+%   the shorter sequence.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_cutout_left:n #1
+\cs_new_protected_nopar:Npn \@@_parshape_set_cutouts:
   {
-    \int_incr:N \l_@@_tmp_int
-    \tl_put_right:Nx \l_@@_tmp_tl
+    \bool_if:nF
       {
-        \int_compare:nNnTF \l_@@_tmp_int > \tex_parshape:D
-          {
-            \dim_eval:n { \l_@@_total_left_margin_dim + ( #1 ) }
-            \c_space_tl
-            \dim_eval:n { \l_galley_text_width_dim - ( #1 ) }
-            \c_space_tl
-          }
-          {
-            \dim_eval:n { \etex_parshapeindent:D \l_@@_tmp_int + ( #1 ) }
-            \c_space_tl
-            \dim_eval:n { \etex_parshapelength:D \l_@@_tmp_int - ( #1 ) }
-            \c_space_tl
-          }
+           \seq_if_empty_p:N \g_@@_cutout_left_seq
+        && \seq_if_empty_p:N \g_@@_cutout_right_seq
       }
-  }
-\cs_new_protected:Npn \@@_cutout_right:n #1
-  {
-    \int_incr:N \l_@@_tmp_int
-    \tl_put_right:Nx \l_@@_tmp_tl
       {
-        \int_compare:nNnTF \l_@@_tmp_int > \tex_parshape:D
+        \@@_parshape_set_cutouts:n { left }
+        \@@_parshape_set_cutouts:n { right }
+        \int_set:Nn \l_@@_tmp_int
           {
-            \dim_use:N \l_@@_total_left_margin_dim
-            \c_space_tl
-            \dim_eval:n { \l_galley_text_width_dim - ( #1 ) }
-            \c_space_tl
+              \seq_count:N \l_@@_cutout_left_indent_seq
+            - \seq_count:N \l_@@_cutout_right_indent_seq
           }
-          {
-            \dim_eval:n { \etex_parshapeindent:D \l_@@_tmp_int }
-            \c_space_tl
-            \dim_eval:n { \etex_parshapelength:D \l_@@_tmp_int - ( #1 ) }
-            \c_space_tl
-          }
+        \int_compare:nNnTF \l_@@_tmp_int > \c_zero
+          { \@@_parshape_set_cutouts:N \l_@@_cutout_right_indent_seq }
+          { \@@_parshape_set_cutouts:N \l_@@_cutout_left_indent_seq }
+        \@@_parshape_set_indents:NN
+          \l_@@_cutout_left_indent_seq
+          \l_@@_cutout_right_indent_seq
       }
   }
 %    \end{macrocode}
-%   An auxiliary to \enquote{recycle} the paragraph shape which is already
-%   active \emph{if} the cutout is shorter.
+%   To work out the offsets for a cutout, we first check that there is
+%   anything to do at all. If there is, we need to ensure that there
+%   are more entries in the measure list than in the cutout list, so that
+%   any lines omitted by the cutout are correct and so that the normal measure
+%   will resume after the cutout. That is done in a global temporary sequence,
+%   which allows code sharing with the earlier path.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_cutout_end:n #1
+\cs_new_protected:Npn \@@_parshape_set_cutouts:n #1
   {
-    \int_incr:N \l_@@_tmp_int
-    \tl_put_right:Nx \l_@@_tmp_tl
+    \seq_if_empty:cTF { g_@@_cutout_ #1 _seq }
       {
-        \dim_eval:n { \etex_parshapeindent:D #1 }
-        \c_space_tl
-        \dim_eval:n { \etex_parshapelength:D #1 }
-        \c_space_tl
+        \seq_set_eq:cc { l_@@_cutout_ #1 _indent_seq }
+          { l_@@_parshape_ #1 _indent_seq }
+      }
+      {
+        \seq_gset_eq:Nc \g_@@_tmpa_seq { g_@@_cutout_ #1 _seq }
+        \seq_gset_eq:Nc \g_@@_tmpb_seq { l_@@_parshape_ #1 _indent_seq }
+        \tl_set:Nx \l_@@_tmp_tl
+          {
+            \seq_item:Nn \g_@@_tmpb_seq
+              { \seq_count:N \g_@@_tmpb_seq }
+          }
+        \tl_if_empty:NT \l_@@_tmp_tl
+         { \tl_set:Nn \l_@@_tmp_tl { 0pt } }
+        \int_set:Nn \l_@@_tmp_int
+          {
+              \seq_count:N \g_@@_tmpa_seq
+            - \seq_count:N \g_@@_tmpb_seq
+            + \c_one
+          }
+        \int_compare:nNnT \l_@@_tmp_int > \c_zero
+          {
+            \prg_replicate:nn
+              { \l_@@_tmp_int }
+              { \seq_gput_right:NV \g_@@_tmpb_seq \l_@@_tmp_tl }
+          }
+        \@@_cutout:NN \g_@@_tmpb_seq \g_@@_tmpa_seq
+        \seq_set_eq:cN { l_@@_cutout_ #1 _indent_seq } \l_@@_tmp_seq
       }
   }
 %    \end{macrocode}
+%   Grab the last entry of the shorter sequence and repeat it to match
+%   the length of the longer. 
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_parshape_set_cutouts:N #1
+  {
+    \tl_set:Nx \l_@@_tmp_tl
+      { \seq_item:Nn #1 { \seq_count:N #1 } }
+    \tl_if_empty:NT \l_@@_tmp_tl
+      { \tl_set:Nn \l_@@_tmp_tl { 0pt } }
+    \prg_replicate:nn { \int_abs:n \l_@@_tmp_int }
+      { \seq_put_right:NV #1 \l_@@_tmp_tl }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
