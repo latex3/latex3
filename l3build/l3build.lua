@@ -86,8 +86,9 @@ bstfiles         = bstfiles         or {"*.bst"}
 checkfiles       = checkfiles       or { }
 checksuppfiles   = checksuppfiles   or { }
 cmdchkfiles      = cmdchkfiles      or { }
-demofiles        = demofiles        or { }
 cleanfiles       = cleanfiles       or {"*.log", "*.pdf", "*.zip"}
+demofiles        = demofiles        or { }
+docfiles         = docfiles         or { }
 excludefiles     = excludefiles     or {"*~"}
 installfiles     = installfiles     or {"*.sty"}
 makeindexfiles   = makeindexfiles   or {"*.ist"}
@@ -461,7 +462,15 @@ end
 function copyctan ()
   -- Do all of the copying in one go
   for _,i in ipairs (
-      {bibfiles, demofiles, pdffiles, sourcefiles, textfiles, typesetlist}
+      {
+        bibfiles,
+        demofiles,
+        docfiles,
+        pdffiles,
+        sourcefiles,
+        textfiles,
+        typesetlist
+      }
     ) do
     for _,j in ipairs (i) do
       cp (j, ".", ctandir .. "/" .. ctanpkg)
@@ -504,7 +513,11 @@ function copytds ()
       end
     end
   end
-  install (".", "doc", {bibfiles, demofiles, pdffiles, textfiles, typesetlist})
+  install (
+    ".",
+    "doc",
+    {bibfiles, demofiles, docfiles, pdffiles, textfiles, typesetlist}
+  )
   install (unpackdir, "makeindex", {makeindexfiles}, true)
   install (unpackdir, "bibtex/bst", {bstfiles}, true)
   install (".", "source", {sourcelist})
@@ -1192,8 +1205,7 @@ function bundlectan ()
     end
     for _,i in ipairs (include) do
       for _,j in ipairs (filelist (".", i)) do
-        if excludelist[j] then
-        else
+        if not excludelist[j] then
           table.insert (includelist, j)
         end
       end
@@ -1223,7 +1235,7 @@ end
 function doc ()
   -- Set up
   cleandir (typesetdir)
-  for _,i in ipairs ({bibfiles, sourcefiles, typesetfiles}) do
+  for _,i in ipairs ({bibfiles, docfiles, sourcefiles, typesetfiles}) do
     for _,j in ipairs (i) do
       cp (j, ".", typesetdir)
     end
