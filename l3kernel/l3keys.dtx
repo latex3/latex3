@@ -170,15 +170,29 @@
 % name of the property using an argument specification. In the following
 % discussion, each property is illustrated attached to an
 % arbitrary \meta{key}, which when used may be supplied with a
-% \meta{value}. All key \emph{definitions} are local.]
+% \meta{value}. All key \emph{definitions} are local.
 % 
-% The order in which properties are applied to a key is important.
-% Properties which create keys, such as |.code:n| and |.tl_set:N|,
-% will remove any \enquote{secondary} properties such as |.group:n|
-% or |.value_forbidden:|. Thus keys should \emph{first} be created
-% and only then have such details added. This approach means that
-% keys set using |.code:n| and so on are always in a known state
-% at the point this creation property is applied.
+% Key properties are applied in the reading order and so the ordering
+% is significant. Key properties which define \enquote{actions}, such
+% as |.code:n|, |.tl_set:N|, \emph{etc.}, will override one another.
+% Some other properties are mutually exclusive, notably |.value_required:|
+% and |.value_forbidden:|, and so will replace one another. However, properties
+% covering non-exclusive behaviours may be given in any order. Thus for example
+% the following defintions are equivalent.
+% \begin{verbatim}
+%   \keys_define:nn { mymodule }
+%     {
+%       keyname .code:n = Some~code~using~#1,
+%       keyname .value_required:
+%     }
+%   \keys_define:nn { mymodule }
+%     {
+%       keyname .value_required:,
+%       keyname .code:n = Some~code~using~#1
+%     }
+% \end{verbatim}
+% Note that with the exception of the special |.undefine:| property, all
+% key properties will define the key within the current \TeX{} scope.
 %
 % \begin{function}[updated = 2013-07-08]
 %   {.bool_set:N, .bool_set:c, .bool_gset:N, .bool_gset:c}
@@ -395,6 +409,13 @@
 %   which will be subjected to an \texttt{x}-type expansion
 %   (\emph{i.e.}~using \cs{tl_set:Nx}). If the variable does not exist,
 %   it will be created globally at the point that the key is set up.
+% \end{function}
+%
+% \begin{function}[added = 2015-07-14]{.undefine:}
+%   \begin{syntax}
+%     \meta{key} .undefine:
+%   \end{syntax}
+%   Removes the definition of the \meta{key} within the current scope.
 % \end{function}
 %
 % \begin{function}{.value_forbidden:}
@@ -1283,6 +1304,31 @@
 %
 % \subsection{Turning properties into actions}
 %
+% \begin{macro}[int]{\@@_ensure_exist:n, \@@_ensure_exist:V}
+%   Used to make sure that a key implementation and the related property
+%   list will exist whenever this is required. We cannot use for example
+%   \cs{prop_clear_new:c} here as that would affect the order in which key
+%   properties must be set. As key definitions are never global we use
+%   |\cs_set_protected:cpn| not |\cs_new_protected:cpn| here. For the
+%   same reason, to avoid issues if the key has been undefined in the
+%   current scope but exists at a higher level, we do not use \cs{prop_new:c}
+%   but rather \cs{prop_set_eq:cN}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_ensure_exist:n #1
+  {
+    \prop_if_exist:cF { \c_@@_info_root_tl #1 }
+      {
+        \prop_set_eq:cN { \c_@@_info_root_tl #1 } \c_empty_prop
+      }
+    \cs_if_exist:cF { \c_@@_code_root_tl #1 }
+      {
+        \cs_set_protected:cpn { \c_@@_code_root_tl #1 } ##1 { }
+      }
+  }
+\cs_generate_variant:Nn \@@_ensure_exist:n { V }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[int]{\@@_bool_set:Nn, \@@_bool_set:cn}
 %   Boolean keys are really just choices, but all done by hand. The
 %   second argument here is the scope: either empty or \texttt{ g } for
@@ -1419,13 +1465,13 @@
 %
 % \begin{macro}[int]
 %   {\@@_cmd_set:nn, \@@_cmd_set:nx, \@@_cmd_set:Vn, \@@_cmd_set:Vo}
-%   Creating a new command means tidying up the properties and then making
-%   the internal function which actually does the work.
+%   Setting the code for a key first checks that the basic data structures
+%   exist, then saves the code.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_cmd_set:nn #1#2
   {
-    \prop_clear_new:c { \c_@@_info_root_tl #1 }
-    \cs_set:cpn { \c_@@_code_root_tl #1 } ##1 {#2}
+    \@@_ensure_exist:V \l_keys_path_tl
+    \cs_set_protected:cpn { \c_@@_code_root_tl #1 } ##1 {#2}
   }
 \cs_generate_variant:Nn \@@_cmd_set:nn { nx , Vn , Vo }
 %    \end{macrocode}
@@ -1436,7 +1482,12 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_default_set:n #1
   {
-    \prop_if_exist:cT { \c_@@_info_root_tl \l_keys_path_tl }
+    \@@_ensure_exist:V \l_keys_path_tl
+    \tl_if_blank:nTF {#1}
+      {
+        \prop_remove:cn { \c_@@_info_root_tl \l_keys_path_tl }
+          { default }
+      }
       {
         \prop_put:cnn { \c_@@_info_root_tl \l_keys_path_tl }
           { default } {#1}
@@ -1452,9 +1503,14 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_groups_set:n #1
   {
-    \prop_if_exist:cT { \c_@@_info_root_tl \l_keys_path_tl }
+    \@@_ensure_exist:V \l_keys_path_tl
+    \clist_set:Nn \l_@@_groups_clist {#1}
+    \clist_if_empty:NTF \l_@@_groups_clist
       {
-        \clist_set:Nn \l_@@_groups_clist {#1}
+        \prop_remove:cn { \c_@@_info_root_tl \l_keys_path_tl }
+          { groups }
+      }
+      {
         \prop_put:cnV { \c_@@_info_root_tl \l_keys_path_tl }
           { groups } \l_@@_groups_clist
       }
@@ -1469,7 +1525,10 @@
 %   \cs{l_keys_path_tl} will contain \texttt{/} so a split is easy to do.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_initialise:n #1
-  { \exp_after:wN \@@_initialise:wn \l_keys_path_tl \q_stop {#1} }
+  {
+    \@@_ensure_exist:V \l_keys_path_tl
+    \exp_after:wN \@@_initialise:wn \l_keys_path_tl \q_stop {#1}
+  }
 \cs_new_protected:Npn \@@_initialise:wn #1 / #2 \q_stop #3
   { \keys_set:nn {#1} { #2 = {#3} } }
 %    \end{macrocode}
@@ -1494,21 +1553,31 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}[int]{\@@_undefine:}
+%   Undefining a key has to be done without \cs{cs_undefine:c} as that
+%   function acts globally.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_undefine:
+  {
+    \cs_set_eq:cN { \c_@@_code_root_tl \l_keys_path_tl } \tex_undefined:D
+    \cs_set_eq:cN { \c_@@_info_root_tl \l_keys_path_tl } \tex_undefined:D
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[int]{\@@_value_requirement:n}
 %   Values can be required or forbidden by having the appropriate marker
 %   set. First, both the required and forbidden ones are clear, just in case!
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_value_requirement:n #1
   {
-    \prop_if_exist:cT { \c_@@_info_root_tl \l_keys_path_tl }
-      {
-        \prop_remove:cn { \c_@@_info_root_tl \l_keys_path_tl }
-          { required }
-        \prop_remove:cn { \c_@@_info_root_tl \l_keys_path_tl }
-          { forbidden }
-        \prop_put:cnn { \c_@@_info_root_tl \l_keys_path_tl }
-          {#1} { true }
-    }
+    \@@_ensure_exist:V \l_keys_path_tl
+    \prop_remove:cn { \c_@@_info_root_tl \l_keys_path_tl }
+      { required }
+    \prop_remove:cn { \c_@@_info_root_tl \l_keys_path_tl }
+      { forbidden }
+    \prop_put:cnn { \c_@@_info_root_tl \l_keys_path_tl }
+      {#1} { true }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1791,6 +1860,14 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}{.undefine:}
+%   TAnother simple wrapper.
+%    \begin{macrocode}
+\cs_new_protected_nopar:cpn { \c_@@_props_root_tl .undefine: }
+  { \@@_undefine: }
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{.value_forbidden:}
