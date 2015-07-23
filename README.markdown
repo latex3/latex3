@@ -86,6 +86,7 @@ the team members are
   * David Carlisle
   * Robin Fairbairns
   * Bruno Le Floch
+  * Morten Høgholm
   * Thomas Lotze
   * Frank Mittelbach
   * Will Robertson
@@ -97,7 +98,6 @@ Former members of The LaTeX3 Project team were
 
   * Michael Downes
   * Denys Duchier
-  * Morten Høgholm
   * Alan Jeffrey
   * Martin Schröder
 
@@ -107,5 +107,5 @@ the [LaTeX-L list](#Discussion) should be used .
 
 -----
 
-Copyright (C) 2011,2012,2014 The LaTeX3 Project
+Copyright (C) 2011,2012,2014,2015 The LaTeX3 Project
 All rights reserved
