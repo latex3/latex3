@@ -85,8 +85,8 @@ the team members are
   * Johannes Braams
   * David Carlisle
   * Robin Fairbairns
-  * Bruno Le Floch
   * Morten Høgholm
+  * Bruno Le Floch
   * Thomas Lotze
   * Frank Mittelbach
   * Will Robertson
