@@ -798,7 +798,9 @@ function runtest (name, engine, hide)
   local engine = engine or stdengine
   -- Set up the format file name if it's one ending "...tex"
   local format
-  if string.match (checkformat, "tex$") then
+  if
+    string.match (checkformat, "tex$") and
+    not string.match (engine, checkformat) then
     format = " -fmt=" .. string.gsub (engine, "(.*)tex$", "%1") .. checkformat
   else
     format = ""
