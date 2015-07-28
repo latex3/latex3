@@ -591,6 +591,8 @@ function formatlog(logfile, newfile)
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
     line = string.gsub(line, "^%s+", "")
+    -- Remove 'normal' direction information on boxes with (u)p-TeX
+    line = string.gsub(line, ", yoko direction", "")
     -- Unicode engines display chars in the upper half of the 8-bit range:
     -- tidy up to match pdfTeX
     local utf8 = unicode.utf8
