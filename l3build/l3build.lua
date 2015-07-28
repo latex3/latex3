@@ -4,7 +4,7 @@
 
  It may be distributed and/or modified under the conditions of the
  LaTeX Project Public License (LPPL), either version 1.3c of this
- license or(at your option) any later version.  The latest version
+ license or (at your option) any later version.  The latest version
  of this license is in the file
 
     http://www.latex-project.org/lppl.txt
@@ -166,10 +166,10 @@ tlgext = tlgext or ".tlg"
 -- License for original globtopattern
 --[[
 
-  (c) 2008-2011 David Manura.  Licensed under the same terms as Lua(MIT).
+   (c) 2008-2011 David Manura.  Licensed under the same terms as Lua (MIT).
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
-  of this software and associated documentation files(the "Software"), to deal
+  of this software and associated documentation files (the "Software"), to deal
   in the Software without restriction, including without limitation the rights
   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
   copies of the Software, and to permit persons to whom the Software is
@@ -248,7 +248,7 @@ if string.sub(package.config, 1, 1) == "\\" then
   os_pathsep  = ";"
   os_setenv   = "set"
   os_windows  = true
-  os_yes      = "for /l %I in(1,1,200) do @echo y"
+  os_yes      = "for /l %I in (1,1,200) do @echo y"
 else
   os_concat   = ";"
   os_diffext  = ".diff"
@@ -647,7 +647,7 @@ function formatlualog(logfile, newfile)
     -- Find glue setting and round out the last place
     line = string.gsub(
         line,
-        "glue set(%-? ?)%d+.%d+fil$",
+        "glue set (%-? ?)%d+.%d+fil$",
         "glue set %1" .. string.format(
             "%.4f", string.match(line, "glue set %-? ?(%d+.%d+)fil$") or 0
           )
@@ -656,7 +656,7 @@ function formatlualog(logfile, newfile)
     -- Remove U+ notation in the "Missing character" message
     line = string.gsub(
         line,
-        "Missing character: There is no(%^%^..) %(U%+(....)%)",
+        "Missing character: There is no (%^%^..) %(U%+(....)%)",
         "Missing character: There is no %1"
       )
     -- Where the last line was a discretionary, looks for the
@@ -824,7 +824,7 @@ function runtest(name, engine, hide)
         os_setenv .. " TEXINPUTS=." .. (checksearch and os_pathsep or "")
           .. os_concat ..
         realengine ..  format .. " " .. checkopts .. " " .. lvtfile
-          .. (hide and(" > " .. os_null) or "")
+          .. (hide and (" > " .. os_null) or "")
       )
   end
   formatlog(logfile, newfile)
@@ -1281,7 +1281,7 @@ function install()
 end
 
 function save(name, engine)
-  local tlgfile = name .. (engine and("." .. engine) or "") .. tlgext
+  local tlgfile = name .. (engine and ("." .. engine) or "") .. tlgext
   local newfile = name .. "." .. (engine or stdengine) .. logext
   checkinit()
   if testexists(name) then
