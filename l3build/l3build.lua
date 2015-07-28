@@ -797,6 +797,7 @@ function runtest(name, engine, hide)
     and testfiledir or unpackdir, testdir)
   local engine = engine or stdengine
   -- Set up the format file name if it's one ending "...tex"
+  local realengine = engine
   local format
   if
     string.match(checkformat, "tex$") and
@@ -804,6 +805,12 @@ function runtest(name, engine, hide)
     format = " -fmt=" .. string.gsub(engine, "(.*)tex$", "%1") .. checkformat
   else
     format = ""
+  end
+  -- Special casing for (u)p-TeX LaTeX formats
+  if
+    string.match(checkformat, "^latex$") and
+    string.match(engine, "^u?ptex$") then
+    realengine = "e" .. engine
   end
   local logfile = testdir .. "/" .. name .. logext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
@@ -814,7 +821,7 @@ function runtest(name, engine, hide)
         -- avoids any paths in the logs
         os_setenv .. " TEXINPUTS=." .. (checksearch and os_pathsep or "")
           .. os_concat ..
-        engine ..  format .. " " .. checkopts .. " " .. lvtfile
+        realengine ..  format .. " " .. checkopts .. " " .. lvtfile
           .. (hide and(" > " .. os_null) or "")
       )
   end
