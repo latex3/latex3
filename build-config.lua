@@ -6,7 +6,6 @@ unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 
 cmdchkfiles     = {"*.dtx"}
 checksuppfiles  = {"minimal.cls", "regression-test.cfg"}
-readmefiles     = {"README.markdown"}
 unpacksuppfiles = {"docstrip.tex"}
 
 packtdszip  = true

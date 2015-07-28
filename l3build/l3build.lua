@@ -92,9 +92,8 @@ docfiles         = docfiles         or { }
 excludefiles     = excludefiles     or {"*~"}
 installfiles     = installfiles     or {"*.sty"}
 makeindexfiles   = makeindexfiles   or {"*.ist"}
-readmefiles      = readmefiles      or {"README.md", "README.markdown", "README.txt"}
 sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"}
-textfiles        = textfiles        or { }
+textfiles        = textfiles        or {"*.md", "*.txt"}
 typesetfiles     = typesetfiles     or {"*.dtx"}
 typesetsuppfiles = typesetsuppfiles or { }
 unpackfiles      = unpackfiles      or {"*.ins"}
@@ -1177,15 +1176,9 @@ function ctan(standalone)
     return errorlevel
   end
   if errorlevel == 0 then
-    for _,i in ipairs(readmefiles) do
-      for _,j in ipairs(filelist(".", i)) do
-        local function installtxt(name, dir)
-          cp(name, ".", dir)
-          ren(dir, name, stripext(name))
-        end
-        installtxt(j, ctandir .. "/" .. ctanpkg)
-        installtxt(j, tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
-      end
+    for _,i in ipairs(textfiles) do
+      cp(i, ".", ctandir .. "/" .. ctanpkg)
+      cp(i, ".", tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
     end
     dirzip(tdsdir, ctanpkg .. ".tds")
     if packtdszip then
