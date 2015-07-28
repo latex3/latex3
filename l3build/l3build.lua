@@ -590,7 +590,7 @@ function formatlog(logfile, newfile)
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
     line = string.gsub(line, "^%s+", "")
-    -- Remove 'normal' direction information on boxes with (u)p-TeX
+    -- Remove 'normal' direction information on boxes with (u)pTeX
     line = string.gsub(line, ", yoko direction", "")
     -- Unicode engines display chars in the upper half of the 8-bit range:
     -- tidy up to match pdfTeX
@@ -807,7 +807,7 @@ function runtest(name, engine, hide)
   else
     format = ""
   end
-  -- Special casing for (u)p-TeX LaTeX formats
+  -- Special casing for (u)pTeX LaTeX formats
   if
     string.match(checkformat, "^latex$") and
     string.match(engine, "^u?ptex$") then
