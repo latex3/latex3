@@ -146,10 +146,11 @@ makeindexexe  = makeindexexe  or "makeindex"
 makeindexopts = makeindexopts or ""
 
 -- Other required settings
-checkruns   = checkruns   or 1
-packtdszip  = packtdszip  or false -- Not actually needed but clearer
-scriptname  = scriptname  or "build.lua" -- Script used in each directory
-typesetcmds = typesetcmds or ""
+checkruns    = checkruns    or 1
+maxprintline = maxprintline or 79
+packtdszip   = packtdszip   or false -- Not actually needed but clearer
+scriptname   = scriptname   or "build.lua" -- Script used in each directory
+typesetcmds  = typesetcmds  or ""
 
 -- Extensions for various file types: used to abstract out stuff a bit
 logext = logext or ".log"
@@ -533,7 +534,7 @@ end
 
 -- Convert the raw log file into one for comparison/storage: keeps only
 -- the 'business' part from the tests and removes system-dependent stuff
-function formatlog(logfile, newfile)
+function formatlog(logfile, newfile, engine)
   local function killcheck(line)
       -- Skip lines containing file dates
       if string.match(line, "[^<]%d%d%d%d/%d%d/%d%d") then
@@ -550,8 +551,14 @@ function formatlog(logfile, newfile)
     return false
   end
     -- Substitutions to remove some non-useful changes
-  local function normalize(line)
-    local line = line
+  local function normalize(line, maxprintline)
+    -- Allow for wrapped lines: preserve the content and wrap
+    if (string.len(line) == maxprintline) then
+      lastline = (lastline or "") .. line
+      return ""
+    end
+    local line = (lastline or "") .. line
+    lastline = ""
     -- Remove test file name from lines
     -- This needs to extract the base name from the log name,
     -- and one to allow for the case that there might be "-" chars
@@ -600,6 +607,11 @@ function formatlog(logfile, newfile)
     end
     return line
   end
+  local lastline = ""
+  local maxprintline = maxprintline
+  if engine == "luatex" then
+    maxprintline = maxprintline + 1 -- Deal with an out-by-one error
+  end
   local newlog = ""
   local prestart = true
   local skipping = false
@@ -613,7 +625,7 @@ function formatlog(logfile, newfile)
     elseif line == "TIMO" then
       skipping = false
     elseif not prestart and not skipping and not killcheck(line) then
-      line = normalize(line)
+      line = normalize(line, maxprintline)
       if not string.match(line, "^ *$") then
         newlog = newlog .. line .. "\n"
       end
@@ -826,7 +838,7 @@ function runtest(name, engine, hide)
           .. (hide and (" > " .. os_null) or "")
       )
   end
-  formatlog(logfile, newfile)
+  formatlog(logfile, newfile, engine)
   -- Store secondary files for this engine
   for _,i in ipairs(filelist(testdir, name .. ".???")) do
     local ext = string.match(i, "%....")
