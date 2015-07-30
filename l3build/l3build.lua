@@ -1157,14 +1157,17 @@ function ctan(standalone)
     -- First, zip up all of the text files
     run(
         dir,
-        zipexe .. " " .. zipopts .. " -ll ".. zipname .. " " .. "." .. " -x"
-          .. binfiles .. " " .. exclude
+        zipexe .. " " .. zipopts .. " -ll ".. zipname .. " " .. "." 
+          .. ( 
+            (binfiles or  exclude) and (" -x" .. binfiles .. " " .. exclude)
+            or ""
+          )  
       )
     -- Then add the binary ones
     run(
         dir,
         zipexe .. " " .. zipopts .. " -g ".. zipname .. " " .. ". -i" ..
-          binfiles .. " -x" .. exclude
+          binfiles .. (exclude and (" -x" .. exclude) or "")
       )
   end
   local errorlevel
