@@ -587,12 +587,14 @@ function formatlog(logfile, newfile, engine)
     line = string.gsub(line, "\\csname\\endcsname ", "\\csname\\endcsname")
     -- Zap "on line <num>" and replace with "on line ..."
     line = string.gsub(line, "on line %d*", "on line ...")
-    -- Zap line numbers from \show, \showbox, \box_show and the like
-    line = string.gsub(line, "^l%.%d+ ", "l. ...")
     -- Tidy up to ^^ notation
     for i = 1, 31, 1 do
       line = string.gsub(line, string.char(i), "^^" .. string.char(64 + i))
     end
+    -- Zap line numbers from \show, \showbox, \box_show and the like
+    -- Two stages as line wrapping alters some of them and restore the break
+    line = string.gsub(line, "^l%.%d+ ", "l. ...")
+    line = string.gsub(line, "%.%.%.l%.%d+ ( *)%}$", "...\nl. ...%1}")
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
     line = string.gsub(line, "^%s+", "")
