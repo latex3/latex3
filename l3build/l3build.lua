@@ -147,7 +147,6 @@ makeindexopts = makeindexopts or ""
 
 -- Other required settings
 checkruns    = checkruns    or 1
-maxprintline = maxprintline or 79
 packtdszip   = packtdszip   or false -- Not actually needed but clearer
 scriptname   = scriptname   or "build.lua" -- Script used in each directory
 typesetcmds  = typesetcmds  or ""
@@ -607,11 +606,13 @@ function formatlog(logfile, newfile, engine)
     end
     return line
   end
-  local lastline = ""
-  local maxprintline = maxprintline
+  local kpse = require("kpse")
+  kpse.set_program_name(engine)
+  local maxprintline = kpse.expand_var("$max_print_line"))
   if engine == "luatex" then
     maxprintline = maxprintline + 1 -- Deal with an out-by-one error
   end
+  local lastline = ""
   local newlog = ""
   local prestart = true
   local skipping = false
