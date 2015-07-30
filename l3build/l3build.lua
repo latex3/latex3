@@ -608,7 +608,7 @@ function formatlog(logfile, newfile, engine)
   end
   local kpse = require("kpse")
   kpse.set_program_name(engine)
-  local maxprintline = kpse.expand_var("$max_print_line")
+  local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
   if engine == "luatex" then
     maxprintline = maxprintline + 1 -- Deal with an out-by-one error
   end
