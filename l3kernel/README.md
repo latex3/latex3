@@ -32,7 +32,7 @@ with the following engines:
  - pdfTeX v1.30 or later
  - XeTeX v0.9994 or later
  - LuaTeX v0.40 or later
- - e-(u)pTeX v110825 or later
+ - e-(u)pTeX from mid-2012 onward
 
 pdfTeX v1.30 was released in 2005, and so any recent TeX distribution
 will support `l3kernel`. Both XeTeX and LuaTeX have developed more
