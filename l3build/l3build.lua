@@ -1283,6 +1283,8 @@ function cmdcheck()
 end
 
 function ctan(standalone)
+  -- Always run tests for all engines
+  optengines = nil
   local function dirzip(dir, name)
     local zipname = name .. ".zip"
     local function tab_to_str(table)
