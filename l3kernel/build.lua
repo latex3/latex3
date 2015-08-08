@@ -62,10 +62,10 @@ function help ()
   print ""
 end
 
-function format (engine)
+function format(engine)
   local engine = engine or "pdftex"
   unpack ()
-  os.execute (
+  os.execute(
       -- Set TEXINPUTS to look in the unpack then local dirs only
       -- See notes in l3build.lua for unpack ()
       os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
@@ -73,7 +73,7 @@ function format (engine)
       unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
         .. " " .. unpackdir .. "/" .. "l3format.ins"
     )
-  run (
+  run(
       unpackdir,
       -- Only look 'here'
       os_setenv .. " TEXINPUTS=." .. os_concat ..
@@ -82,35 +82,35 @@ function format (engine)
 end
 
 -- l3kernel does all of the targets itself
-function main (target, file, engine)
+function main(target, file, engine)
   local errorlevel
   if target == "check" then
-    check (file, engine)
+    check(file, engine)
   elseif target == "clean" then
-    clean ()
+    clean()
   elseif target == "cmdcheck" then
-    cmdcheck ()
+    cmdcheck()
   elseif target == "ctan" then
-    ctan (true)
+    ctan(true)
   elseif target == "doc" then
-    doc ()
+    doc()
   elseif target == "format" then
     local engine = file -- Args are a bit wrong!
-    format (engine)
+    format(engine)
   elseif target == "install" then
-    install ()
+    install()
   elseif target == "save" then
     if file then
-      save (file, engine)
+      save(file, engine)
     else
-      help ()
+      help()
     end
   elseif target == "unpack" then
-    unpack ()
+    unpack()
   elseif target == "version" then
-    version ()
+    version()
   else
-    help ()
+    help()
   end
 end
 
