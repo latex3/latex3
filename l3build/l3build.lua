@@ -263,7 +263,12 @@ function argparse()
       end
       -- Store the result
       if optarg then
-        result[optname] = optarg
+        local opts = result[optname] or { }
+        local match
+        for match in string.gmatch(optarg, "([^,%s]+)") do
+          table.insert(opts, match)
+        end
+        result[optname] = opts
       else
         result[optname] = true
       end
@@ -280,9 +285,9 @@ end
 
 userargs = argparse()
 
-optengine = userargs["engine"]
-opthalt   = userargs["halt"]
-opthelp   = userargs["help"]
+optengines = userargs["engine"]
+opthalt    = userargs["halt"]
+opthelp    = userargs["help"]
 
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
@@ -548,10 +553,14 @@ function allmodules(target)
         "Running script " .. scriptname .. " with target \"" .. target .. "\" for module "
           .. i
       )
+    local engines = ""
+    if optengines then
+      engines = " --engine=" .. table.concat(optengines, ",")
+    end
     errorlevel = run(
       i, "texlua " .. scriptname .. " " .. target
         .. (opthalt and " -H" or "")
-        .. (optengine and (" -e " .. optengine) or "")
+        .. engines
     )
     if errorlevel ~= 0 then
       return errorlevel
@@ -884,8 +893,8 @@ end
 -- One 'test' here may apply to multiple engines
 function runcheck(name, hide)
   local checkengines = checkengines
-  if optengine then
-    checkengines = {optengine}
+  if optengines then
+    checkengines = optengines
   end
   local errorlevel = 0
   for _,i in ipairs(checkengines) do
@@ -1414,27 +1423,34 @@ end
 
 function save(names)
   checkinit()
-  local engine = optengine
+  local engines = optengines or {stdengine}
   local name
   for _,name in pairs(names) do
-    local tlgfile = name .. (engine and ("." .. engine) or "") .. tlgext
-    local newfile = name .. "." .. (engine or stdengine) .. logext
-    if testexists(name) then
-      print("Creating and copying " .. tlgfile)
-      runtest(name, engine, false)
-      ren(testdir, newfile, tlgfile)
-      cp(tlgfile, testdir, testfiledir)
-      if fileexists(unpackdir .. "/" .. tlgfile) then
-        print(
-          "Saved " .. tlgext
-            .. " file overrides unpacked version of the same name"
-        )
+    local engine
+    for _,engine in pairs(engines) do
+      local tlgengine = "." .. engine
+      if engine == stdengine then
+        tlgengine = ""
       end
-    else
-      print(
-        "Test input \"" .. testfiledir .. "/" .. name .. lvtext
-          .. "\" not found"
-        )
+      local tlgfile = name .. tlgengine .. tlgext
+      local newfile = name .. "." .. engine .. logext
+      if testexists(name) then
+        print("Creating and copying " .. tlgfile)
+        runtest(name, engine, false)
+        ren(testdir, newfile, tlgfile)
+        cp(tlgfile, testdir, testfiledir)
+        if fileexists(unpackdir .. "/" .. tlgfile) then
+          print(
+            "Saved " .. tlgext
+              .. " file overrides unpacked version of the same name"
+          )
+        end
+      else
+        print(
+          "Test input \"" .. testfiledir .. "/" .. name .. lvtext
+            .. "\" not found"
+          )
+      end
     end
   end
 end
