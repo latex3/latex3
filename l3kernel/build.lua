@@ -89,34 +89,35 @@ end
 
 -- l3kernel does all of the targets itself
 function main(target, files)
-  local errorlevel
+  local errorlevel = 0
   if target == "check" then
-    check(files)
+    errorlevel = check(files)
   elseif target == "clean" then
     clean()
   elseif target == "cmdcheck" then
-    cmdcheck()
+    errorlevel = cmdcheck()
   elseif target == "ctan" then
-    ctan(true)
+    errorlevel = ctan(true)
   elseif target == "doc" then
-    doc()
+    errorlevel = doc()
   elseif target == "format" then
-    format()
+    errorlevel = format()
   elseif target == "install" then
     install()
   elseif target == "save" then
     if next(files) then
-      save(files)
+      errorlevel = save(files)
     else
       help()
     end
   elseif target == "unpack" then
-    unpack()
+    errorlevel = unpack()
   elseif target == "version" then
     version()
   else
     help()
   end
+  os.exit(errorlevel)
 end
 
 -- Load the common build code: this is the one place that a path needs to be
