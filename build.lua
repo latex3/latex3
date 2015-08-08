@@ -7,8 +7,9 @@ bundle  = "LaTeX3"
 module  = ""
 
 -- A couple of custom variables: the order here is set up for 'importance'
-bundles     = {"l3build", "l3kernel", "l3packages", "l3experimental", "l3trial"}
-ctanbundles = {"l3kernel", "l3packages", "l3experimental"}
+bundles      = {"l3build", "l3kernel", "l3packages", "l3experimental", "l3trial"}
+checkbundles = {"l3kernel", "l3packages", "l3experimental", "xpackages/xor", "l3trial"}
+ctanbundles  = {"l3kernel", "l3packages", "l3experimental"}
 
 -- Location of main directory: use Unix-style path separators
 maindir = "."
@@ -39,7 +40,7 @@ function main (target)
     return (errorlevel)
   end
   if target == "check" then
-    dobundles (bundles, "check")
+    dobundles (checkbundles, "check")
   elseif target == "clean" then
     print ("Cleaning up")
     dobundles (bundles, "clean")
