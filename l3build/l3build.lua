@@ -156,6 +156,134 @@ logext = logext or ".log"
 lvtext = lvtext or ".lvt"
 tlgext = tlgext or ".tlg"
 
+-- Run time options
+-- These are parsed into a global table, and all optional args
+-- are made available as a related global var
+
+function argparse()
+  local result = { }
+  local files  = { }
+  local long_options =
+    {
+      engine              = "engine",
+      ["halt-on-error"]   = "halt"  ,
+      ["halt-on-failure"] = "halt"  ,
+      help                = "help"
+    }
+  local short_options =
+    {
+      e = "engine",
+      h = "help"  ,
+      H = "halt"
+    }
+  local option_args =
+    {
+      engine = true ,
+      halt   = false,
+      help   = false
+    }
+  -- arg[1] is a special case: must be a command or "-h"/"--help"
+  -- Deal with this by assuming help and storing only apparently-valid
+  -- input
+  local a = arg[1]
+  result["target"] = "help"
+  if a then
+    -- No options are allowed in position 1, so filter those out
+    if not string.match(a, "^%-") then
+      result["target"] = a
+    end
+  end
+  -- Stop here if help is required
+  if result["target"] == "help" then
+    return result
+  end
+  -- An auxiliary to grab all file names into a table
+  local function remainder(num)
+    local i
+    local files = { }
+    for i = num, #arg do
+      table.insert(files, arg[i])
+    end
+    return files
+  end
+  -- Examine all other arguments
+  -- Use a while loop rather than for as this makes it easier
+  -- to grab arg for optionals where appropriate
+  local i = 2
+  while i <= #arg do
+    local a = arg[i]
+    -- Terminate search for options
+    if a == "--" then
+      files = remainder(i + 1)
+      break
+    end
+    -- Look for optionals
+    local opt, optarg
+    local opts
+    -- Look for and option and get it into a variable
+    if string.match(a, "^%-") then
+      if string.match(a, "^%-%-") then
+        opts = long_options
+        local pos = string.find(a, "=", 1, true)
+        if pos then
+          opt    = string.sub(a, 3, pos - 1)
+          optarg = string.sub(a, pos + 1)
+        else
+          opt = string.sub(a,3)
+        end
+      else
+        opts = short_options
+        opt  = string.sub(a, 2, 2)
+        -- Only set optarg if it is there
+        if #a > 2 then
+          optarg = string.sub(a, 3)
+        end
+      end
+      -- Now check that the option is valid and sort out the argument
+      -- if required
+      local optname = opts[opt]
+      if optname then
+        local reqarg = option_args[optname]
+        -- Tidy up arguments
+        if reqarg and not optarg then
+          optarg = arg[i + 1]
+          if not optarg then
+            io.stderr:write("Missing value for option " .. a .."\n")
+            return {"help"}
+          end
+          i = i + 1
+        end
+        if not reqarg and optarg then
+          io.stderr:write("Value not allowed for option " .. a .."\n")
+          return {"help"}
+        end
+      else
+        io.stderr:write("Unknown option " .. a .."\n")
+        return {"help"}
+      end
+      -- Store the result
+      if optarg then
+        result[optname] = optarg
+      else
+        result[optname] = true
+      end
+      i = i + 1
+    end
+    if not opt then
+      files = remainder(i)
+      break
+    end
+  end
+  result["files"] = files
+  return result
+end
+
+userargs = argparse()
+
+optengine = userargs["engine"]
+opthalt   = userargs["halt"]
+opthelp   = userargs["help"]
+
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
 -- Simplified substantially: "[...]" syntax not supported as is not
@@ -399,8 +527,7 @@ end
 
 -- Run a command in a given directory
 function run(dir, cmd)
-  local errorlevel = os.execute("cd " .. dir .. os_concat .. cmd)
-  return errorlevel
+  return os.execute("cd " .. dir .. os_concat .. cmd)
 end
 
 -- Deal with the fact that Windows and Unix use different path separators
@@ -415,18 +542,22 @@ end
 
 -- Do some subtarget for all modules in a bundle
 function allmodules(target)
-  local errorlevel = 0
+  local errorlevel
   for _,i in ipairs(modules) do
     print(
         "Running script " .. scriptname .. " with target \"" .. target .. "\" for module "
           .. i
       )
-    errorlevel = run(i, "texlua " .. scriptname .. " " .. target)
-    if errorlevel > 0 then
+    errorlevel = run(
+      i, "texlua " .. scriptname .. " " .. target
+        .. (opthalt and " -H" or "")
+        .. (optengine and (" -e " .. optengine) or "")
+    )
+    if errorlevel ~= 0 then
       return errorlevel
     end
   end
-  return errorlevel
+  return 0
 end
 
 -- Set up the check system files: needed for checking one or more tests and
@@ -751,10 +882,10 @@ end
 
 -- Runs a single test: needs the name of the test rather than the .lvt file
 -- One 'test' here may apply to multiple engines
-function runcheck(name, engine, hide)
+function runcheck(name, hide)
   local checkengines = checkengines
-  if engine then
-    checkengines = {engine}
+  if optengine then
+    checkengines = {optengine}
   end
   local errorlevel = 0
   for _,i in ipairs(checkengines) do
@@ -799,6 +930,10 @@ function runcheck(name, engine, hide)
     if errlevel == 0 then
       os.remove(difffile)
     else
+      if opthalt then
+        checkdiff()
+        return errlevel
+      end
       errorlevel = errlevel
     end
   end
@@ -990,63 +1125,68 @@ end
 
 -- Simply print out how to use the build system
 help = help or function()
-  print ""
+  print("usage: " .. arg[0] .. " <command> [<options>] [<names>]")
+  print("")
+  print("The most commonly used l3build commands are:")
   if testfiledir ~= "" then
-    print " build check                 - run all automated tests for all engines"
+    print("   check      Run all automated tests")
   end
-  if module ~= "" and testfiledir ~= "" then
-    print " build check <name>          - check one test file <name> for all engines"
-    print " build check <name> <engine> - check one test file <name> for <engine>   "
-  end
-  print " build clean                 - clean out directory tree                  "
+  print("   clean      Clean out directory tree")
   if next(cmdchkfiles) ~= nil then
-    print " build cmdcheck              - check commands documented are defined     "
+    print("   cmdcheck   Check commands documented are defined")
   end
   if module == "" or bundle == "" then
-    print " build ctan                  - create CTAN-ready archive                 "
+    print("   ctan       Create CTAN-ready archive")
   end
-  print " build doc                   - runs all documentation files              "
-  print " build install               - install files in local texmf tree         "
+  print("   doc        Typesets all documentation files")
+  print("   install    Installs files into the local texmf tree")
   if module ~= "" and testfiledir ~= "" then
-    print " build save <name>           - save test log for <name> for all engines  "
-    print " build save <name> <engine>  - save test log for <name> for <engine>     "
+    print("   save       Saves test validation log")
   end
-  print ""
+  print("")
+  print("Valid options are:")
+  print("   --engine|-e         Sets the engine to use for running test")
+  print("   --halt-on-error|-H  Stops running tests after the first failure")
+  print("")
 end
 
-function check(name, engine)
-  local errorlevel = 0
-  if name then
-    errorlevel = checklvt(name, engine)
-  else
-    errorlevel = checkall()
-  end
-  return errorlevel
-end
-
-function checkall()
+function check(names)
   local errorlevel = 0
   if testfiledir ~= "" and direxists(testfiledir) then
-    local function execute(name)
-      local name = stripext(name)
-      print("  " .. name)
-      local errlevel = runcheck(name, nil, true)
-      if errlevel ~= 0 then
-        errorlevel = 1
+    checkinit()
+    local hide = true
+    if names and next(names) then
+      hide = false
+    end
+    local i
+    names = names or { }
+    -- No names passed: find all test files
+    if not next(names) then
+      for _,i in pairs(filelist(testfiledir, "*" .. lvtext)) do
+        table.insert(names, stripext(i))
+      end
+      for _,i in ipairs(filelist(unpackdir, "*" .. lvtext)) do
+        if fileexists(testfiledir .. "/" .. i) then
+          print("Duplicate test file: " .. i)
+          return 1
+        else
+          table.insert(stripext(i))
+        end
       end
     end
-    checkinit()
+    -- Actually run the tests
     print("Running checks on")
-    for _,i in ipairs(filelist(testfiledir, "*" .. lvtext)) do
-      execute(i)
-    end
-    for _,i in ipairs(filelist(unpackdir, "*" .. lvtext)) do
-      if fileexists(testfiledir .. "/" .. i) then
-        print("Duplicate test file: " .. i)
-        errorlevel = 1
-        break
-      else
-        execute(i)
+    local name
+    for _,name in ipairs(names) do
+      print("  " .. name)
+      local errlevel = runcheck(name, hide)
+      -- Return value must be 1 not errlevel
+      if errlevel ~= 0 then
+        if opthalt then 
+          return 1
+        else
+          errorlevel = 1
+        end
       end
     end
     if errorlevel ~= 0 then
@@ -1056,25 +1196,6 @@ function checkall()
     end
   end
   return errorlevel
-end
-
-function checklvt(name, engine)
-  checkinit()
-  if testexists(name) then
-    print("Running checks on " .. name)
-    local errorlevel = runcheck(name, engine)
-    if errorlevel ~= 0 then
-      checkdiff()
-    else
-      if engine then
-        print("  Check passes")
-      else
-        print("\n  All checks passed\n")
-      end
-    end
-  else
-    print("Test \"" .. name .. "\" not set up!")
-  end
 end
 
 -- A short auxiliary to print the list of differences for check
@@ -1291,26 +1412,30 @@ function install()
   end
 end
 
-function save(name, engine)
-  local tlgfile = name .. (engine and ("." .. engine) or "") .. tlgext
-  local newfile = name .. "." .. (engine or stdengine) .. logext
+function save(names)
   checkinit()
-  if testexists(name) then
-    print("Creating and copying " .. tlgfile)
-    runtest(name, engine, false)
-    ren(testdir, newfile, tlgfile)
-    cp(tlgfile, testdir, testfiledir)
-    if fileexists(unpackdir .. "/" .. tlgfile) then
+  local engine = optengine
+  local name
+  for _,name in pairs(names) do
+    local tlgfile = name .. (engine and ("." .. engine) or "") .. tlgext
+    local newfile = name .. "." .. (engine or stdengine) .. logext
+    if testexists(name) then
+      print("Creating and copying " .. tlgfile)
+      runtest(name, engine, false)
+      ren(testdir, newfile, tlgfile)
+      cp(tlgfile, testdir, testfiledir)
+      if fileexists(unpackdir .. "/" .. tlgfile) then
+        print(
+          "Saved " .. tlgext
+            .. " file overrides unpacked version of the same name"
+        )
+      end
+    else
       print(
-        "Saved " .. tlgext
-          .. " file overrides unpacked version of the same name"
-      )
+        "Test input \"" .. testfiledir .. "/" .. name .. lvtext
+          .. "\" not found"
+        )
     end
-  else
-    print(
-      "Test input \"" .. testfiledir .. "/" .. name .. lvtext
-        .. "\" not found"
-      )
   end
 end
 
@@ -1367,7 +1492,7 @@ end
 -- The overall main function
 --
 
-function stdmain(target, file, engine)
+function stdmain(target, files)
   local errorlevel
   -- If the module name is empty, the script is running in a bundle:
   -- apart from ctan all of the targets are then just mappings
@@ -1407,7 +1532,7 @@ function stdmain(target, file, engine)
     elseif target == "doc" then
       errorlevel = doc()
     elseif target == "check" and testfiledir ~= "" then
-      errorlevel = check(file, engine)
+      errorlevel = check(files)
     elseif target == "clean" then
       errorlevel = clean()
     elseif target == "cmdcheck" and next(cmdchkfiles) ~= nil then
@@ -1417,8 +1542,8 @@ function stdmain(target, file, engine)
     elseif target == "install" then
       errorlevel = install()
     elseif target == "save" and testfiledir ~= "" then
-      if file then
-        errorlevel = save(file, engine)
+      if next(files) then
+        errorlevel = save(files)
       else
         help()
       end
@@ -1437,4 +1562,4 @@ end
 main = main or stdmain
 
 -- Call the main function
-main(arg[1], arg[2], arg[3])
+main(userargs["target"], userargs["files"])

@@ -43,28 +43,31 @@ typesetdeps = {maindir .. "/l3packages/xparse"}
 unpackdeps  = { }
 
 -- Some customised functions
-
--- l3kernel does all of the targets itself
-function help ()
-  print ""
-  print " build check                 - run automated check system                "
-  print " build check <name>          - check one test file <name> for all engines"
-  print " build check <name> <engine> - check one test file <name> for <engine>   "
-  print " build clean                 - clean out directory tree                  "
-  print " build cmdcheck              - check commands documented are defined     "
-  print " build ctan                  - create CTAN-ready archive                 "
-  print " build doc                   - runs all documentation files              "
-  print " build format                - create a format file using pdfTeX         "
-  print " build format <engine>       - create a format file using <engine>       "
-  print " build install               - install files in local texmf tree         "
-  print " build save <name>           - save test log for <name> for all engines  "
-  print " build save <name> <engine>  - save test log for <name> for <engine>     "
-  print ""
+function help()
+  print("usage: " .. arg[0] .. " <command> [<options>] [<names>]")
+  print("")
+  print("The most commonly used l3build commands are:")
+  print("   check      Run all automated tests")
+  print("   clean      Clean out directory tree")
+  print("   cmdcheck   Check commands documented are defined")
+  print("   ctan       Create CTAN-ready archive")
+  print("   doc        Typesets all documentation files")
+  print("   format     Builds a format")
+  print("   install    Installs files into the local texmf tree")
+  print("   save       Saves test validation log")
+  print("")
+  print("Valid options are:")
+  print("   --engine|-e         Sets the engine to use for running test")
+  print("   --halt-on-error|-H  Stops running tests after the first failure")
+  print("")
 end
 
-function format(engine)
-  local engine = engine or "pdftex"
-  unpack ()
+function format()
+  local engines = checkengines
+  if optengine then
+    engines = {optengine}
+  end
+  unpack()
   os.execute(
       -- Set TEXINPUTS to look in the unpack then local dirs only
       -- See notes in l3build.lua for unpack ()
@@ -73,19 +76,22 @@ function format(engine)
       unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
         .. " " .. unpackdir .. "/" .. "l3format.ins"
     )
-  run(
-      unpackdir,
-      -- Only look 'here'
-      os_setenv .. " TEXINPUTS=." .. os_concat ..
-      engine .. " -etex -ini l3format.ltx"
-    )
+  local engine
+  for _,engine in pairs(engines) do
+    run(
+        unpackdir,
+        -- Only look 'here'
+        os_setenv .. " TEXINPUTS=." .. os_concat ..
+        engine .. " -etex -ini l3format.ltx"
+      )
+  end
 end
 
 -- l3kernel does all of the targets itself
-function main(target, file, engine)
+function main(target, files)
   local errorlevel
   if target == "check" then
-    check(file, engine)
+    check(files)
   elseif target == "clean" then
     clean()
   elseif target == "cmdcheck" then
@@ -95,13 +101,12 @@ function main(target, file, engine)
   elseif target == "doc" then
     doc()
   elseif target == "format" then
-    local engine = file -- Args are a bit wrong!
-    format(engine)
+    format()
   elseif target == "install" then
     install()
   elseif target == "save" then
     if file then
-      save(file, engine)
+      save(file)
     else
       help()
     end
