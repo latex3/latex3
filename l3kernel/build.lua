@@ -105,8 +105,8 @@ function main(target, files)
   elseif target == "install" then
     install()
   elseif target == "save" then
-    if file then
-      save(file)
+    if next(files) then
+      save(files)
     else
       help()
     end
