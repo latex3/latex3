@@ -9,7 +9,7 @@ module  = ""
 -- A couple of custom variables: the order here is set up for 'importance'
 bundles      = {"l3build", "l3kernel", "l3packages", "l3experimental", "l3trial"}
 checkbundles = {"l3kernel", "l3packages", "l3experimental", "xpackages/xor", "l3trial"}
-ctanbundles  = {"l3kernel", "l3packages", "l3experimental"}
+ctanbundles  = {"l3build", "l3kernel", "l3packages", "l3experimental"}
 
 -- Location of main directory: use Unix-style path separators
 maindir = "."
