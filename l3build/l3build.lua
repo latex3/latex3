@@ -1441,10 +1441,7 @@ function save(names)
   for _,name in pairs(names) do
     local engine
     for _,engine in pairs(engines) do
-      local tlgengine = "." .. engine
-      if engine == stdengine then
-        tlgengine = ""
-      end
+      local tlgengine = ((engine == stdengine and "") or "." .. engine)
       local tlgfile = name .. tlgengine .. tlgext
       local newfile = name .. "." .. engine .. logext
       if testexists(name) then
