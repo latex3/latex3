@@ -1128,16 +1128,21 @@ typeset = typeset or function(file)
     return errorlevel
   else
     local name = stripext(file)
-    -- Return a non-zero errorlevel if something goes wrong
-    -- without having loads of nested tests
-    return(
-      biber(name)  +
-      bibtex(name) +
-      makeindex(name, ".glo", ".gls", ".glg", glossarystyle) +
-      makeindex(name, ".idx", ".ind", ".ilg", indexstyle)    +
-      tex(file) +
-      tex(file)
-    )
+    errorlevel = biber(name) + bibtex(name)
+    if errorlevel == 0 then
+      local function cycle(name)
+        return(
+          makeindex(name, ".glo", ".gls", ".glg", glossarystyle) +
+          makeindex(name, ".idx", ".ind", ".ilg", indexstyle)    +
+          tex(file)
+        )
+      end
+      errorlevel = cycle(name)
+      if errorlevel ~= 0 then
+        errorlevel = cycle(name)
+      end
+    end
+    return errorlevel
   end
 end
 
