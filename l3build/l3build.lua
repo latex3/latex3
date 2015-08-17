@@ -1402,7 +1402,7 @@ end
 
 -- Typeset all required documents
 -- Uses a set of dedicated auxiliaries that need to be available to others
-function doc()
+function doc(files)
   -- Set up
   cleandir(typesetdir)
   for _,i in ipairs({bibfiles, docfiles, sourcefiles, typesetfiles}) do
@@ -1418,9 +1418,23 @@ function doc()
   -- Main loop for doc creation
   for _,i in ipairs(typesetfiles) do
     for _,j in ipairs(filelist(".", i)) do
-      local errorlevel = typesetpdf(j)
-      if errorlevel ~= 0 then
-        return errorlevel
+      -- Allow for command line selection of files
+      local typeset = true
+      if files and next(files) then
+        local k
+        typeset = false
+        for _,k in ipairs(files) do
+          if k == stripext(j) then
+            typeset = true
+            break
+          end
+        end
+      end
+      if typeset then
+        local errorlevel = typesetpdf(j)
+        if errorlevel ~= 0 then
+          return errorlevel
+        end  
       end
     end
   end
@@ -1566,7 +1580,7 @@ function stdmain(target, files)
     elseif target == "bundlectan" then
       errorlevel = bundlectan()
     elseif target == "doc" then
-      errorlevel = doc()
+      errorlevel = doc(files)
     elseif target == "check" and testfiledir ~= "" then
       errorlevel = check(files)
     elseif target == "clean" then

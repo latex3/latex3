@@ -99,7 +99,7 @@ function main(target, files)
   elseif target == "ctan" then
     errorlevel = ctan(true)
   elseif target == "doc" then
-    errorlevel = doc()
+    errorlevel = doc(files)
   elseif target == "format" then
     errorlevel = format()
   elseif target == "install" then
