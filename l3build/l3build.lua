@@ -377,6 +377,7 @@ if string.sub(package.config, 1, 1) == "\\" then
   os_diffext  = ".fc"
   os_diffexe  = "fc /n"
   os_grepexe  = "findstr /r"
+  os_newline  = "\r\n"
   os_null     = "nul"
   os_pathsep  = ";"
   os_setenv   = "set"
@@ -387,6 +388,7 @@ else
   os_diffext  = ".diff"
   os_diffexe  = "diff -c --strip-trailing-cr"
   os_grepexe  = "grep"
+  os_newline  = "\n"
   os_null     = "/dev/null"
   os_pathsep  = ":"
   os_setenv   = "export"
@@ -771,7 +773,7 @@ function formatlog(logfile, newfile, engine)
     elseif not prestart and not skipping then
       line = normalize(line, maxprintline)
       if not string.match(line, "^ *$") and not killcheck(line) then
-        newlog = newlog .. line .. "\n"
+        newlog = newlog .. line .. os_newline
       end
     end
   end
