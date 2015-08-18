@@ -768,9 +768,9 @@ function formatlog(logfile, newfile, engine)
       skipping = true
     elseif line == "TIMO" then
       skipping = false
-    elseif not prestart and not skipping and not killcheck(line) then
+    elseif not prestart and not skipping then
       line = normalize(line, maxprintline)
-      if not string.match(line, "^ *$") then
+      if not string.match(line, "^ *$") and not killcheck(line) then
         newlog = newlog .. line .. "\n"
       end
     end
