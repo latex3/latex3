@@ -1,6 +1,6 @@
 % \iffalse
 %
-%% File l3check.dtx (C) Copyright 2012,2014 The LaTeX3 Project
+%% File l3check.dtx (C) Copyright 2012,2014,2015 The LaTeX3 Project
 %%
 %% It may be distributed and/or modified under the conditions of the
 %% LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -71,19 +71,19 @@
 %
 % \section{Checks made in \texttt{l3kernel}}
 %
-% The \pkg{l3check} package redefines some of the \LaTeX3 internals to
-% look for potential errors in the code, such as calling a token list
-% function with a sequence argument.  Those checks come with a
+% The \pkg{l3check} package redefines some of the \pkg{expl3} internals to
+% look for potential errors in the code, such as calling a sequence function
+% with a token list argument.  Those checks come with a
 % performance penalty and are thus disabled by default; they are
 % activated using \cs{check_on:n}.
 %
-% The list of checks that are performed is as follows:
+% The (incomplete) list of checks that are performed is as follows:
 % \begin{itemize}
 %   \item \pkg{l3expan} |N|-type and |V|-type arguments must be single
 %     tokens; |o| and |f|-type expansion should not be called on
 %     arguments that do not expand.
-%   \item \pkg{l3tl} when a \enquote{tl~var} argument is expected, the
-%     name is checked to end with |_tl|.
+%   \item \pkg{l3tl} when a \enquote{tl~var} argument is expected, it
+%     is checked to be a non-long parameterless macro.
 % \end{itemize}
 %
 % \section{Turning checks on and off}
@@ -95,8 +95,10 @@
 %   Turns checking on globally for functions in each of the
 %   \meta{modules}, given as a comma list.  This comes with a large
 %   performance penalty, thus should only be used for testing purposes.
-%   The special module \texttt{l3kernel} is recognized and turns on
-%   checking for all modules in the \pkg{l3kernel} bundle.
+%   At present, the following modules are supported: |exp|, |tl|.  The
+%   special module \texttt{l3kernel} is recognized and turns on
+%   checking for all modules in the \pkg{l3kernel} bundle.  Checks are
+%   turned on locally.
 % \end{function}
 %
 % \begin{function}{\check_off:n}
@@ -105,10 +107,8 @@
 %   \end{syntax}
 %   Turns checking off globally for functions in each of the
 %   \meta{modules}, given as a comma list.  Note that this function
-%   keeps the performance penalty of \cs{check_on:n}, and simply
-%   silences error messages.  The special module \texttt{l3kernel} is
-%   recognized and turns off checking for all modules in the
-%   \pkg{l3kernel} bundle.
+%   simply silences error messages, hence the performance penalty of
+%   \cs{check_on:n} remains.  Checks are turned off locally.
 % \end{function}
 %
 % \section{Defining checks}
@@ -118,42 +118,105 @@
 %     \cs{check_new:nn} \Arg{module} \Arg{code}
 %   \end{syntax}
 %   Defines the action of \cs{check_on:n} \Arg{module} to be the
-%   \meta{code}.  Note that |#| does not need to be duplicated within
+%   \meta{code}.  Note that |#| does not need to be doubled within
 %   the \meta{code}.
 % \end{function}
 %
-% \section{Internal commands}
-%
-% \begin{function}[EXP, pTF]{\__check_if_on:n}
+% \begin{function}{\check_patch:Nn, \check_patch:cn}
 %   \begin{syntax}
-%     \cs{__check_if_on:nTF} \Arg{module} \Arg{true code} \Arg{false code}
-%     \cs{__check_if_on_p:n} \Arg{module}
+%     \cs{check_patch:Nn} \meta{function} \Arg{replacement text}
 %   \end{syntax}
-%   Returns \texttt{true} if the \meta{module}'s checks are currently
-%   on, \texttt{false} otherwise, including if the \meta{module} does
-%   not exist or has no checks.  This is meant to be used in the
-%   \meta{module}'s checking code (defined with \cs{check_new:nn}), to
-%   determine whether to raise errors or not.
+%   Redefine the \meta{function}.  The \meta{function} will take
+%   parameters according to its signature, which must consist
+%   exclusively of |N| or |n|, and expand to the \meta{replacement
+%   text}, followed by a copy of the original function.  For instance,
+%   \begin{quote}
+%     \cs{check_patch:Nn} \cs{tl_set:Nn} |{| \cs{check_defined:N} |#1| |}|
+%   \end{quote}
+%   redefines \cs{tl_set:Nn} to check that its first argument exists
+%   before performing its initial duty.  Since the letter in the
+%   signature of \cs{tl_set:Nn} is |N|, the code automatically checks
+%   that indeed the first argument given is a single token.  When
+%   patching an expandable \meta{function}, the \meta{replacement text}
+%   must be expandable and expand to nothing, as it otherwise
+%   interferes with the expandable \meta{function}.
 % \end{function}
 %
-% \begin{function}{\__check_patch_protected:Npnn}
-% \begin{function}{\__check_patch:Npnn}
+% \begin{function}{\check_patch:Npnn, \check_patch:cpnn}
 %   \begin{syntax}
-%     \cs{__check_patch_protected:Npnn} \meta{function} \meta{parameters_1} \Arg{parameters_2} \Arg{replacement text}
+%     \cs{check_patch:Npnn} \meta{function} \meta{parameters_1} \Arg{parameters_2} \Arg{replacement text}
 %   \end{syntax}
 %   Redefine the \meta{function}.  The \meta{function} will take the
 %   \meta{parameters} and expand to the \meta{replacement text},
-%   followed by a copy of the original function acting on the
-%   \meta{parameters_2}, which should be identical to the
-%   \meta{parameters_1}, but wrapped within braces.  For instance,
+%   followed by a copy of the original function followed by the
+%   \meta{parameters_2}, which should normally be identical to the
+%   \meta{parameters_1}, but with parameters |#1|, |#2|, \ldots{}
+%   wrapped in braces (except for single-token parameters |N| and |V|).
+%   For instance,
 %   \begin{quote}
-%     \cs{__check_patch_protected:Npnn} \cs{tl_set:Nn} |#1| |{ #1 }| \\
-%       |{| \cs{__cs_chk_exist:N} |#1| |}|
+%     \cs{check_patch:Npnn} \cs{tl_set:Nn} |#1| |#2| |{ #1 {#2} }| \\
+%       |{| \\
+%         \cs{check_is_N:n} |{| |#1| |}| \\
+%         \cs{check_defined:N} |#1| \\
+%       |}|
 %   \end{quote}
-%   redefines \cs{tl_set:Nn} to check that its first argument exists
-%   before performing its initial duty.
+%   redefines \cs{tl_set:Nn} to check that its first argument is a
+%   single token and that it exists, before performing its initial
+%   duty.  Contrarily to \cs{check_patch:Nn}, the check that |#1| is a
+%   single token must be put here by hand.  When patching an expandable
+%   \meta{function}, the \meta{replacement text} must be expandable and
+%   expand to nothing, as it otherwise interferes with the expandable
+%   \meta{function}.
 % \end{function}
+%
+% \section{Helpers for defining checks}
+%
+% \begin{function}{\check_is_defined:N}
+%   ^^A todo: complete this section
 % \end{function}
+%
+% \section{Internal functions}
+%
+% \begin{function}[EXP, pTF]{\@@_if_on:n}
+%   \begin{syntax}
+%     \cs{@@_if_on:nTF} \Arg{module} \Arg{true code} \Arg{false code}
+%     \cs{@@_if_on_p:n} \Arg{module}
+%   \end{syntax}
+%   Returns \texttt{true} if the \meta{module}'s checks are currently
+%   on, \texttt{false} otherwise, including if the \meta{module} does
+%   not exist or has no checks.  This is used by \cs{check_patch:Nn}
+%   and other functions in the \meta{module}'s checking code (defined
+%   with \cs{check_new:nn}), to determine whether to raise errors or
+%   not.
+% \end{function}
+%
+% ^^A todo: add more errors to \cs{@@_split_name:Nnnn}.
+% \begin{macro}[int, EXP]{\@@_split_name:Nnnn}
+%   \begin{syntax}
+%     \cs{@@_split_name:Nnnn} \meta{control sequence}
+%       \Arg{code for function}
+%       \Arg{code for variable}
+%       \Arg{code for other}
+%   \end{syntax}
+%   Expands to one of the three \meta{code}, followed by brace groups
+%   containing different informations depending on the case.  There are
+%   many cases, checked in the following order until one matches.
+%   \begin{itemize}
+%     \item If the name contains a colon and is not |\:|, it is an
+%       \pkg{expl3} function, and the \meta{signature} is what follows
+%       the last colon.  Then \meta{code for function} \Arg{signature}
+%       is left in the input stream.
+%     \item If the name contains an underscore, and is not |\_|, it is
+%       an \pkg{expl3} variable.  Its first character must be a letter
+%       among |clgqs|, and the next |_|.  If the first character is |q|
+%       or |s| (quark or scan mark), the \meta{type} is empty.
+%       Otherwise the \meta{type} is the part after the last |_|.  Then
+%       \meta{code for variable} \Arg{scope} \Arg{type} is left in the
+%       input stream.
+%     \item Otherwise the control sequence is not known to \pkg{expl3},
+%       and \meta{code for other} is left in the input stream.
+%   \end{itemize}
+% \end{macro}
 %
 % \end{documentation}
 %
@@ -178,681 +241,1015 @@
 %
 % \subsection{Infrastructure}
 %
-% ^^A todo: also check that modules exist in \cs{check_on/off:n}?
+% \subsubsection{Variables, variants and copied primitives}
 %
-% \begin{variable}{\l_@@_module_tl}
-%   Holds the name of the module for which we are currently defining the
-%   checking code, both within the definition of \cs{check_new:nn}, and
-%   when its second argument is used within a \cs{check_on:n} call.
+% \begin{macro}[aux]{\@@_tmp:w}
+%   Used for defining other commands.
+%    \begin{macrocode}
+\cs_new_eq:NN \@@_tmp:w ?
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_exp_args:Nc}
+%   Copy \cs{exp_args:Nc} with no check, to use in situations where the
+%   check should be omitted.
+%    \begin{macrocode}
+\cs_new_eq:NN \@@_exp_args:Nc \exp_args:Nc
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\tl_if_in:ffTF, \str_case:fnF, \tl_if_empty:fTF}
+%   Just a variant we need.
+%    \begin{macrocode}
+\cs_generate_variant:Nn \tl_if_in:nnTF { ff }
+\cs_generate_variant:Nn \str_case:nnF { f }
+\cs_generate_variant:Nn \tl_if_empty:nTF { f }
+\cs_generate_variant:Nn \tl_if_empty:nT { f }
+\cs_generate_variant:Nn \tl_if_empty:nF { f }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int, EXP]{\@@_exp:w, \@@_exp_stop:}
+%   Trigger and stop one-step expansion.
+%    \begin{macrocode}
+\cs_new_eq:NN \@@_exp:w \tex_romannumeral:D
+\cs_new_eq:NN \@@_exp_stop: \c_zero
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}[int]{\l_@@_module_tl}
+%   Holds the name of the module for which we are currently defining
+%   the checking code.  This is used by \cs{check_patch:Nn} to make
+%   commands aware of what module the patch belongs to, so that
+%   \cs{check_off:n} will correctly turn that check off.
 %    \begin{macrocode}
 \tl_new:N \l_@@_module_tl
 %    \end{macrocode}
 % \end{variable}
 %
-% \subsubsection{User commands}
-%
-% \begin{macro}{\check_new:nn}
-%   This function does not accept a comma-delimited list of modules,
-%   only single modules, so we check and refuse that.  If the module
-%   |#1| already has a checking code defined, raise an error, but
-%   replace the code by the new code.  Store the \meta{code} |#2| in a
-%   control sequence.
+% \begin{variable}[int]{\l_@@_parm_int, \l_@@_parm_tl, \l_@@_parm_braced_tl}
+% \begin{variable}[int]{\l_@@_extra_code_tl}
+%   Used in \cs{check_patch:Nn} to construct the parameter text for use
+%   in \cs{check_patch:Npnn}.  The \cs{l_@@_extra_code_tl} token list
+%   contains code that checks that |N|-type arguments really are single
+%   tokens.
 %    \begin{macrocode}
-\cs_new_protected:Npn \check_new:nn #1#2
+\int_new:N \l_@@_parm_int
+\tl_new:N \l_@@_parm_tl
+\tl_new:N \l_@@_parm_braced_tl
+\tl_new:N \l_@@_extra_code_tl
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
+%
+% \begin{macro}{\@@_error:nn, \@@_error:nnn}
+% \begin{macro}[EXP]{\@@_error_exp:nn, \@@_error_exp:nnn}
+%   Wrappers around errors, expandable or not.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \@@_error:nn
+  { \msg_error:nnn { check } }
+\cs_new_nopar:Npn \@@_error:nnn
+  { \msg_error:nnnn { check } }
+\cs_new_nopar:Npn \@@_error_exp:nn
+  { \msg_expandable_error:nnn { check } }
+\cs_new_nopar:Npn \@@_error_exp:nnn
+  { \msg_expandable_error:nnnn { check } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_warning:nn, \@@_warning:nnn}
+% \begin{macro}[EXP]{\@@_warning_exp:nn, \@@_warning_exp:nnn}
+%   A wrapper around warnings, expandable or not.
+%    \begin{macrocode}
+\cs_new_nopar:Npn \@@_warning:nn
+  { \msg_warning:nnn { check } }
+\cs_new_nopar:Npn \@@_warning:nnn
+  { \msg_warning:nnnn { check } }
+\cs_new_nopar:Npn \@@_warning_exp:nn
   {
-    \tl_set:Nx \l_@@_module_tl { \tl_to_str:n {#1} }
-    \tl_if_in:NnTF \l_@@_module_tl { , }
+    \cs_if_exist_use:NF
+      \msg_expandable_warning:nnn
+      \msg_expandable_error:nnn
+        { check }
+  }
+\cs_new_nopar:Npn \@@_warning_exp:nnn
+  {
+    \cs_if_exist_use:NF
+      \msg_expandable_warning:nnnn
+      \msg_expandable_error:nnnn
+        { check }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% ^^A todo: deal with active chars!
+%
+% \begin{macro}[int]{\@@_split_name:Nnnn}
+% \begin{macro}[int, EXP]{\@@_split_name_exp:Nnnn}
+% \begin{macro}[aux, EXP]
+%   {
+%     \@@_split_name_aux:w , \@@_split_name_colon:w ,
+%     \@@_split_name_underscore:w , \@@_split_name_space:w ,
+%     \@@_split_name_func:w , \@@_split_name_func_end:w ,
+%     \@@_split_name_var:nNw , \@@_split_name_var_end:nNw ,
+%   }
+%   Two variants are provided so that the correct type of errors
+%   (expandable or not) is used.  Expands to |#2| \Arg{signature} if
+%   the name contains a colon and is not |\:|.  Expands to |#3|
+%   \Arg{scope} \Arg{type} if the name contains an underscore and is
+%   not |\_|.  Expands to |#4| otherwise.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_split_name:Nnnn #1
+  {
+    \exp_after:wN \exp_after:wN
+    \exp_after:wN \@@_split_name_aux:w
+    \cs_to_str:N #1 \q_stop
+    \@@_warning:nnn
+    \@@_error:nnn
+  }    
+\cs_new:Npn \@@_split_name_exp:Nnnn #1
+  {
+    \exp_after:wN \exp_after:wN
+    \exp_after:wN \@@_split_name_aux:w
+    \cs_to_str:N #1 \q_stop
+    \@@_warning_exp:nnn
+    \@@_error_exp:nnn
+  }
+\cs_gset:Npn \@@_tmp:w #1#2
+  {
+    \cs_new:Npn \@@_split_name_aux:w ##1 \q_stop ##2 ##3
       {
-        \__msg_kernel_error:nnxx { check } { multiple-modules }
-          { \token_to_str:N \check_new:nn } { \l_@@_module_tl }
-      }
-      {
-        \cs_if_exist:cT { @@_module_ \l_@@_module_tl : }
+        \tl_if_single:nTF {##1}
+          { \use_iii:nnn }
           {
-            \__msg_kernel_error:nnx { check } { module-exists }
-              { \l_@@_module_tl }
-            \cs_undefine:c { @@_module_ \l_@@_module_tl : }
+            \tl_if_empty:oTF { \@@_split_name_colon:w ##1 #1 }
+              {
+                \tl_if_empty:oTF { \@@_split_name_underscore:w ##1 #2 }
+                  { \use_iii:nnn }
+                  {
+                    \tl_if_empty:oF { \@@_split_name_space:w ##1 ~ }
+                      { ##2 { bad-var-name } {##1} { } }
+                    \tl_if_head_eq_charcode:fNF
+                      { \str_tail:n {##1} } #2
+                      { ##2 { bad-var-name } {##1} { } }
+                    \str_case:fnF { \str_head:n {##1} }
+                      { l { } g { } c { } q { } s { } }
+                      { ##2 { bad-var-name } {##1} { } }
+                    \@@_split_name_var:Nw { } ##1
+                      \q_mark \@@_split_name_var:Nw #2
+                      \q_mark \@@_split_name_var_end:Nw \q_stop
+                  }
+              }
+              {
+                \tl_if_empty:oF { \@@_split_name_space:w ##1 ~ }
+                  { ##2 { bad-func-name } {##1} { } }
+                \@@_split_name_func:w \q_mark ##1
+                  \q_mark \@@_split_name_func:w #1
+                  \q_mark \@@_split_name_func_end:w \q_stop
+              }
           }
-        \cs_new_protected_nopar:cpx { @@_module_ \l_@@_module_tl : }
-          { \exp_not:n {#2} }
       }
+    \cs_new:Npn \@@_split_name_colon:w ##1 #1 { }
+    \cs_new:Npn \@@_split_name_underscore:w ##1 #2 { }
+    \cs_new:Npn \@@_split_name_space:w ##1 ~ { }
+    \cs_new:Npn \@@_split_name_func:w ##1 \q_mark ##2 #1 ##3 \q_mark ##4
+      { ##4 ##2 \q_mark ##3 \q_mark ##4 }
+    \cs_new:Npn \@@_split_name_func_end:w ##1 \q_mark ##2 \q_stop ##3##4##5
+      { ##3 {##1} }
+    \cs_new:Npn \@@_split_name_var:Nw ##1##2 #2 ##3 #2 ##4 \q_mark ##5
+      { ##5 ##1 ##3 #2 ##4 \q_mark ##5 }
+    \cs_new:Npn \@@_split_name_var_end:Nw ##1##2 #2 ##3 \q_stop ##4##5##6
+      { ##5 {##1} {##2} }
+  }
+\exp_after:wN \@@_tmp:w \tl_to_str:n { : _ }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int, EXP, pTF]{\@@_if_tl_macro:N}
+%   Test if the variable is a non-long, non-protected macro with no argument.
+%    \begin{macrocode}
+\prg_new_conditional:Npnn \@@_if_tl_macro:N #1 { p , T , F , TF }
+  {
+    \tl_if_empty:fTF
+      {
+        \token_get_prefix_spec:N #1
+        \token_get_arg_spec:N #1
+      }
+      { \prg_return_true: }
+      { \prg_return_false: }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP, pTF]{\@@_if_on:n}
+% \subsubsection{Turning on/off checks}
+%
+% \begin{macro}[int, EXP, pTF]{\@@_if_on:n}
 %   This test is to be used within the second argument of
 %   \cs{check_new:nn}.  It is for instance inserted by
-%   \cs{@@_patch:Npnn}.  It would be cleaner to use
+%   \cs{check_patch:Npnn}.  It would be cleaner to use
 %   \cs{cs_if_exist_use:cF}, but this function uses expansion, which
 %   leads to an infinite recursion when \pkg{l3expan} functions are
 %   checking and call this test.
 %    \begin{macrocode}
 \prg_new_conditional:Npnn \@@_if_on:n #1 { p , T , F , TF }
   {
-    \exp_after:wN \if_meaning:w
-      \cs:w @@_if_module_#1_on_return: \cs_end:
-      \scan_stop:
+    \exp_after:wN \if_meaning:w \cs:w @@_return_#1: \cs_end: \scan_stop:
       \prg_return_false:
     \else:
-      \cs:w @@_if_module_#1_on_return: \cs_end:
+      \cs:w @@_return_#1: \cs_end:
     \fi:
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int]{\check_on:n}
-%   The argument is turned to a string (paranoia), then loop over
-%   \meta{modules} in the argument.  If the \texttt{return} function for
-%   that \meta{module} is already defined, the checking code was loaded
-%   already, so we simply set it to \texttt{true}.  Otherwise, load the
-%   checking code if it exists, and define the \texttt{return} function.
-%   Note that \cs{l_@@_module_tl} holds the name of the \meta{module}
-%   whose code is loaded.  This allow \cs{@@_patch:Npnn} commands
-%   appearing in that checking code to insert the correct
-%   \enquote{\texttt{if_on}} tests.
+% \begin{macro}{\check_on:n, \check_off:n}
+%   The argument is turned to a string (paranoia), then we loop over
+%   \meta{modules} in the argument.  If
+%   |\__check_module_|\meta{module}|:N| is defined, use it with
+%   \cs{prg_return_true:}|/false:| as its argument, otherwise it is an
+%   error.  This function is initially defined to patch commands of the
+%   given \meta{module} with the appropriate checking code and to
+%   redefine itself to do much less.  In subsequent calls, it just sets
+%   |\__check_return_|\meta{module}|:| equal to its argument
+%   \cs{prg_return_true:}|/false:|.
 %    \begin{macrocode}
 \cs_new_protected:Npn \check_on:n #1
   {
-    \exp_args:No \clist_map_variable:nNn
-      { \tl_to_str:n {#1} }
-      \l_@@_module_tl
+    \exp_args:No \clist_map_inline:nn { \tl_to_str:n {#1} }
       {
-        \cs_if_exist:cTF
-          { @@_if_module_ \l_@@_module_tl _on_return: }
+        \cs_if_exist_use:cTF { @@_module_##1 :N }
+          { \prg_return_true: }
+          { \msg_error:nnn { check } { module-unknown } {##1} }
+      }
+  }
+\cs_new_protected:Npn \check_off:n #1
+  {
+    \exp_args:No \clist_map_inline:nn { \tl_to_str:n {#1} }
+      {
+        \cs_if_exist_use:cTF { @@_module_##1 :N }
+          { \prg_return_false: }
+          { \msg_error:nnn { check } { module-unknown } {##1} }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\check_new:nn}
+% \begin{macro}[int]{\@@_new:nn, \@@_module_first_use:n}
+%   This function does not accept a comma-delimited list of modules,
+%   only single modules, so we check and refuse that.  If the module
+%   |#1| already has a checking code defined, raise an error and stop.
+%   Store the \meta{code} |#2| in a control sequence (using an
+%   \texttt{x}-expanding assignment and \cs{exp_not:n} to avoid issues
+%   with |#|), with some code before and after it.  In its original
+%   definition given here, |\__check_module_|\meta{module}|:N| will do
+%   nothing if its argument is \cs{prg_return_false:} because turning
+%   off checking that has never been turne on is a no-op.  When given
+%   \cs{prg_return_true:} for the first time, this function is
+%   redefined by the auxiliary \cs{@@_module_first_use:n} to do very
+%   little (simply set the \texttt{return} function).  The same
+%   auxiliary defines the \texttt{return} function globally to
+%   \texttt{false} so that there is no checking outside the current
+%   group, but locally to \texttt{true} to have checking in the current
+%   group.  Finally, \cs{l_@@_module_tl} is defined so that it can be
+%   used in the patch code, such as for \cs{check_patch:Nn}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \check_new:nn #1
+  { \exp_args:No \@@_new:nn { \tl_to_str:n {#1} } }
+\cs_new_protected:Npn \@@_new:nn #1#2
+  {
+    \tl_if_in:nnTF {#1} { , }
+      {
+        \msg_error:nnxx { check } { multiple-modules }
+          { \token_to_str:N \check_new:nn } {#1}
+      }
+      {
+        \cs_if_exist:cTF { @@_module_#1:N }
+          { \msg_error:nnn { check } { module-exists } {#1} }
           {
-            \cs_gset_eq:cN
-              { @@_if_module_ \l_@@_module_tl _on_return: }
-              \prg_return_true:
-          }
-          {
-            \cs_if_exist:cT { @@_module_ \l_@@_module_tl : }
+            \cs_new_protected:cpx { @@_module_#1:N } ##1
               {
-                \cs_new_eq:cN
-                  { @@_if_module_ \l_@@_module_tl _on_return: }
-                  \prg_return_true:
-                \use:c { @@_module_ \l_@@_module_tl : }
+                \exp_not:N \token_if_eq_meaning:NNF
+                  \exp_not:N \prg_return_false:
+                  ##1
+                  {
+                    \exp_not:N \@@_module_first_use:n {#1}
+                    \exp_not:n {#2}
+                  }
               }
           }
       }
   }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\check_off:n}
-%   For each \meta{module} in the argument, if the \texttt{return}
-%   function for that \meta{module} is defined, set it to
-%   \texttt{false}.
-%    \begin{macrocode}
-\cs_new_protected:Npn \check_off:n #1
+\cs_new_protected:Npn \@@_module_first_use:n #1
   {
-    \exp_args:No \clist_map_inline:nn
-      { \tl_to_str:n {#1} }
-      {
-        \cs_if_exist:cT { @@_if_module_##1_on_return: }
-          {
-            \cs_gset_eq:cN { @@_if_module_##1_on_return: }
-              \prg_return_false:
-          }
-      }
+    \cs_gset_protected_nopar:cpx { @@_module_#1:N }
+      { \exp_not:N \cs_set_eq:NN \exp_not:c { @@_return_#1: } }
+    \cs_new_eq:cN { @@_return_#1: } \prg_return_false:
+    \cs_set_eq:cN { @@_return_#1: } \prg_return_true:
+    \tl_set:Nn \l_@@_module_tl {#1}
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
 %
-% \subsubsection{Patching commands, errors and warnings}
+% ^^A todo: document, keep list up to date.
+% \begin{macro}[int]{\@@_module_l3kernel:N}
+%   A special case that cannot be covered by other means.
+%    \begin{macrocode}
+\cs_new_protected:cpn { @@_module_l3kernel:N } #1
+  {
+    \clist_map_inline:Nn \c_@@_kernel_modules_clist
+      { \use:c { @@_module_##1:N } #1 }
+  }
+\clist_const:Nn \c_@@_kernel_modules_clist { cs , expan } % , tl , seq }
+%    \end{macrocode}
+% \end{macro}
 %
-% \begin{macro}[int]{\@@_patch_protected:Npnn, \@@_patch:Npnn}
-% \begin{macro}[aux]{\@@_patch_aux:NnNNnnn}
+% \subsubsection{Patching commands}
+%
+% \begin{macro}[int]{\check_patch:Npnn, \check_patch:cpnn}
+% \begin{macro}[aux]{\@@_patch:NnNnnn, \@@_patch:NoNnnn}
+% \begin{macro}[aux]{\@@_patch_exp:NnNnnn, \@@_patch_exp:NoNnnn}
 %   The current code of |#1| is copied into a private control sequence,
-%   whose name we build and pass to the auxiliary.
+%   whose name we build and pass to the auxiliary.  Distinguish the
+%   case of protected and of expandable commands, by looking for
+%   |protected| in the macro's prefix spec.  This distinction is used
+%   to redefine |#1| to be a protected or an expandable macro, but also
+%   to make sure that the redefinition of expandable macros does not
+%   alter their expansion properties.  Namely, it is important for some
+%   macros that |o|-expanding them twice fully expands them, so the
+%   redefined macro uses \cs{@@_exp:w} and \cs{@@_exp_stop:} to make
+%   sure that its second expansion is the same as the second expansion
+%   of the original macro.
+%
+%   We use \cs{@@_exp_args:Nc}, a copy of \cs{exp_args:Nc}, because we
+%   are building a previously not-defined control sequence.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_patch_protected:Npnn #1#2#
+\cs_new_protected:Npn \check_patch:Npnn #1#2#
   {
-    \exp_args:Nco \@@_patch_aux:NnNNnnn
-      { @@_patched_ \cs_to_str:N #1 }
-      { \l_@@_module_tl }
-      \cs_gset_protected:Npn
-      #1 {#2}
-  }
-\cs_new:Npn \@@_patch:Npnn #1#2#
-  {
-    \exp_args:Nco \@@_patch_aux:NnNNnnn
-      { @@_patched_ \cs_to_str:N #1 }
-      { \l_@@_module_tl }
-      \cs_gset:Npn
-      #1 {#2}
-  }
-\cs_new:Npn \@@_patch_aux:NnNNnnn #1#2#3#4#5#6#7
-  {
-    \cs_new_eq:NN #1 #4
-    #3 #4 #5
+    \token_if_macro:NTF #1
       {
-        \@@_if_on:nT {#2} { \if_false: { \fi: #7 \if_false: } \fi: }
-        #1 #6
+        \tl_if_in:ffTF
+          { \token_get_prefix_spec:N #1 }
+          { \tl_to_str:n { protected } }
+          { \@@_exp_args:Nc \@@_patch:NoNnnn }
+          { \@@_exp_args:Nc \@@_patch_exp:NoNnnn }
+              { @@_patched_ \cs_to_str:N #1 }
+              { \l_@@_module_tl }
+              #1
+              {#2}
+      }
+      { \msg_error:nnnnnn { check } { patch-non-macro } {#1} {#2} }
+  }
+\cs_generate_variant:Nn \check_patch:Npnn { c }
+\cs_new_protected:Npn \@@_patch:NnNnnn #1#2#3#4#5#6
+  {
+    \cs_new_eq:NN #1 #3
+    \cs_gset_protected:Npn #3 #4
+      {
+        \@@_if_on:nT {#2} { \if_false: { \fi: #6 \if_false: } \fi: }
+        #1 #5
       }
   }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\@@_error:nn, \@@_error:nnn}
-% \begin{macro}[EXP]{\@@_expandable_error:nn, \@@_expandable_error:nnn}
-%   Wrappers around errors, expandable or not.
-%    \begin{macrocode}
-\cs_new_nopar:Npn \@@_error:nn
-  { \__msg_kernel_error:nnn { check } }
-\cs_new_nopar:Npn \@@_error:nnn
-  { \__msg_kernel_error:nnnn { check } }
-\cs_new_nopar:Npn \@@_expandable_error:nn
-  { \__msg_kernel_expandable_error:nnn { check } }
-\cs_new_nopar:Npn \@@_expandable_error:nnn
-  { \__msg_kernel_expandable_error:nnnn { check } }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\@@_warning:nn, \@@_warning:nnn}
-% \begin{macro}[EXP]{\@@_expandable_warning:nn, \@@_expandable_warning:nnn}
-%   A wrapper around warnings, expandable or not.
-%    \begin{macrocode}
-\cs_new_nopar:Npn \@@_warning:nn
-  { \__msg_kernel_warning:nnn { check } }
-\cs_new_nopar:Npn \@@_warning:nnn
-  { \__msg_kernel_warning:nnnn { check } }
-\cs_new_nopar:Npn \@@_expandable_warning:nn
+\cs_generate_variant:Nn \@@_patch:NnNnnn { No }
+\cs_new_protected:Npn \@@_patch_exp:NnNnnn #1#2#3#4#5#6
   {
-    \cs_if_exist_use:NF
-      \__msg_kernel_expandable_warning:nnn
-      \__msg_kernel_expandable_error:nnn
-        { check }
+    \cs_new_eq:NN #1 #3
+    \cs_gset:Npn #3 #4
+      {
+        \@@_exp:w
+        \@@_if_on:nT {#2} { \if_false: { \fi: #6 \if_false: } \fi: }
+        \exp_after:wN \exp_after:wN \exp_after:wN \@@_exp_stop:
+        #1 #5
+      }
   }
-\cs_new_nopar:Npn \@@_expandable_warning:nnn
+\cs_generate_variant:Nn \@@_patch_exp:NnNnnn { No }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% ^^A todo: instead of \@@_if_on:nT {#2} use \cs:w @@_if_on_#2:T \cs_end: already as a single token.
+%
+% \begin{macro}[int]{\check_patch:Nn, \check_patch:cn}
+% \begin{macro}[aux]{\@@_patch_parm:Nnn, \@@_patch_parm:nNn, \@@_patch_parm:VNn}
+%   Find the signature (with appropriate errors if that is not found),
+%   then construct the parameter text for \cs{check_patch:Npnn}, both
+%   braced and not braced.  At the same time, fill the
+%   \cs{l_@@_extra_code_tl} variable with code that checks |N|-type
+%   arguments.
+%    \begin{macrocode}
+\cs_new_protected:Npn \check_patch:Nn #1#2
   {
-    \cs_if_exist_use:NF
-      \__msg_kernel_expandable_warning:nnnn
-      \__msg_kernel_expandable_error:nnnn
-        { check }
+    \@@_split_name:Nnnn #1
+      { \@@_patch_parm:Nnn #1 {#2} }
+      { \use_i:nnn { \@@_error:nn { patch-var } {#1} } }
+      { \@@_error:nn { patch-non-expl } {#1} }
   }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \subsubsection{Helpers}
-%
-% \begin{macro}[int]{\@@_tl_set:Nn, \@@_tl_gset:Nn}
-%   We copy those functions to avoid their type checking turned on by
-%   \cs{check_on:n} |{ l3tl }|.  The copies may act on any tokens.
-%    \begin{macrocode}
- % \cs_new_eq:NN \@@_tl_set:Nn \tl_set:Nn
- % \cs_new_eq:NN \@@_tl_gset:Nn \tl_gset:Nn
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{variable}{\q_@@}
-% \begin{macro}[int]{\@@_tl_head:w, \@@_tl_head:n}
-%   Safe copies of \cs{tl_head:n} functions.
-%    \begin{macrocode}
-\quark_new:N \q_@@
-\cs_new:Npn \@@_tl_head:w #1#2 \q_@@ {#1}
-\cs_new:Npn \@@_tl_head:n #1
-  { \etex_unexpanded:D \exp_after:wN { \@@_tl_head:w #1 { } \q_@@ } }
-%    \end{macrocode}
-% \end{macro}
-% \end{variable}
-%
-% \begin{macro}[EXP, int]{\@@_variable_get_scope:N}
-% \begin{macro}[EXP, aux]{\@@_variable_get_scope_aux:w}
-%    \begin{macrocode}
-\group_begin:
-  \char_set_catcode_other:n { `* }
-  \char_set_lccode:nn { `* } { `_ }
-  \tl_to_lowercase:n
-    {
-      \group_end:
-      \cs_new:Npn \@@_variable_get_scope:N #1
+\cs_generate_variant:Nn \check_patch:Nn { c }
+\cs_new_protected:Npn \@@_patch_parm:Nnn #1#2#3
+  {
+    \int_zero:N \l_@@_parm_int
+    \tl_clear:N \l_@@_parm_tl
+    \tl_clear:N \l_@@_parm_braced_tl
+    \tl_clear:N \l_@@_extra_code_tl
+    \tl_map_inline:nn {#3}
+      {
+        \int_incr:N \l_@@_parm_int
+        \@@_patch_parm:VNn \l_@@_parm_int ##1 {#3}
+      }
+    \use:x
+      {
+        \exp_not:N \check_patch:Npnn
+          \exp_not:N #1
+          \exp_not:V \l_@@_parm_tl
+          { \exp_not:V \l_@@_parm_braced_tl }
+          {
+            \exp_not:V \l_@@_extra_code_tl
+            \exp_not:n {#2}
+          }
+      }
+  }
+\cs_new_protected:Npn \@@_patch_parm:nNn #1#2#3
+  {
+    \str_case:nnTF {#2}
+      {
+        n { \tl_put_right:Nn \l_@@_parm_braced_tl { { ## #1 } } }
+        N
         {
-          \exp_after:wN \exp_after:wN
-          \exp_after:wN \@@_variable_get_scope_aux:w
-          \cs_to_str:N #1 * \q_stop
+          \tl_put_right:Nn \l_@@_parm_braced_tl { ## #1 }
+          \tl_put_right:Nn \l_@@_extra_code_tl { \check_is_N:n { ## #1 } }
         }
-      \cs_new:Npn \@@_variable_get_scope_aux:w #1 * #2 \q_stop {#1}
-    }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[EXP, int]{\@@_variable_get_type:N}
-% \begin{macro}[EXP, aux]
-%   {\@@_variable_get_type_aux:ww, \@@_variable_get_type_end:ww}
-%    \begin{macrocode}
- % \group_begin:
- %   \char_set_catcode_other:n { `* }
- %   \char_set_lccode:nn { `* } { `_ }
- %   \tl_to_lowercase:n
- %     {
- %       \group_end:
- %       \cs_new:Npn \@@_variable_get_type:N #1
- %         {
- %           \exp_after:wN \exp_after:wN
- %           \exp_after:wN \@@_variable_get_type_aux:ww
- %           \exp_after:wN \exp_after:wN
- %           \exp_after:wN *
- %           \cs_to_str:N #1 * { \q_stop \@@_variable_get_type_end:ww } *
- %         }
- %       \cs_new:Npn \@@_variable_get_type_aux:ww #1 * #2 *
- %         {
- %           \use_none_delimit_by_q_stop:w #2 #1 \q_stop
- %           \@@_variable_get_type_aux:ww #2 *
- %         }
- %     }
- % \cs_new:Npn \@@_variable_get_type_end:ww #1 \q_stop #2#3#4#5 {#1}
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[pTF]{\@@_variable_if_tl:N}
-% \begin{macro}[int, EXP]{\@@_variable_if_tl_return:N}
-% \begin{macro}[aux, EXP]{\@@_variable_if_tl_aux:w}
-%
-%    \begin{macrocode}
-\prg_new_conditional:Npnn \@@_variable_if_tl:N #1 { p , T , F , TF }
-  { \@@_variable_if_tl_return:N #1 }
-\group_begin:
-\char_set_catcode_other:N M
-\char_set_catcode_other:N A
-\char_set_catcode_other:N C
-\char_set_catcode_other:N R
-\char_set_catcode_other:N O
-\tl_to_lowercase:n
-  {
-    \group_end:
-    \cs_new:Npn \@@_variable_if_tl_return:N #1
-      {
-        \exp_after:wN \__tl_if_empty_return:o \exp_after:wN
-          {
-            \exp_after:wN \@@_variable_if_tl_aux:w
-              \token_to_meaning:N #1 MACRO \q_stop
-          }
       }
-    \cs_new:Npn \@@_variable_if_tl_aux:w #1 MACRO #2 \q_stop { #1 }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[int, EXP]{\@@_variable_if_seq_return:N}
-%    \begin{macrocode}
-\cs_new:Npn \@@_variable_if_seq_return:N #1
-  {
-    \cs_if_exist:NTF #1
+      { \tl_put_right:Nn \l_@@_parm_tl { ## #1 } }
       {
-        \@@_variable_if_tl:NTF #1
-          {
-            \exp_after:wN \@@_variable_if_seq_return_aux:nn
-            #1 \q_recursion_tail \q_recursion_tail \q_recursion_stop
-          }
-          { \prg_return_false: }
+        \tl_map_break:n
+          { \@@_error:nn { patch-non-base } {#3} }
       }
-      { \prg_return_false: }
   }
-\cs_new:Npn \@@_variable_if_seq_return_aux:nn #1#2
-  {
-    \quark_if_recursion_tail_stop_do:nn {#1} { \prg_return_true: }
-    \quark_if_recursion_tail_stop_do:nn {#2} { \prg_return_false: }
-    \str_if_eq:nnTF {#1} { \s__seq }
-      { \@@_variable_if_seq_return_aux:nn }
-      { \@@_variable_if_seq_return_aux:nn ? \q_recursion_tail }
-  }
+\cs_generate_variant:Nn \@@_patch_parm:nNn { V }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
 %
-% \subsubsection{Common tests}
+% \subsubsection{Checks that can be made}
 %
-% \begin{macro}[EXP, int]{\@@_N_type_expandable:n}
-% \begin{macro}[int]{\@@_N_type:n}
-% \begin{macro}[aux, EXP]{\@@_if_N_type:nF, \@@_if_N_type:nTF}
+% ^^A todo: document
+%
+% \begin{macro}{\check_is_N:n}
+% \begin{macro}[EXP]{\check_is_N_exp:n}
+% \begin{macro}[aux, EXP]{\@@_if_N_type:nF}
 %   Those functions check if a token list is a single |N|-type token.
 %   We cannot safely use some of the built-in \LaTeX{} functions since
 %   the token list may contain \cs{q_stop}.
 %    \begin{macrocode}
+\cs_new_protected:Npn \check_is_N:n #1
+  {
+    \@@_if_N_type:nF {#1}
+      { \@@_error:nn { is-not-N-type } {#1} }
+  }
+\cs_new:Npn \@@_N_type_exp:n #1
+  {
+    \@@_if_N_type:nF {#1}
+      { \@@_error_exp:nn { is-not-N-type } {#1} }
+  }
 \prg_new_conditional:Npnn \@@_if_N_type:n #1 { F , TF }
   {
-    \str_if_eq_x:nnTF
-      { \exp_after:wN \exp_not:n \exp_after:wN { \use:n #1 { } } }
-      { \exp_not:n { #1 { } } }
+    \tl_if_blank:nTF {#1}
+      { \prg_return_false: }
       {
-        \str_if_eq_x:nnTF { \exp_not:n {#1} } { \@@_tl_head:n {#1} }
+        \tl_if_single_token:nTF {#1}
           { \prg_return_true: }
+          { \prg_return_false: }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\check_is_function:N}
+% \begin{macro}[EXP]{\check_is_function_exp:N}
+%    \begin{macrocode}
+\cs_new_protected:Npn \check_is_function:N #1
+  {
+    \@@_split_name:Nnnn #1
+      { \use_none:n }
+      { \use_i:nnn { \@@_error:nnn { is-not } { function } {#1} } }
+      { }
+  }
+\cs_new:Npn \check_is_function_exp:N #1
+  {
+    \@@_split_name_exp:Nnnn #1
+      { \use_none:n }
+      { \use_i:nnn { \@@_error_exp:nnn { is-not } { function } {#1} } }
+      { }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\check_is_variable:N}
+% \begin{macro}[EXP]{\check_is_variable_exp:N}
+%    \begin{macrocode}
+\cs_new_protected:Npn \check_is_variable:N #1
+  {
+    \@@_split_name:Nnnn #1
+      { \use_i:nn { \@@_error:nnn { is-not } { variable } {#1} } }
+      { \use_none:nn }
+      { }
+  }
+\cs_new:Npn \check_is_variable_exp:N #1
+  {
+    \@@_split_name_exp:Nnnn #1
+      { \use_i:nn { \@@_error_exp:nnn { is-not } { variable } {#1} } }
+      { \use_none:nn }
+      { }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\check_is_local_variable:N}
+% \begin{macro}[EXP]{\check_is_local_variable_exp:N}
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \check_is_local_variable:N
+  { \@@_is_scope_variable:NNN l \@@_error:nnn }
+\cs_new_protected_nopar:Npn \check_is_global_variable:N
+  { \@@_is_scope_variable:NNN g \@@_error:nnn }
+\cs_new_nopar:Npn \check_is_local_variable_exp:N
+  { \@@_is_scope_variable:NNN l \@@_error_exp:nnn }
+\cs_new_nopar:Npn \check_is_global_variable_exp:N
+  { \@@_is_scope_variable:NNN g \@@_error_exp:nnn }
+\cs_new:Npn \@@_is_scope_variable:NNN #1#2#3
+  {
+    \@@_split_name:Nnnn #3
+      { \use_i:nn { #2 { is-not } { variable } {#3} } }
+      { \@@_is_scope_variable:NNNnn #1#2#3 }
+      { }
+  }
+\cs_new:Npn \@@_is_scope_variable:NNNnn #1#2#3#4#5
+  {
+    \str_if_eq:nnF {#1} {#4}
+      { #2 { is-not-scope } {#1} {#3} }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\check_signature:N}
+%   Expands to \cs{scan_stop:} or to the signature of a function.
+%    \begin{macrocode}
+\cs_new:Npn \check_signature:N #1
+  {
+    \@@_split_name_exp:Nnnn #1
+      { \use:n }
+      { \use_i:nnn \scan_stop: }
+      { \scan_stop: }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     \check_signature_is_base:N,
+%     \check_signature_should_be_empty:N,
+%     \check_signature_should_be_nonempty:N
+%   }
+% \begin{macro}[aux]{\@@_signature_is_base:N}
+%    \begin{macrocode}
+\cs_new_protected:Npn \check_signature_is_base:N #1
+  {
+    \exp_last_unbraced:Nf \@@_signature_is_base:N
+      { \check_signature:N #1 } \q_recursion_tail \q_recursion_stop
+  }
+\cs_new_protected:Npn \@@_signature_is_base:N #1
+  {
+    \token_if_eq_charcode:NNTF N #1
+      { \@@_signature_is_base:N }
+      {
+        \token_if_eq_charcode:NNTF n #1
+          { \@@_signature_is_base:N }
+          {
+            \quark_if_recursion_tail_stop_do:Nn #1 { \prg_return_true: }
+            \use_i_delimit_by_q_recursion_stop:nw { \prg_return_false: }
+          }
+      }
+  }
+\cs_new_protected:Npn \check_signature_should_be_empty:N #1
+  {
+    \tl_if_empty:fF { \check_signature:N #1 }
+      { \@@_warning:nn { arg-nopar } {#1} }
+  }
+\cs_new_protected:Npn \check_signature_should_be_nonempty:N #1
+  {
+    \tl_if_empty:fT { \check_signature:N #1 }
+      { \@@_warning:nn { par-noarg } {#1} }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP, aux]{\@@_is_name_type:NnN, \@@_is_name_type_aux:NnNnn}
+%    \begin{macrocode}
+\cs_new:Npn \@@_is_name_type:NnN #1#2#3
+  {
+    \@@_split_name:Nnnn #1
+      { \use_i:nn { #3 { is-not } {#2} {#1} } }
+      { \@@_is_name_type_aux:NnNnn #1#2#3 }
+      { }
+  }
+\cs_new:Npn \@@_is_name_type_aux:NnNnn #1#2#3#4#5
+  { \str_if_eq:nnF {#5} {#2} { #3 { is-not } {#2} {#1} } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\check_is_defined:N}
+% \begin{macro}[EXP]{\check_is_defined_exp:N, \check_is_defined_exp:c}
+%   Do not use \cs{exp_args:Nc} (nor \cs{cs_generate_variant:Nn} for
+%   the |c| variant in order to avoid infinite loop since the redefined
+%   |c|-expansion calls this function.
+%    \begin{macrocode}
+\cs_new_protected:Npn \check_is_defined:N #1
+  {
+    \cs_if_exist:NF #1
+      { \@@_error:nn { is-not-defined } {#1} }
+  }
+\cs_new:Npn \check_is_defined_exp:N #1
+  {
+    \cs_if_exist:NF #1
+      { \@@_error_exp:nn { is-not-defined } {#1} }
+  }
+\cs_new:Npn \check_is_defined_exp:c #1
+  { \exp_after:wN \check_is_defined_exp:N \cs:w #1 \cs_end: }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\check_is_tl:N, \check_is_defined_tl:N}
+% \begin{macro}[EXP]{\check_is_tl_exp:N, \check_is_defined_tl_exp:N}
+% \begin{macro}[EXP, aux]{\@@_is_tl_aux:NN}
+%    \begin{macrocode}
+\cs_new_protected:Npn \check_is_defined_tl:N #1
+  {
+    \cs_if_exist:NTF #1
+      { \@@_is_tl_aux:NN #1 \@@_error:nnn }
+      { \@@_error:nn { is-not-defined } {#1} }
+  }
+\cs_new:Npn \check_is_defined_tl_exp:N #1
+  {
+    \cs_if_exist:NTF #1
+      { \@@_is_tl_aux:NN #1 \@@_error_exp:nnn }
+      { \@@_error_exp:nn { is-not-defined } {#1} }
+  }
+\cs_new_protected:Npn \check_is_tl:N #1
+  {
+    \cs_if_exist:NTF #1
+      { \@@_is_tl_aux:NN #1 \@@_error:nnn }
+      { \@@_is_name_type:NnN #1 { tl } \@@_error:nnn }
+  }
+\cs_new:Npn \check_is_tl_exp:N #1
+  {
+    \cs_if_exist:NTF #1
+      { \@@_is_tl_aux:NN #1 \@@_error_exp:nnn }
+      { \@@_is_name_type:NnN #1 { tl } \@@_error_exp:nnn }
+  }
+\cs_new:Npn \@@_is_tl_aux:NN #1#2
+  { \@@_if_tl_macro:NF #1 { #2 { is-not } { tl } {#1} } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% ^^A todo: consolidate into \check_is_type:Nn #1 { seq }, combine internals with tl too, building them with \cs:w \cs_end:
+% \begin{macro}{\check_is_seq:N, \check_is_defined_seq:N}
+% \begin{macro}[EXP]{\check_is_seq_exp:N, \check_is_defined_seq_exp:N}
+%   ^^A todo: doc auxiliaries
+%    \begin{macrocode}
+\cs_new_protected:Npn \check_is_defined_seq:N #1
+  {
+    \cs_if_exist:NTF #1
+      { \@@_is_seq_aux:NN #1 \@@_error:nn }
+      { \@@_error:nn { is-not-defined } {#1} }
+  }
+\cs_new:Npn \check_is_defined_seq_exp:N #1
+  {
+    \cs_if_exist:NTF #1
+      { \@@_is_seq_aux:NN #1 \@@_error_exp:nnn }
+      { \@@_error_exp:nn { is-not-defined } {#1} }
+  }
+\cs_new_protected:Npn \check_is_seq:N #1
+  {
+    \cs_if_exist:NTF #1
+      { \@@_is_seq_aux:NN #1 \@@_error:nnn }
+      { \@@_is_name_type:NnN #1 { seq } \@@_error:nnn }
+  }
+\cs_new:Npn \check_is_seq_exp:N #1
+  {
+    \cs_if_exist:NTF #1
+      { \@@_is_seq_aux:NN #1 \@@_error_exp:nnn }
+      { \@@_is_name_type:NnN #1 { seq } \@@_error_exp:nnn }
+  }
+\cs_new:Npn \@@_is_seq_aux:NN #1#2
+  { \@@_if_seq:NF #1 { #2 { is-not } { seq } {#1} } }
+\prg_new_conditional:Npnn \@@_if_seq:N #1 { F }
+  {
+    \@@_if_tl_macro:NTF #1
+      {
+        \exp_args:No \tl_if_empty:oTF
+          { \exp_after:wN \@@_if_seq_aux:w #1 \q_recursion_tail }
+          {
+            \exp_after:wN \@@_if_seq_aux:N
+            #1 \q_recursion_tail \q_recursion_tail
+            \q_recursion_tail \q_recursion_stop
+          }
           { \prg_return_false: }
       }
       { \prg_return_false: }
   }
-\cs_new_protected:Npn \@@_N_type:n #1
+\cs_new:Npn \@@_if_seq_aux:w #1 \q_recursion_tail { }
+\cs_new:Npn \@@_if_seq_aux:N #1
   {
-    \@@_if_N_type:nF {#1}
-      { \@@_error:nn { not-N-type } {#1} }
+    \str_if_eq:nnTF {#1} { \s__seq }
+      { \@@_if_seq_loop:nn }
+      { \@@_if_seq_break:Nw \prg_return_false: }
   }
-\cs_new:Npn \@@_N_type_expandable:n #1
+\cs_new:Npn \@@_if_seq_break:Nw
+    #1 #2 \q_recursion_tail \q_recursion_stop {#1}
+\cs_new:Npn \@@_if_seq_loop:nn #1#2
   {
-    \@@_if_N_type:nF {#1}
-      { \@@_expandable_error:nn { not-N-type } {#1} }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[EXP, int]{\@@_cs_exist_expandable:n}
-% \begin{macro}[int]{\@@_cs_exist:n}
-%   Check that the argument is a single existing token.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_cs_exist:n #1
-  {
-    \@@_if_N_type:nTF {#1}
-      { \cs_if_exist:NF #1 { \@@_error:nn { unknown-cs } {#1} } }
-      { \@@_error:nn { not-N-type } {#1} }
-  }
-\cs_new:Npn \@@_cs_exist_expandable:n #1
-  {
-    \@@_if_N_type:nTF {#1}
-      {
-        \cs_if_exist:NF #1
-          { \@@_expandable_error:nn { unknown-cs } {#1} }
-      }
-      { \@@_expandable_error:nn { not-N-type } {#1} }
+    \quark_if_recursion_tail_stop_do:nn {#1} { \prg_return_true: }
+    \quark_if_recursion_tail_stop_do:nn {#2} { \prg_return_false: }
+    \tl_if_single:nF {#1}
+      { \@@_if_seq_break:Nw \prg_return_false: }
+    \str_if_eq:nnF {#1} { \__seq_item:n }
+      { \@@_if_seq_break:Nw \prg_return_false: }
+    \@@_if_seq_loop:nn
   }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[EXP, int]
-%   {\@@_variable_type_expandable:nn, \@@_variable_type_only_expandable:nn}
-% \begin{macro}[int]{\@@_variable_type:nn, \@@_variable_type_only:nn}
-% \begin{macro}[aux, EXP]{\@@_if_variable_type:NnF}
-%   Those functions check if the token list |#1| is a single |N|-type
-%   token with type |#2|.
-%    \begin{macrocode}
-\prg_new_conditional:Npnn \@@_if_variable_type:Nn #1#2 { F }
-  { \cs:w @@_variable_if_ #2 _return:N \cs_end: #1 }
-\cs_new:Npn \@@_variable_type_aux:NNNnn #1#2#3#4#5
-  {
-    \@@_if_N_type:nTF {#4}
-      {
-        \cs_if_exist:NTF #4
-          {
-            \@@_if_variable_type:NnF #4 {#5}
-              { #1 { wrong-type } {#4} {#5} }
-          }
-          { #2 { non-declared-variable } {#4} }
-      }
-      { #3 { not-N-type } {#4} }
-  }
-\cs_new_protected_nopar:Npn \@@_variable_type:nn
-  {
-    \@@_variable_type_aux:NNNnn
-      \@@_warning:nnn \@@_error:nn \@@_error:nn
-  }
-\cs_new_protected_nopar:Npn \@@_variable_type_only:nn
-  {
-    \@@_variable_type_aux:NNNnn
-      \@@_warning:nnn \use_none:nn \@@_error:nn
-  }
-\cs_new_nopar:Npn \@@_variable_type_expandable:nn
-  {
-    \@@_variable_type_aux:NNNnn
-      \@@_expandable_warning:nnn
-      \@@_expandable_error:nn
-      \@@_expandable_error:nn
-  }
-\cs_new_nopar:Npn \@@_variable_type_only_expandable:nn
-  {
-    \@@_variable_type_aux:NNNnn
-      \@@_expandable_warning:nnn
-      \use_none:nn
-      \@@_expandable_error:nn
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[EXP, int]{\@@_variable_scope_type_expandable:nnn}
-% \begin{macro}[int]
-%   {\@@_variable_scope_type:nnn, \@@_variable_scope_type_only:nnn}
-% \begin{macro}[aux, EXP]{\@@_if_variable_scope:NnF}
-%   Those functions check if the token list |#1| is a single |N|-type
-%   token with scope |#2| and type |#3|.
-%    \begin{macrocode}
-\prg_new_conditional:Npnn \@@_if_variable_scope:Nn #1#2 { F }
-  {
-    \__str_if_eq_x_return:nn
-      { \@@_variable_get_scope:N #1 } {#2}
-  }
-\cs_new:Npn \@@_variable_scope_type_aux:NNNNnnn #1#2#3#4#5#6#7
-  {
-    \@@_if_N_type:nTF {#5}
-      {
-        \cs_if_exist:NTF #5
-          {
-            \@@_if_variable_type:NnF #5 {#7}
-              { #1 { wrong-type } {#5} {#7} }
-          }
-          { #2 { non-declared-variable } {#5} }
-        \@@_if_variable_scope:NnF #5 {#6}
-          { #3 { wrong-scope } {#5} {#6} }
-      }
-      { #4 { not-N-type } {#5} }
-  }
-\cs_new_protected_nopar:Npn \@@_variable_scope_type:nnn
-  {
-    \@@_variable_scope_type_aux:NNNNnnn
-      \@@_warning:nnn
-      \@@_error:nn
-      \@@_warning:nnn
-      \@@_error:nn
-  }
-\cs_new_protected_nopar:Npn \@@_variable_scope_type_only:nnn
-  {
-    \@@_variable_scope_type_aux:NNNNnnn
-      \@@_warning:nnn
-      \use_none:nn
-      \@@_warning:nnn
-      \@@_error:nn
-  }
-\cs_new_nopar:Npn \@@_variable_scope_type_expandable:nnn
-  {
-    \@@_variable_scope_type_aux:NNNNnnn
-      \@@_expandable_warning:nnn
-      \@@_expandable_error:nn
-      \@@_expandable_warning:nnn
-      \@@_expandable_error:nn
-  }
-%    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
 % \subsubsection{General messages}
 %
-%
+% ^^A todo: more informative error saying what the variable is if it has the wrong type.
 %    \begin{macrocode}
-\__msg_kernel_new:nnn { check } { multiple-modules }
+\msg_new:nnn { check } { is-not-defined }
+  { Assertion~failed:~'#1'~is~not~defined. }
+\msg_new:nnn { check } { is-not-N-type }
+  { Assertion~failed:~'#1'~is~not~a~single~N-type~token. }
+\msg_new:nnn { check } { is-not-scope }
+  {
+    Assertion~failed:~'#2'~is~not~a~
+    \str_case:nnF {#1}
+      {
+        { l } { local }
+        { g } { global }
+      } {#1} ~
+    variable~(starting~with~'#1_').
+  }
+\msg_new:nnn { check } { is-not }
+  {
+    Assertion~failed:~'#2'~is~not~a~
+    \str_case:nnF {#1}
+      {
+        { function } { function }
+        { variable } { variable }
+        { tl } { token~list }
+        { seq } { sequence }
+      }
+      {#1} .
+  }
+\msg_new:nnn { check } { patch-var }
+  { Only~functions~can~be~patched.~'#1'~is~a~variable }
+\msg_new:nnn { check } { patch-non-expl }
+  { Use~'\iow_char:N\\check_patch:Npnn',~not~'\iow_char:N\\check_patch:Nn'~to~patch~'#1' }
+\msg_new:nnn { check } { patch-non-base }
+  { Cannot~patch~'#1'~with~'\iow_char:N\\check_patch:Nn':~it~is~not~a~base~function! }
+\msg_new:nnn { check } { patch-non-macro }
+  { Cannot~patch~'#1':~it~is~not~a~macro! }
+\msg_new:nnn { check } { bad-var-name }
+  { Variable~name~'#1'~does~not~follow~expl3~conventions }
+\msg_new:nnn { check } { bad-func-name }
+  { Function~name~'#1'~does~not~follow~expl3~conventions }
+\msg_new:nnn { check } { multiple-modules }
   { The~function~#1~expects~a~single~module,~not~'#2'. }
-\__msg_kernel_new:nnn { check } { module-exists }
+\msg_new:nnn { check } { module-exists }
   { The~checking~code~for~module~'#1'~is~already~defined. }
+\msg_new:nnn { check } { module-unknown }
+  { No~checking~code~defined~for~module~'#1'. }
 %    \end{macrocode}
 %
+% ^^A todo: consolidate below with above.
 %    \begin{macrocode}
-\__msg_kernel_new:nnn { check } { not-N-type }
-  { Non~N~argument~#1 }
-\__msg_kernel_new:nnn { check } { unknown-cs }
-  { Unknown~command~#1 }
-\__msg_kernel_new:nnn { check } { wrong-scope }
-  { Variable~#1 should~start~with~'#2_' }
-\__msg_kernel_new:nnn { check } { wrong-type }
-  { Got~#1 instead~of~a~#2~variable }
+\msg_new:nnnn { check } { non-declared-variable }
+  {
+    The~variable~\tl_trim_spaces:n{#1}~has~not~been~declared~
+    \msg_line_context:.
+  }
+  {
+    Checking~is~active,~and~you~have~tried~do~so~something~like: \\
+    \ \ \tl_set:Nn ~ \tl_trim_spaces:n {#1} ~  \{ ~ ... ~ \} \\
+    without~first~having: \\
+    \ \ \tl_new:N ~ \tl_trim_spaces:n {#1} \\
+    \\
+    LaTeX~will~create~the~variable~and~continue.
+  }
+\msg_new:nnn { check } { par-noarg }
+  { The~function~'#1'~takes~no~argument~but~is~not~defined~to~be~"_nopar".~This~is~unusual. }
+\msg_new:nnn { check } { arg-nopar }
+  { The~function~'#1'~is~"_nopar"~but~takes~arguments.~This~is~risky. }
+\msg_new:nnn { check } { set-eq-undef }
+  { The~function~'#1'~was~set~equal~to~'#2',~but~that~is~not~defined. }
+\msg_new:nnn { check } { no-expansion }
+  { Redundant~#1-expansion~of~'#2' }
+\msg_new:nnn { check } { internal }
+  { Internal~error:~#1!! }
 %    \end{macrocode}
 %
 % \subsection{\texttt{l3kernel}}
 %
-% Start recording the code.  This ends after all the sections on
-% specific modules.
-%    \begin{macrocode}
-\check_new:nn { l3kernel }
-  {
-%    \end{macrocode}
+% ^^A todo: worry about drivers?
+%
+% The following is based on file \texttt{expl3-code} at revision 5859 or so.
+%
+% Difficulty with \cs{int_gdecr:N} being defined as \cs{tex_global:D}
+% \cs{int_decr:N}.  Same for \cs{cs_gset_eq:NN} and \cs{cs_new_eq:NN}
+% defined in terms of \cs{cs_set_eq:NN}.  Same for \cs{int_gadd:Nn},
+% \cs{int_gsub:Nn}, \cs{int_gset:Nn},
+% |(dim/skip/muskip)_(gzero:N/gset:Nn/gset_eq:NN/gadd:Nn/gsub:Nn)|,
+% \cs{box_gset_eq:NN}, \cs{box_gset_eq_clear:NN},
+% \cs{box_get_to_last:N}, \cs{hbox_gset:Nn}, \cs{hbox_gset_to_wd:Nnn},
+% \cs{hbox_gset:Nw}, \cs{vbox_gset:Nn}, \cs{vbox_gset_top:Nn},
+% \cs{vbox_gset_to_ht:Nnn}, \cs{vbox_gset:Nw}.
 %
 % \subsubsection{\pkg{l3basics}}
 %
-% Functions which we might want to hook into: \cs{group_begin:},
-% \cs{group_end:}, \cs{group_insert_after:N}.
+%    \begin{macrocode}
+\check_new:nn { cs }
+  {
+%    \end{macrocode}
 %
-% The $48$ assignment functions: |set|, |gset|, |new|; |protected| or
-% not, |nopar| or not, |n| or |x|, with |p| or not.  Of course, this
-% automatically extends to the |c| variants.  We could
+% We could change \cs{group_begin:}, \cs{group_end:},
+% \cs{group_insert_after:N}, but do not.
+%
+% Let us do |\cs_(set/gset/new)(/_protected)(/_nopar):N(/p)(n/x)|, $48$
+% assignment functions.  First clean them up a bit, since some are
+% defined as \cs{tex_global:D} followed by others.
+%    \begin{macrocode}
+    \cs_set_protected_nopar:Npn \cs_set_nopar:Npn { \tex_def:D }
+    \cs_set_protected_nopar:Npn \cs_set_nopar:Npx { \tex_edef:D }
+    \cs_set_protected_nopar:Npn \cs_gset_nopar:Npn { \tex_gdef:D }
+    \cs_set_protected_nopar:Npn \cs_gset_nopar:Npx { \tex_xdef:D }
+    \cs_set_protected_nopar:Npn \cs_set:Npn { \tex_long:D \tex_def:D }
+    \cs_set_protected_nopar:Npn \cs_set:Npx { \tex_long:D \tex_edef:D }
+    \cs_set_protected_nopar:Npn \cs_gset:Npn { \tex_long:D \tex_gdef:D }
+    \cs_set_protected_nopar:Npn \cs_gset:Npx { \tex_long:D \tex_xdef:D }
+    \cs_set_protected_nopar:Npn \cs_set_protected_nopar:Npn { \etex_protected:D \tex_def:D }
+    \cs_set_protected_nopar:Npn \cs_set_protected_nopar:Npx { \etex_protected:D \tex_edef:D }
+    \cs_set_protected_nopar:Npn \cs_gset_protected_nopar:Npn { \etex_protected:D \tex_gdef:D }
+    \cs_set_protected_nopar:Npn \cs_gset_protected_nopar:Npx { \etex_protected:D \tex_xdef:D }
+    \cs_set_protected_nopar:Npn \cs_set_protected:Npn { \etex_protected:D \tex_long:D \tex_def:D }
+    \cs_set_protected_nopar:Npn \cs_set_protected:Npx { \etex_protected:D \tex_long:D \tex_edef:D }
+    \cs_set_protected_nopar:Npn \cs_gset_protected:Npn { \etex_protected:D \tex_long:D \tex_gdef:D }
+    \cs_set_protected_nopar:Npn \cs_gset_protected:Npx { \etex_protected:D \tex_long:D \tex_xdef:D }
+%    \end{macrocode}
+% The plan is eventually to
 % \begin{itemize}
 %   \item check that \enquote{nopar} is used properly;
 %   \item list any undefined token appearing in any cs definition, in
 %     particular variants;
+%   \item detect what parts are arguments of what and detect e.g.,
+%     brace groups used as N-type arguments, etc.
 %   \item perhaps detect functions from the \enquote{msg} module, and
 %     check that the corresponding message exists.
 % \end{itemize}
-%
-% \begin{macro}{\cs_set_eq:NN, \cs_gset_eq:NN, \cs_new_eq:NN}
-%   The $3$ copying functions (extending automatically to the |c|
-%   variants) expect their argument to be defined, unless it is exactly
-%   \cs{scan_stop:}, \cs{tex_undefined:D}, or \cs{tex_relax:D}.
+% For now, just check that the first argument is a single token, is a
+% function, and for the |:Nn|/|:Nx| defining functions, check that the
+% signature is right.  Additionally, have a warning when trying to
+% define a long macro with no parameter or a non-long macro with
+% parameters.  Note that we do not touch the \enquote{new} functions as
+% they call the \enquote{gset} functions internally (otherwise we would
+% get two warnings/errors).
 %    \begin{macrocode}
-    % \tl_map_inline:nn { \cs_set_eq:NN , \cs_gset_eq:NN , \cs_new_eq:NN }
-    %   {
-    %     \@@_patch_protected:Npnn #1 ##1##2 { ##1 ##2 }
-    %       {
-    %         \str_case:nnF {##2}
-    %           {
-    %             { \tex_undefined:D } { }
-    %             { \scan_stop: } { }
-    %             { \tex_relax:D } { }
-    %           }
-    %           { \@@_cs_exist:n {##2} }
-    %       }
-    %   }
+    \group_begin:
+      \cs_set:Npn \check_tmp:w #1#2#3
+        {
+          \check_patch:cpnn { cs_ #1 #2 :Np #3 }
+            ##1 ##2 ## { ##1 ##2 }
+            {
+              \check_is_N:n {##1}
+              % \check_is_function:N ##1 % ^^A todo: reinstate when more is done
+              \tl_if_empty:nT {##2} { \@@_warning:nn { par-noarg } {##1} }
+            }
+          \check_patch:cpnn { cs_ #1 #2 _nopar:Np #3 }
+            ##1 ##2 ## { ##1 ##2 }
+            {
+              \check_is_N:n {##1}
+              % \check_is_function:N ##1 % ^^A todo: reinstate when more is done
+              \tl_if_empty:nF {##2} { \@@_warning:nn { arg-nopar } {##1} }
+            }
+          \check_patch:cpnn { cs_ #1 #2 :N #3 }
+            ##1 { ##1 }
+            {
+              \check_is_N:n {##1}
+              \check_is_function:N ##1
+              \check_signature_is_base:N ##1
+              \check_signature_should_be_nonempty:N ##1
+            }
+          \check_patch:cpnn { cs_ #1 #2 _nopar:N #3 }
+            ##1 ##2 ## { ##1 ##2 }
+            {
+              \check_is_N:n {##1}
+              \check_is_function:N ##1
+              \check_signature_is_base:N ##1
+              \check_signature_should_be_empty:N ##1
+            }
+        }
+      \tl_map_inline:nn { {set} {gset} }
+        {
+          \tl_map_inline:nn { { } {_protected} }
+            {
+              \tl_map_inline:nn { n x }
+                { \check_tmp:w {#1} {##1} {####1} }
+            }
+        }
+    \group_end:
 %    \end{macrocode}
-% \end{macro}
+%
+% The second argument of |\cs_(set/gset/new)_eq:NN| should be defined,
+% except if it is \cs{scan_stop:}, \cs{tex_relax:D} or
+% \cs{tex_undefined:D}, in which case that was probably the point.
+% Also redefine the |:Nc|, |:cN| and |:cc| variants to avoid using
+% actual |c|-expansion, since the resulting control sequences are often
+% undefined.
+%    \begin{macrocode}
+    \tl_map_inline:nn { {set} {gset} {new} }
+      {
+        \check_patch:cn { cs_#1_eq:NN }
+          {
+            \cs_if_exist:NF ##2
+              {
+                \str_case:nnF {##2}
+                  {
+                    \tex_undefined:D { }
+                    \tex_relax:D { }
+                    \scan_stop: { }
+                  }
+                  { \@@_warning:nnn { set-eq-undef } {##1} {##2} }
+              }
+          }
+        \cs_gset_protected:cpx { cs_#1_eq:cN } ##1
+          {
+            \exp_not:N \exp_after:wN \exp_not:c { cs_#1_eq:NN }
+            \exp_not:N \cs:w ##1 \cs_end:
+          }
+        \cs_gset_protected:cpx { cs_#1_eq:Nc } ##1##2
+          {
+            \exp_not:N \exp_after:wN \exp_not:c { cs_#1_eq:NN }
+            \exp_not:N \exp_after:wN ##1
+            \exp_not:N \cs:w ##2 \cs_end:
+          }
+        \cs_gset_protected:cpx { cs_#1_eq:cc } ##1##2
+          {
+            \exp_not:N \exp_after:wN \exp_not:c { cs_#1_eq:NN }
+            \exp_not:N \cs:w ##1 \exp_not:N \exp_after:wN \cs_end:
+            \exp_not:N \cs:w ##2 \cs_end:
+          }
+      }
+%    \end{macrocode}
 %
 % \begin{macro}{\__cs_check_exists:N}
-%   We already check if the commands exist, so no need to keep the
-%   \pkg{l3kernel} check.  We also redefine the message to remove a
-%   space: |#1| will contain a trailing space in our case.
+%   Since \pkg{l3check} adds a check that the commands exist, no need
+%   to keep the \pkg{l3kernel} check.
 %    \begin{macrocode}
     \cs_gset_eq:NN \__cs_check_exists:N \use_none:n
-    \__msg_kernel_set:nnnn { check } { non-declared-variable }
-      {
-        The~variable~\tl_trim_spaces:n{#1}~has~not~been~declared~
-        \msg_line_context:.
-      }
-      {
-        Checking~is~active,~and~you~have~tried~do~so~something~like: \\
-        \ \ \tl_set:Nn ~ \tl_trim_spaces:n {#1} ~  \{ ~ ... ~ \} \\
-        without~first~having: \\
-        \ \ \tl_new:N ~ \tl_trim_spaces:n {#1} \\
-        \\
-        LaTeX~will~create~the~variable~and~continue.
-      }
 %    \end{macrocode}
 % \end{macro}
+%
+% ^^A todo:
+% |\prg_(set/new)(/_protected)_conditional:N(/p)nn|,
+% |\prg_(/g)set_eq_conditional:NNn|,
+% |\cs_to_str:N|, |\cs_if_(exist/free)(/_p):(N/c)(T/F/TF)|,
+% |\cs_if_exist_use:(N/c)(/T/F/TF)|,
+% \cs{iow_log:x} \cs{iow_term:x},
+% |\cs_undefine:(N/c)|,
+% \cs{cs_generate_from_arg_count:NNnn},
+% \cs{cs_if_eq:NN}(TF), |\cs_(show/log):N|
+%
+%    \begin{macrocode}
+  }
+%    \end{macrocode}
 %
 % \subsubsection{\pkg{l3expan}}
 %
-% The \cs{cs_generate_variant:Nn} function should be altered, to check
-% that it is only doing sensible replacements in the arg spec.
-%
-% We could want to also do something about
-% \cs{exp_last_two_unbraced:Noo}.
-%
-% \begin{macro}[EXP]{\use:c}
-% \begin{macro}[aux, EXP]{\@@_cs_use:N}
-%   Add to \cs{use:c} a check that the control sequence thus constructed
-%   is defined.  We need the \texttt{align_safe} functions in case |#1|
-%   is one of the alignment primitives.
 %    \begin{macrocode}
-    \cs_gset_nopar:Npn \use:c
-      {
-        \group_align_safe_begin:
-          \exp_args:Nc \@@_cs_use:N
-      }
-    \cs_new:Npn \@@_cs_use:N #1
-      {
-          \cs_if_exist:NF #1
-            { \@@_expandable_error:nn { unknown-cs } {#1} }
-        \group_align_safe_end:
-        #1
-      }
+\check_new:nn { expan }
+  {
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\::N, \::V, \::V_unbraced}
-%   Two of the expansion types expect a single token.  Otherwise, raise
-%   an error.
-%    \begin{macrocode}
-    \@@_patch:Npnn \::N #1 \::: #2#3 { {#1} \::: {#2} {#3} }
-      { \@@_N_type_expandable:n {#3} }
-    \@@_patch:Npnn \::V #1 \::: #2#3 { {#1} \::: {#2} {#3} }
-      { \@@_N_type_expandable:n {#3} }
-    \@@_patch:Npnn \::V_unbraced \::: #1#2 { \::: {#1} {#2} }
-      { \@@_N_type_expandable:n {#2} }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\::o, \::f, \::o_unbraced, \::f_unbraced}
-% \begin{macro}[aux, EXP]{\@@_if_head_is_expandable:nF}
-%   These functions expand an argument, once or fully.  If the argument
-%   does not expand at all under the specified expansion type, warn the
-%   user.
-%    \begin{macrocode}
-    \prg_new_conditional:Npnn \@@_if_head_is_expandable:n #1 { F }
-      {
-        \str_if_eq_x:nnTF
-          { \exp_after:wN \exp_not:n \exp_after:wN { \use:n #1 { } } }
-          { \exp_not:n { #1 { } } }
-          {
-            \exp_after:wN \token_if_expandable:NTF
-              \@@_tl_head:w #1 \q_@@
-              { \prg_return_true: }
-              { \prg_return_false: }
-          }
-          { \prg_return_false: }
-      }
-    \@@_patch:Npnn \::o #1 \::: #2#3 { {#1} \::: {#2} {#3} }
-      {
-        \@@_if_head_is_expandable:nF {#3}
-          { \@@_expandable_warning:nn { no-expansion } {#3} }
-      }
-    \@@_patch:Npnn \::f #1 \::: #2#3 { {#1} \::: {#2} {#3} }
-      {
-        \tl_if_head_eq_catcode:nNF {#3} \c_space_token
-          {
-            \@@_if_head_is_expandable:nF {#3}
-              { \@@_expandable_warning:nn { no-expansion } {#3} }
-          }
-      }
-    \@@_patch:Npnn \::o_unbraced \::: #1#2 { \::: {#1} {#2} }
-      {
-        \@@_if_head_is_expandable:nF {#2}
-          { \@@_expandable_warning:nn { no-expansion } {#2} }
-      }
-    \@@_patch:Npnn \::f_unbraced \::: #1#2 { \::: {#1} {#2} }
-      {
-        \tl_if_head_eq_catcode:nNF {#2} \c_space_token
-          {
-            \@@_if_head_is_expandable:nF {#2}
-              { \@@_expandable_warning:nn { no-expansion } {#2} }
-          }
-      }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
 %
 % \begin{macro}[EXP]
 %   {
@@ -870,8 +1267,9 @@
 %   }
 %   Remove hand-tuning, to make sure that our modified \cs{::N},
 %   \cs{::V}, \cs{::o} and \cs{::f} are called.  We need to base
-%   \cs{exp_not:c} on the |N| variant, because the |n| variant is a
-%   primitive, which does not accept unbraced arguments.
+%   \cs{exp_not:c} on \cs{exp_not:N} and not \cs{exp_not:n}
+%   because the |n| variant is a primitive, which does not
+%   accept unbraced arguments.
 %    \begin{macrocode}
     \cs_gset_nopar:Npn \exp_not:o { \exp_args:No \exp_not:n }
     \cs_gset_nopar:Npn \exp_not:c { \exp_args:Nc \exp_not:N }
@@ -911,51 +1309,414 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\cs_show:c}
-%   Now that we've removed hand-tuning from \cs{exp_args:Nc}, the output
-%   of \cs{cs_show:c} becomes ugly.  We fix that by redefining the
-%   function to use \cs{cs:w} directly.
+% ^^A todo: we may need \group_align_safe_begin:/end: in case |#1| is an alignment primitive!
+% \begin{macro}[EXP]{\use:c}
+%   Remove some more fine-tuning.
 %    \begin{macrocode}
-    \cs_gset_protected:Npn \cs_show:c #1
-      {
-        \group_begin:
-          \exp_after:wN
-        \group_end:
-        \exp_after:wN \cs_show:N \cs:w #1 \cs_end:
-      }
+    \cs_gset_nopar:Npn \use:c { \exp_args:Nc \use:n }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\__msg_show_variable:n}
-%   The internal \pkg{l3msg} function responsible for showing variables
-%   is also redefined there to use the expansion underlying
-%   \cs{exp_args:Nf} directly, for a better output.
+% \begin{macro}[EXP]{\::o, \::f, \::o_unbraced, \::f_unbraced}
+% \begin{macro}[aux, EXP]{\@@_if_head_is_expandable:nF}
+%   These functions expand an argument, once or fully.  If the argument
+%   does not expand at all under the specified expansion type, warn the
+%   user.
 %    \begin{macrocode}
-    \cs_gset_protected:Npn \__msg_show_variable:n #1
+    \prg_new_conditional:Npnn \@@_if_head_is_expandable:n #1 { F }
       {
-        \tl_set:Nn \l__msg_internal_tl {#1}
-        \tl_if_empty:NTF \l__msg_internal_tl
-          { \etex_showtokens:D \exp_after:wN { } }
+        \tl_if_head_is_N_type:nTF {#1}
           {
-            \etex_showtokens:D \exp_after:wN
-              {
-                \tex_romannumeral:D -`0
-                \exp_after:wN \exp_after:wN
-                \exp_after:wN \__msg_show_variable:w
-                \exp_after:wN \l__msg_internal_tl
-              }
+            \exp_after:wN \tl_head:n
+              \exp_after:wN { \@@_if_head_is_expandable_aux:n #1 }
+          }
+          { \prg_return_false: }
+      }
+    \cs_new:Npn \@@_if_head_is_expandable_aux:n #1
+      {
+        {
+          \token_if_expandable:NTF #1
+            { \prg_return_true: }
+            { \prg_return_false: }
+        }
+      }
+    \check_patch:Npnn \::o #1 \::: #2#3 { {#1} \::: {#2} {#3} }
+      {
+        \@@_if_head_is_expandable:nF {#3}
+          { \@@_warning_exp:nnn { no-expansion } { o } {#3} }
+      }
+    \check_patch:Npnn \::f #1 \::: #2#3 { {#1} \::: {#2} {#3} }
+      {
+        \tl_if_head_eq_catcode:nNF {#3} \c_space_token
+          {
+            \@@_if_head_is_expandable:nF {#3}
+              { \@@_warning_exp:nnn { no-expansion } { f } {#3} }
+          }
+      }
+    \check_patch:Npnn \::o_unbraced \::: #1#2 { \::: {#1} {#2} }
+      {
+        \@@_if_head_is_expandable:nF {#2}
+          { \@@_warning_exp:nnn { no-expansion } { o } {#2} }
+      }
+    \check_patch:Npnn \::f_unbraced \::: #1#2 { \::: {#1} {#2} }
+      {
+        \tl_if_head_eq_catcode:nNF {#2} \c_space_token
+          {
+            \@@_if_head_is_expandable:nF {#2}
+              { \@@_warning_exp:nnn { no-expansion } { f } {#2} }
           }
       }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
 %
-%   Messages.
+% ^^A todo: check that first arg of \exp_args:N... is indeed N!
+%
+% \begin{macro}[EXP]{\::N}
+%   Check that this is a single token.
 %    \begin{macrocode}
-    \__msg_kernel_new:nnn { check } { no-expansion }
-      { Redundant~expansion~in~#1 }
+    \check_patch:Npnn \::N #1 \::: #2#3 { {#1} \::: {#2} {#3} }
+      { \check_is_N:n {#3} }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\::c}
+%    \begin{macrocode}
+    \check_patch:Npnn \::c #1 \::: #2#3 { {#1} \::: {#2} {#3} }
+      { \check_is_defined_exp:c {#3} }
+%    \end{macrocode}
+% \end{macro}
+%
+% ^^A todo:
+% \cs{::V}, \cs{::v}, \cs{::x}
+% |\::(V/v/x)_unbraced|,
+% |\exp_last_two_unbraced:Noo|,
+%
+% ^^A todo: extra checks for \cs{cs_generate_variant:Nn}.
+%    \begin{macrocode}
+    \check_patch:Nn \cs_generate_variant:Nn
+      {
+        \check_is_function:N #1
+        \check_is_defined:N #1
+      }
+%    \end{macrocode}
+%
+% ^^A todo: move somewhere sensible, find better solution
+%
+% Fix back a few commands, double checking that their original
+% definition is still what it was when this code was written.  Well, we
+% do not check \cs{__char_set_catcode:Nn}'s definition, because it
+% includes |^^@|, which is a can of worms.
+%    \begin{macrocode}
+    \group_begin:
+      \cs_set:Npn \check_tmp:w #1#2 \q_mark #3 ~ #4 \q_stop #5#6#7#8
+        {
+          \scan_stop: \scan_stop: \fi:
+          \exp_not:N \q_mark
+          \exp_not:N \q_stop
+          \exp_not:N #6
+          \exp_not:c { #7 : #8 #1 #3 }
+        }
+      \cs_if_eq:NNTF \check_tmp:w \__cs_generate_variant_loop_end:nwwwNNnn
+        {
+          \cs_gset:Npn \__cs_generate_variant_loop_end:nwwwNNnn #1#2 \q_mark #3 ~ #4 \q_stop #5#6#7#8
+            {
+              \scan_stop: \scan_stop: \fi:
+              \exp_not:N \q_mark
+              \exp_not:N \q_stop
+              \exp_not:N #6
+              \exp_after:wN \exp_not:N \cs:w #7 : #8 #1 #3 \cs_end:
+            }
+        }
+        { \@@_error:nn { internal } { Cannot~patch~\__cs_generate_variant_loop_end:nwwwNNnn } }
+      \cs_set_protected:Npn \check_tmp:w #1#2#3#4#5
+        {
+          \tex_catcode:D `#1 = \__int_eval:w #2 \__int_eval_end:
+          #3 { \tex_catcode:D `#1 / \c_two } = \c_six
+            {
+              \group_begin: \exp_args:NNc \group_end:
+              \__char_set_catcode:NNN {#1} #4 #5
+            }
+        }
+      \cs_if_eq:NNTF \check_tmp:w \__char_set_catcode:NnNNN
+        {
+          \cs_gset_protected:Npn \__char_set_catcode:NnNNN #1#2#3#4#5
+            {
+              \tex_catcode:D `#1 = \__int_eval:w #2 \__int_eval_end:
+              #3 { \tex_catcode:D `#1 / \c_two } = \c_six
+                {
+                  \group_begin: \exp_after:wN \group_end:
+                  \exp_after:wN \__char_set_catcode:NNN \cs:w #1 \cs_end: #4 #5
+                }
+            }
+        }
+        { \@@_error:nn { internal } { Cannot~patch~\__char_set_catcode:NnNNN } }
+      \tl_if_exist:cT { @sanitize }
+        {
+          \use:x
+            {
+              \exp_not:n { \cs_gset_protected:Npn \__char_set_catcode:Nn #1#2 }
+                {
+                  \exp_not:n { \cs_set_eq:NN \exp_args:Nc \@@_exp_args:Nc }
+                  \exp_not:o { \__char_set_catcode:Nn {#1} {#2} }
+                  \exp_not:n { \cs_set_nopar:Npn \exp_args:Nc { \::c \::: } }
+                }
+            }
+        }
+    \group_end:
+%    \end{macrocode}
+% We do not redefine \cs{exp_args:cc} because
+% \cs{prg_new_conditional:Npnn} and its friends use that function to
+% generate new control sequences.
+%
+% The |c| variants of all \enquote{defining} commands should use
+% \cs{@@_exp_args:Nc} and not \cs{exp_args:Nc} for their first
+% argument, so that the existence check is omitted.  Also for
+% \texttt{show} commands.
+%    \begin{macrocode}
+    \group_begin:
+      \cs_set_protected:Npn \check_tmp:w #1#2
+        {
+          \exp_after:wN \cs_gset_protected_nopar:Npx \cs:w #1 : c #2 \cs_end:
+            {
+              \exp_not:N \@@_exp_args:Nc
+              \exp_not:c { #1 : N#2 }
+            }
+        }
+      \tl_map_inline:nn { {set} {gset} {new} }
+        {
+          \tl_map_inline:nn { { } { _protected } { _nopar } { _protected_nopar } }
+            {
+              \tl_map_inline:nn { n x }
+                { \check_tmp:w { cs_#1##1 } { p ####1 } }
+            }
+        }
+      \tl_map_inline:nn { {tl} {clist} {seq} {prop} {int} {dim} {skip} {muskip} }
+        {
+          \check_tmp:w { #1_new } { }
+          \check_tmp:w { #1_show } { }
+          \check_tmp:w { #1_log } { }
+          \check_tmp:w { #1_if_exist_p } { }
+          \check_tmp:w { #1_if_exist } { TF }
+          \check_tmp:w { #1_if_exist } { T }
+          \check_tmp:w { #1_if_exist } { F }
+        }
+      \tl_map_inline:nn { {tl} {clist} {seq} {prop} }
+        {
+          \check_tmp:w { #1_clear_new } { }
+          \check_tmp:w { #1_gclear_new } { }
+        }
+      \tl_map_inline:nn { {int} {dim} {skip} {muskip} }
+        {
+          \check_tmp:w { #1_zero_new } { }
+          \check_tmp:w { #1_gzero_new } { }
+          \check_tmp:w { #1_const } { n }
+        }
+      \check_tmp:w { tl_const } { n }
+      \check_tmp:w { tl_const } { x }
+      \check_tmp:w { clist_const } { n }
+      \check_tmp:w { tl_concat } { NN }
+      \check_tmp:w { clist_concat } { NN }
+      \check_tmp:w { seq_concat } { NN }
+    \group_end:
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+  }
 %    \end{macrocode}
 %
 % \subsubsection{\pkg{l3tl}}
+%
+% ^^A todo: everything below
+% \cs{tl_new:N}, \cs{tl_const:Nn}/Nx, \cs{tl_clear:N}/gclear,
+% \cs{tl_clear_new:N}/gclear, |\tl_(set/gset)_eq:(N/c)(N/c)|,
+% \cs{tl_concat:NNN}/gconcat, |\tl_if_exist:(N/c)(T/F/TF//p)|,
+% |\tl_(set/gset):(Nn/No/Nx)|,
+% |\tl_(put/gput)_(left/right):N(n/V/o/x)|,
+% |\tl_(set/gset)_rescan:Nnn|, |\tl_(/g)replace_(once/all):Nnn|
+% |\tl_if_(empty/single):N|(TF), \cs{tl_if_eq:NN}(TF),
+% \cs{tl_if_in:Nn}(TF), |\tl_map_function:NN|, |\tl_map_inline:Nn|,
+% |\tl_map_variable:NNn|, |\tl_(to_str/use/count/head/tail):N|,
+% |\tl_(g/)trim_spaces:N|, |\tl_(g/)reverse:N|,
+% |\tl_if_head_eq_(charcode/catcode/meaning):nN|(TF), |\tl_item:Nn|,
+% |\tl_(show/log):N|, |\tl_(g/)set_from_file(/_x):Nnn|
+%
+% Remove the \cs{l@expl@check@declarations@bool} loop business since it
+% would be covered by \pkg{l3check}.
+%
+% |(tl/str/int/dim)_case:(N/n)n|(TF) count brace groups.
+%
+% \subsubsection{\pkg{l3seq}}
+%
+% \cs{seq_new:N} should also check name of var.
+%
+% |\seq_(g/)clear(/_new):N|, |\seq_(g/)set_eq:(N/c)(N/c)|,
+% |\seq_if_(exist/empty):(N/c)|(TF), |\seq_(g/)remove_duplicates:N|,
+% |\seq_if_in:Nn|(TF), |\seq_item:Nn|, |\seq_count:N|,
+% |\seq_use:Nn(/nn)|, |\seq_map_function:NN|,
+% |\seq_mapthread_function:NNN|, |\seq_map_inline:Nn|,
+% |\seq_map_variable:NNn|, |\seq_(show/log):N|
+%
+% The following abuse |\tl_(g/)set:N(n/x/f)|:
+% |\seq_(g/)set_from_clist:N(N/n)|,
+% |\seq_(g/)set_split:Nnn|,
+% |\seq_(g/)concat:NNN|,
+% |\seq_(g/)(put_left/put_right/push):Nn|,
+% |\seq_(g/)reverse:N|,
+% |\seq_(get/pop/gpop)_(left/right):NN|(TF),
+% |\seq_(get/pop/gpop):NN|(TF),
+% |\seq_(g/)set_(filter/map):NNn|
+%
+% The following abuses it more: |\seq_(g/)remove_all:Nn| (interrupting
+% assignment and starting it again).
+%
+% \subsubsection{\pkg{l3int}}
+%
+% In principle we could make integer expressions a bit more robust by
+% adding a bunch of parentheses.
+%
+% |\int_(show/log):N|, \cs{int_new:N}, |\int_(g/)(zero/incr/decr):N|, |\int_(g/)zero_new:N|, \cs{int_const:Nn},
+% |\int_(g/)set_eq:NN|, |\int_if_exist:N|(TF), |\int_(g/)(add/sub/set):Nn|,
+% |\int_compare:nNn|(TF), |\int_(while/until)_do:nNnn|, |\int_do_(while/until):nNnn|,
+% |\int_step_function:nnnN|, |\int_step_variable:nnnNn|
+%
+% Would be nice to change but cannot because of expansion: |\int_use:N|.
+%
+% Deprecated: |\int_(to/from)_(binary/hexadecimal/octal):n|.
+%
+% \subsubsection{\pkg{l3quark}}
+%
+% \cs{quark_new:N} abuses \cs{tl_const:Nn}.
+%
+% \cs{quark_if_recursion_tail_stop:N}, \cs{quark_if_recursion_tail_stop_do:Nn},
+% |\quark_if_(nil/no_value):N|(TF)
+%
+% \subsubsection{\pkg{l3prg}}
+%
+% \cs{bool_new:N}, |\bool_(g/)set_(true/false):N|,
+% |\bool_(g/)set_eq:(N/c)(N/c)|, |\bool_(g/)set:Nn|, |\bool_if:N|(TF),
+% |\bool_(show/log):N|, |\bool_if_exist:(N/c)(TF)|, |\bool_(while_do/until_do/do_while/do_until):Nn|
+%
+% Deprecated: |\scan_align_safe_stop:|
+%
+% \subsubsection{\pkg{l3clist}}
+%
+% |\clist_new:(N/c)|, |\clist_const:Nn| abuses |\tl_const:Nx|, |\clist_(g/)clear:(N/c)|, |\clist_(g/)clear_new:(N/c)|,
+% |\clist_(g/)set_eq:(N/c)(N/c)|, |\clist_(g/)set_from_seq:NN| abuses |\tl_(g/)set:N?|, |\clist_(g/)concat:NNN| abuses |\tl_(g/)set:Nx|,
+% |\clist_if_exist:(N/c)|(TF), |\clist_(g/)set:Nn| abuses |\tl_(g/)set:Nx|, |\clist_(g/)put_(left/right):Nn| just N-type, |\clist_(get/pop/gpop):NN|(TF) abuse |\tl_(g/)set:N(n/x)|, |\clist_(g/)push:Nn|, |\clist_(g/)remove_duplicates:N|, |\clist_(g/)remove_all:Nn|, |\clist_(g/)reverse:N|, |\clist_if_in:Nn|(TF), |\clist_map_function:(N/n)N|, |\clist_map_inline:Nn|, |\clist_map_variable:(N/n)Nn|, |\clist_count:N|, |\clist_use:Nn(/nn)|, |\clist_item:Nn|, |\clist_(show/log):N|
+%
+% \subsubsection{\pkg{l3token}}
+%
+% ^^A todo: the internal \__peek_get_prefix_arg_replacement:wN is misnamed: __peek should be __token
+%
+% |\char_set_catcode_(escape/group_begin/group_end/math_toggle/alignment/end_line/parameter/math_superscript/math_subscript/ignore/space/letter/other/active/comment/invalid):N|,
+% |\token_if_(group_begin/group_end/math_toggle/alignment/parameter/math_superscript/math_subscript/space/letter/other/active/macro/cs/expandable/primitive/chardef/mathchardef/(dim/int/muskip/skip/toks)_register/(protected/long/protected_long)_macro):N|(TF),
+% |\peek_(catcode/charcode/meaning)(/_remove)(/_ignore_spaces):N|(TF),
+% |\token_new:Nn|, |\token_if_eq_(meaning/catcode/charcode):NN|(TF),
+% |\peek_(g/)after:Nw|,
+% |\token_get_(prefix/arg/replacement)_spec:N|,
+% |\char_(g/)set_active:Np(n/x)|, |\char_(g/)set_active_eq:NN|,
+%
+% \subsubsection{\pkg{l3prop}}
+%
+% |\prop_new:N|, |\prop_(g/)clear:N|, |\prop_(g/)clear_new:N|,
+% |\prop_(g/)set_eq:(N/c)(N/c)|, |\prop_item:Nn|,
+% |\prop_if_exist:(N/c)|(TF), |\prop_if_empty:N|(TF),
+% |\prop_if_in:Nn|(TF), |\prop_map_function:NN|, |\prop_map_tokens:Nn|,
+% |\prop_map_inline:Nn|, |\prop_(show/log):N|
+%
+% The following abuse |\tl_set:Nn| et al: |\prop_(g/)remove:Nn|, |\prop_(get/pop/gpop):NnN|(TF), |\prop_(g/)put(/_if_new):Nnn|
+%
+% |\prop_get:(N/c)n| (deprecated!)
+%
+% \subsubsection{\pkg{l3msg}}
+%
+% |\msg_(new/set/gset):nnn(/n)|?
+%
+% \subsubsection{\pkg{l3file}}
+%
+% ^^A todo: should \file_add_path:nN be renamed to \file_get_path:nN ?
+%
+% |\file_add_path:nN|, |\io(r/w)_new:N|, |\io(r/w)_open:Nn|,
+% |\ior_open:Nn|(TF), |\io(r/w)_close:N|, |\ior_get(/_str):NN|,
+% |\iow_(now/shipout/shipout_x):Nn| (special case |\c_(log/term)_iow|?),
+% |\iow_char:N|, |\iow_wrap:nnnN|,
+% |\ior_(str_/)map_inline:Nn|,
+%
+% \subsubsection{\pkg{l3skip}}
+%
+% |(dim/skip/muskip)_new:N|
+% |(dim/skip/muskip)_(g/)zero:N|
+% |(dim/skip/muskip)_(g/)zero_new:N|
+% |(dim/skip/muskip)_if_exist:(N/c)|
+% |(dim/skip/muskip)_const:Nn| abuses new and gset
+% |(dim/skip/muskip)_(g/)(set/add/sub):Nn|
+% |(dim/skip/muskip)_(g/)set_eq:NN|
+% |dim_abs:N|
+% |dim_compare:nNn|(TF)
+% |dim_(while_do/until_do/do_while/do_until):nNnn|
+% |(dim/skip/muskip)_(show/log):(N/c)|
+% |skip_(horizontal/vertical):N|
+% |\skip_split_finite_else_action:nnNN| % ^^A todo: rename?
+%
+% Would be nice to change but cannot because of expansion: |(dim/skip/muskip)_use:N|.
+%
+% \subsubsection{\pkg{l3keys}}
+% ^^A todo: add checking of args of key properties such as |.tl_set:N|
+%
+% |\keyval_parse:NNn|, |\keys_set_known:nnN|, |\keys_set_filter:nnnN|,
+%
+% |\keys_(show/log):nn|, |\keys_set:nn|, |\keys_set_known:nn(/N)|,
+% |\keys_set_filter:nnnN|, |\keys_set_groups:nnn|, could check the
+% module is known due to |\keys_define:nn|, \emph{i.e.}, that at least
+% one key is known for this module.
+%
+% \subsubsection{\pkg{l3fp}}
+%
+% |\fp_flag_on:n| must not use \cs{exp_args:Nc}.
+% |\fp_function:Nn|, |\fp_new_function:Npn|, |\fp_if_exist:(N/c)|(TF),
+% |\fp_compare:nNn|(TF), |\fp_(do_until/do_while/until_do/while_do):nNnn|
+% |\fp_to_(scientific/decimal/tl/dim/int):N|, |\fp_use:N|,
+%
+% |\fp_new:N|, |\fp_(set/gset/const):Nn| abuses |\tl_(set/gset/const):Nx|
+% |\fp_(g/)set_eq:NN|, |\fp_(g/)zero(/_new):N|, |\fp_(show/log):N|,
+%
+% |\fp_(g/)set_from_dim:Nn| (deprecated!)
+%
+% \subsubsection{\pkg{l3box}}
+%
+% |\box_new:N|, |\box_(g/)clear(/_new):N|,
+% |\box_(g/)set_eq(/_clear):NN|, |\box_if_exist:(N/c)|(TF)
+% |\box_(ht/dp/wd):N|, |\box_set_(dp/ht/wd):Nn|, |\box_use(/_clear):N|,
+% |\box_if_(horizontal/vertical/empty):N|(TF),
+% |\box_(g/)set_to_last:N|, |\box_(show/log):N(/nn)|,
+% |\hbox_(g/)set(:Nw/:Nn/_to_wd:Nnn)|, |\hbox_unpack(/_clear):N|,
+% |\vbox_set(:Nw/:Nn/_top:Nn/_to_ht:Nnn)|, |\vbox_unpack(/_clear):N|,
+% |\vbox_set_split_to_ht:NNn|,
+% |\box_rotate:Nn|, |\box_resize(/_to_wd_and_ht):Nnn|,
+% |\box_resize_to_(ht/ht_plus_dp/wd):Nn|, |\box_scale:Nnn|,
+% |\box_clip:N|, |\box_(trim/viewport):Nnnnn|,
+%
+% \subsubsection{\pkg{l3coffins}}
+%
+% |\coffin_if_exist:N|(TF), |\coffin_clear:N|, |\coffin_new:N|,
+% |\hcoffin_set(:Nn/:Nw)|, |\vcoffin_set(:Nnn/:Nnw)|,
+% |\coffin_set_eq:NN|, |\coffin_(dp/ht/wd):(N/c)|,
+% |\coffin_set_(horizontal/vertical)_pole:Nnn|,
+% |\coffin_(join/attach/attach_mark):NnnNnnnn|,
+% |\coffin_typeset:Nnnnn|, |\coffin_mark_handle:Nnnn|,
+% |\coffin_display_handles:Nn|, |\coffin_(show/log)_structure:N|,
+% |\coffin_rotate:Nn|, |\coffin_(resize/scale):Nnn|
+%
+% \subsubsection{pkg{l3color}}
+%
+% Alter |\color_group_begin:| if we decide to do something with |\group_begin:|.
+%
+% ^^A todo: inconsistency between \ior_str_map_inline and \ior_get_str
+%
+% ^^A todo: also provide \tl_set_from_file:Nnn as \file_contents_get:nnN ?
+%
+% \subsubsection{More stuff we could do}
 %
 % \begin{itemize}
 %   \item We could check for a scope of \texttt{l} or \texttt{g} in
@@ -996,14 +1757,14 @@
 %   Protected functions whose first argument is a token list which may
 %   be undefined.
 %    \begin{macrocode}
-    \@@_patch_protected:Npnn \tl_new:N #1 { {#1} }
-      { \@@_variable_type_only:nn {#1} { tl } }
-    \@@_patch_protected:Npnn \tl_show:N #1 { {#1} }
-      { \@@_variable_type_only:nn {#1} { tl } }
-    \@@_patch_protected:Npnn \tl_const:Nn #1 { {#1} }
-      { \@@_variable_scope_type_only:nnn {#1} { c } { tl } }
-    \@@_patch_protected:Npnn \tl_const:Nx #1 { {#1} }
-      { \@@_variable_scope_type_only:nnn {#1} { c } { tl } }
+    % \@@_patch_protected:Npnn \tl_new:N #1 { {#1} }
+    %   { \@@_variable_type_only:nn {#1} { tl } }
+    % \@@_patch_protected:Npnn \tl_show:N #1 { {#1} }
+    %   { \@@_variable_type_only:nn {#1} { tl } }
+    % \@@_patch_protected:Npnn \tl_const:Nn #1 { {#1} }
+    %   { \@@_variable_scope_type_only:nnn {#1} { c } { tl } }
+    % \@@_patch_protected:Npnn \tl_const:Nx #1 { {#1} }
+    %   { \@@_variable_scope_type_only:nnn {#1} { c } { tl } }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1011,12 +1772,12 @@
 %   Expandable test whose first argument is a token list which may be
 %   undefined.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      { \tl_if_exist:NTF \tl_if_exist:NT \tl_if_exist:NF \tl_if_exist_p:N }
-      {
-        \@@_patch:Npnn #1 ##1 { {##1} }
-          { \@@_variable_type_only_expandable:nn {##1} { tl } }
-      }
+    % \tl_map_inline:nn
+    %   { \tl_if_exist:NTF \tl_if_exist:NT \tl_if_exist:NF \tl_if_exist_p:N }
+    %   {
+    %     \@@_patch:Npnn #1 ##1 { {##1} }
+    %       { \@@_variable_type_only_exp:nn {##1} { tl } }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1033,19 +1794,19 @@
 %   }
 %   Protected functions whose first argument is a defined, local token list.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      {
-        \tl_set:Nn \tl_set:No \tl_set:Nx
-        \tl_put_left:Nn \tl_put_left:NV \tl_put_left:No \tl_put_left:Nx
-        \tl_put_right:Nn \tl_put_right:NV \tl_put_right:No \tl_put_right:Nx
-        \tl_set_rescan:Nnn
-        \tl_replace_once:Nnn \tl_replace_all:Nnn
-        \tl_trim_spaces:N \tl_reverse:N
-      }
-      {
-        \@@_patch_protected:Npnn #1 ##1 { {##1} }
-          { \@@_variable_scope_type:nnn {##1} { l } { tl } }
-      }
+    % \tl_map_inline:nn
+    %   {
+    %     \tl_set:Nn \tl_set:No \tl_set:Nx
+    %     \tl_put_left:Nn \tl_put_left:NV \tl_put_left:No \tl_put_left:Nx
+    %     \tl_put_right:Nn \tl_put_right:NV \tl_put_right:No \tl_put_right:Nx
+    %     \tl_set_rescan:Nnn
+    %     \tl_replace_once:Nnn \tl_replace_all:Nnn
+    %     \tl_trim_spaces:N \tl_reverse:N
+    %   }
+    %   {
+    %     \@@_patch_protected:Npnn #1 ##1 { {##1} }
+    %       { \@@_variable_scope_type:nnn {##1} { l } { tl } }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1062,21 +1823,21 @@
 %   }
 %   Protected functions whose first argument is a defined, global token list.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      {
-        \tl_gset:Nn \tl_gset:No \tl_gset:Nx
-        \tl_gput_left:Nn \tl_gput_left:NV
-        \tl_gput_left:No \tl_gput_left:Nx
-        \tl_gput_right:Nn \tl_gput_right:NV
-        \tl_gput_right:No \tl_gput_right:Nx
-        \tl_gset_rescan:Nnn
-        \tl_greplace_once:Nnn \tl_greplace_all:Nnn
-        \tl_gtrim_spaces:N \tl_greverse:N
-      }
-      {
-        \@@_patch_protected:Npnn #1 ##1 { {##1} }
-          { \@@_variable_scope_type:nnn {##1} { g } { tl } }
-      }
+    % \tl_map_inline:nn
+    %   {
+    %     \tl_gset:Nn \tl_gset:No \tl_gset:Nx
+    %     \tl_gput_left:Nn \tl_gput_left:NV
+    %     \tl_gput_left:No \tl_gput_left:Nx
+    %     \tl_gput_right:Nn \tl_gput_right:NV
+    %     \tl_gput_right:No \tl_gput_right:Nx
+    %     \tl_gset_rescan:Nnn
+    %     \tl_greplace_once:Nnn \tl_greplace_all:Nnn
+    %     \tl_gtrim_spaces:N \tl_greverse:N
+    %   }
+    %   {
+    %     \@@_patch_protected:Npnn #1 ##1 { {##1} }
+    %       { \@@_variable_scope_type:nnn {##1} { g } { tl } }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1086,16 +1847,16 @@
 %   list.  Importantly, |#1| and |#2| are not braced in the first |n|
 %   argument of \cs{@@_patch_protected:Npnn}.
 %    \begin{macrocode}
-    \@@_patch_protected:Npnn \tl_set_eq:NN #1#2 { #1 #2 }
-      {
-        \@@_variable_scope_type:nnn {#1} { l } { tl }
-        \@@_variable_type:nn {#2} { tl }
-      }
-    \@@_patch_protected:Npnn \tl_gset_eq:NN #1#2 { #1 #2 }
-      {
-        \@@_variable_scope_type:nnn {#1} { g } { tl }
-        \@@_variable_type:nn {#2} { tl }
-      }
+    % \@@_patch_protected:Npnn \tl_set_eq:NN #1#2 { #1 #2 }
+    %   {
+    %     \@@_variable_scope_type:nnn {#1} { l } { tl }
+    %     \@@_variable_type:nn {#2} { tl }
+    %   }
+    % \@@_patch_protected:Npnn \tl_gset_eq:NN #1#2 { #1 #2 }
+    %   {
+    %     \@@_variable_scope_type:nnn {#1} { g } { tl }
+    %     \@@_variable_type:nn {#2} { tl }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1103,18 +1864,18 @@
 %   Protected functions whose three arguments are defined token lists,
 %   with a first argument local or global depending on the function.
 %    \begin{macrocode}
-    \@@_patch_protected:Npnn \tl_concat:NNN #1#2#3 { {#1} {#2} {#3} }
-      {
-        \@@_variable_scope_type:nnn {#1} { l } { tl }
-        \@@_variable_type:nn {#2} { tl }
-        \@@_variable_type:nn {#3} { tl }
-      }
-    \@@_patch_protected:Npnn \tl_gconcat:NNN #1#2#3 { {#1} {#2} {#3} }
-      {
-        \@@_variable_scope_type:nnn {#1} { g } { tl }
-        \@@_variable_type:nn {#2} { tl }
-        \@@_variable_type:nn {#3} { tl }
-      }
+    % \@@_patch_protected:Npnn \tl_concat:NNN #1#2#3 { {#1} {#2} {#3} }
+    %   {
+    %     \@@_variable_scope_type:nnn {#1} { l } { tl }
+    %     \@@_variable_type:nn {#2} { tl }
+    %     \@@_variable_type:nn {#3} { tl }
+    %   }
+    % \@@_patch_protected:Npnn \tl_gconcat:NNN #1#2#3 { {#1} {#2} {#3} }
+    %   {
+    %     \@@_variable_scope_type:nnn {#1} { g } { tl }
+    %     \@@_variable_type:nn {#2} { tl }
+    %     \@@_variable_type:nn {#3} { tl }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1125,15 +1886,15 @@
 %   }
 %   Protected functions whose first argument is a defined token list.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      {
-        \tl_map_inline:Nn \tl_map_variable:NNn
-        \tl_if_in:NnTF \tl_if_in:NnT \tl_if_in:NnF
-      }
-      {
-        \@@_patch_protected:Npnn #1 ##1 { {##1} }
-          { \@@_variable_type:nn {##1} { tl } }
-      }
+    % \tl_map_inline:nn
+    %   {
+    %     \tl_map_inline:Nn \tl_map_variable:NNn
+    %     \tl_if_in:NnTF \tl_if_in:NnT \tl_if_in:NnF
+    %   }
+    %   {
+    %     \@@_patch_protected:Npnn #1 ##1 { {##1} }
+    %       { \@@_variable_type:nn {##1} { tl } }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1141,18 +1902,18 @@
 % \begin{macro}[EXP]{\tl_map_function:NN, \tl_head:N, \tl_tail:N}
 %   Expandable functions whose first argument is a defined token list.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      {
-        \tl_if_empty_p:N  \tl_if_empty:NTF
-        \tl_if_empty:NT   \tl_if_empty:NF
-        \tl_if_single_p:N \tl_if_single:NTF
-        \tl_if_single:NT  \tl_if_single:NF
-        \tl_map_function:NN \tl_head:N \tl_tail:N
-      }
-      {
-        \@@_patch:Npnn #1 ##1 { {##1} }
-          { \@@_variable_type_expandable:nn {##1} { tl } }
-      }
+    % \tl_map_inline:nn
+    %   {
+    %     \tl_if_empty_p:N  \tl_if_empty:NTF
+    %     \tl_if_empty:NT   \tl_if_empty:NF
+    %     \tl_if_single_p:N \tl_if_single:NTF
+    %     \tl_if_single:NT  \tl_if_single:NF
+    %     \tl_map_function:NN \tl_head:N \tl_tail:N
+    %   }
+    %   {
+    %     \@@_patch:Npnn #1 ##1 { {##1} }
+    %       { \@@_variable_type_exp:nn {##1} { tl } }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -1160,15 +1921,15 @@
 % \begin{macro}[EXP, pTF]{\tl_if_eq:NN}
 %   Expandable functions whose two arguments are defined token lists.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      { \tl_if_eq_p:NN \tl_if_eq:NNTF \tl_if_eq:NNT \tl_if_eq:NNF }
-      {
-        \@@_patch:Npnn #1 ##1##2 { {##1} {##2} }
-          {
-            \@@_variable_type_expandable:nn {##1} { tl }
-            \@@_variable_type_expandable:nn {##2} { tl }
-          }
-      }
+    % \tl_map_inline:nn
+    %   { \tl_if_eq_p:NN \tl_if_eq:NNTF \tl_if_eq:NNT \tl_if_eq:NNF }
+    %   {
+    %     \@@_patch:Npnn #1 ##1##2 { {##1} {##2} }
+    %       {
+    %         \@@_variable_type_exp:nn {##1} { tl }
+    %         \@@_variable_type_exp:nn {##2} { tl }
+    %       }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1176,10 +1937,10 @@
 % \begin{macro}{\tl_map_variable:nNn}
 %   An expandable and a protected functions whose second argument is defined.
 %    \begin{macrocode}
-    \@@_patch:Npnn \tl_map_function:nN #1#2 { {#1} {#2} }
-      { \@@_cs_exist_expandable:n {#2} }
-    \@@_patch_protected:Npnn \tl_map_variable:nNn #1#2 { {#1} {#2} }
-      { \@@_cs_exist:n {#2} }
+    % \@@_patch:Npnn \tl_map_function:nN #1#2 { {#1} {#2} }
+    %   { \@@_cs_exist_exp:n {#2} }
+    % \@@_patch_protected:Npnn \tl_map_variable:nNn #1#2 { {#1} {#2} }
+    %   { \@@_cs_exist:n {#2} }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -1188,17 +1949,15 @@
 %   We need to redefine that one from scratch, since it may be expected
 %   to expand in two steps.
 %    \begin{macrocode}
-    \cs_gset:Npn \tl_to_str:N #1
-      {
-        \etex_detokenize:D
-          \@@_if_on:nT { l3tl }
-            { \@@_variable_type_expandable:nn {#1} { tl } }
-          \exp_after:wN {#1}
-      }
+    % \cs_gset:Npn \tl_to_str:N #1
+    %   {
+    %     \etex_detokenize:D
+    %       \@@_if_on:nT { l3tl }
+    %         { \@@_variable_type_exp:nn {#1} { tl } }
+    %       \exp_after:wN {#1}
+    %   }
 %    \end{macrocode}
 % \end{macro}
-%
-% \subsubsection{\pkg{l3seq}}
 %
 % \begin{itemize}
 %   \item The \cs{seq_if_exist:NTF} conditionals should also have a type
@@ -1209,10 +1968,10 @@
 %   Protected functions whose first argument is a sequence which may be
 %   undefined.
 %    \begin{macrocode}
-    \@@_patch_protected:Npnn \seq_new:N #1 { {#1} }
-      { \@@_variable_type_only:nn {#1} { seq } }
-    \@@_patch_protected:Npnn \seq_show:N #1 { {#1} }
-      { \@@_variable_type_only:nn {#1} { seq } }
+    % \@@_patch_protected:Npnn \seq_new:N #1 { {#1} }
+    %   { \@@_variable_type_only:nn {#1} { seq } }
+    % \@@_patch_protected:Npnn \seq_show:N #1 { {#1} }
+    %   { \@@_variable_type_only:nn {#1} { seq } }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1220,12 +1979,12 @@
 %   Expandable test whose first argument is a sequence which may be
 %   undefined.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      { \seq_if_exist:NTF \seq_if_exist:NT \seq_if_exist:NF \seq_if_exist_p:N }
-      {
-        \@@_patch:Npnn #1 ##1 { {##1} }
-          { \@@_variable_type_only_expandable:nn {##1} { seq } }
-      }
+    % \tl_map_inline:nn
+    %   { \seq_if_exist:NTF \seq_if_exist:NT \seq_if_exist:NF \seq_if_exist_p:N }
+    %   {
+    %     \@@_patch:Npnn #1 ##1 { {##1} }
+    %       { \@@_variable_type_only_exp:nn {##1} { seq } }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1237,16 +1996,16 @@
 %   }
 %   Protected functions whose first argument is a defined, local sequence.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      {
-        \seq_set_split:Nnn
-        \seq_put_left:Nn \seq_put_right:Nn \seq_push:Nn
-        \seq_remove_duplicates:N \seq_remove_all:Nn
-      }
-      {
-        \@@_patch_protected:Npnn #1 ##1 { {##1} }
-          { \@@_variable_scope_type:nnn {##1} { l } { seq } }
-      }
+    % \tl_map_inline:nn
+    %   {
+    %     \seq_set_split:Nnn
+    %     \seq_put_left:Nn \seq_put_right:Nn \seq_push:Nn
+    %     \seq_remove_duplicates:N \seq_remove_all:Nn
+    %   }
+    %   {
+    %     \@@_patch_protected:Npnn #1 ##1 { {##1} }
+    %       { \@@_variable_scope_type:nnn {##1} { l } { seq } }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1258,48 +2017,48 @@
 %   }
 %   Check that arguments are defined, have the right type and scope.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      {
-        \seq_gset_split:Nnn
-        \seq_gput_left:Nn \seq_gput_right:Nn \seq_gpush:Nn
-        \seq_gremove_duplicates:N \seq_gremove_all:Nn
-      }
-      {
-        \@@_patch_protected:Npnn #1 ##1 { {##1} }
-          { \@@_variable_scope_type:nnn {##1} { g } { seq } }
-      }
+    % \tl_map_inline:nn
+    %   {
+    %     \seq_gset_split:Nnn
+    %     \seq_gput_left:Nn \seq_gput_right:Nn \seq_gpush:Nn
+    %     \seq_gremove_duplicates:N \seq_gremove_all:Nn
+    %   }
+    %   {
+    %     \@@_patch_protected:Npnn #1 ##1 { {##1} }
+    %       { \@@_variable_scope_type:nnn {##1} { g } { seq } }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\seq_set_eq:NN, \seq_gset_eq:NN}
 %    \begin{macrocode}
-    \@@_patch_protected:Npnn \seq_set_eq:NN #1#2 { #1 #2 }
-      {
-        \@@_variable_scope_type:nnn {#1} { l } { seq }
-        \@@_variable_type:nn {#2} { seq }
-      }
-    \@@_patch_protected:Npnn \seq_gset_eq:NN #1#2 { #1 #2 }
-      {
-        \@@_variable_scope_type:nnn {#1} { g } { seq }
-        \@@_variable_type:nn {#2} { seq }
-      }
+    % \@@_patch_protected:Npnn \seq_set_eq:NN #1#2 { #1 #2 }
+    %   {
+    %     \@@_variable_scope_type:nnn {#1} { l } { seq }
+    %     \@@_variable_type:nn {#2} { seq }
+    %   }
+    % \@@_patch_protected:Npnn \seq_gset_eq:NN #1#2 { #1 #2 }
+    %   {
+    %     \@@_variable_scope_type:nnn {#1} { g } { seq }
+    %     \@@_variable_type:nn {#2} { seq }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\seq_concat:NNN, \seq_gconcat:NNN}
 %    \begin{macrocode}
-    \@@_patch_protected:Npnn \seq_concat:NNN #1#2#3 { {#1} {#2} {#3} }
-      {
-        \@@_variable_scope_type:nnn {#1} { l } { seq }
-        \@@_variable_type:nn {#2} { seq }
-        \@@_variable_type:nn {#3} { seq }
-      }
-    \@@_patch_protected:Npnn \seq_gconcat:NNN #1#2#3 { {#1} {#2} {#3} }
-      {
-        \@@_variable_scope_type:nnn {#1} { g } { seq }
-        \@@_variable_type:nn {#2} { seq }
-        \@@_variable_type:nn {#3} { seq }
-      }
+    % \@@_patch_protected:Npnn \seq_concat:NNN #1#2#3 { {#1} {#2} {#3} }
+    %   {
+    %     \@@_variable_scope_type:nnn {#1} { l } { seq }
+    %     \@@_variable_type:nn {#2} { seq }
+    %     \@@_variable_type:nn {#3} { seq }
+    %   }
+    % \@@_patch_protected:Npnn \seq_gconcat:NNN #1#2#3 { {#1} {#2} {#3} }
+    %   {
+    %     \@@_variable_scope_type:nnn {#1} { g } { seq }
+    %     \@@_variable_type:nn {#2} { seq }
+    %     \@@_variable_type:nn {#3} { seq }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1355,17 +2114,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\seq_clear:N, \seq_gclear:N}
-%   Clearing a sequence should be done by setting it equal to the empty
-%   sequence, not a simple copy of the \cs{tl_clear:N} function anymore.
-%    \begin{macrocode}
-    \cs_gset_protected:Npn \seq_clear:N #1
-      { \seq_set_eq:NN #1 \c_empty_seq }
-    \cs_gset_protected:Npn \seq_gclear:N #1
-      { \seq_gset_eq:NN #1 \c_empty_seq }
-%    \end{macrocode}
-% \end{macro}
-%
 % \begin{macro}
 %   {
 %     \seq_map_inline:Nn,
@@ -1373,36 +2121,36 @@
 %   }
 %   Protected functions whose first argument is a defined sequence.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      { \seq_map_inline:Nn \seq_if_in:NnTF \seq_if_in:NnT \seq_if_in:NnF }
-      {
-        \@@_patch_protected:Npnn #1 ##1 { {##1} }
-          { \@@_variable_type:nn {##1} { seq } }
-      }
+    % \tl_map_inline:nn
+    %   { \seq_map_inline:Nn \seq_if_in:NnTF \seq_if_in:NnT \seq_if_in:NnF }
+    %   {
+    %     \@@_patch_protected:Npnn #1 ##1 { {##1} }
+    %       { \@@_variable_type:nn {##1} { seq } }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[EXP, pTF]{\seq_if_empty:N, \seq_if_eq:NN}
 %   For these two tests, we check the type, expandably.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      {
-        \seq_if_empty_p:N \seq_if_empty:NTF
-        \seq_if_empty:NT \seq_if_empty:NF
-      }
-      {
-        \@@_patch:Npnn #1 ##1 { {##1} }
-          { \@@_variable_type_expandable:nn {##1} { seq } }
-      }
-    \tl_map_inline:nn
-      { \seq_if_eq_p:NN \seq_if_eq:NNTF \seq_if_eq:NNT \seq_if_eq:NNF }
-      {
-        \@@_patch:Npnn #1 ##1##2 { {##1} {##2} }
-          {
-            \@@_variable_type_expandable:nn {##1} { seq }
-            \@@_variable_type_expandable:nn {##2} { seq }
-          }
-      }
+    % \tl_map_inline:nn
+    %   {
+    %     \seq_if_empty_p:N \seq_if_empty:NTF
+    %     \seq_if_empty:NT \seq_if_empty:NF
+    %   }
+    %   {
+    %     \@@_patch:Npnn #1 ##1 { {##1} }
+    %       { \@@_variable_type_exp:nn {##1} { seq } }
+    %   }
+    % \tl_map_inline:nn
+    %   { \seq_if_eq_p:NN \seq_if_eq:NNTF \seq_if_eq:NNT \seq_if_eq:NNF }
+    %   {
+    %     \@@_patch:Npnn #1 ##1##2 { {##1} {##2} }
+    %       {
+    %         \@@_variable_type_exp:nn {##1} { seq }
+    %         \@@_variable_type_exp:nn {##2} { seq }
+    %       }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1451,80 +2199,75 @@
 %   Since the \cs{seq_map_variable:NNn} needs the same checks as the
 %   |get| functions, we patch it here too.
 %    \begin{macrocode}
-    \tl_map_inline:nn
-      {
-        \seq_map_variable:NNn
-        \seq_get_left:NN \seq_get_left:NNT
-        \seq_get_left:NNF \seq_get_left:NNTF
-        \seq_get_right:NN \seq_get_right:NNT
-        \seq_get_right:NNF \seq_get_right:NNTF
-        \seq_get:NN \seq_get:NNT \seq_get:NNF \seq_get:NNTF
-      }
-      {
-        \@@_patch_protected:Npnn #1 ##1##2 { {##1} {##2} }
-          {
-            \@@_variable_type:nn {##1} { seq }
-            \@@_variable_type:nn {##2} { tl }
-          }
-      }
-    \tl_map_inline:nn
-      {
-        \seq_pop_left:NN \seq_pop_left:NNT
-        \seq_pop_left:NNF \seq_pop_left:NNTF
-        \seq_pop_right:NN \seq_pop_right:NNT
-        \seq_pop_right:NNF \seq_pop_right:NNTF
-        \seq_pop:NN \seq_pop:NNT \seq_pop:NNF \seq_pop:NNTF
-      }
-      {
-        \@@_patch_protected:Npnn #1 ##1##2 { {##1} {##2} }
-          {
-            \@@_variable_scope_type:nnn {##1} { l } { seq }
-            \@@_variable_type:nn {##2} { tl }
-          }
-      }
-    \tl_map_inline:nn
-      {
-        \seq_gpop_left:NN \seq_gpop_left:NNT
-        \seq_gpop_left:NNF \seq_gpop_left:NNTF
-        \seq_gpop_right:NN \seq_gpop_right:NNT
-        \seq_gpop_right:NNF \seq_gpop_right:NNTF
-        \seq_gpop:NN \seq_gpop:NNT \seq_gpop:NNF \seq_gpop:NNTF
-      }
-      {
-        \@@_patch_protected:Npnn #1 ##1##2 { {##1} {##2} }
-          {
-            \@@_variable_scope_type:nnn {##1} { g } { seq }
-            \@@_variable_type:nn {##2} { tl }
-          }
-      }
+    % \tl_map_inline:nn
+    %   {
+    %     \seq_map_variable:NNn
+    %     \seq_get_left:NN \seq_get_left:NNT
+    %     \seq_get_left:NNF \seq_get_left:NNTF
+    %     \seq_get_right:NN \seq_get_right:NNT
+    %     \seq_get_right:NNF \seq_get_right:NNTF
+    %     \seq_get:NN \seq_get:NNT \seq_get:NNF \seq_get:NNTF
+    %   }
+    %   {
+    %     \@@_patch_protected:Npnn #1 ##1##2 { {##1} {##2} }
+    %       {
+    %         \@@_variable_type:nn {##1} { seq }
+    %         \@@_variable_type:nn {##2} { tl }
+    %       }
+    %   }
+    % \tl_map_inline:nn
+    %   {
+    %     \seq_pop_left:NN \seq_pop_left:NNT
+    %     \seq_pop_left:NNF \seq_pop_left:NNTF
+    %     \seq_pop_right:NN \seq_pop_right:NNT
+    %     \seq_pop_right:NNF \seq_pop_right:NNTF
+    %     \seq_pop:NN \seq_pop:NNT \seq_pop:NNF \seq_pop:NNTF
+    %   }
+    %   {
+    %     \@@_patch_protected:Npnn #1 ##1##2 { {##1} {##2} }
+    %       {
+    %         \@@_variable_scope_type:nnn {##1} { l } { seq }
+    %         \@@_variable_type:nn {##2} { tl }
+    %       }
+    %   }
+    % \tl_map_inline:nn
+    %   {
+    %     \seq_gpop_left:NN \seq_gpop_left:NNT
+    %     \seq_gpop_left:NNF \seq_gpop_left:NNTF
+    %     \seq_gpop_right:NN \seq_gpop_right:NNT
+    %     \seq_gpop_right:NNF \seq_gpop_right:NNTF
+    %     \seq_gpop:NN \seq_gpop:NNT \seq_gpop:NNF \seq_gpop:NNTF
+    %   }
+    %   {
+    %     \@@_patch_protected:Npnn #1 ##1##2 { {##1} {##2} }
+    %       {
+    %         \@@_variable_scope_type:nnn {##1} { g } { seq }
+    %         \@@_variable_type:nn {##2} { tl }
+    %       }
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[EXP]{\seq_map_function:NN}
 %   Check that |#1| is a |seq| and |#2| is defined.
 %    \begin{macrocode}
-    \@@_patch:Npnn \seq_map_function:NN #1#2 { {#1} {#2} }
-      {
-        \@@_variable_type_expandable:nn {#1} { seq }
-        \@@_cs_exist_expandable:n {#2}
-      }
+    % \@@_patch:Npnn \seq_map_function:NN #1#2 { {#1} {#2} }
+    %   {
+    %     \@@_variable_type_exp:nn {#1} { seq }
+    %     \@@_cs_exist_exp:n {#2}
+    %   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsubsection{\pkg{l3int}}
-%
-% \subsubsection{\pkg{l3quark}}
-%
-% \subsubsection{\pkg{l3prg}}
-%
+% \subsection{Let us go!}
 %
 %    \begin{macrocode}
-  }
 \check_on:n { l3kernel }
 %    \end{macrocode}
 %
 % \subsection{\texttt{l3kernel} test files failures}
 %
+% Note: this section has not been updated recently.
 % \begin{itemize}
 %   \item \file{m3basics002}: \cs{prg_new_conditional:Npnn} with an
 %     unknown or empty condition leads to \cs{use:c} with undefined
