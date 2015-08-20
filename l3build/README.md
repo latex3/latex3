@@ -18,7 +18,7 @@ Issues
 
 The issue tracker for LaTeX3 bugs is currently located at
 
-  https://github.com/latex3/svn-mirror/issues
+  https://github.com/latex3/latex3/issues
 
 Please report specific issues with LaTeX3 code there. 
 
