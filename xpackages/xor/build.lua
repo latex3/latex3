@@ -13,6 +13,7 @@ maindir = "../.."
 checkengines = {"pdftex"}
 checkruns   = 3
 checksearch = true
+upackfiles  = {"xotrace.ins"}
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
