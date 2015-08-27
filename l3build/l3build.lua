@@ -1197,7 +1197,7 @@ function check(names)
           print("Duplicate test file: " .. i)
           return 1
         else
-          table.insert(stripext(i))
+          table.insert(names, stripext(i))
         end
       end
     end
@@ -1508,7 +1508,6 @@ bundleunpack = bundleunpack or function(sourcedir)
   cleandir(unpackdir)
   for _,i in ipairs(sourcedir or {"."}) do
     for _,j in ipairs(sourcefiles) do
-      print(j, i, unpackdir)
       cp(j, i, unpackdir)
     end
   end
