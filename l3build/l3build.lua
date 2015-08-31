@@ -434,11 +434,11 @@ function cp(glob, source, dest)
     local source = source .. "/" .. i
     if os_windows then
       errorlevel = os.execute(
-        "copy /y " .. unix_to_win(source) .. " "
-           .. unix_to_win(dest) .. " > nul"
-      )
+          "xcopy /y /e /i" .. unix_to_win(source)
+            .. " " .. unix_to_win(dest) .. " > nul"
+        )
     else
-      errorlevel = os.execute("cp -f " .. source .. " " .. dest)
+      errorlevel = os.execute("cp -rf " .. source .. " " .. dest)
     end
     if errorlevel ~=0 then
       return errorlevel
