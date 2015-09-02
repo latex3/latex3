@@ -32,7 +32,16 @@ function main (target)
   local function dobundles (bundles, target)
     local errorlevel = 0
     for _,i in ipairs (bundles) do
-      errorlevel = run (i, "texlua " .. scriptname .. " " .. target)
+      local engines = ""
+      if optengines then
+        engines = " --engine=" .. table.concat(optengines, ",")
+      end
+      errorlevel = run(
+        i,
+        "texlua " .. scriptname .. " "
+          .. target .. (opthalt and " -H" or "")
+
+      )
       if errorlevel ~= 0 then
         break
       end
