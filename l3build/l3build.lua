@@ -412,7 +412,7 @@ function cp(glob, source, dest)
     local source = source .. "/" .. i
     if os_windows then
       os.execute(
-          "xcopy /y /e /i " .. unix_to_win(source)
+          "xcopy /y /e /i" .. unix_to_win(source)
             .. " " .. unix_to_win(dest) .. " > nul"
         )
     else
