@@ -372,7 +372,7 @@ end
 -- Support items are defined here for cases where a single string can cover
 -- both Windows and Unix cases: more complex situations are handled inside
 -- the support functions
-if string.sub(package.config, 1, 1) == "\\" then
+if os.type == "windows" then
   os_concat   = "&"
   os_diffext  = ".fc"
   os_diffexe  = "fc /n"
