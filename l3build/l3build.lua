@@ -722,6 +722,11 @@ function formatlog(logfile, newfile, engine)
     end
     -- Zap map loading of map
     line = string.gsub(line, "%{[%w/%-]*/pdftex%.map%}", "")
+    -- Merge all of .fd data into one line so will be removed later
+    if string.match(line, "^%([%w]+%.fd[^%)]*$") then
+      lastline = (lastline or "") .. line
+      return ""
+    end
     -- TeX90/XeTeX knows only the smaller set of dimension units
     line = string.gsub(
         line, "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
