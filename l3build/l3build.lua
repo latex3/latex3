@@ -979,6 +979,12 @@ function runtest(name, engine, hide, ext)
   else
     format = ""
   end
+  -- Special casing for e-LaTeX format
+  if
+    string.match(checkformat, "^latex$") and
+    string.match(engine, "^etex$") then
+    format = " -fmt=latex"
+  end
   -- Special casing for (u)pTeX LaTeX formats
   if
     string.match(checkformat, "^latex$") and
