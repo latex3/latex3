@@ -721,7 +721,7 @@ function formatlog(logfile, newfile, engine)
       line = string.gsub(line, "%(.*/([%w-]+%.[%w-]+)%s*$", "(../%1")
     end
     -- Zap map loading of map
-    line = string.gsub(line, "%{[%w/%-]*/pdftex%.map%}", "")
+    line = string.gsub(line, "%{%w?:?[%w/%-]*/pdftex%.map%}", "")
     -- Merge all of .fd data into one line so will be removed later
     if string.match(line, "^%([%.%/%w]+%.fd[^%)]*$") then
       lastline = (lastline or "") .. line
