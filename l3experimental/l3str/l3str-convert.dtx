@@ -318,7 +318,15 @@
 %   $1114111$ for other engines.
 %    \begin{macrocode}
 \int_const:Nn \c_max_char_int
-  { \pdftex_if_engine:TF { "FF } { "10FFFF } }
+  {
+    \bool_if:nTF
+      {
+        \sys_if_engine_luatex_p: ||
+        \sys_if_engine_xetex_p
+      }
+      { "10FFFF }
+      { "FF }
+  }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1033,13 +1041,16 @@
 %
 % \begin{macro}[int, rEXP]{\@@_filter_bytes:n}
 % \begin{macro}[aux, rEXP]{\@@_filter_bytes_aux:N}
-%   In the case of pdf\TeX{}, every character is a byte.  For
+%   In the case of 8-bit engines, every character is a byte.  For
 %   Unicode-aware engines, test the character code; non-bytes cause us
 %   to raise the flag \texttt{str_byte}.  Spaces have already been given
 %   the correct category code when this function is called.
 %    \begin{macrocode}
-\pdftex_if_engine:TF
-  { \cs_new_eq:NN \@@_filter_bytes:n \use:n }
+\bool_if:nTF
+  {
+    \sys_if_engine_luatex_p: ||
+    \sys_if_engine_xetex_p
+  }
   {
     \cs_new:Npn \@@_filter_bytes:n #1
       {
@@ -1058,6 +1069,7 @@
         \@@_filter_bytes_aux:N
       }
   }
+  { \cs_new_eq:NN \@@_filter_bytes:n \use:n }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -1067,8 +1079,11 @@
 %   The simplest unescaping method removes non-bytes from
 %   \cs{g_@@_result_tl}.
 %    \begin{macrocode}
-\pdftex_if_engine:TF
-  { \cs_new_protected_nopar:Npn \@@_convert_unescape_: { } }
+\bool_if:nTF
+  {
+    \sys_if_engine_luatex_p: ||
+    \sys_if_engine_xetex_p
+  }
   {
     \cs_new_protected_nopar:Npn \@@_convert_unescape_:
       {
@@ -1078,6 +1093,7 @@
         \@@_if_flag_error:nnx { str_byte } { non-byte } { bytes }
       }
   }
+  { \cs_new_protected_nopar:Npn \@@_convert_unescape_: { } }
 \cs_new_eq:NN \@@_convert_unescape_bytes: \@@_convert_unescape_:
 %    \end{macrocode}
 % \end{macro}
@@ -1116,7 +1132,45 @@
 %    \begin{macrocode}
 \group_begin:
   \char_set_catcode_other:n { 0 }
-  \pdftex_if_engine:TF
+  \bool_if:nTF
+    {
+      \sys_if_engine_luatex_p: ||
+      \sys_if_engine_xetex_p
+    }
+%    \end{macrocode}
+% \begin{macro}[aux]{\@@_encode_native_loop:w}
+% \begin{macro}[aux]{\@@_encode_native_flush:}
+% \begin{macro}[aux, rEXP]{\@@_encode_native_filter:N}
+%   In Unicode-aware engines, since building particular characters
+%   cannot be done expandably in \TeX{}, we cannot hope to get a
+%   linear-time function. However, we get quite close using the
+%   \pkg{l3tl-build} module, which abuses \tn{toks} to reach an almost
+%   linear time. Use the standard lowercase trick to produce an
+%   arbitrary character from the null character, and add that character
+%   to the end of the token list being built. At the end of the loop,
+%   put the token list together with \cs{__tl_build_end:}. Note that we
+%   use an \texttt{x}-expanding assignment because it is slightly
+%   faster. Unicode-aware engines will never incur an overflow because
+%   the internal string is guaranteed to only contain code points in
+%   $[0,\hexnum{10FFFF}]$.
+%    \begin{macrocode}
+    {
+      \cs_new_protected_nopar:Npn \@@_convert_encode_:
+        {
+          \__tl_gbuild_x:Nw \g_@@_result_tl
+            \exp_after:wN \@@_encode_native_loop:w
+              \g_@@_result_tl \s__tl { \q_stop \__prg_break: } \s__tl
+            \__prg_break_point:
+          \__tl_build_end:
+        }
+      \cs_new_protected:Npn \@@_encode_native_loop:w #1 \s__tl #2 \s__tl
+        {
+          \use_none_delimit_by_q_stop:w #2 \q_stop
+          \tex_lccode:D \l_@@_internal_int \__int_eval:w #2 \__int_eval_end:
+          \tl_to_lowercase:n { \__tl_build_one:n { ^^@ } }
+          \@@_encode_native_loop:w
+        }
+    }
 %    \end{macrocode}
 % \begin{macro}[aux, EXP]{\@@_encode_native_char:n}
 %   Since pdf\TeX{} only supports 8-bit characters, and we have a table
@@ -1152,40 +1206,6 @@
     }
 %    \end{macrocode}
 % \end{macro}
-% \begin{macro}[aux]{\@@_encode_native_loop:w}
-% \begin{macro}[aux]{\@@_encode_native_flush:}
-% \begin{macro}[aux, rEXP]{\@@_encode_native_filter:N}
-%   In Unicode-aware engines, since building particular characters
-%   cannot be done expandably in \TeX{}, we cannot hope to get a
-%   linear-time function. However, we get quite close using the
-%   \pkg{l3tl-build} module, which abuses \tn{toks} to reach an almost
-%   linear time. Use the standard lowercase trick to produce an
-%   arbitrary character from the null character, and add that character
-%   to the end of the token list being built. At the end of the loop,
-%   put the token list together with \cs{__tl_build_end:}. Note that we
-%   use an \texttt{x}-expanding assignment because it is slightly
-%   faster. Unicode-aware engines will never incur an overflow because
-%   the internal string is guaranteed to only contain code points in
-%   $[0,\hexnum{10FFFF}]$.
-%    \begin{macrocode}
-    {
-      \cs_new_protected_nopar:Npn \@@_convert_encode_:
-        {
-          \__tl_gbuild_x:Nw \g_@@_result_tl
-            \exp_after:wN \@@_encode_native_loop:w
-              \g_@@_result_tl \s__tl { \q_stop \__prg_break: } \s__tl
-            \__prg_break_point:
-          \__tl_build_end:
-        }
-      \cs_new_protected:Npn \@@_encode_native_loop:w #1 \s__tl #2 \s__tl
-        {
-          \use_none_delimit_by_q_stop:w #2 \q_stop
-          \tex_lccode:D \l_@@_internal_int \__int_eval:w #2 \__int_eval_end:
-          \tl_to_lowercase:n { \__tl_build_one:n { ^^@ } }
-          \@@_encode_native_loop:w
-        }
-    }
-%    \end{macrocode}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -1423,11 +1443,15 @@
 %
 % Message used when the \enquote{bytes} unescaping fails because the
 % string given to \cs{str_set_convert:Nnnn} contains a non-byte. This
-% cannot happen for the pdf\TeX{} engine, since that engine only
-% supports 8-bit characters. Messages used for other escapings and
+% cannot happen for the -8-bit engines.
+% Messages used for other escapings and
 % encodings are defined in each definition file.
 %    \begin{macrocode}
-\pdftex_if_engine:F
+\bool_if:nT
+  {
+    \sys_if_engine_luatex_p: ||
+    \sys_if_engine_xetex_p
+  }
   {
     \__msg_kernel_new:nnnn { str } { non-byte }
       { String~invalid~in~escaping~'#1':~it~may~only~contain~bytes. }
