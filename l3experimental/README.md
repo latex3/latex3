@@ -1,21 +1,10 @@
+Experimental LaTeX3 Concepts
+============================
 
-   Experimental LaTeX3 High-Level Concepts
-   =======================================
-
-WHERE TO GET IT
----------------
-
-The files in this distribution represent a snapshot of selected files
-from the Subversion (SVN) repository of the LaTeX3 Project.
-
-To obtain current versions of the files, visit
-<http://www.latex-project.org/code.html> which contains further
-instructions.
-
-OVERVIEW
+Overview
 --------
 
-The l3experimental packages are a collection of experimental implementations
+The `l3experimental` packages are a collection of experimental implementations
 for aspects of the LaTeX3 kernel, dealing with higher-level ideas such as the
 Designer Interface. Some of them work as stand alone packages, providing new
 functionality, and can be used on top of LaTeX2e with no changes to the
@@ -23,45 +12,50 @@ existing kernel. Others go further, and redefine LaTeX2e internals to provide
 better methods for managing certain constructs. The packages in the collection
 are under active development and the interfaces may change.
 
+All of the material in the collection requires the LaTeX3 base layer package
+[`l3kernel`](http://ctan.org/pkg/l3kernel). The two packages must be installed
+in matching versions: if you update `l3experimental`, make sure that `l3kernel` is
+updated at the same time.
+
 Currently included in the CTAN release of l3experimental are the following
 bundles:
- * l3sort
- * l3str
- * xcoffins
- * xgalley
+ * `l3sort`
+ * `l3str`
+ * `xcoffins`
+ * `xgalley`
 
-l3sort
-------
+`l3sort`
+--------
 
-Ordered variables content (in tl, clist or seq variables) may be sorted
-in a flexible manner using the l3sort module. The definition of how to sort
+Ordered variables content (in `tl`, `clist` or `seq` variables) may be sorted
+in a flexible manner using the `l3sort` module. The definition of how to sort
 two items is provided by the programmer at the point at which the sort is
 carried out. Internally, the sorting algorithm is designed to take advantage
 of TeX token registers to allow a high performance and scalable sort.
 
-l3str
------
+`l3str`
+-------
 
 A 'string' in TeX terms is a token list in which all of the tokens have
 category code 12 ('other'), with the exception of spaces which have the
-category code 10 ('space'). The l3str bundle consists of two parts. The
-first is l3str itself. This is a collection of functions to act on strings,
+category code 10 ('space'). The `l3str` bundle consists of two parts. The
+first is `l3str` itself. This is a collection of functions to act on strings,
 including for manipulations such as UTF8 mappings in pdfTeX. The second
-part of the bundle is l3regex, a regular expression search-and-replace
+part of the bundle is `l3regex`, a regular expression search-and-replace
 implementation written in TeX primitives. The regex module works on a string
 basis, ignoring category codes.
 
-xcoffins
---------
+`xcoffins`
+----------
 
 A _coffin_ is a 'box with handles': a data structure which comprises
 both a TeX box and associated information to allow controlled typesetting.
-The xcoffins package provides a high-level interface for manipulating
-coffins. This is supported by the lower-level l3coffins package, which
+The `xcoffins` package provides a high-level interface for manipulating
+coffins. This is supported by the lower-level `l3coffins` package, which
 provides the data structure.
 
-xgalley
--------
+`xgalley`
+---------
 
 In LaTeX3 terminology a galley is a rectangular area which receives
 text and other material filling it from top. The vertically extend of
