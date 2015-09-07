@@ -38,6 +38,36 @@ The issue tracker for LaTeX3 is currently located at
 Please report specific issues with LaTeX3 code there; more general
 discussion should be directed to the [LaTeX-L list](#Discussion).
 
+The LaTeX3 Project
+------------------
+
+Development of LaTeX3 is carried out by
+[The LaTeX3 Project](http://www.latex-project.org/latex3.html). Currently,
+the team members are
+
+  * Johannes Braams
+  * David Carlisle
+  * Robin Fairbairns
+  * Morten Høgholm
+  * Bruno Le Floch
+  * Thomas Lotze
+  * Frank Mittelbach
+  * Will Robertson
+  * Chris Rowley
+  * Rainer Schöpf
+  * Joseph Wright
+
+Former members of The LaTeX3 Project team were
+
+  * Michael Downes
+  * Denys Duchier
+  * Alan Jeffrey
+  * Martin Schröder
+
+The development team can be contacted
+by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
+the [LaTeX-L list](#Discussion) should be used .
+
 -----
 
 <p>Copyright (C) 2014,2015 The LaTeX3 Project <br />
