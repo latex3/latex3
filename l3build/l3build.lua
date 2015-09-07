@@ -374,8 +374,8 @@ end
 -- the support functions
 if os.type == "windows" then
   os_concat   = "&"
-  os_diffext  = ".fc"
-  os_diffexe  = "fc /n"
+  os_diffext  = os.getenv("diffext") or ".fc"
+  os_diffexe  = os.getenv("diffexe") or "fc /n"
   os_grepexe  = "findstr /r"
   os_newline  = "\r\n"
   os_null     = "nul"
@@ -385,8 +385,8 @@ if os.type == "windows" then
   os_yes      = "for /l %I in (1,1,200) do @echo y"
 else
   os_concat   = ";"
-  os_diffext  = ".diff"
-  os_diffexe  = "diff -c --strip-trailing-cr"
+  os_diffext  = os.getenv("diffext") or ".diff"
+  os_diffexe  = os.getenv("diffexe") or "diff -c --strip-trailing-cr"
   os_grepexe  = "grep"
   os_newline  = "\n"
   os_null     = "/dev/null"
