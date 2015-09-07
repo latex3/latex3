@@ -66,7 +66,7 @@ Former members of The LaTeX3 Project team were
 
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
-the [LaTeX-L list](#Discussion) should be used .
+the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
