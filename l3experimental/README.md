@@ -2,9 +2,6 @@
    Experimental LaTeX3 High-Level Concepts
    =======================================
 
-   2011/08/14
-
-
 WHERE TO GET IT
 ---------------
 
