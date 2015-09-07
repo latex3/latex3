@@ -48,21 +48,21 @@ changes, additions, _etc._ should be addressed to the list
 
 You can subscribe to this list by sending mail to
 
-  listserv@urz.uni-heidelberg.de
+    listserv@urz.uni-heidelberg.de
 
 with the body containing
 
-  subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
+    subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
 
-Bugs
-----
+Issues
+------
 
-The issue tracker for LaTeX3 bugs is currently located at
+The issue tracker for LaTeX3 is currently located at
 
-  https://github.com/latex3/latex3/issues
+    https://github.com/latex3/latex3/issues
 
-Please report specific issues with LaTeX3 code there. More general
-discussion should be directed to the LaTeX-L lists.
+Please report specific issues with LaTeX3 code there; more general
+discussion should be directed to the [LaTeX-L list](#Discussion).
 
 The LaTeX3 Project
 ------------------

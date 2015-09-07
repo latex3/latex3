@@ -65,10 +65,10 @@ with the body containing
 
     subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
 
-Bugs
-----
+Issues
+------
 
-The issue tracker for LaTeX3 bugs is currently located at
+The issue tracker for LaTeX3 is currently located at
 
     https://github.com/latex3/latex3/issues
 
