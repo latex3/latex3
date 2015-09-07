@@ -107,5 +107,6 @@ the [LaTeX-L list](#Discussion) should be used .
 
 -----
 
-Copyright (C) 2011,2012,2014,2015 The LaTeX3 Project
-All rights reserved
+<p>Copyright (C) 2011,2012,2014,2015 The LaTeX3 Project <br />
+<a href="http://latex-project.org/">http://latex-project.org/</a> <br />
+All rights reserved.</p>

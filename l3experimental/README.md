@@ -99,5 +99,8 @@ The issue tracker for LaTeX3 bugs is currently located at
 Please report specific issues with LaTeX3 code there. More general
 discussion should be directed to the LaTeX-L lists.
 
---- Copyright 1998 -- 2011
-    The LaTeX3 Project.  All rights reserved ---
+-----
+
+<p>Copyright (C) 1998-2011,2015 The LaTeX3 Project <br />
+<a href="http://latex-project.org/">http://latex-project.org/</a> <br />
+All rights reserved.</p>
