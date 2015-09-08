@@ -5,6 +5,7 @@ typesetdeps = typesetdeps or {maindir .. "/l3kernel"}
 unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 
 cmdchkfiles     = {"*.dtx"}
+checkengines    = {"pdftex", "xetex", "luatex", "ptex", "uptex"}
 checksuppfiles  = {"minimal.cls", "regression-test.cfg"}
 unpacksuppfiles = {"docstrip.tex"}
 

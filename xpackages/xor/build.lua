@@ -10,7 +10,6 @@ bundle = ""
 maindir = "../.."
 
 -- Non-standard settings
-checkengines = {"pdftex"}
 checkruns   = 3
 checksearch = true
 
@@ -19,4 +18,8 @@ checksearch = true
 -- As the build system is 'self-contained' there is no module set up here: just
 --load the file in a similar way to a TeX \input
 dofile (maindir .. "/build-config.lua")
+
+-- Non-standard settings (have to be after build-config)
+checkengines = {"pdftex"}
+
 dofile (maindir .. "/l3build/l3build.lua")
