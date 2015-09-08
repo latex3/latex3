@@ -747,7 +747,7 @@ function formatlog(logfile, newfile, engine)
     -- uses a different number to the other engines
     line = string.gsub(line, "^%s+", "")
     -- Remove 'normal' direction information on boxes with (u)pTeX
-    line = string.gsub(line, ", yoko direction", "")
+    line = string.gsub(line, ",? yoko direction,?", "")
     -- Unicode engines display chars in the upper half of the 8-bit range:
     -- tidy up to match pdfTeX
     local utf8 = unicode.utf8
