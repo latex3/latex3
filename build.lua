@@ -40,7 +40,7 @@ function main (target)
         i,
         "texlua " .. scriptname .. " "
           .. target .. (opthalt and " -H" or "")
-
+          .. engines
       )
       if errorlevel ~= 0 then
         break
