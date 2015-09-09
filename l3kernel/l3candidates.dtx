@@ -1059,6 +1059,31 @@
 %   be an active character.
 % \end{function}
 %
+% \begin{function}[EXP, added = 2015-09-09]{\char_generate:nn}
+%   \begin{syntax}
+%      \cs{char_generate:nn} \meta{charcode} \meta{catcode}
+%   \end{syntax}
+%   Generates a character token of the given \meta{charcode} and \meta{catcode}
+%   (both of which may be integer expressions). The \meta{catcode} may be
+%   one of
+%   \begin{itemize}
+%     \item $1$ (begin group)
+%     \item $2$ (end group)
+%     \item $3$ (math toggle)
+%     \item $4$ (alignment)
+%     \item $6$ (parameter)
+%     \item $7$ (math superscript)
+%     \item $8$ (math subscript)
+%     \item $11$ (letter)
+%     \item $12$ (other)
+%   \end{itemize}
+%   and other values will raise an error.
+%
+%   The \meta{catcode} may be any one valid for the engine in use. Note
+%   however that for \XeTeX{} releases prior to 0.99992 only the 8-bit
+%   range ($0$ to $255$) is accepted due to engine limitations.
+% \end{function}
+%
 % \begin{function}[TF, updated = 2012-12-20]{\peek_N_type:}
 %   \begin{syntax}
 %     \cs{peek_N_type:TF} \Arg{true code} \Arg{false code}
@@ -4338,6 +4363,193 @@
   \@@_tmp:nN { char_gset_active_eq } \cs_gset_eq:NN
 \group_end:
 %    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\char_generate:nn}
+% \begin{macro}[EXP, aux]^^A
+%   {\@@_generate_auxi:nn, \@@_generate_auxii:nn, \@@_generate_auxii:nnn}
+% \begin{variable}{\l_@@_tmp_tl}
+% \begin{macro}[EXP, aux]{\@@_generate_invalid_catcode:}
+%   The aim here is to generate characters of (broadly) arbitrary category
+%   code. Where possible, that is done using engine support (\XeTeX{},
+%   \LuaTeX{}). There are though various issues which are covered below. At
+%   the interface layer, turn the two arguments into integers up-front so
+%   this is only done once.
+%    \begin{macrocode}
+\cs_new:Npn \char_generate:nn #1#2
+  {
+    \exp_args:Nff \@@_generate_auxi:nn
+      { \int_eval:n {#1} } { \int_eval:n {#2} }
+  }
+%    \end{macrocode}
+%   Before doing any actual conversion, first some special case filtering.
+%   The \tn{Ucharcat} primitive cannot make active chars, so that is turned
+%   off here: if the primitive gets altered then the code is already in
+%   place for 8-bit engines and will kick in for \LuaTeX{} too. Spaces
+%   are also banned here as \LuaTeX{} emulation only makes normal (charcode
+%   $32$ spaces. However, |^^@| is filtered out separately as that can't be
+%   done with macro emulation either, so is flagged up separately. That
+%   done, hand off to the engine-dependent part.
+%    \begin{macrocode}
+\cs_new:Npn \@@_generate_auxi:nn #1#2
+  {
+    \if_int_compare:w #2 = \c_thirteen
+      \__msg_kernel_expandable_error:nn { kernel } { char-active }
+    \else:
+      \if_int_compare:w #2 = \c_ten
+        \if_int_compare:w #1 =  \c_zero
+          \__msg_kernel_expandable_error:nn { kernel } { char-null-space }
+        \else:
+          \__msg_kernel_expandable_error:nn { kernel } { char-space }
+        \fi:
+      \else:
+        \@@_generate_auxii:nn {#1} {#2}
+      \fi:
+    \fi: 
+  }
+\tl_new:N \l_@@_tmp_tl
+%    \end{macrocode}
+%   Engine-dependent definitions are now needed for the implementation. For
+%   \LuaTeX{} and recent \XeTeX{} releases there is engine-level support.
+%   They can do cases that macro emulation can't. All of those are filtered
+%   out here using a primitive-based boolean expression for speed.
+%   The final level is the basic definition at the engine level: the arguments
+%   here are integers so there is no need to worry about them too much.
+%    \begin{macrocode}
+\group_begin:
+%<*package>
+  \cs_set_nopar:Npn ^^L { }
+%</package>
+  \char_set_catcode_other:n { 0 }
+  \if_int_compare:w 0
+    \cs_if_exist:NT \luatex_directlua:D { 1 }
+    \cs_if_exist:NT \utex_charcat:D     { 1 }
+    > \c_zero
+    \cs_new:Npn \@@_generate_auxii:nn #1#2
+      {
+        \if_int_compare:w 0
+          \if_int_compare:w #1 < \c_one      1 \fi:
+          \if_int_compare:w #1 = \c_five     1 \fi:
+          \if_int_compare:w #1 = \c_nine     1 \fi:
+          \if_int_compare:w #1 > \c_thirteen 1 \fi:
+          > \c_one
+          \@@_generate_invalid_catcode:
+        \else:
+          \@@_generate_auxiii:nn {#1} {#2}
+        \fi:
+      }
+    \cs_if_exist:NTF \luatex_directlua:D
+      {
+        \cs_new:Npn \@@_generate_auxiii:nn #1#2
+          { \lua_now_x:n { l3kernel.charcat(#1, #2) } }
+      }
+      {
+        \cs_new:Npn \@@_generate_auxiii:nn #1#2
+          { \utex_charcat:D  #1 ~ #2 ~ }
+      }
+  \else:
+%    \end{macrocode}
+%   For engines where \tn{Ucharcat} isn't available (or emulated) then we have
+%   to work in macros, and cover only the $8$-bit range. The first stage is
+%   to build up a |tl| containing |^^@| with each category code that can
+%   be accessed in this way, with an error set up for the other cases. This
+%   is all done such that it can be quickly accessed using a |\if_case:w|
+%   low-level conditional. There are a few things to notice here.
+%   As |^^L| is |\outer| we need to locally set it to avoid a problem.
+%   To get open/close braces into the list, they are set up using |if_false:|
+%   pairing here and will later be |x|-type expanded into the desired form.
+%   For making spaces, there needs to be an |o|-type expansion of a |\use:n|
+%   (or some other tokenization) to avoid dropping the space. We also
+%   set up active tokens although they are (currently) filtered out by the
+%   interface layer (\tn{Ucharcat}| cannot make active tokens).
+%    \begin{macrocode}
+      \tl_set:Nn \l_@@_tmp_tl
+        { \exp_not:n { \@@_generate_invalid_catcode: \or: } }
+      \char_set_catcode_group_begin:n { 0 } % {
+      \tl_put_right:Nn \l_@@_tmp_tl { ^^@ \if_false: } }
+      \char_set_catcode_group_end:n { 0 }
+      \tl_put_right:Nn \l_@@_tmp_tl { { \fi: \exp_not:N \or: ^^@ } % }
+      \tl_set:Nx \l_@@_tmp_tl { \l_@@_tmp_tl }
+      \char_set_catcode_math_toggle:n { 0 }
+      \tl_put_right:Nn \l_@@_tmp_tl { \or: ^^@ }
+      \char_set_catcode_alignment:n { 0 }
+      \tl_put_right:Nn \l_@@_tmp_tl { \or: ^^@ }
+      \tl_put_right:Nn \l_@@_tmp_tl { \or: \@@_generate_invalid_catcode: }
+      \char_set_catcode_parameter:n { 0 }
+      \tl_put_right:Nn \l_@@_tmp_tl { \or: ^^@ }
+      \char_set_catcode_math_superscript:n { 0 }
+      \tl_put_right:Nn \l_@@_tmp_tl { \or: ^^@ }
+      \char_set_catcode_math_subscript:n { 0 }
+      \tl_put_right:Nn \l_@@_tmp_tl { \or: ^^@ }
+      \tl_put_right:Nn \l_@@_tmp_tl { \or: \@@_generate_invalid_catcode: }
+      \char_set_catcode_space:n { 0 }
+      \tl_put_right:No \l_@@_tmp_tl { \use:n { \or: } ^^@ }
+      \char_set_catcode_letter:n { 0 }
+      \tl_put_right:Nn \l_@@_tmp_tl { \or: ^^@ }
+      \char_set_catcode_other:n { 0 }
+      \tl_put_right:Nn \l_@@_tmp_tl { \or: ^^@ }
+      \char_set_catcode_active:n { 0 }
+      \tl_put_right:Nn \l_@@_tmp_tl { \or: ^^@ }
+      \tl_put_right:Nn \l_@@_tmp_tl { \else: \@@_generate_invalid_catcode: }
+%    \end{macrocode}
+%   Convert the above temporary list into a series of constant token
+%   lists, one for each character code, using \tn{tex_lowercase:D} to
+%   convert |^^@| in each case. The \texttt{x}-type expansion deals with
+%   the |\if_false:| stuff introduced earlier. This is done in three parts
+%   as |^^L| is awkward. Notice that at this stage |^^@| is active.
+%    \begin{macrocode}
+      \cs_set_protected:Npn \@@_tmp:n #1
+        {
+          \char_set_lccode:nn { 0 } {#1}
+          \char_set_lccode:nn { 32 } {#1}
+          \exp_args:Nx \tex_lowercase:D
+            {
+              \tl_const:cn { c_@@_ \__int_to_roman:w #1 _tl }
+                { \exp_not:o \l_@@_tmp_tl }
+            }
+        }
+      \int_step_function:nnnN { 0 }  { 1 } { 11 }  \@@_tmp:n
+      \group_begin:
+        \tl_replace_once:Nnn \l_@@_tmp_tl { ^^@ } { \ERROR }
+        \@@_tmp:n { 12 }
+      \group_end:
+      \int_step_function:nnnN { 13 } { 1 } { 255 } \@@_tmp:n
+      \cs_new:Npn \@@_generate_auxii:nn #1#2
+        {
+          \tl_if_exist:cTF { c_@@_ \__int_to_roman:w #1 _tl }
+            {
+              \exp_after:wN \exp_after:wN
+              \if_case:w #2
+                \exp_last_unbraced:Nv \exp_stop_f:
+                  { c_@@_ \__int_to_roman:w #1 _tl }
+              \fi:
+            }
+            {
+              \__msg_kernel_expandable_error:nn { kernel }
+                { char-out-of-range }
+            }
+        }
+  \fi:
+\group_end:
+%    \end{macrocode}
+%   Job done, set up a few messages. 
+%    \begin{macrocode}
+\cs_new:Npn \@@_generate_invalid_catcode:
+  { \__msg_kernel_expandable_error:nn { kernel } { char-invalid-catcode } }
+\__msg_kernel_new:nnn { kernel } { char-active }
+  { Cannot~generate~active~chars. }
+\__msg_kernel_new:nnn { kernel } { char-invalid-catcode }
+  { Invalid~catcode~for~char~generation. }
+\__msg_kernel_new:nnn { kernel } { char-null-space }
+  { Cannot~generate~null~char~as~a~space. }
+\__msg_kernel_new:nnn { kernel } { char-out-of-range }
+  { Charcode~requested~out~of~engine~range. }
+\__msg_kernel_new:nnn { kernel } { char-space }
+  { Cannot~generate~space~chars. }
+%    \end{macrocode}
+% \end{macro}
+% \end{variable}
+% \end{macro}
 % \end{macro}
 %
 %    \begin{macrocode}
