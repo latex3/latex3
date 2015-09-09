@@ -395,6 +395,71 @@
 \endgroup
 %    \end{macrocode}
 %
+% \subsection{Emulating \tn{Ucharchar} in \LuaTeX{}}
+%
+% Expandably creating character tokens can be done in macros but for the
+% full Unicode range requires engine support in practical terms. That is
+% available in \XeTeX{} as \tn{Ucharcat} but in \LuaTeX{} some Lua code
+% is required. That is set up here, following the model above. Note that
+% we do not try to emulate the syntax of the primitive (doable with \LuaTeX{}
+% 0.80 or later, but not required by our use case).
+% 
+% One minor wrinkle is that a catcode table is needed to return values.
+% For format mode, long-term we can simply take an arbitrary one and make
+% sure this is never allocated. In package mode use the same approach
+% (and table) as \pkg{ucharcat}: look for an allocator and use it if available,
+% or use a table unlikely to clash with any other use. We use the same table
+% as \pkg{ucharcat} but as this is \enquote{disposable} we are safe.
+%    \begin{macrocode}
+\begingroup
+  \expandafter\ifx\csname directlua\endcsname\relax
+  \else
+    \ifnum\luatexversion<70 %
+    \else
+%<*initex>
+       % TEMP
+       \catcode`\@=11 %
+       \chardef\ucharcat@table="8000 %
+%</initex>
+%<*package>
+      \ifdefined\newcatcodetable
+        \newcatcodetable\ucharcat@table
+      \else
+        \directlua{tex.enableprimitives("",{"initcatcodetable"})}
+        \chardef\ucharcat@table"7000 %
+        \initcatcodetable\ucharcat@table
+      \fi
+%</package>
+      \catcode`\_=11 %
+      \catcode`\:=11 %
+      \def\tempa
+        {%
+          l3kernel = l3kernel or { }
+          local utf8_char = unicode.utf8.char
+          function l3kernel.charcat(charcode, catcode)
+            tex.setcatcode(\number\ucharcat@table, charcode, catcode)
+            tex.sprint(\number\ucharcat@table, utf8_char(charcode))
+          end
+        }
+      \directlua{\tempa}
+      \ifnum 0%
+        \directlua
+          {%
+            if status.ini_version then
+              tex.write("1")
+            end
+          }>0 %
+        \global\everyjob\expandafter
+          {%
+            \the\expandafter\everyjob
+            \expandafter\lua_now_x:n\expandafter{\tempa}%
+          }
+      \fi
+    \fi
+  \fi
+\endgroup
+%    \end{macrocode}
+%
 % \subsection{Engine requirements}
 %
 % The code currently requires functionality equivalent to \tn{pdfstrcmp}
