@@ -6,7 +6,7 @@ high-quality LaTeX code by providing:
  - A unit testing system
  - Automated typesetting of code sources
  - A reliable packaging system for CTAN releases
- 
+
 The bundle consists of a Lua script to run the tasks and a
 `.tex` file which provides the testing environment. These were
 originally developed for supporting LaTeX3 development but

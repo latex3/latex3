@@ -494,13 +494,13 @@ function relpath(target, source)
   local resultdir = ""
   local trimpattern = "^[^/]*/"
   -- Trim off identical leading directories
-  while 
+  while
     (string.match(target, trimpattern) or "X") ==
     (string.match(target, trimpattern) or "Y") do
     target = string.gsub(target, trimpattern, "")
     source = string.gsub(source, trimpattern, "")
   end
-  -- Go up from the source 
+  -- Go up from the source
   for i = 0, select(2, string.gsub(target, "/", "")) do
     resultdir = resultdir .. "../"
   end
@@ -956,7 +956,7 @@ function runcheck(name, hide)
       errlevel = os.execute(
         os_diffexe .. " " .. luatlgfile .. " " .. newfile
           .. " > " .. difffile
-      )      
+      )
     else
       errlevel = os.execute(
         os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile
@@ -1020,7 +1020,7 @@ function runtest(name, engine, hide, ext)
         -- avoids any paths in the logs
         os_setenv .. " TEXINPUTS=." .. (checksearch and os_pathsep or "")
           .. os_concat ..
-        realengine ..  format .. " " 
+        realengine ..  format .. " "
           .. checkopts .. " " .. asciiopt .. lvtfile
           .. (hide and (" > " .. os_null) or "")
       )
@@ -1065,7 +1065,7 @@ function runtool(envvar, command)
         .. relpath(localdir, typesetdir)
         .. (typesetsearch and os_pathsep or "") ..
       os_concat ..
-      command         
+      command
     )
   )
 end
@@ -1105,7 +1105,7 @@ function bibtex(name)
           os_setenv .. " BSTINPUTS=." .. os_pathsep
             .. relpath(localdir, typesetdir)
             .. (typesetsearch and os_pathsep or "") ..
-          os_concat .. 
+          os_concat ..
           bibtexexe .. " " .. bibtexopts .. " " .. name
         )
       )
@@ -1236,7 +1236,7 @@ function check(names)
       local errlevel = runcheck(name, hide)
       -- Return value must be 1 not errlevel
       if errlevel ~= 0 then
-        if opthalt then 
+        if opthalt then
           return 1
         else
           errorlevel = 1
@@ -1303,7 +1303,7 @@ function cmdcheck()
         os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir
           .. os_pathsep ..
         os_concat ..
-        engine .. " " .. cmdchkopts .. 
+        engine .. " " .. cmdchkopts ..
           " \"\\PassOptionsToClass{check}{l3doc} \\input " .. j .. "\""
           .. " > " .. os_null
       )
@@ -1334,11 +1334,11 @@ function ctan(standalone)
     -- First, zip up all of the text files
     run(
         dir,
-        zipexe .. " " .. zipopts .. " -ll ".. zipname .. " " .. "." 
-          .. ( 
+        zipexe .. " " .. zipopts .. " -ll ".. zipname .. " " .. "."
+          .. (
             (binfiles or  exclude) and (" -x" .. binfiles .. " " .. exclude)
             or ""
-          )  
+          )
       )
     -- Then add the binary ones
     run(
@@ -1463,7 +1463,7 @@ function doc(files)
         local errorlevel = typesetpdf(j)
         if errorlevel ~= 0 then
           return errorlevel
-        end  
+        end
       end
     end
   end
@@ -1555,7 +1555,7 @@ bundleunpack = bundleunpack or function(sourcedir)
         os_setenv .. " TEXINPUTS=." .. os_pathsep
           .. localdir .. (unpacksearch and os_pathsep or "") ..
         os_concat ..
-        unpackexe .. " " .. unpackopts .. " " .. j .. " < " 
+        unpackexe .. " " .. unpackopts .. " " .. j .. " < "
           .. localdir .. "/yes"
       )
     end
