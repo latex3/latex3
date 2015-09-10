@@ -146,7 +146,7 @@ makeindexexe  = makeindexexe  or "makeindex"
 makeindexopts = makeindexopts or ""
 
 -- Other required settings
-asciiengines = asciiengines or {"etex", "pdftex"}
+asciiengines = asciiengines or {"pdftex"}
 checkruns    = checkruns    or 1
 packtdszip   = packtdszip   or false -- Not actually needed but clearer
 scriptname   = scriptname   or "build.lua" -- Script used in each directory
