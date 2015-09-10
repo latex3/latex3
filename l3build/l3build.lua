@@ -833,7 +833,7 @@ function formatlualog(logfile, newfile)
     -- Where the last line was a discretionary, looks for the
     -- info one level in about what it represents
     if string.match(lastline, "^%.+\\discretionary$") then
-      prefix = string.gsub(string.match(lastline, "^(%.+)"), "%.", "%%.")
+      local prefix = string.gsub(string.match(lastline, "^(%.+)"), "%.", "%%.")
       if string.match(line, prefix .. "%.") or
          string.match(line, prefix .. "%|") then
         return "", lastline, true
@@ -845,6 +845,25 @@ function formatlualog(logfile, newfile)
           -- A normal (TeX90) discretionary:
           -- add with the line break reintroduced
           return lastline .. "\n" .. line, ""
+        end
+      end
+    end
+    -- Look for another form of \discretionary, replacing a "-"
+    local pattern = "^%.+\\discretionary replacing *$"
+    if string.match(line, pattern) then
+      return "", line
+    else
+      if string.match(lastline, pattern) then
+        local prefix = string.gsub(
+            string.match(lastline, "^(%.+)"), "%.", "%%."
+          )
+        if string.match(line, prefix .. "%.\\kern") then
+          return string.gsub(line, "^%.", ""), lastline, true
+        elseif dropping then
+          return "", ""
+        else
+          line     = lastline .. "\n" .. line
+          lastline = ""
         end
       end
     end
