@@ -817,12 +817,13 @@ function formatlualog(logfile, newfile)
     -- Find glue setting and round out the last place
     line = string.gsub(
         line,
-        "glue set (%-? ?)%d+.%d+fil$",
+        "glue set (%-? ?)%d+.%d+",
         "glue set %1" .. string.format(
-            "%.4f", string.match(line, "glue set %-? ?(%d+.%d+)fil$") or 0
+            "%.4f", string.match(line, "glue set %-? ?(%d+.%d+)") or 0
           )
-          .. "fil"
       )
+    -- LuaTeX writes ^^M as a new line, which we loose
+    line = string.gsub(line, "%^%^M", "")
     -- Remove U+ notation in the "Missing character" message
     line = string.gsub(
         line,
