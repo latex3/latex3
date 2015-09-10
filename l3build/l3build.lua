@@ -146,6 +146,7 @@ makeindexexe  = makeindexexe  or "makeindex"
 makeindexopts = makeindexopts or ""
 
 -- Other required settings
+asciiengines = asciiengines or {"etex", "pdftex"}
 checkruns    = checkruns    or 1
 packtdszip   = packtdszip   or false -- Not actually needed but clearer
 scriptname   = scriptname   or "build.lua" -- Script used in each directory
@@ -373,6 +374,7 @@ end
 -- both Windows and Unix cases: more complex situations are handled inside
 -- the support functions
 if os.type == "windows" then
+  os_ascii    = "@echo."
   os_concat   = "&"
   os_diffext  = os.getenv("diffext") or ".fc"
   os_diffexe  = os.getenv("diffexe") or "fc /n"
@@ -384,6 +386,7 @@ if os.type == "windows" then
   os_windows  = true
   os_yes      = "for /l %I in (1,1,200) do @echo y"
 else
+  os_ascii    = "echo \"\""
   os_concat   = ";"
   os_diffext  = os.getenv("diffext") or ".diff"
   os_diffexe  = os.getenv("diffexe") or "diff -c --strip-trailing-cr"
@@ -598,6 +601,7 @@ function checkinit()
   for _,i in ipairs(checksuppfiles) do
     cp(i, supportdir, testdir)
   end
+  os.execute(os_ascii .. ">" .. testdir .. "/ascii.tcx")
 end
 
 -- Copy files to the main CTAN release directory
@@ -736,7 +740,7 @@ function formatlog(logfile, newfile, engine)
     -- Zap "on line <num>" and replace with "on line ..."
     line = string.gsub(line, "on line %d*", "on line ...")
     -- Tidy up to ^^ notation
-    for i = 1, 31, 1 do
+    for i = 0, 31 do
       line = string.gsub(line, string.char(i), "^^" .. string.char(64 + i))
     end
     -- Zap line numbers from \show, \showbox, \box_show and the like
@@ -748,11 +752,15 @@ function formatlog(logfile, newfile, engine)
     line = string.gsub(line, "^%s+", "")
     -- Remove 'normal' direction information on boxes with (u)pTeX
     line = string.gsub(line, ",? yoko direction,?", "")
+    -- A tidy-up to keep LuaTeX and other engines in sync
+    local utf8_char = unicode.utf8.char
+    line = string.gsub(line, utf8_char(127), "^^?")
     -- Unicode engines display chars in the upper half of the 8-bit range:
-    -- tidy up to match pdfTeX
-    local utf8 = unicode.utf8
-    for i = 128, 255, 1 do
-      line = string.gsub(line, utf8.char(i), "^^" .. string.format("%02x", i))
+    -- tidy up to match pdfTeX if an ASCII engine is in use
+    if next(asciiengines) then
+      for i = 128, 255 do
+        line = string.gsub(line, utf8_char(i), "^^" .. string.format("%02x", i))
+      end
     end
     return line
   end
@@ -998,6 +1006,13 @@ function runtest(name, engine, hide, ext)
   end
   local logfile = testdir .. "/" .. name .. logext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
+  local asciiopt = ""
+  for _,i in ipairs(asciiengines) do
+    if realengine == i then
+      asciiopt = "-translate-file ./ascii.tcx "
+      break
+    end
+  end
   for i = 1, checkruns do
     run(
         testdir,
@@ -1005,7 +1020,8 @@ function runtest(name, engine, hide, ext)
         -- avoids any paths in the logs
         os_setenv .. " TEXINPUTS=." .. (checksearch and os_pathsep or "")
           .. os_concat ..
-        realengine ..  format .. " " .. checkopts .. " " .. lvtfile
+        realengine ..  format .. " " 
+          .. checkopts .. " " .. asciiopt .. lvtfile
           .. (hide and (" > " .. os_null) or "")
       )
   end
