@@ -746,7 +746,9 @@ function formatlog(logfile, newfile, engine)
     -- Zap line numbers from \show, \showbox, \box_show and the like
     -- Two stages as line wrapping alters some of them and restore the break
     line = string.gsub(line, "^l%.%d+ ", "l. ...")
-    line = string.gsub(line, "%.%.%.l%.%d+ ( *)%}$", "...\nl. ...%1}")
+    line = string.gsub(
+        line, "%.%.%.l%.%d+ ( *)%}$", "... " .. os_newline .. " l. ...%1}"
+      )
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
     line = string.gsub(line, "^%s+", "")
@@ -865,7 +867,7 @@ function formatlualog(logfile, newfile)
         else
           -- A normal (TeX90) discretionary:
           -- add with the line break reintroduced
-          return lastline .. "\n" .. line, ""
+          return lastline .. os_newline .. line, ""
         end
       end
     end
@@ -881,7 +883,7 @@ function formatlualog(logfile, newfile)
         elseif dropping then
           return "", ""
         else
-          return lastline .. "\n" .. line, ""
+          return lastline .. os_newline .. line, ""
         end
       end
     end
@@ -912,7 +914,7 @@ function formatlualog(logfile, newfile)
   for line in io.lines(logfile) do
     line, lastline, dropping = normalize(line, lastline, dropping)
     if not string.match(line, "^ *$") then
-      newlog = newlog .. line .. "\n"
+      newlog = newlog .. line .. os_newline
     end
   end
   local newfile = io.open(newfile, "w")
