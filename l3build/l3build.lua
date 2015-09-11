@@ -891,7 +891,7 @@ function formatlualog(logfile, newfile)
     -- drop it
     if string.match(lastline, "^%.+\\mathon$") then
       local prefix = boxprefix(lastline)
-      if string.match(line, prefix .. "\\hbox%(0%.0+0%.0%)x0%.0$") then
+      if string.match(line, prefix .. "\\hbox%(0%.0%+0%.0%)x0%.0$") then
         return "", ""
       end
     end
