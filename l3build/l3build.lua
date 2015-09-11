@@ -906,6 +906,26 @@ function formatlualog(logfile, newfile)
         return line, ""
       end
     end
+    -- Wrap some cases that can be picked out
+    -- In some places LuaTeX does use max_print_line, then we
+    -- get into issues with different wrapping approaches
+    local kpse = require("kpse")
+    kpse.set_program_name("luatex")
+    local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
+    if (string.len(line) == maxprintline) then
+      return "", line
+    elseif (string.len(lastline) == maxprintline) then
+      if string.match(line, "\\ETC%.%}$") then
+        -- If the line wrapped at \ETC we might have lost a space
+        return lastline 
+          .. ((string.match(line, "^\\ETC%.%}$") and " ") or "")
+          .. line, ""
+      elseif string.match(line, "^%}%}%}$") then
+        return lastline .. line, ""
+      else
+        return lastline .. os_newline .. line, ""
+      end
+    end
     return line, ""
   end
   local newlog = ""
