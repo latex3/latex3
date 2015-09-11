@@ -1,6 +1,8 @@
 Experimental LaTeX3 Concepts
 ============================
 
+Released 2015/09/11
+
 Overview
 --------
 
