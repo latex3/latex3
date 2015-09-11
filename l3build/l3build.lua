@@ -747,7 +747,7 @@ function formatlog(logfile, newfile, engine)
     -- Two stages as line wrapping alters some of them and restore the break
     line = string.gsub(line, "^l%.%d+ ", "l. ...")
     line = string.gsub(
-        line, "%.%.%.l%.%d+ ( *)%}$", "... " .. os_newline .. " l. ...%1}"
+        line, "%.%.%.l%.%d+ ( *)%}$", "..." .. os_newline .. "l. ...%1}"
       )
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
