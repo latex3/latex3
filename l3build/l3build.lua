@@ -816,7 +816,7 @@ function formatlualog(logfile, newfile)
         line,
         "glue set (%-? ?)%d+.%d+",
         "glue set %1" .. string.format(
-            "%.4f", string.match(line, "glue set %-? ?(%d+.%d+)") or 0
+            "%.3f", string.match(line, "glue set %-? ?(%d+.%d+)") or 0
           )
       )
     -- LuaTeX writes ^^M as a new line, which we loose
