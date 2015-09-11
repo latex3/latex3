@@ -805,6 +805,11 @@ function formatlualog(logfile, newfile)
        string.match(line, "^%.+\\whatsit$")       then
       return "", line
     end
+    -- For \mathon, we always need this line but the next
+    -- may be affected
+    if string.match(line, "^%.+\\mathon$") then
+      return line, line
+    end
     -- Remove 'display' at end of display math boxes:
     -- LuaTeX omits this as it includes direction in all cases
     line = string.gsub(line, "(\\hbox%(.*), display$", "%1")
@@ -878,6 +883,14 @@ function formatlualog(logfile, newfile)
         else
           return lastline .. "\n" .. line, ""
         end
+      end
+    end
+    -- For \mathon, if the current line is an empty \hbox then
+    -- drop it
+    if string.match(lastline, "^%.+\\mathon$") then
+      local prefix = boxprefix(lastline)
+      if string.match(line, prefix .. "\\hbox%(0%.0+0%.0%)x0%.0$") then
+        return "", ""
       end
     end
     -- Much the same idea when the last line was a whatsit,
