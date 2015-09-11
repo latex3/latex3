@@ -799,14 +799,11 @@ end
 -- Additional normalization for LuaTeX
 function formatlualog(logfile, newfile)
   local function normalize(line, lastline, dropping)
-    local line = line
-    -- Find discretionary lines skip: may get re-added
-    if string.match(line, "^%.+\\discretionary$") then
-      return "", line, false
-    end
-    -- Find whatsit lines skip: may get re-added
-    if string.match(line, "^%.+\\whatsit$") then
-      return "", line, false
+    -- Find \discretionary or \whatsit lines:
+    -- These may come back later
+    if string.match(line, "^%.+\\discretionary$") or
+       string.match(line, "^%.+\\whatsit$")       then
+      return "", line
     end
     -- Remove 'display' at end of display math boxes:
     -- LuaTeX omits this as it includes direction in all cases
@@ -830,17 +827,21 @@ function formatlualog(logfile, newfile)
         "Missing character: There is no (%^%^..) %(U%+(....)%)",
         "Missing character: There is no %1"
       )
+    -- A function to handle the box prefix part
+    local function boxprefix(s)
+      return string.gsub(string.match(s, "^(%.+)"), "%.", "%%.")
+    end
     -- Where the last line was a discretionary, looks for the
     -- info one level in about what it represents
     if string.match(lastline, "^%.+\\discretionary$") then
-      local prefix = string.gsub(string.match(lastline, "^(%.+)"), "%.", "%%.")
+      local prefix = boxprefix(lastline)
       if string.match(line, prefix .. "%.") or
          string.match(line, prefix .. "%|") then
         return "", lastline, true
       else
         if dropping then
           -- End of a \discretionary block
-          return line, "", false
+          return line, ""
         else
           -- A normal (TeX90) discretionary:
           -- add with the line break reintroduced
@@ -854,31 +855,28 @@ function formatlualog(logfile, newfile)
       return "", line
     else
       if string.match(lastline, pattern) then
-        local prefix = string.gsub(
-            string.match(lastline, "^(%.+)"), "%.", "%%."
-          )
+        local prefix = boxprefix(lastline)
         if string.match(line, prefix .. "%.\\kern") then
           return string.gsub(line, "^%.", ""), lastline, true
         elseif dropping then
           return "", ""
         else
-          line     = lastline .. "\n" .. line
-          lastline = ""
+          return lastline .. "\n" .. line, ""
         end
       end
     end
     -- Much the same idea when the last line was a whatsit,
     -- but things are simpler in this case
     if string.match(lastline, "^%.+\\whatsit$") then
-      prefix = string.gsub(string.match(lastline, "^(%.+)"), "%.", "%%.")
+      local prefix = boxprefix(lastline)
       if string.match(line, prefix .. "%.") then
         return "", lastline, true
       else
         -- End of a \whatsit block
-        return line, "", false
+        return line, ""
       end
     end
-    return line, lastline, false
+    return line, ""
   end
   local newlog = ""
   local lastline = ""
