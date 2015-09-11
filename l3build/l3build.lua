@@ -812,13 +812,28 @@ function formatlualog(logfile, newfile)
     -- any bidi/vertical stuff will still show
     line = string.gsub(line, ", direction TLT", "")
     -- Find glue setting and round out the last place
-    line = string.gsub(
-        line,
-        "glue set (%-? ?)%d+.%d+",
-        "glue set %1" .. string.format(
-            "%.3f", string.match(line, "glue set %-? ?(%d+.%d+)") or 0
-          )
+    local function round_digits(l, m)
+      return string.gsub(
+        l,
+        m .. " (%-?)%d+%.%d+",
+        m .. " %1"
+          .. string.format(
+              "%.3f",
+              string.match(line, m .. " %-?(%d+%.%d+)") or 0
+            )
       )
+    end
+    if string.match(line, "glue set %-?%d+%.%d+") then
+      line = round_digits(line, "glue set")
+    end
+    if string.match(
+        line, "glue %-?%d+%.%d+ plus %-?%d+%.%d+ minus %-?%d+%.%d+$"
+      )
+      then
+      line = round_digits(line, "glue")
+      line = round_digits(line, "plus")
+      line = round_digits(line, "minus")
+    end
     -- LuaTeX writes ^^M as a new line, which we loose
     line = string.gsub(line, "%^%^M", "")
     -- Remove U+ notation in the "Missing character" message
@@ -850,7 +865,7 @@ function formatlualog(logfile, newfile)
       end
     end
     -- Look for another form of \discretionary, replacing a "-"
-    local pattern = "^%.+\\discretionary replacing *$"
+    pattern = "^%.+\\discretionary replacing *$"
     if string.match(line, pattern) then
       return "", line
     else
