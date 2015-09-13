@@ -34,10 +34,8 @@ The following directories contain experimental LaTeX3 code:
 
 Support material for development is found in:
 
-  * `support`, which contains a variety of scripts for running
-    automated tests.
-  * `validate`, which contains specially-designed TeX files for testing
-    purposes.
+  * `support`, which contains files for the automated test suite which are
+    'local' to the LaTeX3 repository.
 
 Documentation is found in:
 
