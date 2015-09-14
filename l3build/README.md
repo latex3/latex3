@@ -1,6 +1,11 @@
 l3build: a testing and building system for LaTeX3
 =================================================
 
+Release 2015/09/14 (r6007)
+
+Overview
+--------
+
 The `l3build` module is designed to support the development of
 high-quality LaTeX code by providing:
  - A unit testing system
