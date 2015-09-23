@@ -48,31 +48,33 @@ function main (target)
     end
     return errorlevel
   end
+  local errorlevel 
   if target == "check" then
-    os.exit(dobundles(checkbundles, "check"))
+    errorlevel = dobundles(checkbundles, "check")
   elseif target == "clean" then
     print ("Cleaning up")
     dobundles (bundles, "clean")
     rm (".", "*.zip")
   elseif target == "ctan" then
-    local errorlevel = dobundles (ctanbundles, "ctan")
+    errorlevel = dobundles (ctanbundles, "ctan")
     if errorlevel == 0 then
       for _,i in ipairs (ctanbundles) do
         cp (i .. ".zip", i, ".")
       end
-    else
-      os.exit(errorlevel)
     end
   elseif target == "doc" then
-    os.exit(dobundles(bundles, "doc"))
+    errorlevel = dobundles(bundles, "doc")
   elseif target == "install" then
-    os.exit(dobundles (bundles, "install"))
+    errorlevel = dobundles (bundles, "install")
   elseif target == "unpack" then
-    os.exit(dobundles (bundles, "unpack"))
+    errorlevel = dobundles (bundles, "unpack")
   elseif target == "version" then
       version ()
   else
     help ()
+  end
+  if errorlevel ~=0 then
+    os.exit(1)
   end
 end
 
