@@ -46,10 +46,10 @@ function main (target)
         break
       end
     end
-    return (errorlevel)
+    return errorlevel
   end
   if target == "check" then
-    dobundles (checkbundles, "check")
+    os.exit(dobundles(checkbundles, "check"))
   elseif target == "clean" then
     print ("Cleaning up")
     dobundles (bundles, "clean")
