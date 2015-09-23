@@ -1707,7 +1707,11 @@ function stdmain(target, files)
       help()
     end
   end
-  os.exit(errorlevel)
+  if errorlevel ~= 0 then 
+    os.exit(1)
+  else
+    os.exit(0)
+  end
 end
 
 -- Allow main function to be disabled 'higher up'
