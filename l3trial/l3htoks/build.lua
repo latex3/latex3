@@ -11,8 +11,9 @@ module = "l3htoks"
 maindir = "../.."
 
 -- Non-standard settings
-checkruns   = 2
-checksearch = true
+checkruns    = 2
+checkengines = {"pdftex", "xetex", "luatex"}
+checksearch  = true
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
