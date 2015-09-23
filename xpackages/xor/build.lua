@@ -10,6 +10,13 @@ bundle = ""
 maindir = "../.."
 
 -- Non-standard settings
+checkdeps   =
+  {
+    maindir .. "/l3build",
+    maindir .. "/l3kernel",
+    maindir .. "/l3packages/xparse",
+    maindir .. "/l3packages/xtemplate"
+  }
 checkruns   = 3
 checksearch = true
 
