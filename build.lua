@@ -60,13 +60,15 @@ function main (target)
       for _,i in ipairs (ctanbundles) do
         cp (i .. ".zip", i, ".")
       end
+    else
+      os.exit(errorlevel)
     end
   elseif target == "doc" then
-    dobundles (bundles, "doc")
+    os.exit(dobundles(bundles, "doc"))
   elseif target == "install" then
-    dobundles (bundles, "install")
+    os.exit(dobundles (bundles, "install"))
   elseif target == "unpack" then
-    dobundles (bundles, "unpack")
+    os.exit(dobundles (bundles, "unpack"))
   elseif target == "version" then
       version ()
   else
