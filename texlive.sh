@@ -16,5 +16,5 @@ EOF
 
 ./install-tl --profile=./texlive.profile
 export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
-tlmgr install latex luatex pdftex ptex uptex xetex
+tlmgr install courier latex luatex pdftex ptex times uptex xetex
 cd ..
