@@ -1,3 +1,9 @@
+# This script is used for testing using Travis
+# It is intended to work on their VM set up: Ubuntu 12.04 LTS
+# As such, the nature of the system is hard-coded
+# A minimal current TL is installed adding only the packages that are
+# required
+
 wget http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
 tar -xzf install-tl-unx.tar.gz
 cd install-tl-20*
@@ -16,5 +22,4 @@ EOF
 
 ./install-tl --profile=./texlive.profile
 export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
-tlmgr install courier latex luatex pdftex ptex times uptex xetex
-cd ..
+tlmgr install courier ptex times uptex xetex
