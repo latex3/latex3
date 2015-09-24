@@ -1,10 +1,10 @@
 #!/usr/bin/env texlua
 
--- Build script for third-party packages
+-- Build script for contrib packages
 
 -- Identify the bundle and module
 -- Just filler as this is purely a location for tests
-module = "third-party"
+module = "contrib"
 bundle = ""
 
 -- Location of main directory: use Unix-style path separators
