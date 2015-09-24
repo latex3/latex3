@@ -170,19 +170,22 @@ function argparse()
       engine              = "engine",
       ["halt-on-error"]   = "halt"  ,
       ["halt-on-failure"] = "halt"  ,
-      help                = "help"
+      help                = "help"  ,
+      quiet               = "quiet"
     }
   local short_options =
     {
       e = "engine",
       h = "help"  ,
-      H = "halt"
+      H = "halt"  ,
+      q = "quiet"
     }
   local option_args =
     {
       engine = true ,
       halt   = false,
-      help   = false
+      help   = false,
+      quiet  = false
     }
   -- arg[1] is a special case: must be a command or "-h"/"--help"
   -- Deal with this by assuming help and storing only apparently-valid
@@ -290,6 +293,7 @@ userargs = argparse()
 optengines = userargs["engine"]
 opthalt    = userargs["halt"]
 opthelp    = userargs["help"]
+optquiet   = userargs["quiet"]
 
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
@@ -674,7 +678,7 @@ end
 function depinstall(deps)
   for _,i in ipairs(deps) do
     print("Installing dependency: " .. i)
-    run(i, "texlua " .. scriptname .. " unpack")
+    run(i, "texlua " .. scriptname .. " unpack -q")
   end
 end
 
@@ -1628,6 +1632,7 @@ bundleunpack = bundleunpack or function(sourcedir)
         os_concat ..
         unpackexe .. " " .. unpackopts .. " " .. j .. " < "
           .. localdir .. "/yes"
+          .. (optquiet and (" > " .. os_null) or "")
       )
     end
   end
