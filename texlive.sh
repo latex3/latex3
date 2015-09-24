@@ -25,3 +25,4 @@ EOF
 ./install-tl --profile=./texlive.profile
 export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
 tlmgr install courier ptex times uptex xetex
+sh contrib/contrib.sh
