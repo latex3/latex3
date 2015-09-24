@@ -8,7 +8,16 @@ module  = ""
 
 -- A couple of custom variables: the order here is set up for 'importance'
 bundles      = {"l3build", "l3kernel", "l3packages", "l3experimental", "l3trial"}
-checkbundles = {"l3build", "l3kernel", "l3packages", "l3experimental", "xpackages/xor", "l3trial"}
+checkbundles =
+  {
+    "l3build",
+    "l3kernel",
+    "l3packages",
+    "l3experimental",
+    "xpackages/xor",
+    "l3trial",
+    "contrib"
+  }
 ctanbundles  = {"l3build", "l3kernel", "l3packages", "l3experimental"}
 
 -- Location of main directory: use Unix-style path separators
@@ -48,7 +57,7 @@ function main (target)
     end
     return errorlevel
   end
-  local errorlevel 
+  local errorlevel
   if target == "check" then
     errorlevel = dobundles(checkbundles, "check")
   elseif target == "clean" then
