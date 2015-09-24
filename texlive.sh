@@ -1,3 +1,5 @@
+#!/usr/bin/env sh
+
 # This script is used for testing using Travis
 # It is intended to work on their VM set up: Ubuntu 12.04 LTS
 # As such, the nature of the system is hard-coded
