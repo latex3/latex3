@@ -12,7 +12,7 @@ cd install-tl-20*
 
 # Set up the automated install
 cat << EOF >> texlive.profile 
-selected_scheme scheme-basic
+selected_scheme scheme-minimal
 TEXDIR /tmp/texlive
 TEXMFCONFIG ~/.texlive2015/texmf-config
 TEXMFHOME ~/texmf
@@ -26,10 +26,12 @@ EOF
 export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
 
 # Core requirements for the test system
-tlmgr install ptex uptex xetex
+tlmgr install babel babel-english latex latex-bin latex-fonts latexconfig xetex
+tlmgr install --no-depends ptex uptex
 
 # Additional requirements for the xor test
-tlmgr install courier times
+tlmgr install courier psnfss times tools url
 
-# Additional requirements for the contrib tests
-tlmgr install cm-super ec siunitx
+# Additional requirements for contrib tests:
+# - siunitx
+tlmgr install amsmath ec siunitx
