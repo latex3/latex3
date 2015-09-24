@@ -726,7 +726,7 @@ function formatlog(logfile, newfile, engine)
     line = string.gsub(line, "%(%.%/", "(")
     -- Zap paths if places other than 'here' are accessible
     if checksearch then
-      line = string.gsub(line, "%(.*/([%w-]+%.[%w-]+)%s*$", "(../%1")
+      line = string.gsub(line, "%(.*/([%w-]+%.[%w-]+)%)?%s*$", "(../%1")
     end
     -- Zap map loading of map
     line = string.gsub(line, "%{%w?:?[%w/%-]*/pdftex%.map%}", "")
