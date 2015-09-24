@@ -24,5 +24,12 @@ EOF
 
 ./install-tl --profile=./texlive.profile
 export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
-tlmgr install courier ptex times uptex xetex
-sh contrib/contrib.sh
+
+# Core requirements for the test system
+tlmgr install ptex uptex xetex
+
+# Additional requirements for the xor test
+tlmgr install courier times
+
+# Additional requirements for the contrib tests
+tlmgr install siunitx
