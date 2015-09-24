@@ -32,4 +32,4 @@ tlmgr install ptex uptex xetex
 tlmgr install courier times
 
 # Additional requirements for the contrib tests
-tlmgr install ec siunitx
+tlmgr install cm-super ec siunitx
