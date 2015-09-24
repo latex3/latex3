@@ -80,7 +80,8 @@ LaTeX3 uses [Travis CI](https://travis-ci.org/) as a hosted continuous
 integration service. For each commit, the build status is tested using
 the current release of TeX Live.
 
-_Current build status_: https://travis-ci.org/latex3/latex3.svg?branch=master
+_Current build status:_
+[![Build Status](https://travis-ci.org/latex3/latex3.svg?branch=master)](https://travis-ci.org/latex3/latex3)
 
 The LaTeX3 Project
 ------------------
