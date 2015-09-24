@@ -73,6 +73,15 @@ The issue tracker for LaTeX3 is currently located at
 Please report specific issues with LaTeX3 code there; more general
 discussion should be directed to the [LaTeX-L list](#Discussion).
 
+Build status
+------------
+
+LaTeX3 uses [Travis CI](https://travis-ci.org/) as a hosted continuous
+integration service. For each commit, the build status is tested using
+the current release of TeX Live.
+
+_Current build status_: https://travis-ci.org/latex3/latex3.svg?branch=master
+
 The LaTeX3 Project
 ------------------
 
