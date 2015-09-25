@@ -11,7 +11,7 @@ tar -xzf install-tl-unx.tar.gz
 cd install-tl-20*
 
 # Set up the automated install
-cat << EOF >> texlive.profile 
+cat << EOF >> texlive.profile
 selected_scheme scheme-minimal
 TEXDIR /tmp/texlive
 TEXMFCONFIG ~/.texlive2015/texmf-config
@@ -20,6 +20,8 @@ TEXMFLOCAL /tmp/texlive/texmf-local
 TEXMFSYSCONFIG /tmp/texlive/texmf-config
 TEXMFSYSVAR /tmp/texlive/texmf-var
 TEXMFVAR ~/.texlive2015/texmf-var
+option_doc 0
+option_src 0
 EOF
 
 ./install-tl --profile=./texlive.profile
