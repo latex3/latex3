@@ -35,14 +35,14 @@ bundle = bundle or ""
 if module == "" and bundle == "" then
   if string.match(arg[0], ".*l3build%.lua$") then
     print(
-        "\n" ..
-        "Error: Call l3build using a configuration file, not directly.\n"
-      )
+      "\n"
+        .. "Error: Call l3build using a configuration file, not directly.\n"
+    )
   else
     print(
-      "\n" ..
-      "Error: Specify either bundle or module in configuration script.\n"
-      )
+      "\n"
+        .. "Error: Specify either bundle or module in configuration script.\n"
+    )
   end
   os.exit(1)
 end
@@ -423,9 +423,9 @@ function cp(glob, source, dest)
     local source = source .. "/" .. i
     if os_windows then
       errorlevel = os.execute(
-          "copy /y " .. unix_to_win(source) .. " "
-            .. unix_to_win(dest) .. " > nul"
-        )
+        "copy /y " .. unix_to_win(source) .. " "
+           .. unix_to_win(dest) .. " > nul"
+      )
     else
       errorlevel = os.execute("cp -f " .. source .. " " .. dest)
     end
@@ -492,8 +492,8 @@ function mkdir(dir)
     -- but issues a warning if the dir already exists: avoid by including a test
     local dir = unix_to_win(dir)
     return os.execute(
-        "if not exist "  .. dir .. "\\nul " .. "mkdir " .. dir
-      )
+      "if not exist "  .. dir .. "\\nul " .. "mkdir " .. dir
+    )
   else
     return os.execute("mkdir -p " .. dir)
   end
@@ -571,16 +571,17 @@ end
 function allmodules(target)
   for _,i in ipairs(modules) do
     print(
-        "Running script " .. scriptname .. " with target \"" .. target
-          .. "\" for module "
-          .. i
-      )
+      "Running script " .. scriptname .. " with target \"" .. target
+        .. "\" for module "
+        .. i
+    )
     local engines = ""
     if optengines then
       engines = " --engine=" .. table.concat(optengines, ",")
     end
     local errorlevel = run(
-      i, "texlua " .. scriptname .. " " .. target
+      i,
+      "texlua " .. scriptname .. " " .. target
         .. (opthalt and " -H" or "")
         .. engines
     )
@@ -711,8 +712,8 @@ function formatlog(logfile, newfile, engine)
       -- As Lua doesn't allow "(in|out)", a slightly complex approach:
       -- do a substitution to check the line is exactly what is required!
         string.match(
-            string.gsub(line, "^\\openin", "\\openout"), "^\\openout%d%d? = "
-          ) then
+          string.gsub(line, "^\\openin", "\\openout"), "^\\openout%d%d? = "
+        ) then
         return true
       end
     return false
@@ -754,8 +755,9 @@ function formatlog(logfile, newfile, engine)
     end
     -- TeX90/XeTeX knows only the smaller set of dimension units
     line = string.gsub(
-        line, "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
-      )
+      line,
+      "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
+    )
     -- Normalise a case where fixing a TeX bug changes the message text
     line = string.gsub(line, "\\csname\\endcsname ", "\\csname\\endcsname")
     -- Zap "on line <num>" and replace with "on line ..."
@@ -768,8 +770,10 @@ function formatlog(logfile, newfile, engine)
     -- Two stages as line wrapping alters some of them and restore the break
     line = string.gsub(line, "^l%.%d+ ", "l. ...")
     line = string.gsub(
-        line, "%.%.%.l%.%d+ ( *)%}$", "..." .. os_newline .. "l. ...%1}"
-      )
+      line,
+      "%.%.%.l%.%d+ ( *)%}$",
+      "..." .. os_newline .. "l. ...%1}"
+    )
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
     line = string.gsub(line, "^%s+", "")
@@ -846,9 +850,9 @@ function formatlualog(logfile, newfile)
         m .. " (%-?)%d+%.%d+",
         m .. " %1"
           .. string.format(
-              "%.3f",
-              string.match(line, m .. " %-?(%d+%.%d+)") or 0
-            )
+            "%.3f",
+            string.match(line, m .. " %-?(%d+%.%d+)") or 0
+          )
       )
     end
     if string.match(line, "glue set %-?%d+%.%d+") then
@@ -1019,7 +1023,7 @@ function runcheck(name, hide)
       if not locate({unpackdir, testfiledir}, {name .. lveext}) then
         print(
           "Error: failed to find " .. tlgext .. " or "
-          .. lveext .. " file for " .. name .. "!"
+            .. lveext .. " file for " .. name .. "!"
         )
         os.exit(1)
       end
@@ -1104,18 +1108,18 @@ function runtest(name, engine, hide, ext)
   end
   for i = 1, checkruns do
     run(
-        testdir,
-        -- No use of localdir here as the files get copied to testdir:
-        -- avoids any paths in the logs
-        os_setenv .. " TEXINPUTS=." .. (checksearch and os_pathsep or "")
-          .. os_concat ..
-        -- Avoid spurious output from (u)pTeX
-        os_setenv .. " GUESS_INPUT_KANJI_ENCODING=0"
-          .. os_concat ..
-        realengine ..  format .. " "
-          .. checkopts .. " " .. asciiopt .. lvtfile
-          .. (hide and (" > " .. os_null) or "")
-      )
+      testdir,
+      -- No use of localdir here as the files get copied to testdir:
+      -- avoids any paths in the logs
+      os_setenv .. " TEXINPUTS=." .. (checksearch and os_pathsep or "")
+        .. os_concat ..
+      -- Avoid spurious output from (u)pTeX
+      os_setenv .. " GUESS_INPUT_KANJI_ENCODING=0"
+        .. os_concat ..
+      realengine ..  format .. " "
+        .. checkopts .. " " .. asciiopt .. lvtfile
+        .. (hide and (" > " .. os_null) or "")
+    )
   end
   formatlog(logfile, newfile, engine)
   -- Store secondary files for this engine
@@ -1377,10 +1381,10 @@ function bundleclean()
     errorlevel = rm(".", i) + errorlevel
   end
   return (
-      errorlevel     +
-      rmdir(ctandir) +
-      rmdir(tdsdir)
-    )
+    errorlevel     +
+    rmdir(ctandir) +
+    rmdir(tdsdir)
+  )
 end
 
 -- Check commands are defined
@@ -1430,19 +1434,19 @@ function ctan(standalone)
     local exclude = tab_to_str(excludefiles)
     -- First, zip up all of the text files
     run(
-        dir,
-        zipexe .. " " .. zipopts .. " -ll ".. zipname .. " " .. "."
-          .. (
-            (binfiles or  exclude) and (" -x" .. binfiles .. " " .. exclude)
-            or ""
-          )
-      )
+      dir,
+      zipexe .. " " .. zipopts .. " -ll ".. zipname .. " " .. "."
+        .. (
+          (binfiles or  exclude) and (" -x" .. binfiles .. " " .. exclude)
+          or ""
+        )
+    )
     -- Then add the binary ones
     run(
-        dir,
-        zipexe .. " " .. zipopts .. " -g ".. zipname .. " " .. ". -i" ..
-          binfiles .. (exclude and (" -x" .. exclude) or "")
-      )
+      dir,
+      zipexe .. " " .. zipopts .. " -g ".. zipname .. " " .. ". -i" ..
+        binfiles .. (exclude and (" -x" .. exclude) or "")
+    )
   end
   local errorlevel
   if standalone then
@@ -1619,7 +1623,7 @@ function save(names)
         print(
           "Test input \"" .. testfiledir .. "/" .. name .. lvtext
             .. "\" not found"
-          )
+        )
       end
     end
   end
@@ -1698,8 +1702,9 @@ end
 
 function version()
   print(
-    "\nl3build Release " .. string.gsub(release_date, "/", "-") ..
-    " (SVN r" .. release_ver .. ")\n"
+    "\n"
+    .. "l3build Release " .. string.gsub(release_date, "/", "-")
+    .. " (SVN r" .. release_ver .. ")\n"
   )
 end
 
