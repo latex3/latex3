@@ -845,7 +845,7 @@ function formatlualog(logfile, newfile)
       line = round_digits(line, "plus")
       line = round_digits(line, "minus")
     end
-    -- LuaTeX writes ^^M as a new line, which we loose
+    -- LuaTeX writes ^^M as a new line, which we lose
     line = string.gsub(line, "%^%^M", "")
     -- Remove U+ notation in the "Missing character" message
     line = string.gsub(
