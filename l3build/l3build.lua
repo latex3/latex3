@@ -571,7 +571,8 @@ end
 function allmodules(target)
   for _,i in ipairs(modules) do
     print(
-        "Running script " .. scriptname .. " with target \"" .. target .. "\" for module "
+        "Running script " .. scriptname .. " with target \"" .. target
+          .. "\" for module "
           .. i
       )
     local engines = ""
@@ -687,10 +688,15 @@ end
 
 -- Unpack files needed to support testing/typesetting/unpacking
 function depinstall(deps)
+  local errorlevel
   for _,i in ipairs(deps) do
     print("Installing dependency: " .. i)
-    run(i, "texlua " .. scriptname .. " unpack -q")
+    errorlevel = run(i, "texlua " .. scriptname .. " unpack -q")
+    if errorlevel ~= 0 then
+      return errorlevel
+    end
   end
+  return 0
 end
 
 -- Convert the raw log file into one for comparison/storage: keeps only
@@ -1352,24 +1358,29 @@ function clean()
   -- To make sure that distribdir never contains any stray subdirs,
   -- it is entirely removed then recreated rather than simply deleting
   -- all of the files
-  rmdir(distribdir)
-  mkdir(distribdir)
-  cleandir(localdir)
-  cleandir(testdir)
-  cleandir(typesetdir)
-  cleandir(unpackdir)
+  local errorlevel = 
+    rmdir(distribdir)    +
+    mkdir(distribdir)    +
+    cleandir(localdir)   +
+    cleandir(testdir)    +
+    cleandir(typesetdir) +
+    cleandir(unpackdir)
   for _,i in ipairs(cleanfiles) do
-    rm(".", i)
+    errorlevel = rm(".", i) + errorlevel
   end
+  return errorlevel
 end
 
 function bundleclean()
-  allmodules("clean")
+  local errorlevel = allmodules("clean")
   for _,i in ipairs(cleanfiles) do
-    rm(".", i)
+    errorlevel = rm(".", i) + errorlevel
   end
-  rmdir(ctandir)
-  rmdir(tdsdir)
+  return (
+      errorlevel     +
+      rmdir(ctandir) +
+      rmdir(tdsdir)
+    )
 end
 
 -- Check commands are defined
@@ -1558,14 +1569,24 @@ end
 
 -- Locally install files: only deals with those extracted, not docs etc.
 function install()
-  unpack()
+  local errorlevel = unpack()
+  if errorlevel ~= 0 then
+    return errorlevel
+  end
   kpse.set_program_name("latex")
   local texmfhome = kpse.var_value("TEXMFHOME")
   local installdir = texmfhome .. "/tex/" .. moduledir
-  cleandir(installdir)
-  for _,i in ipairs(installfiles) do
-    cp(i, unpackdir, installdir)
+  errorlevel = cleandir(installdir)
+  if errorlevel ~= 0 then
+    return errorlevel
   end
+  for _,i in ipairs(installfiles) do
+    errorlevel = cp(i, unpackdir, installdir)
+    if errorlevel ~= 0 then
+      return errorlevel
+    end
+  end
+  return 0
 end
 
 function save(names)
@@ -1607,25 +1628,47 @@ end
 -- Unpack the package files using an 'isolated' system: this requires
 -- a copy of the 'basic' DocStrip program, which is used then removed
 function unpack()
-  depinstall(unpackdeps)
-  bundleunpack()
-  for _,i in ipairs(installfiles) do
-    cp(i, unpackdir, localdir)
+  local errorlevel = depinstall(unpackdeps)
+  if errorlevel ~= 0 then
+    return errorlevel
   end
+  errorlevel = bundleunpack()
+  if errorlevel ~= 0 then
+    return errorlevel
+  end
+  for _,i in ipairs(installfiles) do
+    errorlevel = cp(i, unpackdir, localdir)
+    if errorlevel ~= 0 then
+      return errorlevel
+    end
+  end
+  return 0
 end
 
 -- Split off from the main unpack so it can be used on a bundle and not
 -- leave only one modules files
 bundleunpack = bundleunpack or function(sourcedir)
-  mkdir(localdir)
-  cleandir(unpackdir)
+  local errorlevel = mkdir(localdir)
+  if errorlevel ~=0 then
+    return errorlevel
+  end
+  errorlevel = cleandir(unpackdir)
+  if errorlevel ~=0 then
+    return errorlevel
+  end
   for _,i in ipairs(sourcedir or {"."}) do
     for _,j in ipairs(sourcefiles) do
-      cp(j, i, unpackdir)
+      errorlevel = cp(j, i, unpackdir)
+      if errorlevel ~=0 then
+        return errorlevel
+      end
     end
   end
   for _,i in ipairs(unpacksuppfiles) do
-    cp(i, supportdir, localdir)
+    errorlevel = cp(i, supportdir, localdir)
+    if errorlevel ~=0 then
+      return errorlevel
+    end
   end
   for _,i in ipairs(unpackfiles) do
     for _,j in ipairs(filelist(unpackdir, i)) do
@@ -1636,7 +1679,7 @@ bundleunpack = bundleunpack or function(sourcedir)
       -- stops, which confuses Lua)
       os.execute(os_yes .. ">>" .. localdir .. "/yes")
       local localdir = relpath(localdir, unpackdir)
-      run(
+      errorlevel = run(
         unpackdir,
         os_setenv .. " TEXINPUTS=." .. os_pathsep
           .. localdir .. (unpacksearch and os_pathsep or "") ..
@@ -1645,8 +1688,12 @@ bundleunpack = bundleunpack or function(sourcedir)
           .. localdir .. "/yes"
           .. (optquiet and (" > " .. os_null) or "")
       )
+      if errorlevel ~=0 then
+        return errorlevel
+      end
     end
   end
+  return 0
 end
 
 function version()
@@ -1716,7 +1763,7 @@ function stdmain(target, files)
         help()
       end
     elseif target == "unpack" then
-      unpack()
+      errorlevel = unpack()
     elseif target == "version" then
       version()
     else
