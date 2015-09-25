@@ -409,23 +409,31 @@ lfs = require("lfs")
 
 -- For cleaning out a directory, which also ensures that it exists
 function cleandir(dir)
-  mkdir(dir)
-  rm(dir, "*")
+  local errorlevel = mkdir(dir)
+  if errorlevel ~= 0 then
+    return errorlevel
+  end
+  return rm(dir, "*")
 end
 
 -- Copy files 'quietly'
 function cp(glob, source, dest)
+  local errorlevel
   for _,i in ipairs(filelist(source, glob)) do
     local source = source .. "/" .. i
     if os_windows then
-      os.execute(
+      errorlevel = os.execute(
           "copy /y " .. unix_to_win(source) .. " "
             .. unix_to_win(dest) .. " > nul"
         )
     else
-      os.execute("cp -f " .. source .. " " .. dest)
+      errorlevel = os.execute("cp -f " .. source .. " " .. dest)
+    end
+    if errorlevel ~=0 then
+      return errorlevel
     end
   end
+  return 0
 end
 
 -- OS-dependent test for a directory
@@ -483,9 +491,11 @@ function mkdir(dir)
     -- Windows (with the extensions) will automatically make directory trees
     -- but issues a warning if the dir already exists: avoid by including a test
     local dir = unix_to_win(dir)
-    os.execute("if not exist "  .. dir .. "\\nul " .. "mkdir " .. dir)
+    return os.execute(
+        "if not exist "  .. dir .. "\\nul " .. "mkdir " .. dir
+      )
   else
-    os.execute("mkdir -p " .. dir)
+    return os.execute("mkdir -p " .. dir)
   end
 end
 
@@ -516,9 +526,9 @@ end
 function ren(dir, source, dest)
   local dir = dir .. "/"
   if os_windows then
-    os.execute("ren " .. unix_to_win(dir) .. source .. " " .. dest)
+    return os.execute("ren " .. unix_to_win(dir) .. source .. " " .. dest)
   else
-    os.execute("mv " .. dir .. source .. " " .. dir .. dest)
+    return os.execute("mv " .. dir .. source .. " " .. dir .. dest)
   end
 end
 
@@ -527,6 +537,8 @@ function rm(source, glob)
   for _,i in ipairs(filelist(source, glob)) do
     os.remove(source .. "/" .. i)
   end
+  -- os.remove doesn't give a sensible errorlevel
+  return 0
 end
 
 -- Remove a directory tree
@@ -534,9 +546,9 @@ function rmdir(dir)
   -- First, make sure it exists to avoid any errors
   mkdir(dir)
   if os_windows then
-    os.execute("rmdir /s /q " .. unix_to_win(dir) )
+    return os.execute("rmdir /s /q " .. unix_to_win(dir) )
   else
-    os.execute("rm -r " .. dir)
+    return os.execute("rm -r " .. dir)
   end
 end
 
@@ -557,7 +569,6 @@ end
 
 -- Do some subtarget for all modules in a bundle
 function allmodules(target)
-  local errorlevel
   for _,i in ipairs(modules) do
     print(
         "Running script " .. scriptname .. " with target \"" .. target .. "\" for module "
@@ -567,7 +578,7 @@ function allmodules(target)
     if optengines then
       engines = " --engine=" .. table.concat(optengines, ",")
     end
-    errorlevel = run(
+    local errorlevel = run(
       i, "texlua " .. scriptname .. " " .. target
         .. (opthalt and " -H" or "")
         .. engines
