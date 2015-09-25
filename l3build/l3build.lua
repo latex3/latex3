@@ -938,7 +938,7 @@ function formatlualog(logfile, newfile)
     elseif (string.len(lastline) == maxprintline) then
       if string.match(line, "\\ETC%.%}$") then
         -- If the line wrapped at \ETC we might have lost a space
-        return lastline 
+        return lastline
           .. ((string.match(line, "^\\ETC%.%}$") and " ") or "")
           .. line, ""
       elseif string.match(line, "^%}%}%}$") then
@@ -1358,7 +1358,7 @@ function clean()
   -- To make sure that distribdir never contains any stray subdirs,
   -- it is entirely removed then recreated rather than simply deleting
   -- all of the files
-  local errorlevel = 
+  local errorlevel =
     rmdir(distribdir)    +
     mkdir(distribdir)    +
     cleandir(localdir)   +
@@ -1770,7 +1770,7 @@ function stdmain(target, files)
       help()
     end
   end
-  if errorlevel ~= 0 then 
+  if errorlevel ~= 0 then
     os.exit(1)
   else
     os.exit(0)
