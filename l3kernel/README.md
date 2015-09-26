@@ -31,10 +31,10 @@ The `l3kernel` bundle requires the e-TeX extensions and the functionality
 of the `\pdfstrcmp` primitive. As a result, the bundle will only work
 with the following engines:
 
- - pdfTeX v1.30 or later
- - XeTeX v0.9994 or later
- - LuaTeX v0.40 or later
- - e-(u)pTeX from mid-2012 onward
+* pdfTeX v1.30 or later
+* XeTeX v0.9994 or later
+* LuaTeX v0.40 or later
+* e-(u)pTeX from mid-2012 onward
 
 pdfTeX v1.30 was released in 2005, and so any recent TeX distribution
 will support `l3kernel`. Both XeTeX and LuaTeX have developed more
@@ -73,24 +73,24 @@ Development of LaTeX3 is carried out by
 [The LaTeX3 Project](http://www.latex-project.org/latex3.html). Currently,
 the team members are
 
-  * Johannes Braams
-  * David Carlisle
-  * Robin Fairbairns
-  * Morten Høgholm
-  * Bruno Le Floch
-  * Thomas Lotze
-  * Frank Mittelbach
-  * Will Robertson
-  * Chris Rowley
-  * Rainer Schöpf
-  * Joseph Wright
+* Johannes Braams
+* David Carlisle
+* Robin Fairbairns
+* Morten Høgholm
+* Bruno Le Floch
+* Thomas Lotze
+* Frank Mittelbach
+* Will Robertson
+* Chris Rowley
+* Rainer Schöpf
+* Joseph Wright
 
 Former members of The LaTeX3 Project team were
 
-  * Michael Downes
-  * Denys Duchier
-  * Alan Jeffrey
-  * Martin Schröder
+* Michael Downes
+* Denys Duchier
+* Alan Jeffrey
+* Martin Schröder
 
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion

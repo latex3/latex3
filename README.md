@@ -12,37 +12,37 @@ development and testing to occur.
 
 The following directories contain experimental LaTeX3 code:
 
- * `l3kernel`: code which is intended to eventually appear in a
-   stand-alone LaTeX3 format. Most of this material is also
-   usable on top of LaTeX2e when loading the `expl3` package.
- * `l3packages`: code which is written to be used on top of
-   LaTeX2e to experiment with LaTeX3 concepts. The interfaces to these
-   higher-level packages are 'stable'.
- * `l3experimental`: code which is written to be used on top of
-   LaTeX2e to experiment with LaTeX3 concepts. The interfaces
-   for these packages are still under active discussion. Parts of this code may
-   eventually be migrated to `l3kernel`, while other parts are tied closely
-   to LaTeX2e and are intended to support mixing LaTeX2e and LaTeX3 concepts.
- * `l3trial`: material which is under very active development, for potential
-   addition to `l3kernel` or `l3experimental`. Material in this directory
-   may include potential replacements for existing modules, where large-scale
-   changes are underway.
- * `l3leftovers`: code which has been developed in the past by The
-   LaTeX3 Project but is not suitable for use in its current form.
-   Parts of this code may be used as the basis for new developments
-   in `l3kernel` or `l3experimental` over time.
+* `l3kernel`: code which is intended to eventually appear in a
+  stand-alone LaTeX3 format. Most of this material is also
+  usable on top of LaTeX2e when loading the `expl3` package.
+* `l3packages`: code which is written to be used on top of
+  LaTeX2e to experiment with LaTeX3 concepts. The interfaces to these
+  higher-level packages are 'stable'.
+* `l3experimental`: code which is written to be used on top of
+  LaTeX2e to experiment with LaTeX3 concepts. The interfaces
+  for these packages are still under active discussion. Parts of this code may
+  eventually be migrated to `l3kernel`, while other parts are tied closely
+  to LaTeX2e and are intended to support mixing LaTeX2e and LaTeX3 concepts.
+* `l3trial`: material which is under very active development, for potential
+  addition to `l3kernel` or `l3experimental`. Material in this directory
+  may include potential replacements for existing modules, where large-scale
+  changes are underway.
+* `l3leftovers`: code which has been developed in the past by The
+  LaTeX3 Project but is not suitable for use in its current form.
+  Parts of this code may be used as the basis for new developments
+  in `l3kernel` or `l3experimental` over time.
 
 Support material for development is found in:
 
-  * `support`, which contains files for the automated test suite which are
-    'local' to the LaTeX3 repository.
+* `support`, which contains files for the automated test suite which are
+  'local' to the LaTeX3 repository.
 
 Documentation is found in:
 
-  * `articles`: discussion of LaTeX3 concepts by team members for
-    publication in [_TUGBoat_](http://www.tug.org/tugboat) or elsewhere.
-  * `examples`: demonstration documents showing how to use LaTeX3 concepts.
-  * `news`: source for _LaTeX3 News_.
+* `articles`: discussion of LaTeX3 concepts by team members for
+  publication in [_TUGBoat_](http://www.tug.org/tugboat) or elsewhere.
+* `examples`: demonstration documents showing how to use LaTeX3 concepts.
+* `news`: source for _LaTeX3 News_.
 
 The repository also contains the directory `xpackages`. This
 contain code which is being moved (broadly) `l3experimental`.
@@ -90,24 +90,24 @@ Development of LaTeX3 is carried out by
 [The LaTeX3 Project](http://www.latex-project.org/latex3.html). Currently,
 the team members are
 
-  * Johannes Braams
-  * David Carlisle
-  * Robin Fairbairns
-  * Morten Høgholm
-  * Bruno Le Floch
-  * Thomas Lotze
-  * Frank Mittelbach
-  * Will Robertson
-  * Chris Rowley
-  * Rainer Schöpf
-  * Joseph Wright
+* Johannes Braams
+* David Carlisle
+* Robin Fairbairns
+* Morten Høgholm
+* Bruno Le Floch
+* Thomas Lotze
+* Frank Mittelbach
+* Will Robertson
+* Chris Rowley
+* Rainer Schöpf
+* Joseph Wright
 
 Former members of The LaTeX3 Project team were
 
-  * Michael Downes
-  * Denys Duchier
-  * Alan Jeffrey
-  * Martin Schröder
+* Michael Downes
+* Denys Duchier
+* Alan Jeffrey
+* Martin Schröder
 
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion

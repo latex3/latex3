@@ -8,9 +8,9 @@ Overview
 
 The `l3build` module is designed to support the development of
 high-quality LaTeX code by providing:
- - A unit testing system
- - Automated typesetting of code sources
- - A reliable packaging system for CTAN releases
+* A unit testing system
+* Automated typesetting of code sources
+* A reliable packaging system for CTAN releases
 
 The bundle consists of a Lua script to run the tasks and a
 `.tex` file which provides the testing environment. These were
@@ -50,24 +50,24 @@ Development of LaTeX3 is carried out by
 [The LaTeX3 Project](http://www.latex-project.org/latex3.html). Currently,
 the team members are
 
-  * Johannes Braams
-  * David Carlisle
-  * Robin Fairbairns
-  * Morten Høgholm
-  * Bruno Le Floch
-  * Thomas Lotze
-  * Frank Mittelbach
-  * Will Robertson
-  * Chris Rowley
-  * Rainer Schöpf
-  * Joseph Wright
+* Johannes Braams
+* David Carlisle
+* Robin Fairbairns
+* Morten Høgholm
+* Bruno Le Floch
+* Thomas Lotze
+* Frank Mittelbach
+* Will Robertson
+* Chris Rowley
+* Rainer Schöpf
+* Joseph Wright
 
 Former members of The LaTeX3 Project team were
 
-  * Michael Downes
-  * Denys Duchier
-  * Alan Jeffrey
-  * Martin Schröder
+* Michael Downes
+* Denys Duchier
+* Alan Jeffrey
+* Martin Schröder
 
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
