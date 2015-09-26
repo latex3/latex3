@@ -1099,6 +1099,11 @@ function runtest(name, engine, hide, ext)
     string.match(engine, "^u?ptex$") then
     realengine = "e" .. engine
   end
+  -- Special casing for XeTeX engine
+  local checkopts = checkopts
+  if string.match(engine, "xetex") then
+    checkopts = checkopts .. " -no-pdf"
+  end
   local logfile = testdir .. "/" .. name .. logext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
   local asciiopt = ""
