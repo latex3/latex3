@@ -761,7 +761,9 @@ function formatlog(logfile, newfile, engine)
     -- Normalise a case where fixing a TeX bug changes the message text
     line = string.gsub(line, "\\csname\\endcsname ", "\\csname\\endcsname")
     -- Zap "on line <num>" and replace with "on line ..."
+    -- Two similar cases, Lua patterns mean we need to do them separately
     line = string.gsub(line, "on line %d*", "on line ...")
+    line = string.gsub(line, "on input line %d*", "on input line ...")
     -- Tidy up to ^^ notation
     for i = 0, 31 do
       line = string.gsub(line, string.char(i), "^^" .. string.char(64 + i))
