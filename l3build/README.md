@@ -36,9 +36,8 @@ with the body containing
 Issues
 ------
 
-The issue tracker for LaTeX3 is currently located at
-
-    https://github.com/latex3/latex3/issues
+The issue tracker for LaTeX3 is currently located
+[on GitHub](https://github.com/latex3/latex3/issues).
 
 Please report specific issues with LaTeX3 code there; more general
 discussion should be directed to the [LaTeX-L list](#Discussion).
