@@ -11,7 +11,10 @@ module = "l3auxdata"
 maindir = "../.."
 
 -- Non-standard settings
+checkdeps   = {maindir .. "/l3experimental/l3str", maindir .. "/l3build"}
 testfiledir = ""
+typesetdeps = {maindir .. "/l3experimental/l3str"}
+
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
