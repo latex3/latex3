@@ -1668,239 +1668,142 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[aux]
+%   {
+%     \@@_delimit_by_char":w,
+%     \@@_delimit_by_count:w,
+%     \@@_delimit_by_dimen:w,
+%     \@@_delimit_by_macro:w,
+%     \@@_delimit_by_muskip:w,
+%     \@@_delimit_by_skip:w,
+%     \@@_delimit_by_toks:w,
+%   }
+%   These auxiliary functions are used below to define some
+%   conditionals which detect whether the \tn{meaning} of their
+%   argument begins with a particular string.  Each auxiliary takes an
+%   argument delimited by a string, a second one delimited by
+%   \cs{q_stop}, and returns the first one and its delimiter.
+%   This result will eventually be compared to another string.
+%    \begin{macrocode}
+\group_begin:
+\cs_set_protected:Npn \@@_tmp:w #1
+  {
+    \use:x
+      {
+        \cs_new:Npn \exp_not:c { @@_delimit_by_ #1 :w }
+            ####1 \tl_to_str:n {#1} ####2 \exp_not:N \q_stop
+          { ####1 \tl_to_str:n {#1} }
+      }
+  }
+\@@_tmp:w { char" }
+\@@_tmp:w { count }
+\@@_tmp:w { dimen }
+\@@_tmp:w { macro }
+\@@_tmp:w { muskip }
+\@@_tmp:w { skip }
+\@@_tmp:w { toks }
+\group_end:
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[pTF]
 %   {
 %     \token_if_chardef:N,               \token_if_mathchardef:N,
+%                                        \token_if_long_macro:N,
+%     \token_if_protected_macro:N,       \token_if_protected_long_macro:N,
 %     \token_if_dim_register:N,          \token_if_int_register:N,
 %     \token_if_muskip_register:N,
 %     \token_if_skip_register:N,         \token_if_toks_register:N,
-%                                        \token_if_long_macro:N,
-%     \token_if_protected_macro:N,       \token_if_protected_long_macro:N,
 %   }
-% \begin{macro}[aux]
-%   {
-%     \@@_if_chardef:w,
-%     \@@_if_dim_register:w,
-%     \@@_if_int_register:w,
-%     \@@_if_muskip_register:w,
-%     \@@_if_skip_register:w,
-%     \@@_if_toks_register:w,
-%     \@@_if_protected_macro:w,
-%     \@@_if_long_macro:w,
-%   }
-%   Most of these functions have to check the meaning of the token in
-%   question so we need to do some checkups on which characters are
-%   output by \cs{token_to_meaning:N}. As usual, these characters have
-%   catcode 12 so we must do some serious substitutions in the code
-%   below\dots
+%   Each of these conditionals tests whether its argument's
+%   \tn{meaning} starts with a given string.  This is essentially done
+%   by having an auxiliary grab an argument delimited by the string and
+%   testing whether the argument was empty.  Of course, a copy of this
+%   string must first be added to the end of the \tn{meaning} to avoid
+%   a runaway argument in case it does not contain the string.  Two
+%   complications arise.  First, the escape character is not fixed, and
+%   cannot be included in the delimiter of the auxiliary function (this
+%   function cannot be defined on the fly because tests must remain
+%   expandable): instead the first argument of the auxiliary (plus the
+%   delimiter to avoid complications with trailing spaces) is compared
+%   using \cs{__str_if_eq_x_return:nn} to the result of applying
+%   \cs{token_to_str:N} to a control sequence.  Second, the
+%   \tn{meaning} of primitives such as \tn{dimen} or \tn{dimendef}
+%   starts in the same way as registers such as
+%   \tn{dimen}\texttt{123}, so they must be tested for.
+%
+%   Characters used as delimiters must have catcode~$12$
+%   and are obtained through \cs{tl_to_str:n}.  This requires doing all
+%   definitions within \texttt{x}-expansion.  The temporary function
+%   \cs{@@_tmp:w} used to define each conditional receives three
+%   arguments: the name of the conditional, the auxiliary's delimiter
+%   (also used to name the auxiliary), and the string to which one
+%   compares the auxiliary's result.  Note that the \tn{meaning} of a
+%   protected long macro starts with |\protected\long macro|, with no
+%   space after |\protected| but a space after |\long|, hence the
+%   mixture of \cs{token_to_str:N} and \cs{tl_to_str:n}.
+%
+%   For the first five conditionals, \cs{cs_if_exist:cT} turns out to
+%   be \texttt{false}, and the code boils down to a string comparison
+%   between the result of the auxiliary on the \tn{meaning} of the
+%   conditional's argument~|####1|, and~|#3|.  Both are evaluated at
+%   run-time, as this is important to get the correct escape character.
+%
+%   The other five conditionals have additional code that compares the
+%   argument~|####1| to two \TeX{} primitives which would wrongly be
+%   recognized as registers otherwise.  Despite using \TeX{}'s
+%   primitive conditional construction, this does not break
+%   when~|####1| is itself a conditional, because branches of the
+%   conditionals are only skipped if |####1|~is one of the two
+%   primitives that are tested for (which are not \TeX{} conditionals).
 %    \begin{macrocode}
 \group_begin:
-  \char_set_lccode:nn { `T } { `T }
-  \char_set_lccode:nn { `F } { `F }
-  \char_set_lccode:nn { `X } { `n }
-  \char_set_lccode:nn { `Y } { `t }
-  \char_set_lccode:nn { `Z } { `d }
-  \tl_map_inline:nn { A C E G H I K L M O P R S U X Y Z R " }
-    { \char_set_catcode:nn { `#1 } \c_twelve }
-%    \end{macrocode}
-%   We convert the token list to lower case and restore the catcode and
-%   lowercase code changes.
-%    \begin{macrocode}
-\tex_lowercase:D
+\cs_set_protected:Npn \@@_tmp:w #1#2#3
   {
-    \group_end:
-%    \end{macrocode}
-%   First up is checking if something has been defined with
-%   \tn{chardef} or \tn{mathchardef}. This is easy since \TeX{}
-%   thinks of such tokens as hexadecimal so it stores them as
-%   |\char"|\meta{hex~number} or |\mathchar"|\meta{hex~number}.
-%   Grab until the first occurrence of |char"|, and compare what
-%   precedes with |\| or |\math|. In fact, the escape character
-%   may not be a backslash, so we compare with the result of
-%   converting some other control sequence to a string, namely
-%   |\char| or |\mathchar| (the auxiliary adds the |char| back).
-%    \begin{macrocode}
-    \prg_new_conditional:Npnn \token_if_chardef:N #1 { p , T ,  F , TF }
+    \use:x
       {
-        \__str_if_eq_x_return:nn
+        \prg_new_conditional:Npnn \exp_not:c { token_if_ #1 :N } ####1
+          { p , T ,  F , TF }
           {
-            \exp_after:wN \@@_if_chardef:w
-              \token_to_meaning:N #1 CHAR" \q_stop
-          }
-          { \token_to_str:N \char }
-      }
-    \prg_new_conditional:Npnn \token_if_mathchardef:N #1 { p , T ,  F , TF }
-      {
-        \__str_if_eq_x_return:nn
-          {
-            \exp_after:wN \@@_if_chardef:w
-              \token_to_meaning:N #1 CHAR" \q_stop
-          }
-          { \token_to_str:N \mathchar }
-      }
-    \cs_new:Npn \@@_if_chardef:w #1 CHAR" #2 \q_stop { #1 CHAR }
-%    \end{macrocode}
-%   Dim registers are a bit more difficult since their \tn{meaning}
-%   has the form \tn{dimen}\meta{number}, and we must take care of the
-%   two primitives \tn{dimen} and \tn{dimendef}.
-%    \begin{macrocode}
-    \prg_new_conditional:Npnn \token_if_dim_register:N #1 { p , T , F , TF }
-      {
-        \if_meaning:w \tex_dimen:D #1
-          \prg_return_false:
-        \else:
-          \if_meaning:w \tex_dimendef:D #1
-            \prg_return_false:
-          \else:
-            \__str_if_eq_x_return:nn
+            \cs_if_exist:cT { tex_ #2 :D }
               {
-                \exp_after:wN \@@_if_dim_register:w
-                  \token_to_meaning:N #1 ZIMEX \q_stop
+                \exp_not:N \if_meaning:w ####1 \exp_not:c { tex_ #2 :D }
+                \exp_not:N \prg_return_false:
+                \exp_not:N \else:
+                \exp_not:N \if_meaning:w ####1 \exp_not:c { tex_ #2 def:D }
+                \exp_not:N \prg_return_false:
+                \exp_not:N \else:
               }
-              { \token_to_str:N \  }
-          \fi:
-        \fi:
-      }
-    \cs_new:Npn \@@_if_dim_register:w #1 ZIMEX #2 \q_stop { #1 ~ }
-%    \end{macrocode}
-% Integer registers are one step harder since constants are implemented
-% differently from variables, and we also have to take care of the
-% primitives \tn{count} and \tn{countdef}.
-%    \begin{macrocode}
-    \prg_new_conditional:Npnn \token_if_int_register:N #1 { p , T , F , TF }
-      {
-        % \token_if_chardef:NTF #1 { \prg_return_true: }
-        %   {
-        %     \token_if_mathchardef:NTF #1 { \prg_return_true: }
-        %       {
-        \if_meaning:w \tex_count:D #1
-          \prg_return_false:
-        \else:
-          \if_meaning:w \tex_countdef:D #1
-            \prg_return_false:
-          \else:
-            \__str_if_eq_x_return:nn
+            \exp_not:N \__str_if_eq_x_return:nn
               {
-                \exp_after:wN \@@_if_int_register:w
-                  \token_to_meaning:N #1 COUXY \q_stop
+                \exp_not:N \exp_after:wN
+                \exp_not:c { @@_delimit_by_ #2 :w }
+                \exp_not:N \token_to_meaning:N ####1
+                ? \tl_to_str:n {#2} \exp_not:N \q_stop
               }
-              { \token_to_str:N \  }
-          \fi:
-        \fi:
-        %       }
-        %   }
-      }
-    \cs_new:Npn \@@_if_int_register:w #1 COUXY #2 \q_stop { #1 ~ }
-%    \end{macrocode}
-%   Muskip registers are done the same way as the dimension registers.
-%    \begin{macrocode}
-    \prg_new_conditional:Npnn \token_if_muskip_register:N #1
-      { p , T , F , TF }
-      {
-        \if_meaning:w \tex_muskip:D #1
-          \prg_return_false:
-        \else:
-          \if_meaning:w \tex_muskipdef:D #1
-            \prg_return_false:
-          \else:
-            \__str_if_eq_x_return:nn
+              { \exp_not:n {#3} }
+            \cs_if_exist:cT { tex_ #2 :D }
               {
-                \exp_after:wN \@@_if_muskip_register:w
-                  \token_to_meaning:N #1 MUSKIP \q_stop
+                \exp_not:N \fi:
+                \exp_not:N \fi:
               }
-              { \token_to_str:N \  }
-          \fi:
-        \fi:
-      }
-    \cs_new:Npn \@@_if_muskip_register:w #1 MUSKIP #2 \q_stop { #1 ~ }
-%    \end{macrocode}
-%   Skip registers.
-%    \begin{macrocode}
-    \prg_new_conditional:Npnn \token_if_skip_register:N #1
-      { p , T , F , TF }
-      {
-        \if_meaning:w \tex_skip:D #1
-          \prg_return_false:
-        \else:
-          \if_meaning:w \tex_skipdef:D #1
-            \prg_return_false:
-          \else:
-            \__str_if_eq_x_return:nn
-              {
-                \exp_after:wN \@@_if_skip_register:w
-                  \token_to_meaning:N #1 SKIP \q_stop
-              }
-              { \token_to_str:N \  }
-          \fi:
-        \fi:
-      }
-    \cs_new:Npn \@@_if_skip_register:w #1 SKIP #2 \q_stop { #1 ~ }
-%    \end{macrocode}
-%   Toks registers.
-%    \begin{macrocode}
-    \prg_new_conditional:Npnn \token_if_toks_register:N #1
-      { p , T , F , TF }
-      {
-        \if_meaning:w \tex_toks:D #1
-          \prg_return_false:
-        \else:
-          \if_meaning:w \tex_toksdef:D #1
-            \prg_return_false:
-          \else:
-            \__str_if_eq_x_return:nn
-              {
-                \exp_after:wN \@@_if_toks_register:w
-                  \token_to_meaning:N #1 YOKS \q_stop
-              }
-              { \token_to_str:N \  }
-          \fi:
-        \fi:
-      }
-     \cs_new:Npn \@@_if_toks_register:w #1 YOKS #2 \q_stop { #1 ~ }
-%    \end{macrocode}
-%   Protected macros.
-%    \begin{macrocode}
-    \prg_new_conditional:Npnn \token_if_protected_macro:N #1
-      { p , T ,  F , TF }
-      {
-        \__str_if_eq_x_return:nn
-          {
-            \exp_after:wN \@@_if_protected_macro:w
-              \token_to_meaning:N #1 PROYECYEZ~MACRO \q_stop
           }
-          { \token_to_str:N \  }
       }
-    \cs_new:Npn \@@_if_protected_macro:w
-      #1 PROYECYEZ~MACRO #2 \q_stop { #1 ~ }
-%    \end{macrocode}
-%   Long macros and protected long macros share an auxiliary.
-%    \begin{macrocode}
-    \prg_new_conditional:Npnn \token_if_long_macro:N #1 { p , T ,  F , TF }
-      {
-        \__str_if_eq_x_return:nn
-          {
-            \exp_after:wN \@@_if_long_macro:w
-              \token_to_meaning:N #1 LOXG~MACRO \q_stop
-          }
-          { \token_to_str:N \  }
-      }
-    \prg_new_conditional:Npnn \token_if_protected_long_macro:N #1
-      { p , T ,  F , TF }
-      {
-        \__str_if_eq_x_return:nn
-          {
-            \exp_after:wN \@@_if_long_macro:w
-              \token_to_meaning:N #1 LOXG~MACRO \q_stop
-          }
-          { \token_to_str:N \protected \token_to_str:N \  }
-      }
-    \cs_new:Npn \@@_if_long_macro:w #1 LOXG~MACRO #2 \q_stop { #1 ~ }
-%    \end{macrocode}
-% Finally the \cs{tex_lowercase:D} ends!
-%    \begin{macrocode}
   }
+\@@_tmp:w { chardef } { char" } { \token_to_str:N \char" }
+\@@_tmp:w { mathchardef } { char" } { \token_to_str:N \mathchar" }
+\@@_tmp:w { long_macro } { macro } { \tl_to_str:n { \long } macro }
+\@@_tmp:w { protected_macro } { macro }
+  { \tl_to_str:n { \protected } macro }
+\@@_tmp:w { protected_long_macro } { macro }
+  { \token_to_str:N \protected \tl_to_str:n { \long } macro }
+\@@_tmp:w { dim_register } { dimen } { \token_to_str:N \dimen }
+\@@_tmp:w { int_register } { count } { \token_to_str:N \count }
+\@@_tmp:w { muskip_register } { muskip } { \token_to_str:N \muskip }
+\@@_tmp:w { skip_register } { skip } { \token_to_str:N \skip }
+\@@_tmp:w { toks_register } { toks } { \token_to_str:N \toks }
+\group_end:
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[pTF]{\token_if_primitive:N}
