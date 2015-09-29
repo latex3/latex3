@@ -796,7 +796,7 @@ function formatlog(logfile, newfile, engine)
   local kpse = require("kpse")
   kpse.set_program_name(engine)
   local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
-  if engine == "luatex" then
+  if string.match(engine, "^lua?j?i?t?tex$") then
     maxprintline = maxprintline + 1 -- Deal with an out-by-one error
   end
   local lastline = ""
@@ -1009,9 +1009,15 @@ function runcheck(name, hide)
   end
   local errorlevel = 0
   for _,i in ipairs(checkengines) do
-    local testname = name .. "." .. i
+    -- Allow for luatex == luajitex for .tlg purposes
+    local enginename = i
+    if i == "luajittex" then
+      enginename = "luatex"
+      newfile = testdir .. "/" .. name .. "." .. i .. logext
+    end
+    local testname = name .. "." .. enginename
     local difffile = testdir .. "/" .. testname .. os_diffext
-    local newfile  = testdir .. "/" .. testname .. logext
+    local newfile  = newfile or testdir .. "/" .. testname .. logext
     -- Use engine-specific file if available
     local tlgfile  = locate(
       {testfiledir, unpackdir},
@@ -1039,9 +1045,9 @@ function runcheck(name, hide)
     local errlevel
     -- Do additional log formatting if the engine is LuaTeX, there is no
     -- LuaTeX-specific .tlg file and the default engine is not LuaTeX
-    if i == "luatex"
-      and tlgfile ~= name ..  "." .. i .. tlgext
-      and stdengine ~= "luatex" then
+    if enginename == "luatex"
+      and tlgfile ~= name ..  ".luatex" .. tlgext
+      and not string.match(stdengine, "^luaj?i?t?tex$") then
       local luatlgfile = testdir .. "/" .. name .. ".luatex" ..  tlgext
       if os_windows then
         luatlgfile = unix_to_win(luatlgfile)
