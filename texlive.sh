@@ -44,3 +44,7 @@ tlmgr install courier psnfss times tools url
 # - siunitx
 tlmgr install amsmath ec
 tlmgr install --no-depends siunitx
+# - fontspec
+tlmgr install euenc lm luatexbase luaotfload 
+tlmgr install oberdiek pdftex-def xetex-def xunicode
+tlmgr install --no-depends fontspec
