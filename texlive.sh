@@ -9,7 +9,8 @@
 # See if there is a cached verson of TL available
 export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
 if command -v texlua > /dev/null; then
-  echo "Cache found: skipping TL installation"
+  # Update the TL install but add nothing new
+  tlmgr update --self --all --no-auto-install
   exit 0
 fi
 
