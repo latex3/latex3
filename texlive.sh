@@ -7,7 +7,7 @@
 # required
 
 # See if there is a cached verson of TL available
-if [ -d "/tmp/texlive"" ]; then
+if [ -d "/tmp/texlive" ]; then
   exit 0
 fi
 
