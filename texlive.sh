@@ -48,3 +48,6 @@ tlmgr install --no-depends siunitx
 tlmgr install euenc lm luatexbase luaotfload 
 tlmgr install oberdiek pdftex-def xetex-def xunicode
 tlmgr install --no-depends fontspec
+# - unicode-math
+tlmgr install etoolbox filehook lm-math lualatex-math ucharcat
+tlmgr install --no-depends unicode-math
