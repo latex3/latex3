@@ -8,6 +8,7 @@
 
 # See if there is a cached verson of TL available
 if [ -d "/tmp/texlive" ]; then
+  echo "Cache found: skipping TL installation"
   exit 0
 fi
 
