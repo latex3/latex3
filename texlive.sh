@@ -6,6 +6,11 @@
 # A minimal current TL is installed adding only the packages that are
 # required
 
+# See if there is a cached verson of TL available
+if [ -d "/tmp/texlive"" ]; then
+  exit 0
+fi
+
 wget http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
 tar -xzf install-tl-unx.tar.gz
 cd install-tl-20*
