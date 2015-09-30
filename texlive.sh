@@ -7,7 +7,8 @@
 # required
 
 # See if there is a cached verson of TL available
-if [ -d "/tmp/texlive" ]; then
+export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
+if command -v texlua > /dev/null; then
   echo "Cache found: skipping TL installation"
   exit 0
 fi
@@ -31,7 +32,6 @@ option_src 0
 EOF
 
 ./install-tl --profile=./texlive.profile
-export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
 
 # Core requirements for the test system
 tlmgr install babel babel-english latex latex-bin latex-fonts latexconfig xetex
