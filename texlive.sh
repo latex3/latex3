@@ -9,6 +9,8 @@
 # See if there is a cached verson of TL available
 export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
 if command -v texlua > /dev/null; then
+  # Keep no backups (not required, simply makes cache bigger)
+  tlmgr option -- autobackup 0
   # Update the TL install but add nothing new
   tlmgr update --self --all --no-auto-install
   exit 0
