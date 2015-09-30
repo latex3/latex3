@@ -43,4 +43,4 @@ tlmgr install courier psnfss times tools url
 # Additional requirements for contrib tests:
 # - siunitx
 tlmgr install amsmath ec
-tlmgr --no-depends siunitx
+tlmgr install --no-depends siunitx
