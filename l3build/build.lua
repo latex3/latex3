@@ -10,6 +10,7 @@ bundle = ""
 maindir = ".."
 
 -- Non-standard settings
+checkdeps    = { }
 cleanfiles   = {"*.pdf", "*.tex", "*.zip"}
 installfiles = {"l3build.lua", "regression-test.tex"}
 sourcefiles  = {"*.dtx", "l3build.lua", "*.ins"}
