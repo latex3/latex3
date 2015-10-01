@@ -48,9 +48,16 @@ tlmgr install courier psnfss times tools url
 tlmgr install amsmath ec
 tlmgr install --no-depends siunitx
 # - fontspec
-tlmgr install euenc lm luatexbase luaotfload 
+tlmgr install euenc lm luatexbase luaotfload
 tlmgr install oberdiek pdftex-def xetex-def xunicode
 tlmgr install --no-depends fontspec
 # - unicode-math
 tlmgr install etoolbox filehook lm-math lualatex-math ucharcat
 tlmgr install --no-depends unicode-math
+# - CTeX
+# make sure that etex, l3kernel, l3packages and tools had been installed
+tlmgr install ms zhnumber
+tlmgr install cjk cjkpunct xcjk2uni zhmetrics
+tlmgr install xecjk
+tlmgr install luatexja
+tlmgr install --no-depends ctex
