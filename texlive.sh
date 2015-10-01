@@ -56,7 +56,7 @@ tlmgr install etoolbox filehook lm-math lualatex-math ucharcat
 tlmgr install --no-depends unicode-math
 # - CTeX
 # make sure that etex, l3kernel, l3packages and tools had been installed
-tlmgr install ms zhnumber
+tlmgr install ms zhnumber fandol
 tlmgr install cjk cjkpunct xcjk2uni zhmetrics
 tlmgr install xecjk
 tlmgr install luatexja
