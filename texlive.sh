@@ -45,17 +45,22 @@ tlmgr install courier psnfss times tools url
 
 # Dependencies
 tlmgr install \
-  amsmath \
-  ec
+  amsmath    \
+  ec         \
+  euenc      \
+  lm         \
+  luatexbase \
+  luaotfload \
+  oberdiek   \
+  pdftex-def \
+  xetex-def  \
+  xunicode
 
 # Contrib packages for testing: force no deps
 tlmgr install --no-depends \
+  fontspec \
   siunitx
 
-# - fontspec
-tlmgr install euenc lm luatexbase luaotfload 
-tlmgr install oberdiek pdftex-def xetex-def xunicode
-tlmgr install --no-depends fontspec
 # - unicode-math
 tlmgr install etoolbox filehook lm-math lualatex-math ucharcat
 tlmgr install --no-depends unicode-math
