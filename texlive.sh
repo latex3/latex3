@@ -54,3 +54,7 @@ tlmgr install --no-depends fontspec
 # - unicode-math
 tlmgr install etoolbox filehook lm-math lualatex-math ucharcat
 tlmgr install --no-depends unicode-math
+# - ctex
+tlmgr install adobemapping cjkpunct environ lualibs luatexja ms
+tlmgr install trimspaces ulem xecjk xkeyval zhmetrics zhnumber
+tlmgr install --no-depends cjk ctex
