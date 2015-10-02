@@ -45,29 +45,39 @@ tlmgr install courier psnfss times tools url
 
 # Dependencies
 tlmgr install \
+  adobemapping  \
   amsmath       \
+  cjkpunct      \
   ec            \
+  environ       \
   etoolbox      \
   euenc         \
   filehook      \
   lm            \
   lm-math       \
   lualatex-math \
+  lualibs       \
   luatexbase    \
+  luatexja      \
   luaotfload    \
+  ms            \
   oberdiek      \
   pdftex-def    \
+  trimspaces    \
   ucharcat      \
+  ulem          \
+  xecjk         \
   xetex-def     \
-  xunicode
+  xkeyval       \
+  xunicode      \
+  zhmetrics     \
+  zhnumber
+tlmgr install --no-depends cjk
 
 # Contrib packages for testing: force no deps
 tlmgr install --no-depends \
+  ctex        \
   fontspec    \
   siunitx     \
   unicode-math
 
-# - ctex
-tlmgr install adobemapping cjkpunct environ lualibs luatexja ms
-tlmgr install trimspaces ulem xecjk xkeyval zhmetrics zhnumber
-tlmgr install --no-depends cjk ctex
