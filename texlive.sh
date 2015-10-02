@@ -40,14 +40,12 @@ EOF
 tlmgr install babel babel-english latex latex-bin latex-fonts latexconfig xetex
 tlmgr install --no-depends ptex uptex
 
-# Additional requirements for the xor test
-tlmgr install courier psnfss times tools url
-
 # Dependencies
 tlmgr install \
   adobemapping  \
   amsmath       \
   cjkpunct      \
+  courier       \
   ec            \
   environ       \
   etoolbox      \
@@ -63,9 +61,13 @@ tlmgr install \
   ms            \
   oberdiek      \
   pdftex-def    \
+  psnfss        \
+  times         \
+  tools         \
   trimspaces    \
   ucharcat      \
   ulem          \
+  url           \
   xecjk         \
   xetex-def     \
   xkeyval       \
