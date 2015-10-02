@@ -43,10 +43,15 @@ tlmgr install --no-depends ptex uptex
 # Additional requirements for the xor test
 tlmgr install courier psnfss times tools url
 
-# Additional requirements for contrib tests:
-# - siunitx
-tlmgr install amsmath ec
-tlmgr install --no-depends siunitx
+# Dependencies
+tlmgr install \
+  amsmath \
+  ec
+
+# Contrib packages for testing: force no deps
+tlmgr install --no-depends \
+  siunitx
+
 # - fontspec
 tlmgr install euenc lm luatexbase luaotfload 
 tlmgr install oberdiek pdftex-def xetex-def xunicode
