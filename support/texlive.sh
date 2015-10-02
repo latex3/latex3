@@ -70,3 +70,8 @@ tlmgr install --no-depends \
   fontspec    \
   siunitx     \
   unicode-math
+
+# Other bits and pieces
+mkdir -p `kpsewhich -var-value TEXMFHOME`/fonts/cid/fontforge
+cp Adobe-GB1-4.cidmap `kpsewhich -var-value TEXMFHOME`/fonts/cid/fontforge
+luaotfload-tool --cache=erase
