@@ -6,20 +6,6 @@
 # A minimal current TL is installed adding only the packages that are
 # required
 
-# Set up the automated install (if required)
-cat << EOF >> texlive.profile
-selected_scheme scheme-minimal
-TEXDIR /tmp/texlive
-TEXMFCONFIG ~/.texlive2015/texmf-config
-TEXMFHOME ~/texmf
-TEXMFLOCAL /tmp/texlive/texmf-local
-TEXMFSYSCONFIG /tmp/texlive/texmf-config
-TEXMFSYSVAR /tmp/texlive/texmf-var
-TEXMFVAR ~/.texlive2015/texmf-var
-option_doc 0
-option_src 0
-EOF
-
 # See if there is a cached verson of TL available
 export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
 if ! command -v texlua > /dev/null; then
