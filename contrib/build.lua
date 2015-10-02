@@ -19,6 +19,9 @@ checkdeps   =
   }
 checksearch = true
 
+-- In contrib testing, stop processing at the first error
+checkopts = "-interaction=batchmode -halt-on-error"
+
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
 -- As the build system is 'self-contained' there is no module set up here: just
