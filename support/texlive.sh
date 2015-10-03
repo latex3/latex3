@@ -78,3 +78,5 @@ tlmgr install --no-depends \
 mkdir -p `kpsewhich -var-value TEXMFHOME`/fonts/cid/fontforge
 cp ./support/Adobe-GB1-4.cidmap \
   `kpsewhich -var-value TEXMFHOME`/fonts/cid/fontforge
+cp /tmp/texlive/texmf-var/fonts/conf/texlive-fontconfig.conf \
+  ~/.fonts.conf
