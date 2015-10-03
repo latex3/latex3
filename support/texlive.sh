@@ -17,6 +17,8 @@ if ! command -v texlua > /dev/null; then
   # Install a minimal system
   ./install-tl --profile=../support/texlive.profile
 
+  cd ..
+
   # Core requirements for the test system
   tlmgr install babel babel-english latex latex-bin latex-fonts latexconfig \
     xetex
@@ -73,4 +75,5 @@ tlmgr install --no-depends \
 
 # Other bits and pieces
 mkdir -p `kpsewhich -var-value TEXMFHOME`/fonts/cid/fontforge
-cp Adobe-GB1-4.cidmap `kpsewhich -var-value TEXMFHOME`/fonts/cid/fontforge
+cp ./support/Adobe-GB1-4.cidmap \
+  `kpsewhich -var-value TEXMFHOME`/fonts/cid/fontforge
