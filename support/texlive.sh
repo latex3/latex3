@@ -15,7 +15,7 @@ if ! command -v texlua > /dev/null; then
   cd install-tl-20*
 
   # Install a minimal system
-  ./install-tl --profile=../texlive.profile
+  ./install-tl --profile=./support/texlive.profile
 
   # Core requirements for the test system
   tlmgr install babel babel-english latex latex-bin latex-fonts latexconfig \
