@@ -41,6 +41,7 @@ tlmgr install \
   environ       \
   etoolbox      \
   euenc         \
+  fandol        \
   filehook      \
   lm            \
   lm-math       \
