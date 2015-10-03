@@ -35,6 +35,7 @@ tlmgr install \
   adobemapping  \
   amsmath       \
   cjkpunct      \
+  ctablestack   \
   courier       \
   ec            \
   environ       \
