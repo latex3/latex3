@@ -53,13 +53,16 @@ tlmgr install \
   ms            \
   oberdiek      \
   pdftex-def    \
+  pgf           \
   psnfss        \
   times         \
   tools         \
   trimspaces    \
   ucharcat      \
   ulem          \
+  unit          \
   url           \
+  xcolor        \
   xecjk         \
   xetex-def     \
   xkeyval       \
@@ -70,6 +73,7 @@ tlmgr install --no-depends cjk
 
 # Contrib packages for testing: force no deps
 tlmgr install --no-depends \
+  chemformula \
   ctex        \
   fontspec    \
   siunitx     \
