@@ -14,9 +14,10 @@ maindir = ".."
 checkdeps   =
   {
     maindir .. "/l3build",
+    maindir .. "/l3packages/l3keys2e",
+    maindir .. "/l3packages/xfrac",
     maindir .. "/l3packages/xparse",
-    maindir .. "/l3packages/xtemplate",
-    maindir .. "/l3packages/l3keys2e"
+    maindir .. "/l3packages/xtemplate"
   }
 checksearch = true
 
