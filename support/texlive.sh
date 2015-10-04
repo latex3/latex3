@@ -60,7 +60,7 @@ tlmgr install \
   trimspaces    \
   ucharcat      \
   ulem          \
-  unit          \
+  units         \
   url           \
   xcolor        \
   xecjk         \
