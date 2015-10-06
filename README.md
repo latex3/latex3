@@ -47,6 +47,8 @@ Documentation is found in:
 The repository also contains the directory `xpackages`. This
 contain code which is being moved (broadly) `l3experimental`.
 Over time, `xpackages` is expected to be removed from the repository.
+The directory `contrib` is used to test the interaction of LaTeX3
+code with selected contributed packages.
 
 Discussion
 ----------
