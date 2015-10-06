@@ -26,7 +26,7 @@ The following directories contain experimental LaTeX3 code:
 * `l3trial`: material which is under very active development, for potential
   addition to `l3kernel` or `l3experimental`. Material in this directory
   may include potential replacements for existing modules, where large-scale
-  changes are underway.
+  changes are under-way.
 * `l3leftovers`: code which has been developed in the past by The
   LaTeX3 Project but is not suitable for use in its current form.
   Parts of this code may be used as the basis for new developments
