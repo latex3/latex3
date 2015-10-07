@@ -49,7 +49,7 @@ function main (target)
       if optengines then
         engines = " --engine=" .. table.concat(optengines, ",")
       end
-      version = ""
+      local version = ""
       if optversion then
         version = " --version=" .. optversion[1]
       end
