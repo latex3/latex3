@@ -584,15 +584,25 @@ function allmodules(target)
         .. "\" for module "
         .. i
     )
+    local date = ""
+    if optdate then
+      date = " --date=" .. optdate[1]
+    end
     local engines = ""
     if optengines then
       engines = " --engine=" .. table.concat(optengines, ",")
+    end
+    local version = ""
+    if optversion then
+      version = " --version=" .. optversion[1]
     end
     local errorlevel = run(
       i,
       "texlua " .. scriptname .. " " .. target
         .. (opthalt and " -H" or "")
+        .. date
         .. engines
+        .. version
     )
     if errorlevel ~= 0 then
       return errorlevel
