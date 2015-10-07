@@ -22,7 +22,6 @@ end
 
 -- Detail how to set the version automatically
 function update_line(line, date, version)
-  local changed = false
   local date = string.gsub(date, "%-", "/")
   -- Replace the identifiers
   if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}$") then
