@@ -1656,7 +1656,7 @@ function save(names)
 end
 
 -- Used to actually carry out search-and-replace
-setversion_replace = setversion or function(line, date, version)
+update_line = update_line or function(line, date, version)
   return line
 end
 
@@ -1665,7 +1665,7 @@ function setversion()
     local changed = false
     local lines = ""
     for line in io.lines(file) do
-      local newline = setversion_replace(line, date, version)
+      local newline = update_line(line, date, version)
       if newline ~= line then
         line = newline
         changed = true
