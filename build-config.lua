@@ -19,3 +19,28 @@ end
 if unpacksearch == nil then
   unpacksearch = false
 end
+
+-- Detail how to set the version automatically
+function setversion(line, date, version)
+  local changed = false
+  local date = string.gsub(date, "%-", "/")
+  -- Replace the identifiers
+  if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}$") then
+    line = "\\def\\ExplFileDate{" .. date .. "}"
+  end
+  if string.match(line, "^\\def\\ExplFileVersion{%d+}$") then
+    line = "\\def\\ExplFileVersion{" .. version .. "}"
+  end
+  -- Update the interlock
+  if string.match(
+      line, "^\\RequirePackage{expl3}%[%d%d%d%d/%d%d/%d%d%]$"
+    ) then
+    line = "\\RequirePackage{expl3}[" .. date .. "]"
+  end
+  if string.match(
+      line, "^%%<package>\\@ifpackagelater{expl3}{%d%d%d%d/%d%d/%d%d}$"
+    ) then
+    line = "%<package>\\@ifpackagelater{expl3}{" .. date .. "}"
+  end
+  return line
+end

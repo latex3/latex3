@@ -41,15 +41,25 @@ function main (target)
   local function dobundles (bundles, target)
     local errorlevel = 0
     for _,i in ipairs (bundles) do
+      local date = ""
+      if optdate then
+        date = " --date=" .. optdate[1]
+      end
       local engines = ""
       if optengines then
         engines = " --engine=" .. table.concat(optengines, ",")
+      end
+      version = ""
+      if optversion then
+        version = " --version=" .. optversion[1]
       end
       errorlevel = run(
         i,
         "texlua " .. scriptname .. " "
           .. target .. (opthalt and " -H" or "")
+          .. date
           .. engines
+          .. version
       )
       if errorlevel ~= 0 then
         break
@@ -75,6 +85,8 @@ function main (target)
     errorlevel = dobundles(bundles, "doc")
   elseif target == "install" then
     errorlevel = dobundles (bundles, "install")
+  elseif target == "setversion" then
+    errorlevel = dobundles(bundles, "setversion")
   elseif target == "unpack" then
     errorlevel = dobundles (bundles, "unpack")
   elseif target == "version" then

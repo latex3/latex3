@@ -98,6 +98,7 @@ typesetfiles     = typesetfiles     or {"*.dtx"}
 typesetsuppfiles = typesetsuppfiles or { }
 unpackfiles      = unpackfiles      or {"*.ins"}
 unpacksuppfiles  = unpacksuppfiles  or { }
+versionfiles     = versionfiles     or {"*.dtx"}
 
 -- Roots which should be unpacked to support unpacking/testing/typesetting
 checkdeps   = checkdeps   or { }
@@ -167,25 +168,31 @@ function argparse()
   local files  = { }
   local long_options =
     {
-      engine              = "engine",
-      ["halt-on-error"]   = "halt"  ,
-      ["halt-on-failure"] = "halt"  ,
-      help                = "help"  ,
-      quiet               = "quiet"
+      date                = "date"   ,
+      engine              = "engine" ,
+      ["halt-on-error"]   = "halt"   ,
+      ["halt-on-failure"] = "halt"   ,
+      help                = "help"   ,
+      quiet               = "quiet"  ,
+      version             = "version"
     }
   local short_options =
     {
-      e = "engine",
-      h = "help"  ,
-      H = "halt"  ,
-      q = "quiet"
+      d = "date"   ,
+      e = "engine" ,
+      h = "help"   ,
+      H = "halt"   ,
+      q = "quiet"  ,
+      v = "version"
     }
   local option_args =
     {
+      date   = true ,
       engine = true ,
       halt   = false,
       help   = false,
-      quiet  = false
+      quiet  = false,
+      version = true
     }
   -- arg[1] is a special case: must be a command or "-h"/"--help"
   -- Deal with this by assuming help and storing only apparently-valid
@@ -290,10 +297,12 @@ end
 
 userargs = argparse()
 
+optdate    = userargs["date"]
 optengines = userargs["engine"]
 opthalt    = userargs["halt"]
 opthelp    = userargs["help"]
 optquiet   = userargs["quiet"]
+optversion = userargs["version"]
 
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
@@ -1307,10 +1316,13 @@ help = help or function()
   if module ~= "" and testfiledir ~= "" then
     print("   save       Saves test validation log")
   end
+  print("   setversion Update version information in sources")
   print("")
   print("Valid options are:")
+  print("   --date|-d           Sets the date to insert into sources")
   print("   --engine|-e         Sets the engine to use for running test")
   print("   --halt-on-error|-H  Stops running tests after the first failure")
+  print("   --version|-v        Sets the version to insert into sources")
   print("")
 end
 
@@ -1643,6 +1655,55 @@ function save(names)
   end
 end
 
+-- Used to actually carry out search-and-replace
+setversion_replace = setversion or function(line, date, version)
+  return line
+end
+
+function setversion()
+  local function rewrite(file, date, version)
+    local changed = false
+    local lines = ""
+    for line in io.lines(file) do
+      local newline = setversion_replace(line, date, version)
+      if newline ~= line then
+        line = newline
+        changed = true
+      end
+      lines = lines .. line .. os_newline
+    end
+    if newlines ~= lines then
+      -- Avoid adding/removing end-of-file newline
+      local f = io.open(file, "rb")
+      local content = f:read("*all")
+      io.close(f)
+      if not string.match(content, os_newline .. "$") then
+        string.gsub(lines, os_newline .. "$", "")
+      end
+      -- Write the new file
+      local f = io.open(file, "w")
+      io.output(f)
+      io.write(lines)
+      io.close(f)
+    end
+  end
+  local date = os.date("%Y-%m-%d")
+  if optdate then
+    date = optdate[1] or date
+  end
+  local version = -1
+  if optversion then
+    version = optversion[1] or version
+  end
+  local i, j
+  for _,i in pairs(versionfiles) do
+    for _,j in pairs(filelist(".", i)) do
+      rewrite(j, date, version)
+    end
+  end
+  return 0
+end
+
 -- Unpack the package files using an 'isolated' system: this requires
 -- a copy of the 'basic' DocStrip program, which is used then removed
 function unpack()
@@ -1748,6 +1809,8 @@ function stdmain(target, files)
       errorlevel = ctan()
     elseif target == "install" then
       errorlevel = allmodules("install")
+    elseif target == "setversion" then
+      errorlevel = allmodules("setversion")
     elseif target == "unpack" then
       errorlevel = allmodules("bundleunpack")
     elseif target == "version" then
@@ -1781,6 +1844,8 @@ function stdmain(target, files)
       else
         help()
       end
+    elseif target == "setversion" then
+      errorlevel = setversion()
     elseif target == "unpack" then
       errorlevel = unpack()
     elseif target == "version" then

@@ -35,7 +35,8 @@ typesetfiles =
     "l3styleguide.tex", "source3.tex"
   }
 typesetskipfiles = {"source3-body.tex"}
-unpackfiles  = {"l3.ins"}
+unpackfiles      = {"l3.ins"}
+versionfiles     = {"expl3.dtx"}
 
 -- No deps other than the test system
 checkdeps   = {maindir .. "/l3build"}
@@ -110,6 +111,8 @@ function main(target, files)
     else
       help()
     end
+  elseif target == "setversion" then
+    errorlevel = setversion()
   elseif target == "unpack" then
     errorlevel = unpack()
   elseif target == "version" then
