@@ -21,7 +21,7 @@ if unpacksearch == nil then
 end
 
 -- Detail how to set the version automatically
-function setversion(line, date, version)
+function update_line(line, date, version)
   local changed = false
   local date = string.gsub(date, "%-", "/")
   -- Replace the identifiers
