@@ -1682,7 +1682,7 @@ function setversion()
       end
       lines = lines .. line .. os_newline
     end
-    if newlines ~= lines then
+    if changed then
       -- Avoid adding/removing end-of-file newline
       local f = io.open(file, "rb")
       local content = f:read("*all")
