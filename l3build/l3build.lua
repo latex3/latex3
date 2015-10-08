@@ -1695,9 +1695,10 @@ if versionform ~= "" and not setversion_update_line then
           line,
           "^\\ProvidesExpl" .. i .. " *{[a-zA-Z0-9%-]+}"
         ) then
-          line = string.gsub(line, "{%d%d%d%d/%d%d/%d%d}", "{" .. date .. "}")
           line = string.gsub(
-            line, "({%d%d%d%d/%d%d/%d%d} *){[^}]*}", "%1{" .. version .. "}"
+            line,
+            "{%d%d%d%d/%d%d/%d%d}( *){[^}]*}",
+            "{" .. date .. "}%1{" .. version "}"
           )
           break
         end
