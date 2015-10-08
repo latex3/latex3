@@ -15,7 +15,6 @@ checkdeps   = {maindir .. "/l3experimental/l3str", maindir .. "/l3build"}
 testfiledir = ""
 typesetcmds = ""
 typesetdeps = {maindir .. "/l3experimental/l3str"}
-typesetcmds = ""
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
