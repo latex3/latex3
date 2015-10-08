@@ -152,6 +152,7 @@ checkruns    = checkruns    or 1
 packtdszip   = packtdszip   or false -- Not actually needed but clearer
 scriptname   = scriptname   or "build.lua" -- Script used in each directory
 typesetcmds  = typesetcmds  or ""
+versionform  = ""
 
 -- Extensions for various file types: used to abstract out stuff a bit
 logext = logext or ".log"
@@ -1661,6 +1662,67 @@ function save(names)
             .. "\" not found"
         )
       end
+    end
+  end
+end
+
+-- Provide some standard search-and-replace functions
+if versionform ~= "" and not updateline then
+  if versionform == "ProvidesPackage" then
+    function update_line(line, date, version)
+      local i
+      -- No real regex so do it one type at a time
+      for _,i in pairs({"Class", "File", "Package"}) do
+        if string.match(
+          line,
+          "^\\Provides" .. i .. "{[a-zA-Z0-9%-]+}%[[^%]]*%]$"
+        ) then
+          line = string.gsub(line, "%[%d%d%d%d/%d%d/%d%d", "[" .. date)
+          line = string.gsub(
+            line, "(%[%d%d%d%d/%d%d/%d%d) [^ ]*", "%1 " .. version
+          )
+          break
+        end
+      end
+      return line
+    end
+  elseif versionform == "ProvidesExplPackage" then
+    function update_line(line, date, version)
+      local i
+      -- No real regex so do it one type at a time
+      for _,i in pairs({"Class", "File", "Package"}) do
+        if string.match(
+          line,
+          "^\\ProvidesExpl" .. i .. " *{[a-zA-Z0-9%-]+}"
+        ) then
+          line = string.gsub(line, "{%d%d%d%d/%d%d/%d%d}", "{" .. date .. "}")
+          line = string.gsub(
+            line, "({%d%d%d%d/%d%d/%d%d} *){[^}]*}", "%1{" .. version .. "}"
+          )
+          break
+        end
+      end
+      return line
+    end
+  elseif versionform == "filename" then
+    function update_line(line, date, version)
+      if string.match(line, "^\\def\\filedate{%d%d%d%d/%d%d/%d%d}$") then
+        line = "\\def\\filedate{" .. date .. "}"
+      end
+      if string.match(line, "^\\def\\fileversion{[^}]+}$") then
+        line = "\\def\\fileversion{" .. version .. "}"
+      end
+      return line
+    end
+  elseif versionform == "ExplFileName" then
+    function update_line(line, date, version)
+      if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}$") then
+        line = "\\def\\ExplFileDate{" .. date .. "}"
+      end
+      if string.match(line, "^\\def\\ExplFileVersion{[^}]+}$") then
+        line = "\\def\\ExplFileVersion{" .. version .. "}"
+      end
+      return line
     end
   end
 end
