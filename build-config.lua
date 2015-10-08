@@ -8,6 +8,7 @@ cmdchkfiles     = {"*.dtx"}
 checkengines    = {"pdftex", "xetex", "luatex", "ptex", "uptex"}
 checksuppfiles  = {"minimal.cls", "regression-test.cfg"}
 unpacksuppfiles = {"docstrip.tex"}
+versionfiles    = {"*.dtx", "README.md"}
 
 packtdszip  = true
 
@@ -32,14 +33,19 @@ function update_line(line, date, version)
   end
   -- Update the interlock
   if string.match(
-      line, "^\\RequirePackage{expl3}%[%d%d%d%d/%d%d/%d%d%]$"
-    ) then
+    line, "^\\RequirePackage{expl3}%[%d%d%d%d/%d%d/%d%d%]$"
+  ) then
     line = "\\RequirePackage{expl3}[" .. date .. "]"
   end
   if string.match(
-      line, "^%%<package>\\@ifpackagelater{expl3}{%d%d%d%d/%d%d/%d%d}$"
-    ) then
+    line, "^%%<package>\\@ifpackagelater{expl3}{%d%d%d%d/%d%d/%d%d}$"
+  ) then
     line = "%<package>\\@ifpackagelater{expl3}{" .. date .. "}"
+  end
+  if string.match(
+    line, "^Release %d%d%d%d/%d%d/%d%d %(r%d%d%d%d%)$"
+  ) then
+    line = "Release " .. date .. " (r" .. version .. ")"
   end
   return line
 end
