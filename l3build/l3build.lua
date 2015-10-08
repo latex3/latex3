@@ -1667,7 +1667,7 @@ function save(names)
 end
 
 -- Provide some standard search-and-replace functions
-if versionform ~= "" and not updateline then
+if versionform ~= "" and not setversion_update_line then
   if versionform == "ProvidesPackage" then
     function setversion_update_line(line, date, version)
       local i
