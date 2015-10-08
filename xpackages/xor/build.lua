@@ -10,22 +10,19 @@ bundle = ""
 maindir = "../.."
 
 -- Non-standard settings
-checkdeps   =
+checkdeps    =
   {
     maindir .. "/l3build",
     maindir .. "/l3packages/xparse",
     maindir .. "/l3packages/xtemplate"
   }
-checkruns   = 3
-checksearch = true
+checkengines = {"pdftex"}
+checkruns    = 3
+checksearch  = true
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
 -- As the build system is 'self-contained' there is no module set up here: just
 --load the file in a similar way to a TeX \input
 dofile (maindir .. "/build-config.lua")
-
--- Non-standard settings (have to be after build-config)
-checkengines = {"pdftex"}
-
 dofile (maindir .. "/l3build/l3build.lua")

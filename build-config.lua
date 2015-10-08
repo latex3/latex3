@@ -4,15 +4,15 @@ checkdeps   = checkdeps   or {maindir .. "/l3kernel", maindir .. "/l3build"}
 typesetdeps = typesetdeps or {maindir .. "/l3kernel"}
 unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 
-cmdchkfiles     = {"*.dtx"}
-checkengines    = {"pdftex", "xetex", "luatex", "ptex", "uptex"}
-checksuppfiles  = {"minimal.cls", "regression-test.cfg"}
-unpacksuppfiles = {"docstrip.tex"}
-versionfiles    = {"*.dtx", "README.md"}
+cmdchkfiles     = cmdchkfiles     or {"*.dtx"}
+checkengines    = checkengines    or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
+checksuppfiles  = checksuppfiles  or {"minimal.cls", "regression-test.cfg"}
+unpacksuppfiles = unpacksuppfiles or {"docstrip.tex"}
+versionfiles    = versionfiles    or {"*.dtx", "README.md"}
 
 packtdszip  = true
 
-typesetcmds = "\\AtBeginDocument{\\DisableImplementation}"
+typesetcmds = typesetcmds or "\\AtBeginDocument{\\DisableImplementation}"
 
 if checksearch == nil then
   checksearch = false
