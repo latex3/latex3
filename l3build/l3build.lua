@@ -1669,7 +1669,7 @@ end
 -- Provide some standard search-and-replace functions
 if versionform ~= "" and not updateline then
   if versionform == "ProvidesPackage" then
-    function update_line(line, date, version)
+    function setversion_update_line(line, date, version)
       local i
       -- No real regex so do it one type at a time
       for _,i in pairs({"Class", "File", "Package"}) do
@@ -1687,7 +1687,7 @@ if versionform ~= "" and not updateline then
       return line
     end
   elseif versionform == "ProvidesExplPackage" then
-    function update_line(line, date, version)
+    function setversion_update_line(line, date, version)
       local i
       -- No real regex so do it one type at a time
       for _,i in pairs({"Class", "File", "Package"}) do
@@ -1705,7 +1705,7 @@ if versionform ~= "" and not updateline then
       return line
     end
   elseif versionform == "filename" then
-    function update_line(line, date, version)
+    function setversion_update_line(line, date, version)
       if string.match(line, "^\\def\\filedate{%d%d%d%d/%d%d/%d%d}$") then
         line = "\\def\\filedate{" .. date .. "}"
       end
@@ -1715,7 +1715,7 @@ if versionform ~= "" and not updateline then
       return line
     end
   elseif versionform == "ExplFileName" then
-    function update_line(line, date, version)
+    function setversion_update_line(line, date, version)
       if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}$") then
         line = "\\def\\ExplFileDate{" .. date .. "}"
       end
@@ -1728,7 +1728,7 @@ if versionform ~= "" and not updateline then
 end
 
 -- Used to actually carry out search-and-replace
-update_line = update_line or function(line, date, version)
+setversion_update_line = setversion_update_line or function(line, date, version)
   return line
 end
 
@@ -1737,7 +1737,7 @@ function setversion()
     local changed = false
     local lines = ""
     for line in io.lines(file) do
-      local newline = update_line(line, date, version)
+      local newline = setversion_update_line(line, date, version)
       if newline ~= line then
         line = newline
         changed = true
