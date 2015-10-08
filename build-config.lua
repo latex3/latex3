@@ -5,7 +5,8 @@ typesetdeps = typesetdeps or {maindir .. "/l3kernel"}
 unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 
 cmdchkfiles     = cmdchkfiles     or {"*.dtx"}
-checkengines    = checkengines    or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
+checkengines    = checkengines
+  or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
 checksuppfiles  = checksuppfiles  or {"minimal.cls", "regression-test.cfg"}
 unpacksuppfiles = unpacksuppfiles or {"docstrip.tex"}
 versionfiles    = versionfiles    or {"*.dtx", "README.md"}
