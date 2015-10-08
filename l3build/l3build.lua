@@ -155,6 +155,7 @@ typesetcmds  = typesetcmds  or ""
 versionform  = ""
 
 -- Extensions for various file types: used to abstract out stuff a bit
+bakext = bakext or ".bak"
 logext = logext or ".log"
 lveext = lveext or ".lve"
 lvtext = lvtext or ".lvt"
@@ -1754,10 +1755,12 @@ function setversion()
         string.gsub(lines, os_newline .. "$", "")
       end
       -- Write the new file
+      ren(".", file, file .. bakext)
       local f = io.open(file, "w")
       io.output(f)
       io.write(lines)
       io.close(f)
+      rm(".", file .. bakext)
     end
   end
   local date = os.date("%Y-%m-%d")
