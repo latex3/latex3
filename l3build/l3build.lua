@@ -152,7 +152,7 @@ checkruns    = checkruns    or 1
 packtdszip   = packtdszip   or false -- Not actually needed but clearer
 scriptname   = scriptname   or "build.lua" -- Script used in each directory
 typesetcmds  = typesetcmds  or ""
-versionform  = ""
+versionform  = versionform  or ""
 
 -- Extensions for various file types: used to abstract out stuff a bit
 bakext = bakext or ".bak"
@@ -1701,7 +1701,7 @@ if versionform ~= "" and not setversion_update_line then
           line = string.gsub(
             line,
             "{%d%d%d%d/%d%d/%d%d}( *){[^}]*}",
-            "{" .. date .. "}%1{" .. version "}"
+            "{" .. date .. "}%1{" .. version .. "}"
           )
           break
         end
