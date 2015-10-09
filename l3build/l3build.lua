@@ -1671,7 +1671,6 @@ end
 if versionform ~= "" and not setversion_update_line then
   if versionform == "ProvidesPackage" then
     function setversion_update_line(line, date, version)
-      local date = string.gsub(date, "%-", "/")
       local i
       -- No real regex so do it one type at a time
       for _,i in pairs({"Class", "File", "Package"}) do
@@ -1679,7 +1678,8 @@ if versionform ~= "" and not setversion_update_line then
           line,
           "^\\Provides" .. i .. "{[a-zA-Z0-9%-]+}%[[^%]]*%]$"
         ) then
-          line = string.gsub(line, "%[%d%d%d%d/%d%d/%d%d", "[" .. date)
+          line = string.gsub(line, "%[%d%d%d%d/%d%d/%d%d", "["
+            .. string.gsub(date, "%-", "/"))
           line = string.gsub(
             line, "(%[%d%d%d%d/%d%d/%d%d) [^ ]*", "%1 " .. version
           )
@@ -1690,7 +1690,6 @@ if versionform ~= "" and not setversion_update_line then
     end
   elseif versionform == "ProvidesExplPackage" then
     function setversion_update_line(line, date, version)
-      local date = string.gsub(date, "%-", "/")
       local i
       -- No real regex so do it one type at a time
       for _,i in pairs({"Class", "File", "Package"}) do
@@ -1701,7 +1700,7 @@ if versionform ~= "" and not setversion_update_line then
           line = string.gsub(
             line,
             "{%d%d%d%d/%d%d/%d%d}( *){[^}]*}",
-            "{" .. date .. "}%1{" .. version .. "}"
+            "{" .. string.gsub(date, "%-", "/") .. "}%1{" .. version .. "}"
           )
           break
         end
@@ -1710,9 +1709,8 @@ if versionform ~= "" and not setversion_update_line then
     end
   elseif versionform == "filename" then
     function setversion_update_line(line, date, version)
-      local date = string.gsub(date, "%-", "/")
       if string.match(line, "^\\def\\filedate{%d%d%d%d/%d%d/%d%d}$") then
-        line = "\\def\\filedate{" .. date .. "}"
+        line = "\\def\\filedate{" .. string.gsub(date, "%-", "/") .. "}"
       end
       if string.match(line, "^\\def\\fileversion{[^}]+}$") then
         line = "\\def\\fileversion{" .. version .. "}"
@@ -1721,9 +1719,8 @@ if versionform ~= "" and not setversion_update_line then
     end
   elseif versionform == "ExplFileName" then
     function setversion_update_line(line, date, version)
-      local date = string.gsub(date, "%-", "/")
       if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}$") then
-        line = "\\def\\ExplFileDate{" .. date .. "}"
+        line = "\\def\\ExplFileDate{" .. string.gsub(date, "%-", "/") .. "}"
       end
       if string.match(line, "^\\def\\ExplFileVersion{[^}]+}$") then
         line = "\\def\\ExplFileVersion{" .. version .. "}"
