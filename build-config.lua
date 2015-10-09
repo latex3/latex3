@@ -11,8 +11,6 @@ checksuppfiles  = checksuppfiles  or {"minimal.cls", "regression-test.cfg"}
 unpacksuppfiles = unpacksuppfiles or {"docstrip.tex"}
 versionfiles    = versionfiles    or {"*.dtx", "README.md"}
 
-packtdszip  = true
-
 typesetcmds = typesetcmds or "\\AtBeginDocument{\\DisableImplementation}"
 
 if checksearch == nil then
