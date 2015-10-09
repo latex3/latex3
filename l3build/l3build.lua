@@ -1888,6 +1888,10 @@ function stdmain(target, files)
       errorlevel = allmodules("install")
     elseif target == "setversion" then
       errorlevel = allmodules("setversion")
+      -- Deal with any files in the bundle dir itself
+      if errorlevel == 0 then
+        errorlevel = setversion()
+      end
     elseif target == "unpack" then
       errorlevel = allmodules("bundleunpack")
     elseif target == "version" then
