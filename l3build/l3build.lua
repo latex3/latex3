@@ -149,9 +149,7 @@ makeindexopts = makeindexopts or ""
 -- Other required settings
 asciiengines = asciiengines or {"pdftex"}
 checkruns    = checkruns    or 1
-if packtdszip == nil then
-  packtdszip = true
-end
+packtdszip   = packtdszip   or false -- Not actually needed but clearer
 scriptname   = scriptname   or "build.lua" -- Script used in each directory
 typesetcmds  = typesetcmds  or ""
 versionform  = versionform  or ""
