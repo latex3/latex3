@@ -34,6 +34,7 @@ tlmgr update --self --all --no-auto-install
 tlmgr install \
   adobemapping  \
   amsmath       \
+  chemgreek     \
   cjkpunct      \
   ctablestack   \
   courier       \
@@ -76,6 +77,7 @@ tlmgr install --no-depends \
   chemformula \
   ctex        \
   fontspec    \
+  mhchem      \
   siunitx     \
   unicode-math
 
