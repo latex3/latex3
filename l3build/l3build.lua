@@ -1676,7 +1676,7 @@ if versionform ~= "" and not setversion_update_line then
       for _,i in pairs({"Class", "File", "Package"}) do
         if string.match(
           line,
-          "^\\Provides" .. i .. "{[a-zA-Z0-9%-]+}%[[^%]]*%]$"
+          "^\\Provides" .. i .. "{[a-zA-Z0-9%-%.]+}%[[^%]]*%]$"
         ) then
           line = string.gsub(line, "%[%d%d%d%d/%d%d/%d%d", "["
             .. string.gsub(date, "%-", "/"))
@@ -1695,7 +1695,7 @@ if versionform ~= "" and not setversion_update_line then
       for _,i in pairs({"Class", "File", "Package"}) do
         if string.match(
           line,
-          "^\\ProvidesExpl" .. i .. " *{[a-zA-Z0-9%-]+}"
+          "^\\ProvidesExpl" .. i .. " *{[a-zA-Z0-9%-%.]+}"
         ) then
           line = string.gsub(
             line,
