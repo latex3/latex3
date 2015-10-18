@@ -28,15 +28,17 @@ Requirements
 ------------
 
 The `l3kernel` bundle requires the e-TeX extensions and the functionality
-of the `\pdfstrcmp` primitive. As a result, the bundle will only work
-with the following engines:
+of the `\pdfstrcmp` primitive. Any engine which defines `\pdfoutput`
+(_i.e._ allows direct production of a PDF file without a DVI intermediate) must
+also provide `\pdfcolorstack`, `\pdfliteral`, `\pdfmatrix`, `\pdfrestore` and
+`\pdfsave`. As a result, the bundle will only work with the following engines:
 
-* pdfTeX v1.30 or later
+* pdfTeX v1.40 or later
 * XeTeX v0.9994 or later
 * LuaTeX v0.40 or later
 * e-(u)pTeX from mid-2012 onward
 
-pdfTeX v1.30 was released in 2005, and so any recent TeX distribution
+pdfTeX v1.40 was released in 2007, and so any recent TeX distribution
 will support `l3kernel`. Both XeTeX and LuaTeX have developed more
 actively over the past few years, and for this reason only recent
 releases of these engines are supported.
