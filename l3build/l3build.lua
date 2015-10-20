@@ -1511,8 +1511,10 @@ function ctan(standalone)
   end
   if errorlevel == 0 then
     for _,i in ipairs(textfiles) do
-      cp(i, ".", ctandir .. "/" .. ctanpkg)
-      cp(i, ".", tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
+      for _,j in pairs({unpackdir, "."}) do
+        cp(i, j, ctandir .. "/" .. ctanpkg)
+        cp(i, j, tdsdir .. "/doc/" .. tdsroot .. "/" .. bundle)
+      end
     end
     dirzip(tdsdir, ctanpkg .. ".tds")
     if packtdszip then
