@@ -1,0 +1,332 @@
+\documentclass[final,harvardcite]{ltugboat}
+\renewcommand{\topfraction}{.9}
+\renewcommand{\dbltopfraction}{.9}
+\renewcommand{\bottomfraction}{.7}
+\renewcommand{\textfraction}{.1}
+\renewcommand{\floatpagefraction}{.8}
+\renewcommand{\dblfloatpagefraction}{.8}
+
+\def\CI{\acro{CI}}
+\interlinepenalty=-1000
+\usepackage[UKenglish]{babel}
+
+\usepackage[final]{graphicx,microtype}
+
+\usepackage{csquotes}
+
+\usepackage{xparse}
+
+% Always last
+\usepackage{hyperref}
+
+\hypersetup{hidelinks}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Some (very simple) new commands are defined.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\NewDocumentCommand\pkg{m}{\textsf{#1}}
+%
+\NewDocumentCommand\LuaTeX{}{Lua\TeX}
+%\NewDocumentCommand\pdfTeX{}{pdf\TeX}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Meta-data for this paper
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\title{Automating \LaTeX{}(3) testing}
+\author{Joseph Wright}
+\address
+  {%
+    Morning Star\\
+    2, Dowthorpe End\\
+    Earls Barton\\
+    Northampton NN6 0NH\\
+    United Kingdom
+  }
+\netaddress{joseph dot wright (at) morningstar2.co.uk}
+\author{\LaTeX3 team}
+\EDITORnoaddress
+\netaddress{www.latex-project.org}
+
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+
+Testing has always been an important part of the work of the \LaTeX{}
+team. Over the last couple of years, ideas first developed in the early
+1990s have been used to create a flexible testing tool,
+\pkg{l3build}~\cite{Mittelbach2015,LaTeX2015}.  In an ideal world, every
+change would be checked by a full run of the entire test suite. In
+reality, that's not always the case: mistakes happen. What's therefore
+needed is to automate testing every time a change is made.
+
+These concerns are not unique to the \AllTeX{} world, and thus it's
+no surprise that a variety of automated code testing approaches are already
+available. It can be done using a \enquote{real} local machine, a private
+virtual machine or, increasingly commonly, a hosted solution. There are
+many companies now offering automated remote testing on virtual machines, and
+as this means a minimal amount of setup, it's this approach that the
+\LaTeX\ team
+have been exploring.
+
+Automating testing is part of a wider concept called \enquote{continuous
+integration}, often referred to as \CI. As with many ideas in code development,
+this tends to attract a lot of acronyms and odd tool names: I'll try to
+keep those to a minimum here.
+
+\section{Setting up}
+
+For open source projects like \LaTeX3, many of the providers of hosted services
+offer free accounts. \LaTeX\ has chosen to use Travis-\CI\
+(\url{http://travis-ci.org}), partly as it is well-known, partly as it is easy to
+set up, and partly as it fits into other parts of our setup (see below). Of
+course, there are many other worthy choices.
+
+The two key things any automated test system has to know: where to find the
+code that is changing and how to run the required tests. Travis-\CI\ integrates
+with GitHub (\url{http://github.com}), one of the large number of websites
+offering hosting for version control using Git~\cite{Git2015}. The team
+have had the GitHub site for some time (\url{http://github.com/latex3/latex3}),
+so integrating with Travis-\CI\ was easy.
+
+Setting up the testing itself means telling Travis-\CI\ about the type of
+code being tested. This is done using a plain text file, \verb|.travis.yml|,
+which has to be in the main directory of the code repository. For common
+programming languages, such as C, Java or Ruby, Travis-\CI\ knows the normal
+testing setups and likely only needs to be told the language involved.
+For \TeX{}, that's not the case: we (I) need to give the system more information.
+Moreover, the virtual machine setup used by Travis-\CI\ doesn't have a \TeX{}
+system installed as standard. So there is a bit of work to do, but
+luckily in a well-documented and simple format.
+
+Setting up the actual tests means pointing the system at \pkg{l3build},
+which can be done in two lines:
+\begin{verbatim}
+script:
+ - texlua build.lua check -H
+\end{verbatim}
+This will run in the main directory of the code repository, and will
+run all of the current tests for \LaTeX3. As the test is, ultimately, just
+pass\slash fail, I've told \pkg{l3build} to halt immediately if any test
+fails~(\verb|-H|).
+
+To get a \TeX{} system installed, I need to run a script, which will clearly
+depend on the nature of
+the virtual machine. For Travis-\CI, that's currently Ubuntu~12.10\acro{LTS}, so
+I use a \verb|bash| script. For the test system, I need to make
+sure that script gets run before our tests; this is what Travis-\CI\ calls the
+\texttt{install} step:
+\begin{verbatim}
+install:
+ - source ./support/texlive.sh
+\end{verbatim}
+
+The script itself needs to run an automated \TeX{} (Live) installation.
+That has two parts: first downloading and installing a minimal system,
+then adding on extra packages that I need. (We'll see later why
+a small system is useful.) The script is relatively straightforward:
+\begin{verbatim}
+# Obtain TeX Live
+wget http://mirror.ctan.org/systems/\
+texlive/tlnet/install-tl-unx.tar.gz
+tar -xzf install-tl-unx.tar.gz
+cd install-tl-20*
+
+# Install a minimal system
+./install-tl \
+  --profile=../support/texlive.profile
+
+# Add the TL system to the PATH
+PATH=/tmp/texlive/bin/x86_64-linux:$PATH
+export PATH
+
+cd ..
+
+# Core requirements for the test system
+tlmgr install babel babel-english \
+  latex latex-bin latex-fonts \
+  latexconfig xetex
+tlmgr install --no-depends ptex uptex
+\end{verbatim}
+
+The run of \verb|install-tl| above uses a so-called profile file to tell the
+\TeX{} Live installer what to do. That's again quite short:
+\begin{verbatim}
+# Profile for minimal TeX Live installation
+selected_scheme scheme-minimal
+TEXDIR /tmp/texlive
+TEXMFCONFIG ~/.texlive2015/texmf-config
+TEXMFHOME ~/texmf
+TEXMFLOCAL /tmp/texlive/texmf-local
+TEXMFSYSCONFIG /tmp/texlive/texmf-config
+TEXMFSYSVAR /tmp/texlive/texmf-var
+TEXMFVAR ~/.texlive2015/texmf-var
+option_doc 0
+option_src 0
+\end{verbatim}
+Here, we do not install the sources or documentation (clearly
+not needed for runtime testing) and the installation location is
+non-standard: I don't
+have \verb|sudo| on the virtual machine and the profile
+installation doesn't (yet) support \texttt{\char`\~} (the home folder) in the
+installation path.
+
+You might wonder if I could have used \verb|apt-get| to add the Ubuntu managed
+\TeX{} Live. That runs, and means I wouldn't need a script
+(\verb|.travis.yml| has an entry type for running
+\verb|apt-get|). However,
+it installs \TeX{} Live 2009, which is too old to run \pkg{l3build}.
+(There have been a lot of changes in \LuaTeX{} since then.) For the
+team tests, we always assume an up-to-date and current \TeX{} Live, so it makes
+sense to have the same on the Travis-\CI\ setup.
+
+You might also wonder how I worked out exactly what the minimal requirements
+were for the installation. That was a bit of work, but the idea was simple
+enough: run the tests on a local virtual machine and add packages one at
+a time until everything works!
+
+\section{Refining}
+
+Once the above was set up, Travis-\CI\ started running automated tests
+each time changes were made to the GitHub version of the \LaTeX3 code.
+There were of course a few teething issues: it turned out that \pkg{l3build}
+was returning error level~0 (\enquote{success}) even when tests failed! That
+was soon fixed in our code: a first demonstration of the use of automated
+testing.
+
+With a virtual machine, each time tests are run the machine is \enquote{reset}
+to a known state. That meant that each code change needed to do a fresh install
+of \TeX{} Live: one of the reasons for keeping the system small. Ideally,
+I wanted to avoid the load on \CTAN{} if possible. To do that, we've added
+\emph{caching} to our \verb|.travis.yml| file:
+\begin{verbatim}
+cache:
+  directories:
+    - /tmp/texlive
+    - $HOME/.texlive2015
+\end{verbatim}
+This compresses the directories listed at the end of each test run, then
+adds them to the \enquote{clean} machine at the start of the next run.
+
+Caching gives us a way to make sure a \TeX{} system is available, but
+what about when the cache has to be reset, when new packages are
+needed or when updates are available? A bit of \verb|bash| scripting
+sorts all of that. First, the basic installation can be wrapped up in
+a test looking for a \TeX{} system:
+\begin{verbatim}
+# See if there is a cached version of TL
+PATH=/tmp/texlive/bin/x86_64-linux:$PATH
+export PATH
+if ! command -v texlua >/dev/null; then
+  # Earlier script code
+fi
+\end{verbatim}
+We can then run the update process:
+\begin{verbatim}
+# Keep no backups (makes cache smaller)
+tlmgr option autobackup 0
+# Update the TL install
+tlmgr update --self --all \
+  --no-auto-install
+\end{verbatim}
+and finally add extra packages
+\begin{verbatim}
+tlmgr install \
+  adobemapping  \
+  amsmath       \
+  ...
+\end{verbatim}
+With this approach, the list of extra packages can keep growing, and any
+new entries will get added automatically. If the cache has to be cleared,
+an entirely new \TeX{} Live and all of the required packages will be installed.
+
+With the standard settings, Travis-\CI\ emails the person who made code changes
+that led to the tests failing. For the \LaTeX3 source repository, we have a mailing list
+for every commit, so it makes sense to send those failure messages to the
+list too, which is done like this:
+\begin{verbatim}
+notifications:
+  email:
+    recipients:
+      - latex3-commits@tug.org
+    on_success: change
+    on_failure: always
+    on_start:   never
+\end{verbatim}
+
+\begin{figure}[t]
+  \includegraphics[trim=0 0 775 0,clip,width = \hsize]{Travis-log}
+  \caption{Log output from Travis~\CI\ (abridged).}
+  \label{fig:travis-log}
+\smallskip
+\end{figure}
+
+\section{In use}
+
+Setting up all of the above took only a few days, and much of that was
+working out how best to install a \TeX{} Live setup automatically
+and then to cache it. The actual \verb|.travis.yml| configuration took only
+minutes to do.
+
+Running the full test suite for \LaTeX3 currently takes around 6 minutes on
+the virtual machine, depending on whether the \TeX{} Live system needs to
+be re-installed. That's about the same time as it takes on a MacBook Pro
+i7 (my own laptop). So checking the code in almost real-time is certainly
+workable.
+
+\def\tfig#1{\unskip}
+Most of the time the tests pass, and the web page shows a simple report
+to this effect \tfig{(Figure~\ref{fig:travis-pass})}. When a
+{\parfillskip=0pt\par\newpage\noindent}%
+test fails, as
+well as the email sent, the web page shows the failure
+\tfig{(Figure~\ref{fig:travis-fail})}. Notice that in both cases we get the
+commit reference, which we can use to go straight to the code changes
+on GitHub. There is also an overview of changes over time
+\tfig{(Figure~\ref{fig:travis-builds})}, so you can quickly get a feel for what
+broke and fix the system.
+%\begin{figure}[t]
+%  \includegraphics[width = \hsize]{Travis-passing}
+%  \caption{Summary for a passing build.}
+%  \label{fig:travis-pass}
+%\end{figure}
+%\begin{figure}[t]
+%  \includegraphics[width = \hsize]{Travis-failing}
+%  \caption{Summary for a failing build.}
+%  \label{fig:travis-fail}
+%\end{figure}
+%\begin{figure}[t]
+%  \includegraphics[width = \hsize]{Travis-builds}
+%  \caption{Build history.}
+%  \label{fig:travis-builds}
+%\end{figure}
+
+Sometimes of course you need more detail, and for that the terminal
+log is visible (Figure~\ref{fig:travis-log}). As you can see, each
+phase of the process is separated out so you can collapse parts
+that are not important: for example, if the \verb|install| phase is fine but
+there is a problem with the tests. The log loads in real time when
+a test is running, so you can monitor what's happening and if necessary
+kill a test, for example if something seems to have hung.
+
+That flexibility and speed means it's been possible to add more tests, checking
+on how the core \LaTeX\ code interacts with some contributed packages.
+
+\smallskip
+\section{Conclusions}
+
+Setting up and running an automated test system using a hosted virtual
+machine makes running tests on every change easy. It shouldn't be seen as
+an alternative to running tests \emph{before} changing code, but it is another
+tool to exploit in keeping ahead of the inevitable bugs.
+
+\smallskip
+\SetBibJustification{\raggedright \advance\itemsep by 1pt plus1pt minus1pt }
+\bibliography{\jobname}
+
+\smallskip
+\makesignature
+
+\end{document}
