@@ -41,7 +41,6 @@ Documentation is found in:
 
 * `articles`: discussion of LaTeX3 concepts by team members for
   publication in [_TUGBoat_](http://www.tug.org/tugboat) or elsewhere.
-* `examples`: demonstration documents showing how to use LaTeX3 concepts.
 * `news`: source for _LaTeX3 News_.
 
 The repository also contains the directory `xpackages`. This
