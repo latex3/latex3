@@ -11,6 +11,7 @@ maindir = ".."
 
 -- Non-standard settings
 checkfiles   = {"l3names.def"}
+cleanfiles   = {"*.fmt", "*.log", "*.pdf", "*.zip"}
 cmdchkfiles  = -- Need to miss a few .dtx files
   {
     -- Missing l3doc, l3fp and subfiles
@@ -65,10 +66,13 @@ end
 
 function format()
   local engines = checkengines
-  if optengine then
-    engines = {optengine}
+  if optengines then
+    engines = optengines
   end
-  unpack()
+  local errorlevel = unpack()
+  if errorlevel ~=0 then
+    return errorlevel
+  end
   os.execute(
       -- Set TEXINPUTS to look in the unpack then local dirs only
       -- See notes in l3build.lua for unpack ()
@@ -77,15 +81,33 @@ function format()
       unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
         .. " " .. unpackdir .. "/" .. "l3format.ins"
     )
+  local function mkformat(engine)
+    local realengine = engine
+    -- Special casing for (u)pTeX
+    if string.match(engine, "^u?ptex$") then
+      realengine = "e" .. engine
+    end
+    local errorlevel = run(
+      unpackdir,
+      os_setenv .. " TEXINPUTS=." .. os_concat
+        .. realengine .. " -etex -ini l3format.ltx"      
+     )
+     if errorlevel ~=0 then
+       return errorlevel
+     end
+     local fmtname = "l3" .. engine .. ".fmt"
+     ren(unpackdir, "l3format.fmt", fmtname)
+     cp(fmtname, unpackdir, ".")
+     return 0
+  end
   local engine
   for _,engine in pairs(engines) do
-    run(
-        unpackdir,
-        -- Only look 'here'
-        os_setenv .. " TEXINPUTS=." .. os_concat ..
-        engine .. " -etex -ini l3format.ltx"
-      )
+    errorlevel = mkformat(engine)
+    if errorlevel ~=0 then
+      return errorlevel
+    end
   end
+  return 0
 end
 
 -- l3kernel does all of the targets itself
