@@ -325,7 +325,7 @@
 %</package>
 %    \end{macrocode}
 %
-% \subsection{The \tn{pdfstrcmp} primitive with \XeTeX{} and \LuaTeX{}}
+% \subsection{The \tn{pdfstrcmp} primitive in \XeTeX{}}
 %
 % Only \pdfTeX{} has a primitive called \tn{pdfstrcmp}. The \XeTeX{}
 % version is just \tn{strcmp}, so there is some shuffling to do. As
@@ -337,131 +337,54 @@
 \fi
 %    \end{macrocode}
 %
-%   If \LuaTeX{} is in use then no primitive \tn{pdfstrcmp} is available.
-%   However, it can be emulated using some Lua code. In earlier versions of
-%   the code, the \pkg{pdftexcmds} package was loaded to do this task. However,
-%   that raises some issues in \enquote{generic} (it fails with Con\TeX{}t
-%   MkIV), and also adds a hardly-needed dependency.  Note that \LuaTeX{}
-%   prior to version $0.36$ is not supported by \pkg{expl3}: here that means
-%   simply skipping the definition, which will then be picked up later. This
-%   definition may need to be done twice: one \enquote{now} and once at the
-%   start of every job. The latter can occur in package mode if for example a
-%   custom format is being constructed. To achieve this while not requiring a
-%   separate file, the Lua code is saved into a macro then used twice.
-%   (In the long term, the Lua code here may be best moved to a separate
-%   file.)
+% \subsection{Loading support \Lua{} code}
 %
-%   No macro definition is given just yet: that is left until \pkg{l3basics}.
+% When \LuaTeX{] is used there are various pieces of \Lua{} code which need to
+% be loaded. The code itself is defined in \pkg{l3luatex} and is extracted into
+% a separate file. Thus here the task is to load the \Lua{} code both now and
+% (if required) at the start of each job.
 %    \begin{macrocode}
-\begingroup
-  \expandafter\ifx\csname directlua\endcsname\relax
+\begingroup\expandafter\expandafter\expandafter\endgroup
+\expandafter\ifx\csname directlua\endcsname\relax
+\else
+  \ifnum\luatexversion<70 %
   \else
-    \ifnum\luatexversion<36 %
-    \else
-      \catcode`\_=11 %
-      \catcode`\:=11 %
-      \def\tempa
-        {%
-          l3kernel = l3kernel or { }
-          function l3kernel.strcmp(A, B)
-            if A == B then
-              tex.write("0")
-            elseif A < B then
-              tex.write("-1")
-            else
-              tex.write("1")
-            end
-          end
-        }
-      \directlua{\tempa}
 %    \end{macrocode}
-%  A test for \LuaTeX{} in Ini\TeX{} mode.
+%   In package mode a category code table is needed: either use a pre-loaded
+%   allocator or provide one using the \LaTeXe{}-based generic code. In format
+%   mode the table used here can be hard-coded into the \Lua{}.
 %    \begin{macrocode}
-      \ifnum 0%
-        \directlua
-          {%
-            if status.ini_version then
-              tex.write("1")
-            end
-          }>0 %
-        \global\everyjob\expandafter
-          {%
-            \the\expandafter\everyjob
-            \expandafter\lua_now_x:n\expandafter{\tempa}%
-          }
-      \fi
-    \fi
-  \fi
-\endgroup
-%    \end{macrocode}
-%
-% \subsection{Emulating \tn{Ucharchar} in \LuaTeX{}}
-%
-% Expandably creating character tokens can be done in macros but for the
-% full Unicode range requires engine support in practical terms. That is
-% available in \XeTeX{} as \tn{Ucharcat} but in \LuaTeX{} some Lua code
-% is required. That is set up here, following the model above. Note that
-% we do not try to emulate the syntax of the primitive (doable with \LuaTeX{}
-% 0.80 or later, but not required by our use case).
-%
-% One minor wrinkle is that a catcode table is needed to return values.
-% For format mode, long-term we can simply take an arbitrary one and make
-% sure this is never allocated. In package mode use the same approach
-% (and table) as \pkg{ucharcat}: look for an allocator and use it if available,
-% or use a table unlikely to clash with any other use. We use the same table
-% as \pkg{ucharcat} but as this is \enquote{disposable} we are safe.
-%    \begin{macrocode}
-\begingroup
-  \expandafter\ifx\csname directlua\endcsname\relax
-  \else
-    \ifnum\luatexversion<70 %
-    \else
-%<*initex>
-       % TEMP
-       \catcode`\@=11 %
-       \chardef\ucharcat@table="8000 %
-%</initex>
 %<*package>
-      \begingroup\expandafter\expandafter\expandafter\endgroup
-      \expandafter\ifx\csname newcatcodetable\endcsname\relax
-        \directlua{tex.enableprimitives("",{"initcatcodetable"})}
-        \chardef\ucharcat@table"7000 %
-        \initcatcodetable\ucharcat@table
-      \else
-        \newcatcodetable\ucharcat@table
-      \fi
+    \begingroup\expandafter\expandafter\expandafter\endgroup
+    \expandafter\ifx\csname newcatcodetable\endcsname\relax
+      \input{ltluatex}%
+    \fi
+    \newcatcodetable\ucharcat@table
+    \directlua{
+      l3kernel = l3kernel or { }
+      local charcat_table = \number\ucharcat@table
+      l3kernel.charcat_table = charcat_table
+    }%
 %</package>
-      \catcode`\_=11 %
-      \catcode`\:=11 %
-      \def\tempa
-        {%
-          l3kernel = l3kernel or { }
-          local utf8_char = unicode.utf8.char
-          function l3kernel.charcat(charcode, catcode)
-            tex.setcatcode(\number\ucharcat@table, charcode, catcode)
-            tex.sprint(\number\ucharcat@table, utf8_char(charcode))
-          end
-        }
-      \directlua{\tempa}%
-      \ifnum 0%
-        \directlua
-          {%
-            if status.ini_version then
-              tex.write("1")
-            end
-          }>0 %
-%<*initex>
-        \edef\tempa{\tempa}% TEMP
-%</initex>
-        \global\everyjob\expandafter
-          {%
-            \the\expandafter\everyjob
-            \expandafter\lua_now_x:n\expandafter{\tempa}%
-          }
-      \fi
+    \directlua{require("expl3")}
+%    \end{macrocode}
+%   As the user might be making a custom format, no assumption is made about
+%   matching package mode with only loading the \Lua{} code once. Instead, a
+%   query to \Lua{} will reveal what mode is in operation.
+%    \begin{macrocode}
+    \ifnum 0%
+      \directlua{
+        if status.ini_version then
+          tex.write("1")
+        end
+      }>0 %
+      \everyjob\expandafter{%
+        \the\expandafter\everyjob
+        \csname\detokenize{lua_now_x:n}\endcsname{require("expl3")}%
+      }%
     \fi
   \fi
-\endgroup
+\fi
 %    \end{macrocode}
 %
 % \subsection{Engine requirements}

@@ -27,6 +27,7 @@ installfiles =
   {
     "l3dvipdfmx.def", "l3dvips.def", "l3pdfmode.def", "l3unicode-data.def",
     "l3xdvipdfmx.def",
+    "expl3.lua",
     "*.cls", "*.sty", "*.tex"
   }
 sourcefiles  = {"l3unicode-data.def", "*.dtx", "*.ins"}
