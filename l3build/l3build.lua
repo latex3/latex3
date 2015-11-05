@@ -433,10 +433,17 @@ function cp(glob, source, dest)
   for _,i in ipairs(filelist(source, glob)) do
     local source = source .. "/" .. i
     if os_windows then
-      errorlevel = os.execute(
-          "xcopy /y /e /i" .. unix_to_win(source)
-            .. " " .. unix_to_win(dest) .. " > nul"
+      if lfs.attributes(source)["mode"] == "directory" then
+        errorlevel = os.execute(
+          "xcopy /y /e /i " .. unix_to_win(source) .. " "
+             .. unix_to_win(dest .. "/" .. i) .. " > nul"
         )
+      else
+        errorlevel = os.execute(
+          "xcopy /y " .. unix_to_win(source) .. " "
+             .. unix_to_win(dest) .. " > nul"
+        )
+      end
     else
       errorlevel = os.execute("cp -rf " .. source .. " " .. dest)
     end
