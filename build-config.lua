@@ -26,11 +26,11 @@ end
 function setversion_update_line(line, date, version)
   local date = string.gsub(date, "%-", "/")
   -- Replace the identifiers
-  if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}$") then
-    line = "\\def\\ExplFileDate{" .. date .. "}"
+  if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}%%?$") then
+    line = string.gsub(line, "%d%d%d%d/%d%d/%d%d", date)
   end
-  if string.match(line, "^\\def\\ExplFileVersion{%d+}$") then
-    line = "\\def\\ExplFileVersion{" .. version .. "}"
+  if string.match(line, "^\\def\\ExplFileVersion{%d+}%%?$") then
+    line = string.gsub(line, "%d+", version)
   end
   -- Update the interlock
   if string.match(
