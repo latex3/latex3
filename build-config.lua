@@ -23,7 +23,8 @@ if unpacksearch == nil then
 end
 
 -- Detail how to set the version automatically
-function setversion_update_line(line, date, version)
+setversion_update_line =
+  setversion_update_line or function(line, date, version)
   local date = string.gsub(date, "%-", "/")
   -- Replace the identifiers
   if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}%%?$") then
