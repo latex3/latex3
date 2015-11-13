@@ -74,14 +74,14 @@ function format()
   if errorlevel ~=0 then
     return errorlevel
   end
-  os.execute(
-      -- Set TEXINPUTS to look in the unpack then local dirs only
-      -- See notes in l3build.lua for unpack ()
-      os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir ..
-        os_concat ..
-      unpackexe .. " " .. unpackopts .. " -output-directory=" .. unpackdir
-        .. " " .. unpackdir .. "/" .. "l3format.ins"
-    )
+  local localdir = relpath(localdir, unpackdir)
+  errorlevel = run(
+    unpackdir,
+    os_setenv .. " TEXINPUTS=." .. os_pathsep
+      .. localdir .. (unpacksearch and os_pathsep or "") ..
+    os_concat ..
+    unpackexe .. " " .. unpackopts .. " l3format.ins"
+  )
   local function mkformat(engine)
     local realengine = engine
     -- Special casing for (u)pTeX
