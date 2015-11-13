@@ -90,8 +90,7 @@ function format()
     end
     local errorlevel = run(
       unpackdir,
-      os_setenv .. " TEXINPUTS=." .. os_concat
-        .. realengine .. " -etex -ini l3format.ltx"      
+      realengine .. " -etex -ini l3format.ltx"
      )
      if errorlevel ~=0 then
        return errorlevel
