@@ -3275,6 +3275,58 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\@@_check_definable:nNT, \@@_check_definable_aux:nN}
+%   Check that a token list is appropriate as a first argument of
+%   \cs{DeclareDocumentCommand} and similar functions and otherwise
+%   produce an error.  First trim whitespace to allow for spaces around
+%   the actual command to be defined.  If the result has multiple
+%   tokens, it is not a valid argument.  The single token is a control
+%   sequence exactly if its string representation has more than one
+%   character (using \cs{token_to_str:N} rather than \cs{tl_to_str:n}
+%   to avoid problems with macro parameter characters, and setting
+%   \cs{tex_escapechar:D} to prevent it from being non-printable).
+%   Finally, check for an active character: this is done by lowercasing
+%   the token to fix its character code (arbitrarily to that of~|?|)
+%   and comparing the result to an active~|?|.  Both control sequences
+%   and active characters are valid arguments, and non-active character
+%   tokens are not.  In all cases, the group opened to keep assignments
+%   local must be closed.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_check_definable:nNT #1
+  { \exp_args:Nx \@@_check_definable_aux:nN { \tl_trim_spaces:n {#1} } }
+\group_begin:
+  \char_set_catcode_active:n { `? }
+  \cs_new_protected:Npn \@@_check_definable_aux:nN #1#2
+    {
+      \group_begin:
+      \tl_if_single_token:nTF {#1}
+        {
+          \int_set:Nn \tex_escapechar:D { 92 }
+          \exp_args:Nx \tl_if_empty:nTF
+            { \exp_args:No \str_tail:n { \token_to_str:N #1 } }
+            {
+              \exp_args:Nx \char_set_lccode:nn
+                { ` \str_head:n {#1} } { `? }
+              \tex_lowercase:D { \tl_if_eq:nnTF {#1} } { ? }
+                { \group_end: \use_iii:nnn }
+                { \group_end: \use_i:nnn }
+            }
+            { \group_end: \use_iii:nnn }
+        }
+        { \group_end: \use_ii:nnn }
+      {
+        \__msg_kernel_error:nnxx { xparse } { not-definable }
+          { \tl_to_str:n {#1} } { \token_to_str:N #2 }
+      }
+      {
+        \__msg_kernel_error:nnxx { xparse } { not-one-token }
+          { \tl_to_str:n {#1} } { \token_to_str:N #2 }
+      }
+    }
+\group_end:
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Messages}
 %
 % Some messages intended as errors.
@@ -3365,6 +3417,26 @@
   {
     You~have~asked~for~the~argument~specification~for~an~environment~'#1',~
     but~this~is~not~an~environment~defined~using~xparse.
+  }
+\__msg_kernel_new:nnnn { xparse } { not-definable }
+  { First~argument~of~'#2'~must~be~a~command. }
+  {
+    \c__msg_coding_error_text_tl
+    The~first~argument~of~'#2'~should~be~the~document~command~that~will~
+    be~defined.~The~provided~argument~'#1'~is~a~character.~Perhaps~a~
+    backslash~is~missing?
+    \\ \\
+    LaTeX~will~ignore~this~entire~definition.
+  }
+\__msg_kernel_new:nnnn { xparse } { not-one-token }
+  { First~argument~of~'#2'~must~be~a~command. }
+  {
+    \c__msg_coding_error_text_tl
+    The~first~argument~of~'#2'~should~be~the~document~command~that~will~
+    be~defined.~The~provided~argument~'#1'~contains~more~than~one~
+    token.
+    \\ \\
+    LaTeX~will~ignore~this~entire~definition.
   }
 \__msg_kernel_new:nnnn { xparse } { not-single-token }
   { Argument~delimiter~should~be~a~single~token:~'#1'. }
@@ -3474,29 +3546,43 @@
 % \begin{macro}{\RenewDocumentCommand}
 % \begin{macro}{\ProvideDocumentCommand}
 %   The user macros are pretty simple wrappers around the internal ones.
+%   There is however a check that the first argument is a single token
+%   and is definable.
 %    \begin{macrocode}
 \cs_new_protected:Npn \DeclareDocumentCommand #1#2#3
-  { \@@_declare_cmd:Nnn #1 {#2} {#3} }
+  {
+    \@@_check_definable:nNT {#1} \DeclareDocumentCommand
+      { \@@_declare_cmd:Nnn #1 {#2} {#3} }
+  }
 \cs_new_protected:Npn \NewDocumentCommand #1#2#3
   {
-    \cs_if_exist:NTF #1
+    \@@_check_definable:nNT {#1} \NewDocumentCommand
       {
-        \__msg_kernel_error:nnx { xparse } { command-already-defined }
-          { \token_to_str:N #1 }
+        \cs_if_exist:NTF #1
+          {
+            \__msg_kernel_error:nnx { xparse } { command-already-defined }
+              { \token_to_str:N #1 }
+          }
+          { \@@_declare_cmd:Nnn #1 {#2} {#3} }
       }
-      { \@@_declare_cmd:Nnn #1 {#2} {#3} }
   }
 \cs_new_protected:Npn \RenewDocumentCommand #1#2#3
   {
-    \cs_if_exist:NTF #1
-      { \@@_declare_cmd:Nnn #1 {#2} {#3} }
+    \@@_check_definable:nNT {#1} \RenewDocumentCommand
       {
-        \__msg_kernel_error:nnx { xparse } { command-not-yet-defined }
-          { \token_to_str:N #1 }
+        \cs_if_exist:NTF #1
+          { \@@_declare_cmd:Nnn #1 {#2} {#3} }
+          {
+            \__msg_kernel_error:nnx { xparse } { command-not-yet-defined }
+              { \token_to_str:N #1 }
+          }
       }
   }
 \cs_new_protected:Npn \ProvideDocumentCommand #1#2#3
-  { \cs_if_exist:NF #1 { \@@_declare_cmd:Nnn #1 {#2} {#3} } }
+  {
+    \@@_check_definable:nNT {#1} \ProvideDocumentCommand
+      { \cs_if_exist:NF #1 { \@@_declare_cmd:Nnn #1 {#2} {#3} } }
+ }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -3535,7 +3621,10 @@
 %   The expandable version of the basic function is essentially the same.
 %    \begin{macrocode}
 \cs_new_protected:Npn \DeclareExpandableDocumentCommand #1#2#3
-  { \@@_declare_expandable_cmd:Nnn #1 {#2} {#3} }
+  {
+    \@@_check_definable:nNT {#1} \DeclareExpandableDocumentCommand
+      { \@@_declare_expandable_cmd:Nnn #1 {#2} {#3} }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -3596,11 +3685,20 @@
 % \begin{macro}{\GetDocumentEnvironmentArgSpec}
 % \begin{macro}{\ShowDocumentCommandArgSpec}
 % \begin{macro}{\ShowDocumentEnvironmentArgSpec}
-%   More simple mappings.
+%   More simple mappings, with a check that the argument is a single
+%   control sequence or active character.
 %    \begin{macrocode}
-\cs_new_eq:NN \GetDocumentCommandArgSpec      \@@_get_arg_spec:N
+\cs_new_protected:Npn \GetDocumentCommandArgSpec #1
+  {
+    \@@_check_definable:nNT {#1} \GetDocumentCommandArgSpec
+      { \@@_get_arg_spec:N #1 }
+  }
 \cs_new_eq:NN \GetDocumentEnvironmentArgSpec \@@_get_arg_spec:n
-\cs_new_eq:NN \ShowDocumentCommandArgSpec     \@@_show_arg_spec:N
+\cs_new_protected:Npn \ShowDocumentCommandArgSpec #1
+  {
+    \@@_check_definable:nNT {#1} \ShowDocumentCommandArgSpec
+      { \@@_show_arg_spec:N #1 }
+  }
 \cs_new_eq:NN \ShowDocumentEnvironmentArgSpec \@@_show_arg_spec:n
 %    \end{macrocode}
 % \end{macro}
