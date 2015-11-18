@@ -952,6 +952,15 @@ function formatlualog(logfile, newfile)
         return "", ""
       end
     end
+    -- Various \local... things that other engines do not do:
+    -- Only remove the no-op versions
+    if string.match(line, "^%.+\\localpar$")                or
+       string.match(line, "^%.+\\localinterlinepenalty=0$") or
+       string.match(line, "^%.+\\localbrokenpenalty=0$")    or
+       string.match(line, "^%.+\\localleftbox=null$")       or
+       string.match(line, "^%.+\\localrightbox=null$")      then
+       return "", ""
+    end
     -- Much the same idea when the last line was a whatsit,
     -- but things are simpler in this case
     if string.match(lastline, "^%.+\\whatsit$") then
