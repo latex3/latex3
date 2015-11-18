@@ -922,6 +922,10 @@ function formatlualog(logfile, newfile)
           -- End of a \discretionary block
           return line, ""
         else
+          -- Not quite a normal discretionary
+          if string.match(lastline, "^%.+\\discretionary50%|$") then
+            lastline =  string.gsub(lastline, "50%|$", "")
+          end
           -- A normal (TeX90) discretionary:
           -- add with the line break reintroduced
           return lastline .. os_newline .. line, ""
