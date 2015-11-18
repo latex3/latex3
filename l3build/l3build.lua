@@ -965,8 +965,8 @@ function formatlualog(logfile, newfile)
        string.match(line, "^%.+\\localrightbox=null$")      then
        return "", ""
     end
-    -- Much the same idea when the last line was a whatsit,
-    -- but things are simpler in this case
+    -- Older LuaTeX versions set the above up as a whatsit
+    -- (at some stage this can therefore go)
     if string.match(lastline, "^%.+\\whatsit$") then
       local prefix = boxprefix(lastline)
       if string.match(line, prefix .. "%.") then
