@@ -1393,13 +1393,12 @@
 % \begin{macro}[aux, EXP]{\@@_change_case_loop:nw}
 % \begin{macro}[aux, EXP]{\@@_change_case_space:n}
 % \begin{macro}[aux, EXP]{\@@_change_case_char:nN}
-% \begin{macro}[aux, EXP]{\@@_change_case_char:NNNNNNNNn}
+% \begin{macro}[aux]
+%   {\@@_lookup_lower:N, \@@_lookup_upper:N, \@@_lookup_fold:N}
 %   Case changing for programmatic reasons is done by first detokenizing
 %   input then doing a simple loop that only has to worry about spaces
 %   and everything else. The output is detokenized to allow data sharing
-%   with text-based case changing. The key idea here of splitting up the
-%   data files based on the character code of the current character is
-%   shared with the text case changer too.
+%   with text-based case changing.
 %    \begin{macrocode}
 \cs_new:Npn \str_fold_case:n #1 { \@@_change_case:nn {#1} { fold } }
 \cs_new:Npn \str_lower_case:n #1 { \@@_change_case:nn {#1} { lower } }
@@ -1432,18 +1431,33 @@
 \cs_new:Npn \@@_change_case_char:nN #1#2
   {
     \quark_if_recursion_tail_stop:N #2
-    \exp_args:Nf \tl_to_str:n
-      {
-        \exp_after:wN \@@_change_case_char:NNNNNNNNn
-          \int_use:N \__int_eval:w 1000000 + `#2 \__int_eval_end: #2 {#1}
-      }
-    \@@_change_case_loop:nw {#1}
+    \cs_if_exist:cTF { c__unicode_ #1 _  #2 _tl }
+      { \tl_to_str:c { c__unicode_ #1 _ #2 _tl } }
+      { \@@_change_case_char_aux:nN {#1} #2 }
+    \__str_change_case_loop:nw {#1}
   }
-\cs_new:Npn \@@_change_case_char:NNNNNNNNn #1#2#3#4#5#6#7#8#9
+%    \end{macrocode}
+%   For Unicode engines there's a look up to see if the current character
+%   has a valid one-to-one case change mapping. That's not needed for $8$-bit
+%   engines: as they don't have \cs{utex_char:D} all of the changes they can
+%   make are hard-coded and so already picked up above.
+%    \begin{macrocode}
+\cs_if_exist:NTF \utex_char:D
   {
-    \str_case:nvF #8
-      { c__unicode_ #9 _ #6 _X_ #7 _tl }
-      { #8 }
+    \cs_new:Npn \@@_change_case_char_aux:nN #1#2
+      {
+        \int_compare:nNnTF { \use:c { @@_lookup_ #1 :N } #2 } = { 0 }
+          { #2 }
+          {
+            \utex_char:D \use:c { @@_lookup_ #1 :N } #2 ~
+          }
+      }
+    \cs_new_protected:Npn \@@_lookup_lower:N #1 { \tex_lccode:D `#1 }
+    \cs_new_protected:Npn \@@_lookup_upper:N #1 { \tex_uccode:D `#1 }
+    \cs_new_eq:NN \@@_lookup_fold:N \@@_lookup_lower:N
+  }
+  {
+    \cs_new:Npn \@@_change_case_char_aux:nN #1#2 { #2 }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1507,6 +1521,215 @@
 \cs_generate_variant:Nn \str_show:N { c }
 %    \end{macrocode}
 % \end{macro}
+%
+% \subsection{Unicode data for case changing}
+%
+%    \begin{macrocode}
+%<@@=unicode>
+%    \end{macrocode}
+%
+% Case changing both for strings and \enquote{text} requires data from
+% the Unicode Consortium. Some of this is build in to the format (as
+% \tn{lccode} and \tn{uccode} values) but this covers only the simple
+% one-to-one situations and does not fully handle for example case folding.
+%
+% The data required for cross-module manipulations is loaded here: currenty
+% this means for |str| and |tl| functions. As such, the prefix used is not
+% |str| but rather |unicode|. For performance (as the entire data set must
+% be read during each run) and as this code comes somewhat early in the
+% load process, there is quite a bit of low-level code here.
+%
+% As only the data needs to remain at the end of this process, everything
+% is set up inside a group.
+%    \begin{macrocode}
+\group_begin:
+%    \end{macrocode}
+% A read stream is needed. The I/O module is not yet in place \emph{and}
+% we do not want to use up a stream. We therefore use a known free one in
+% format mode or look for the next free one in package mode (covers plain,
+% \LaTeXe{} and Con\TeX{}t MkII and MkIV).
+%    \begin{macrocode}
+%<*initex>
+  \tex_chardef:D \g_@@_data_ior \c_zero
+%</initex>
+%<*package>
+  \tex_chardef:D \g_@@_data_ior
+    \etex_numexpr:D
+      \cs_if_exist:NTF \lastallocatedread
+        { \lastallocatedread }
+        {
+          \cs_if_exist:NTF \c_syst_last_allocated_read
+            { \c_syst_last_allocated_read }
+            { \tex_count:D 16 ~ }
+        }
+        + 1
+    \scan_stop:
+%</package>
+%    \end{macrocode}
+% Set up to read each file. As they use C-style comments, thre is a need to
+% deal with |#|. At the same time, spaces are important so they need to be
+% picked up as they are important. Beyond that, the current category code
+% scheme works fine. With no I/O loop available, hard-code  one that will work
+% quickly.
+%    \begin{macrocode}
+  \cs_set_protected:Npn \@@_map_inline:n #1
+    {
+      \group_begin:
+        \tex_catcode:D `\# = 12 \scan_stop:
+        \tex_catcode:D `\  = 10 \scan_stop:
+        \tex_openin:D \g_@@_data_ior = #1 \scan_stop:
+        \cs_if_exist:NT \utex_char:D 
+          { \@@_map_loop: }
+        \tex_closein:D \g_@@_data_ior
+      \group_end:
+    }
+  \cs_set_protected:Npn \@@_map_loop:
+    {
+      \tex_ifeof:D \g_@@_data_ior
+        \exp_after:wN \use_none:n
+      \else:
+        \exp_after:wN \use:n
+      \fi:
+        {
+          \tex_read:D \g_@@_data_ior to \l_@@_tmp_tl
+          \if_meaning:w \c_empty_tl \l_@@_tmp_tl
+          \else:
+            \exp_after:wN \@@_parse:w \l_@@_tmp_tl \q_stop
+          \fi:
+          \@@_map_loop:
+        }
+    }
+  \cs_set_nopar:Npn \l_@@_tmp_tl { }
+%    \end{macrocode}
+% The lead-off parser for each line is common for all of the files. If
+% the line starts with a |#| it's a comment. There's one special comment
+% line to look out for in \texttt{SpecialCasing.txt} as we want to ignore
+% everything after it. As this line does not appear in any other sources
+% and the test is quite quick (there are relatively few comment lines), it
+% can be present in all of the passes.
+%    \begin{macrocode}
+  \cs_set_protected:Npn \@@_parse:w #1#2 \q_stop
+    {
+      \reverse_if:N \if:w \l_@@_hash_tl #1
+        \@@_parse_auxi:w #1#2 \q_stop
+      \else:
+        \if_int_compare:w \__str_if_eq_x:nn
+          {#2} { ~Conditional~Mappings~ } = \c_zero
+          \cs_set_protected:Npn \@@_parse:w ##1 \q_stop { }
+        \fi:
+      \fi:
+    }
+  \cs_set_nopar:Npx \l_@@_hash_tl { \token_to_str:N # }
+%    \end{macrocode}
+% Storing each exception is always done in the same way: create a constant
+% token list which expands to exactly the mapping. These will have the
+% category codes \enquote{now} (so should be letters) but will be detokenized
+% for string use.
+%    \begin{macrocode}
+  \cs_set_protected:Npn \@@_store:nnnnn #1#2#3#4#5
+    {
+      \tl_const:cx { c_@@_ #2 _ \utex_char:D "#1 _tl }
+        {
+          \utex_char:D "#3 ~
+          \utex_char:D "#4 ~
+          \tl_if_blank:nF {#5}
+            { \utex_char:D "#5 }
+        }
+    }
+%    \end{macrocode}   
+% Parse the main Unicode data file for title case exceptions (the one-to-one
+% lower and upper case mappings it contains will all be covered by the \TeX{}
+% data).
+%    \begin{macrocode}
+  \cs_set_protected:Npn \@@_parse_auxi:w
+    #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 ; #9 ;
+    { \@@_parse_auxii:w #1 ; }
+  \cs_set_protected:Npn \@@_parse_auxii:w
+    #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 \q_stop
+    {
+      \tl_if_blank:nF {#7}
+        {
+          \if_int_compare:w \__str_if_eq_x:nn { #5 ~ } {#7} = \c_zero
+          \else:
+            \tl_const:cx
+              { c_@@_title_ \utex_char:D "#1 _tl }
+              { \utex_char:D "#7 }
+          \fi:
+        }
+    }
+  \@@_map_inline:n { UnicodeData.txt }
+%    \end{macrocode}   
+%  The set up for case folding is in two parts. For the basic (core) mappings,
+%  folding is the same as lower casing in most positions so only store
+%  the differences. For the more complex foldings, always sotre the result,
+%  splitting up the two or three code points in the inout as required.
+%    \begin{macrocode}
+  \cs_set_protected:Npn \@@_parse_auxi:w #1 ;~ #2 ;~ #3 ; #4 \q_stop
+    {
+      \if_int_compare:w \__str_if_eq_x:nn {#2} { C } = \c_zero
+        \if_int_compare:w \tex_lccode:D "#1 = "#3 \scan_stop:
+        \else:
+          \tl_const:cx
+            { c_@@_fold_ \utex_char:D "#1 _tl }
+            { \utex_char:D "#3 ~ }
+        \fi:
+      \else:
+        \if_int_compare:w \__str_if_eq_x:nn {#2} { F } = \c_zero
+          \@@_parse_auxii:w #1 ~ #3 ~ \q_stop
+        \fi:
+      \fi:
+    }
+  \cs_set_protected:Npn \@@_parse_auxii:w #1 ~ #2 ~ #3 ~ #4 \q_stop
+    { \@@_store:nnnnn {#1} { fold } {#2} {#3} {#4} }
+  \@@_map_inline:n { CaseFolding.txt }
+%    \end{macrocode}
+% For upper and lower casing special situations, there is a bit more to
+% do as we also have title casing to consider.
+%    \begin{macrocode}
+  \cs_set_protected:Npn \@@_parse_auxi:w #1 ;~ #2 ;~ #3 ;~ #4 ; #5 \q_stop
+    {
+      \use:n { \@@_parse_auxii:w #1 ~ lower ~ #2 ~ } ~ \q_stop
+      \use:n { \@@_parse_auxii:w #1 ~ upper ~ #4 ~ } ~ \q_stop
+      \if_int_compare:w \__str_if_eq_x:nn {#3} {#4} = \c_zero
+      \else:
+        \use:n { \@@_parse_auxii:w #1 ~ title ~ #3 ~ } ~ \q_stop
+      \fi:
+    }
+  \cs_set_protected:Npn \@@_parse_auxii:w #1 ~ #2 ~ #3 ~ #4 ~ #5 \q_stop
+    {
+      \tl_if_empty:nF {#4}
+        { \@@_store:nnnnn {#1} {#2} {#3} {#4} {#5} }
+    }
+  \@@_map_inline:n { SpecialCasing.txt }
+%    \end{macrocode}
+% For the $8$-bit engines, the above does nothing but there is some set
+% up needed. There is no expandable character generator primitive so some
+% alternative is needed. As we've not used up hash space for the above, we
+% can go for the fast approach here of one name per letter. Keeping folding
+% and lower casing separate makes the use later a bit easier.
+%    \begin{macrocode}
+  \cs_if_exist:NF \utex_char:D
+    {
+      \cs_set_protected:Npn \@@_tmp:NN #1#2
+        {
+          \if_meaning:w \q_recursion_tail #2
+            \exp_after:wN \use_none_delimit_by_q_recursion_stop:w
+          \fi:
+          \tl_const:cn { c_@@_fold_  #1 _tl } {#2}
+          \tl_const:cn { c_@@_lower_ #1 _tl } {#2}
+          \tl_const:cn { c_@@_upper_ #2 _tl } {#1}
+          \@@_tmp:NN
+        }
+      \@@_tmp:NN
+        AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
+        ? \q_recursion_tail \q_recursion_stop
+    }
+%    \end{macrocode}
+%
+% All done: tidy up.
+%    \begin{macrocode}
+\group_end:
+%    \end{macrocode}
 %
 %    \begin{macrocode}
 %</initex|package>

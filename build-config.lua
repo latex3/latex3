@@ -7,7 +7,14 @@ unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 cmdchkfiles     = cmdchkfiles     or {"*.dtx"}
 checkengines    = checkengines
   or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
-checksuppfiles  = checksuppfiles  or {"minimal.cls", "regression-test.cfg"}
+checksuppfiles  = checksuppfiles  or
+  {
+    "CaseFolding.txt",
+    "minimal.cls",
+    "regression-test.cfg",
+    "SpecialCasing.txt",
+    "UnicodeData.txt",
+  }
 unpacksuppfiles = unpacksuppfiles or {"docstrip.tex"}
 versionfiles    = versionfiles    or {"*.dtx", "README.md"}
 
