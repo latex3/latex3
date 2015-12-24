@@ -213,7 +213,6 @@ function argparse()
   end
   -- An auxiliary to grab all file names into a table
   local function remainder(num)
-    local i
     local files = { }
     for i = num, #arg do
       table.insert(files, arg[i])
@@ -1376,7 +1375,6 @@ function check(names)
     if names and next(names) then
       hide = false
     end
-    local i
     names = names or { }
     -- No names passed: find all test files
     if not next(names) then
@@ -1394,7 +1392,6 @@ function check(names)
     end
     -- Actually run the tests
     print("Running checks on")
-    local name
     for _,name in ipairs(names) do
       print("  " .. name)
       local errlevel = runcheck(name, hide)
@@ -1621,7 +1618,6 @@ function doc(files)
       -- Allow for command line selection of files
       local typeset = true
       if files and next(files) then
-        local k
         typeset = false
         for _,k in ipairs(files) do
           if k == stripext(j) then
@@ -1666,7 +1662,6 @@ end
 function save(names)
   checkinit()
   local engines = optengines or {stdengine}
-  local name
   for _,name in pairs(names) do
     local engine
     for _,engine in pairs(engines) do
@@ -1703,7 +1698,6 @@ end
 if versionform ~= "" and not setversion_update_line then
   if versionform == "ProvidesPackage" then
     function setversion_update_line(line, date, version)
-      local i
       -- No real regex so do it one type at a time
       for _,i in pairs({"Class", "File", "Package"}) do
         if string.match(
@@ -1722,7 +1716,6 @@ if versionform ~= "" and not setversion_update_line then
     end
   elseif versionform == "ProvidesExplPackage" then
     function setversion_update_line(line, date, version)
-      local i
       -- No real regex so do it one type at a time
       for _,i in pairs({"Class", "File", "Package"}) do
         if string.match(
@@ -1804,7 +1797,6 @@ function setversion()
   if optversion then
     version = optversion[1] or version
   end
-  local i, j
   for _,i in pairs(versionfiles) do
     for _,j in pairs(filelist(".", i)) do
       rewrite(j, date, version)
