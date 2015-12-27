@@ -189,11 +189,11 @@ function argparse()
     }
   local option_args =
     {
-      date   = true ,
-      engine = true ,
-      halt   = false,
-      help   = false,
-      quiet  = false,
+      date    = true ,
+      engine  = true ,
+      halt    = false,
+      help    = false,
+      quiet   = false,
       version = true
     }
   -- arg[1] is a special case: must be a command or "-h"/"--help"
