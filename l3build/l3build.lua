@@ -560,7 +560,7 @@ function rmdir(dir)
   -- First, make sure it exists to avoid any errors
   mkdir(dir)
   if os_windows then
-    return os.execute("rmdir /s /q " .. unix_to_win(dir) )
+    return os.execute("rmdir /s /q " .. unix_to_win(dir))
   else
     return os.execute("rm -r " .. dir)
   end
