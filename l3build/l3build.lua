@@ -725,7 +725,14 @@ end
 
 -- Convert the raw log file into one for comparison/storage: keeps only
 -- the 'business' part from the tests and removes system-dependent stuff
-function formatlog(logfile, newfile, engine)
+function formatlog(logfile, newfile, engine) 
+  -- Do this before using maxprintline to expoit scoping
+  local kpse = require("kpse")
+  kpse.set_program_name(engine)
+  local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
+  if engine == "luatex" or engine == "luajittex" then
+    maxprintline = maxprintline + 1 -- Deal with an out-by-one error
+  end
   local function killcheck(line)
       -- Skip lines containing file dates
       if string.match(line, "[^<]%d%d%d%d/%d%d/%d%d") then
@@ -742,7 +749,7 @@ function formatlog(logfile, newfile, engine)
     return false
   end
     -- Substitutions to remove some non-useful changes
-  local function normalize(line, maxprintline)
+  local function normalize(line)
     -- Allow for wrapped lines: preserve the content and wrap
     if (string.len(line) == maxprintline) then
       lastline = (lastline or "") .. line
@@ -816,12 +823,6 @@ function formatlog(logfile, newfile, engine)
     end
     return line
   end
-  local kpse = require("kpse")
-  kpse.set_program_name(engine)
-  local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
-  if engine == "luatex" or engine == "luajittex" then
-    maxprintline = maxprintline + 1 -- Deal with an out-by-one error
-  end
   local lastline = ""
   local newlog = ""
   local prestart = true
@@ -836,7 +837,7 @@ function formatlog(logfile, newfile, engine)
     elseif line == "TIMO" then
       skipping = false
     elseif not prestart and not skipping then
-      line = normalize(line, maxprintline)
+      line = normalize(line)
       if not string.match(line, "^ *$") and not killcheck(line) then
         newlog = newlog .. line .. os_newline
       end
