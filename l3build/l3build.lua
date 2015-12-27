@@ -573,8 +573,7 @@ end
 
 -- Deal with the fact that Windows and Unix use different path separators
 function unix_to_win(path)
-  local path = string.gsub(path, "/", "\\")
-  return path
+  return string.gsub(path, "/", "\\")
 end
 
 --
