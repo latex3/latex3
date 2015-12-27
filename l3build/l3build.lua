@@ -725,7 +725,7 @@ end
 
 -- Convert the raw log file into one for comparison/storage: keeps only
 -- the 'business' part from the tests and removes system-dependent stuff
-function formatlog(logfile, newfile, engine) 
+function formatlog(logfile, newfile, engine)
   -- Do this before using maxprintline to expoit scoping
   local kpse = require("kpse")
   kpse.set_program_name(engine)
