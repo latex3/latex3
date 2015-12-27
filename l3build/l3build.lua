@@ -381,9 +381,6 @@ end
 -- operations 'natively'.
 
 -- Detect the operating system in use
--- See http://www.lua.org/manual/5.2/manual.html#pdf-package.config for details
--- of the string used here to pick up the operating system (Windows or
--- 'not-Windows'
 -- Support items are defined here for cases where a single string can cover
 -- both Windows and Unix cases: more complex situations are handled inside
 -- the support functions
