@@ -751,7 +751,7 @@ function formatlog(logfile, newfile, engine)
     -- Substitutions to remove some non-useful changes
   local function normalize(line)
     -- Allow for wrapped lines: preserve the content and wrap
-    if (string.len(line) == maxprintline) then
+    if string.len(line) == maxprintline then
       lastline = (lastline or "") .. line
       return ""
     end
