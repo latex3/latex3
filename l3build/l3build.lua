@@ -850,7 +850,7 @@ function formatlog(logfile, newfile, engine)
 end
 
 -- Additional normalization for LuaTeX
-function formatlualog(logfile, newfile)
+function formatlualog(logfile, newfile, engine)
   local function normalize(line, lastline, dropping)
     -- Find \discretionary or \whatsit lines:
     -- These may come back later
@@ -982,14 +982,17 @@ function formatlualog(logfile, newfile)
         return line, ""
       end
     end
-    -- Wrap some cases that can be picked out
-    -- In some places LuaTeX does use max_print_line, then we
-    -- get into issues with different wrapping approaches
+    -- Wrap some cases that can be picked out:
+    -- This deals with a few places that can be normalised plus
+    -- the 'out by one' issue that LuaTeX has for some cases
     local kpse = require("kpse")
-    kpse.set_program_name("luatex")
+    kpse.set_program_name(engine)
     local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
     if string.len(line) == maxprintline then
-      return "", line
+      return "", lastline .. line
+    -- Cover the out-by-one issue with LuaTeX
+    elseif string.len(line) == maxprintline + 1 and engine == "luatex" then
+      return "", lastline .. line
     elseif string.len(lastline) == maxprintline then
       if string.match(line, "\\ETC%.%}$") then
         -- If the line wrapped at \ETC we might have lost a space
@@ -1001,8 +1004,13 @@ function formatlualog(logfile, newfile)
       else
         return lastline .. os_newline .. line, ""
       end
+    -- Return all of the text for a wrapped (multi)line
+    elseif string.len(lastline) > maxprintline then
+      return lastline .. line, ""
     end
-    return line, ""
+    -- LuaTeX adds difference leading spaces to lines:
+    -- if we get this far, they need to be tided up
+    return string.gsub(line, "^%s+", ""), ""
   end
   local newlog = ""
   local lastline = ""
@@ -1095,15 +1103,15 @@ function runcheck(name, hide)
     -- Do additional log formatting if the engine is LuaTeX, there is no
     -- LuaTeX-specific .tlg file and the default engine is not LuaTeX
     if enginename == "luatex"
-      and tlgfile ~= name ..  ".luatex" .. tlgext
+      and not string.match(tlgfile, "%.luatex" .. "%" .. tlgext .. "$")
       and stdengine ~= "luatex"
       and stdengine ~= "luajittex" then
       local luatlgfile = testdir .. "/" .. name .. ".luatex" ..  tlgext
       if os_windows then
         luatlgfile = unix_to_win(luatlgfile)
       end
-      formatlualog(tlgfile, luatlgfile)
-      formatlualog(newfile, newfile)
+      formatlualog(tlgfile, luatlgfile, stdengine)
+      formatlualog(newfile, newfile, "luatex")
       errlevel = os.execute(
         os_diffexe .. " " .. luatlgfile .. " " .. newfile
           .. " > " .. difffile
