@@ -149,6 +149,7 @@ makeindexopts = makeindexopts or ""
 -- Other required settings
 asciiengines = asciiengines or {"pdftex"}
 checkruns    = checkruns    or 1
+maxprintline = maxprintline or 79
 packtdszip   = packtdszip   or false -- Not actually needed but clearer
 scriptname   = scriptname   or "build.lua" -- Script used in each directory
 typesetcmds  = typesetcmds  or ""
@@ -727,9 +728,7 @@ end
 -- the 'business' part from the tests and removes system-dependent stuff
 function formatlog(logfile, newfile, engine)
   -- Do this before using maxprintline to expoit scoping
-  local kpse = require("kpse")
-  kpse.set_program_name(engine)
-  local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
+  local maxprintline = maxprintline
   if engine == "luatex" or engine == "luajittex" then
     maxprintline = maxprintline + 1 -- Deal with an out-by-one error
   end
@@ -987,9 +986,6 @@ function formatlualog(logfile, newfile, engine)
     -- Wrap some cases that can be picked out:
     -- This deals with a few places that can be normalised plus
     -- the 'out by one' issue that LuaTeX has for some cases
-    local kpse = require("kpse")
-    kpse.set_program_name(engine)
-    local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
     if string.len(line) == maxprintline then
       return "", lastline .. line
     -- Cover the out-by-one issue with LuaTeX
@@ -1188,6 +1184,9 @@ function runtest(name, engine, hide, ext)
         .. os_concat ..
       -- Avoid spurious output from (u)pTeX
       os_setenv .. " GUESS_INPUT_KANJI_ENCODING=0"
+        .. os_concat ..
+      -- Ensure lines are of a known length
+      os_setenv .. " max_print_line=" .. maxprintline
         .. os_concat ..
       realengine ..  format .. " "
         .. checkopts .. " " .. asciiopt .. lvtfile
