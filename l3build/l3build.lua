@@ -816,11 +816,9 @@ function formatlog(logfile, newfile, engine)
     end
     -- Remove 'normal' direction information on boxes with (u)pTeX
     line = string.gsub(line, ",? yoko direction,?", "")
-    -- A tidy-up to keep LuaTeX and other engines in sync
-    local utf8_char = unicode.utf8.char
-    line = string.gsub(line, utf8_char(127), "^^?")
     -- Unicode engines display chars in the upper half of the 8-bit range:
     -- tidy up to match pdfTeX if an ASCII engine is in use
+    local utf8_char = unicode.utf8.char
     if next(asciiengines) then
       for i = 128, 255 do
         line = string.gsub(line, utf8_char(i), "^^" .. string.format("%02x", i))
@@ -901,6 +899,8 @@ function formatlualog(logfile, newfile)
     end
     -- LuaTeX writes ^^M as a new line, which we lose
     line = string.gsub(line, "%^%^M", "")
+    -- A tidy-up to keep LuaTeX and other engines in sync
+    line = string.gsub(line, unicode.utf8.char(127), "^^?")
     -- Remove U+ notation in the "Missing character" message
     line = string.gsub(
         line,
