@@ -1,6 +1,6 @@
 --[[
 
-  File l3build.lua (C) Copyright 2014-2015 The LaTeX3 Project
+  File l3build.lua (C) Copyright 2014-2016 The LaTeX3 Project
 
  It may be distributed and/or modified under the conditions of the
  LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -986,9 +986,9 @@ function formatlualog(logfile, newfile)
     local kpse = require("kpse")
     kpse.set_program_name("luatex")
     local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
-    if (string.len(line) == maxprintline) then
+    if string.len(line) == maxprintline then
       return "", line
-    elseif (string.len(lastline) == maxprintline) then
+    elseif string.len(lastline) == maxprintline then
       if string.match(line, "\\ETC%.%}$") then
         -- If the line wrapped at \ETC we might have lost a space
         return lastline
