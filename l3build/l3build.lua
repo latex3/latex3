@@ -726,6 +726,13 @@ end
 -- Convert the raw log file into one for comparison/storage: keeps only
 -- the 'business' part from the tests and removes system-dependent stuff
 function formatlog(logfile, newfile, engine)
+  -- Do this before using maxprintline to expoit scoping
+  local kpse = require("kpse")
+  kpse.set_program_name(engine)
+  local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
+  if engine == "luatex" or engine == "luajittex" then
+    maxprintline = maxprintline + 1 -- Deal with an out-by-one error
+  end
   local function killcheck(line)
       -- Skip lines containing file dates
       if string.match(line, "[^<]%d%d%d%d/%d%d/%d%d") then
@@ -797,6 +804,16 @@ function formatlog(logfile, newfile, engine)
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
     line = string.gsub(line, "^%s+", "")
+    -- Pick up cases where "yoko direction" or similar will have wrapped
+    if string.len(line) == maxprintline          and
+       string.match(line, "^%.+%\\hbox.*fil%, ") and
+       not string.match(line, "n$")              then
+       lastline = line
+       return ""
+    elseif string.match(lastline, "^%.+%\\hbox.*fil%, ") then
+      line = lastline .. line
+      lastline = ""
+    end
     -- Remove 'normal' direction information on boxes with (u)pTeX
     line = string.gsub(line, ",? yoko direction,?", "")
     -- A tidy-up to keep LuaTeX and other engines in sync
