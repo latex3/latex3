@@ -6,7 +6,7 @@ unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 
 cmdchkfiles     = cmdchkfiles     or {"*.dtx"}
 checkengines    = checkengines
-  or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
+  or {"pdftex", "xetex", "ptex", "uptex"}
 checksuppfiles  = checksuppfiles  or
   {
     "CaseFolding.txt",
