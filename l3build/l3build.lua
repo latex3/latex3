@@ -773,6 +773,8 @@ function formatlog(logfile, newfile, engine)
     end
     -- Zap map loading of map
     line = string.gsub(line, "%{%w?:?[%w/%-]*/pdftex%.map%} *", "")
+    -- Deal with the fact that "(.aux)" may have still a leading space
+    line = string.gsub(line, "^ %(%.aux%)", "(.aux)")
     -- Merge all of .fd data into one line so will be removed later
     if string.match(line, "^ *%([%.%/%w]+%.fd[^%)]*$") then
       lastline = (lastline or "") .. line
