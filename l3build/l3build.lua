@@ -801,9 +801,6 @@ function formatlog(logfile, newfile, engine)
       "%.%.%.l%.%d+ ( *)%}$",
       "..." .. os_newline .. "l. ...%1}"
     )
-    -- Remove spaces at the start of lines: deals with the fact that LuaTeX
-    -- uses a different number to the other engines
-    line = string.gsub(line, "^%s+", "")
     -- Pick up cases where "yoko direction" or similar will have wrapped
     if string.len(line) == maxprintline          and
        string.match(line, "^%.+%\\hbox.*fil%, ") and
