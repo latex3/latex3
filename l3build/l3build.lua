@@ -149,7 +149,6 @@ makeindexopts = makeindexopts or ""
 -- Other required settings
 asciiengines = asciiengines or {"pdftex"}
 checkruns    = checkruns    or 1
-maxprintline = maxprintline or 79
 packtdszip   = packtdszip   or false -- Not actually needed but clearer
 scriptname   = scriptname   or "build.lua" -- Script used in each directory
 typesetcmds  = typesetcmds  or ""
@@ -728,7 +727,9 @@ end
 -- the 'business' part from the tests and removes system-dependent stuff
 function formatlog(logfile, newfile, engine)
   -- Do this before using maxprintline to expoit scoping
-  local maxprintline = maxprintline
+  local kpse = require("kpse")
+  kpse.set_program_name(engine)
+  local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
   if engine == "luatex" or engine == "luajittex" then
     maxprintline = maxprintline + 1 -- Deal with an out-by-one error
   end
@@ -749,6 +750,11 @@ function formatlog(logfile, newfile, engine)
   end
     -- Substitutions to remove some non-useful changes
   local function normalize(line)
+    -- Allow for wrapped lines: preserve the content and wrap
+    if string.len(line) == maxprintline then
+      lastline = (lastline or "") .. line
+      return ""
+    end
     local line = (lastline or "") .. line
     lastline = ""
     -- Remove test file name from lines
@@ -771,9 +777,7 @@ function formatlog(logfile, newfile, engine)
       line = string.gsub(line, "%(.*/([%w-]+%.[%w-]+)%)?%s*$", "(../%1")
     end
     -- Zap map loading of map
-    line = string.gsub(line, "%{%w?:?[%w/%-]*/pdftex%.map%} *", "")
-    -- Deal with the fact that "(.aux)" may have still a leading space
-    line = string.gsub(line, "^ %(%.aux%)", "(.aux)")
+    line = string.gsub(line, "%{%w?:?[%w/%-]*/pdftex%.map%}", "")
     -- Merge all of .fd data into one line so will be removed later
     if string.match(line, "^ *%([%.%/%w]+%.fd[^%)]*$") then
       lastline = (lastline or "") .. line
@@ -802,21 +806,16 @@ function formatlog(logfile, newfile, engine)
       "%.%.%.l%.%d+ ( *)%}$",
       "..." .. os_newline .. "l. ...%1}"
     )
-    -- Pick up cases where "yoko direction" or similar will have wrapped
-    if string.len(line) == maxprintline          and
-       string.match(line, "^%.+%\\hbox.*fil%, ") and
-       not string.match(line, "n$")              then
-       lastline = line
-       return ""
-    elseif string.match(lastline, "^%.+%\\hbox.*fil%, ") then
-      line = lastline .. line
-      lastline = ""
-    end
+    -- Remove spaces at the start of lines: deals with the fact that LuaTeX
+    -- uses a different number to the other engines
+    line = string.gsub(line, "^%s+", "")
     -- Remove 'normal' direction information on boxes with (u)pTeX
     line = string.gsub(line, ",? yoko direction,?", "")
+    -- A tidy-up to keep LuaTeX and other engines in sync
+    local utf8_char = unicode.utf8.char
+    line = string.gsub(line, utf8_char(127), "^^?")
     -- Unicode engines display chars in the upper half of the 8-bit range:
     -- tidy up to match pdfTeX if an ASCII engine is in use
-    local utf8_char = unicode.utf8.char
     if next(asciiengines) then
       for i = 128, 255 do
         line = string.gsub(line, utf8_char(i), "^^" .. string.format("%02x", i))
@@ -851,7 +850,7 @@ function formatlog(logfile, newfile, engine)
 end
 
 -- Additional normalization for LuaTeX
-function formatlualog(logfile, newfile, engine)
+function formatlualog(logfile, newfile)
   local function normalize(line, lastline, dropping)
     -- Find \discretionary or \whatsit lines:
     -- These may come back later
@@ -897,8 +896,6 @@ function formatlualog(logfile, newfile, engine)
     end
     -- LuaTeX writes ^^M as a new line, which we lose
     line = string.gsub(line, "%^%^M", "")
-    -- A tidy-up to keep LuaTeX and other engines in sync
-    line = string.gsub(line, unicode.utf8.char(127), "^^?")
     -- Remove U+ notation in the "Missing character" message
     line = string.gsub(
         line,
@@ -983,14 +980,14 @@ function formatlualog(logfile, newfile, engine)
         return line, ""
       end
     end
-    -- Wrap some cases that can be picked out:
-    -- This deals with a few places that can be normalised plus
-    -- the 'out by one' issue that LuaTeX has for some cases
+    -- Wrap some cases that can be picked out
+    -- In some places LuaTeX does use max_print_line, then we
+    -- get into issues with different wrapping approaches
+    local kpse = require("kpse")
+    kpse.set_program_name("luatex")
+    local maxprintline = tonumber(kpse.expand_var("$max_print_line"))
     if string.len(line) == maxprintline then
-      return "", lastline .. line
-    -- Cover the out-by-one issue with LuaTeX
-    elseif string.len(line) == maxprintline + 1 and engine == "luatex" then
-      return "", lastline .. line
+      return "", line
     elseif string.len(lastline) == maxprintline then
       if string.match(line, "\\ETC%.%}$") then
         -- If the line wrapped at \ETC we might have lost a space
@@ -1002,13 +999,8 @@ function formatlualog(logfile, newfile, engine)
       else
         return lastline .. os_newline .. line, ""
       end
-    -- Return all of the text for a wrapped (multi)line
-    elseif string.len(lastline) > maxprintline then
-      return lastline .. line, ""
     end
-    -- LuaTeX adds difference leading spaces to lines:
-    -- if we get this far, they need to be tided up
-    return string.gsub(line, "^%s+", ""), ""
+    return line, ""
   end
   local newlog = ""
   local lastline = ""
@@ -1101,15 +1093,15 @@ function runcheck(name, hide)
     -- Do additional log formatting if the engine is LuaTeX, there is no
     -- LuaTeX-specific .tlg file and the default engine is not LuaTeX
     if enginename == "luatex"
-      and not string.match(tlgfile, "%.luatex" .. "%" .. tlgext .. "$")
+      and tlgfile ~= name ..  ".luatex" .. tlgext
       and stdengine ~= "luatex"
       and stdengine ~= "luajittex" then
       local luatlgfile = testdir .. "/" .. name .. ".luatex" ..  tlgext
       if os_windows then
         luatlgfile = unix_to_win(luatlgfile)
       end
-      formatlualog(tlgfile, luatlgfile, stdengine)
-      formatlualog(newfile, newfile, "luatex")
+      formatlualog(tlgfile, luatlgfile)
+      formatlualog(newfile, newfile)
       errlevel = os.execute(
         os_diffexe .. " " .. luatlgfile .. " " .. newfile
           .. " > " .. difffile
@@ -1184,9 +1176,6 @@ function runtest(name, engine, hide, ext)
         .. os_concat ..
       -- Avoid spurious output from (u)pTeX
       os_setenv .. " GUESS_INPUT_KANJI_ENCODING=0"
-        .. os_concat ..
-      -- Ensure lines are of a known length
-      os_setenv .. " max_print_line=" .. maxprintline
         .. os_concat ..
       realengine ..  format .. " "
         .. checkopts .. " " .. asciiopt .. lvtfile
