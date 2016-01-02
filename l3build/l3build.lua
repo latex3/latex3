@@ -1093,7 +1093,7 @@ function runcheck(name, hide)
     -- Do additional log formatting if the engine is LuaTeX, there is no
     -- LuaTeX-specific .tlg file and the default engine is not LuaTeX
     if enginename == "luatex"
-      and tlgfile ~= name ..  ".luatex" .. tlgext
+      and not string.match(tlgfile, "%.luatex" .. "%" .. tlgext)
       and stdengine ~= "luatex"
       and stdengine ~= "luajittex" then
       local luatlgfile = testdir .. "/" .. name .. ".luatex" ..  tlgext
