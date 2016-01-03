@@ -982,7 +982,7 @@ function formatlualog(logfile, newfile)
     -- In some places LuaTeX does use max_print_line, then we
     -- get into issues with different wrapping approaches
     if string.len(line) == maxprintline then
-      return "", line
+      return "", lastline .. line
     elseif string.len(lastline) == maxprintline then
       if string.match(line, "\\ETC%.%}$") then
         -- If the line wrapped at \ETC we might have lost a space
@@ -994,6 +994,9 @@ function formatlualog(logfile, newfile)
       else
         return lastline .. os_newline .. line, ""
       end
+    -- Return all of the text for a wrapped (multi)line
+    elseif string.len(lastline) > maxprintline then
+      return lastline .. line, ""
     end
     return line, ""
   end
