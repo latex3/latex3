@@ -781,6 +781,8 @@ function formatlog(logfile, newfile, engine)
     end
     -- Zap map loading of map
     line = string.gsub(line, "%{%w?:?[%w/%-]*/pdftex%.map%}", "")
+    -- Deal with the fact that "(.aux)" may have still a leading space
+    line = string.gsub(line, "^ %(%.aux%)", "(.aux)")
     -- Merge all of .fd data into one line so will be removed later
     if string.match(line, "^ *%([%.%/%w]+%.fd[^%)]*$") then
       lastline = (lastline or "") .. line
@@ -801,9 +803,6 @@ function formatlog(logfile, newfile, engine)
     for i = 0, 31 do
       line = string.gsub(line, string.char(i), "^^" .. string.char(64 + i))
     end
-    -- Remove spaces at the start of lines: deals with the fact that LuaTeX
-    -- uses a different number to the other engines
-    line = string.gsub(line, "^%s+", "")
     -- Remove 'normal' direction information on boxes with (u)pTeX
     line = string.gsub(line, ",? yoko direction,?", "")
     -- A tidy-up to keep LuaTeX and other engines in sync
@@ -995,7 +994,9 @@ function formatlualog(logfile, newfile)
     elseif string.len(lastline) > maxprintline then
       return lastline .. line, ""
     end
-    return line, ""
+    -- Remove spaces at the start of lines: deals with the fact that LuaTeX
+    -- uses a different number to the other engines
+    return string.gsub(line, "^%s+", ""), ""
   end
   local newlog = ""
   local lastline = ""
