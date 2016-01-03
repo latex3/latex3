@@ -748,8 +748,13 @@ function formatlog(logfile, newfile, engine)
   end
     -- Substitutions to remove some non-useful changes
   local function normalize(line)
+    -- Zap line numbers from \show, \showbox, \box_show and the like:
+    -- do this before wrapping lines
+    line = string.gsub(line, "^l%.%d+ ", "l. ...")
     -- Allow for wrapped lines: preserve the content and wrap
-    if string.len(line) == maxprintline then
+    -- Skip lines that have an explicit marker for truncation
+    if string.len(line) == maxprintline  and
+       not string.match(line, "%.%.%.$") then
       lastline = (lastline or "") .. line
       return ""
     end
@@ -796,14 +801,6 @@ function formatlog(logfile, newfile, engine)
     for i = 0, 31 do
       line = string.gsub(line, string.char(i), "^^" .. string.char(64 + i))
     end
-    -- Zap line numbers from \show, \showbox, \box_show and the like
-    -- Two stages as line wrapping alters some of them and restore the break
-    line = string.gsub(line, "^l%.%d+ ", "l. ...")
-    line = string.gsub(
-      line,
-      "%.%.%.l%.%d+ ( *)%}$",
-      "..." .. os_newline .. "l. ...%1}"
-    )
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
     line = string.gsub(line, "^%s+", "")
