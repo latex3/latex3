@@ -1498,7 +1498,7 @@ function ctan(standalone)
       dir,
       zipexe .. " " .. zipopts .. " -ll ".. zipname .. " " .. "."
         .. (
-          (binfiles or  exclude) and (" -x" .. binfiles .. " " .. exclude)
+          (binfiles or exclude) and (" -x" .. binfiles .. " " .. exclude)
           or ""
         )
     )
