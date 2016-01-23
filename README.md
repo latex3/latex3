@@ -95,7 +95,6 @@ the team members are
 * Robin Fairbairns
 * Morten Høgholm
 * Bruno Le Floch
-* Thomas Lotze
 * Frank Mittelbach
 * Will Robertson
 * Chris Rowley
@@ -108,6 +107,7 @@ Former members of The LaTeX3 Project team were
 * Denys Duchier
 * Alan Jeffrey
 * Martin Schröder
+* Thomas Lotze
 
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
