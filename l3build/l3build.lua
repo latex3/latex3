@@ -1360,7 +1360,9 @@ help = help or function()
   print("   --engine|-e         Sets the engine to use for running test")
   print("   --halt-on-error|-H  Stops running tests after the first failure")
   print("   --version|-v        Sets the version to insert into sources")
+  print("   --quiet|-q          Suppresses TeX output when unpacking")
   print("")
+  print("See l3build.pdf for further details.")
 end
 
 function check(names)
