@@ -859,6 +859,8 @@ function formatlualog(logfile, newfile)
     if string.match(line, "^%.+\\mathon$") then
       return line, line
     end
+    -- LuaTeX identifies spaceskip glue
+    line = string.gsub(line,"%(\\spaceskip%) ", " ")
     -- Remove 'display' at end of display math boxes:
     -- LuaTeX omits this as it includes direction in all cases
     line = string.gsub(line, "(\\hbox%(.*), display$", "%1")
