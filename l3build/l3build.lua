@@ -828,7 +828,7 @@ function formatlog(logfile, newfile, engine)
       break
     elseif line == "OMIT" then
       skipping = true
-    elseif line == "TIMO" then
+    elseif string.match(line, "^%)?TIMO$") then
       skipping = false
     elseif not prestart and not skipping then
       line = normalize(line)
