@@ -25,7 +25,7 @@ cmdchkfiles  = -- Need to miss a few .dtx files
 docfiles     = {"source3body.tex"}
 installfiles =
   {
-    "l3dvipdfmx.def", "l3dvips.def", "l3pdfmode.def",
+    "l3dvipdfmx.def", "l3dvips.def", "l3dvisvgm.def", "l3pdfmode.def",
     "l3xdvipdfmx.def",
     "expl3.lua",
     "*.cls", "*.sty", "*.tex"
