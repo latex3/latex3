@@ -81,14 +81,16 @@
 %     conjugation with \pdfTeX{} or \LuaTeX{} in DVI mode.
 %   \item \texttt{dvipdfmx}: The \texttt{dvipdfmx} program, which works in
 %     conjugation with \pdfTeX{} or \LuaTeX{} in DVI mode.
+%   \item \texttt{dvisvgm}:  The \texttt{dvisvgm} program, which works in
+%     conjugation with \pdfTeX{} or \LuaTeX{} in DVI mode to create SVG
+%     output.
 %   \item \texttt{xdvipdfmx}: The driver used by \XeTeX{}.
 % \end{itemize}
 %
 % The code here is all very low-level, and should not in general be used
 % outside of the kernel. It is also important to note that many of the
-% functions here are closely tied to the immediate level \enquote{up}:
-% several variable values must be in the correct locations for the driver
-% code to function.
+% functions here are closely tied to the immediate level \enquote{up},
+% and they must be used in the correct contexts.d
 %
 % \section{Box clipping}
 %
@@ -107,36 +109,34 @@
 %
 % \section{Box rotation and scaling}
 %
-% \begin{function}[added = 2011-09-01, updated = 2013-12-27]
-%  {\__driver_box_rotate_begin:, \__driver_box_rotate_end:}
+% \begin{function}[added = 2016-05-12]{\__driver_box_use_rotate:Nn}
 %   \begin{syntax}
-%     \cs{__driver_box_rotate_begin:}
-%     \cs{box_use:N} \cs{l__box_internal_box}
-%     \cs{__driver_box_rotate_end:}
+%     \cs{__driver_box_use_rotate:Nn} \meta{box} \Arg{angle}
 %   \end{syntax}
-%   Rotates the \meta{box material} anti-clockwise around the current
-%   insertion point. The angle of rotation (in degrees counter-clockwise)
-%   and the sine and cosine of this angle should be stored in
-%   \cs{l__box_angle_fp}, \cs{l__box_sin_fp} and \cs{l__box_cos_fp},
-%   respectively. Typically, the box material inserted between the beginning
-%   and end markers will be stored in \cs{l__box_internal_box}: this fact is
-%   required by some drivers to obtain the correct output.
+%   Inserts the content of the \meta{box} at the current insertion point
+%   rotated by the \meta{angle} (expressed in degrees). The material is
+%   inserted with no apparent height or width, and is rotated such the
+%   the \TeX{} reference point of the box is the center of rotation and
+%   remains the reference point after rotation. It is the responsibly of
+%   the code using this function to adjust the apparent size of the box to
+%   be correct at the \TeX{} side.
+%
+%   This function should only be used within a surrounding horizontal
+%   box construct.
 % \end{function}
 %
-% \begin{function}[added = 2011-09-02, updated = 2013-12-27]
-%   {\__driver_box_scale_begin:, \__driver_box_scale_end:}
+% \begin{function}[added = 2016-05-12]{\__driver_box_use_scale:Nnn}
 %   \begin{syntax}
-%     \cs{__driver_box_scale_begin:}
-%     \meta{box material}
-%     \cs{__driver_box_scale_end:}
+%     \cs{__driver_box_use_scale:Nnn} \meta{box} \Arg{x-scale} \Arg{y-scale}
 %   \end{syntax}
-%   Scales the \meta{box material} (which should be either a \cs{box_use:N}
-%   or \cs{hbox:n} construct). The \meta{box material} is scaled by the values
-%   stored in \cs{l__box_scale_x_fp} and \cs{l__box_scale_y_fp} in the
-%   horizontal and vertical directions, respectively. This function is
-%   also reused when resizing boxes: at a driver level, only scalings are
-%   supported and so the higher-level code must convert the absolute sizes
-%   to scale factors.
+%   Inserts the content of the \meta{box} at the current insertion point
+%   scale by the \meta{x-scale} and \meta{y-scale}. The material is
+%   inserted with no apparent height or width. It is the responsibly of
+%   the code using this function to adjust the apparent size of the box to
+%   be correct at the \TeX{} side.
+%
+%   This function should only be used within a surrounding horizontal
+%   box construct.
 % \end{function}
 %
 % \section{Color support}
@@ -164,6 +164,14 @@
 %<@@=driver>
 %    \end{macrocode}
 %
+% Whilst there is a reasonable amount of code overlap between drivers,
+% it is much clearer to have the blocks more-or-less separated than run
+% in together and DocStripped out in parts. As such, most of the following
+% is set up on a per-driver basis, though there is some common code (again
+% given in blocks not interspersed with other material).
+%
+% All the file identifiers are up-front so that they come out in the right
+% place in the files.
 %    \begin{macrocode}
 %<*package>
 \ProvidesExplFile
@@ -190,175 +198,52 @@
 %</package>
 %    \end{macrocode}
 %
-% \subsection{Settings for direct PDF output}
+% \subsection{\texttt{pdfmode} driver}
 %
-% If the driver loaded is \texttt{pdfmode} then direct PDF output is required.
-% (This may of course alter: it might be that the driver is picked based on the
-% value of \cs{pdftex_pdfoutput:D}.)
 %    \begin{macrocode}
-%<*initex>
 %<*pdfmode>
-\pdftex_pdfoutput:D = 1 \scan_stop:
-%</pdfmode>
-%</initex>
 %    \end{macrocode}
 %
-% Set up the driver for direct PDF output to set the PDF origin equal to
-% \TeX{}'s standard origin. The other settings make use of PDF~$1.5$, which
-% is standard in \TeX{} Live 2011 and should be a reasonable baseline for
-% the future.
-%    \begin{macrocode}
-%<*initex>
-%<*pdfmode>
-\group_begin:
-  \cs_set_proteced:Npx \@@_tmp:w #1 =
-    {
-      \tex_global:D
-      \cs_if_exist:NTF \luatex_pdfvariable:D
-        { \exp_not:N \luatex_pdfvariable:D #1 }
-        { \exp_not:c { pdftex_pdf #1 :D } }
-          =
-    }
-  \@@_tmp:w horigin          = 1 true in \scan_stop:
-  \@@_tmp:w vorigin          = 1 true in \scan_stop:
-  \@@_tmp:w decimaldigits    = 3         \scan_stop:
-  \@@_tmp:w pkresolution     = 600       \scan_stop:
-  \@@_tmp:w minorversion     = 5         \scan_stop:
-  \@@_tmp:w compresslevel    = 9         \scan_stop:
-  \@@_tmp:w objcompresslevel = 2         \scan_stop:
-\group_end:
-%</pdfmode>
-%</initex>
-%    \end{macrocode}
+% The direct PDF driver covers both \pdfTeX{} and \LuaTeX{}. The latter
+% renames/restructures the driver primitives but this can be handled
+% at one level of abstraction. As such, we avoid using two separate drivers
+% for this material at the cost of some \texttt{x}-type definitions to get
+% everything expanded up-front.
 %
-% \subsection{Driver utility functions}
-%
-% \begin{macro}{\@@_state_save:, \@@_state_restore:}
-%   Almost all of the drivers have a stack for saving the graphic state. These
-%   have slightly different interfaces. For both \texttt{dvips} and
-%   \texttt{(x)dvipdfmx} this is done using an appropriate special. Note
-%   that here and later, the \texttt{dvipdfmx} documentation does not cover
-%   the |literal| key word but that this appears to behave in the same way as
-%   \pdfTeX{}'s \tn{pdfliteral} (making life easier all-round). For \pdfTeX{}
-%   in  direct PDF output mode there is a dedicated primitive. \LuaTeX{} is
-%   almost the same but with newer versions there is a compatibly step
-%    \begin{macrocode}
-%<*dvips|dvipdfmx|pdfmode|xdvipdfmx>
-\cs_new_protected_nopar:Npx \@@_state_save:
-%</dvips|dvipdfmx|pdfmode|xdvipdfmx>
-%<*dvips>
-  { \tex_special:D { ps:gsave } }
-%</dvips>
-%<*dvipdfmx|xdvipdfmx>
-  { \tex_special:D { pdf:literal~q } }
-%</dvipdfmx|xdvipdfmx>
-%<*pdfmode>
-  {
-    \cs_if_exist:NTF \luatex_pdfextension:D
-      { \luatex_pdfextension:D save \scan_stop: }
-      { \pdftex_pdfsave:D }
-  }
-%</pdfmode>
-%<*dvips|dvipdfmx|pdfmode|xdvipdfmx>
-\cs_new_protected_nopar:Npx \@@_state_restore:
-%</dvips|dvipdfmx|pdfmode|xdvipdfmx>
-%<*dvips>
-  { \tex_special:D { ps:grestore } }
-%</dvips>
-%<*dvipdfmx|xdvipdfmx>
-  { \tex_special:D { pdf:literal~Q } }
-%</dvipdfmx|xdvipdfmx>
-%<*pdfmode>
-  {
-    \cs_if_exist:NTF \luatex_pdfextension:D
-      { \luatex_pdfextension:D restore \scan_stop: }
-      { \pdftex_pdfrestore:D }
-  }
-%</pdfmode>
-%    \end{macrocode}
-% \end{macro}
+% \subsubsection{Basics}
 %
 % \begin{macro}[int]{\@@_literal:n}
-%   The driver code needs to pass on a lot of \enquote{raw} information to
-%   the underlying binary. The exact command is driver-dependent but the
-%   concept is general enough to use a single function. However, it is
-%   important to remember this is a convenient shortcut: the arguments will
-%   be driver-specific. Note that these functions set the transformation matrix
-%   to the current position.
+%   This is equivalent to \verb|\special{pdf:}| but the engine can
+%   track it. Without the \texttt{direct} keyword everything is kept in
+%   sync: the transformation matrix is set to the current point automatically.
+%   Note that this is still inside the text (\texttt{BT} \dots \texttt{ET}
+%   block).
 %    \begin{macrocode}
-%<*dvips|dvipdfmx|pdfmode|xdvipdfmx>
 \cs_new_protected:Npx \@@_literal:n #1
-%</dvips|dvipdfmx|pdfmode|xdvipdfmx>
-%<*dvipdfmx|xdvipdfmx>
-  { \tex_special:D { pdf:literal~ #1 } }
-%</dvipdfmx|xdvipdfmx>
-%    \end{macrocode}
-%   In the case of \texttt{dvips} there is no build-in saving of the current
-%   position, and so some additional PostScript is required to set up the
-%   transformation matrix and also to restore it afterwards. Notice the use
-%   of the stack to save the current position \enquote{up front} and to
-%   move back to it at the end of the process.
-%    \begin{macrocode}
-%<*dvips>
-  {
-    \tex_special:D
-      {
-        ps:
-          currentpoint~
-          currentpoint~translate~
-          #1 ~
-          neg~exch~neg~exch~translate
-      }
-  }
-%</dvips>
-%<*pdfmode>
   {
     \cs_if_exist:NTF \luatex_pdfextension:D
       { \luatex_pdfextension:D literal }
       { \pdftex_pdfliteral:D }
         {#1}
   }
-%</pdfmode>
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int]{\@@_transform:n}
-% \begin{macro}[int]{\@@_transform_end:}
-%   The \texttt{dvisvgm} driver needs to generate \textsc{svg} code, which
-%   works somewhat differently from the \textsc{EPS} heritage visible in all
-%   of the other drivers. In particular, it doesn't use a save/restore stack
-%   for the graphics state so instead needs functions to start/end a
-%   transformation. (At some future stage this might be generalised using a
-%   \cs{@@_literal_direct:n} or similar function as the approach here also does
-%   not expect the graphic state to be aligned \enquote{here}.)
+% \begin{macro}[int]{\@@_scope_begin:, \@@_scope_end:}
+%  Higher-level interfaces for saving and restoring the graphic state.
 %    \begin{macrocode}
-%<*dvisvgm>
-\cs_new_protected:Npn \@@_transform:n #1
-  { \tex_special:D { dvisvgm:raw~<g~transform=" #1 "> } }
-\cs_new_protected_nopar:Npn \@@_transform_end:
-  { \tex_special:D { dvisvgm:raw~</g> } }
-%</dvisvgm>
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-
-%
-% \begin{macro}[int, EXP]{\@@_absolute_lengths:n}
-%   The \texttt{dvips} driver scales all absolute dimensions based
-%   on the output resolution selected and any \TeX{} magnification. Thus
-%   for any operation involving absolute lengths there is a correction to
-%   make. This is based on |normalscale| from \texttt{special.pro}.
-%    \begin{macrocode}
-%<*dvips>
-\cs_new:Npn \@@_absolute_lengths:n #1
+\cs_new_protected_nopar:Npx \@@_scope_begin:
   {
-     /savedmatrix~matrix~currentmatrix~def~
-     Resolution~72~div~VResolution~72~div~scale~
-     DVImag~dup~scale~
-     #1 ~
-     savedmatrix~setmatrix
+    \cs_if_exist:NTF \luatex_pdfextension:D
+      { \luatex_pdfextension:D save \scan_stop: }
+      { \pdftex_pdfsave:D }
   }
-%</dvips>
+\cs_new_protected_nopar:Npx \@@_scope_end:
+  {
+    \cs_if_exist:NTF \luatex_pdfextension:D
+      { \luatex_pdfextension:D restore \scan_stop: }
+      { \pdftex_pdfrestore:D }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -366,229 +251,25 @@
 %   Here the appropriate function is set up to insert an affine matrix
 %   into the PDF. With \pdfTeX{} and \LuaTeX{} in direct PDF output mode there
 %   is a primitive for this, which only needs the rotation/scaling/skew part.
-%   With \texttt{(x)dvipdfmx} the matrix also has to include a translation
-%   part: that is always zero and so is built in here.
 %    \begin{macrocode}
-%<*dvipdfmx|pdfmode|xdvipdfmx>
 \cs_new_protected:Npx \@@_matrix:n #1
-%</dvipdfmx|pdfmode|xdvipdfmx>
-%<*pdfmode>
   {
     \cs_if_exist:NTF \luatex_pdfextension:D
       { \luatex_pdfextension:D setmatrix }
       { \pdftex_pdfsetmatrix:D }
         {#1}
   }
-%</pdfmode>
-%<*dvipdfmx|xdvipdfmx>
-  { \@@_literal:n { #1 \c_space_tl 0~0~cm } }
-%</dvipdfmx|xdvipdfmx>
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsection{Box clipping}
-%
-% \begin{macro}{\@@_box_use_clip:N}
-%   The overall logic to clipping a box is the same in all cases. The general
-%   method is to save the current location, define a clipping path equivalent
-%   to the bounding box, then insert the content at the current position
-%   and in a zero width box. The \enquote{real} width is then made up using
-%   a horizontal skip before tidying up. There are other approaches that
-%   can be taken (for example using XForm objects), but the logic here shares
-%   as much code as possible and uses the same conversions (and so same
-%   rounding errors) in all three cases.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_box_use_clip:N #1
-  {
-%<*dvips|dvipdfmx|pdfmode|xdvipdfmx>
-    \@@_state_save:
-%</dvips|dvipdfmx|pdfmode|xdvipdfmx>
-%<*dvips>
-    \@@_literal:n
-      {
-        \@@_absolute_lengths:n
-          {
-            0~
-            \dim_to_decimal_in_bp:n { \box_dp:N #1 } ~
-            \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
-            \dim_to_decimal_in_bp:n { -\box_ht:N #1 - \box_dp:N #1 } ~
-            rectclip
-          }
-      }
-%</dvips>
-%<*dvipdfmx|pdfmode|xdvipdfmx>
-    \@@_literal:n
-      {
-        0~
-        \dim_to_decimal_in_bp:n { -\box_dp:N #1 } ~
-        \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
-        \dim_to_decimal_in_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
-        re~W~n
-      }
-%</dvipdfmx|pdfmode|xdvipdfmx>
-%    \end{macrocode}
-%   Insert the material in a box of no width, restore the graphic state
-%   and then insert the necessary width.
-%    \begin{macrocode}
-    \hbox_overlap_right:n { \box_use:N #1 }
-%<*dvips|dvipdfmx|pdfmode|xdvipdfmx>
-    \@@_state_restore:
-%</dvips|dvipdfmx|pdfmode|xdvipdfmx>
-    \skip_horizontal:n { \box_wd:N #1 }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \subsection{Box rotation and scaling}
-%
-% \begin{macro}{\@@_box_rotate_begin:, \@@_box_rotate_end:}
-%   The driver for \texttt{dvips} works with a simple rotation angle.
-%   In PDF mode, an affine matrix is used instead. The transformation for
-%   \texttt{(x)dvipdfmx} can be done either way: the affine approach is
-%   chosen here as where possible we pick the PDF-style route.
-%
-%   In both cases, some rounding code is included to limit the floating
-%   point values to five decimal places. There is no point using any more
-%   as \TeX{}'s dimensions are of that precision, and the extra figures
-%   will simply bloat the PDF and make values harder to trace. In the
-%   case where the sine and cosine are used, we store the rounded values to
-%   avoid rounding twice. There are also a couple of comparisons to ensure
-%   that |-0| is not written to the output, as this avoids any issues with
-%   problematic display programs.  Note that numbers are compared to~$0$
-%   after rounding.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \@@_box_rotate_begin:
-  {
-%<*dvips|dvipdfmx|pdfmode|xdvipdfmx>
-    \@@_state_save:
-%</dvips|dvipdfmx|pdfmode|xdvipdfmx>
-%<*dvipdfmx|pdfmode|xdvipdfmx>
-    \box_set_wd:Nn \l__box_internal_box \c_zero_dim
-    \fp_set:Nn \l__box_cos_fp { round ( \l__box_cos_fp , 5 ) }
-    \fp_compare:nNnT \l__box_cos_fp = \c_zero_fp
-      { \fp_zero:N \l__box_cos_fp }
-    \fp_set:Nn \l__box_sin_fp { round ( \l__box_sin_fp , 5 ) }
-    \@@_matrix:n
-      {
-        \fp_use:N \l__box_cos_fp \c_space_tl
-        \fp_compare:nNnTF \l__box_sin_fp = \c_zero_fp
-          { 0~0 }
-          {
-            \fp_use:N \l__box_sin_fp
-            \c_space_tl
-            \fp_eval:n { -\l__box_sin_fp }
-          }
-        \c_space_tl
-        \fp_use:N \l__box_cos_fp
-      }
-%</dvipdfmx|pdfmode|xdvipdfmx>
-%<*dvips|dvisvgm>
-    \fp_set:Nn \l__box_angle_fp { round ( \l__box_angle_fp , 5 ) }
-%</dvips|dvisvgm>
-%<*dvips>
-    \@@_literal:n
-      {
-        \fp_compare:nNnTF \l__box_angle_fp = \c_zero_fp
-          { 0 }
-          { \fp_eval:n { -\l__box_angle_fp } }
-        \c_space_tl
-        rotate
-      }
-%</dvips>
-%    \end{macrocode}
-%   For \texttt{dvisvgm} the center of rotation can be set to the current
-%   point using the |{?x}| and |{?y}| commands as the optional arguments of
-%   the low-level operation.
-%    \begin{macrocode}
-%<*dvisvgm>
-    \@@_transform:n
-      {
-        rotate
-          ( \fp_eval:n { -\l__box_angle_fp } , ~ { ?x } , ~ { ?y } )
-      }
-%</dvisvgm>
-  }
-%    \end{macrocode}
-%   The end of a rotation means tidying up the output grouping.
-%    \begin{macrocode}
-%<*dvips|dvipdfmx|pdfmode|xdvipdfmx>
-\cs_new_eq:NN \@@_box_rotate_end: \@@_state_restore:
-%</dvips|dvipdfmx|pdfmode|xdvipdfmx>
-%<*dvisvgm>
-\cs_new_eq:NN \@@_box_rotate_end: \@@_transform_end:
-%</dvisvgm>
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@@_box_scale_begin:, \@@_box_scale_end:}
-%   Scaling is not dissimilar to rotation, but the calculations are somewhat
-%   less complex.
-%    \begin{macrocode}
-\cs_new_protected_nopar:Npn \@@_box_scale_begin:
-  {
-%<*dvips|dvipdfmx|pdfmode|xdvipdfmx>
-    \@@_state_save:
-%</dvips|dvipdfmx|pdfmode|xdvipdfmx>
-    \fp_set:Nn \l__box_scale_x_fp { round ( \l__box_scale_x_fp , 5 ) }
-    \fp_set:Nn \l__box_scale_y_fp { round ( \l__box_scale_y_fp , 5 ) }
-%<*dvips>
-    \@@_literal:n
-      {
-        \fp_use:N \l__box_scale_x_fp \c_space_tl
-        \fp_use:N \l__box_scale_y_fp \c_space_tl
-        scale
-      }
-%</dvips>
-%<*dvipdfmx|pdfmode|xdvipdfmx>
-    \@@_matrix:n
-      {
-        \fp_use:N \l__box_scale_x_fp \c_space_tl
-        0~0~
-        \fp_use:N \l__box_scale_y_fp
-      }
-%</dvipdfmx|pdfmode|xdvipdfmx>
-%    \end{macrocode}
-%   For \texttt{dvisvgm}, in contrast to rotation there's no convenient
-%   shortcut to get the current position in the right place. We therefore have
-%   to manipulate the current point such that everything lines up.
-%    \begin{macrocode}
-%<*dvisvgm>
-    \@@_transform:n
-      {
-        translate ( { ?x } , { ?y } )
-        scale
-          (
-            \fp_eval:n { -\l__box_scale_x_fp } ,
-            \fp_eval:n { -\l__box_scale_y_fp } 
-          )
-        translate ( { ?x } , { ?y } )
-        scale ( -1 )
-      }
-%</dvisvgm>
-  }
-%<*dvips|dvipdfmx|pdfmode|xdvipdfmx>
-\cs_new_eq:NN \@@_box_scale_end: \@@_state_restore:
-%</dvips|dvipdfmx|pdfmode|xdvipdfmx>
-%<*dvisvgm>
-\cs_new_eq:NN \@@_box_scale_end: \@@_transform_end:
-%</dvisvgm>
-%    \end{macrocode}
-% \end{macro}
-%
-% \subsection{Color support}
+% \subsubsection{Color}
 %
 % \begin{variable}{\l_@@_current_color_tl}
-%   The current color is needed by all of the engines, but the way this
-%   is stored varies. In package mode if the \pkg{color} package is loaded
-%   simply pick up what it is using.
+%   The current color in driver-dependent format: pick up the package-mode
+%   data if available.
 %    \begin{macrocode}
 \tl_new:N \l_@@_current_color_tl
-%<*dvipdfmx|dvips|xdvipdfmx>
-\tl_set:Nn \l_@@_current_color_tl { gray~0 }
-%</dvipdfmx|dvips|xdvipdfmx>
-%<*pdfmode>
 \tl_set:Nn \l_@@_current_color_tl { 0~g~0~G }
-%</pdfmode>
 %<*package>
 \AtBeginDocument
   {
@@ -601,29 +282,19 @@
 % \end{variable}
 %
 % \begin{variable}{\l_@@_color_stack_int}
-%   \pdfTeX{} and \LuaTeX{} have multiple stacks
-%   available, and the color stack therefore needs a number when in PDF mode.
+%   \pdfTeX{} and \LuaTeX{} have multiple stacks available, and to track
+%   which one is in use a variable is required.
 %    \begin{macrocode}
-%<*pdfmode>
 \int_new:N \l_@@_color_stack_int
-%</pdfmode>
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\@@_color_ensure_current:}
+% \begin{macro}[int]{\@@_color_ensure_current:}
 % \begin{macro}[aux]{\@@_color_reset:}
-%   Setting the current color depends on the nature of the color stack
-%   available. In all cases there is a need to reset the color after
-%   the current group.
+%   There is a dedicated primitive/primitive interface for setting colors.
+%   As with scoping, this approach is not suitable for cached operations.
 %    \begin{macrocode}
 \cs_new_protected_nopar:Npx \@@_color_ensure_current:
-%<*dvipdfmx|dvips|dvisvgm|xdvipdfmx>
-  {
-    \tex_special:D { color~push~\exp_not:N \l_@@_current_color_tl }
-    \group_insert_after:N \exp_not:N \@@_color_reset:
-  }
-%</dvipdfmx|dvips|dvisvgm|xdvipdfmx>
-%<*pdfmode>
   {
     \cs_if_exist:NTF \luatex_pdfextension:D
       { \luatex_pdfextension:D colorstack }
@@ -632,22 +303,611 @@
           { \exp_not:N \l_@@_current_color_tl }
     \group_insert_after:N \exp_not:N \@@_color_reset:
   }
-%</pdfmode>
 \cs_new_protected_nopar:Npx \@@_color_reset:
-%<*dvipdfmx|dvips|dvisvgm|xdvipdfmx>
-  { \tex_special:D { color~pop } }
-%</dvipdfmx|dvips|dvisvgm|xdvipdfmx>
-%<*pdfmode>
   {
     \cs_if_exist:NTF \luatex_pdfextension:D
       { \luatex_pdfextension:D colorstack }
       { \pdftex_pdfcolorstack:D }
         \exp_not:N \l_@@_color_stack_int pop \scan_stop:
   }
-%</pdfmode>
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
+%
+%    \begin{macrocode}
+%</pdfmode>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvipdfmx} driver}
+%
+%    \begin{macrocode}
+%<*dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% The \texttt{dvipdfmx} shares code with the PDF mode one (using the common
+% section to this file) but also with \texttt{xdvipdfmx}. The latter is close
+% to identical to \texttt{dvipdfmx} and so all of the code here is extracted
+% for both drivers, with some \texttt{clean up} for \texttt{xdvipdfmx} as
+% required.
+%
+% \subsubsection{Basics}
+%
+% \begin{macro}[int]{\@@_literal:n}
+%   Equivalent to \texttt{pdf:content} but favoured as the link to
+%   the \pdfTeX{} primitive approach is clearer.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_literal:n #1
+  { \tex_special:D { pdf:literal~ #1 } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_scope_begin:, \@@_scope_end:}
+%   Scoping is done using direct PDF operations here.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_scope_begin:
+  { \@@_literal:n { q } }
+\cs_new_protected_nopar:Npn \@@_scope_end:
+  { \@@_literal:n { Q } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_matrix:n}
+%   With \texttt{(x)dvipdfmx} the matrix has to include a translation
+%   part: that is always zero and so is built in here so that the same
+%   internal interface works for all PDF-related drivers.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_matrix:n #1
+  { \@@_literal:n { #1 \c_space_tl 0~0~cm } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Color}
+%
+% \begin{variable}{\l_@@_current_color_tl}
+%   The current color in driver-dependent format.
+%    \begin{macrocode}
+\tl_new:N \l_@@_current_color_tl
+\tl_set:Nn \l_@@_current_color_tl { [ 0 ] }
+%<*package>
+\AtBeginDocument
+  {
+    \@ifpackageloaded { color }
+      { \tl_set:Nn \l_@@_current_color_tl { \current@color } }
+      { }
+  }
+%</package>
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}[int]{\@@_color_ensure_current:}
+% \begin{macro}[aux]{\@@_color_reset:}
+%   Directly set the color using the specials with optimisation support.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npx \@@_color_ensure_current:
+  {
+    \tex_special:D { pdf:bcolor~\l_@@_current_color_tl }
+    \group_insert_after:N \exp_not:N \@@_color_reset:
+  }
+\cs_new_protected_nopar:Npx \@@_color_reset:
+  { \tex_special:D { pdf:ecolor } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{\texttt{xdvipdfmx} driver}
+%
+%    \begin{macrocode}
+%<*xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsubsection{Color}
+%
+% \begin{macro}[int]{\@@_color_ensure_current:}
+% \begin{macro}[aux]{\@@_color_reset:}
+%   The \LaTeXe{} driver uses \texttt{dvips}-like specials so there has to
+%   be a change of set up if \pkg{color} is loaded.
+%    \begin{macrocode}
+%<*package>
+\AtBeginDocument
+  {
+    \@ifpackageloaded { color }
+      {
+        \cs_set_protected_nopar:Npn \@@_color_ensure_current:
+          {
+            \tex_special:D { color~push~\l_@@_current_color_tl }
+            \group_insert_after:N \exp_not:N \@@_color_reset:
+          }
+
+        \cs_set_protected_nopar:Npn \@@_color_reset:
+          { \tex_special:D { color~pop } }
+      }
+      { }
+  }
+%</package>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{Common code for PDF production}
+%
+% As all of the drivers which understand PDF-targeted specials act in much
+% the same way there is a lot of shared code. Rather than try to DocStrip it
+% interspersed with the above, we collect all of it here.
+%
+%    \begin{macrocode}
+%<*dvipdfmx|pdfmode|xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsubsection{Box operations}
+%
+% \begin{macro}{\@@_box_use_clip:N}
+%   The general method is to save the current location, define a clipping path
+%   equivalent to the bounding box, then insert the content at the current
+%   position and in a zero width box. The \enquote{real} width is then made up
+%   using a horizontal skip before tidying up. There are other approaches that
+%   can be taken (for example using XForm objects), but the logic here shares
+%   as much code as possible and uses the same conversions (and so same
+%   rounding errors) in all cases.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_clip:N #1
+  {
+    \@@_scope_begin:
+    \@@_literal:n
+      {
+        0~
+        \dim_to_decimal_in_bp:n { -\box_dp:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
+        re~W~n
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+    \skip_horizontal:n { \box_wd:N #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_box_use_rotate:Nn}
+% \begin{variable}{\l_@@_cos_fp, \l_@@_sin_fp}
+%   Rotations are set using an affine transformation matrix which therefore
+%   requires sine/cosine values not the angle itself. We store the rounded
+%   values to avoid rounding twice. There are also a couple of comparisons to
+%   ensure that |-0| is not written to the output, as this avoids any issues
+%   with problematic display programs.  Note that numbers are compared to~$0$
+%   after rounding.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_rotate:Nn #1#2
+  {
+    \@@_scope_begin:
+    \box_set_wd:Nn #1 \c_zero_dim
+    \fp_set:Nn \l_@@_cos_fp { round ( cosd ( #2 ) , 5 ) }
+    \fp_compare:nNnT \l_@@_cos_fp = \c_zero_fp
+      { \fp_zero:N \l_@@_cos_fp }
+    \fp_set:Nn \l_@@_sin_fp { round ( sind ( #2 ) , 5 ) }
+    \@@_matrix:n
+      {
+        \fp_use:N \l_@@_cos_fp \c_space_tl
+        \fp_compare:nNnTF \l_@@_sin_fp = \c_zero_fp
+          { 0~0 }
+          {
+            \fp_use:N \l_@@_sin_fp
+            \c_space_tl
+            \fp_eval:n { -\l_@@_sin_fp }
+          }
+        \c_space_tl
+        \fp_use:N \l_@@_cos_fp
+      }
+   \box_use:N #1
+   \@@_scope_end:
+  }
+\fp_new:N \l_@@_cos_fp
+\fp_new:N \l_@@_sin_fp
+% \end{variable}
+% \end{macro}
+%
+% \begin{macro}{\@@_box_use_scale:Nnn}
+%   The same idea as for rotation but without the complexity of signs and
+%   cosines.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_scale:Nnn #1#2#3
+  {
+    \@@_scope_begin:
+    \@@_matrix:n
+      {
+        \fp_eval:n { round ( #2 , 5 ) } ~
+        0~0~
+        \fp_eval:n { round ( #3 , 5 ) }
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|pdfmode|xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvips} driver}
+%
+%    \begin{macrocode}
+%<*dvips>
+%    \end{macrocode}
+%
+% \subsubsection{Basics}
+%
+% \begin{macro}[int]{\@@_literal:n}
+%   In the case of \texttt{dvips} there is no build-in saving of the current
+%   position, and so some additional PostScript is required to set up the
+%   transformation matrix and also to restore it afterwards. Notice the use
+%   of the stack to save the current position \enquote{up front} and to
+%   move back to it at the end of the process.
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_literal:n #1
+  {
+    \tex_special:D
+      {
+        ps:
+          currentpoint~
+          currentpoint~translate~
+          #1 ~
+          neg~exch~neg~exch~translate
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_scope_begin:, \@@_scope_end:}
+%   Scope saving/restoring is done directly with no need to worry about the
+%   transformation matrix.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_scope_begin:
+  { \tex_special:D { ps:gsave } }
+\cs_new_protected_nopar:Npn \@@_scope_end:
+  { \tex_special:D { ps:grestore } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Driver-specific auxiliaries}
+%
+% \begin{macro}[int, EXP]{\@@_absolute_lengths:n}
+%   The \texttt{dvips} driver scales all absolute dimensions based
+%   on the output resolution selected and any \TeX{} magnification. Thus
+%   for any operation involving absolute lengths there is a correction to
+%   make. This is based on \texttt{normalscale} from \texttt{special.pro}
+%   but using the stack rather than a definition to save the current matrix.
+%    \begin{macrocode}
+\cs_new:Npn \@@_absolute_lengths:n #1
+  {
+     matrix~currentmatrix~
+     Resolution~72~div~VResolution~72~div~scale~
+     DVImag~dup~scale~
+     #1 ~
+     setmatrix
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Box operations}
+%
+% \begin{macro}{\@@_box_use_clip:N}
+%   Much the same idea as for the PDF mode version but with a slightly
+%   different syntax for creating the clip path. To avoid any scaling
+%   issues we need the absolute length auxiliary here.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_clip:N #1
+  {
+    \@@_scope_begin:
+    \@@_literal:n
+      {
+        \@@_absolute_lengths:n
+          {
+            0 ~
+            \dim_to_decimal_in_bp:n { \box_dp:N #1 } ~
+            \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
+            \dim_to_decimal_in_bp:n { -\box_ht:N #1 - \box_dp:N #1 } ~
+            rectclip
+          }
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+    \skip_horizontal:n { \box_wd:N #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_box_use_rotate:Nn}
+%   Rotating using \texttt{dvips} does not require that the box dimensions
+%   are altered and has a very convenient built-in operation. Zero rotation
+%   must be written as |0| not |-0| so there is a quick test.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_rotate:Nn #1#2
+  {
+    \@@_scope_begin:
+    \@@_literal:n
+      {
+        \fp_compare:nNnTF {#2} = \c_zero_fp
+          { 0 }
+          { \fp_eval:n { round ( -#2 , 5 ) } } ~
+        rotate
+      }
+   \box_use:N #1
+   \@@_scope_end:
+  }
+% \end{macro}
+%
+% \begin{macro}{\@@_box_use_scale:Nnn}
+%   The \texttt{dvips} driver once again has a dedicated operation we can
+%   use here.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_scale:Nnn #1#2#3
+  {
+    \@@_scope_begin:
+    \@@_literal:n
+      {
+        \fp_eval:n { round ( #2 , 5 ) } ~
+        \fp_eval:n { round ( #3 , 5 ) } ~
+        scale
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Color}
+%
+% \begin{variable}{\l_@@_current_color_tl}
+%   The current color in driver-dependent format.
+%    \begin{macrocode}
+\tl_new:N \l_@@_current_color_tl
+\tl_set:Nn \l_@@_current_color_tl { gray~0 }
+%<*package>
+\AtBeginDocument
+  {
+    \@ifpackageloaded { color }
+      { \tl_set:Nn \l_@@_current_color_tl { \current@color } }
+      { }
+  }
+%</package>
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}[int]{\@@_color_ensure_current:}
+% \begin{macro}[aux]{\@@_color_reset:}
+%   Directly set the color using the specials: no optimisation here.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_color_ensure_current:
+  {
+    \tex_special:D { color~push~\l_@@_current_color_tl }
+    \group_insert_after:N \@@_color_reset:
+  }
+
+\cs_new_protected_nopar:Npn \@@_color_reset:
+  { \tex_special:D { color~pop } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvips>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvisvgm} driver}
+%
+%    \begin{macrocode}
+%<*dvisvgm>
+%    \end{macrocode}
+%
+% \subsubsection{Basics}
+%
+% \begin{macro}[int]{\@@_literal:n}
+%   Unlike the other drivers, the requirements for making SVG files mean
+%   that we can't conveniently transform all operations to the current point.
+%   That makes life a bit more tricky later as that needs to be accounted for.
+%   A new line is added after each call to help to keep the output readable
+%   for debugging.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_literal:n #1
+  { \tex_special:D { dvisvgm:raw~ #1 { ?nl } } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_scope_begin:, \@@_scope_end:}
+%   A scope in SVG terms is slightly different to the other drivers as
+%   operations have to be \enquote{tied} to these not simply inside them.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_scope_begin:
+  { \@@_literal:n { <g> } }
+\cs_new_protected_nopar:Npn \@@_scope_end:
+  { \@@_literal:n { </g> } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Driver-specific auxiliaries}
+%
+% \begin{macro}[int]{\@@_scope_begin:n}
+%   In SVG transformations, clips and so on are attached directly to scopes so
+%   we need a way or allowing for that. This is rather more useful that
+%   \cs{@@_scope_begin:} as a result. No assumptions are made about the nature
+%   of the scoped operation(s).
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_scope_begin:n #1
+  { \@@_literal:n { <g~ #1 > } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Box operations}
+%
+% \begin{macro}[int]{\@@_box_use_clip:N}
+% \begin{variable}[aux]{\g_@@_clip_path_int}
+%   Clipping in SVG is more involved than with other drivers. The first issue
+%   is that the clipping path must be defined separately from where it is used,
+%   so we need to track how many paths have applied. The naming here uses
+%   \texttt{l3cp} as the namespace with a number following. Rather than use
+%   a rectangular operation, we define the path manually as this allows it to
+%   have a depth: easier than the alternative approach of shifting content
+%   up and down using scopes to allow for the depth of the \TeX{} box and
+%   keep the reference point the same!
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_clip:N #1
+  {
+    \int_gincr:N \g_@@_clip_path_int
+    \@@_literal:n
+      { < clipPath~id = " l3cp \int_use:N \g_@@_clip_path_int " > }
+    \@@_literal:n
+      {
+        <
+          path ~ d =
+            "
+              M ~ 0 ~
+                  \dim_to_decimal:n { -\box_dp:N #1 } ~
+              L ~ \dim_to_decimal:n { \box_wd:N #1 } ~
+                  \dim_to_decimal:n { -\box_dp:N #1 } ~
+              L ~ \dim_to_decimal:n { \box_wd:N #1 }  ~
+                  \dim_to_decimal:n { \box_ht:N #1 + \box_dp:N #1 } ~
+              L ~ 0 ~
+                  \dim_to_decimal:n { \box_ht:N #1 + \box_dp:N #1 } ~
+              Z
+            "
+        />
+      }
+    \@@_literal:n
+      { < /clipPath > }
+%    \end{macrocode}
+%   In general the SVG set up does not try to transform coordinates to the
+%   current point. For clipping we need to do that, so have a transformation
+%   here to get us to the right place, and a matching one just before the
+%   \TeX{} box is inserted to get things back on track. The clip path needs to
+%   come between those two such that if lines up with the current point, as
+%   does the \TeX{} box.
+%    \begin{macrocode}
+    \@@_scope_begin:n
+      {
+        transform =
+          "
+            translate ( { ?x } , { ?y } ) ~
+            scale ( 1 , -1 )
+          "
+      }
+    \@@_scope_begin:n
+      {
+        clip-path = "url ( \c_hash_str l3cp \int_use:N \g_@@_clip_path_int ) "
+      }
+    \@@_scope_begin:n
+      {
+        transform =
+          "
+            scale ( -1 , 1 ) ~
+            translate ( { ?x } , { ?y } ) ~
+            scale ( -1 , -1 )
+          "
+      }
+    \box_use:N #1
+    \@@_scope_end:
+    \@@_scope_end:
+    \@@_scope_end:
+%    \skip_horizontal:n { \box_wd:N #1 }
+  }
+\int_new:N \g_@@_clip_path_int
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_box_use_rotate:Nn}
+%   Rotation has a dedicated operation which includes a centre-of-rotation
+%   optional pair. That can be picked up from the driver syntax, so there is
+%   no need to worry about the transformation matrix.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_rotate:Nn #1#2
+  {
+    \@@_scope_begin:n
+      {
+        transform =
+          "
+            rotate
+            ( \fp_eval:n { round ( -#2 , 5 ) } , ~ { ?x } , ~ { ?y } )
+          "
+      }
+    \box_use:N #1
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_box_use_scale:Nnn}
+%   In contrast to rotation, we have to account for the current position in this
+%   case. That is done using a couple of translations in addition to the scaling
+%   (which is therefore done backward with a flip).
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_scale:Nnn #1#2#3
+  {
+    \@@_scope_begin:n
+      {
+        transform =
+          "
+            translate ( { ?x } , { ?y } ) ~
+            scale
+              (
+                \fp_eval:n { round ( -#2 , 5 ) } ,
+                \fp_eval:n { round ( -#3 , 5 ) }
+              ) ~
+            translate ( { ?x } , { ?y } ) ~
+            scale ( -1 )
+          "
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Color}
+%
+% \begin{variable}{\l_@@_current_color_tl}
+%   The current color in driver-dependent format: the same as for
+%   \texttt{dvips}.
+%    \begin{macrocode}
+\tl_new:N \l_@@_current_color_tl
+\tl_set:Nn \l_@@_current_color_tl { gray~0 }
+%<*package>
+\AtBeginDocument
+  {
+    \@ifpackageloaded { color }
+      { \tl_set:Nn \l_@@_current_color_tl { \current@color } }
+      { }
+  }
+%</package>
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}[int]{\@@_color_ensure_current:}
+% \begin{macro}[aux]{\@@_color_reset:}
+%   Directly set the color: same as \texttt{dvips}.
+%    \begin{macrocode}
+\cs_new_protected_nopar:Npn \@@_color_ensure_current:
+  {
+    \tex_special:D { color~push~\l_@@_current_color_tl }
+    \group_insert_after:N \exp_not:N \@@_color_reset:
+  }
+
+\cs_new_protected_nopar:Npn \@@_color_reset:
+  { \tex_special:D { color~pop } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvisvgm>
+%    \end{macrocode}
 %
 %    \begin{macrocode}
 %</initex|package>
