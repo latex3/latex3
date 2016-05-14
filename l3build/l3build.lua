@@ -18,7 +18,7 @@
 
 -- Version information: should be identical to that in l3build.dtx
 release_date = "2016/05/14"
-release_ver  = "6492"
+release_ver  = "6495"
 
 -- "module" is a deprecated function in Lua 5.2: as we want the name
 -- for other purposes, and it should eventually be 'free', simply
