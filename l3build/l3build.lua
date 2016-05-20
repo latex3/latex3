@@ -149,6 +149,7 @@ makeindexopts = makeindexopts or ""
 -- Other required settings
 asciiengines = asciiengines or {"pdftex"}
 checkruns    = checkruns    or 1
+epoch        = epoch        or 1463734800
 maxprintline = maxprintline or 79
 packtdszip   = packtdszip   or false -- Not actually needed but clearer
 scriptname   = scriptname   or "build.lua" -- Script used in each directory
@@ -1179,6 +1180,10 @@ function runtest(name, engine, hide, ext)
         .. os_concat ..
       -- Avoid spurious output from (u)pTeX
       os_setenv .. " GUESS_INPUT_KANJI_ENCODING=0"
+        .. os_concat ..
+      -- Fix the time of the run
+      os_setenv .. " SOURCE_DATE_EPOCH=" .. epoch
+        .. " SOURCE_DATE_EPOCH_TEX_PRIMITIVES=1"
         .. os_concat ..
       -- Ensure lines are of a known length
       os_setenv .. " max_print_line=" .. maxprintline
