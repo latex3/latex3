@@ -599,7 +599,7 @@ function allmodules(target)
     end
     local quiet = ""
     if optquiet then
-      quiet = " --quiet="
+      quiet = " --quiet"
     end
     local version = ""
     if optversion then
