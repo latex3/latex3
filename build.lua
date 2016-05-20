@@ -49,6 +49,10 @@ function main (target)
       if optengines then
         engines = " --engine=" .. table.concat(optengines, ",")
       end
+      local quiet = ""
+      if optquiet then
+        quiet = " --quiet"
+      end
       local version = ""
       if optversion then
         version = " --version=" .. optversion[1]
@@ -59,6 +63,7 @@ function main (target)
           .. target .. (opthalt and " -H" or "")
           .. date
           .. engines
+          .. quiet
           .. version
       )
       if errorlevel ~= 0 then
