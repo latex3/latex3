@@ -158,10 +158,12 @@ versionform  = versionform  or ""
 
 -- Extensions for various file types: used to abstract out stuff a bit
 bakext = bakext or ".bak"
+dviext = dviext or ".dvi"
 logext = logext or ".log"
 lveext = lveext or ".lve"
 lvtext = lvtext or ".lvt"
 pdfext = pdfext or ".pdf"
+psext  = psext  or ".ps"
 tlgext = tlgext or ".tlg"
 ttoext = ttoext or ".tto"
 
@@ -1225,6 +1227,31 @@ function runtest(name, engine, hide, ext)
         .. checkopts .. " " .. asciiopt .. lvtfile
         .. (hide and (" > " .. os_null) or "")
     )
+  end
+  if optpdf then
+    local dvifile = name .. dviext
+    if fileexists(testdir .. "/" .. dvifile) then
+    print("MARK")
+      if string.match(engine, "^u?ptex$") then
+        run(
+          testdir,
+          os_setenv .. " SOURCE_DATE_EPOCH=" .. epoch
+            .. os_concat ..
+         "dvipdfmx  " .. dvifile
+        )
+      else
+        run(
+          testdir,
+          os_setenv .. " SOURCE_DATE_EPOCH=" .. epoch
+            .. os_concat ..
+         "dvips  " .. dvifile
+           .. (hide and (" > " .. os_null) or "")
+           .. os_concat ..
+         "ps2pdf  " .. name .. psext
+            ..  (hide and (" > " .. os_null) or "")
+        )
+      end
+    end
   end
   formatlog(logfile, newfile, engine)
   -- Store secondary files for this engine
