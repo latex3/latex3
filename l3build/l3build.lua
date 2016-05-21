@@ -1231,7 +1231,6 @@ function runtest(name, engine, hide, ext)
   if optpdf then
     local dvifile = name .. dviext
     if fileexists(testdir .. "/" .. dvifile) then
-    print("MARK")
       if string.match(engine, "^u?ptex$") then
         run(
           testdir,
