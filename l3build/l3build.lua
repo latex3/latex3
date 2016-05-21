@@ -161,7 +161,9 @@ bakext = bakext or ".bak"
 logext = logext or ".log"
 lveext = lveext or ".lve"
 lvtext = lvtext or ".lvt"
+pdfext = pdfext or ".pdf"
 tlgext = tlgext or ".tlg"
+ttoext = ttoext or ".tto"
 
 -- Run time options
 -- These are parsed into a global table, and all optional args
@@ -177,6 +179,7 @@ function argparse()
       ["halt-on-error"]   = "halt"   ,
       ["halt-on-failure"] = "halt"   ,
       help                = "help"   ,
+      pdf                 = "pdf" ,
       quiet               = "quiet"  ,
       version             = "version"
     }
@@ -186,6 +189,7 @@ function argparse()
       e = "engine" ,
       h = "help"   ,
       H = "halt"   ,
+      p = "pdf"  ,
       q = "quiet"  ,
       v = "version"
     }
@@ -195,6 +199,7 @@ function argparse()
       engine  = true ,
       halt    = false,
       help    = false,
+      pdf     = false,
       quiet   = false,
       version = true
     }
@@ -304,6 +309,7 @@ optdate    = userargs["date"]
 optengines = userargs["engine"]
 opthalt    = userargs["halt"]
 opthelp    = userargs["help"]
+optpdf     = userargs["pdf"]
 optquiet   = userargs["quiet"]
 optversion = userargs["version"]
 
@@ -388,6 +394,8 @@ end
 -- the support functions
 if os.type == "windows" then
   os_ascii    = "@echo."
+  os_cmpexe   = os.getenv("cmpexe") or "fc /b"
+  os_cmpext   = os.getenv("cmpext") or ".cmp"
   os_concat   = "&"
   os_diffext  = os.getenv("diffext") or ".fc"
   os_diffexe  = os.getenv("diffexe") or "fc /n"
@@ -400,6 +408,8 @@ if os.type == "windows" then
   os_yes      = "for /l %I in (1,1,200) do @echo y"
 else
   os_ascii    = "echo \"\""
+  os_cmpexe   = os.getenv("cmpexe") or "cmp"
+  os_cmpext   = os.getenv("cmpext") or ".cmp"
   os_concat   = ";"
   os_diffext  = os.getenv("diffext") or ".diff"
   os_diffexe  = os.getenv("diffexe") or "diff -c --strip-trailing-cr"
@@ -1065,17 +1075,27 @@ function runcheck(name, hide)
     if i == "luajittex" then
       enginename = "luatex"
       newfile = testdir .. "/" .. name .. "." .. i .. logext
+      pdffile = testdir .. "/" .. name .. "." .. i .. pdfext
     end
     local testname = name .. "." .. enginename
     local difffile = testdir .. "/" .. testname .. os_diffext
     local newfile  = newfile or testdir .. "/" .. testname .. logext
+    local cmpfile  = testdir .. "/" .. testname .. os_cmpext
+    local pdffile  = pdffile or testdir .. "/" .. testname .. pdfext
     -- Use engine-specific file if available
     local tlgfile  = locate(
       {testfiledir, unpackdir},
       {testname .. tlgext, name .. tlgext}
     )
+    local ttofile  = locate(
+      {testfiledir, unpackdir},
+      {testname .. ttoext, name .. ttoext}
+    )
     if tlgfile then
       cp(name .. tlgext, testfiledir, testdir)
+      if optpdf and ttofile then
+        cp(name .. ttoext, testfiledir, testdir)
+      end
     else
       -- Attempt to generate missing test goal from expectation
       tlgfile = testdir .. "/" .. testname .. tlgext
@@ -1088,6 +1108,10 @@ function runcheck(name, hide)
       end
       runtest(name, i, hide, lveext)
       ren(testdir, testname .. logext, testname .. tlgext)
+      -- Look for a reference typeset file
+      if optpdf and fileexists(testdir .. "/" .. testname .. pdfext) then
+        ren(testdir, testname .. pdfext, testname .. ttoext)
+      end
     end
     runtest(name, i, hide, lvtext)
     if os_windows then
@@ -1117,13 +1141,20 @@ function runcheck(name, hide)
     end
     if errlevel == 0 then
       os.remove(difffile)
-    else
-      if opthalt then
-        checkdiff()
-        return errlevel
+      if optpdf and ttofile then
+        errlevel = os.execute(
+          os_cmpexe .. " " .. ttofile .. " " .. pdffile .. " > " .. cmpfile
+        )
       end
-      errorlevel = errlevel
+      if errlevel == 0 then
+        os.remove(cmpfile)
+      end
     end
+    if errlevel ~=0 and opthalt then
+      checkdiff()
+      return errlevel
+    end
+    errorlevel = errlevel
   end
   return errorlevel
 end
@@ -1160,7 +1191,9 @@ function runtest(name, engine, hide, ext)
   -- Special casing for XeTeX engine
   local checkopts = checkopts
   if string.match(engine, "xetex") then
-    checkopts = checkopts .. " -no-pdf"
+    if not optpdf then
+      checkopts = checkopts .. " -no-pdf"
+    end
   end
   local logfile = testdir .. "/" .. name .. logext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
@@ -1429,6 +1462,9 @@ function checkdiff()
   for _,i in ipairs(filelist(testdir, "*" .. os_diffext)) do
     print("  - " .. testdir .. "/" .. i)
   end
+  for _,i in ipairs(filelist(testdir, "*" .. os_cmpext)) do
+    print("  - " .. testdir .. "/" .. i)
+  end
   print("")
 end
 
@@ -1677,7 +1713,9 @@ function save(names)
     for _,engine in pairs(engines) do
       local tlgengine = ((engine == stdengine and "") or "." .. engine)
       local tlgfile = name .. tlgengine .. tlgext
+      local ttofile = name .. tlgengine .. ttoext
       local newfile = name .. "." .. engine .. logext
+      local pdffile = name .. "." .. engine .. pdfext
       if testexists(name) then
         print("Creating and copying " .. tlgfile)
         runtest(name, engine, false, lvtext)
@@ -1688,6 +1726,11 @@ function save(names)
             "Saved " .. tlgext
               .. " file overrides unpacked version of the same name"
           )
+        end
+        if optpdf and fileexists(testdir .. "/" .. pdffile) then
+          print("Copying " .. ttofile)
+          ren(testdir, pdffile, ttofile)
+          cp(ttofile, testdir, testfiledir)
         end
       elseif locate({unpackdir, testfiledir}, {name .. lveext}) then
         print(
