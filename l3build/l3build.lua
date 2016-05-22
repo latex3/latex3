@@ -1101,13 +1101,12 @@ function runcheck(name, hide)
         testdir
       )
       if optpdf and spdffile then
-        print(spdffile, ".", testdir)
-       cp(
-         string.match(spdffile, ".*/(.*)"),
-         string.match(spdffile, "(.*)/.*"),
-         testdir
-       )
-       ren(
+        cp(
+          string.match(spdffile, ".*/(.*)"),
+          string.match(spdffile, "(.*)/.*"),
+          testdir
+        )
+        ren(
           testdir,
           string.match(spdffile, ".*/(.*)"),
           string.match(rpdffile, ".*/(.*)")
