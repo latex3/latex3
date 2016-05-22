@@ -1094,7 +1094,7 @@ function runcheck(name, hide)
       {testname .. ttoext, name .. ttoext}
     )
     if tlgfile then
-      cp(name .. tlgext, testfiledir, testdir)
+      cp(tlgfile, ".", testdir)
       if optpdf and ttofile then
         cp(name .. ttoext, testfiledir, testdir)
       end
