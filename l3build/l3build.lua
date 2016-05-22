@@ -1238,7 +1238,7 @@ function runtest(name, engine, hide, ext)
         .. checkopts .. " " .. asciiopt .. lvtfile
         .. (hide and (" > " .. os_null) or "")
         .. os_concat ..
-      runtest_tasks(stripext(lvtfile)) 
+      runtest_tasks(stripext(lvtfile))
     )
   end
   if optpdf then
@@ -1264,6 +1264,7 @@ end
 
 -- A hook to allow additional tasks to run for the tests
 runtest_tasks = runtest_tasks or function(name)
+  return ""
 end
 
 function dvitopdf(name, dir, engine, hide)
