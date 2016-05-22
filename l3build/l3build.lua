@@ -1243,27 +1243,8 @@ function runtest(name, engine, hide, ext)
     )
   end
   if optpdf then
-    local dvifile = name .. dviext
-    if fileexists(testdir .. "/" .. dvifile) then
-      if string.match(engine, "^u?ptex$") then
-        run(
-          testdir,
-          os_setenv .. " SOURCE_DATE_EPOCH=" .. epoch
-            .. os_concat ..
-         "dvipdfmx  " .. dvifile
-        )
-      else
-        run(
-          testdir,
-          os_setenv .. " SOURCE_DATE_EPOCH=" .. epoch
-            .. os_concat ..
-         "dvips  " .. dvifile
-           .. (hide and (" > " .. os_null) or "")
-           .. os_concat ..
-         "ps2pdf  " .. name .. psext
-            ..  (hide and (" > " .. os_null) or "")
-        )
-      end
+    if fileexists(testdir .. "/" .. name .. dviext) then
+      dvitopdf(name, testdir, engine, hide)
     end
   end
   formatlog(logfile, newfile, engine)
@@ -1279,6 +1260,29 @@ function runtest(name, engine, hide, ext)
         )
       end
     end
+  end
+end
+
+function dvitopdf(name, dir, engine, hide)
+  if string.match(engine, "^u?ptex$") then
+    run(
+      dir,
+      os_setenv .. " SOURCE_DATE_EPOCH=" .. epoch
+        .. os_concat ..
+     "dvipdfmx  " .. name .. dviext
+       .. (hide and (" > " .. os_null) or "")
+    )
+  else
+    run(
+      dir,
+      os_setenv .. " SOURCE_DATE_EPOCH=" .. epoch
+        .. os_concat ..
+     "dvips " .. name .. dviext
+       .. (hide and (" > " .. os_null) or "")
+       .. os_concat ..
+     "ps2pdf " .. name .. psext
+        .. (hide and (" > " .. os_null) or "")
+    )
   end
 end
 
