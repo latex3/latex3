@@ -609,10 +609,6 @@ function allmodules(target)
     if optengines then
       engines = " --engine=" .. table.concat(optengines, ",")
     end
-    local quiet = ""
-    if optquiet then
-      quiet = " --quiet"
-    end
     local version = ""
     if optversion then
       version = " --version=" .. optversion[1]
@@ -623,7 +619,8 @@ function allmodules(target)
         .. (opthalt and " -H" or "")
         .. date
         .. engines
-        .. quiet
+        .. (optpdf and " -p" or "")
+        .. (optquiet and " -q" or "")
         .. version
     )
     if errorlevel ~= 0 then
