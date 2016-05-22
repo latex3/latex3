@@ -165,7 +165,6 @@ lvtext = lvtext or ".lvt"
 pdfext = pdfext or ".pdf"
 psext  = psext  or ".ps"
 tlgext = tlgext or ".tlg"
-ttoext = ttoext or ".tto"
 
 -- Run time options
 -- These are parsed into a global table, and all optional args
@@ -1076,27 +1075,43 @@ function runcheck(name, hide)
     local enginename = i
     if i == "luajittex" then
       enginename = "luatex"
-      newfile = testdir .. "/" .. name .. "." .. i .. logext
-      pdffile = testdir .. "/" .. name .. "." .. i .. pdfext
+      newfile  = testdir .. "/" .. name .. "." .. i .. logext
+      pdffile  = testdir .. "/" .. name .. "." .. i .. pdfext
+      rpdffile = testdir .. "/" .. name .. "." .. i .. ".ref" .. pdfext
     end
     local testname = name .. "." .. enginename
     local difffile = testdir .. "/" .. testname .. os_diffext
     local newfile  = newfile or testdir .. "/" .. testname .. logext
     local cmpfile  = testdir .. "/" .. testname .. os_cmpext
     local pdffile  = pdffile or testdir .. "/" .. testname .. pdfext
+    local rpdffile = rpdffile or testdir .. "/" .. testname .. ".ref" .. pdfext
     -- Use engine-specific file if available
     local tlgfile  = locate(
       {testfiledir, unpackdir},
       {testname .. tlgext, name .. tlgext}
     )
-    local ttofile  = locate(
+    local spdffile  = locate(
       {testfiledir, unpackdir},
-      {testname .. ttoext, name .. ttoext}
+      {testname .. pdfext, name .. pdfext}
     )
     if tlgfile then
-      cp(tlgfile, ".", testdir)
-      if optpdf and ttofile then
-        cp(name .. ttoext, testfiledir, testdir)
+      cp(
+        string.match(tlgfile, ".*/(.*)"),
+        string.match(tlgfile, "(.*)/.*"),
+        testdir
+      )
+      if optpdf and spdffile then
+        print(spdffile, ".", testdir)
+       cp(
+         string.match(spdffile, ".*/(.*)"),
+         string.match(spdffile, "(.*)/.*"),
+         testdir
+       )
+       ren(
+          testdir,
+          string.match(spdffile, ".*/(.*)"),
+          string.match(rpdffile, ".*/(.*)")
+        )
       end
     else
       -- Attempt to generate missing test goal from expectation
@@ -1143,9 +1158,9 @@ function runcheck(name, hide)
     end
     if errlevel == 0 then
       os.remove(difffile)
-      if optpdf and ttofile then
+      if optpdf and spdffile then
         errlevel = os.execute(
-          os_cmpexe .. " " .. ttofile .. " " .. pdffile .. " > " .. cmpfile
+          os_cmpexe .. " " .. rpdffile .. " " .. pdffile .. " > " .. cmpfile
         )
       end
       if errlevel == 0 then
@@ -1738,10 +1753,10 @@ function save(names)
     local engine
     for _,engine in pairs(engines) do
       local tlgengine = ((engine == stdengine and "") or "." .. engine)
-      local tlgfile = name .. tlgengine .. tlgext
-      local ttofile = name .. tlgengine .. ttoext
-      local newfile = name .. "." .. engine .. logext
-      local pdffile = name .. "." .. engine .. pdfext
+      local tlgfile  = name .. tlgengine .. tlgext
+      local spdffile = name .. tlgengine .. pdfext
+      local newfile  = name .. "." .. engine .. logext
+      local pdffile  = name .. "." .. engine .. pdfext
       if testexists(name) then
         print("Creating and copying " .. tlgfile)
         runtest(name, engine, false, lvtext)
@@ -1754,9 +1769,9 @@ function save(names)
           )
         end
         if optpdf and fileexists(testdir .. "/" .. pdffile) then
-          print("Copying " .. ttofile)
-          ren(testdir, pdffile, ttofile)
-          cp(ttofile, testdir, testfiledir)
+          print("Copying " .. spdffile)
+          ren(testdir, pdffile, spdffile)
+          cp(spdffile, testdir, testfiledir)
         end
       elseif locate({unpackdir, testfiledir}, {name .. lveext}) then
         print(
