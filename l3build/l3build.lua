@@ -1155,6 +1155,9 @@ function runcheck(name, hide)
     if errlevel == 0 then
       os.remove(difffile)
       if optpdf and spdffile then
+        if os_windows then
+          rpdffile = unix_to_win(rpdffile)
+        end
         errlevel = os.execute(
           os_cmpexe .. " " .. rpdffile .. " " .. pdffile .. " > " .. cmpfile
         )
