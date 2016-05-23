@@ -1229,7 +1229,8 @@ function runtest(name, engine, hide, ext)
         .. os_concat ..
       -- Fix the time of the run
       os_setenv .. " SOURCE_DATE_EPOCH=" .. epoch
-        .. " SOURCE_DATE_EPOCH_TEX_PRIMITIVES=1"
+        .. os_concat ..
+      os_setenv .. " SOURCE_DATE_EPOCH_TEX_PRIMITIVES=1"
         .. os_concat ..
       -- Ensure lines are of a known length
       os_setenv .. " max_print_line=" .. maxprintline
