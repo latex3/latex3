@@ -1,6 +1,6 @@
 % \iffalse meta-comment
 %
-%% File: l3keys.dtx Copyright (C) 2006-2015 The LaTeX3 Project
+%% File: l3keys.dtx Copyright (C) 2006-2016 The LaTeX3 Project
 %%
 %% It may be distributed and/or modified under the conditions of the
 %% LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -873,19 +873,17 @@
 %
 % \subsection{Low-level interface}
 %
+% The low-level key parser is based heavily on \pkg{keyval}, but with a number
+% of additional \enquote{safety} requirements and with the idea that the
+% parsed list of key--value pairs can be processed in a variety of ways.
+% The net result is that this code needs around twice the amount of time
+% as \pkg{keyval} to parse the same list of keys. To optimise speed as far
+% as reasonably practical, a number of lower-level approaches are taken
+% rather than using the higher-level \pkg{expl3} interfaces.
+%
 %    \begin{macrocode}
 %<@@=keyval>
 %    \end{macrocode}
-%
-% For historical reasons this code uses the `keyval' module prefix.
-%
-% \begin{variable}{\g_@@_level_int}
-%   To allow nesting of \cs{keyval_parse:NNn}, an integer is needed for
-%   the current level.
-%    \begin{macrocode}
-\int_new:N \g_@@_level_int
-%    \end{macrocode}
-% \end{variable}
 %
 % \begin{variable}{\l_@@_key_tl, \l_@@_value_tl}
 %   The current key name and value.
@@ -896,165 +894,205 @@
 % \end{variable}
 %
 % \begin{variable}{\l_@@_sanitise_tl}
-% \begin{variable}{\l_@@_parse_tl}
-%   Token list variables for dealing with awkward category codes in the
+%   A token list variable for dealing with awkward category codes in the
 %   input.
 %    \begin{macrocode}
 \tl_new:N \l_@@_sanitise_tl
-\tl_new:N \l_@@_parse_tl
 %    \end{macrocode}
 % \end{variable}
-% \end{variable}
-%
-% \begin{macro}{\@@_parse:n}
-%   The parsing function first deals with the category codes for
-%   |=| and |,|, so that there are no odd events. The input is then
-%   handed off to the element by element system.
-%    \begin{macrocode}
-\group_begin:
-  \char_set_catcode_active:n { `\= }
-  \char_set_catcode_active:n { `\, }
-  \cs_new_protected:Npx \@@_parse:n #1
-    {
-      \group_begin:
-        \tl_set:Nn \exp_not:N \l_@@_sanitise_tl {#1}
-        \tl_replace_all:Nnn \exp_not:N \l_@@_sanitise_tl
-          { \exp_not:N = } { \token_to_str:N = }
-        \tl_replace_all:Nnn \exp_not:N \l_@@_sanitise_tl
-          { \exp_not:N , } { \token_to_str:N , }
-        \tl_clear:N \exp_not:N \l_@@_parse_tl
-        \exp_not:N \exp_after:wN
-          \exp_not:N \@@_parse_elt:w \exp_not:N \exp_after:wN
-          \exp_not:N \q_nil \exp_not:N \l_@@_sanitise_tl
-          \token_to_str:N , \exp_not:N \q_recursion_tail
-            \token_to_str:N , \exp_not:N \q_recursion_stop
-      \exp_not:N \exp_after:wN \group_end:
-      \exp_not:N \l_@@_parse_tl
-    }
-\group_end:
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@@_parse_elt:w}
-%   Each item to be parsed will have \cs{q_nil} added to the front.
-%   Hence the blank test here can always be used to find a totally
-%   empty argument. To allow rapid matching for an |=| while not stripping
-%   any braces, another \cs{q_nil} needed before the next phase of the
-%   parser. Finally, loop around for the next item, adding in the
-%   \cs{q_nil}: this happens whatever the nature of the current argument
-%   as the end-of-recursion will clear up in all cases.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_parse_elt:w #1 ,
-  {
-    \tl_if_blank:oF { \use_none:n #1 }
-      {
-        \quark_if_recursion_tail_stop:o { \use_none:n #1 }
-        \@@_split_key_value:w #1 \q_nil = = \q_stop
-      }
-    \@@_parse_elt:w \q_nil
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@@_split_key_value:w}
-% \begin{macro}[aux]{\@@_split_key:w}
-%   Split the key and value using a delimited argument. The \cs{q_nil}
-%   values added earlier ensure that no braces will be stripped as part
-%   of this process. A blank test can then be used on |#3|: it is only
-%   empty if there was no |=| in the original input. In that case, strip
-%   a \cs{q_nil} from the end of the key name then hand on to remove other
-%   things and store as \cs{l_@@_key_tl} before adding to the output token
-%   list. In the case where there is an |=|, first tidy up the key, this time
-%   without a trailing \cs{q_nil}, then do a check to ensure that |#3| is
-%   exactly one token (|=|). With that done, the final stage is to hand off
-%   to tidy up the value.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_split_key_value:w #1 = #2 = #3 \q_stop
-  {
-    \tl_if_blank:nTF {#3}
-      {
-        \@@_split_key:w #1 \q_stop
-        \tl_put_right:Nx \l_@@_parse_tl
-          {
-            \exp_not:c
-              {
-                @@_key_no_value_elt_
-                \int_use:N \g_@@_level_int
-                :n
-              }
-              { \exp_not:o \l_@@_key_tl }
-          }
-      }
-      {
-        \@@_split:Nn \l_@@_key_tl {#1}
-        \tl_if_blank:oTF { \use_none:n #3 }
-          { \@@_split_value:w \q_nil #2 \q_stop }
-          { \__msg_kernel_error:nn { kernel } { misplaced-equals-sign } }
-      }
-  }
-\cs_new_protected:Npn \@@_split_key:w #1 \q_nil \q_stop
-  { \@@_split:Nn \l_@@_key_tl {#1} }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\@@_split:Nn}
-% \begin{macro}[aux]{\@@_split:Nw}
-%   There are two possible cases here. The first case is that |#1| is
-%   surrounded by braces, in which case the |\use_none:nnn #1 \q_nil \q_nil|
-%   will yield \cs{q_nil}. There, we can remove the leading \cs{q_nil}, the
-%   braces and any spaces around the outside with \cs{use_ii:nnn}. On the
-%   other hand, if there are no braces then the second branch removes the
-%   leading \cs{q_nil} and any surrounding spaces.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_split:Nn #1#2
-  {
-    \quark_if_nil:oTF { \use_none:nnn #2 \q_nil \q_nil }
-      { \tl_set:Nx #1 { \exp_not:o { \use_ii:nnn #2 \q_nil } } }
-      { \@@_split:Nw #1 #2 \q_stop }
-  }
-\cs_new_protected:Npn \@@_split:Nw #1 \q_nil #2 \q_stop
-  { \tl_set:Nx #1 { \tl_trim_spaces:n {#2} } }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\@@_split_value:w}
-%   As this stage there is just the value to deal with. The leading and
-%   trailing \cs{q_nil} tokens are removed in two steps before storing the
-%   value with spaces stripped (see \cs{@@_split:Nn}). Doing the storage
-%   of key and value in one shot will put exactly the right number of
-%   brace groups into the output.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_split_value:w #1 \q_nil \q_stop
-  {
-    \@@_split:Nn \l_@@_value_tl {#1}
-    \tl_put_right:Nx \l_@@_parse_tl
-      {
-        \exp_not:c
-          { @@_key_value_elt_ \int_use:N \g_@@_level_int :nn }
-          { \exp_not:o \l_@@_key_tl }
-          { \exp_not:o \l_@@_value_tl }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
 %
 % \begin{macro}{\keyval_parse:NNn}
-%   The outer parsing routine just sets up the processing functions and
-%   hands off.
+%   The main function starts of by normalising category codes in package mode.
+%   That's relatively \enquote{expensive} so is skipped (hopefully) in format
+%   mode. We then hand off to the parser. The use of |\q_mark| here prevents
+%   loss of braces from the key argument. This particular quark is chosen as
+%   it fits in with |\__tl_trim_spaces:nn| and allows a performance enhancement
+%   as the token can be carried through. Notice that by passing the two
+%   processor commands alone the input stack we avoid the need to track these
+%   at all.
 %    \begin{macrocode}
 \cs_new_protected:Npn \keyval_parse:NNn #1#2#3
   {
-    \int_gincr:N \g_@@_level_int
-    \cs_gset_eq:cN
-      { @@_key_no_value_elt_ \int_use:N \g_@@_level_int :n } #1
-    \cs_gset_eq:cN
-      { @@_key_value_elt_ \int_use:N \g_@@_level_int :nn }   #2
-    \@@_parse:n {#3}
-    \int_gdecr:N \g_@@_level_int
+%<*initex>
+    \@@_loop:NNw #1#2 \q_mark #3 , \q@recursion@tail ,
+%</initex>
+%<*package>
+    \tl_set:Nn \l_@@_sanitise_tl {#3}
+    \@@_sanitise_equals:
+    \@@_sanitise_comma:
+    \exp_after:wN \@@_loop:NNw \exp_after:wN #1 \exp_after:wN #2
+      \exp_after:wN \q_mark \l_@@_sanitise_tl , \q_recursion_tail ,
+%</package>
   }
 %    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_sanitise_equals:, \@@_sanitise_comma:}
+% \begin{macro}[aux]
+%   {
+%     \@@_sanitise_equals_auxi:w, \@@_sanitise_equals_auxii:w,
+%     \@@_sanitise_comma_auxi:w, \@@_sanitise_comma_auxii:w,
+%     \@@_sanitise_aux:w
+%   }
+%   A reasonably fast search and replace set up specifically for the active
+%   tokens. The nature of the input is known so everything is hard-coded.
+%   With only two tokens to cover, the speed gain from using dedicated
+%   functions is worth it.
+%    \begin{macrocode}
+%<*package>
+\group_begin:
+  \char_set_catcode_active:n { `\= }
+  \char_set_catcode_active:n { `\, }
+  \cs_new_protected_nopar:Npn \@@_sanitise_equals:
+    {
+      \exp_after:wN \@@_sanitise_equals_auxi:w \l_@@_sanitise_tl
+        \q_mark = \q_nil =
+      \exp_after:wN \@@_sanitise_aux:w \l_@@_sanitise_tl
+    }
+    \cs_new_protected:Npn \@@_sanitise_equals_auxi:w #1 =
+      {
+        \tl_set:Nn \l_@@_sanitise_tl {#1}
+        \@@_sanitise_equals_auxii:w
+      }
+    \cs_new_protected:Npn \@@_sanitise_equals_auxii:w #1 =
+      {
+        \if_meaning:w \q_nil #1 \scan_stop:
+        \else:
+          \tl_set:Nx \l_@@_sanitise_tl
+            {
+              \exp_not:o \l_@@_sanitise_tl
+              \token_to_str:N =
+              \exp_not:n {#1}
+            }
+          \exp_after:wN \@@_sanitise_equals_auxii:w
+        \fi:
+      }
+  \cs_new_protected_nopar:Npn \@@_sanitise_comma:
+    {
+      \exp_after:wN \@@_sanitise_comma_auxi:w \l_@@_sanitise_tl
+        \q_mark , \q_nil ,
+      \exp_after:wN \@@_sanitise_aux:w \l_@@_sanitise_tl
+    }
+    \cs_new_protected:Npn \@@_sanitise_comma_auxi:w #1 ,
+      {
+        \tl_set:Nn \l_@@_sanitise_tl {#1}
+        \@@_sanitise_comma_auxii:w
+      }
+    \cs_new_protected:Npn \@@_sanitise_comma_auxii:w #1 ,
+      {
+        \if_meaning:w \q_nil #1 \scan_stop:
+        \else:
+          \tl_set:Nx \l_@@_sanitise_tl
+            {
+              \exp_not:o \l_@@_sanitise_tl
+              \token_to_str:N ,
+              \exp_not:n {#1}
+            }
+          \exp_after:wN \@@_sanitise_comma_auxii:w
+        \fi:
+      }
+\group_end:
+\cs_new_protected:Npn \@@_sanitise_aux:w #1 \q_mark
+  { \tl_set:Nn \l_@@_sanitise_tl {#1} }
+%</package>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_loop:NNw}
+%   A fast test for the end of the loop, remembering to remove the leading
+%   quark first. Assuming that is not the case, look for a key and value then
+%   loop around, re-inserting a leading quark in front of the next position.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_loop:NNw #1#2#3 ,
+  {
+    \exp_after:wN \if_meaning:w \exp_after:wN \q_recursion_tail
+      \use_none:n #3 \prg_do_nothing:
+    \else:
+      \@@_split:NNw #1#2#3 == \q_stop
+      \exp_after:wN \@@_loop:NNw \exp_after:wN #1 \exp_after:wN #2
+        \exp_after:wN \q_mark
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_split:NNw, \@@_split_value:NNw}
+% \begin{macro}[aux]{\@@_split_tidy:w}
+% \begin{macro}[aux]{\@@_action:}
+%   The value is picked up separately from the key so there can be another
+%   quark inserted at the front, keeping braces and allowing both parts to
+%   share the same code paths. The key is found first then there's a check
+%   that there is something there: this is biased to the common case of there
+%   actually being a key. For the value, we first need to see if there is
+%   anything to do: if there is, extract it. The appropriate action is then
+%   inserted in front of the key and value. Doing this using an assignment is
+%   marginally faster than an an expansion chain.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_split:NNw #1#2#3 =
+  {
+    \@@_def:Nn \l_@@_key_tl {#3}
+    \if_meaning:w \l_@@_key_tl \c_empty_tl
+      \exp_after:wN \@@_split_tidy:w
+    \else:
+      \exp_after:wN \@@_split_value:NNw \exp_after:wN #1 \exp_after:wN #2
+        \exp_after:wN \q_mark
+    \fi:
+  }
+\cs_new_protected:Npn \@@_split_value:NNw #1#2#3 = #4 \q_stop
+  {
+    \if:w \scan_stop: \tl_to_str:n {#4} \scan_stop:
+      \cs_set_nopar:Npx \@@_action:
+        { \exp_not:N #1 { \exp_not:o \l_@@_key_tl } }
+    \else:
+      \if:w \scan_stop: \etex_detokenize:D \exp_after:wN { \use_none:n #4 }
+        \scan_stop:
+        \@@_def:Nn \l_@@_value_tl {#3}
+        \cs_set_nopar:Npx \@@_action:
+          {
+            \exp_not:N #2
+              { \exp_not:o \l_@@_key_tl }
+              { \exp_not:o \l_@@_value_tl }
+          }
+      \else:
+        \cs_set_nopar:Npn \@@_action:
+          { \__msg_kernel_error:nn { kernel } { misplaced-equals-sign } }
+      \fi:
+    \fi:
+    \@@_action:
+  }
+\cs_new_protected:Npn \@@_split_tidy:w #1 \q_stop
+  {
+    \if:w \scan_stop: \etex_detokenize:D \exp_after:wN { \use_none:n #1 }
+      \scan_stop:
+    \else:
+      \exp_after:wN \@@_empty_key:
+    \fi:
+  }
+\cs_new_nopar:Npn \@@_action: { }
+\cs_new_protected_nopar:Npn \@@_empty_key:
+  { \__msg_kernel_error:nn { kernel } { misplaced-equals-sign } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_def:Nn}
+% \begin{macro}[aux, EXP]{\@@_def_aux:n}
+% \begin{macro}[aux, EXP]{\@@_def_aux:w}
+%   First trim spaces off, then potentially remove a set of braces. By using
+%   the internal interface |\__tl_trim_spaces:nn| we can take advantage of the
+%   fact it needs a leading |\q_mark| in this process. The |\exp_after:wN|
+%   removes the quark, the delimited argument deals with any braces.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_def:Nn #1#2
+  { \tl_set:Nx #1 { \__tl_trim_spaces:nn {#2} \@@_def_aux:n } }
+\cs_new:Npn \@@_def_aux:n #1
+  { \exp_after:wN \@@_def_aux:w #1 \q_stop }
+\cs_new:Npn \@@_def_aux:w #1 \q_stop { \exp_not:n {#1} }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 % One message for the low level parsing system.
