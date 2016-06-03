@@ -1420,7 +1420,7 @@ typeset = typeset or function(file)
         )
       end
       errorlevel = cycle(name)
-      if errorlevel ~= 0 then
+      if errorlevel == 0 then
         errorlevel = cycle(name)
       end
     end
