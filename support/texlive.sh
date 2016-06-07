@@ -22,7 +22,8 @@ if ! command -v texlua > /dev/null; then
   # Core requirements for the test system
   tlmgr install babel babel-english latex latex-bin latex-fonts latexconfig \
     xetex
-  tlmgr install --no-depends ptex uptex
+  tlmgr install --no-depends ptex uptex ptex-base uptex-base ptex-fonts
+    uptex-fonts platex uplatex
 fi
 
 # Keep no backups (not required, simply makes cache bigger)
