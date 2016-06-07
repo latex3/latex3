@@ -45,10 +45,12 @@ tlmgr install \
   euenc         \
   fandol        \
   filehook      \
+  graphics-cfg  \
   lm            \
   lm-math       \
   lualatex-math \
   lualibs       \
+  luatex-def    \
   luatexbase    \
   luatexja      \
   luaotfload    \
