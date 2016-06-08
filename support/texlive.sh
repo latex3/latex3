@@ -43,6 +43,7 @@ tlmgr install \
   environ       \
   etoolbox      \
   euenc         \
+  everyhook     \
   fandol        \
   filehook      \
   graphics-cfg  \
