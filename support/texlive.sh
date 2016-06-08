@@ -61,6 +61,7 @@ tlmgr install \
   pdftex-def    \
   pgf           \
   psnfss        \
+  svn-prov      \
   times         \
   tools         \
   trimspaces    \
