@@ -56,6 +56,7 @@ tlmgr install \
   luatexbase    \
   luatexja      \
   luaotfload    \
+  mptopdf       \
   ms            \
   oberdiek      \
   pdftex-def    \
