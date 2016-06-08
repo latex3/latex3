@@ -46,6 +46,7 @@ tlmgr install \
   everyhook     \
   fandol        \
   filehook      \
+  graphics      \
   graphics-cfg  \
   lm            \
   lm-math       \
