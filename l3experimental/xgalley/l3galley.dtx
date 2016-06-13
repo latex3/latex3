@@ -744,9 +744,16 @@
 % Settings for application by the galley respect the usual \TeX{} grouping and
 % so are all local variables.
 %
+% \begin{variable}{\g_@@_cutout_active_bool, \g_@@_cutout_active_bool}
+%    \begin{macrocode}
+\bool_new:N \g_@@_cutout_active_bool
+\bool_new:N \l_@@_cutout_active_bool
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}
 %   {\l_@@_cutout_left_indent_seq, \l_@@_cutout_right_indent_seq}
-%   Essentially scratch space, used when setting up a cutout in a paragrph,
+%   Essentially scratch space, used when setting up a cutout in a paragraph,
 %   but named as there is quite a bit to do in that code.
 %    \begin{macrocode}
 \seq_new:N \l_@@_cutout_left_indent_seq
@@ -982,6 +989,15 @@
 % galley level must form a group: galley levels are tied to vertical
 % boxes and so this is a reasonable requirements.
 %
+% \begin{variable}{\l_@@_group_level_int}
+%   The top group level for the galley needs to be known to allow
+%   some data structures to be reset correctly: they can only be
+%   fully cleared at the outer level.
+%    \begin{macrocode}
+\int_new:N \l_@@_group_level_int
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{macro}{\@@_initialise_variables:}
 %   At the start of a galley level the global variables need to be reset to
 %   standard values. For example, the measure is set to the galley width and
@@ -989,7 +1005,9 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_initialise_variables:
   {
+    \int_set:Nn \l_@@_group_level_int { \etex_currentgrouplevel:D }
     \bool_gset_true:N \g_@@_begin_level_bool
+    \bool_gset_false:N \g_@@_cutout_active_bool
     \seq_gclear:N \g_@@_cutout_left_seq
     \seq_gclear:N \g_@@_cutout_right_seq
     \tl_gclear:N \g_@@_interpar_penalty_user_tl
@@ -1035,6 +1053,8 @@
   {
     \bool_set_eq:NN \l_@@_begin_level_bool
       \g_@@_begin_level_bool
+    \bool_set_eq:NN \l_@@_cutout_active_bool
+      \g_@@_cutout_active_bool
     \seq_set_eq:NN \l_@@_cutout_left_seq
       \g_@@_cutout_left_seq
     \seq_set_eq:NN \l_@@_cutout_right_seq
@@ -1068,6 +1088,8 @@
   {
     \bool_gset_eq:NN \g_@@_begin_level_bool
       \l_@@_begin_level_bool
+    \bool_gset_eq:NN \g_@@_cutout_active_bool
+      \l_@@_cutout_active_bool
     \seq_gset_eq:NN \g_@@_cutout_left_seq
       \l_@@_cutout_left_seq
     \seq_gset_eq:NN \g_@@_cutout_right_seq
@@ -1144,7 +1166,7 @@
 % \begin{macro}{\galley_par:}
 % \begin{macro}[aux]{\@@_par_auxi:, \@@_par_auxii:, \@@_par_auxiii:}
 % \begin{macro}[aux]{\@@_par_aux:N}
-% \begin{macro}[int]{\@@_par_set_cutout:, \@@_par_update_cutout:}
+% \begin{macro}[int]{\@@_par_update_cutout:}
 %   The idea here is to expand the next token in exactly the same way as \TeX{}
 %   would do anyway. The \texttt{f}-type expansion will ignore any protection,
 %   but will stop at a scan marker. Thus the code can test for an
@@ -1194,7 +1216,8 @@
 %    \begin{macrocode}
       {
         \g_galley_par_end_hook_tl
-        \@@_par_set_cutout:
+        \bool_if:NT \g_@@_cutout_active_bool
+          { \@@_parshape_set: }
         \group_begin:
           \tex_par:D
         \group_end:
@@ -1221,21 +1244,25 @@
     \tex_penalty:D \c_ten_thousand
   }
 %    \end{macrocode}
-%   When cutouts are active, there is a need to set the paragraph shape
-%   \enquote{just in time}. After the typesetting, the lines remaining in
-%   the cutout has to be updated for the next run. This is all done for
-%   each paragraph to avoid any grouping issues and without needing to set
-%   \cs{tex_parshape:n} globally.
+%   Once a cutout has been set, properly tidying up needs some work. The
+%   cutout is applied \enquote{just in time} at the start of each paragraph
+%   (see above). After the paragraph, the consumed lines are removed from
+%   the tracking sequences and the paragraph shape is reset. The latter step
+%   is required as we do not set the paragraph shape for every paragraph.
+%   Once the two sequences are empty, there is no cutout to apply. However,
+%   it can still be \enquote{active}. If a cutout is started then we have a
+%   group, it is possible for the cutout to be entirely applied before the
+%   end of the group. At that point, the two sequences show there is nothing
+%   to do \emph{but} the active paragraph shape still has some lines indented.
+%   As we avoid setting the \tn{parshape} primitive for every paragraph,
+%   the result of only checking the sequences would be that the cutout would
+%   reappear after the group! Instead, we use a boolean and only set it
+%   false once the group level is that of the galley itself. (There is a slight
+%   inefficiency here in that we thus do set the paragraph shape for each
+%   paragraph after a cutout until we reach the top group level of the galley.
+%   That should be an acceptable hit given the extra work needed to track
+%   reset-in-this-group as well.)
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_par_set_cutout:
-  {
-    \bool_if:nF
-      {
-           \seq_if_empty_p:N \g_@@_cutout_left_seq
-        && \seq_if_empty_p:N \g_@@_cutout_right_seq
-      }
-      { \@@_parshape_set: }
-  }
 \cs_new_protected:Npn \@@_par_update_cutout:
   {
     \bool_if:nF
@@ -1251,9 +1278,17 @@
           }
         \@@_parshape_set:
       }
+    \int_compare:nNnT \l_@@_group_level_int = \etex_currentgrouplevel:D
+      {
+        \bool_if:nT
+          {
+               \seq_if_empty_p:N \g_@@_cutout_left_seq
+            && \seq_if_empty_p:N \g_@@_cutout_right_seq
+          }
+          { \bool_gset_false:N \g_@@_cutout_active_bool }
+      }
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -1757,6 +1792,8 @@
           { \@@_cutout:Nc \g_@@_tmpa_seq { g_@@_cutout_ #1 _seq } }
         \seq_gset_eq:cN { g_@@_cutout_ #1 _seq } \l_@@_tmp_seq
       }
+    \seq_if_empty:cF { g_@@_cutout_ #1 _seq }
+      { \bool_gset_true:N \g_@@_cutout_active_bool }
   }
 \cs_new_protected:Npn \@@_cutout:NN #1#2
   {
