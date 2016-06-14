@@ -23,17 +23,6 @@ ctanbundles  = {"l3build", "l3kernel", "l3packages", "l3experimental"}
 -- Location of main directory: use Unix-style path separators
 maindir = "."
 
--- Help for the master script is simple
-function help ()
-  print ""
-  print " build check   - run automated check system       "
-  print " build ctan    - create CTAN-ready archive        "
-  print " build doc     - runs all documentation files     "
-  print " build clean   - clean out directory tree         "
-  print " build install - install files in local texmf tree"
-  print ""
-end
-
 -- A custom main function
 -- While almost all of this is customise, the need to be able to cp and
 -- rm files means that loading l3build.lua is very useful
