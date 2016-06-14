@@ -1441,7 +1441,7 @@ end
 -- Standard versions of the main targets for building modules
 
 -- Simply print out how to use the build system
-help = help or function()
+function help()
   print("usage: " .. arg[0] .. " <command> [<options>] [<names>]")
   print("")
   print("The most commonly used l3build commands are:")
