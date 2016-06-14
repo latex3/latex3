@@ -1059,8 +1059,8 @@ function listmodules()
   return modules
 end
 
--- Runs a single test: needs the name of the test rather than the .lvt file
--- One 'test' here may apply to multiple engines
+-- Run one test which may have multiple engine-dependent comparisons
+-- Should create a difference file for each failed test
 function runcheck(name, hide)
   local checkengines = checkengines
   if optengines then
@@ -1069,108 +1069,118 @@ function runcheck(name, hide)
   local errorlevel = 0
   for _,i in ipairs(checkengines) do
     -- Allow for luatex == luajittex for .tlg purposes
-    local enginename = i
-    if i == "luajittex" then
-      enginename = "luatex"
-      newfile  = testdir .. "/" .. name .. "." .. i .. logext
-      pdffile  = testdir .. "/" .. name .. "." .. i .. pdfext
-      rpdffile = testdir .. "/" .. name .. "." .. i .. ".ref" .. pdfext
+    local engine = i
+    if i == "luajitex" then
+      engine = "luatex"
     end
-    local testname = name .. "." .. enginename
-    local difffile = testdir .. "/" .. testname .. os_diffext
-    local newfile  = newfile or testdir .. "/" .. testname .. logext
-    local cmpfile  = testdir .. "/" .. testname .. os_cmpext
-    local pdffile  = pdffile or testdir .. "/" .. testname .. pdfext
-    local rpdffile = rpdffile or testdir .. "/" .. testname .. ".ref" .. pdfext
-    -- Use engine-specific file if available
-    local tlgfile  = locate(
-      {testfiledir, unpackdir},
-      {testname .. tlgext, name .. tlgext}
-    )
-    local spdffile  = locate(
-      {testfiledir, unpackdir},
-      {testname .. pdfext, name .. pdfext}
-    )
-    if tlgfile then
-      cp(
-        string.match(tlgfile, ".*/(.*)"),
-        string.match(tlgfile, "(.*)/.*"),
-        testdir
-      )
-      if optpdf and spdffile then
-        cp(
-          string.match(spdffile, ".*/(.*)"),
-          string.match(spdffile, "(.*)/.*"),
-          testdir
-        )
-        ren(
-          testdir,
-          string.match(spdffile, ".*/(.*)"),
-          string.match(rpdffile, ".*/(.*)")
-        )
-      end
-    else
-      -- Attempt to generate missing test goal from expectation
-      tlgfile = testdir .. "/" .. testname .. tlgext
-      if not locate({unpackdir, testfiledir}, {name .. lveext}) then
-        print(
-          "Error: failed to find " .. tlgext .. " or "
-            .. lveext .. " file for " .. name .. "!"
-        )
-        os.exit(1)
-      end
-      runtest(name, i, hide, lveext)
-      ren(testdir, testname .. logext, testname .. tlgext)
-      -- Look for a reference typeset file
-      if optpdf and fileexists(testdir .. "/" .. testname .. pdfext) then
-        ren(testdir, testname .. pdfext, testname .. ttoext)
-      end
-    end
+    setup_check(name, engine) 
     runtest(name, i, hide, lvtext)
-    if os_windows then
-      tlgfile = unix_to_win(tlgfile)
-    end
+    -- Generation of results heavily depends on test type
     local errlevel
-    -- Do additional log formatting if the engine is LuaTeX, there is no
-    -- LuaTeX-specific .tlg file and the default engine is not LuaTeX
-    if enginename == "luatex"
-      and not string.match(tlgfile, "%.luatex" .. "%" .. tlgext)
-      and stdengine ~= "luatex"
-      and stdengine ~= "luajittex" then
-      local luatlgfile = testdir .. "/" .. name .. ".luatex" ..  tlgext
-      if os_windows then
-        luatlgfile = unix_to_win(luatlgfile)
-      end
-      formatlualog(tlgfile, luatlgfile)
-      formatlualog(newfile, newfile)
-      errlevel = os.execute(
-        os_diffexe .. " " .. luatlgfile .. " " .. newfile
-          .. " > " .. difffile
-      )
+    if optpdf then
+      errlevel = compare_pdf(name, engine)
     else
-      errlevel = os.execute(
-        os_diffexe .. " " .. tlgfile .. " " .. newfile .. " > " .. difffile
-      )
+      errlevel = compare_tlg(name, engine)
     end
-    if errlevel == 0 then
-      os.remove(difffile)
-      if optpdf and spdffile then
-        if os_windows then
-          rpdffile = unix_to_win(rpdffile)
-        end
-        errlevel = os.execute(
-          os_cmpexe .. " " .. rpdffile .. " " .. pdffile .. " > " .. cmpfile
-        )
-      end
-      if errlevel == 0 then
-        os.remove(cmpfile)
-      end
-    end
-    if errlevel ~=0 and opthalt then
+    if errlevel ~= 0 and opthalt then
       checkdiff()
       return errlevel
     end
-    errorlevel = errlevel
+    if errlevel > errorlevel then
+      errorlevel = errlevel
+    end
+  end
+  return errorlevel
+end
+
+function setup_check(name, engine)
+  local testname = name .. "." .. engine
+  local refext = ((optpdf and pdfext) or tlgext)
+  local reffile = locate(
+    {testfiledir, unpackdir},
+    {testname .. refext, name .. refext}
+  )
+  -- Attempt to generate missing reference file from expectation
+  if not reffile then
+    if not locate({unpackdir, testfiledir}, {name .. lveext}) then
+      print(
+        "Error: failed to find " .. refext .. " or "
+          .. lveext .. " file for " .. name .. "!"
+      )
+      os.exit(1)
+    end
+    runtest(name, engine, hide, lveext)
+    reffile = testdir .. "/" .. testname .. refext
+    if not optpdf then
+      ren(testdir, testname .. logext, testname .. tlgext)
+    end
+  else
+    cp(
+      string.match(reffile, ".*/(.*)"),
+      string.match(reffile, "(.*)/.*"),
+      testdir
+    )
+  end
+  if optpdf then
+    local reffile = string.match(reffile, ".*/(.*)")
+    ren(
+      testdir,
+      reffile,
+      string.gsub(reffile, pdfext .. "$", ".ref" .. pdfext)
+    )
+  end
+end
+
+function compare_pdf(name, engine)
+  local errorlevel
+  local testname = name .. "." .. engine
+  local cmpfile    = testdir .. "/" .. testname .. os_cmpext
+  local pdffile    = testdir .. "/" .. testname .. pdfext
+  local refpdffile = locate(
+    {testdir}, {testname .. ".ref" .. pdfext, name .. ".ref" .. pdfext}
+  )
+  if os_windows then
+    refpdffile = unix_to_win(refpdffile)
+  end
+  errorlevel = os.execute(
+    os_cmpexe .. " " .. refpdffile .. " " .. pdffile .. " > " .. cmpfile
+  )
+  if errorlevel == 0 then
+    os.remove(cmpfile)
+  end
+  return errorlevel
+end
+
+function compare_tlg(name, engine)
+  local errorlevel
+  local testname = name .. "." .. engine
+  local difffile = testdir .. "/" .. testname .. os_diffext
+  local logfile  = testdir .. "/" .. testname .. logext
+  local tlgfile  = locate({testdir}, {testname .. tlgext, name .. tlgext})
+  if os_windows then
+    tlgfile = unix_to_win(tlgfile)
+  end
+  -- Do additional log formatting if the engine is LuaTeX, there is no
+  -- LuaTeX-specific .tlg file and the default engine is not LuaTeX
+  if engine == "luatex"
+    and not string.match(tlgfile, "%.luatex" .. "%" .. tlgext)
+    and stdengine ~= "luatex"
+    and stdengine ~= "luajittex"
+    then
+    local luatlgfile = testdir .. "/" .. name .. ".luatex" ..  tlgext
+    if os_windows then
+      luatlgfile = unix_to_win(luatlgfile)
+    end
+    formatlualog(tlgfile, luatlgfile)
+    formatlualog(logfile, logfile)
+    -- This allows code sharing below: we only need the .tlg name in one place
+    tlgfile = luatlgfile
+  end
+  errorlevel = os.execute(
+    os_diffexe .. " " .. tlgfile .. " " .. logfile .. " > " .. difffile
+  )
+  if errorlevel == 0 then
+    os.remove(difffile)
   end
   return errorlevel
 end
@@ -1457,6 +1467,7 @@ help = help or function()
   print("   --engine|-e         Sets the engine to use for running test")
   print("   --halt-on-error|-H  Stops running tests after the first failure")
   print("   --version|-v        Sets the version to insert into sources")
+  print("   --pdf|-p            Check/save PDF files")
   print("   --quiet|-q          Suppresses TeX output when unpacking")
   print("")
   print("See l3build.pdf for further details.")
@@ -1768,21 +1779,22 @@ function save(names)
       local spdffile = name .. tlgengine .. pdfext
       local newfile  = name .. "." .. engine .. logext
       local pdffile  = name .. "." .. engine .. pdfext
+      local refext = ((optpdf and pdfext) or tlgext)
       if testexists(name) then
-        print("Creating and copying " .. tlgfile)
+        print("Creating and copying " .. refext)
         runtest(name, engine, false, lvtext)
-        ren(testdir, newfile, tlgfile)
-        cp(tlgfile, testdir, testfiledir)
+        if optpdf then
+          ren(testdir, pdffile, spdffile)
+          cp(spdffile, testdir, testfiledir)
+        else
+          ren(testdir, newfile, tlgfile)
+          cp(tlgfile, testdir, testfiledir)
+        end
         if fileexists(unpackdir .. "/" .. tlgfile) then
           print(
             "Saved " .. tlgext
               .. " file overrides unpacked version of the same name"
           )
-        end
-        if optpdf and fileexists(testdir .. "/" .. pdffile) then
-          print("Copying " .. spdffile)
-          ren(testdir, pdffile, spdffile)
-          cp(spdffile, testdir, testfiledir)
         end
       elseif locate({unpackdir, testfiledir}, {name .. lveext}) then
         print(
