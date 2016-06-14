@@ -45,26 +45,6 @@ checkdeps   = {maindir .. "/l3build"}
 typesetdeps = {maindir .. "/l3packages/xparse"}
 unpackdeps  = { }
 
--- Some customised functions
-function help()
-  print("usage: " .. arg[0] .. " <command> [<options>] [<names>]")
-  print("")
-  print("The most commonly used l3build commands are:")
-  print("   check      Run all automated tests")
-  print("   clean      Clean out directory tree")
-  print("   cmdcheck   Check commands documented are defined")
-  print("   ctan       Create CTAN-ready archive")
-  print("   doc        Typesets all documentation files")
-  print("   format     Builds a format")
-  print("   install    Installs files into the local texmf tree")
-  print("   save       Saves test validation log")
-  print("")
-  print("Valid options are:")
-  print("   --engine|-e         Sets the engine to use for running test")
-  print("   --halt-on-error|-H  Stops running tests after the first failure")
-  print("")
-end
-
 function format()
   local engines = checkengines
   if optengines then
