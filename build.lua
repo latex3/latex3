@@ -14,7 +14,6 @@ checkbundles =
     "l3kernel",
     "l3packages",
     "l3experimental",
-    "xpackages/xor",
     "l3trial",
     "contrib"
   }
