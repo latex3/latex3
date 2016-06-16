@@ -79,7 +79,6 @@ tlmgr install   \
   lualatex-math \
   luatexbase    \
   luatexja      \
-  metafont      \
   ms            \
   pgf           \
   tools         \
