@@ -10,7 +10,14 @@ module = "l3ldb"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
-checksuppfiles  = checksuppfiles  or
+-- Non-standard settings
+checkdeps   =
+  {
+    maindir .. "/l3build",
+    maindir .. "/l3kernel",
+    maindir .. "/l3packages/xtemplate"
+  }
+checksuppfiles  =
   {
     "article.cls",
     "regression-test.cfg",
