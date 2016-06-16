@@ -2,11 +2,10 @@
 
 # This script is used for testing using Travis
 # It is intended to work on their VM set up: Ubuntu 12.04 LTS
-# As such, the nature of the system is hard-coded
 # A minimal current TL is installed adding only the packages that are
 # required
 
-# See if there is a cached verson of TL available
+# See if there is a cached version of TL available
 export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
 if ! command -v texlua > /dev/null; then
   # Obtain TeX Live
@@ -18,79 +17,83 @@ if ! command -v texlua > /dev/null; then
   ./install-tl --profile=../support/texlive.profile
 
   cd ..
-
-  # Core requirements for the test system
-  tlmgr install babel babel-english latex latex-bin latex-fonts latexconfig \
-    xetex
-  tlmgr install --no-depends ptex uptex ptex-base uptex-base ptex-fonts \
-    uptex-fonts platex uplatex
 fi
 
-# Keep no backups (not required, simply makes cache bigger)
-tlmgr option -- autobackup 0
-# Update the TL install but add nothing new
-tlmgr update --self --all --no-auto-install
+# Absolutely required as it includes fmtutil-sys
+tlmgr install tetex
 
-# Dependencies
-tlmgr install \
+# Needed for any use of texlua even if not testing LuaTeX
+tlmgr install luatex
+
+# Required to build plain and LaTeX formats:
+# TeX90 plain for unpacking, pdfLaTeX, LuaLaTeX and XeTeX for tests
+tlmgr install cm etex knuth-lib latex-bin tex tex-ini-files unicode-data \
+  xetex
+  
+# Additional requirements for (u)pLaTeX, done with no dependencies to
+# avoid large font payloads
+tlmgr install --no-depends babel ptex uptex ptex-base uptex-base ptex-fonts \
+  uptex-fonts platex uplatex
+
+# Assuming a 'basic' font set up, metafont is required to avoid
+# warnings with some packages and errors with others
+tlmgr install metafont mfware
+
+# Additional packages needed to test xor
+tlmgr install courier dvips psnfss times tools url
+
+# Contrib packages for testing
+#
+# The packages themselves are done with --no-depends to avoid
+# picking up l3kernel, etc.
+#
+# fontspec comes first as other packages tested have it as a dep
+tlmgr install --no-depends fontspec
+tlmgr install euenc graphics-cfg ifluatex lm lualibs luaotfload luatex-def \
+  oberdiek pdftex-def xetex-def xunicode
+
+# Other contrib packages: done as a block to avoid multiple calls to tlmgr
+# Dependencies other than the core l3build set up, metafont, fontspec and the
+# 'graphics stack' (itself needed by fontspec) are listed below
+tlmgr install --no-depends \
+  chemformula \
+  ctex        \
+  mhchem      \
+  siunitx     \
+  unicode-math
+tlmgr install --no-depends cjk
+tlmgr install   \
   adobemapping  \
+  amsfonts      \
   amsmath       \
   chemgreek     \
   cjkpunct      \
   ctablestack   \
-  courier       \
   ec            \
   environ       \
   etoolbox      \
-  euenc         \
-  everyhook     \
   fandol        \
   filehook      \
-  graphics      \
-  graphics-cfg  \
-  lm            \
+  ifxetex       \
   lm-math       \
   lualatex-math \
-  lualibs       \
-  luatex-def    \
   luatexbase    \
   luatexja      \
-  luaotfload    \
-  mptopdf       \
+  metafont      \
   ms            \
-  oberdiek      \
-  pdftex-def    \
   pgf           \
-  psnfss        \
-  svn-prov      \
-  times         \
   tools         \
   trimspaces    \
   ucharcat      \
   ulem          \
   units         \
-  url           \
   xcolor        \
   xecjk         \
-  xetex-def     \
-  xkeyval       \
-  xunicode      \
   zhmetrics     \
   zhnumber
-tlmgr install --no-depends cjk
 
-# Contrib packages for testing: force no deps
-tlmgr install --no-depends \
-  chemformula \
-  ctex        \
-  fontspec    \
-  mhchem      \
-  siunitx     \
-  unicode-math
+# Keep no backups (not required, simply makes cache bigger)
+tlmgr option -- autobackup 0
 
-# Other bits and pieces
-mkdir -p `kpsewhich -var-value TEXMFHOME`/fonts/cid/fontforge
-cp ./support/Adobe-GB1-4.cidmap \
-  `kpsewhich -var-value TEXMFHOME`/fonts/cid/fontforge
-cp /tmp/texlive/texmf-var/fonts/conf/texlive-fontconfig.conf \
-  ~/.fonts.conf
+# Update the TL install but add nothing new
+tlmgr update --self --all --no-auto-install
