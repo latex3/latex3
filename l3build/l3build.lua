@@ -2050,7 +2050,7 @@ function stdmain(target, files)
       errorlevel = bundlectan()
     elseif target == "doc" then
       errorlevel = doc(files)
-    elseif target == "check" and testfiledir ~= "" then
+    elseif target == "check" then
       errorlevel = check(files)
     elseif target == "clean" then
       errorlevel = clean()
@@ -2060,7 +2060,7 @@ function stdmain(target, files)
       errorlevel = ctan(true)
     elseif target == "install" then
       errorlevel = install()
-    elseif target == "save" and testfiledir ~= "" then
+    elseif target == "save" then
       if next(files) then
         errorlevel = save(files)
       else
