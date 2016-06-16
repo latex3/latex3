@@ -10,8 +10,12 @@ module = "l3ldb"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
--- Non-standard settings
-checksearch = true
+checksuppfiles  = checksuppfiles  or
+  {
+    "article.cls",
+    "regression-test.cfg",
+    "size10.clo",
+  }
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
