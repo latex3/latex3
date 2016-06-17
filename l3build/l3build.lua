@@ -1073,12 +1073,13 @@ function runcheck(name, hide)
     if i == "luajitex" then
       engine = "luatex"
     end
-    setup_check(name, engine) 
-    runtest(name, i, hide, lvtext)
+    checkpdf = setup_check(name, engine)
+    runtest(name, i, hide, lvtext, checkpdf)
     -- Generation of results depends on test type
     local errlevel
-    errlevel = compare_pdf(name, engine)
-    if not errlevel then
+    if checkpdf then
+      errlevel = compare_pdf(name, engine)
+    else
       errlevel = compare_tlg(name, engine)
     end
     if errlevel ~= 0 and opthalt then
@@ -1111,7 +1112,7 @@ function setup_check(name, engine)
       )
       os.exit(1)
     end
-    runtest(name, engine, true, lveext)
+    runtest(name, engine, true, lveext, true)
     pdffile = testdir .. "/" .. testname .. pdfext
     -- If a PDF is generated use it for comparisons
     if not fileexists(pdffile) then
@@ -1137,6 +1138,9 @@ function setup_check(name, engine)
       pdffile,
       string.gsub(pdffile, pdfext .. "$", ".ref" .. pdfext)
     )
+    return true
+  else
+    return false
   end
 end
 
@@ -1202,7 +1206,7 @@ end
 
 -- Run one of the test files: doesn't check the result so suitable for
 -- both creating and verifying .tlg files
-function runtest(name, engine, hide, ext)
+function runtest(name, engine, hide, ext, makepdf)
   local lvtfile = name .. (ext or lvtext)
   cp(lvtfile, fileexists(testfiledir .. "/" .. lvtfile)
     and testfiledir or unpackdir, testdir)
@@ -1231,10 +1235,8 @@ function runtest(name, engine, hide, ext)
   end
   -- Special casing for XeTeX engine
   local checkopts = checkopts
-  if string.match(engine, "xetex") then
-    if not optpdf then
-      checkopts = checkopts .. " -no-pdf"
-    end
+  if string.match(engine, "xetex") and not makepdf then
+    checkopts = checkopts .. " -no-pdf"
   end
   local logfile = testdir .. "/" .. name .. logext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
@@ -1270,10 +1272,8 @@ function runtest(name, engine, hide, ext)
       runtest_tasks(stripext(lvtfile))
     )
   end
-  if optpdf then
-    if fileexists(testdir .. "/" .. name .. dviext) then
-      dvitopdf(name, testdir, engine, hide)
-    end
+  if makepdf and fileexists(testdir .. "/" .. name .. dviext) then
+    dvitopdf(name, testdir, engine, hide)
   end
   formatlog(logfile, newfile, engine)
   -- Store secondary files for this engine
@@ -1797,7 +1797,7 @@ function save(names)
       local refext = ((optpdf and pdfext) or tlgext)
       if testexists(name) then
         print("Creating and copying " .. refext)
-        runtest(name, engine, false, lvtext)
+        runtest(name, engine, false, lvtext, optpdf)
         if optpdf then
           ren(testdir, pdffile, spdffile)
           cp(spdffile, testdir, testfiledir)
