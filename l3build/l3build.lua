@@ -1109,7 +1109,7 @@ function setup_check(name, engine)
       )
       os.exit(1)
     end
-    runtest(name, engine, hide, lveext)
+    runtest(name, engine, true, lveext)
     reffile = testdir .. "/" .. testname .. refext
     if not optpdf then
       ren(testdir, testname .. logext, testname .. tlgext)
