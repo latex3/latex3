@@ -1075,11 +1075,10 @@ function runcheck(name, hide)
     end
     setup_check(name, engine) 
     runtest(name, i, hide, lvtext)
-    -- Generation of results heavily depends on test type
+    -- Generation of results depends on test type
     local errlevel
-    if optpdf then
-      errlevel = compare_pdf(name, engine)
-    else
+    errlevel = compare_pdf(name, engine)
+    if not errlevel then
       errlevel = compare_tlg(name, engine)
     end
     if errlevel ~= 0 and opthalt then
@@ -1095,38 +1094,48 @@ end
 
 function setup_check(name, engine)
   local testname = name .. "." .. engine
-  local refext = ((optpdf and pdfext) or tlgext)
-  local reffile = locate(
+  local pdffile = locate(
     {testfiledir, unpackdir},
-    {testname .. refext, name .. refext}
+    {testname .. pdfext, name .. pdfext}
+  )
+  local tlgfile = locate(
+    {testfiledir, unpackdir},
+    {testname .. tlgext, name .. tlgext}
   )
   -- Attempt to generate missing reference file from expectation
-  if not reffile then
+  if not (pdffile or tlgfile) then
     if not locate({unpackdir, testfiledir}, {name .. lveext}) then
       print(
-        "Error: failed to find " .. refext .. " or "
+        "Error: failed to find " .. pdfext .. ", " .. tlgext .. " or "
           .. lveext .. " file for " .. name .. "!"
       )
       os.exit(1)
     end
     runtest(name, engine, true, lveext)
-    reffile = testdir .. "/" .. testname .. refext
-    if not optpdf then
+    pdffile = testdir .. "/" .. testname .. pdfext
+    -- If a PDF is generated use it for comparisons
+    if not fileexists(pdffile) then
+      pdffile = nil
       ren(testdir, testname .. logext, testname .. tlgext)
     end
   else
-    cp(
-      string.match(reffile, ".*/(.*)"),
-      string.match(reffile, "(.*)/.*"),
-      testdir
-    )
+    -- Install comparison files found
+    for _,v in pairs({pdffile, tlgfile}) do
+      if v then
+        cp(
+          string.match(v, ".*/(.*)"),
+          string.match(v, "(.*)/.*"),
+          testdir
+        )
+      end
+    end
   end
-  if optpdf then
-    local reffile = string.match(reffile, ".*/(.*)")
+  if pdffile then
+    local pdffile = string.match(pdffile, ".*/(.*)")
     ren(
       testdir,
-      reffile,
-      string.gsub(reffile, pdfext .. "$", ".ref" .. pdfext)
+      pdffile,
+      string.gsub(pdffile, pdfext .. "$", ".ref" .. pdfext)
     )
   end
 end
@@ -1139,6 +1148,9 @@ function compare_pdf(name, engine)
   local refpdffile = locate(
     {testdir}, {testname .. ".ref" .. pdfext, name .. ".ref" .. pdfext}
   )
+  if not refpdffile then
+    return
+  end
   if os_windows then
     refpdffile = unix_to_win(refpdffile)
   end
@@ -1157,6 +1169,9 @@ function compare_tlg(name, engine)
   local difffile = testdir .. "/" .. testname .. os_diffext
   local logfile  = testdir .. "/" .. testname .. logext
   local tlgfile  = locate({testdir}, {testname .. tlgext, name .. tlgext})
+  if not tlgfile then
+    return
+  end
   if os_windows then
     tlgfile = unix_to_win(tlgfile)
   end
