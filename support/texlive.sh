@@ -39,9 +39,6 @@ tlmgr install --no-depends babel ptex uptex ptex-base uptex-base ptex-fonts \
 # warnings with some packages and errors with others
 tlmgr install metafont mfware
 
-# Additional packages needed to test xor
-tlmgr install courier dvips psnfss times tools url
-
 # Contrib packages for testing
 #
 # The packages themselves are done with --no-depends to avoid
@@ -49,8 +46,8 @@ tlmgr install courier dvips psnfss times tools url
 #
 # fontspec comes first as other packages tested have it as a dep
 tlmgr install --no-depends fontspec
-tlmgr install euenc graphics-cfg ifluatex lm lualibs luaotfload luatex-def \
-  oberdiek pdftex-def xetex-def xunicode
+tlmgr install euenc graphics graphics-cfg ifluatex lm lualibs luaotfload \
+  luatex-def oberdiek pdftex-def xetex-def xunicode
 
 # Other contrib packages: done as a block to avoid multiple calls to tlmgr
 # Dependencies other than the core l3build set up, metafont, fontspec and the
