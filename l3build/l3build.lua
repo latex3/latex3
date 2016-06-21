@@ -1237,6 +1237,20 @@ function runtest(name, engine, hide, ext, makepdf)
   if string.match(engine, "xetex") and not makepdf then
     checkopts = checkopts .. " -no-pdf"
   end
+  -- Special casing for ConTeXt
+  if string.match(checkformat, "^context$") then
+    format = ""
+    if engine == "luatex" or engine == "luajittex" then
+      realengine = "context"
+    elseif engine == "pdftex" then
+      realengine = "texexec"
+    elseif engine == "xetex" then
+      realengine = "texexec --xetex"
+    else
+      print("Engine incompatible with format")
+      os.exit(1)
+    end
+  end
   local logfile = testdir .. "/" .. name .. logext
   local newfile = testdir .. "/" .. name .. "." .. engine .. logext
   local asciiopt = ""
