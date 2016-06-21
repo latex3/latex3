@@ -761,7 +761,7 @@ function formatlog(logfile, newfile, engine)
     return false
   end
     -- Substitutions to remove some non-useful changes
-  local function normalize(line)
+  local function normalize(line, lastline)
     -- Zap line numbers from \show, \showbox, \box_show and the like:
     -- do this before wrapping lines
     line = string.gsub(line, "^l%.%d+ ", "l. ...")
@@ -769,8 +769,7 @@ function formatlog(logfile, newfile, engine)
     -- Skip lines that have an explicit marker for truncation
     if string.len(line) == maxprintline  and
        not string.match(line, "%.%.%.$") then
-      lastline = (lastline or "") .. line
-      return ""
+      return "", (lastline or "") .. line
     end
     local line = (lastline or "") .. line
     lastline = ""
@@ -829,7 +828,7 @@ function formatlog(logfile, newfile, engine)
         line = string.gsub(line, utf8_char(i), "^^" .. string.format("%02x", i))
       end
     end
-    return line
+    return line, lastline
   end
   local lastline = ""
   local newlog = ""
@@ -845,7 +844,7 @@ function formatlog(logfile, newfile, engine)
     elseif string.match(line, "^%)?TIMO$") then
       skipping = false
     elseif not prestart and not skipping then
-      line = normalize(line)
+      line, lastline = normalize(line, lastline)
       if not string.match(line, "^ *$") and not killcheck(line) then
         newlog = newlog .. line .. os_newline
       end
