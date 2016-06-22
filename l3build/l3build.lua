@@ -822,6 +822,10 @@ function formatlog(logfile, newfile, engine)
     if string.match(line, "^%.*\\special%{pdf: docinfo << /Creator") then
       return ""
     end
+    -- Remove the \special line possibly present in DVI mode for paper size
+    if string.match(line, "^%.*\\special%{papersize") then
+      return ""
+    end
     -- Remove ConTeXt stuff
     if string.match(line, "^backend         >") or
        string.match(line, "^close source    >") or
