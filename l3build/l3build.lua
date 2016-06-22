@@ -818,6 +818,10 @@ function formatlog(logfile, newfile, engine)
     end
     -- Remove 'normal' direction information on boxes with (u)pTeX
     line = string.gsub(line, ",? yoko direction,?", "")
+    -- Remove the \special line that in DVI mode keeps PDFs comparable
+    if string.match(line, "^%.*\\special%{pdf: docinfo << /Creator") then
+      return ""
+    end
     -- Remove ConTeXt stuff
     if string.match(line, "^backend         >") or
        string.match(line, "^close source    >") or
