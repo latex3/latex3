@@ -182,7 +182,7 @@ function argparse()
       help                = "help"   ,
       pdf                 = "pdf" ,
       quiet               = "quiet"  ,
-      version             = "version"
+      release             = "release"
     }
   local short_options =
     {
@@ -192,7 +192,7 @@ function argparse()
       H = "halt"   ,
       p = "pdf"  ,
       q = "quiet"  ,
-      v = "version"
+      r = "release"
     }
   local option_args =
     {
@@ -202,7 +202,7 @@ function argparse()
       help    = false,
       pdf     = false,
       quiet   = false,
-      version = true
+      release = true
     }
   -- arg[1] is a special case: must be a command or "-h"/"--help"
   -- Deal with this by assuming help and storing only apparently-valid
@@ -312,7 +312,7 @@ opthalt    = userargs["halt"]
 opthelp    = userargs["help"]
 optpdf     = userargs["pdf"]
 optquiet   = userargs["quiet"]
-optversion = userargs["version"]
+optrelease = userargs["release"]
 
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
@@ -609,9 +609,9 @@ function allmodules(target)
     if optengines then
       engines = " --engine=" .. table.concat(optengines, ",")
     end
-    local version = ""
-    if optversion then
-      version = " --version=" .. optversion[1]
+    local release = ""
+    if optrelease then
+      release = " --release=" .. release[1]
     end
     local errorlevel = run(
       i,
@@ -621,7 +621,7 @@ function allmodules(target)
         .. engines
         .. (optpdf and " -p" or "")
         .. (optquiet and " -q" or "")
-        .. version
+        .. release
     )
     if errorlevel ~= 0 then
       return errorlevel
@@ -1515,7 +1515,7 @@ function help()
   print("   --halt-on-error|-H  Stops running tests after the first failure")
   print("   --pdf|-p            Check/save PDF files")
   print("   --quiet|-q          Suppresses TeX output when unpacking")
-  print("   --version|-v        Sets the version to insert into sources")
+  print("   --release|-r        Sets the release to insert into sources")
   print("")
   print("See l3build.pdf for further details.")
 end

@@ -37,9 +37,9 @@ function main (target)
       if optengines then
         engines = " --engine=" .. table.concat(optengines, ",")
       end
-      local version = ""
-      if optversion then
-        version = " --version=" .. optversion[1]
+      local release = ""
+      if optrelease then
+        release = " --release=" .. optversion[1]
       end
       errorlevel = run(
         i,
@@ -50,7 +50,7 @@ function main (target)
           .. engines
           .. (optpdf and " -p" or "")
           .. (optquiet and " -q" or "")
-          .. version
+          .. release
       )
       if errorlevel ~= 0 then
         break
