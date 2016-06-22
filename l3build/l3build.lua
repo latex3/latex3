@@ -799,7 +799,7 @@ function formatlog(logfile, newfile, engine)
     -- Merge all of .fd data into one line so will be removed later
     if string.match(line, "^ *%([%.%/%w]+%.fd[^%)]*$") then
       lastline = (lastline or "") .. line
-      return ""
+      return "", (lastline or "") .. line
     end
     -- TeX90/XeTeX knows only the smaller set of dimension units
     line = string.gsub(
