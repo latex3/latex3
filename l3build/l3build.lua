@@ -818,6 +818,17 @@ function formatlog(logfile, newfile, engine)
     end
     -- Remove 'normal' direction information on boxes with (u)pTeX
     line = string.gsub(line, ",? yoko direction,?", "")
+    -- Remove ConTeXt stuff
+    if string.match(line, "^backend         >") or
+       string.match(line, "^close source    >") or
+       string.match(line, "^mkiv lua stats  >") or
+       string.match(line, "^pages           >") or
+       string.match(line, "^system          >") or
+       string.match(line, "^used file       >") or
+       string.match(line, "^used option     >") or
+       string.match(line, "^used structure  >") then
+       return ""
+    end
     -- A tidy-up to keep LuaTeX and other engines in sync
     local utf8_char = unicode.utf8.char
     line = string.gsub(line, utf8_char(127), "^^?")
