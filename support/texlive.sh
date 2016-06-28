@@ -19,9 +19,6 @@ if ! command -v texlua > /dev/null; then
   cd ..
 fi
 
-# Absolutely required as it includes fmtutil-sys
-tlmgr install tetex
-
 # Needed for any use of texlua even if not testing LuaTeX
 tlmgr install luatex
 
