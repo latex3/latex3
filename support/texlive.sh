@@ -43,8 +43,8 @@ tlmgr install metafont mfware
 #
 # fontspec comes first as other packages tested have it as a dep
 tlmgr install --no-depends fontspec
-tlmgr install euenc graphics graphics-cfg ifluatex lm lualibs luaotfload \
-  luatex-def oberdiek pdftex-def xetex-def xunicode
+tlmgr install euenc graphics graphics-cfg graphics-def ifluatex lm lualibs \
+  luaotfload oberdiek  xunicode
 
 # Other contrib packages: done as a block to avoid multiple calls to tlmgr
 # Dependencies other than the core l3build set up, metafont, fontspec and the
