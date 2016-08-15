@@ -125,6 +125,35 @@ function main(target, files)
   os.exit(errorlevel)
 end
 
+-- We need more runs than the default for source3.
+
+function typeset(file)
+  local errorlevel = tex(file)
+  if errorlevel ~= 0 then
+    return errorlevel
+  else
+    local name = stripext(file)
+    errorlevel = biber(name) + bibtex(name)
+    if errorlevel == 0 then
+      local function cycle(name)
+        return(
+          makeindex(name, ".glo", ".gls", ".glg", glossarystyle) +
+          makeindex(name, ".idx", ".ind", ".ilg", indexstyle)    +
+          tex(file)
+        )
+      end
+      errorlevel = cycle(name)
+      if errorlevel == 0 then
+        errorlevel = cycle(name)
+        if errorlevel == 0 then
+          errorlevel = tex(file)
+        end
+      end
+    end
+    return errorlevel
+  end
+end
+
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
 -- As the build system is 'self-contained' there is no module set up here: just
