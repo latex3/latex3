@@ -874,6 +874,7 @@ Do not distribute a modified version of this file.
 %     \tl_replace_all:Non,
 %     \tl_replace_all:Nno,
 %     \tl_replace_once:Noo,
+%     \tl_to_str:f,
 %     \prop_get:NxNTF,
 %     \prop_put:Nxn,
 %     \prop_gput:NVx,
@@ -893,9 +894,29 @@ Do not distribute a modified version of this file.
 \cs_generate_variant:Nn \tl_remove_all:Nn   { Nx }
 \cs_generate_variant:Nn \tl_replace_all:Nnn { Nx , Nnx, No , Nno }
 \cs_generate_variant:Nn \tl_replace_once:Nnn { Noo }
+\cs_generate_variant:Nn \tl_to_str:n { f }
 \cs_generate_variant:Nn \prop_get:NnNTF { Nx }
 \cs_generate_variant:Nn \prop_put:Nnn { Nx }
 \cs_generate_variant:Nn \prop_gput:Nnn { NVx }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int,TF]{\@@_if_almost_str:n}
+%   Used to test if the argument of |\cmd| or other macros to be indexed
+%   is almost a string or not: for instance this will be wrong if |#1|
+%   contains |\meta{...}|.  The surprising |f|-expansion are there to
+%   cope with the case of |#1| starting with \cs{c_@@_backslash_tl}
+%   which should be expanded and considered to be \enquote{normal}.
+%    \begin{macrocode}
+\prg_new_protected_conditional:Npnn \@@_if_almost_str:n #1 { TF , T , F }
+  {
+    \int_compare:nNnTF
+      { \tl_count:n {#1} }
+      < { \tl_count:f { \tl_to_str:f {#1} } }
+      { \prg_return_false: }
+      { \prg_return_true: }
+  }
+\cs_generate_variant:Nn \@@_if_almost_str:nT { V }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -930,15 +951,16 @@ Do not distribute a modified version of this file.
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[aux,rEXP]
-%   {\@@_signature_base_form:n, \@@_signature_base_form_aux:n}
+% \begin{macro}[aux,rEXP]{\@@_signature_base_form:n}
+% \begin{macro}[aux]
+%   {\@@_signature_base_form_aux:n, \@@_signature_base_form_aux:w}
 %   Expands to the \enquote{base form} of the signature.  For instance,
 %   given |noxcfvV| it would obtain |nnnNnnn|, or given |ow| it would
 %   obtain |nw|.  The loop stops at the first token that is not
-%   recognized.
+%   recognized; the rest is enclosed in \cs{exp_not:n}.
 %    \begin{macrocode}
 \cs_new:Npn \@@_signature_base_form:n #1
-  { \@@_signature_base_form_aux:n #1 \c_empty_tl }
+  { \@@_signature_base_form_aux:n #1 \q_stop }
 \cs_new:Npn \@@_signature_base_form_aux:n #1
   {
     \str_case:nnTF {#1}
@@ -953,9 +975,12 @@ Do not distribute a modified version of this file.
         { v } { n }
       }
       { \@@_signature_base_form_aux:n }
-      {#1}
+      { \@@_signature_base_form_aux:w #1 }
   }
+\cs_new:Npn \@@_signature_base_form_aux:w #1 \q_stop
+  { \exp_not:n {#1} }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[aux]{\@@_predicate_from_base:n}
@@ -1003,6 +1028,56 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux, rEXP]{\@@_base_form:n}
+%   Get the base form of a function and output it within \cs{exp_not:n},
+%   useful for cases where |#1| contains for instance active characters.
+%    \begin{macrocode}
+\cs_new:Npn \@@_base_form:n #1
+  { \@@_split_function_do:nn {#1} { \@@_base_form_aux:nnN } }
+\cs_new:Npn \@@_base_form_aux:nnN #1#2#3
+  {
+    \exp_not:n {#1}
+    \bool_if:NT #3
+      { \token_to_str:N : \@@_signature_base_form:n {#2} }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_base_form_signature_do:nnn}
+%   Do |#2{#1}| if there is no signature, or if |#1| contains two colons
+%   in a row (this covers the weird function |\::N| and so on).
+%   Otherwise apply |#3| with the following two arguments: the base form
+%   of |#1|, and the original signature with an extra pair of braces.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_base_form_signature_do:nnn #1#2#3
+  {
+    \@@_split_function_do:nn {#1}
+      { \@@_base_form_aux:nnnnnN {#1} {#2} {#3} }
+  }
+\cs_new_protected:Npn \@@_base_form_aux:nnnnnN #1#2#3#4#5#6
+  {
+    \bool_if:NTF #6
+      {
+        \tl_if_head_eq_charcode:nNTF {#4} :
+          { #2 {#1} { \scan_stop: } }
+          {
+            \use:x
+              {
+                \exp_not:n {#3}
+                {
+                  \exp_not:n {#4}
+                  \token_to_str:N :
+                  \@@_signature_base_form:n {#5}
+                }
+              }
+                { {#5} }
+          }
+      }
+      { #2 {#1} { \scan_stop: } }
+  }
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[aux]
@@ -1056,6 +1131,19 @@ Do not distribute a modified version of this file.
 % \end{macro}
 % \end{macro}
 % \end{macro}
+%
+% \subsection{Messages}
+%
+%    \begin{macrocode}
+\msg_new:nnnn { l3doc } { no-signature-TF }
+  { Function/macro~'#1'~cannot~be~turned~into~a~conditional. }
+  {
+    A~function~or~macro~environment~with~option~pTF~or~TF~
+    received~the~argument~'#1'.~This~function's~name~has~no~
+    ':'~hence~it~is~not~clear~where~to~add~'_p'~or~'TF'.~
+    Please~follow~expl3~naming~conventions.
+  }
+%    \end{macrocode}
 %
 % \subsection{Options and configuration}
 %
@@ -1207,6 +1295,23 @@ Do not distribute a modified version of this file.
 \fvset{gobble=2}
 \cs_gset_eq:NN \verbatim \Verbatim
 \cs_gset_eq:NN \endverbatim \endVerbatim
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\ifnot@excluded}
+%   This function tests whether a macro name stored in
+%   \tn{macro@namepart} was excluded from indexing by \tn{DoNotIndex}.
+%   Rather than trying to fix catcodes that come into here, turn
+%   everything to string catcodes.  This is somewhat inefficient as we
+%   could have ensured that \tn{index@excludelist} has string catcodes
+%   in the first place.
+%    \begin{macrocode}
+\cs_set_protected:Npn \ifnot@excluded
+  {
+    \exp_args:Nxx \expanded@notin
+      { \c_@@_backslash_tl \tl_to_str:N \macro@namepart , }
+      { \exp_args:NV \tl_to_str:n \index@excludelist }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1538,9 +1643,7 @@ Do not distribute a modified version of this file.
     \mode_if_math:T { \mbox }
     {
       \verbatim@font
-      \int_compare:nNnF
-        { \tl_count:N \l_@@_cmd_tl }
-        < { \tl_count:f { \tl_to_str:N \l_@@_cmd_tl } }
+      \@@_if_almost_str:VT \l_@@_cmd_tl
         {
           \tl_set:Nx \l_@@_cmd_tl { \tl_to_str:N \l_@@_cmd_tl }
           \tl_replace_all:Non \l_@@_cmd_tl
@@ -1621,7 +1724,7 @@ Do not distribute a modified version of this file.
 % \subsubsection{Common between \env{macro} and \env{function}}
 %
 % \begin{macro}{\@@_typeset_TF:, \@@_typeset_aux:n}
-%   Used by \cs{@@_macro_single:n} and in the \env{function} environment
+%   Used by \cs{@@_macro_single:nN} and in the \env{function} environment
 %   to typeset conditionals and auxiliary functions.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_typeset_TF:
@@ -1697,12 +1800,7 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux]
-%   {
-%     \@@_names_parse:,
-%     \@@_names_parse_one:n,
-%     \@@_names_parse_cs_aux:nnN
-%   }
+% \begin{macro}[aux]{\@@_names_parse:, \@@_names_parse_one:n}
 %   The idea here is to populate \cs{l_@@_names_block_prop} with
 %   information about the functions being typeset and their variants.
 %   The property list uses a specific format: the keys contained are the
@@ -1738,18 +1836,9 @@ Do not distribute a modified version of this file.
   }
 \cs_new_protected:Npn \@@_names_parse_one:n #1
   {
-    \tl_if_in:noTF {#1} { \token_to_str:N \:: }
-      { \prop_put:Nnn \l_@@_names_block_prop {#1} { \scan_stop: } }
-      { \@@_split_function_do:nn {#1} \@@_names_parse_cs_aux:nnN }
-  }
-\cs_new_protected:Npn \@@_names_parse_cs_aux:nnN #1#2#3
-  {
-    \bool_if:NTF #3
-      {
-        \@@_clist_prop_put_right:Nxn \l_@@_names_block_prop
-          { #1 : \@@_signature_base_form:n {#2} } { {#2} }
-      }
-      { \prop_put:Nnn \l_@@_names_block_prop {#1} { \scan_stop: } }
+    \@@_base_form_signature_do:nnn {#1}
+      { \prop_put:Nnn \l_@@_names_block_prop }
+      { \@@_clist_prop_put_right:Nxn \l_@@_names_block_prop }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1804,7 +1893,6 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
-% ^^A TODO: error message; error recovery
 %
 % \begin{macro}[aux]
 %   {\@@_names_typeset_auxii:n, \@@_names_typeset_auxii:x}
@@ -2250,7 +2338,7 @@ Do not distribute a modified version of this file.
 %   comma-list of \meta{names}, read verbatim by \pkg{xparse}.  First
 %   initialize some variables before applying the \meta{options}, then
 %   parse the \meta{names} to get a sequence of macro names, then apply
-%   \cs{@@_macro_single:n} to each (this step is more subtle than
+%   \cs{@@_macro_single:nN} to each (this step is more subtle than
 %   \cs{seq_map_function:NN} because of |TF|/|pTF|).  Finally typeset
 %   the macro names in the margin.
 %    \begin{macrocode}
@@ -2323,7 +2411,7 @@ Do not distribute a modified version of this file.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_macro_typeset_block:n #1
   {
-    \@@_macro_single:n {#1}
+    \@@_macro_single:nN {#1} \c_true_bool
     \clist_if_empty:NF \g_@@_variants_clist
       {
         \@@_macro_typeset_variant_list:x
@@ -2334,13 +2422,15 @@ Do not distribute a modified version of this file.
 \cs_new_protected:Npn \@@_macro_typeset_variant_list:n #1
   {
     \clist_map_inline:Nn \g_@@_variants_clist
-      { \@@_macro_single:n { #1 : ##1 } }
+      { \@@_macro_single:nN { #1 : ##1 } \c_false_bool }
   }
 \cs_generate_variant:Nn \@@_macro_typeset_variant_list:n { x }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_macro_single:n}
+% \begin{macro}{\@@_macro_single:nN}
+%   The arguments are a macro name (without |TF|) and a boolean
+%   determining whether or not to index.
 %   Let's start to mess around with \cls{doc}'s \env{macro} environment.
 %   See \file{doc.dtx} for a full explanation of the original
 %   environment.  It's rather \emph{enthusiastically} commented.
@@ -2351,29 +2441,34 @@ Do not distribute a modified version of this file.
 %   The assignments to \cs{saved@macroname} and \cs{saved@indexname}
 %   are used by \pkg{doc}'s \cs{changes} mechanism.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_macro_single:n #1
+\cs_new_protected:Npn \@@_macro_single:nN #1#2
   {
     \tl_set:Nn \saved@macroname {#1}
     \@@_macro_typeset_one:n {#1}
-    \exp_args:Nx \@@_macro_index:n
+    \bool_if:NT \l_@@_macro_TF_bool { \DoNotIndex {#1} }
+    \exp_args:Nx \@@_macro_index:nN
       {
         #1
         \bool_if:NT \l_@@_macro_TF_bool { \tl_to_str:n { TF } }
       }
+      #2
   }
-\cs_new_protected:Npn \@@_macro_index:n #1
+\cs_new_protected:Npn \@@_macro_index:nN #1#2
   {
-    \bool_if:NF \l_@@_macro_aux_bool
-      { \seq_gput_right:Nn \g_doc_macros_seq {#1} }
-    \hbox_set:Nw \l_@@_macro_index_box
-      % This box only contains targets... it seems inefficient.
-      \hbox_unpack_clear:N \l_@@_macro_index_box
-      \int_gincr:N \c@CodelineNo
-      \@@_special_index:nn {#1} { main }
-      \DoNotIndex {#1}
-      \int_gdecr:N \c@CodelineNo
-    \exp_args:NNNo \hbox_set_end:
-      \tl_set:Nn \saved@indexname { \l_@@_index_key_tl }
+    \bool_if:NTF #2
+      {
+        \bool_if:NF \l_@@_macro_aux_bool
+          { \seq_gput_right:Nn \g_doc_macros_seq {#1} }
+        \hbox_set:Nw \l_@@_macro_index_box
+          \hbox_unpack_clear:N \l_@@_macro_index_box
+          \int_gincr:N \c@CodelineNo
+          \@@_special_index:nn {#1} { main }
+          \DoNotIndex {#1}
+          \int_gdecr:N \c@CodelineNo
+        \exp_args:NNNo \hbox_set_end:
+          \tl_set:Nn \saved@indexname { \l_@@_index_key_tl }
+      }
+      { \DoNotIndex {#1} }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3291,10 +3386,11 @@ Do not distribute a modified version of this file.
 % \end{macro}
 %
 % \begin{macro}[aux]{\@@_special_index:nn}
+% ^^A TODO comment TODO stringify?
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_special_index:nn #1#2
   {
-    \@@_key_get:n {#1}
+    \exp_args:Nx \@@_key_get:n { \@@_base_form:n {#1} }
     \@@_special_index_module:ooon
       { \l_@@_index_key_tl }
       { \l_@@_index_macro_tl }
@@ -3316,7 +3412,8 @@ Do not distribute a modified version of this file.
 %   Remotely based on Heiko's replacement to play nicely with
 %   \pkg{hypdoc}.  We use \tn{verb} or a \tn{verbatim@font} construction
 %   depending on whether the number of tokens in |#2| is equal to its
-%   number of characters.
+%   number of characters: if it is not then that suggests that there is
+%   a construct such as |\meta{...}|.
 %    \begin{macrocode}
 \tl_new:N \l_@@_index_escaped_macro_tl
 \cs_new_protected:Npn \@@_special_index_module:nnnn #1#2#3#4
@@ -3360,13 +3457,7 @@ Do not distribute a modified version of this file.
 \cs_new_protected:Npn \@@_special_index_set:Nn #1#2
   {
     \tl_set:Nx #1 { \tl_to_str:n {#2} }
-    \int_compare:nNnTF { \tl_count:n {#2} } < { \tl_count:N #1 }
-      {
-        \tl_set:Nn #1 {#2}
-        \tl_replace_all:Non #1
-          { \c_@@_backslash_tl }
-          { \token_to_str:N \bslash \c_space_tl }
-      }
+    \@@_if_almost_str:nTF {#2}
       {
         \exp_args:Nx \tl_map_inline:nn
           { \tl_to_str:N \verbatimchar \token_to_str:N _ }
@@ -3388,6 +3479,12 @@ Do not distribute a modified version of this file.
             #1 \verbatimchar
           }
       }
+      {
+        \tl_set:Nn #1 {#2}
+        \tl_replace_all:Non #1
+          { \c_@@_backslash_tl }
+          { \token_to_str:N \bslash \c_space_tl }
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3396,9 +3493,12 @@ Do not distribute a modified version of this file.
 %
 % \begin{macro}[aux]{\@@_key_get:n}
 %   Sets \cs{l_@@_index_macro_tl}, \cs{l_@@_index_key_tl}, and
-%   \cs{l_@@_index_module_tl} from |#1|.  The \cs{l_@@_index_macro_tl}
-%   contains~|#1| directly.  The starting point for the \meta{key} is
-%   |#1| as a string.  If it the first character is a backslash, remove
+%   \cs{l_@@_index_module_tl} from |#1|.  The base function is stored by
+%   \cs{@@_key_get_base:n} in \cs{l_@@_index_macro_tl}, falling back to
+%   |#1| if it contains markup or has no signature.
+%
+%   The starting point for the \meta{key} is \cs{l_@@_index_key_tl} as a
+%   string.  If it the first character is a backslash, remove
 %   it.  Then recognize |expl| functions and variables by the presence
 %   of |:| or~|_| and \TeX{}/\LaTeXe{} commands by the presence of~|@|.
 %   For |expl| names, we call \cs{@@_key_expl:}, which is responsible
@@ -3416,8 +3516,9 @@ Do not distribute a modified version of this file.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_key_get:n #1
   {
-    \tl_set:Nn \l_@@_index_macro_tl {#1}
-    \tl_set:Nx \l_@@_index_key_tl { \tl_to_str:n {#1} }
+    \@@_key_get_base:n {#1}
+    \tl_set:Nx \l_@@_index_key_tl
+      { \tl_to_str:N \l_@@_index_macro_tl }
     \tl_clear:N \l_@@_index_module_tl
     \tl_if_head_eq_charcode:oNT
       { \l_@@_index_key_tl } \c_@@_backslash_token
@@ -3432,6 +3533,15 @@ Do not distribute a modified version of this file.
               { \tl_set:Nn \l_@@_index_module_tl { TeX } }
           }
       }
+  }
+\cs_new_protected:Npn \@@_key_get_base:n #1
+  {
+    \@@_if_almost_str:nTF {#1}
+      {
+        \tl_set:Nx \l_@@_index_macro_tl
+          { \@@_base_form:n {#1} }
+      }
+      { \tl_set:Nn \l_@@_index_macro_tl {#1} }
   }
 \cs_new_protected:Npn \@@_key_pop:
   {
