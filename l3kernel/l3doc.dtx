@@ -866,6 +866,8 @@ Do not distribute a modified version of this file.
 %
 % \begin{macro}
 %   {
+%     \seq_set_split:NoV,
+%     \str_case:fn,
 %     \tl_count:f,
 %     \tl_greplace_all:Nxn,
 %     \tl_greplace_all:Nno,
@@ -890,6 +892,8 @@ Do not distribute a modified version of this file.
 %   }
 %   A few missing variants.
 %    \begin{macrocode}
+\cs_generate_variant:Nn \seq_set_split:Nnn { NoV }
+\cs_generate_variant:Nn \str_case:nn { fn }
 \cs_generate_variant:Nn \tl_count:n { f }
 \cs_generate_variant:Nn \tl_greplace_all:Nnn { Nx , Nno }
 \cs_generate_variant:Nn \tl_if_head_eq_charcode:nNTF { o }
@@ -1049,7 +1053,12 @@ Do not distribute a modified version of this file.
   {
     \exp_not:n {#1}
     \bool_if:NT #3
-      { \token_to_str:N : \@@_signature_base_form:n {#2} }
+      {
+        \token_to_str:N :
+        \str_if_eq:nnTF { #1 ~ } { \exp_args }
+          { \exp_not:n {#2} }
+          { \@@_signature_base_form:n {#2} }
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1078,7 +1087,9 @@ Do not distribute a modified version of this file.
                 {
                   \exp_not:n {#4}
                   \token_to_str:N :
-                  \@@_signature_base_form:n {#5}
+                  \str_if_eq:nnTF { #4 ~ } { \exp_args }
+                    { \exp_not:n {#5} }
+                    { \@@_signature_base_form:n {#5} }
                 }
               }
                 { {#5} }
@@ -1680,7 +1691,10 @@ Do not distribute a modified version of this file.
     }
     \exp_args:No \@@_key_get:n { \l_@@_cmd_tl }
     \quark_if_no_value:NF \l_@@_cmd_index_tl
-      { \tl_set_eq:NN \l_@@_index_module_tl \l_@@_cmd_index_tl }
+      {
+        \tl_set:Nx \l_@@_index_module_tl
+          { \tl_to_str:N \l_@@_cmd_index_tl }
+      }
     \@@_special_index_module:ooon
       { \l_@@_index_key_tl }
       { \l_@@_index_macro_tl }
@@ -3555,18 +3569,10 @@ Do not distribute a modified version of this file.
 %   string.  If it the first character is a backslash, remove
 %   it.  Then recognize |expl| functions and variables by the presence
 %   of |:| or~|_| and \TeX{}/\LaTeXe{} commands by the presence of~|@|.
-%   For |expl| names, we call \cs{@@_key_expl:}, which is responsible
-%   for removing some characters and finding the module name, while for
-%   \TeX{}/\LaTeXe{} commands the module name is |TeX|, and others have
-%   an empty module name.  The function \cs{@@_key_expl:} detects a
-%   leading~|.| and removes it (key property), and otherwise does the
-%   following: if the second character is~|_| and the first is as well,
-%   then remove both (internal |expl| function); if the second character
-%   is~|_| but the first is not (the case of an |expl| variable), then
-%   remove both and remove a subsequent~|_| character (for internal
-%   variables).  In all cases, call \cs{@@_key_get_module:}, which sets
-%   \cs{l_@@_index_module_tl} by removing anything after |_| or~|:| in
-%   \cs{l_@@_index_key_tl}.
+%   For |expl| names, we call \cs{@@_key_func:} or \cs{@@_key_var:},
+%   which are responsible for removing some characters and finding the
+%   module name, while for \TeX{}/\LaTeXe{} commands the module name is
+%   |TeX|, and others have an empty module name.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_key_get:n #1
   {
@@ -3578,10 +3584,10 @@ Do not distribute a modified version of this file.
       { \l_@@_index_key_tl } \c_@@_backslash_token
       { \@@_key_pop: }
     \tl_if_in:NoTF \l_@@_index_key_tl { \token_to_str:N : }
-      { \@@_key_expl: }
+      { \@@_key_func: }
       {
         \tl_if_in:NoTF \l_@@_index_key_tl { \token_to_str:N _ }
-          { \@@_key_expl: }
+          { \@@_key_var: }
           {
             \tl_if_in:NoT \l_@@_index_key_tl { \token_to_str:N @ }
               { \tl_set:Nn \l_@@_index_module_tl { TeX } }
@@ -3602,48 +3608,95 @@ Do not distribute a modified version of this file.
     \tl_set:Nx \l_@@_index_key_tl
       { \tl_tail:N \l_@@_index_key_tl }
   }
-\cs_new_protected:Npn \@@_key_expl:
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_key_trim_module:n, \@@_key_drop_underscores:}
+%   Helper that removes from \cs{l_@@_index_module_tl} everything after
+%   the first occurence of |#1|.  Helper that removes any leading
+%   underscore from \cs{l_@@_index_key_tl}.
+%    \begin{macrocode}
+\cs_set:Npn \@@_key_trim_module:n #1
   {
-    \tl_if_head_eq_charcode:oNTF { \l_@@_index_key_tl } .
-      { \@@_key_pop: }
-      {
-        \exp_args:Nx \tl_if_head_eq_charcode:nNT
-          { \exp_args:No \str_tail:n \l_@@_index_key_tl } _
-          {
-            \tl_if_head_eq_charcode:oNTF { \l_@@_index_key_tl } _
-              {
-                \@@_key_pop:
-                \@@_key_pop:
-              }
-              {
-                \@@_key_pop:
-                \@@_key_pop:
-                \tl_if_head_eq_charcode:oNT { \l_@@_index_key_tl } _
-                  { \@@_key_pop: }
-              }
-          }
-      }
-    \@@_key_get_module:
+    \cs_set:Npn \@@_tmpa:w ##1 #1 ##2 \q_stop
+      { \exp_not:n {##1} }
+    \tl_set:Nx \l_@@_index_module_tl
+      { \exp_after:wN \@@_tmpa:w \l_@@_index_module_tl #1 \q_stop }
+  }
+\cs_new_protected:Npn \@@_key_drop_underscores:
+  {
+    \tl_if_head_eq_charcode:oNT { \l_@@_index_key_tl } _
+      { \@@_key_pop: \@@_key_drop_underscores: }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[aux]{\@@_key_get_module:, \@@_key_get_module_aux:n}
-%   Sets \cs{l_@@_index_module_tl} from \cs{l_@@_index_key_tl}, by
-%   removing anything after |:| or |_|, taking care of not expanding the
-%   rest for cases such as |\cs{\meta{name}:\meta{signature}}|.
+% \begin{macro}[aux]{\@@_key_func:}
+%   The function \cs{@@_key_func:} is used if there is a colon, so
+%   either for usual \pkg{expl3} functions or for keys from
+%   \pkg{l3keys}.  After removing from the key a leading dot (for the
+%   latter case), and any leading underscore, the module name is the
+%   part before any colon or underscore.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_key_get_module:
+\cs_new_protected:Npn \@@_key_func:
   {
+    \tl_if_head_eq_charcode:oNT { \l_@@_index_key_tl } .
+      { \@@_key_pop: }
+    \@@_key_drop_underscores:
     \tl_set_eq:NN \l_@@_index_module_tl \l_@@_index_key_tl
-    \exp_args:No \@@_key_get_module_aux:n { \token_to_str:N : }
-    \exp_args:No \@@_key_get_module_aux:n { \token_to_str:N _ }
+    \exp_args:No \@@_key_trim_module:n { \token_to_str:N : }
+    \exp_args:No \@@_key_trim_module:n { \token_to_str:N _ }
   }
-\cs_new_protected:Npn \@@_key_get_module_aux:n #1
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_key_var:, \@@_key_get_module:}
+%   The function \cs{@@_key_var:} covers cases with no~|:| but with~|_|,
+%   typically variables but occasionally non-\pkg{expl3} functions such
+%   as \Lua{} function with underscores.  First test the second
+%   character: if that is~|_| then assume we have a proper variable,
+%   otherwise use the part before any underscore as the module name.
+%   For variables, distinguish quarks and scan marks (starting with |q|
+%   and~|s|), then drop the first letter (local/global/constant marker)
+%   and underscores.  If there is no underscore left we had something
+%   like \cs{c_zero} which we assume is an integer constant.  If there
+%   is one underscore we assume it is a variable like \cs{c_empty_tl}
+%   whose module name is the last part.  Otherwise the module name is
+%   the part before any underscore.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_key_var:
   {
-    \cs_set:Npn \@@_tmpa:w ##1 #1 ##2 \q_stop { \exp_not:n {##1} }
-    \tl_set:Nx \l_@@_index_module_tl
-      { \exp_after:wN \@@_tmpa:w \l_@@_index_module_tl #1 \q_stop }
+    \exp_args:Nx \tl_if_head_eq_charcode:nNTF
+      { \exp_args:No \str_tail:n \l_@@_index_key_tl } _
+      {
+        \str_case:fn { \str_head:N \l_@@_index_key_tl }
+          {
+            { q } { \tl_set:Nn \l_@@_index_module_tl { quark } }
+            { s } { \tl_set:Nn \l_@@_index_module_tl { quark } }
+          }
+        \@@_key_pop:
+        \@@_key_pop:
+        \@@_key_drop_underscores:
+        \tl_if_empty:NT \l_@@_index_module_tl
+          {
+            \seq_set_split:NoV \l_@@_tmpa_seq
+              { \token_to_str:N _ } \l_@@_index_key_tl
+            \tl_set:Nx \l_@@_index_module_tl
+              {
+                \int_case:nnF { \seq_count:N \l_@@_tmpa_seq }
+                  {
+                    { 0 } { }
+                    { 1 } { int }
+                    { 2 } { \seq_item:Nn \l_@@_tmpa_seq { 2 } }
+                  }
+                  { \seq_item:Nn \l_@@_tmpa_seq { 1 } }
+              }
+          }
+      }
+      {
+        \tl_set_eq:NN \l_@@_index_module_tl \l_@@_index_key_tl
+        \exp_args:No \@@_key_trim_module:n { \token_to_str:N _ }
+      }
   }
 %    \end{macrocode}
 % \end{macro}
