@@ -708,17 +708,26 @@ Do not distribute a modified version of this file.
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}[int]{\l_@@_names_block_prop}
-%   Property list used when analysing the argument of \env{function} and
-%   \env{macro} environments.  Keys are base functions (with |N|/|n|
-%   signatures, or no signature) and the associated value is a comma
-%   list of variants or \cs{scan_stop:} to denote the absence of
-%   signature.
-%   The reason we use base functions rather than their base name is to
-%   avoid treating \cs{clist_count:n} and \cs{clist_count:N} as
-%   variants.
+% \begin{variable}[int]{\l_@@_names_block_tl}
+%   List of local sequence variables (produced through
+%   \cs{@@_lseq_name:n}), one for each set of variants in a
+%   \env{function} or \env{macro} environment.  More precisely these
+%   sequences are named after the base forms, such as \cs{clist_count:n}
+%   or \cs{clist_count:N} (which are not variants).  Each of these
+%   sequences have the base name (without any signature) as their first
+%   item, followed by the list of variant's signatures, or
+%   \cs{scan_stop:} to denote the absence of signature (no colon).
 %    \begin{macrocode}
-\prop_new:N \l_@@_names_block_prop
+\tl_new:N \l_@@_names_block_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}[int]{\g_@@_variants_seq}
+%   Stores rather temporarily the list of variants (signatures only) of
+%   a function/macro that is being documented.  It is global because we
+%   need it to keep its value throughout cells of an alignment.
+%    \begin{macrocode}
+\seq_new:N \g_@@_variants_seq
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1146,38 +1155,18 @@ Do not distribute a modified version of this file.
     \bool_if:NTF #6
       {
         \tl_if_head_eq_charcode:nNTF {#4} :
-          { #2 {#1} { \scan_stop: } }
+          { #2 {#1} }
           {
             \use:x
               {
                 \exp_not:n {#3}
                 { \@@_base_form_aux:nnN {#4} {#5} #6 }
               }
-                { {#5} }
+                {#4} {#5}
           }
       }
-      { #2 {#1} { \scan_stop: } }
+      { #2 {#1} }
   }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux]
-%   {
-%     \@@_clist_prop_put_right:Nnn, \@@_clist_prop_put_right:Nxn,
-%     \@@_clist_prop_put_right:Nnf
-%   }
-%   We sometimes want to collect multiple entries according to some key.
-%   This is done by having property lists whose values are themselves
-%   comma-lists: in short \enquote{clist_prop}.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_clist_prop_put_right:Nnn #1#2#3
-  {
-    \prop_get:NnNTF #1 {#2} \l_@@_tmpa_tl
-      { \tl_put_right:Nn \l_@@_tmpa_tl { , #3 } }
-      { \tl_set:Nn \l_@@_tmpa_tl {#3} }
-    \prop_put:Nno #1 {#2} \l_@@_tmpa_tl
-  }
-\cs_generate_variant:Nn \@@_clist_prop_put_right:Nnn { Nx , Nnf }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1221,6 +1210,20 @@ Do not distribute a modified version of this file.
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_gprop_name:n, \@@_lseq_name:n}
+%   We need to keep track of some information about control sequences
+%   (and other strings) that are being (or have been) documented.  Some
+%   is stored into global props and some into local seqs, whose name
+%   does not follow conventions: it is \cs[no-index]{g_@@} or
+%   \cs[no-index]{l_@@} followed by a space and by the string, which can
+%   be arbitrary.  We cannot reasonably use a single big |prop| for
+%   speed reasons.
+%    \begin{macrocode}
+\cs_new:Npn \@@_gprop_name:n #1 { g_@@ ~ \tl_to_str:n {#1} }
+\cs_new:Npn \@@_lseq_name:n #1 { l_@@ ~ \tl_to_str:n {#1} }
+%    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Messages}
@@ -1922,91 +1925,100 @@ Do not distribute a modified version of this file.
 % \end{macro}
 %
 % \begin{macro}[aux]{\@@_names_parse:, \@@_names_parse_one:n}
-%   The idea here is to populate \cs{l_@@_names_block_prop} with
-%   information about the functions being typeset and their variants.
-%   The property list uses a specific format: the keys contained are the
-%   \enquote{base function} (obtained by changing letters to |N| or |n|
-%   as appropriate in the signature) with values specified by a
-%   comma-separated list of (braced) signatures, such as:
-%   \begin{center}
-%     |>  {\my_function:nn}  =>  { { nn } , { VV } , ... }|
-%     |>  {\my_function:Nn}  =>  { { cn } , { No } , ... }|
-%     |>  {\function}  =>  { \scan_stop: }|
-%     |>  {.bool_set:N}  =>  { { N } , { c } }|
-%   \end{center}
-%   In the case where the function has no signature (no colon), we use a
-%   value of \cs{scan_stop:} (there can be no variant).  This somewhat
-%   arcane syntax is chosen to display together functions that are
-%   variants of each other, but not pairs like |\clist_count:N| and
-%   |\clist_count:n| which should be indexed separately for instance.
-%   Non-\pkg{expl3}-syntax control sequences simply end up having value
-%   \cs{scan_stop:}.
-%
-%   We filter out the special case of |#1| containing |\::|, which
-%   signals that we have one of the weird functions named |\::N| and so
-%   on.  Otherwise, split the function into its base name (including the
-%   potential backslash) and signature.  If there was a |:| then store
-%   the signature (braced), otherwise store \cs{scan_stop:}.
+%   The goal is to group variants together.  We populate
+%   \cs{l_@@_names_block_tl} with local sequence variable named with
+%   \cs{@@_lseq_name:n} after the base forms.  When encountering a new
+%   base form, set the corresponding local sequence to hold the
+%   \meta{base name} (stripped of the signature) and add the local
+%   sequence to the list \cs{l_@@_names_block_tl}.  In all cases append
+%   the signature to the local sequence, which thus takes the form
+%   \meta{base name}, \meta{signature_1}, \meta{signature_2} and so on.
+%   If the original function had no signature (no colon) then use
+%   \cs{scan_stop:} as the signature (there can be no variant).  We
+%   special case commands |#1| starting with |\::|, namely weird
+%   functions named |\::N| and the like.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_names_parse:
   {
-    \prop_clear:N \l_@@_names_block_prop
+    \tl_clear:N \l_@@_names_block_tl
     \seq_map_function:NN
       \l_@@_names_seq
       \@@_names_parse_one:n
   }
 \cs_new_protected:Npn \@@_names_parse_one:n #1
   {
-    \@@_base_form_signature_do:nnn {#1}
+    \@@_split_function_do:nn {#1}
+      { \@@_names_parse_one_aux:nnNn }
+    {#1}
+  }
+\cs_new_protected:Npn \@@_names_parse_one_aux:nnNn #1#2#3#4
+  {
+    \bool_if:NTF #3
+      {
+        \tl_if_head_eq_charcode:nNTF {#2} :
+          { \@@_names_parse_aux:nnn {#4} {#4} { \scan_stop: } }
+          {
+            \exp_args:Nx \@@_names_parse_aux:nnn
+              { \@@_base_form_aux:nnN {#1} {#2} #3 }
+              {#1} {#2}
+          }
+      }
       {
         \bool_if:NT \l_@@_macro_TF_bool
-          { \msg_error:nnn { l3doc } { no-signature-TF } {#1} }
-        \prop_put:Nnn \l_@@_names_block_prop
+          { \msg_error:nnx { l3doc } { no-signature-TF } {#4} }
+        \@@_names_parse_aux:nnn {#4} {#4} { \scan_stop: }
       }
-      { \@@_clist_prop_put_right:Nxn \l_@@_names_block_prop }
+  }
+\cs_new_protected:Npn \@@_names_parse_aux:nnn #1
+  { \exp_args:Nc \@@_names_parse_aux:Nnn { \@@_lseq_name:n {#1} } }
+\cs_new_protected:Npn \@@_names_parse_aux:Nnn #1#2#3
+  {
+    \tl_if_in:NnF \l_@@_names_block_tl {#1}
+      {
+        \tl_put_right:Nn \l_@@_names_block_tl {#1}
+        \seq_clear_new:N #1
+        \seq_put_right:Nn #1 {#2}
+      }
+    \seq_put_right:Nn #1 {#3}
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[aux]{\@@_names_typeset:}
-% \begin{macro}[aux]{\@@_names_typeset_auxi:nn}
-%   \begin{arguments}
-%     \item Function/macro/variable name (stripped of signature in the
-%       first case, if any)
-%     \item Comma-list containing information about the signature
-%       variants being documented (if any)
-%   \end{arguments}
-%   The mapping to \cs{l_@@_names_block_prop} cannot use
-%   \cs{prop_map_inline:Nn} because the code following |\\| would not be
-%   expandable, thus breaking \tn{bottomrule}.  Call
-%   \cs{@@_names_typeset_auxi:nn} for each base form and set of
-%   variants.  The first step is to drop the signature of the base form
-%   (it was only used to sort functions by their base form in
-%   \cs{l_@@_names_block_prop}) and change spaces to category other so
+% \begin{macro}[aux]{\@@_names_typeset_auxi:n}
+%   This code is in particular used when typesetting function names in a
+%   \env{function} environment.  The mapping to \cs{l_@@_names_block_tl}
+%   cannot use \cs{tl_map_inline:Nn} because the code following |\\|
+%   would not be expandable, thus breaking \tn{bottomrule}.
+%
+%   Call \cs{@@_names_typeset_auxi:n} on each local sequence (which
+%   holds a set of variants).  The first step is to pop the base form
+%   and change spaces to category other so
 %   that they get displayed eventually.  Then store the variants in
-%   \cs{g_@@_variants_clist}, remove the first, which will be displayed
+%   \cs{g_@@_variants_seq}, remove the first, which will be displayed
 %   more prominently, and reconstruct the actual name, passing it to
 %   \cs{@@_names_typeset_auxii:n}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_names_typeset:
   {
-    \prop_map_function:NN \l_@@_names_block_prop
-      \@@_names_typeset_auxi:nn
+    \tl_map_function:NN \l_@@_names_block_tl
+      \@@_names_typeset_auxi:n
   }
-\cs_new_protected:Npn \@@_names_typeset_auxi:nn #1#2
+\cs_new_protected:Npn \@@_names_typeset_auxi:n #1
   {
-    \tl_gset:Nx \g_@@_base_name_tl
-      { \@@_get_function_name:n {#1} }
+    \seq_pop:NN #1 \l_@@_tmpa_tl
+    \tl_gset_eq:NN \g_@@_base_name_tl \l_@@_tmpa_tl
     \tl_greplace_all:Nno \g_@@_base_name_tl
       { ~ } { \c_catcode_other_space_tl }
-    \tl_if_eq:nnTF {#2} { \scan_stop: }
+    \seq_get:NN #1 \l_@@_tmpa_tl
+    \str_if_eq_x:nnTF { \l_@@_tmpa_tl } { \scan_stop: }
       {
-        \clist_gclear:N \g_@@_variants_clist
+        \seq_gclear:N \g_@@_variants_seq
         \@@_names_typeset_auxii:x { \g_@@_base_name_tl }
       }
       {
-        \clist_gset:Nn \g_@@_variants_clist {#2}
-        \clist_gpop:NN \g_@@_variants_clist \l_@@_tmpb_tl
+        \seq_gset_eq:NN \g_@@_variants_seq #1
+        \seq_gpop:NN \g_@@_variants_seq \l_@@_tmpb_tl
         \@@_names_typeset_auxii:x
           { \g_@@_base_name_tl : \l_@@_tmpb_tl }
       }
@@ -2017,6 +2029,9 @@ Do not distribute a modified version of this file.
 %
 % \begin{macro}[aux]
 %   {\@@_names_typeset_auxii:n, \@@_names_typeset_auxii:x}
+%   In case the option |pTF| was given, typeset predicates before the
+%   |TF| functions.  Pass the relevant boolean in both cases to control
+%   whether to append |TF|.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_names_typeset_auxii:n #1
   {
@@ -2034,7 +2049,10 @@ Do not distribute a modified version of this file.
 %
 % \begin{macro}[aux]{\@@_names_typeset_block:nN, \@@_names_typeset_block:xN}
 %   Names in \env{function} and \env{macro} environments are typeset
-%   differently.  A block is a function with all its variants.
+%   differently.  To distinguish the two note that
+%   \cs{l_@@_nested_macro_int} is at least one when in an \env{macro}
+%   environment (we assume \env{function} is not nested inside it).  A
+%   block is a function with all its variants.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_names_typeset_block:nN
   {
@@ -2205,7 +2223,7 @@ Do not distribute a modified version of this file.
 %
 % \begin{macro}[aux]{\@@_function_typeset:}
 %   Typeset in the coffin \cs{l_@@_functions_coffin} the functions listed in
-%   \cs{l_@@_names_block_prop} and the relevant dates, then set
+%   \cs{l_@@_names_block_tl} and the relevant dates, then set
 %   \cs{l_@@_long_name_bool} to be \texttt{true} if this coffin is
 %   larger than the available width in the margin.  The function
 %   \cs{@@_typeset_functions:} is quite involved hence given later.
@@ -2329,7 +2347,7 @@ Do not distribute a modified version of this file.
     #1
     \bool_if:NT #2 { \@@_typeset_TF: }
     \@@_typeset_expandability:
-    \clist_if_empty:NF \g_@@_variants_clist
+    \seq_if_empty:NF \g_@@_variants_seq
       { \@@_typeset_variant_list:nN {#1} #2 }
     \\
   }
@@ -2366,11 +2384,11 @@ Do not distribute a modified version of this file.
     \\
     \@@_typeset_aux:n { \@@_get_function_name:n {#1} }
     :
-    \int_compare:nTF { \clist_count:N \g_@@_variants_clist == 1 }
-      { \clist_use:Nn \g_@@_variants_clist { } }
+    \int_compare:nTF { \seq_count:N \g_@@_variants_seq == 1 }
+      { \seq_use:Nn \g_@@_variants_seq { } }
       {
         \textrm(
-          \clist_use:Nn \g_@@_variants_clist { \textrm| }
+          \seq_use:Nn \g_@@_variants_seq { \textrm| }
         \textrm)
       }
     \bool_if:NT #2 { \@@_typeset_TF: }
@@ -2625,10 +2643,18 @@ Do not distribute a modified version of this file.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_macro_save_names:
   {
-    \prop_map_inline:Nn \l_@@_names_block_prop
+    \tl_map_inline:Nn \l_@@_names_block_tl
       {
+        \seq_set_eq:NN \l_@@_tmpa_seq ##1
+        \seq_pop:NN \l_@@_tmpa_seq \l_@@_tmpa_tl
+        \seq_get:NN \l_@@_tmpa_seq \l_@@_tmpb_tl
         \seq_gput_right:Nx \g_@@_nested_names_seq
-          { ##1 \bool_if:NT \l_@@_macro_TF_bool { TF } }
+          {
+            \l_@@_tmpa_tl
+            \str_if_eq_x:nnF { \l_@@_tmpb_tl } { \scan_stop: }
+              { : \l_@@_tmpb_tl }
+            \bool_if:NT \l_@@_macro_TF_bool { TF }
+          }
       }
   }
 %    \end{macrocode}
@@ -2665,7 +2691,7 @@ Do not distribute a modified version of this file.
 \cs_new_protected:Npn \@@_macro_typeset_block:nN #1#2
   {
     \@@_macro_single:nNN {#1} \c_true_bool #2
-    \clist_if_empty:NF \g_@@_variants_clist
+    \seq_if_empty:NF \g_@@_variants_seq
       {
         \@@_macro_typeset_variant_list:xN
           { \@@_get_function_name:n {#1} } #2
@@ -2674,7 +2700,7 @@ Do not distribute a modified version of this file.
 \cs_generate_variant:Nn \@@_macro_typeset_block:nN { x }
 \cs_new_protected:Npn \@@_macro_typeset_variant_list:nN #1#2
   {
-    \clist_map_inline:Nn \g_@@_variants_clist
+    \seq_map_inline:Nn \g_@@_variants_seq
       { \@@_macro_single:nNN { #1 : ##1 } \c_false_bool #2 }
   }
 \cs_generate_variant:Nn \@@_macro_typeset_variant_list:nN { x }
@@ -2853,11 +2879,19 @@ Do not distribute a modified version of this file.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_test_missing:n #1
   {
-    \@@_clist_prop_put_right:Nxn
+    \@@_test_missing_aux:Nxn
       \g_@@_missing_tests_prop
       { \seq_use:Nn \l_@@_names_seq { , } }
       { { \g_file_current_name_tl \iow_char:N \ (#1) } }
   }
+\cs_new_protected:Npn \@@_test_missing_aux:Nnn #1#2#3
+  {
+    \prop_get:NnNTF #1 {#2} \l_@@_tmpa_tl
+      { \tl_put_right:Nn \l_@@_tmpa_tl { , #3 } }
+      { \tl_set:Nn \l_@@_tmpa_tl {#3} }
+    \prop_put:Nno #1 {#2} \l_@@_tmpa_tl
+  }
+\cs_generate_variant:Nn \@@_test_missing_aux:Nnn { Nx }
 %    \end{macrocode}
 % \end{macro}
 %
