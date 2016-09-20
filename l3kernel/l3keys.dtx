@@ -1111,11 +1111,21 @@
 %<@@=keys>
 %    \end{macrocode}
 %
-% \begin{variable}{\c_@@_code_root_tl, \c_@@_info_root_tl}
-%   The prefixes for the code and variables of the keys themselves.
+% \begin{variable}
+%   {
+%     \c_@@_code_root_tl    ,
+%     \c_@@_default_root_tl ,
+%     \c_@@_groups_root_tl,
+%     \c_@@_info_root_tl    ,
+%     \c_@@_validate_root_tl
+%   }
+%   Various storage areas for the different data which make up keys.
 %    \begin{macrocode}
-\tl_const:Nn \c_@@_code_root_tl { key~code~>~ }
-\tl_const:Nn \c_@@_info_root_tl { key~info~>~ }
+\tl_const:Nn \c_@@_code_root_tl     { key~code~>~ }
+\tl_const:Nn \c_@@_default_root_tl  { key~default~>~ }
+\tl_const:Nn \c_@@_groups_root_tl   { key~groups~>~ }
+\tl_const:Nn \c_@@_info_root_tl     { key~info~>~ }
+\tl_const:Nn \c_@@_validate_root_tl { key~validate~>~ }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1384,6 +1394,7 @@
       {
         \prop_set_eq:cN { \c_@@_info_root_tl #1 } \c_empty_prop
       }
+
     \cs_if_exist:cF { \c_@@_code_root_tl #1 }
       {
         \__chk_log:x { Defining~key~#1~ \msg_line_context: }
@@ -1624,37 +1635,75 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_undefine:
   {
-    \cs_set_eq:cN { \c_@@_code_root_tl \l_keys_path_tl } \tex_undefined:D
-    \cs_set_eq:cN { \c_@@_info_root_tl \l_keys_path_tl } \tex_undefined:D
+    \clist_map_inline:nn
+      { code , default , groups , info , validate }
+      {
+        \cs_set_eq:cN
+          { \tl_use:c { c_@@_ ##1 _root_tl } \l_keys_path_tl }
+          \tex_undefined:D
+      }
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[int]{\@@_value_requirement:nn}
-%   Values can be required or forbidden by having the appropriate marker
-%   set. First, both the required and forbidden ones are clear, just in case!
+% \begin{macro}[aux]{\@@_validate_forbidden:, \@@_validate_required:}
+% \begin{macro}[aux]{\@@_validate_cleanup:w}
+%   Validating key input is done using a second function which runs before
+%   the main key code. Setting that up means setting it equal to a generic
+%   stub which does the check. This approach makes the lookup very fast at
+%   the cost of one additional csname per key that needs it. The cleanup here
+%   has to know the structure of the following code.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_value_requirement:nn #1#2
   {
-    \@@_ensure_exist:V \l_keys_path_tl
-    \prop_remove:cn { \c_@@_info_root_tl \l_keys_path_tl }
-      { required }
-    \prop_remove:cn { \c_@@_info_root_tl \l_keys_path_tl }
-      { forbidden }
-    \str_if_eq:nnTF {#2} { true }
+    \str_case:nnF {#2}
       {
-        \prop_put:cnn { \c_@@_info_root_tl \l_keys_path_tl }
-          {#1} { true }
-      }
-      {
-        \str_if_eq:nnF {#2} { false }
+        { true }
           {
-            \__msg_kernel_error:nnx { kernel } { property-boolean-values-only }
-              { .value_ #1 :n }
+            \cs_set_eq:cc
+              { \c_@@_validate_root_tl \l_keys_path_tl }
+              { @@_validate_ #1 : }
+          }
+        { false }
+          {
+            \cs_if_eq:ccT
+              { \c_@@_validate_root_tl \l_keys_path_tl }
+              { @@_validate_ #1 : }
+              {
+                \cs_set_eq:cN
+                  { \c_@@_validate_root_tl \l_keys_path_tl }
+                  \tex_undefined:D
+              }
           }
       }
+      {
+        \__msg_kernel_error:nnx { kernel } { property-boolean-values-only }
+          { .value_ #1 :n }
+      }
   }
+\cs_new_protected:Npn \@@_validate_forbidden:
+  {
+    \bool_if:NF \l_@@_no_value_bool
+      {
+        \__msg_kernel_error:nnxx { kernel } { value-forbidden }
+          { \l_keys_path_tl } { \l_keys_value_tl }
+        \@@_validate_cleanup:w
+      }
+  }
+\cs_new_protected:Npn \@@_validate_required:
+  {
+    \bool_if:NT \l_@@_no_value_bool
+      {
+        \__msg_kernel_error:nnx { kernel } { value-required }
+          { \l_keys_path_tl }
+        \@@_validate_cleanup:w
+      }
+  }
+\cs_new_protected:Npn \@@_validate_cleanup:w #1 \cs_end: #2#3 { }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[int]{\@@_variable_set:NnnN, \@@_variable_set:cnnN}
@@ -2124,27 +2173,13 @@
   }
 \cs_new_protected:Npn \@@_set_aux:
   {
-    \bool_if:nTF
+    \cs_if_exist:cTF { \c_@@_code_root_tl \l_keys_path_tl }
       {
-        \@@_if_value_p:n { required } &&
-        \l_@@_no_value_bool
+        \cs_if_exist_use:c { \c_@@_validate_root_tl \l_keys_path_tl }
+        \cs:w \c_@@_code_root_tl \l_keys_path_tl \exp_after:wN \cs_end:
+          \exp_after:wN { \l_keys_value_tl }
       }
-      {
-        \__msg_kernel_error:nnx { kernel } { value-required }
-          { \l_keys_path_tl }
-      }
-      {
-        \bool_if:nTF
-          {
-              \@@_if_value_p:n { forbidden } &&
-            ! \l_@@_no_value_bool
-          }
-          {
-            \__msg_kernel_error:nnxx { kernel } { value-forbidden }
-              { \l_keys_path_tl } { \l_keys_value_tl }
-          }
-          { \@@_execute: }
-      }
+      { \@@_execute_unknown: }
   }
 %    \end{macrocode}
 %  If selective setting is active, there are a number of possible sub-cases
@@ -2226,24 +2261,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int]{\@@_if_value_p:n}
-%   To test if a value is required or forbidden. A simple check for
-%   the existence of the appropriate marker.
-%    \begin{macrocode}
-\prg_new_conditional:Npnn \@@_if_value:n #1 { p , T, TF, F }
-  {
-    \prop_if_exist:cTF { \c_@@_info_root_tl \l_keys_path_tl }
-      {
-        \prop_if_in:cnTF { \c_@@_info_root_tl \l_keys_path_tl } {#1}
-          { \prg_return_true: }
-          { \prg_return_false: }
-      }
-      { \prg_return_false: }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_execute:}
 % \begin{macro}[aux]{\@@_execute_unknown:}
 % \begin{macro}[aux, EXP]{\@@_execute:nn}
 % \begin{macro}[aux]{\@@_store_unused:}
@@ -2253,14 +2270,16 @@
 %   is unknown depends on whether unknown keys are being skipped or if
 %   an error should be raised.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_execute:
-  { \@@_execute:nn { \l_keys_path_tl } { \@@_execute_unknown: } }
 \cs_new_protected:Npn \@@_execute_unknown:
   {
     \bool_if:NTF \l_@@_only_known_bool
       { \@@_store_unused: }
       {
-        \@@_execute:nn { \l_@@_module_tl / unknown }
+        \cs_if_exist:cTF { \c_@@_code_root_tl \l_@@_module_tl / unknown }
+          {
+            \cs:w \c_@@_code_root_tl \l_@@_module_tl / unknown \exp_after:wN
+              \cs_end: \exp_after:wN { \l_keys_value_tl }
+          }
           {
             \__msg_kernel_error:nnxx { kernel } { key-unknown }
               { \l_keys_path_tl } { \l_@@_module_tl }
@@ -2286,7 +2305,6 @@
       }
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
