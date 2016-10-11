@@ -881,6 +881,7 @@ function formatlualog(logfile, newfile)
     -- Find \discretionary or \whatsit lines:
     -- These may come back later
     if string.match(line, "^%.+\\discretionary$")                or
+       string.match(line, "^%.+\\discretionary %(penalty 50%)$") or
        string.match(line, "^%.+\\discretionary50%|$")            or
        string.match(line, "^%.+\\discretionary50%| replacing $") or
        string.match(line, "^%.+\\whatsit$")                      then
@@ -937,6 +938,7 @@ function formatlualog(logfile, newfile)
     -- Where the last line was a discretionary, looks for the
     -- info one level in about what it represents
     if string.match(lastline, "^%.+\\discretionary$")                or
+       string.match(lastline, "^%.+\\discretionary %(penalty 50%)$") or
        string.match(lastline, "^%.+\\discretionary50%|$")            or
        string.match(lastline, "^%.+\\discretionary50%| replacing $") then
       local prefix = boxprefix(lastline)
