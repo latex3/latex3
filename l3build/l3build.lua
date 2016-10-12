@@ -892,6 +892,8 @@ function formatlualog(logfile, newfile)
     if string.match(line, "^%.+\\mathon$") then
       return line, line
     end
+    -- LuaTeX has a flexible output box
+    line = string.gsub(line,"\\box\\outputbox", "\\box255")
     -- LuaTeX identifies spaceskip glue
     line = string.gsub(line,"%(\\spaceskip%) ", " ")
     -- Remove 'display' at end of display math boxes:
