@@ -967,6 +967,8 @@ function formatlualog(logfile, newfile)
           if string.match(lastline, "^%.+\\discretionary50%|$") then
             lastline =  string.gsub(lastline, "50%|$", "")
           end
+          -- Remove some info that TeX90 lacks
+          lastline = string.gsub(lastline, " %(penalty 50%)$", "")
           -- A normal (TeX90) discretionary:
           -- add with the line break reintroduced
           return lastline .. os_newline .. line, ""
