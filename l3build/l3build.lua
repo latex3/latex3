@@ -937,9 +937,9 @@ function formatlualog(logfile, newfile)
     local function boxprefix(s)
       return string.gsub(string.match(s, "^(%.+)"), "%.", "%%.")
     end
-    -- 'Recover' implicit kerns not taken
+    -- 'Recover' some discretionary data
     if string.match(lastline, "^%.+\\discretionary %(penalty 50%)$") and
-       string.match(line, boxprefix(lastline) .. "%.= \\kern%-?%d") then
+       string.match(line, boxprefix(lastline) .. "%.= ") then
        return string.gsub(line, "%.= ", ""),""
     end
     -- Where the last line was a discretionary, looks for the
