@@ -611,7 +611,7 @@ function allmodules(target)
     end
     local release = ""
     if optrelease then
-      release = " --release=" .. release[1]
+      release = " --release=" .. optrelease[1]
     end
     local errorlevel = run(
       i,
