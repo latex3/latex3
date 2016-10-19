@@ -110,7 +110,7 @@ typesetexe = typesetexe or "pdflatex"
 unpackexe  = unpackexe  or "tex"
 zipexe     = "zip"
 
-checkopts   = checkopts   or "-interaction=batchmode"
+checkopts   = checkopts   or "-interaction=nonstopmode"
 cmdchkopts  = cmdchkopts  or "-interaction=batchmode"
 typesetopts = typesetopts or "-interaction=nonstopmode"
 unpackopts  = unpackopts  or ""
