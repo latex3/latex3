@@ -39,7 +39,7 @@ function main (target)
       end
       local release = ""
       if optrelease then
-        release = " --release=" .. optversion[1]
+        release = " --release=" .. optrelease[1]
       end
       errorlevel = run(
         i,
