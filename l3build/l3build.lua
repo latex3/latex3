@@ -794,7 +794,6 @@ function formatlog(logfile, newfile, engine)
     end
     -- Deal with the map line: some wrapping then a zap
     if string.match(lastline, "*pdftex%.map") then
-      print("MAP ELONG")
       line = lastline .. line
       lastline = ""
     end
