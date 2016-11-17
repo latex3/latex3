@@ -792,18 +792,6 @@ function formatlog(logfile, newfile, engine)
     if checksearch then
       line = string.gsub(line, "%(.*/([%w-]+%.[%w-]+)%)?%s*$", "(../%1")
     end
-    -- Deal with the map line: some wrapping then a zap
-    if string.match(lastline, "*pdftex%.map") then
-      line = lastline .. line
-      lastline = ""
-    end
-    if string.match(line, "%{[^%}]*pdftex%.map%}") then
-      if string.match(line, "pdftex%.map%}%s*%(") and
-        not string.match(line, "%)%s*$") then
-        return "", line
-      end
-    end
-    line = string.gsub(line, "%{[^%}]*/pdftex%.map%}", "")
     -- Deal with the fact that "(.aux)" may have still a leading space
     line = string.gsub(line, "^ %(%.aux%)", "(.aux)")
     -- Merge all of .fd data into one line so will be removed later
