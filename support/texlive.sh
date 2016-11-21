@@ -36,6 +36,11 @@ tlmgr install --no-depends babel ptex uptex ptex-base uptex-base ptex-fonts \
 # warnings with some packages and errors with others
 tlmgr install metafont mfware
 
+
+# Set up graphics: nowadays split over a few places and requiring
+# HO's bundle
+tlmgr install graphics graphics-cfg graphics-def oberdiek
+
 # Contrib packages for testing
 #
 # The packages themselves are done with --no-depends to avoid
@@ -43,8 +48,7 @@ tlmgr install metafont mfware
 #
 # fontspec comes first as other packages tested have it as a dep
 tlmgr install --no-depends fontspec
-tlmgr install euenc graphics graphics-cfg graphics-def ifluatex lm lualibs \
-  luaotfload oberdiek  xunicode
+tlmgr install ifluatex lm lualibs luaotfload
 
 # Other contrib packages: done as a block to avoid multiple calls to tlmgr
 # Dependencies other than the core l3build set up, metafont, fontspec and the
