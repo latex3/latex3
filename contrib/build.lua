@@ -17,8 +17,7 @@ checkdeps   =
     maindir .. "/l3packages/l3keys2e",
     maindir .. "/l3packages/xfrac",
     maindir .. "/l3packages/xparse",
-    maindir .. "/l3packages/xtemplate",
-    maindir .. "/l3experimental/l3str"
+    maindir .. "/l3packages/xtemplate"
   }
 checksearch = true
 
