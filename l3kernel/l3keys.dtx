@@ -320,6 +320,26 @@
 %   described in Section~\ref{sec:l3keys:selective}.
 % \end{function}
 %
+% \begin{function}[added = 2016-11-22]{.inherit:n}
+%   \begin{syntax}
+%     \meta{key} .inherit:n = \Arg{parents}
+%   \end{syntax}
+%   Specifies that the \meta{key} path should inherit the keys listed
+%   as \meta{parents}. For example, with setting
+%   \begin{verbatim}
+%     \keys_define:n { foo } { test .code:n = \tl_show:n {#1} }
+%     \keys_define:n { } { bar .inherit:n = foo }
+%   \end{verbatim}
+%   setting
+%   \begin{verbatim}
+%     \keys_set:n { bar } { test = a }
+%   \end{verbatim}
+%   will be equivalent to
+%   \begin{verbatim}
+%     \keys_set:n { foo } { test = a }
+%   \end{verbatim}
+% \end{function}
+%
 % \begin{function}[updated = 2013-07-09]
 %   {.initial:n, .initial:V, .initial:o, .initial:x}
 %   \begin{syntax}
@@ -1116,6 +1136,7 @@
 %     \c_@@_code_root_tl    ,
 %     \c_@@_default_root_tl ,
 %     \c_@@_groups_root_tl  ,
+%     \c_@@_inherit_root_tl  ,
 %     \c_@@_type_root_tl    ,
 %     \c_@@_validate_root_tl
 %   }
@@ -1124,6 +1145,7 @@
 \tl_const:Nn \c_@@_code_root_tl     { key~code~>~ }
 \tl_const:Nn \c_@@_default_root_tl  { key~default~>~ }
 \tl_const:Nn \c_@@_groups_root_tl   { key~groups~>~ }
+\tl_const:Nn \c_@@_inherit_root_tl  { key~inherit~>~ }
 \tl_const:Nn \c_@@_type_root_tl     { key~type~>~ }
 \tl_const:Nn \c_@@_validate_root_tl { key~validate~>~ }
 %    \end{macrocode}
@@ -1425,8 +1447,6 @@
 % \begin{macro}[int]{\@@_choice_make:, \@@_multichoice_make:}
 % \begin{macro}[aux]{\@@_choice_make:N}
 % \begin{macro}[aux]{\@@_choice_make_aux:N}
-% \begin{macro}[EXP, aux]{\@@_parent:n, \@@_parent:o}
-% \begin{macro}[EXP, aux]{\@@_parent:w}
 %   To make a choice from a key, two steps: set the code, and set the
 %   unknown key. As multichoices and choices are essentially the same bar one
 %   function, the code is given together.
@@ -1461,20 +1481,7 @@
           { \l_keys_path_tl } {##1}
       }
   }
-\cs_new:Npn \@@_parent:n #1
-  { \@@_parent:w #1 / / \q_stop { } }
-\cs_generate_variant:Nn \@@_parent:n { o }
-\cs_new:Npn \@@_parent:w #1 / #2 / #3 \q_stop #4
-  {
-    \tl_if_blank:nTF {#2}
-      { \use_none:n #4 }
-      {
-        \@@_parent:w #2 / #3 \q_stop { #4 / #1 }
-      }
-  }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -1566,6 +1573,18 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[int]{\@@_inherit:n}
+%  Inheritance means ignoring anything already said about the key:
+%  zap the lot and set up.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_inherit:n #1
+  {
+    \@@_undefine:
+    \cs_set_nopar:cpn { \c_@@_inherit_root_tl \l_keys_path_tl } {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[int]{\@@_initialise:n}
 %   A set up for initialisation: just run the code if it exists.
 %    \begin{macrocode}
@@ -1601,7 +1620,7 @@
 \cs_new_protected:Npn \@@_undefine:
   {
     \clist_map_inline:nn
-      { code , default , groups , type , validate }
+      { code , default , groups , inherit , type , validate }
       {
         \cs_set_eq:cN
           { \tl_use:c { c_@@_ ##1 _root_tl } \l_keys_path_tl }
@@ -1833,6 +1852,14 @@
 %    \begin{macrocode}
 \cs_new_protected:cpn { \c_@@_props_root_tl .groups:n } #1
   { \@@_groups_set:n {#1} }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{.inherit:n}
+%   Nothing complex: only one variant at the moment!
+%    \begin{macrocode}
+\cs_new_protected:cpn { \c_@@_props_root_tl .inherit:n } #1
+  { \@@_inherit:n {#1} }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2239,16 +2266,34 @@
     \bool_if:NTF \l_@@_only_known_bool
       { \@@_store_unused: }
       {
-        \cs_if_exist:cTF { \c_@@_code_root_tl \l_@@_module_tl / unknown }
+        \cs_if_exist:cTF
+          { \c_@@_inherit_root_tl \@@_parent:o \l_keys_path_tl }
           {
-            \cs:w \c_@@_code_root_tl \l_@@_module_tl / unknown \exp_after:wN
-              \cs_end: \exp_after:wN { \l_keys_value_tl }
+            \clist_map_inline:cn
+              { \c_@@_inherit_root_tl \@@_parent:o \l_keys_path_tl }
+              {
+                \cs_if_exist:cT
+                  { \c_@@_code_root_tl ##1 / \l_keys_key_tl }
+                  {
+                    \cs:w \c_@@_code_root_tl ##1 / \l_keys_key_tl
+                      \exp_after:wN \cs_end: \exp_after:wN
+                      { \l_keys_value_tl }
+                    \clist_map_break:
+                  }
+              }
           }
           {
-            \__msg_kernel_error:nnxx { kernel } { key-unknown }
-              { \l_keys_path_tl } { \l_@@_module_tl }
+            \cs_if_exist:cTF { \c_@@_code_root_tl \l_@@_module_tl / unknown }
+              {
+                \cs:w \c_@@_code_root_tl \l_@@_module_tl / unknown
+                  \exp_after:wN \cs_end: \exp_after:wN { \l_keys_value_tl }
+              }
+              {
+                \__msg_kernel_error:nnxx { kernel } { key-unknown }
+                  { \l_keys_path_tl } { \l_@@_module_tl }
+              }
           }
-      }
+       }
   }
 \cs_new:Npn \@@_execute:nn #1#2
   {
@@ -2292,6 +2337,23 @@
 % \end{macro}
 %
 % \subsection{Utilities}
+%
+% \begin{macro}[EXP, int]{\@@_parent:n, \@@_parent:o}
+% \begin{macro}[EXP, aux]{\@@_parent:w}
+%   Used to strip off the ending part of the key path after the last~|/|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_parent:n #1
+  { \@@_parent:w #1 / / \q_stop { } }
+\cs_generate_variant:Nn \@@_parent:n { o }
+\cs_new:Npn \@@_parent:w #1 / #2 / #3 \q_stop #4
+  {
+    \tl_if_blank:nTF {#2}
+      { \use_none:n #4 }
+      {
+        \@@_parent:w #2 / #3 \q_stop { #4 / #1 }
+      }
+  }
+%    \end{macrocode}
 %
 % \begin{macro}[EXP, int]{\@@_remove_spaces:n}
 % \begin{macro}[EXP, aux]{\@@_remove_spaces:w}
