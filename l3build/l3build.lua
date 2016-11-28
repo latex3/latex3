@@ -1097,7 +1097,7 @@ function runcheck(name, hide)
   for _,i in ipairs(checkengines) do
     -- Allow for luatex == luajittex for .tlg purposes
     local engine = i
-    if i == "luajitex" then
+    if i == "luajittex" then
       engine = "luatex"
     end
     checkpdf = setup_check(name, engine)
