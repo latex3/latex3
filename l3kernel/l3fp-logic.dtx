@@ -318,56 +318,72 @@
 %
 % \begin{macro}[EXP]{\fp_step_function:nnnN, \fp_step_function:nnnc}
 % \begin{macro}[EXP, aux]{\@@_step:wwwN}
-% \begin{macro}[EXP, aux]{\@@_step:NnnnN, \@@_step:NfnnN}
-%   The approach here is much the same as \cs{int_step_function:nnnN} except we
-%   do not have a convenient low-level way to evaluation each argument to give
-%   a pure number. Instead, the internal parser is used to leave values in the
-%   internal format (and avoid a more expensive \texttt{f}-type expansion of
-%   multiple uses of \texttt{fp_eval:n}).
+% \begin{macro}[EXP, aux]{\@@_step:NnnnnN, \@@_step:NfnnnN}
+%   The approach here is somewhat similar to
+%   \cs{int_step_function:nnnN}.  There are two subtleties: we use the
+%   internal parser \cs{@@_parse:n} to avoid converting back and forth
+%   from the internal representation; and (due to rounding) even a
+%   non-zero step does not guarantee that the loop counter will
+%   increase.
 %    \begin{macrocode}
 \cs_new:Npn \fp_step_function:nnnN #1#2#3
   {
     \exp_after:wN \@@_step:wwwN
-      \exp:w \exp_end_continue_f:w \@@_parse_o:n {#1} :
-      \exp:w \exp_end_continue_f:w \@@_parse_o:n {#2} :
-      \exp:w \exp_end_continue_f:w \@@_parse:n {#3} :
+      \exp:w \exp_end_continue_f:w \@@_parse_o:n {#1}
+      \exp:w \exp_end_continue_f:w \@@_parse_o:n {#2}
+      \exp:w \exp_end_continue_f:w \@@_parse:n {#3}
   }
 \cs_generate_variant:Nn \fp_step_function:nnnN { nnnc }
-%    \end{macrocode}
-%   Here, |#1| will be passed to the output on the first pass of the loop.
-%   To avoid this being in internal form, an \texttt{f}-type expansion is used
-%   here on that value only. The second and third arguments will be converted
-%   during the loop itself.
+%      \end{macrocode}
+%   Only \enquote{normal} floating points (not $\pm 0$,
+%   $\pm\texttt{inf}$, \texttt{nan}) can be used as step; if positive,
+%   call \cs{@@_step:NnnnnN} with argument |>| otherwise~|<|.  This
+%   function has one more argument than its integer counterpart, namely
+%   the previous value, to catch the case where the loop has made no
+%   progress.  Conversion to decimal is done just before calling the
+%   user's function.
 %    \begin{macrocode}
-\cs_new:Npn \@@_step:wwwN #1 : #2 : #3 : #4
+\cs_new:Npn \@@_step:wwwN #1 ; \s_@@ \@@_chk:w #2#3#4 ; #5; #6
   {
-    \fp_compare:nNnTF {#2} > 0
-      { \@@_step:NfnnN > }
+    \token_if_eq_meaning:NNTF #2 1
       {
-        \fp_compare:nNnTF {#2} = 0
+        \token_if_eq_meaning:NNTF #3 0
+          { \@@_step:NnnnnN > }
+          { \@@_step:NnnnnN < }
+      }
+      {
+        \token_if_eq_meaning:NNTF #2 0
+          { \__msg_kernel_expandable_error:nnn { kernel } { zero-step } {#6} }
           {
-            \__msg_kernel_expandable_error:nnn { kernel } { zero-step } {#4}
-            \use_none:nnnn
+            \@@_error:nnfn { bad-step } { }
+              { \fp_to_tl:n { \s_@@ \@@_chk:w #2#3#4 ; } } {#6}
           }
-          { \@@_step:NfnnN < }
+        \use_none:nnnnn
       }
-      { \fp_eval:n {#1} } {#2} {#3} #4
+      { #1 ; } { \c_nan_fp } { \s_@@ \@@_chk:w #2#3#4 ; } { #5 ; } #6
   }
-
-\cs_new:Npn \@@_step:NnnnN #1#2#3#4#5
+\cs_new:Npn \@@_step:NnnnnN #1#2#3#4#5#6
   {
-    \fp_compare:nNnF {#2} #1 {#4}
+    \fp_compare:nNnTF {#2} = {#3}
       {
-        #5 {#2}
-        \@@_step:NfnnN
-          #1 { \fp_eval:n { #2 + #3 } } {#3} {#4} #5
+        \@@_error:nffn { tiny-step }
+          { \fp_to_tl:n {#3} } { \fp_to_tl:n {#4} } {#6}
+      }
+      {
+        \fp_compare:nNnF {#2} #1 {#5}
+          {
+            \exp_args:Nf #6 { \@@_to_decimal_dispatch:w #2 }
+            \@@_step:NfnnnN
+              #1 { \@@_parse:n { #2 + #4 } } {#2} {#4} {#5} #6
+          }
       }
   }
-\cs_generate_variant:Nn \@@_step:NnnnN { Nf }
+\cs_generate_variant:Nn \@@_step:NnnnnN { Nf }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 % \end{macro}
+%
 % \begin{macro}{\fp_step_inline:nnnn}
 %   As for \cs{int_step_inline:nnnn}, create a global function and apply it,
 %   following up with a break point.
@@ -383,6 +399,13 @@
   }
 %    \end{macrocode}
 % \end{macro}
+%
+%    \begin{macrocode}
+\__msg_kernel_new:nnn { kernel } { fp-bad-step }
+  { Invalid~step~size~#2~in~step~function~#3. }
+\__msg_kernel_new:nnn { kernel } { fp-tiny-step }
+  { Tiny~step~size~(#1+#2=#1)~in~step~function~#3. }
+%    \end{macrocode}
 %
 % \subsection{Extrema}
 %
