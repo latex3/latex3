@@ -76,15 +76,127 @@
 %<@@=fp>
 %    \end{macrocode}
 %
+% \subsection{Engine support}
+%
+% At present, \XeTeX{}, \pTeX{} and \upTeX{} do not provide random
+% numbers, while \LuaTeX{} and \pdfTeX{} provide the primitive
+% \cs{pdftex_uniformdeviate:D} (\tn{pdfuniformdeviate} in \pdfTeX{} and
+% \tn{uniformdeviate} in \LuaTeX{}).  We write the test twice simply in
+% order to write the \texttt{false} branch first.
+%    \begin{macrocode}
+\cs_if_exist:NF \pdftex_uniformdeviate:D
+  {
+    \__msg_kernel_new:nnn { kernel } { fp-no-random }
+      { Random~numbers~unavailable }
+    \cs_new:Npn \@@_rand_o:Nw ? #1 @
+      {
+        \__msg_kernel_expandable_error:nn { kernel } { fp-no-random }
+        \exp_after:wN \c_nan_fp
+      }
+    \cs_new_eq:NN \@@_randint_o:Nw \@@_rand_o:Nw
+  }
+\cs_if_exist:NT \pdftex_uniformdeviate:D
+  {
+%    \end{macrocode}
+%
+% \begin{macro}[EXP, int]{\@@_rand_uniform:}
+% \begin{variable}
+%   {
+%     \c_@@_rand_size_int,
+%     \c_@@_rand_four_int,
+%     \c_@@_rand_eight_int,
+%   }
+%   The \cs{pdftex_uniformdeviate:D} primitive gives a pseudo-random
+%   integer in a range $[0,n-1]$ of the user's choice.  This number is
+%   meant to be uniformly distributed, but is produced by rescaling a
+%   uniform pseudo-random integer in $[0,2^{28}-1]$.  For instance,
+%   setting~$n$ to (any multiple of) $2^{29}$ gives only even values.
+%   Thus it is only safe to call \cs{pdftex_uniformdeviate:D} with
+%   argument $2^{28}$.  We will also use variants of this number rounded
+%   down to multiples of $10^4$ and $10^8$.
+%    \begin{macrocode}
+\cs_new:Npn \@@_rand_uniform:
+  { \pdftex_uniformdeviate:D \c_@@_rand_size_int }
+\int_const:Nn \c_@@_rand_size_int   { 268 435 456 }
+\int_const:Nn \c_@@_rand_four_int   { 268 430 000 }
+\int_const:Nn \c_@@_rand_eight_int  { 200 000 000 }
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+% \begin{macro}[EXP, int]{\@@_rand_myriads:n}
+% \begin{macro}[EXP, aux]
+%   {
+%     \@@_rand_myriads_loop:nn,
+%     \@@_rand_myriads_get:w,
+%     \@@_rand_myriads_last:,
+%     \@@_rand_myriads_last:w,
+%   }
+%   Used as \cs{@@_rand_myriads:n} |{XXX}| with one input character per
+%   block of four digit we want.  Given a pseudo-random integer from the
+%   primitive, we extract $2$ blocks of digits if possible, namely if
+%   the integer is less than $2\times 10^8$.  If that's not possible,
+%   we try to extract $1$~block, which succeeds in the range $[2\times
+%   10^8, 26843\times 10^4)$.  For the $5456$ remaining possible values
+%   we just throw away the random integer and get a new one.  Depending
+%   on whether we got $2$, $1$, or~$0$ blocks, remove the same number of
+%   characters from the input stream with \cs{use_i:nnn}, \cs{use_i:nn}
+%   or nothing.
+%    \begin{macrocode}
+\cs_new:Npn \@@_rand_myriads:n #1
+  {
+    \@@_rand_myriads_loop:nn #1
+      { ? \use_i_delimit_by_q_stop:nw \@@_rand_myriads_last: }
+      { ? \use_none_delimit_by_q_stop:w } \q_stop
+  }
+\cs_new:Npn \@@_rand_myriads_loop:nn #1#2
+  {
+    \use_none:n #2
+    \exp_after:wN \@@_rand_myriads_get:w
+    \__int_value:w \@@_rand_uniform: ; {#1}{#2}
+  }
+\cs_new:Npn \@@_rand_myriads_get:w #1 ;
+  {
+    \if_int_compare:w #1 < \c_@@_rand_eight_int
+      \exp_after:wN \use_none:n
+      \__int_value:w \__int_eval:w
+        \c_@@_rand_eight_int + #1 \__int_eval_end:
+      \exp_after:wN \use_i:nnn
+    \else:
+      \if_int_compare:w #1 < \c_@@_rand_four_int
+        \exp_after:wN \use_none:nnnnn
+        \__int_value:w \__int_eval:w
+          \c_@@_rand_four_int + #1 \__int_eval_end:
+        \exp_after:wN \exp_after:wN \exp_after:wN \use_i:nn
+      \fi:
+    \fi:
+    \@@_rand_myriads_loop:nn
+  }
+\cs_new:Npn \@@_rand_myriads_last:
+  {
+    \exp_after:wN \@@_rand_myriads_last:w
+    \__int_value:w \@@_rand_uniform: ;
+  }
+\cs_new:Npn \@@_rand_myriads_last:w #1 ;
+  {
+    \if_int_compare:w #1 < \c_@@_rand_four_int
+      \exp_after:wN \use_none:nnnnn
+      \__int_value:w \__int_eval:w
+        \c_@@_rand_four_int + #1 \__int_eval_end:
+    \else:
+      \exp_after:wN \@@_rand_myriads_last:
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \subsection{Random floating point}
 %
 % \begin{macro}[EXP, int]{\@@_rand_o:Nw}
-% \begin{macro}[EXP, aux]{\@@_rand_o:}
-%   Check that |random| was called without argument.  Random numbers are
-%   only available if the engine defines a primitive equivalent to
-%   \pdfTeX{}'s \tn{pdfuniformdeviate}.  A random floating point number
-%   in $[0,1)$, uniformly distributed with equal-spaced steps of
-%   $10^{-16}$ is obtained by combining two integers in $[0,10^8-1]$.
+% \begin{macro}[EXP, aux]{\@@_rand_o:, \@@_rand_o:w}
+%   First we check that |random| was called without argument.  Then get
+%   four blocks of four digits.
 %    \begin{macrocode}
 \cs_new:Npn \@@_rand_o:Nw ? #1 @
   {
@@ -96,29 +208,8 @@
         \exp_after:wN \c_nan_fp
       }
   }
-\cs_if_exist:NTF \pdftex_uniformdeviate:D
-  {
-    \cs_new:Npn \@@_rand_o:
-      {
-        \@@_parse_o:n
-          {
-            .
-            \exp_after:wN \use_none:n
-            \__int_value:w \__int_eval:w 1 0000 0000 +
-              \pdftex_uniformdeviate:D 1 0000 0000 \__int_eval_end:
-            \exp_after:wN \use_none:n
-            \__int_value:w \__int_eval:w 1 0000 0000 +
-              \pdftex_uniformdeviate:D 1 0000 0000 \__int_eval_end:
-          }
-      }
-  }
-  {
-    \cs_new:Npn \@@_rand_o:
-      {
-        \__msg_kernel_expandable_error:nn { kernel } { fp-no-random }
-        \exp_after:wN \c_nan_fp
-      }
-  }
+\cs_new:Npn \@@_rand_o:
+  { \@@_parse_o:n { . \@@_rand_myriads:n { xxxx } } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -130,29 +221,33 @@
 %   {
 %     \@@_randint_badarg:w,
 %     \@@_randint_e:w,
-%     \@@_randint_narrow_e:nn,
-%     \@@_randint_wide_e:nn,
-%     \@@_randint_wide_e:nnn,
+%     \@@_randint_e:wnn,
+%     \@@_randint_e:wwNnn,
+%     \@@_randint_e:wwwNnn,
+%     \@@_randint_narrow_e:nnnn,
 %     \@@_randint_wide_e:nnnn,
+%     \@@_randint_wide_e:wnnn,
 %   }
 %     Enforce that there is one argument (then add first argument~$1$)
 %     or two arguments.  Enforce that they are integers in
-%     $(-10^{16},10^{16})$ and ordered.
+%     $(-10^{16},10^{16})$ and ordered.  We distinguish narrow ranges
+%     (less than $2^{28}$) from wider ones.
 %
-%     When the range is narrow (less than $2\times 10^9$) we can
-%     directly use the primitive.  Otherwise we use the primitive twice.
-%     To ensure a uniform distribution we combine two uniformly
-%     distributed integers into a total range greater or equal to our
-%     target range and try again if the random number ended up being too
-%     big.
+%     For narrow ranges, compute the number~$n$ of possible outputs as
+%     an integer using \cs{fp_to_int:n}, and reduce a pseudo-random
+%     $28$-bit integer~$r$ modulo~$n$.  On its own, this is not uniform
+%     when $[0,2^{28}-1]$ does not divide evenly into intervals of
+%     size~$n$.  The auxiliary \cs{@@_randint_e:wwwNnn} discards the
+%     pseudo-random integer if it lies in an incomplete interval, and
+%     repeats.
 %
-%     The strange |+\c_six| ensures that the first argument of
-%     \cs{@@_randint_wide_e:nnn} is larger than $10^{-8}$ times the
-%     difference between the end-points even if these are near
-%     $-10^{16}$ and $+10^{16}$ (their difference is rounded to sixteen
-%     digits).  Note that we cannot just concatenate the two random
-%     numbers provided by the engine as that may give an integer up to
-%     (almost) $2\times 10^{16}$ which incurs rounding.
+%     For wide ranges we use the same code except for the last eight
+%     digits which use \cs{@@_rand_myriads:n}.  It is not safe to
+%     combine the first digits with the last eight as a single string of
+%     digits, as this may exceed $16$~digits and be rounded.  Instead,
+%     we first add the first few digits (times $10^8$) to the lower
+%     bound.  The result is compared to the upper bound and the process
+%     repeats if needed.
 %    \begin{macrocode}
 \cs_new:Npn \@@_randint_o:Nw ? #1 @
   {
@@ -186,73 +281,64 @@
         \@@_randint_badarg:w #1;
         \@@_randint_badarg:w #2;
         \fp_compare:nNnTF { #1; } > { #2; } { \c_one } { \c_zero }
-      \fp_compare:nNnTF { #1; + 2e9 } < { #2; }
-        { \@@_randint_wide_e:nn }
-        { \@@_randint_narrow_e:nn }
-        { #1; } { #2; }
+      \exp_after:wN \exp_after:wN \exp_after:wN \@@_randint_e:wnn
+        \@@_parse:n { #2; - #1; } { #1; } { #2; }
     \or:
       \@@_invalid_operation_tl_o:ff
         { randint } { \@@_array_to_clist:n { #1; #2; } }
       \exp:w
     \fi:
   }
-\cs_if_exist:NTF \pdftex_uniformdeviate:D
+\cs_new:Npn \@@_randint_e:wnn #1;
   {
-    \cs_new:Npn \@@_randint_narrow_e:nn #1#2
-      {
-        \@@_parse_o:n
-          {
-            #1 +
-            \pdftex_uniformdeviate:D
-              \int_eval:n { \fp_to_int:n { #2 - #1 } + \c_one }
-          }
-        \exp:w
-      }
-    \cs_new:Npn \@@_randint_wide_e:nn #1 #2
-      {
-        \exp_args:Nf \@@_randint_wide_e:nnn
-          { \fp_to_int:n { ceil ( ( #2 - #1 + \c_six ) * 1e-8 ) } }
-          {#1} {#2}
-      }
-    \cs_new:Npn \@@_randint_wide_e:nnn #1#2#3
-      {
-        \exp_args:Nf \@@_randint_wide_e:nnnn
-          {
-            \@@_parse:n
-              {
-                #2 +
-                \pdftex_uniformdeviate:D #1 e 8 +
-                \pdftex_uniformdeviate:D 1 0000 0000
-              }
-          }
-          {#1} {#2} {#3}
-      }
-    \cs_new:Npn \@@_randint_wide_e:nnnn #1#2#3#4
-      {
-        \fp_compare:nNnTF {#1} > {#4}
-          { \@@_randint_wide_e:nnn {#2} {#3} {#4} }
-          { \@@_exp_after_o:w #1 \exp:w }
-      }
+    \exp_after:wN \@@_randint_e:wwNnn
+    \__int_value:w \@@_rand_uniform: \exp_after:wN ;
+    \exp:w \exp_end_continue_f:w
+      \fp_compare:nNnTF { #1 ; } < \c_@@_rand_size_int
+        { \fp_to_int:n { #1 ; + 1 } ; \@@_randint_narrow_e:nnnn }
+        { \fp_to_int:n { floor(#1 ; * 1e-8 + 1) } ; \@@_randint_wide_e:nnnn }
   }
+\cs_new:Npn \@@_randint_e:wwNnn #1 ; #2 ;
   {
-    \cs_new:Npn \@@_randint_narrow_e:nn #1#2
+    \exp_after:wN \@@_randint_e:wwwNnn
+    \__int_value:w \int_mod:nn {#1} {#2} ; #1 ; #2 ;
+  }
+\cs_new:Npn \@@_randint_e:wwwNnn #1 ; #2 ; #3 ; #4
+  {
+    \int_compare:nNnTF { #2 - #1 + #3 } > \c_@@_rand_size_int
       {
-        \__msg_kernel_expandable_error:nn { kernel } { fp-no-random }
-        \exp_after:wN \c_nan_fp \exp:w
+        \exp_after:wN \@@_randint_e:wwNnn
+          \__int_value:w \@@_rand_uniform: ; #3 ; #4
       }
-    \cs_new:Npn \@@_randint_wide_e:nn #1#2
+      { #4 {#1} {#3} }
+  }
+\cs_new:Npn \@@_randint_narrow_e:nnnn #1#2#3#4
+  { \@@_parse_o:n { #3 + #1 } \exp:w }
+\cs_new:Npn \@@_randint_wide_e:nnnn #1#2#3#4
+  {
+    \exp_after:wN \exp_after:wN
+    \exp_after:wN \@@_randint_wide_e:wnnn
+      \@@_parse:n { #3 + #1e8 + \@@_rand_myriads:n { xx } }
+      {#2} {#3} {#4}
+  }
+\cs_new:Npn \@@_randint_wide_e:wnnn #1 ; #2#3#4
+  {
+    \fp_compare:nNnTF { #1 ; } > {#4}
       {
-        \__msg_kernel_expandable_error:nn { kernel } { fp-no-random }
-        \exp_after:wN \c_nan_fp \exp:w
+        \exp_after:wN \@@_randint_e:wwNnn
+          \__int_value:w \@@_rand_uniform: ; #2 ;
+          \@@_randint_wide_e:nnnn {#3} {#4}
       }
+      { \@@_exp_after_o:w #1 ; \exp:w }
   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
+% End the initial conditional that ensures these commands are only
+% defined in \pdfTeX{} and \LuaTeX{}.
 %    \begin{macrocode}
-\__msg_kernel_new:nnn { kernel } { fp-no-random }
-  { Random~numbers~unavailable }
+  }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
