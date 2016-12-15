@@ -114,10 +114,11 @@
 % inefficient way).
 %
 % \begin{texnote}
-%   Internally, the code from \pkg{l3sort} stores items in \tn{toks}.
-%   Thus, the \meta{comparison code} should not alter the
-%   contents of any \tn{toks}, nor assume that they hold a
-%   given value.
+%   Internally, the code from \pkg{l3sort} stores items in \tn{toks}
+%   registers allocated locally.  Thus, the \meta{comparison code}
+%   should not call \tn{newtoks} or other commands that allocate new
+%   \tn{toks} registers.  On the other hand, altering the value of a
+%   previously allocated \tn{toks} register is not a problem.
 % \end{texnote}
 %
 % \begin{function}{\seq_sort:Nn, \seq_gsort:Nn}
@@ -189,26 +190,25 @@
 %
 % \subsection{Variables}
 %
-% \begin{variable}{\c_@@_max_length_int}
-%   The maximum length of a sequence which will not overflow
-%   the available registers depends on which engine is in use.
-%   For $2^{N}$ registers, it is $3\cdot 2^{N-2}$: for that number
-%   of items, at the last step the block size will be $2^{N-1}$,
-%   and the two blocks to merge will be of sizes $2^{N-1}$ and
-%   $2^{N-2}$ respectively. When merging, one of the blocks must
-%   be copied to temporary registers; here, the smallest block,
-%   of size $2^{N-2}$, will fill up exactly the $2^{N-2}$ free
-%   registers, totalling $2^{N-1}+2^{N-2}+2^{N-2}=2^{N}$ registers.
-%    \begin{macrocode}
-\int_const:Nn \c_@@_max_length_int
-  { \sys_if_engine_luatex:TF { 49152 } { 24576 } }
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{variable}{\l_@@_length_int}
-%   Length of the sequence which is being sorted.
+% \begin{variable}
+%   {
+%     \l_@@_length_int, \l_@@_min_int, \l_@@_top_int, \l_@@_max_int,
+%     \l_@@_true_max_int
+%   }
+%   The sequence has \cs{l_@@_length_int} items and is stored from
+%   \cs{l_@@_min_int} to $\cs{l_@@_top_int}-1$.  While reading the
+%   sequence in memory, we check that \cs{l_@@_top_int} remains at most
+%   \cs{l_@@_max_int}, precomputed by \cs{@@_compute_range:}.  That
+%   bound is such that the merge sort will only use \tn{toks} registers
+%   less than \cs{l_@@_true_max_int}, namely those that have not been
+%   allocated for use in other code: the user's comparison code could
+%   alter these.
 %    \begin{macrocode}
 \int_new:N \l_@@_length_int
+\int_new:N \l_@@_min_int
+\int_new:N \l_@@_top_int
+\int_new:N \l_@@_max_int
+\int_new:N \l_@@_true_max_int
 %    \end{macrocode}
 % \end{variable}
 %
@@ -254,34 +254,167 @@
 % \end{variable}
 % \end{variable}
 %
+% \subsection{Finding available \tn{toks} registers}
+%
+% \begin{macro}[int]{\@@_shrink_range:}
+% \begin{macro}[aux]{\@@_shrink_range_loop:}
+%   After \cs{@@_compute_range:} (defined below) determines that
+%   \tn{toks} registers between \cs{l_@@_min_int} (included) and
+%   \cs{l_@@_true_max_int} (excluded) have not yet been assigned,
+%   \cs{@@_shrink_range:} computes \cs{l_@@_max_int} to reflect the need
+%   for a buffer when merging blocks in the merge sort.  Given
+%   $2^{n}\leq A\leq 2^{n}+2^{n-1}$ registers we can sort $\lfloor
+%   A/2\rfloor+2^{n-2}$ items while if we have $2^{n}+2^{n-1}\leq A\leq
+%   2^{n+1}$ registers we can sort $A-2^{n-1}$ items.  We first find out
+%   a power $2^{n}$ such that $2^{n}\leq A\leq 2^{n+1}$ by repeatedly
+%   halving \cs{l_@@_block_int}, starting at $2^{15}$ or $2^{14}$ namely
+%   half the total number of registers, then we use the formulas and set
+%   \cs{l_@@_max_int}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_shrink_range:
+  {
+    \int_set:Nn \l_@@_A_int
+      { \l_@@_true_max_int - \l_@@_min_int + \c_one }
+    \int_set:Nn \l_@@_block_int { \c_max_register_int / \c_two }
+    \@@_shrink_range_loop:
+    \int_set:Nn \l_@@_max_int
+      {
+        \int_compare:nNnTF
+          { \l_@@_block_int * \c_three / \c_two } > \l_@@_A_int
+          {
+            \l_@@_min_int
+            + ( \l_@@_A_int - \c_one ) / \c_two
+            + \l_@@_block_int / \c_four
+            - \c_one
+          }
+          { \l_@@_true_max_int - \l_@@_block_int / \c_two }
+      }
+  }
+\cs_new_protected:Npn \@@_shrink_range_loop:
+  {
+    \if_int_compare:w \l_@@_A_int < \l_@@_block_int
+      \tex_divide:D \l_@@_block_int \c_two
+      \exp_after:wN \@@_shrink_range_loop:
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_compute_range:, \@@_redefine_compute_range:}
+% \begin{variable}{\c_@@_max_length_int}
+%   First find out what \tn{toks} have not yet been assigned.  There are
+%   many cases.  In \LaTeXe{} with no package, available \tn{toks} range
+%   from $\tn{count}15+1$ to \cs{c_max_register_int} included (this was
+%   not altered despite the 2015 changes).  When \tn{loctoks} is
+%   defined, namely in plain (e)\TeX{}, or when the package \pkg{etex}
+%   is loaded in \LaTeXe{}, redefine \cs{@@_compute_range:} to use the
+%   range $\tn{count}265$ to $\tn{count}275-1$.  The \pkg{elocalloc}
+%   package also defines \tn{loctoks} but uses yet another number for
+%   the upper bound, namely \cs{e@alloc@top} (minus one).  We must check
+%   for \tn{loctoks} every time a sorting function is called, as
+%   \pkg{etex} or \pkg{elocalloc} could be loaded.
+%
+%   In Con\TeX{}t mkiv the range is from
+%   $|\c_syst_last_allocated_toks|+1$ to \cs{c_max_register_int}, and in
+%   mkii it is from $|\lastallocatedtoks|+1$ to \cs{c_max_register_int}.
+%   In all these cases, call \cs{@@_shrink_range:}.  The \LaTeX3 format
+%   mode is easiest: no \tn{toks} are ever allocated so available
+%   \tn{toks} range from $0$ to \cs{c_max_register_int} and we
+%   precompute the result of \cs{@@_shrink_range:}.
+%    \begin{macrocode}
+%<*package>
+\cs_new_protected:Npn \@@_compute_range:
+  {
+    \int_set:Nn \l_@@_min_int { \tex_count:D 15 + \c_one }
+    \int_set:Nn \l_@@_true_max_int { \c_max_register_int + \c_one }
+    \@@_shrink_range:
+    \if_meaning:w \loctoks \tex_undefined:D \else:
+      \if_meaning:w \loctoks \scan_stop: \else:
+        \@@_redefine_compute_range:
+        \@@_compute_range:
+      \fi:
+    \fi:
+  }
+\cs_new_protected:Npn \@@_redefine_compute_range:
+  {
+    \cs_if_exist:cTF { ver@elocalloc.sty }
+      {
+        \cs_gset_protected:Npn \@@_compute_range:
+          {
+            \int_set:Nn \l_@@_min_int { \tex_count:D 265 }
+            \int_set_eq:NN \l_@@_true_max_int \e@alloc@top
+            \@@_shrink_range:
+          }
+      }
+      {
+        \cs_gset_protected:Npn \@@_compute_range:
+          {
+            \int_set:Nn \l_@@_min_int { \tex_count:D 265 }
+            \int_set:Nn \l_@@_true_max_int { \tex_count:D 275 }
+            \@@_shrink_range:
+          }
+      }
+  }
+\cs_if_exist:NT \loctoks { \@@_redefine_compute_range: }
+\tl_map_inline:nn { \lastallocatedtoks \c_syst_last_allocated_toks }
+  {
+    \cs_if_exist:NT #1
+      {
+        \cs_gset_protected:Npn \@@_compute_range:
+          {
+            \int_set:Nn \l_@@_min_int { #1 + \c_one }
+            \int_set:Nn \l_@@_true_max_int { \c_max_register_int + \c_one }
+            \@@_shrink_range:
+          }
+      }
+  }
+%</package>
+%<*format>
+\int_const:Nn \c_@@_max_length_int
+  { ( \c_max_register_int + 1 ) * 3 / 4 }
+\cs_new_protected:Npn \@@_compute_range:
+  {
+    \int_set_eq:NN \l_@@_min_int \c_zero
+    \int_set:Nn \l_@@_true_max_int { \c_max_register_int + \c_one }
+    \int_set_eq:NN \l_@@_max_int \c_@@_max_length_int
+  }
+%</format>
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
 % \subsection{Protected user commands}
 %
 % \begin{macro}[int]{\@@_main:NNNnNn}
-%   Sorting happens in three steps. First store items
-%   in \tn{toks} registers ranging from $0$ to the length
-%   of the list, while checking that the list is not too
+%   Sorting happens in three steps. First store items in \tn{toks}
+%   registers ranging from \cs{l_@@_min_int} to $\cs{l_@@_top_int}-1$,
+%   while checking that the list is not too
 %   long. If we reach the maximum length, all further
 %   items are entirely ignored after raising an error.
 %   Secondly, sort the array of \tn{toks} registers,
-%   using the user-defined sorting function, |#5|.
+%   using the user-defined sorting function, |#6|.
 %   Finally, unpack the \tn{toks} registers (now sorted)
 %   into a variable of the right type, by \texttt{x}-expanding
-%   the code in |#3|, specific to each type of list.
+%   the code in |#4|, specific to each type of list.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_main:NNNnNn #1#2#3#4#5#6
   {
     \group_begin:
-      \l_@@_length_int \c_zero
+      \@@_compute_range:
+      \int_set_eq:NN \l_@@_top_int \l_@@_min_int
       #2 #5
         {
-          \if_int_compare:w \l_@@_length_int = \c_@@_max_length_int
+          \if_int_compare:w \l_@@_top_int = \l_@@_max_int
             \@@_too_long_error:NNw #3 #5
           \fi:
-          \tex_toks:D \l_@@_length_int {##1}
-          \tex_advance:D \l_@@_length_int \c_one
+          \tex_toks:D \l_@@_top_int {##1}
+          \tex_advance:D \l_@@_top_int \c_one
         }
-      \cs_set:Npn \sort_compare:nn ##1 ##2 { #6 }
-      \l_@@_block_int \c_one
+      \int_set:Nn \l_@@_length_int
+        { \l_@@_top_int - \l_@@_min_int }
+      \cs_set:Npn \@@_compare:nn ##1 ##2 { #6 }
+      \int_set_eq:NN \l_@@_block_int \c_one
       \@@_level:
       \use:x
         {
@@ -308,13 +441,13 @@
   {
     \@@_main:NNNnNn \tl_set:Nn
       \seq_map_inline:Nn \seq_map_break:
-      { \s__seq \@@_toks:NNw \exp_not:N \__seq_item:n 0 ; }
+      { \s__seq \@@_toks:NN \exp_not:N \__seq_item:n }
   }
 \cs_new_protected:Npn \seq_gsort:Nn
   {
     \@@_main:NNNnNn \tl_gset:Nn
       \seq_map_inline:Nn \seq_map_break:
-      { \s__seq \@@_toks:NNw \exp_not:N \__seq_item:n 0 ; }
+      { \s__seq \@@_toks:NN \exp_not:N \__seq_item:n }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -330,13 +463,13 @@
   {
     \@@_main:NNNnNn \tl_set:Nn
       \tl_map_inline:Nn \tl_map_break:
-      { \@@_toks:NNw \prg_do_nothing: \prg_do_nothing: 0 ; }
+      { \@@_toks:NN \prg_do_nothing: \prg_do_nothing: }
   }
 \cs_new_protected:Npn \tl_gsort:Nn
   {
     \@@_main:NNNnNn \tl_gset:Nn
       \tl_map_inline:Nn \tl_map_break:
-      { \@@_toks:NNw \prg_do_nothing: \prg_do_nothing: 0 ; }
+      { \@@_toks:NN \prg_do_nothing: \prg_do_nothing: }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -350,7 +483,7 @@
 %   for sequences and token lists. The first comma must be removed.
 %   An item must be wrapped in an extra set of braces if it contains
 %   either the space or the comma characters. This is taken care of
-%   by \cs{clist_wrap_item:n}, but \cs{@@_toks:NNw} would simply
+%   by \cs{clist_wrap_item:n}, but \cs{@@_toks:NN} would simply
 %   feed \cs{tex_the:D} \cs{tex_toks:D} \meta{number} as an
 %   argument to that function; hence we need to expand this argument
 %   once to unpack the register.
@@ -367,7 +500,7 @@
           \clist_map_inline:Nn \clist_map_break:
           {
             \exp_last_unbraced:Nf \use_none:n
-              { \@@_toks:NNw \exp_args:No \__clist_wrap_item:n 0 ; }
+              { \@@_toks:NN \exp_args:No \__clist_wrap_item:n }
           }
           #2 {#3}
       }
@@ -376,10 +509,10 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\@@_toks:NNw}
-%   Unpack the various \tn{toks} registers, from $0$ to the length
-%   of the list. The functions |#1| and |#2| allow us to treat the
-%   three data structures in a unified way:
+% \begin{macro}{\@@_toks:NN, \@@_toks:NNw}
+%   Unpack the various \tn{toks} registers, from \cs{l_@@_min_int} to
+%   $\cs{l_@@_top_int}-1$. The functions |#1| and |#2| allow us to treat
+%   the three data structures in a unified way:
 %   \begin{itemize}
 %   \item for sequences, they are \cs{exp_not:N} \cs{__seq_item:n},
 %     expanding to the \cs{__seq_item:n} separator, as expected;
@@ -391,9 +524,11 @@
 %     braces.
 %   \end{itemize}
 %    \begin{macrocode}
+\cs_new:Npn \@@_toks:NN #1#2
+  { \@@_toks:NNw #1 #2 \l_@@_min_int ; }
 \cs_new:Npn \@@_toks:NNw #1#2#3 ;
   {
-    \if_int_compare:w #3 < \l_@@_length_int
+    \if_int_compare:w #3 < \l_@@_top_int
       #1 #2 { \tex_the:D \tex_toks:D #3 }
       \exp_after:wN \@@_toks:NNw \exp_after:wN #1 \exp_after:wN #2
       \__int_value:w \__int_eval:w #3 + \c_one \exp_after:wN ;
@@ -402,7 +537,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsection{Sorting itself}
+% \subsection{Merge sort}
 %
 % \begin{macro}[int]{\@@_level:}
 %   This function is called once blocks of size \cs{l_@@_block_int}
@@ -414,9 +549,9 @@
 \cs_new_protected:Npn \@@_level:
   {
     \if_int_compare:w \l_@@_block_int < \l_@@_length_int
-      \l_@@_end_int \c_zero
+      \l_@@_end_int \l_@@_min_int
       \@@_merge_blocks:
-      \tex_multiply:D \l_@@_block_int \c_two
+      \tex_advance:D \l_@@_block_int \l_@@_block_int
       \exp_after:wN \@@_level:
     \fi:
   }
@@ -427,14 +562,14 @@
 %   This function is called to merge a pair of blocks, starting at
 %   the last value of \cs{l_@@_end_int} (end-point of the previous
 %   pair of blocks). If shifting by one block to the right we reach
-%   the end of the list, then this pass has ended: this end of the
-%   list is sorted already. Store the result of that shift in $A$,
+%   the end of the list, then this pass has ended: the end of the
+%   list is sorted already. Otherwise, store the result of that shift in $A$,
 %   which will index the first block starting from the top end.
-%   Then locate the end-point (maximum) of the upper block: shift
-%   \texttt{end} upwards by one more block, checking that we don't
-%   go beyond the length of the list. Copy this upper block of \tn{toks}
+%   Then locate the end-point (maximum) of the second block: shift
+%   \texttt{end} upwards by one more block, but keeping it
+%   $\leq\texttt{top}$. Copy this upper block of \tn{toks}
 %   registers in registers above \texttt{length}, indexed by $C$:
-%   this is covered by \cs{sort_copy_block:}. Once this is done we
+%   this is covered by \cs{@@_copy_block:}. Once this is done we
 %   are ready to do the actual merger using \cs{@@_merge_blocks_aux:},
 %   after shifting $A$, $B$ and $C$ so that they point to the largest
 %   index in their respective ranges rather than pointing just beyond
@@ -445,15 +580,15 @@
   {
     \l_@@_begin_int \l_@@_end_int
     \tex_advance:D \l_@@_end_int \l_@@_block_int
-    \if_int_compare:w \__int_eval:w \l_@@_end_int < \l_@@_length_int
+    \if_int_compare:w \l_@@_end_int < \l_@@_top_int
       \l_@@_A_int \l_@@_end_int
       \tex_advance:D \l_@@_end_int \l_@@_block_int
-      \if_int_compare:w \l_@@_end_int > \l_@@_length_int
-        \l_@@_end_int \l_@@_length_int
+      \if_int_compare:w \l_@@_end_int > \l_@@_top_int
+        \l_@@_end_int \l_@@_top_int
       \fi:
       \l_@@_B_int \l_@@_A_int
-      \l_@@_C_int \l_@@_length_int
-      \sort_copy_block:
+      \l_@@_C_int \l_@@_top_int
+      \@@_copy_block:
       \tex_advance:D \l_@@_A_int - \c_one
       \tex_advance:D \l_@@_B_int - \c_one
       \tex_advance:D \l_@@_C_int - \c_one
@@ -464,14 +599,14 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int]{\sort_copy_block:}
+% \begin{macro}[int]{\@@_copy_block:}
 %   We wish to store a copy of the \enquote{upper} block of
 %   \tn{toks} registers, ranging between the initial value of
 %   \cs{l_@@_B_int} (included) and \cs{l_@@_end_int}
 %   (excluded) into a new range starting at the initial value
-%   of \cs{l_@@_C_int}, namely \cs{l_@@_length_int}.
+%   of \cs{l_@@_C_int}, namely \cs{l_@@_top_int}.
 %    \begin{macrocode}
-\cs_new_protected:Npn \sort_copy_block:
+\cs_new_protected:Npn \@@_copy_block:
   {
     \tex_toks:D \l_@@_C_int \tex_toks:D \l_@@_B_int
     \tex_advance:D \l_@@_C_int \c_one
@@ -479,7 +614,7 @@
     \if_int_compare:w \l_@@_B_int = \l_@@_end_int
       \use_i:nn
     \fi:
-    \sort_copy_block:
+    \@@_copy_block:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -487,7 +622,7 @@
 % \begin{macro}[aux]{\@@_merge_blocks_aux:}
 %   At this stage, the first block starts at \cs{l_@@_begin_int},
 %   and ends at \cs{l_@@_A_int}, and the second block starts at
-%   \cs{l_@@_length_int} and ends at \cs{l_@@_C_int}. The result
+%   \cs{l_@@_top_int} and ends at \cs{l_@@_C_int}. The result
 %   of the merger is stored at positions indexed by \cs{l_@@_B_int},
 %   which starts at $\cs{l_@@_end_int}-1$ and decreases down to
 %   \cs{l_@@_begin_int}, covering the full range of the two blocks.
@@ -500,7 +635,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_merge_blocks_aux:
   {
-    \exp_after:wN \sort_compare:nn \exp_after:wN
+    \exp_after:wN \@@_compare:nn \exp_after:wN
       { \tex_the:D \tex_toks:D \exp_after:wN \l_@@_A_int \exp_after:wN }
       \exp_after:wN { \tex_the:D \tex_toks:D \l_@@_C_int }
   }
@@ -509,14 +644,14 @@
 %
 % \begin{macro}[aux]{\sort_ordered:}
 %   If the comparison function returns \texttt{ordered},
-%   then the second argument fed to \cs{sort_compare:nn}
+%   then the second argument fed to \cs{@@_compare:nn}
 %   should remain to the right of the other one. Since
 %   we build the merger starting from the right, we copy
 %   that \tn{toks} register into the allotted range, then
 %   shift the pointers $B$ and $C$, and go on to do one
 %   more step in the merger, unless the second block has
 %   been exhausted: then the remainder of the first block
-%   is already in the correct register and we are done
+%   is already in the correct registers and we are done
 %   with merging those two blocks.
 %    \begin{macrocode}
 \cs_new_protected:Npn \sort_ordered:
@@ -524,7 +659,7 @@
     \tex_toks:D \l_@@_B_int \tex_toks:D \l_@@_C_int
     \tex_advance:D \l_@@_B_int - \c_one
     \tex_advance:D \l_@@_C_int - \c_one
-    \if_int_compare:w \l_@@_C_int < \l_@@_length_int
+    \if_int_compare:w \l_@@_C_int < \l_@@_top_int
       \use_i:nn
     \fi:
     \@@_merge_blocks_aux:
@@ -540,8 +675,8 @@
 %   go for one more step for the merger, unless the left
 %   block was exhausted ($A$ goes below the threshold).
 %   In that case, all remaining \tn{toks} registers in
-%   the second block, indexed by $C$, should be copied
-%   to the merger (see \cs{@@_merge_blocks_end:}).
+%   the second block, indexed by $C$, are copied
+%   to the merger by \cs{@@_merge_blocks_end:}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \sort_reversed:
   {
@@ -561,7 +696,7 @@
 %   in the block indexed by $C$ to the merger indexed by $B$.
 %   The end can equally be detected by checking when $B$ reaches
 %   the threshold \texttt{begin}, or when $C$ reaches
-%   \texttt{length}.
+%   \texttt{top}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_merge_blocks_end:
   {
@@ -903,15 +1038,18 @@
 \cs_new_protected:Npn \@@_too_long_error:NNw #1#2 \fi:
   {
     \fi:
-    \__msg_kernel_error:nnx { sort } { too-large } { \token_to_str:N #2 }
+    \__msg_kernel_error:nnxxx { sort } { too-large }
+      { \token_to_str:N #2 }
+      { \int_eval:n { \l_@@_true_max_int - \l_@@_min_int } }
+      { \int_eval:n { \l_@@_top_int - \l_@@_min_int } }
     #1
   }
 \__msg_kernel_new:nnnn { sort } { too-large }
   { The~list~#1~is~too~long~to~be~sorted~by~TeX. }
   {
-    TeX~has~\int_eval:n { \c_max_register_int + 1 }~registers~available:~
-    this~only~allows~to~sort~with~up~to~\int_use:N \c_@@_max_length_int
-    \ items.~All~extra~items~will~be~ignored.
+    TeX~has~#2~toks~registers~still~available:~
+    this~only~allows~to~sort~with~up~to~#3~
+    items.~All~extra~items~will~be~deleted.
   }
 %    \end{macrocode}
 % \end{macro}
