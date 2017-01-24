@@ -1120,7 +1120,9 @@ function runcheck(name, hide)
     end
     if errlevel ~= 0 and opthalt then
       checkdiff()
-      return errlevel
+      if errlevel ~= 0 then
+        return 1
+      end
     end
     if errlevel > errorlevel then
       errorlevel = errlevel
