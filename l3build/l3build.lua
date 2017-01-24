@@ -1,6 +1,6 @@
 --[[
 
-File l3build.lua Copyright (C) 2014,2016 The LaTeX3 Project
+File l3build.lua Copyright (C) 2014-2017 The LaTeX3 Project
 
 It may be distributed and/or modified under the conditions of the
 LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -186,7 +186,7 @@ function argparse()
       ["halt-on-error"]   = "halt"   ,
       ["halt-on-failure"] = "halt"   ,
       help                = "help"   ,
-      pdf                 = "pdf" ,
+      pdf                 = "pdf"    ,
       quiet               = "quiet"  ,
       release             = "release"
     }
@@ -196,7 +196,7 @@ function argparse()
       e = "engine" ,
       h = "help"   ,
       H = "halt"   ,
-      p = "pdf"  ,
+      p = "pdf"    ,
       q = "quiet"  ,
       r = "release"
     }
