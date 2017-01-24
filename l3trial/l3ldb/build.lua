@@ -20,6 +20,8 @@ checkdeps   =
 checksuppfiles  =
   {
     "article.cls",
+    "fontenc.sty",
+    "ot1enc.def",
     "regression-test.cfg",
     "size10.clo",
   }
