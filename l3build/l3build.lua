@@ -181,34 +181,37 @@ function argparse()
   local files  = { }
   local long_options =
     {
-      date                = "date"   ,
-      engine              = "engine" ,
-      ["halt-on-error"]   = "halt"   ,
-      ["halt-on-failure"] = "halt"   ,
-      help                = "help"   ,
-      pdf                 = "pdf"    ,
-      quiet               = "quiet"  ,
-      release             = "release"
+      date                = "date"       ,
+      engine              = "engine"     ,
+      ["halt-on-error"]   = "halt"       ,
+      ["halt-on-failure"] = "halt"       ,
+      help                = "help"       ,
+      pdf                 = "pdf"        ,
+      quiet               = "quiet"      ,
+      release             = "release"    ,
+      testfiledir         = "testfiledir"
     }
   local short_options =
     {
-      d = "date"   ,
-      e = "engine" ,
-      h = "help"   ,
-      H = "halt"   ,
-      p = "pdf"    ,
-      q = "quiet"  ,
-      r = "release"
+      d = "date"       ,
+      e = "engine"     ,
+      h = "help"       ,
+      H = "halt"       ,
+      p = "pdf"        ,
+      q = "quiet"      ,
+      r = "release"    ,
+      t = "testfiledir"
     }
   local option_args =
     {
-      date    = true ,
-      engine  = true ,
-      halt    = false,
-      help    = false,
-      pdf     = false,
-      quiet   = false,
-      release = true
+      date        = true ,
+      engine      = true ,
+      halt        = false,
+      help        = false,
+      pdf         = false,
+      quiet       = false,
+      release     = true,
+      testfiledir = true
     }
   -- arg[1] is a special case: must be a command or "-h"/"--help"
   -- Deal with this by assuming help and storing only apparently-valid
@@ -2147,6 +2150,19 @@ end
 
 -- Allow main function to be disabled 'higher up'
 main = main or stdmain
+
+-- Pick up and read any per-run testfiledir
+if userargs["testfiledir"] then
+  if #userargs["testfiledir"] == 1 then
+    testfiledir = userargs["testfiledir"][1]
+    if fileexists(testfiledir .. "/config.lua") then
+      dofile(testfiledir .. "/config.lua")
+    end
+  else
+    print("Cannot use more than one testfile dir at a time!")
+    return 1
+  end
+end
 
 -- Call the main function
 main(userargs["target"], userargs["files"])
