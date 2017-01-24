@@ -10,7 +10,9 @@ checkengines    = checkengines
 checksuppfiles  = checksuppfiles  or
   {
     "CaseFolding.txt",
+    "fontenc.sty",
     "minimal.cls",
+    "ot1enc.def",
     "regression-test.cfg",
     "SpecialCasing.txt",
     "UnicodeData.txt",
