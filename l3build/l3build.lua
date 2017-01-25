@@ -1536,6 +1536,7 @@ function help()
   print("   --pdf|-p            Check/save PDF files")
   print("   --quiet|-q          Suppresses TeX output when unpacking")
   print("   --release|-r        Sets the release to insert into sources")
+  print("   --testfiledir|-t    Selects the specified testfile location")
   print("")
   print("See l3build.pdf for further details.")
 end
