@@ -21,19 +21,9 @@ updated at the same time.
 
 Currently included in the CTAN release of l3experimental are the following
 bundles:
-* `l3sort`
 * `l3str`
 * `xcoffins`
 * `xgalley`
-
-`l3sort`
---------
-
-Ordered variables content (in `tl`, `clist` or `seq` variables) may be sorted
-in a flexible manner using the `l3sort` module. The definition of how to sort
-two items is provided by the programmer at the point at which the sort is
-carried out. Internally, the sorting algorithm is designed to take advantage
-of TeX token registers to allow a high performance and scalable sort.
 
 `l3str`
 -------
