@@ -799,7 +799,12 @@ function formatlog(logfile, newfile, engine)
     line = string.gsub(line, "%(%.%/", "(")
     -- Zap paths if places other than 'here' are accessible
     if checksearch then
-      line = string.gsub(line, "%(.*/([%w-]+%.[%w-]+)%)?%s*$", "(../%1")
+      local pattern = "%w?:?/[^ ]*/([^/%(%)]*%.%w*)"
+      -- Files loaded from TeX: all start ( -- )
+      line = string.gsub(line, "%(" .. pattern, "(../%1")
+      -- luaotfload files start with keywords
+      line = string.gsub(line, "from " .. pattern .. "%(", "from. ./%1(")
+      line = string.gsub(line, ": " .. pattern .. "%)", ": ../%1)")
     end
     -- Deal with the fact that "(.aux)" may have still a leading space
     line = string.gsub(line, "^ %(%.aux%)", "(.aux)")
