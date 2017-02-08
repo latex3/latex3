@@ -342,7 +342,7 @@
 % \end{verbatim}
 %
 % Currently, referring to other arguments in default values is not
-% supported for \texttt{E}-type arguments nor for expandable commands.
+% supported for expandable commands.
 %
 % Users should note that support for default arguments referring to
 % other arguments is somewhat experimental. Feedback is therefore very
@@ -809,6 +809,15 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_args_i_tl, \l_@@_args_ii_tl}
+%   Hold the modified arguments when dealing with default values or
+%   processors.
+%    \begin{macrocode}
+\tl_new:N \l_@@_args_i_tl
+\tl_new:N \l_@@_args_ii_tl
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_@@_command_arg_specs_prop}
 %   Used to record all document commands created, and the argument
 %   specifications that go with these.
@@ -925,14 +934,6 @@
 %   one.
 %    \begin{macrocode}
 \int_new:N \l_@@_mandatory_args_int
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{variable}{\l_@@_new_args_tl}
-%   Holds the modified arguments when dealing with default values or
-%   processors.
-%    \begin{macrocode}
-\tl_new:N \l_@@_new_args_tl
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1187,13 +1188,12 @@
 % \end{macro}
 % \end{macro}
 %
-% \subsection{Structure of an \pkg{xparse} command}
+% \subsection{Structure of non-expandable \pkg{xparse} commands}
 %
 % \begin{macro}{\@@_start_cmd:NNnnn}
 %   This sets up a few variables to minimize the boilerplate code
 %   included in all \pkg{xparse}-defined commands.  It then runs the
-%   grabbers |#3| and calls \cs{@@_run_code:} to set up default
-%   arguments, apply processors and finally runs the code.
+%   grabbers~|#3|.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_start_cmd:NNnnn #1#2#3#4#5
   {
@@ -1222,63 +1222,104 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_defaults:}
-% \begin{macro}[aux]{\@@_defaults_aux:nn, \@@_defaults_aux:n, \@@_defaults_tmp:w, \@@_defaults_aux:}
-%   First construct \cs{@@_defaults_tmp:w} that will receive the
-%   arguments found so far and determine default values for any missing
-%   argument.  Then call it repeatedly until the set of arguments
-%   stabilizes.  Since that could lead to an infinite loop we only call
-%   it up to nine times, the maximal number needed for stabilization if
-%   there is a chain of arguments that depend on each other.
+% \begin{macro}[aux]{\@@_defaults_def:, \@@_defaults_def:nn, \@@_defaults_def:nnn, \@@_defaults_def_aux:nn}
+% \begin{macro}[aux]{\@@_defaults_tmp:w, \@@_defaults_aux:,  \@@_defaults_error:w}
+%   First construct \cs{@@_defaults_tmp:w} (see below) that will receive
+%   the arguments found so far and determine default values for any
+%   missing argument.  Then call it repeatedly until the set of
+%   arguments stabilizes.  Since that could lead to an infinite loop we
+%   only call it up to nine times, the maximal number needed for
+%   stabilization if there is a chain of arguments that depend on each
+%   other.  If that fails to stabilize raise an error.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_defaults:
   {
-    \tl_clear:N \l_@@_new_args_tl
-    \int_zero:N \l_@@_current_arg_int
-    \@@_tl_mapthread_function:NNN
-      \l_@@_args_tl
-      \l_@@_defaults_tl
-      \@@_defaults_aux:nn
-    \exp_args:No \@@_defaults_aux:n { \l_@@_new_args_tl }
+    \@@_defaults_def:
+    \tl_set_eq:NN \l_@@_args_i_tl \l_@@_args_tl
     \@@_defaults_aux: \@@_defaults_aux: \@@_defaults_aux:
     \@@_defaults_aux: \@@_defaults_aux: \@@_defaults_aux:
     \@@_defaults_aux: \@@_defaults_aux: \@@_defaults_aux:
-    \__msg_kernel_error:nnx { xparse } { loop-in-defaults }
-      { \exp_after:wN \token_to_str:N \l_@@_fn_tl }
-    \use_none:n
+    \@@_defaults_error:w
     \q_recursion_stop
+    \tl_set_eq:NN \l_@@_args_tl \l_@@_args_i_tl
   }
-\cs_new_protected:Npn \@@_defaults_aux:nn #1#2
-  {
-    \int_incr:N \l_@@_current_arg_int
-    \tl_put_right:Nx \l_@@_new_args_tl
-      {
-        \@@_if_no_value:nTF {#1}
-          { { \exp_not:n {#2} } }
-          { { #### \int_use:N \l_@@_current_arg_int } }
-      }
-  }
-\cs_new_protected:Npn \@@_defaults_aux:n #1
-  {
-    \cs_set_protected:Npn \@@_defaults_tmp:w
-      ##1##2##3##4##5##6##7##8##9
-      {
-        \tl_set:Nn \l_@@_new_args_tl {#1}
-        \use_none_delimit_by_q_stop:w
-      }
-  }
-\cs_new_protected:Npn \@@_defaults_tmp:w { }
+\cs_new:Npn \@@_defaults_tmp:w { }
 \cs_new_protected:Npn \@@_defaults_aux:
   {
-    \exp_after:wN \@@_defaults_tmp:w \l_@@_args_tl
-    \c_@@_no_value_tl \c_@@_no_value_tl \c_@@_no_value_tl
-    \c_@@_no_value_tl \c_@@_no_value_tl \c_@@_no_value_tl
-    \c_@@_no_value_tl \c_@@_no_value_tl \c_@@_no_value_tl
-    \q_stop
-    \tl_if_eq:NNT \l_@@_new_args_tl \l_@@_args_tl
+    \tl_set:Nx \l_@@_args_ii_tl
+      { \exp_after:wN \@@_defaults_tmp:w \l_@@_args_i_tl }
+    \tl_if_eq:NNT \l_@@_args_ii_tl \l_@@_args_i_tl
       { \use_none_delimit_by_q_recursion_stop:w }
-    \tl_set_eq:NN \l_@@_args_tl \l_@@_new_args_tl
+    \tl_set_eq:NN \l_@@_args_i_tl \l_@@_args_ii_tl
+  }
+\cs_new_protected:Npn \@@_defaults_error:w \q_recursion_stop
+  {
+    \__msg_kernel_error:nnx { xparse } { loop-in-defaults }
+      { \exp_after:wN \token_to_str:N \l_@@_fn_tl }
   }
 %    \end{macrocode}
+%   To construct \cs{@@_defaults_tmp:w}, first go through the arguments
+%   found and the corresponding defaults, building a token list with
+%   |{#|\meta{arg number}|}| for arguments found in the input (whose
+%   default will not be used) and otherwise
+%   |{|\cs{exp_not:n}\Arg{default}|}| for arguments whose default will
+%   be used.  The case of \texttt{E}-type arguments, detected by
+%   \cs{tl_if_head_is_group:nTF}, is special because we may need to
+%   partly use an argument found in the input and partly some default.
+%   This case is delayed until \cs{@@_defaults_tmp:w} is called: then we
+%   map through the original argument and its corresponding list of
+%   defaults; for each item (corresponding to one embellishment) if a
+%   value has already been found use it otherwise use the default.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_defaults_def:
+  {
+    \tl_clear:N \l_@@_tmpa_tl
+    \int_zero:N \l_@@_current_arg_int
+    \@@_tl_mapthread_function:NNN \l_@@_args_tl \l_@@_defaults_tl
+      \@@_defaults_def:nn
+    \cs_generate_from_arg_count:NNVo \@@_defaults_tmp:w \cs_set:Npn
+      \l_@@_current_arg_int \l_@@_tmpa_tl
+  }
+\cs_generate_variant:Nn \cs_generate_from_arg_count:NNnn { NNVo }
+\cs_new_protected:Npn \@@_defaults_def:nn
+  {
+    \int_incr:N \l_@@_current_arg_int
+    \exp_args:NV \@@_defaults_def:nnn \l_@@_current_arg_int
+  }
+\cs_new_protected:Npn \@@_defaults_def:nnn #1#2#3
+  {
+    \tl_if_head_is_group:nTF {#3}
+      {
+        \tl_put_right:Nn \l_@@_tmpa_tl
+          {
+            {
+              \exp_args:Nf \@@_tl_mapthread_function:nnN
+                { \tl_item:Nn \l_@@_args_tl {#1} }
+                {#3}
+                \@@_defaults_def_aux:nn
+            }
+          }
+      }
+      {
+        \@@_if_no_value:nTF {#2}
+          {
+            \tl_put_right:Nx \l_@@_tmpa_tl
+              { { \exp_not:N \exp_not:n { \exp_not:o { \use_none:n #3 } } } }
+          }
+          {
+            \tl_put_right:Nn \l_@@_tmpa_tl
+              { { \exp_not:n { ## #1 } } }
+          }
+      }
+  }
+\cs_new:Npn \@@_defaults_def_aux:nn #1#2
+  {
+    \@@_if_no_value:nTF {#1}
+      { { \exp_not:n {#2} } }
+      { { \exp_not:n {#1} } }
+  }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -1291,19 +1332,19 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_args_process:
   {
-    \tl_clear:N \l_@@_new_args_tl
+    \tl_clear:N \l_@@_args_ii_tl
     \@@_tl_mapthread_function:NNN
       \l_@@_args_tl
       \l_@@_process_all_tl
       \@@_args_process_loop:nn
-    \tl_set_eq:NN \l_@@_args_tl \l_@@_new_args_tl
+    \tl_set_eq:NN \l_@@_args_tl \l_@@_args_ii_tl
   }
 \cs_new_protected:Npn \@@_args_process_loop:nn #1#2
   {
     \tl_set:Nn \ProcessedArgument {#1}
     \@@_if_no_value:nF {#1}
       { \tl_map_function:nN {#2} \@@_args_process_aux:n }
-    \tl_put_right:No \l_@@_new_args_tl
+    \tl_put_right:No \l_@@_args_ii_tl
       { \exp_after:wN { \ProcessedArgument } }
   }
 \cs_new_protected:Npn \@@_args_process_aux:n
@@ -1427,6 +1468,8 @@
 \cs_new_protected:Npn \@@_normalize_type_e:w #1
   {
     \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
+    \tl_if_blank:nT {#1} { \@@_bad_arg_spec:wn }
+    \tl_map_function:nN {#1} \@@_single_token_check:n
     \@@_normalize_error_if_expandable:N e
     \tl_put_right:Nn \l_@@_arg_spec_tl { E {#1} { } }
     \@@_normalize_arg_spec_loop:n
@@ -1434,6 +1477,10 @@
 \cs_new_protected:Npn \@@_normalize_type_E:w #1#2
   {
     \quark_if_recursion_tail_stop_do:nn {#2} { \@@_bad_arg_spec:wn }
+    \tl_if_blank:nT {#1} { \@@_bad_arg_spec:wn }
+    \tl_map_function:nN {#1} \@@_single_token_check:n
+    \int_compare:nNnT { \tl_count:n {#2} } > { \tl_count:n {#1} }
+      { \@@_bad_arg_spec:wn }
     \@@_normalize_error_if_expandable:N E
     \tl_put_right:Nn \l_@@_arg_spec_tl { E {#1} {#2} }
     \@@_normalize_arg_spec_loop:n
@@ -1680,16 +1727,35 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_add_type_E:w}
+% \begin{macro}[aux]{\@@_add_type_E_aux:n}
+%   Pad the optional arguments with |-NoValue-| markers (and for
+%   technical reasons ensure the first optional argument is braced).
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_type_E:w #1#2
   {
     \@@_flush_m_args:
-    \@@_add_default:
+    \bool_set_true:N \l_@@_defaults_bool
+    \tl_set:Nx \l_@@_tmpa_tl
+      {
+        \exp_not:n {#2}
+        \prg_replicate:nn
+          { \tl_count:n {#1} - \tl_count:n {#2} }
+          { { \c_@@_no_value_tl } }
+      }
+    \tl_put_right:Nx \l_@@_defaults_tl
+      {
+        {
+          \exp_not:f
+            { \exp_after:wN \@@_add_type_E_aux:n \l_@@_tmpa_tl }
+        }
+      }
     \@@_add_grabber_optional:N E
-    \tl_put_right:Nn \l_@@_signature_tl { {#1} {#2} }
+    \tl_put_right:Nn \l_@@_signature_tl { {#1} }
     \@@_prepare_signature:N
   }
+\cs_new:Npn \@@_add_type_E_aux:n #1 { {#1} }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\@@_add_type_G:w}
@@ -1867,15 +1933,17 @@
 %
 % \begin{macro}{\@@_add_default:n, \@@_add_default:}
 %   Store the default value of an argument, or rather code that gives
-%   that default value (it may involve other arguments).
+%   that default value (it may involve other arguments).  Defaults are
+%   always stored with a leading |.| except for \texttt{E}-type
+%   arguments, to distinguish them.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_default:n #1
   {
     \bool_set_true:N \l_@@_defaults_bool
-    \tl_put_right:Nn \l_@@_defaults_tl { {#1} }
+    \tl_put_right:Nn \l_@@_defaults_tl { { . #1} }
   }
 \cs_new_protected:Npn \@@_add_default:
-  { \tl_put_right:Nn \l_@@_defaults_tl { { } } }
+  { \tl_put_right:Nn \l_@@_defaults_tl { . } }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2243,37 +2311,32 @@
 %     \@@_grab_E:w, \@@_grab_E_long:w,
 %     \@@_grab_E_trailing:w, \@@_grab_E_long_trailing:w
 %   }
-% \begin{macro}[aux]{\@@_grab_E:nnnNn}
-% \begin{macro}[aux]{\@@_grab_E_setup:nn}
+% \begin{macro}[aux]{\@@_grab_E:nnNn}
 % \begin{macro}[aux]{\@@_grab_E_loop:nnN}
 % \begin{macro}[aux]{\@@_grab_E_finalise:}
 %   Everything here needs to point to a loop.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_E:w #1#2#3 \@@_run_code:
+\cs_new_protected:Npn \@@_grab_E:w #1#2 \@@_run_code:
   {
-    \@@_grab_E:nnnNn
-       {#1} {#2} {#3}
+    \@@_grab_E:nnNn {#1} {#2}
       \cs_set_protected_nopar:Npn
       { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_E_long:w #1#2#3 \@@_run_code:
+\cs_new_protected:Npn \@@_grab_E_long:w #1#2 \@@_run_code:
   {
-    \@@_grab_E:nnnNn
-       {#1} {#2} {#3}
+    \@@_grab_E:nnNn {#1} {#2}
       \cs_set_protected:Npn
       { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_E_trailing:w #1#2#3 \@@_run_code:
+\cs_new_protected:Npn \@@_grab_E_trailing:w #1#2 \@@_run_code:
   {
-    \@@_grab_E:nnnNn
-       {#1} {#2} {#3}
+    \@@_grab_E:nnNn {#1} {#2}
       \cs_set_protected_nopar:Npn
       { }
   }
-\cs_new_protected:Npn \@@_grab_E_long_trailing:w #1#2#3 \@@_run_code:
+\cs_new_protected:Npn \@@_grab_E_long_trailing:w #1#2 \@@_run_code:
   {
-    \@@_grab_E:nnnNn
-       {#1} {#2} {#3}
+    \@@_grab_E:nnNn {#1} {#2}
       \cs_set_protected:Npn
       { }
   }
@@ -2282,25 +2345,16 @@
 %   searched for one at a time, with any not found needing to be tracked:
 %   they can appear later. The grabbed values are held in a property list
 %   which is then turned into an ordered list to be passed back to the user.
-%   The weird assignment to a token list with \cs{cs_set:Npn} gets rid
-%   of doubled |#| in the default values of arguments, to ensure
-%   |E|-type arguments behave the same as other argument types.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_E:nnnNn #1#2#3#4#5
+\cs_new_protected:Npn \@@_grab_E:nnNn #1#2#3#4
   {
-    \exp_after:wN #4 \l_@@_fn_tl ##1##2##3
+    \exp_after:wN #3 \l_@@_fn_tl ##1##2##3
       {
         \prop_put:Nnn \l_@@_tmp_prop {##1} {##3}
-        \@@_grab_E_loop:nnN {#5} { } ##2 \q_recursion_stop
+        \@@_grab_E_loop:nnN {#4} { } ##2 \q_recursion_stop
       }
     \prop_clear:N \l_@@_tmp_prop
-    \tl_set:Nn \l_@@_tmpa_tl {#1}
-    \cs_set:Npn \l_@@_tmpb_tl {#2}
-    \@@_tl_mapthread_function:NNN
-      \l_@@_tmpa_tl
-      \l_@@_tmpb_tl
-      \@@_grab_E_setup:nn
-    \tl_set:Nn \l_@@_signature_tl {#3}
+    \tl_set:Nn \l_@@_signature_tl {#2}
     \cs_set_protected:Npn \@@_grab_E_finalise:
       {
         \tl_clear:N \l_@@_tmpa_tl
@@ -2316,15 +2370,8 @@
           }
         \@@_add_arg:V \l_@@_tmpa_tl
       }
-    \@@_grab_E_loop:nnN {#5} { } #1 \q_recursion_tail \q_recursion_stop
+    \@@_grab_E_loop:nnN {#4} { } #1 \q_recursion_tail \q_recursion_stop
   }
-%    \end{macrocode}
-%   To allow for flexible default values, the list of those given may be
-%   shorter than the number of test tokens. This can readily be achieved
-%   by storing only the given defaults in the property list.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_E_setup:nn #1#2
-  { \prop_put:Nnn \l_@@_tmp_prop {#1} {#2} }
 \cs_new_protected:Npn \@@_grab_E_loop:nnN #1#2#3#4 \q_recursion_stop
   {
     \cs_if_eq:NNTF #3 \q_recursion_tail
@@ -2337,7 +2384,6 @@
   }
 \cs_new_protected:Npn \@@_grab_E_finalise: { }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -3420,7 +3466,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_tl_mapthread_function:NNN}
+% \begin{macro}{\@@_tl_mapthread_function:NNN, \@@_tl_mapthread_function:nnN}
 % \begin{macro}[aux]{\@@_tl_mapthread_loop:w}
 %   Analogue of \cs{seq_mapthread_function:NNN} for token lists.
 %    \begin{macrocode}
@@ -3436,6 +3482,12 @@
     #2
     \q_recursion_tail
     \q_recursion_stop
+  }
+\cs_new:Npn \@@_tl_mapthread_function:nnN #1#2#3
+  {
+    \@@_tl_mapthread_loop:w #3
+      #1 \q_recursion_tail \q_mark
+      #2 \q_recursion_tail \q_recursion_stop
   }
 \cs_new:Npn \@@_tl_mapthread_loop:w #1#2#3 \q_mark #4
   {
