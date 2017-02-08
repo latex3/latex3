@@ -1020,13 +1020,14 @@
   }
 %    \end{macrocode}
 %   The real business of defining a document command starts with setting up
-%   the appropriate name, then counting up the number of mandatory arguments.
+%   the appropriate name, then normalizing the signature to get rid of
+%   shorthands (this step also counts the number of mandatory arguments).
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_declare_cmd_internal:Nnn #1#2#3
   {
     \tl_set:Nx \l_@@_function_tl { \cs_to_str:N #1 }
-    \@@_count_mandatory:n {#2}
-    \@@_prepare_signature:n {#2}
+    \@@_normalize_signature:n {#2}
+    \exp_args:No \@@_prepare_signature:n \l_@@_signature_tl
     \int_compare:nNnTF \l_@@_current_arg_int = \l_@@_m_args_int
       {
         \bool_if:NTF \l_@@_environment_bool
@@ -1315,178 +1316,256 @@
 % \end{macro}
 % \end{macro}
 %
-% \subsection{Counting mandatory arguments}
+% \subsection{Normalizing the signature}
 %
-% \begin{macro}{\@@_count_mandatory:n}
-% \begin{macro}{\@@_count_mandatory:N}
-% \begin{macro}[aux]{\@@_count_mandatory:N}
-%   Loop through the signature to count up mandatory arguments before the
-%   main parsing run. First, check if the current token is a short-cut for
-%   another argument type. If it is, expand it and loop again. If not, then
-%   look for a \enquote{counting} function to check the argument type. No error
-%   is raised here if one is not found as one will be raised by later code.
+% \begin{macro}{\@@_normalize_signature:n}
+% \begin{macro}{\@@_normalize_signature_loop:n}
+%   Loop through the signature to get rid of shorthands, check the
+%   signature is valid, and count up mandatory arguments before the main
+%   parsing run.  While normally the auxiliary should only get single
+%   tokens, we allow multiple tokens to catch invalid signatures as
+%   \enquote{unknown argument types}.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_count_mandatory:n #1
+\cs_new_protected:Npn \@@_normalize_signature:n #1
   {
     \int_zero:N \l_@@_mandatory_args_int
-    \@@_count_mandatory:N #1
+    \tl_clear:N \l_@@_signature_tl
+    \@@_normalize_signature_loop:n #1
       \q_recursion_tail \q_recursion_tail \q_recursion_tail \q_recursion_stop
   }
-\cs_new_protected:Npn \@@_count_mandatory:N #1
+\cs_new_protected:Npn \@@_normalize_signature_loop:n #1
   {
-    \quark_if_recursion_tail_stop:N #1
-    \prop_get:NnNTF \c_@@_shorthands_prop {#1} \l_@@_tmpa_tl
-      { \exp_after:wN \@@_count_mandatory:N \l_@@_tmpa_tl }
-      { \@@_count_mandatory_aux:N #1 }
-  }
-\cs_new_protected:Npn \@@_count_mandatory_aux:N #1
-  {
-    \cs_if_exist_use:cF { @@_count_type_ \token_to_str:N #1 :w }
-      { \@@_count_type_m:w }
+    \quark_if_recursion_tail_stop:n {#1}
+    \cs_if_exist_use:cF { @@_normalize_type_ \tl_to_str:n {#1} :w }
+      {
+        \__msg_kernel_error:nnx { xparse } { unknown-argument-type }
+          { \tl_to_str:n {#1} }
+        \@@_bad_arg_spec_no_error:wn
+      }
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
 % \begin{macro}
 %   {
-%     \@@_count_type_>:w,
-%     \@@_count_type_+:w,
-%     \@@_count_type_d:w,
-%     \@@_count_type_D:w,
-%     \@@_count_type_e:w,
-%     \@@_count_type_E:w,
-%     \@@_count_type_g:w,
-%     \@@_count_type_G:w,
-%     \@@_count_type_m:w,
-%     \@@_count_type_r:w,
-%     \@@_count_type_R:w,
-%     \@@_count_type_t:w,
-%     \@@_count_type_u:w
+%     \@@_normalize_type_>:w,
+%     \@@_normalize_type_+:w,
+%     \@@_normalize_type_d:w,
+%     \@@_normalize_type_D:w,
+%     \@@_normalize_type_e:w,
+%     \@@_normalize_type_E:w,
+%     \@@_normalize_type_g:w,
+%     \@@_normalize_type_G:w,
+%     \@@_normalize_type_l:w,
+%     \@@_normalize_type_m:w,
+%     \@@_normalize_type_o:w,
+%     \@@_normalize_type_O:w,
+%     \@@_normalize_type_r:w,
+%     \@@_normalize_type_R:w,
+%     \@@_normalize_type_s:w,
+%     \@@_normalize_type_t:w,
+%     \@@_normalize_type_u:w
+%     \@@_normalize_type_v:w
 %   }
-%   For counting the mandatory arguments, a function is provided for each
-%   argument type that will mop any extra arguments and call the loop function.
-%   Only the counting functions for mandatory arguments actually do anything:
-%   the rest are simply there to ensure the loop continues correctly. There are
-%   no count functions for \texttt{l} or \texttt{v} argument types as they are
-%   exactly the same as \texttt{m}, and so a little code can be saved.
+%   A function is provided for each argument type that will grab any
+%   extra arguments and call the loop function.
 %
-%   The second thing that can be done here is to check that the signature is
-%   actually valid, such that all of the various argument types have the
-%   correct number of data items associated with them.  If this fails to be
-%   the case, the entire set up is abandoned to avoid any strange internal
-%   errors. The opportunity is also taken to make sure that where a single
-%   token is required, one has actually been supplied.
+%   The first thing that is done here is to check that the various
+%   argument types have the correct number of data items associated with
+%   them. If this fails to be the case, the entire set up is abandoned
+%   to avoid any strange internal errors. The opportunity is also taken
+%   to make sure that where a single token is required, one has actually
+%   been supplied.
 %
-%   The third is that processors and the marker~|+| for long arguments
-%   must be followed by arguments.  For this, just check that the next
+%   The second is that processors and the marker~|+| for long arguments
+%   must be followed by arguments. For this, just check that the next
 %   token is not \cs{q_recursion_tail}, and remember to leave it after
 %   the looping macro.
+%
+%   The third is to check for forbidden types for expandable commands,
+%   namely \texttt{e}, \texttt{E} (could be implemented), \texttt{g},
+%   \texttt{G}, \texttt{l} (as the next left brace may have been
+%   inserted by \pkg{xparse} due to a failed search for an optional
+%   argument), \texttt{u} (any preceding optional argument may wrap part
+%   of the delimiter up in braces), and \texttt{v}.
+%
+%   The last is to count mandatory arguments.
 %    \begin{macrocode}
-\cs_new_protected:cpn { @@_count_type_>:w } #1#2
+\cs_new_protected:cpn { @@_normalize_type_>:w } #1#2
   {
     \quark_if_recursion_tail_stop_do:nn {#2} { \@@_bad_arg_spec:wn }
-    \@@_count_mandatory:N #2
+    \bool_if:NT \l_@@_expandable_bool
+      {
+        \__msg_kernel_error:nnx { xparse } { processor-in-expandable }
+          { \iow_char:N\\ \l_@@_function_tl }
+        \@@_bad_arg_spec_no_error:wn
+      }
+    \tl_put_right:Nn \l_@@_signature_tl { > {#1} }
+    \@@_normalize_signature_loop:n {#2}
   }
-\cs_new_protected:cpn { @@_count_type_+:w } #1
+\cs_new_protected:cpn { @@_normalize_type_+:w } #1
   {
     \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
-    \@@_count_mandatory:N #1
+    \tl_put_right:Nn \l_@@_signature_tl { + }
+    \@@_normalize_signature_loop:n {#1}
   }
-\cs_new_protected:Npn \@@_count_type_d:w #1#2
+\cs_new_protected:Npn \@@_normalize_type_d:w #1#2
   {
     \@@_single_token_check:n {#1}
     \@@_single_token_check:n {#2}
     \quark_if_recursion_tail_stop_do:Nn #2 { \@@_bad_arg_spec:wn }
-    \@@_count_mandatory:N
+    \tl_put_right:Nx \l_@@_signature_tl
+      { \exp_not:n { D #1 #2 } { \c_@@_no_value_tl } }
+    \@@_normalize_signature_loop:n
   }
-\cs_new_protected:Npn \@@_count_type_D:w #1#2#3
+\cs_new_protected:Npn \@@_normalize_type_D:w #1#2#3
   {
     \@@_single_token_check:n {#1}
     \@@_single_token_check:n {#2}
     \quark_if_recursion_tail_stop_do:nn {#3} { \@@_bad_arg_spec:wn }
-    \@@_count_mandatory:N
+    \tl_put_right:Nn \l_@@_signature_tl { D #1 #2 {#3} }
+    \@@_normalize_signature_loop:n
   }
-\cs_new_protected:Npn \@@_count_type_e:w #1
+\cs_new_protected:Npn \@@_normalize_type_e:w #1
   {
     \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
-    \@@_count_mandatory:N
+    \@@_normalize_error_if_expandable:N e
+    \tl_put_right:Nn \l_@@_signature_tl { E {#1} { } }
+    \@@_normalize_signature_loop:n
   }
-\cs_new_protected:Npn \@@_count_type_E:w #1#2
+\cs_new_protected:Npn \@@_normalize_type_E:w #1#2
   {
     \quark_if_recursion_tail_stop_do:nn {#2} { \@@_bad_arg_spec:wn }
-    \@@_count_mandatory:N
+    \@@_normalize_error_if_expandable:N E
+    \tl_put_right:Nn \l_@@_signature_tl { E {#1} {#2} }
+    \@@_normalize_signature_loop:n
   }
-\cs_new_protected:Npn \@@_count_type_g:w
-  { \@@_count_mandatory:N }
-\cs_new_protected:Npn \@@_count_type_G:w #1
+\cs_new_protected:Npn \@@_normalize_type_g:w
+  {
+    \@@_normalize_error_if_expandable:N g
+    \tl_put_right:Nx \l_@@_signature_tl { G { \c_@@_no_value_tl } }
+    \@@_normalize_signature_loop:n
+  }
+\cs_new_protected:Npn \@@_normalize_type_G:w #1
   {
     \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
-    \@@_count_mandatory:N
+    \@@_normalize_error_if_expandable:N G
+    \tl_put_right:Nn \l_@@_signature_tl { G {#1} }
+    \@@_normalize_signature_loop:n
   }
-\cs_new_protected:Npn \@@_count_type_m:w
+\cs_new_protected:Npn \@@_normalize_type_l:w
+  {
+    \@@_normalize_error_if_expandable:N l
+    \int_incr:N \l_@@_mandatory_args_int
+    \tl_put_right:Nn \l_@@_signature_tl { l }
+    \@@_normalize_signature_loop:n
+  }
+\cs_new_protected:Npn \@@_normalize_type_m:w
   {
     \int_incr:N \l_@@_mandatory_args_int
-    \@@_count_mandatory:N
+    \tl_put_right:Nn \l_@@_signature_tl { m }
+    \@@_normalize_signature_loop:n
   }
-\cs_new_protected:Npn \@@_count_type_r:w #1#2
+\cs_new_protected:Npn \@@_normalize_type_o:w
+  {
+    \tl_put_right:Nx \l_@@_signature_tl
+      { \exp_not:n { D [ ] } { \c_@@_no_value_tl } }
+    \@@_normalize_signature_loop:n
+  }
+\cs_new_protected:Npn \@@_normalize_type_O:w #1
+  {
+    \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
+    \tl_put_right:Nn \l_@@_signature_tl { D [ ] {#1} }
+    \@@_normalize_signature_loop:n
+  }
+\cs_new_protected:Npn \@@_normalize_type_r:w #1#2
   {
     \@@_single_token_check:n {#1}
     \@@_single_token_check:n {#2}
     \quark_if_recursion_tail_stop_do:Nn #2 { \@@_bad_arg_spec:wn }
+    \tl_put_right:Nx \l_@@_signature_tl
+      { \exp_not:n { R #1 #2 } { \c_@@_no_value_tl } }
     \int_incr:N \l_@@_mandatory_args_int
-    \@@_count_mandatory:N
+    \@@_normalize_signature_loop:n
   }
-\cs_new_protected:Npn \@@_count_type_R:w #1#2#3
+\cs_new_protected:Npn \@@_normalize_type_R:w #1#2#3
   {
     \@@_single_token_check:n {#1}
     \@@_single_token_check:n {#2}
     \quark_if_recursion_tail_stop_do:nn {#3} { \@@_bad_arg_spec:wn }
+    \tl_put_right:Nn \l_@@_signature_tl { R #1 #2 {#3} }
     \int_incr:N \l_@@_mandatory_args_int
-    \@@_count_mandatory:N
+    \@@_normalize_signature_loop:n
   }
-\cs_new_protected:Npn \@@_count_type_t:w #1
+\cs_new_protected:Npn \@@_normalize_type_s:w
+  {
+    \tl_put_right:Nn \l_@@_signature_tl { t * }
+    \@@_normalize_signature_loop:n
+  }
+\cs_new_protected:Npn \@@_normalize_type_t:w #1
   {
     \@@_single_token_check:n {#1}
     \quark_if_recursion_tail_stop_do:Nn #1 { \@@_bad_arg_spec:wn }
-    \@@_count_mandatory:N
+    \tl_put_right:Nn \l_@@_signature_tl { t #1 }
+    \@@_normalize_signature_loop:n
   }
-\cs_new_protected:Npn \@@_count_type_u:w #1
+\cs_new_protected:Npn \@@_normalize_type_u:w #1
   {
     \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
+    \@@_normalize_error_if_expandable:N u
+    \tl_put_right:Nn \l_@@_signature_tl { u {#1} }
     \int_incr:N \l_@@_mandatory_args_int
-    \@@_count_mandatory:N
+    \@@_normalize_signature_loop:n
+  }
+\cs_new_protected:Npn \@@_normalize_type_v:w
+  {
+    \@@_normalize_error_if_expandable:N v
+    \int_incr:N \l_@@_mandatory_args_int
+    \tl_put_right:Nn \l_@@_signature_tl { v }
+    \@@_normalize_signature_loop:n
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\@@_single_token_check:n}
-% \begin{macro}[aux]{\@@_single_token_check_aux:nwn}
 %   A spin-out function to check that what should be single tokens really
 %   are single tokens.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_single_token_check:n #1
   {
     \exp_args:Nx \tl_if_single_token:nF { \tl_trim_spaces:n {#1} }
-      { \@@_single_token_check_aux:nwn {#1} }
-  }
-\cs_new_protected:Npn \@@_single_token_check_aux:nwn
-  #1#2 \@@_break_point:n #3
-  {
-    \__msg_kernel_error:nnx { xparse } { not-single-token }
-      { \tl_to_str:n {#1} } { \tl_to_str:n {#3} }
+      {
+        \__msg_kernel_error:nnx { xparse } { not-single-token }
+          { \tl_to_str:n {#1} }
+        \@@_bad_arg_spec_no_error:wn
+      }
   }
 %    \end{macrocode}
 % \end{macro}
+%
+% \begin{macro}{\@@_normalize_error_if_expandable:N}
+%   Called for arguments that are forbidden for expandable commands.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_normalize_error_if_expandable:N #1
+  {
+    \bool_if:NT \l_@@_expandable_bool
+      {
+        \__msg_kernel_error:nnx
+          { xparse } { invalid-expandable-argument-type } {#1}
+        \@@_bad_arg_spec_no_error:wn
+      }
+  }
+%    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_bad_arg_spec:wn}
+% \begin{macro}{\@@_bad_arg_spec:wn, \@@_bad_arg_spec_no_error:wn}
 %   If the signature is wrong, this provides an escape from the entire
 %   definition process.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_bad_arg_spec:wn #1 \@@_break_point:n #2
   { \__msg_kernel_error:nnx { xparse } { bad-arg-spec } { \tl_to_str:n {#2} } }
+\cs_new_protected:Npn \@@_bad_arg_spec_no_error:wn #1 \@@_break_point:n #2 { }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1495,7 +1574,6 @@
 % \begin{macro}{\@@_prepare_signature:n}
 % \begin{macro}{\@@_prepare_signature:N}
 % \begin{macro}{\@@_prepare_signature_bypass:N}
-% \begin{macro}[aux]{\@@_prepare_signature_add:N}
 %   Actually creating the signature uses the same loop approach as counting
 %   up mandatory arguments. There are first a number of variables which need
 %   to be set to track what is going on.
@@ -1519,6 +1597,11 @@
 %  reset on the processor boolean. This is split off from the rest of the
 %  process so that when actually setting up processors the flag-reset can
 %  be bypassed.
+%
+%  For each known argument type there is an appropriate function to actually
+%  do the addition to the signature. These are separate for expandable and
+%  standard functions, as the approaches are different. Of course, if the type
+%  is not known at all then a fall-back is needed.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_prepare_signature:N
   {
@@ -1528,37 +1611,15 @@
 \cs_new_protected:Npn \@@_prepare_signature_bypass:N #1
   {
     \quark_if_recursion_tail_stop:N #1
-    \prop_get:NnNTF \c_@@_shorthands_prop {#1} \l_@@_tmpa_tl
-      { \exp_after:wN \@@_prepare_signature:N \l_@@_tmpa_tl }
-      {
-        \int_incr:N \l_@@_current_arg_int
-        \@@_prepare_signature_add:N #1
-      }
-  }
-%    \end{macrocode}
-%  For each known argument type there is an appropriate function to actually
-%  do the addition to the signature. These are separate for expandable and
-%  standard functions, as the approaches are different. Of course, if the type
-%  is not known at all then a fall-back is needed.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_prepare_signature_add:N #1
-  {
-    \cs_if_exist_use:cF
+    \int_incr:N \l_@@_current_arg_int
+    \use:c
       {
          @@_add
          \bool_if:NT \l_@@_expandable_bool { _expandable }
          _type_  \token_to_str:N #1 :w
       }
-      {
-        \__msg_kernel_error:nnx { xparse } { unknown-argument-type }
-          { \token_to_str:N #1 }
-        \bool_if:NTF \l_@@_expandable_bool
-          { \@@_add_expandable_type_m:w }
-          { \@@_add_type_m:w }
-      }
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -1608,13 +1669,8 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_add_type_d:w, \@@_add_type_D:w}
-%   To save on repeated code, \texttt{d} is actually turned into the same
-%   grabber as is used by \texttt{D}, by putting the |-NoValue-| default in
-%   the correct place.
+% \begin{macro}{\@@_add_type_D:w}
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_type_d:w #1#2
-  { \exp_args:NNNo \@@_add_type_D:w #1 #2 \c_@@_no_value_tl }
 \cs_new_protected:Npn \@@_add_type_D:w #1#2#3
   {
     \@@_flush_m_args:
@@ -1626,13 +1682,8 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_add_type_e:w, \@@_add_type_E:w}
-%   Setting up for the \texttt{e}-type argument is somewhat special as
-%   the |-NoValue-| tokens are inserted by the grabber rather than here. As
-%   such, all that is needed is to pass data straight through.
+% \begin{macro}{\@@_add_type_E:w}
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_type_e:w #1
-  { \@@_add_type_E:w {#1} { } }
 \cs_new_protected:Npn \@@_add_type_E:w #1#2
   {
     \@@_flush_m_args:
@@ -1644,14 +1695,10 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_add_type_g:w, \@@_add_type_G:w}
-%   The \texttt{g} type is simply an alias for \texttt{G} with the correct
-%   default built-in.
+% \begin{macro}{\@@_add_type_G:w}
 %   For the \texttt{G} type, the grabber and the default are added to the
 %   signature.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_type_g:w
-  { \exp_args:No \@@_add_type_G:w \c_@@_no_value_tl }
 \cs_new_protected:Npn \@@_add_type_G:w #1
   {
     \@@_flush_m_args:
@@ -1695,12 +1742,9 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_add_type_r:w, \@@_add_type_R:w}
-%   The \texttt{r}- and \texttt{R}-type arguments are very similar to the
-%   \texttt{d}- and \texttt{D}-types.
+% \begin{macro}{\@@_add_type_R:w}
+%   The \texttt{R}-type argument is very similar to the \texttt{D}-type.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_type_r:w #1#2
-  { \exp_args:NNNo \@@_add_type_R:w #1 #2 \c_@@_no_value_tl }
 \cs_new_protected:Npn \@@_add_type_R:w #1#2#3
   {
     \@@_flush_m_args:
@@ -1863,20 +1907,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_add_expandable_type_>:w}
-%   No processors in expandable arguments, so this issues an error.
-%    \begin{macrocode}
-\cs_new_protected:cpn { @@_add_expandable_type_>:w } #1
-  {
-    \__msg_kernel_error:nnx { xparse } { processor-in-expandable }
-      { \token_to_str:c { \l_@@_function_tl } }
-    \int_decr:N \l_@@_current_arg_int
-    \@@_prepare_signature:N
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@@_add_expandable_type_d:w}
 % \begin{macro}{\@@_add_expandable_type_D:w}
 % \begin{macro}{\@@_add_expandable_type_D_aux:NNn}
 % \begin{macro}{\@@_add_expandable_type_D_aux:Nn}
@@ -1885,11 +1915,6 @@
 %   repeatedly when grabbing. There is an auxiliary here so that the
 %   \texttt{R}-type can share code readily.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_d:w #1#2
-  {
-    \exp_args:NNNo
-      \@@_add_expandable_type_D:w #1 #2 \c_@@_no_value_tl
-  }
 \cs_new_protected:Npn \@@_add_expandable_type_D:w #1#2
   {
     \tl_if_eq:nnTF {#1} {#2}
@@ -1941,60 +1966,6 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\@@_add_expandable_type_e:w}
-% \begin{macro}{\@@_add_expandable_type_E:w}
-%   Invalid in an expandable context but it could be implemented.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_e:w #1
-  {
-    \__msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type }
-      { e }
-    \@@_add_expandable_type_m:w
-  }
-\cs_new_protected:Npn \@@_add_expandable_type_E:w #1#2
-  {
-    \__msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type }
-      { E }
-    \@@_add_expandable_type_m:w
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\@@_add_expandable_type_g:w}
-% \begin{macro}{\@@_add_expandable_type_G:w}
-%   These are not allowed at all, so there is a complaint and a fall-back.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_g:w
-  {
-    \__msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type }
-      { g }
-    \@@_add_expandable_type_m:w
-  }
-\cs_new_protected:Npn \@@_add_expandable_type_G:w #1
-  {
-    \__msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type }
-      { G }
-    \@@_add_expandable_type_m:w
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\@@_add_expandable_type_l:w}
-%   Invalid in expandable contexts (as the next left brace may have been
-%   inserted by \pkg{xparse} due to a failed search for an optional argument).
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_l:w
-  {
-    \__msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type }
-      { l }
-    \@@_add_expandable_type_m:w
-  }
-%    \end{macrocode}
-% \end{macro}
 %
 % \begin{macro}{\@@_add_expandable_type_m:w}
 %   Unlike the standard case, when working expandably each argument is always
@@ -2012,16 +1983,10 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_add_expandable_type_r:w}
 % \begin{macro}{\@@_add_expandable_type_R:w}
-%   The \texttt{r}- and \texttt{R}-types are very similar to \texttt{D}-type
-%   arguments, and so the same internals are used.
+%   The \texttt{R}-type is very similar to the \texttt{D}-type
+%   argument, and so the same internals are used.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_r:w #1#2
-  {
-    \exp_args:NNNo
-      \@@_add_expandable_type_R:w #1 #2 \c_@@_no_value_tl
-  }
 \cs_new_protected:Npn \@@_add_expandable_type_R:w #1#2
   {
     \tl_if_eq:nnTF {#1} {#2}
@@ -2035,7 +2000,6 @@
       }
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\@@_add_expandable_type_t:w}
@@ -2054,31 +2018,6 @@
       }
     \bool_set_false:N \l_@@_long_bool
     \@@_prepare_signature:N
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@@_add_expandable_type_u:w}
-%   Invalid in an expandable context as any preceding optional argument may
-%   wrap part of the delimiter up in braces.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_u:w #1
-  {
-    \__msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type }
-      { u }
-    \@@_add_expandable_type_m:w
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@@_add_expandable_type_v:w}
-%   Another forbidden type.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_v:w
-  {
-    \__msg_kernel_error:nnx { xparse } { invalid-expandable-argument-type }
-      { v }
-    \@@_add_expandable_type_m:w
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3576,7 +3515,7 @@
     The~letter~'#1'~does~not~specify~an~argument~type~which~can~be~used~
     in~an~expandable~function.
     \\ \\
-    LaTeX~will~assume~you~want~a~standard~mandatory~argument~(type~'m').
+    LaTeX~will~ignore~this~entire~definition.
   }
 \__msg_kernel_new:nnnn { xparse } { loop-in-defaults }
   { Unresolved~circular~dependency~in~default~values~for~'#1'. }
@@ -3637,7 +3576,8 @@
   {
     \c__msg_coding_error_text_tl
     The~argument~specification~for~#1~contains~a~processor~function:~
-    this~is~only~supported~for~standard~robust~functions.
+    this~is~only~supported~for~standard~robust~functions. \\ \\
+    LaTeX~will~ignore~this~entire~definition.
   }
 \__msg_kernel_new:nnnn { xparse } { split-excess-tokens }
   { Too~many~'#1'~tokens~when~trying~to~split~argument. }
@@ -3651,7 +3591,7 @@
   {
     \c__msg_coding_error_text_tl
     The~letter~'#1'~does~not~specify~a~known~argument~type.~
-    LaTeX~will~assume~you~want~a~standard~mandatory~argument~(type~'m').
+    LaTeX~will~ignore~this~entire~definition.
   }
 \__msg_kernel_new:nnnn { xparse } { unknown-command }
   { Unknown~document~command~'#1'. }
