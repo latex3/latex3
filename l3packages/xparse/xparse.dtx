@@ -4,7 +4,7 @@
 %%                      David Carlisle
 %%                  (C) Copyright 2004-2008 Frank Mittelbach,
 %%                      The LaTeX3 Project
-%%                  (C) Copyright 2009-2016 The LaTeX3 Project
+%%                  (C) Copyright 2009-2017 The LaTeX3 Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -186,7 +186,7 @@
 %     The returned data is a token list comprising one braced entry per key,
 %     ordered as for the key list in the signature.
 %     \emph{This is an experimental type}.
-%   \item[E] As for \texttt{E} but returns one or more \meta{defaults}
+%   \item[E] As for \texttt{e} but returns one or more \meta{defaults}
 %     if values are not given: \texttt{E}\marg{defaults}. See
 %     Section~\ref{sec:embellishment} for more details.
 % \end{itemize}
@@ -288,7 +288,7 @@
 % delimited} (\texttt{R}-type) argument is that an error will be raised if
 % the latter is missing. Thus for example
 % \begin{verbatim}
-%   \DeclareDocumentCommand\foo{r()m}
+%   \DeclareDocumentCommand {\foo} {r()m} {}
 %   \foo{oops}
 % \end{verbatim}
 % will lead to an error message being issued. The marker |-NoValue-|
@@ -315,6 +315,37 @@
 % Users should note that support for verbatim arguments is somewhat
 % experimental. Feedback is therefore very welcome on the \texttt{LaTeX-L}
 % mailing list.
+%
+% \subsection{Default values of arguments}
+%
+% Uppercase argument types (\texttt{O}, \texttt{D}, \ldots{}) allow to
+% specify a default value to be used when the argument is missing; their
+% lower-case counterparts use the special marker |-NoValue-|.  The
+% default value can be expressed in terms of the value of any other
+% arguments by using |#1|, |#2|, and so on.
+% \begin{verbatim}
+%   \DeclareDocumentCommand {\conjugate} { m O{#1ed} O{#2} } {(#1,#2,#3)}
+%   \conjugate {walk}            % => (walk,walked,walked)
+%   \conjugate {find} [found]    % => (find,found,found)
+%   \conjugate {do} [did] [done] % => (do,did,done)
+% \end{verbatim}
+% The default values may refer to arguments that appear later in the
+% argument specification.  For instance a command could accept two
+% optional arguments, equal by default:
+% \begin{verbatim}
+%   \DeclareDocumentCommand {\margins} { O{#3} m O{#1} m } {(#1,#2,#3,#4)}
+%   \margins {a} {b}              % => {(-NoValue-,a,-NoValue-,b)}
+%   \margins [1cm] {a} {b}        % => {(1cm,a,1cm,b)}
+%   \margins {a} [1cm] {b}        % => {(1cm,a,1cm,b)}
+%   \margins [1cm] {a} [2cm] {b}  % => {(1cm,a,2cm,b)}
+% \end{verbatim}
+%
+% Currently, referring to other arguments in default values is not
+% supported for \texttt{E}-type arguments nor for expandable commands.
+%
+% Users should note that support for default arguments referring to
+% other arguments is somewhat experimental. Feedback is therefore very
+% welcome on the \texttt{LaTeX-L} mailing list.
 %
 % \subsection{Declaring commands and environments}
 %
@@ -798,6 +829,17 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_defaults_bool, \l_@@_defaults_tl}
+%   The boolean indicates whether there are any argument with default
+%   value; the token list holds the code to determine these default
+%   values in terms of other arguments, and dummy code for arguments
+%   that do not need a default.
+%    \begin{macrocode}
+\bool_new:N \l_@@_defaults_bool
+\tl_new:N \l_@@_defaults_tl
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_@@_environment_bool}
 %   Generating environments uses the same mechanism as generating functions.
 %   However, full processing of arguments is always needed for environments,
@@ -845,6 +887,14 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_fn_code_tl}
+%   For passing the pre-formed name of the auxiliary that contains the
+%   actual code.
+%    \begin{macrocode}
+\tl_new:N \l_@@_fn_code_tl
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_@@_function_tl}
 %   Holds the control sequence name of the function currently being
 %   defined: used to avoid passing this as an argument and to avoid repeated
@@ -881,26 +931,41 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_@@_processor_bool}
-%   Indicates that the current argument will be followed by one or more
+% \begin{variable}{\l_@@_new_args_tl}
+%   Holds the modified arguments when dealing with default values or
 %   processors.
 %    \begin{macrocode}
-\bool_new:N \l_@@_processor_bool
+\tl_new:N \l_@@_new_args_tl
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_@@_processor_int}
-%   In the grabber routine, each processor is saved with a number
-%   recording the order it was found in. The total is then used to work
-%   back through the grabbers so they apply to the argument right to left.
+% \begin{variable}{\l_@@_prefixed_bool}
+%   When preparing the signature of non-expandable commands, indicates
+%   that the current argument is affected by a processor or by |+|
+%   (namely is long).
 %    \begin{macrocode}
-\int_new:N \l_@@_processor_int
+\bool_new:N \l_@@_prefixed_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_process_all_tl, \l_@@_process_one_tl, \l_@@_process_some_bool}
+%   When preparing the signature, the processors that will be applied to
+%   a given argument are collected in \cs{l_@@_process_one_tl}, while
+%   \cs{l_@@_process_all_tl} contains processors for all arguments.  The
+%   boolean indicates whether there are any processors (to bypass the
+%   whole endeavour otherwise).
+%    \begin{macrocode}
+\tl_new:N \l_@@_process_all_tl
+\tl_new:N \l_@@_process_one_tl
+\bool_new:N \l_@@_process_some_bool
 %    \end{macrocode}
 % \end{variable}
 %
 % \begin{variable}{\l_@@_signature_tl}
 %   Used when constructing the signature (code for argument grabbing) to
 %   hold what will become the implementation of the main function.
+%   When arguments are grabbed (at point of use of the command/environment),
+%   it also stores the code for grabbing the remaining arguments.
 %    \begin{macrocode}
 \tl_new:N \l_@@_signature_tl
 %    \end{macrocode}
@@ -1014,9 +1079,10 @@
       { \@@_declare_cmd_mixed_aux:Nn }
    }
 %    \end{macrocode}
-%   Creating standard functions with mixed arg.~specs sets up the main function
-%   to zero the number of processors, set the name of the function (for the
-%   grabber) and clears the list of grabbed arguments.
+%   Standard functions with mixed arg.~specs call
+%   \cs{@@_start_cmd:NNnnn}, which receives an auxiliary used for
+%   grabbing arguments, an auxiliary containing the code, and then the
+%   signature, default arguments, and processors.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_declare_cmd_mixed_aux:Nn #1#2
   {
@@ -1026,13 +1092,18 @@
       \cs_set_protected:Npn \l_@@_current_arg_int {#2}
     \cs_set_protected_nopar:Npx #1
       {
-        \int_zero:N \l_@@_processor_int
-        \tl_set:Nn \exp_not:N \l_@@_args_tl
-          { \exp_not:c { \l_@@_function_tl \c_space_tl code } }
-        \tl_set:Nn \exp_not:N \l_@@_fn_tl
-          { \exp_not:c { \l_@@_function_tl \c_space_tl } }
-        \exp_not:o \l_@@_signature_tl
-        \exp_not:N \l_@@_args_tl
+        \@@_start_cmd:NNnnn
+          \exp_not:c { \l_@@_function_tl \c_space_tl }
+          \exp_not:c { \l_@@_function_tl \c_space_tl code }
+          { \exp_not:o \l_@@_signature_tl }
+          {
+            \bool_if:NT \l_@@_defaults_bool
+              { \exp_not:o \l_@@_defaults_tl }
+          }
+          {
+            \bool_if:NT \l_@@_process_some_bool
+              { \exp_not:o \l_@@_process_all_tl }
+          }
       }
   }
 \cs_new_protected:Npn \@@_declare_cmd_mixed_expandable:Nn #1#2
@@ -1100,7 +1171,7 @@
         \cs_set_nopar:Npx \exp_not:c { environment~ #1 ~end~aux }
           {
             \exp_not:N \exp_not:N \exp_not:c { environment~ #1~end~aux~ }
-            \exp_not:n { \tl_tail:N \l_@@_args_tl }
+            \exp_not:n { \l_@@_args_tl }
           }
         \exp_not:n {#3}
       }
@@ -1114,6 +1185,132 @@
     \cs_set_eq:cc { end #1 } { environment~ #1 ~end }
 %</package>
   }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Structure of an \pkg{xparse} command}
+%
+% \begin{macro}{\@@_start_cmd:NNnnn}
+%   This sets up a few variables to minimize the boilerplate code
+%   included in all \pkg{xparse}-defined commands.  It then runs the
+%   grabbers |#3| and calls \cs{@@_run_code:} to set up default
+%   arguments, apply processors and finally runs the code.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_start_cmd:NNnnn #1#2#3#4#5
+  {
+    \tl_clear:N \l_@@_args_tl
+    \tl_set:Nn \l_@@_fn_tl {#1}
+    \tl_set:Nn \l_@@_fn_code_tl {#2}
+    \tl_set:Nn \l_@@_defaults_tl {#4}
+    \tl_set:Nn \l_@@_process_all_tl {#5}
+    #3 \@@_run_code:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_run_code:}
+%   After arguments are grabbed, this function is responsible for
+%   inserting default values, running processors, and finally running
+%   the code.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_run_code:
+  {
+    \tl_if_empty:NF \l_@@_defaults_tl { \@@_defaults: }
+    \tl_if_empty:NF \l_@@_process_all_tl { \@@_args_process: }
+    \exp_after:wN \l_@@_fn_code_tl \l_@@_args_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_defaults:}
+% \begin{macro}[aux]{\@@_defaults_aux:nn, \@@_defaults_aux:n, \@@_defaults_tmp:w, \@@_defaults_aux:}
+%   First construct \cs{@@_defaults_tmp:w} that will receive the
+%   arguments found so far and determine default values for any missing
+%   argument.  Then call it repeatedly until the set of arguments
+%   stabilizes.  Since that could lead to an infinite loop we only call
+%   it up to nine times, the maximal number needed for stabilization if
+%   there is a chain of arguments that depend on each other.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_defaults:
+  {
+    \tl_clear:N \l_@@_new_args_tl
+    \int_zero:N \l_@@_current_arg_int
+    \@@_tl_mapthread_function:NNN
+      \l_@@_args_tl
+      \l_@@_defaults_tl
+      \@@_defaults_aux:nn
+    \exp_args:No \@@_defaults_aux:n { \l_@@_new_args_tl }
+    \@@_defaults_aux: \@@_defaults_aux: \@@_defaults_aux:
+    \@@_defaults_aux: \@@_defaults_aux: \@@_defaults_aux:
+    \@@_defaults_aux: \@@_defaults_aux: \@@_defaults_aux:
+    \__msg_kernel_error:nnx { xparse } { loop-in-defaults }
+      { \exp_after:wN \token_to_str:N \l_@@_fn_tl }
+    \use_none:n
+    \q_recursion_stop
+  }
+\cs_new_protected:Npn \@@_defaults_aux:nn #1#2
+  {
+    \int_incr:N \l_@@_current_arg_int
+    \tl_put_right:Nx \l_@@_new_args_tl
+      {
+        \@@_if_no_value:nTF {#1}
+          { { \exp_not:n {#2} } }
+          { { #### \int_use:N \l_@@_current_arg_int } }
+      }
+  }
+\cs_new_protected:Npn \@@_defaults_aux:n #1
+  {
+    \cs_set_protected:Npn \@@_defaults_tmp:w
+      ##1##2##3##4##5##6##7##8##9
+      {
+        \tl_set:Nn \l_@@_new_args_tl {#1}
+        \use_none_delimit_by_q_stop:w
+      }
+  }
+\cs_new_protected:Npn \@@_defaults_tmp:w { }
+\cs_new_protected:Npn \@@_defaults_aux:
+  {
+    \exp_after:wN \@@_defaults_tmp:w \l_@@_args_tl
+    \c_@@_no_value_tl \c_@@_no_value_tl \c_@@_no_value_tl
+    \c_@@_no_value_tl \c_@@_no_value_tl \c_@@_no_value_tl
+    \c_@@_no_value_tl \c_@@_no_value_tl \c_@@_no_value_tl
+    \q_stop
+    \tl_if_eq:NNT \l_@@_new_args_tl \l_@@_args_tl
+      { \use_none_delimit_by_q_recursion_stop:w }
+    \tl_set_eq:NN \l_@@_args_tl \l_@@_new_args_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_args_process:}
+% \begin{macro}[aux]{\@@_args_process_loop:nn, \@@_args_process_aux:n, \@@_args_process_aux:nn}
+%   Loop through arguments (stored in \cs{l_@@_args_tl}) and the
+%   corresponding processors (in \cs{l_@@_process_all_tl})
+%   simultaneously, apply all processors for each argument and store the
+%   result back into \cs{l_@@_args_tl}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_args_process:
+  {
+    \tl_clear:N \l_@@_new_args_tl
+    \@@_tl_mapthread_function:NNN
+      \l_@@_args_tl
+      \l_@@_process_all_tl
+      \@@_args_process_loop:nn
+    \tl_set_eq:NN \l_@@_args_tl \l_@@_new_args_tl
+  }
+\cs_new_protected:Npn \@@_args_process_loop:nn #1#2
+  {
+    \tl_set:Nn \ProcessedArgument {#1}
+    \@@_if_no_value:nF {#1}
+      { \tl_map_function:nN {#2} \@@_args_process_aux:n }
+    \tl_put_right:No \l_@@_new_args_tl
+      { \exp_after:wN { \ProcessedArgument } }
+  }
+\cs_new_protected:Npn \@@_args_process_aux:n
+  { \exp_args:No \@@_args_process_aux:nn { \ProcessedArgument } }
+\cs_new_protected:Npn \@@_args_process_aux:nn #1#2 { #2 {#1} }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -1309,7 +1506,11 @@
     \int_zero:N \l_@@_current_arg_int
     \bool_set_false:N \l_@@_long_bool
     \int_zero:N \l_@@_m_args_int
-    \bool_set_false:N \l_@@_processor_bool
+    \bool_set_false:N \l_@@_defaults_bool
+    \tl_clear:N \l_@@_defaults_tl
+    \tl_clear:N \l_@@_process_all_tl
+    \tl_clear:N \l_@@_process_one_tl
+    \bool_set_false:N \l_@@_process_some_bool
     \tl_clear:N \l_@@_signature_tl
     \@@_prepare_signature:N #1 \q_recursion_tail \q_recursion_stop
   }
@@ -1321,7 +1522,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_prepare_signature:N
   {
-    \bool_set_false:N \l_@@_processor_bool
+    \bool_set_false:N \l_@@_prefixed_bool
     \@@_prepare_signature_bypass:N
   }
 \cs_new_protected:Npn \@@_prepare_signature_bypass:N #1
@@ -1369,7 +1570,9 @@
 % \texttt{m} arguments.  These are collected and added to the signature
 % all at once by \cs{@@_flush_m_args:}, called for every other argument
 % type.  All of the functions then call the loop function
-% \cs{@@_prepare_signature:N}.
+% \cs{@@_prepare_signature:N}.  Default values of arguments are
+% collected by \cs{@@_add_default:n} rather than being stored with the
+% argument.
 %
 % \begin{macro}{\@@_add_type_+:w}
 %   Making the next argument long means setting the flag and knocking one back
@@ -1380,26 +1583,26 @@
   {
     \@@_flush_m_args:
     \bool_set_true:N \l_@@_long_bool
+    \bool_set_true:N \l_@@_prefixed_bool
     \int_decr:N \l_@@_current_arg_int
-    \@@_prepare_signature:N
+    \@@_prepare_signature_bypass:N
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\@@_add_type_>:w}
-%   When a processor is found, the function \cs{@@_process_arg:n} is added
-%   to the signature along with the processor code itself. When the signature
-%   is used, the code will be added to an execution list by
-%   \cs{@@_process_arg:n}. Here, the loop calls
-%   \cs{@@_prepare_signature_bypass:N} rather than
+%   When a processor is found, the processor code is stored.  It will be
+%   used by \cs{@@_args_process:} once arguments are all found. Here,
+%   the loop calls \cs{@@_prepare_signature_bypass:N} rather than
 %   \cs{@@_prepare_signature:N} so that the flag is not reset.
 %    \begin{macrocode}
 \cs_new_protected:cpn { @@_add_type_>:w } #1
   {
     \@@_flush_m_args:
-    \bool_set_true:N \l_@@_processor_bool
+    \bool_set_true:N \l_@@_prefixed_bool
+    \bool_set_true:N \l_@@_process_some_bool
     \int_decr:N \l_@@_current_arg_int
-    \tl_put_right:Nn \l_@@_signature_tl { \@@_process_arg:n {#1} }
+    \tl_put_right:Nn \l_@@_process_one_tl { {#1} }
     \@@_prepare_signature_bypass:N
   }
 %    \end{macrocode}
@@ -1415,15 +1618,16 @@
 \cs_new_protected:Npn \@@_add_type_D:w #1#2#3
   {
     \@@_flush_m_args:
+    \@@_add_default:n {#3}
     \@@_add_grabber_optional:N D
-    \tl_put_right:Nn \l_@@_signature_tl { #1 #2 {#3} }
+    \tl_put_right:Nn \l_@@_signature_tl { #1 #2 }
     \@@_prepare_signature:N
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\@@_add_type_e:w, \@@_add_type_E:w}
-%   Setting up for the \texttt{e}-type argument is somewhat specialised as
+%   Setting up for the \texttt{e}-type argument is somewhat special as
 %   the |-NoValue-| tokens are inserted by the grabber rather than here. As
 %   such, all that is needed is to pass data straight through.
 %    \begin{macrocode}
@@ -1432,6 +1636,7 @@
 \cs_new_protected:Npn \@@_add_type_E:w #1#2
   {
     \@@_flush_m_args:
+    \@@_add_default:
     \@@_add_grabber_optional:N E
     \tl_put_right:Nn \l_@@_signature_tl { {#1} {#2} }
     \@@_prepare_signature:N
@@ -1439,24 +1644,19 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_add_type_g:w}
+% \begin{macro}{\@@_add_type_g:w, \@@_add_type_G:w}
 %   The \texttt{g} type is simply an alias for \texttt{G} with the correct
 %   default built-in.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_type_g:w
-  { \exp_args:No \@@_add_type_G:w \c_@@_no_value_tl }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@@_add_type_G:w}
 %   For the \texttt{G} type, the grabber and the default are added to the
 %   signature.
 %    \begin{macrocode}
+\cs_new_protected:Npn \@@_add_type_g:w
+  { \exp_args:No \@@_add_type_G:w \c_@@_no_value_tl }
 \cs_new_protected:Npn \@@_add_type_G:w #1
   {
     \@@_flush_m_args:
+    \@@_add_default:n {#1}
     \@@_add_grabber_optional:N G
-    \tl_put_right:Nn \l_@@_signature_tl { {#1} }
     \@@_prepare_signature:N
   }
 %    \end{macrocode}
@@ -1469,6 +1669,7 @@
 \cs_new_protected:Npn \@@_add_type_l:w
   {
     \@@_flush_m_args:
+    \@@_add_default:
     \@@_add_grabber_mandatory:N l
     \@@_prepare_signature:N
   }
@@ -1485,11 +1686,9 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_type_m:w
   {
-    \bool_if:nTF { \l_@@_long_bool || \l_@@_processor_bool }
-      {
-        \@@_flush_m_args:
-        \@@_add_grabber_mandatory:N m
-      }
+    \@@_add_default:
+    \bool_if:NTF \l_@@_prefixed_bool
+      { \@@_add_grabber_mandatory:N m }
       { \int_incr:N \l_@@_m_args_int }
     \@@_prepare_signature:N
   }
@@ -1505,8 +1704,9 @@
 \cs_new_protected:Npn \@@_add_type_R:w #1#2#3
   {
     \@@_flush_m_args:
+    \@@_add_default:n {#3}
     \@@_add_grabber_mandatory:N R
-    \tl_put_right:Nn \l_@@_signature_tl { #1 #2 {#3} }
+    \tl_put_right:Nn \l_@@_signature_tl { #1 #2 }
     \@@_prepare_signature:N
   }
 %    \end{macrocode}
@@ -1519,6 +1719,7 @@
 \cs_new_protected:Npn \@@_add_type_t:w #1
   {
     \@@_flush_m_args:
+    \@@_add_default:
     \@@_add_grabber_optional:N t
     \tl_put_right:Nn \l_@@_signature_tl {#1}
     \@@_prepare_signature:N
@@ -1533,6 +1734,7 @@
 \cs_new_protected:Npn \@@_add_type_u:w #1
   {
     \@@_flush_m_args:
+    \@@_add_default:
     \@@_add_grabber_mandatory:N u
     \tl_put_right:Nn \l_@@_signature_tl { {#1} }
     \@@_prepare_signature:N
@@ -1541,11 +1743,14 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_add_type_v:w}
-%   At this stage, the \texttt{v} argument is identical to \texttt{l}.
+%   At this stage, the \texttt{v} argument is identical to \texttt{l}
+%   except that since the grabber may fail to read a verbatim argument
+%   we need a default value.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_type_v:w
   {
     \@@_flush_m_args:
+    \exp_args:No \@@_add_default:n \c_@@_no_value_tl
     \@@_add_grabber_mandatory:N v
     \@@_prepare_signature:N
   }
@@ -1567,6 +1772,8 @@
         \tl_put_right:Nx \l_@@_signature_tl
           { \exp_not:c { @@_grab_m_ \int_use:N \l_@@_m_args_int :w } }
         \int_sub:Nn \l_@@_mandatory_args_int { \l_@@_m_args_int }
+        \tl_put_right:Nx \l_@@_process_all_tl
+          { \prg_replicate:nn { \l_@@_m_args_int } { { } } }
       }
     \int_zero:N \l_@@_m_args_int
   }
@@ -1590,6 +1797,9 @@
           { @@_grab_ #1 \bool_if:NT \l_@@_long_bool { _long } :w }
       }
     \bool_set_false:N \l_@@_long_bool
+    \tl_put_right:Nx \l_@@_process_all_tl
+      { { \exp_not:o \l_@@_process_one_tl } }
+    \tl_clear:N \l_@@_process_one_tl
     \int_decr:N \l_@@_mandatory_args_int
   }
 \cs_new_protected:Npn \@@_add_grabber_optional:N #1
@@ -1606,9 +1816,26 @@
           }
       }
     \bool_set_false:N \l_@@_long_bool
+    \tl_put_right:Nx \l_@@_process_all_tl
+      { { \exp_not:o \l_@@_process_one_tl } }
+    \tl_clear:N \l_@@_process_one_tl
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_add_default:n, \@@_add_default:}
+%   Store the default value of an argument, or rather code that gives
+%   that default value (it may involve other arguments).
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_add_default:n #1
+  {
+    \bool_set_true:N \l_@@_defaults_bool
+    \tl_put_right:Nn \l_@@_defaults_tl { {#1} }
+  }
+\cs_new_protected:Npn \@@_add_default:
+  { \tl_put_right:Nn \l_@@_defaults_tl { { } } }
+%    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Setting up expandable types}
@@ -1876,54 +2103,40 @@
 % \subsection{Grabbing arguments}
 %
 % All of the grabbers follow the same basic pattern. The initial
-% function sets up the appropriate information to define
-% \cs{@@_grab_arg:w} to grab the argument. This means determining
-% whether to use \cs{cs_set:Npn} or \cs{cs_set_nopar:Npn}, and for
-% optional arguments whether to skip spaces. In all cases,
-% \cs{@@_grab_arg:w} is then called to actually do the grabbing.
+% function stores in \cs{l_@@_signature_tl} the code to grab further
+% arguments, defines (the function in) \cs{l_@@_fn_tl} that will grab
+% the argument, and calls it.
 %
-% \begin{macro}{\@@_grab_arg:w}
-% \begin{macro}[aux]{\@@_grab_arg_auxi:w}
-% \begin{macro}[aux]{\@@_grab_arg_auxii:w}
-%   Each time an argument is actually grabbed, \pkg{xparse} defines a
-%   function to do it. In that way, long arguments from previous functions
-%   can be included in the definition of the grabber function, so that
-%   it does not raise an error if not long. The generic function used
-%   for this is reserved here. A couple of auxiliary functions are also
-%   needed in various places.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_arg:w { }
-\cs_new_protected:Npn \@@_grab_arg_auxi:w { }
-\cs_new_protected:Npn \@@_grab_arg_auxii:w { }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
+% Defining \cs{l_@@_fn_tl} means determining whether to use
+% \cs{cs_set:Npn} or \cs{cs_set_nopar:Npn}, and for optional arguments
+% whether to skip spaces. Once the argument is found, \cs{l_@@_fn_tl}
+% calls \cs{@@_add_arg:n}, responsible for calling processors and
+% grabbing further arguments.
 %
 % \begin{macro}{\@@_grab_D:w}
 % \begin{macro}{\@@_grab_D_long:w}
 % \begin{macro}{\@@_grab_D_trailing:w}
 % \begin{macro}{\@@_grab_D_long_trailing:w}
 %   The generic delimited argument grabber. The auxiliary function does
-%   a peek test before calling \cs{@@_grab_arg:w}, so that the
+%   a peek test before calling \cs{@@_grab_D_call:Nw}, so that the
 %   optional nature of the argument works as expected.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_D:w #1#2#3#4 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_D:w #1#2#3 \@@_run_code:
   {
-    \@@_grab_D_aux:NNnnNn #1 #2 {#3} {#4} \cs_set_protected_nopar:Npn
+    \@@_grab_D_aux:NNnNn #1 #2 {#3} \cs_set_protected_nopar:Npn
       { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_D_long:w #1#2#3#4 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_D_long:w #1#2#3 \@@_run_code:
   {
-    \@@_grab_D_aux:NNnnNn #1 #2 {#3} {#4} \cs_set_protected:Npn
+    \@@_grab_D_aux:NNnNn #1 #2 {#3} \cs_set_protected:Npn
       { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_D_trailing:w #1#2#3#4 \l_@@_args_tl
-  { \@@_grab_D_aux:NNnnNn #1 #2 {#3} {#4} \cs_set_protected_nopar:Npn { } }
-\cs_new_protected:Npn \@@_grab_D_long_trailing:w #1#2#3#4 \l_@@_args_tl
-  { \@@_grab_D_aux:NNnnNn #1 #2 {#3} {#4} \cs_set_protected:Npn { } }
+\cs_new_protected:Npn \@@_grab_D_trailing:w #1#2#3 \@@_run_code:
+  { \@@_grab_D_aux:NNnNn #1 #2 {#3} \cs_set_protected_nopar:Npn { } }
+\cs_new_protected:Npn \@@_grab_D_long_trailing:w #1#2#3 \@@_run_code:
+  { \@@_grab_D_aux:NNnNn #1 #2 {#3} \cs_set_protected:Npn { } }
 %    \end{macrocode}
-% \begin{macro}[aux]{\@@_grab_D_aux:NNnnNn}
+% \begin{macro}[aux]{\@@_grab_D_aux:NNnNn}
 % \begin{macro}[aux]{\@@_grab_D_aux:NNnN}
 %   This is a bit complicated. The idea is that, in order to check for
 %   nested optional argument tokens (\texttt{[[...]]} and so on) the
@@ -1933,15 +2146,12 @@
 %   prevents loss of braces, and there is then a test to see if there are
 %   nested delimiters to handle.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_D_aux:NNnnNn #1#2#3#4#5#6
+\cs_new_protected:Npn \@@_grab_D_aux:NNnNn #1#2#3#4#5
   {
-    \@@_grab_D_aux:NNnN #1#2 {#4} #5
-    \use:c { peek_meaning_remove #6 :NTF } #1
-      { \@@_grab_arg:w }
-      {
-        \@@_add_arg:n {#3}
-        #4 \l_@@_args_tl
-      }
+    \@@_grab_D_aux:NNnN #1#2 {#3} #4
+    \use:c { peek_meaning_remove #5 :NTF } #1
+      { \@@_grab_D_call:Nw #1 }
+      { \@@_add_arg:o \c_@@_no_value_tl }
   }
 %    \end{macrocode}
 %   Inside the \enquote{standard} grabber, there is a test to see if the
@@ -1953,47 +2163,21 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_grab_D_aux:NNnN #1#2#3#4
   {
-    \cs_set_protected_nopar:Npn \@@_grab_arg:w
+    \tl_set:Nn \l_@@_signature_tl {#3}
+    \exp_after:wN #4 \l_@@_fn_tl ##1 #2
       {
-        \exp_after:wN #4 \l_@@_fn_tl ####1 #2
+        \tl_if_in:nnTF {##1} {#1}
+          { \@@_grab_D_nested:NNnN #1 #2 {##1} #4 }
           {
-            \tl_if_in:nnTF {####1} {#1}
-              { \@@_grab_D_nested:NNnnN #1 #2 {####1} {#3} #4 }
+            \tl_if_blank:oTF { \use_none:n ##1 }
+              { \@@_add_arg:o { \use_none:n ##1 } }
               {
-                \tl_if_blank:oTF { \use_none:n ####1 }
-                  { \@@_add_arg:o { \use_none:n ####1 } }
-                  {
-                    \str_if_eq_x:nnTF
-                      { \exp_not:o { \use_none:n ####1 } }
-                      { { \exp_not:o { \use_ii:nnn ####1 \q_nil } } }
-                      { \@@_add_arg:o { \use_ii:nn ####1 } }
-                      { \@@_add_arg:o { \use_none:n ####1 } }
-                  }
-                #3 \l_@@_args_tl
+                \str_if_eq_x:nnTF
+                  { \exp_not:o { \use_none:n ##1 } }
+                  { { \exp_not:o { \use_ii:nnn ##1 \q_nil } } }
+                  { \@@_add_arg:o { \use_ii:nn ##1 } }
+                  { \@@_add_arg:o { \use_none:n ##1 } }
               }
-          }
-%    \end{macrocode}
-%   This section needs a little explanation. In order to avoid losing any
-%   braces, a token needs to be inserted before the argument to be grabbed.
-%   If the argument runs away because the closing token is missing then this
-%   inserted token shows up in the terminal. Ideally, |#1| would therefore be
-%   used directly, but that is no good as it will mess up the rest of the
-%   grabber. Instead, a copy of |#1| with an altered category code is used,
-%   as this will look right in the terminal but will not mess up the grabber.
-%   The only issue then is that the category code of |#1| is unknown. So there
-%   is a quick test to ensure that the inserted token can never be matched by
-%   the grabber. (This assumes that |#1| and |#2| are not the same character
-%   with different category codes, but that really should not happen in any
-%   sensible document-level syntax.)
-%    \begin{macrocode}
-        \token_if_eq_catcode:NNTF + #1
-          {
-            \exp_after:wN \exp_after:wN \exp_after:wN
-              \l_@@_fn_tl \char_generate:nn { `#1 } { 11 }
-          }
-          {
-            \exp_after:wN \l_@@_fn_tl
-            \token_to_str:N #1
           }
       }
   }
@@ -2004,7 +2188,7 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
-% \begin{macro}[aux]{\@@_grab_D_nested:NNnnN}
+% \begin{macro}[aux]{\@@_grab_D_nested:NNnN}
 % \begin{macro}[aux]{\@@_grab_D_nested:w}
 % \begin{macro}{\l_@@_nesting_a_tl}
 % \begin{macro}{\l_@@_nesting_b_tl}
@@ -2029,11 +2213,11 @@
 \tl_new:N \l_@@_nesting_a_tl
 \tl_new:N \l_@@_nesting_b_tl
 \quark_new:N \q_@@
-\cs_new_protected:Npn \@@_grab_D_nested:NNnnN #1#2#3#4#5
+\cs_new_protected:Npn \@@_grab_D_nested:NNnN #1#2#3#4
   {
     \tl_clear:N \l_@@_nesting_a_tl
     \tl_clear:N \l_@@_nesting_b_tl
-    \exp_after:wN #5 \l_@@_fn_tl ##1 #1 ##2 \q_@@ ##3 #2
+    \exp_after:wN #4 \l_@@_fn_tl ##1 #1 ##2 \q_@@ ##3 #2
       {
         \tl_put_right:No \l_@@_nesting_a_tl { \use_none:n ##1 #1 }
         \tl_put_right:No \l_@@_nesting_b_tl { \use_i:nn #2 ##3 }
@@ -2056,7 +2240,6 @@
                 \tl_put_right:No \l_@@_nesting_a_tl
                   \l_@@_nesting_b_tl
                 \@@_add_arg:V \l_@@_nesting_a_tl
-                #4 \l_@@_args_tl
               }
           }
       }
@@ -2070,6 +2253,34 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \begin{macro}{\@@_grab_D_call:Nw}
+%   For \texttt{D} and \texttt{R}-type arguments, to avoid losing any
+%   braces, a token needs to be inserted before the argument to be grabbed.
+%   If the argument runs away because the closing token is missing then this
+%   inserted token shows up in the terminal. Ideally, |#1| would therefore be
+%   used directly, but that is no good as it will mess up the rest of the
+%   grabber. Instead, a copy of |#1| with an altered category code is used,
+%   as this will look right in the terminal but will not mess up the grabber.
+%   The only issue then is that the category code of |#1| is unknown. So there
+%   is a quick test to ensure that the inserted token can never be matched by
+%   the grabber. (This assumes that the open and close delimiters are not the
+%   same character with different category codes, but that really should not
+%   happen in any sensible document-level syntax.)
+%    \begin{macrocode}
+\cs_set_protected_nopar:Npn \@@_grab_D_call:Nw #1
+  {
+    \token_if_eq_catcode:NNTF + #1
+      {
+        \exp_after:wN \exp_after:wN \exp_after:wN
+          \l_@@_fn_tl \char_generate:nn { `#1 } { 11 }
+      }
+      {
+        \exp_after:wN \l_@@_fn_tl
+        \token_to_str:N #1
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
 %
 % \begin{macro}
 %   {
@@ -2077,33 +2288,33 @@
 %     \@@_grab_E_trailing:w, \@@_grab_E_long_trailing:w
 %   }
 % \begin{macro}[aux]{\@@_grab_E:nnnNn}
-% \begin{macro}[aux]{\@@_grab_E_setup:Nw}
+% \begin{macro}[aux]{\@@_grab_E_setup:nn}
 % \begin{macro}[aux]{\@@_grab_E_loop:nnN}
 % \begin{macro}[aux]{\@@_grab_E_finalise:}
 %   Everything here needs to point to a loop.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_E:w #1#2#3 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_E:w #1#2#3 \@@_run_code:
   {
     \@@_grab_E:nnnNn
        {#1} {#2} {#3}
       \cs_set_protected_nopar:Npn
       { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_E_long:w #1#2#3 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_E_long:w #1#2#3 \@@_run_code:
   {
     \@@_grab_E:nnnNn
        {#1} {#2} {#3}
       \cs_set_protected:Npn
       { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_E_trailing:w #1#2#3 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_E_trailing:w #1#2#3 \@@_run_code:
   {
     \@@_grab_E:nnnNn
        {#1} {#2} {#3}
       \cs_set_protected_nopar:Npn
       { }
   }
-\cs_new_protected:Npn \@@_grab_E_long_trailing:w #1#2#3 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_E_long_trailing:w #1#2#3 \@@_run_code:
   {
     \@@_grab_E:nnnNn
        {#1} {#2} {#3}
@@ -2115,6 +2326,9 @@
 %   searched for one at a time, with any not found needing to be tracked:
 %   they can appear later. The grabbed values are held in a property list
 %   which is then turned into an ordered list to be passed back to the user.
+%   The weird assignment to a token list with \cs{cs_set:Npn} gets rid
+%   of doubled |#| in the default values of arguments, to ensure
+%   |E|-type arguments behave the same as other argument types.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_grab_E:nnnNn #1#2#3#4#5
   {
@@ -2124,8 +2338,13 @@
         \@@_grab_E_loop:nnN {#5} { } ##2 \q_recursion_stop
       }
     \prop_clear:N \l_@@_tmp_prop
-    \@@_grab_E_setup:Nw
-      #1 \q_recursion_tail \q_mark #2 \q_recursion_tail \q_recursion_stop
+    \tl_set:Nn \l_@@_tmpa_tl {#1}
+    \cs_set:Npn \l_@@_tmpb_tl {#2}
+    \@@_tl_mapthread_function:NNN
+      \l_@@_tmpa_tl
+      \l_@@_tmpb_tl
+      \@@_grab_E_setup:nn
+    \tl_set:Nn \l_@@_signature_tl {#3}
     \cs_set_protected:Npn \@@_grab_E_finalise:
       {
         \tl_clear:N \l_@@_tmpa_tl
@@ -2140,7 +2359,6 @@
               }
           }
         \@@_add_arg:V \l_@@_tmpa_tl
-        #3 \l_@@_args_tl
       }
     \@@_grab_E_loop:nnN {#5} { } #1 \q_recursion_tail \q_recursion_stop
   }
@@ -2149,13 +2367,8 @@
 %   shorter than the number of test tokens. This can readily be achieved
 %   by storing only the given defaults in the property list.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_E_setup:Nw #1#2 \q_mark #3
-  {
-    \quark_if_recursion_tail_stop:N #1
-    \quark_if_recursion_tail_stop:n {#3}
-    \prop_put:Nnn \l_@@_tmp_prop {#1} {#3}
-    \@@_grab_E_setup:Nw #2 \q_mark
-  }
+\cs_new_protected:Npn \@@_grab_E_setup:nn #1#2
+  { \prop_put:Nnn \l_@@_tmp_prop {#1} {#2} }
 \cs_new_protected:Npn \@@_grab_E_loop:nnN #1#2#3#4 \q_recursion_stop
   {
     \cs_if_eq:NNTF #3 \q_recursion_tail
@@ -2178,36 +2391,31 @@
 % \begin{macro}{\@@_grab_G_long:w}
 % \begin{macro}{\@@_grab_G_trailing:w}
 % \begin{macro}{\@@_grab_G_long_trailing:w}
-% \begin{macro}[aux]{\@@_grab_G_aux:nnNn}
+% \begin{macro}[aux]{\@@_grab_G_aux:nNn}
 %   Optional groups are checked by meaning, so that the same code will
 %   work with, for example, Con\TeX{}t-like input.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_G:w #1#2 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_G:w #1 \@@_run_code:
   {
-    \@@_grab_G_aux:nnNn {#1} {#2} \cs_set_protected_nopar:Npn
+    \@@_grab_G_aux:nNn {#1} \cs_set_protected_nopar:Npn
       { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_G_long:w #1#2 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_G_long:w #1 \@@_run_code:
   {
-    \@@_grab_G_aux:nnNn {#1} {#2} \cs_set_protected:Npn { _ignore_spaces }
+    \@@_grab_G_aux:nNn {#1} \cs_set_protected:Npn { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_G_trailing:w #1#2 \l_@@_args_tl
-  { \@@_grab_G_aux:nnNn {#1} {#2} \cs_set_protected_nopar:Npn { } }
-\cs_new_protected:Npn \@@_grab_G_long_trailing:w #1#2 \l_@@_args_tl
-  { \@@_grab_G_aux:nnNn {#1} {#2} \cs_set_protected:Npn { } }
-\cs_new_protected:Npn \@@_grab_G_aux:nnNn #1#2#3#4
+\cs_new_protected:Npn \@@_grab_G_trailing:w #1 \@@_run_code:
+  { \@@_grab_G_aux:nNn {#1} \cs_set_protected_nopar:Npn { } }
+\cs_new_protected:Npn \@@_grab_G_long_trailing:w #1 \@@_run_code:
+  { \@@_grab_G_aux:nNn {#1} \cs_set_protected:Npn { } }
+\cs_new_protected:Npn \@@_grab_G_aux:nNn #1#2#3
   {
-    \exp_after:wN #3 \l_@@_fn_tl ##1
-      {
-        \@@_add_arg:n {##1}
-        #2 \l_@@_args_tl
-      }
-    \use:c { peek_meaning #4 :NTF } \c_group_begin_token
+    \tl_set:Nn \l_@@_signature_tl {#1}
+    \exp_after:wN #2 \l_@@_fn_tl ##1
+      { \@@_add_arg:n {##1} }
+    \use:c { peek_meaning #3 :NTF } \c_group_begin_token
       { \l_@@_fn_tl }
-      {
-        \@@_add_arg:n {#1}
-        #2 \l_@@_args_tl
-      }
+      { \@@_add_arg:o \c_@@_no_value_tl }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2221,17 +2429,15 @@
 % \begin{macro}[aux]{\@@_grab_l_aux:nN}
 %   Argument grabbers for mandatory \TeX{} arguments are pretty simple.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_l:w #1 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_l:w #1 \@@_run_code:
   { \@@_grab_l_aux:nN {#1} \cs_set_protected_nopar:Npn }
-\cs_new_protected:Npn \@@_grab_l_long:w #1 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_l_long:w #1 \@@_run_code:
   { \@@_grab_l_aux:nN {#1} \cs_set_protected:Npn }
 \cs_new_protected:Npn \@@_grab_l_aux:nN #1#2
   {
+    \tl_set:Nn \l_@@_signature_tl {#1}
     \exp_after:wN #2 \l_@@_fn_tl ##1##
-      {
-        \@@_add_arg:n {##1}
-        #1 \l_@@_args_tl
-      }
+      { \@@_add_arg:n {##1} }
     \l_@@_fn_tl
   }
 %    \end{macrocode}
@@ -2243,22 +2449,18 @@
 % \begin{macro}{\@@_grab_m_long:w}
 %   Collecting a single mandatory argument is quite easy.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_m:w #1 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_m:w #1 \@@_run_code:
   {
+    \tl_set:Nn \l_@@_signature_tl {#1}
     \exp_after:wN \cs_set_protected_nopar:Npn \l_@@_fn_tl ##1
-      {
-        \@@_add_arg:n {##1}
-        #1 \l_@@_args_tl
-      }
+      { \@@_add_arg:n {##1} }
     \l_@@_fn_tl
   }
-\cs_new_protected:Npn \@@_grab_m_long:w #1 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_m_long:w #1 \@@_run_code:
   {
+    \tl_set:Nn \l_@@_signature_tl {#1}
     \exp_after:wN \cs_set_protected:Npn \l_@@_fn_tl ##1
-      {
-        \@@_add_arg:n {##1}
-        #1 \l_@@_args_tl
-      }
+      { \@@_add_arg:n {##1} }
     \l_@@_fn_tl
   }
 %    \end{macrocode}
@@ -2273,92 +2475,65 @@
 % \begin{macro}{\@@_grab_m_6:w}
 % \begin{macro}{\@@_grab_m_7:w}
 % \begin{macro}{\@@_grab_m_8:w}
+% \begin{macro}[aux]{\@@_grab_m_aux:Nnnnnnnnn}
 %   Grabbing 1--8 mandatory arguments. We don't need to worry about
 %   nine arguments as this is only possible if everything is
 %   mandatory. Each function has an auxiliary so that \cs{par} tokens
 %   from other arguments still work.
 %    \begin{macrocode}
-\cs_new_protected:cpn { @@_grab_m_1:w } #1 \l_@@_args_tl
+\cs_new_protected_nopar:Npn \@@_grab_m_aux:Nnnnnnnnn #1#2#3#4#5#6#7#8#9
   {
-    \exp_after:wN \cs_set_protected_nopar:Npn \l_@@_fn_tl ##1
-      {
-        \tl_put_right:Nn \l_@@_args_tl { {##1} }
-        #1 \l_@@_args_tl
-      }
-    \l_@@_fn_tl
+    \tl_put_right:No \l_@@_args_tl
+      { #1 {#2} {#3} {#4} {#5} {#6} {#7} {#8} {#9} }
+    \l_@@_signature_tl \@@_run_code:
   }
-\cs_new_protected:cpn { @@_grab_m_2:w } #1 \l_@@_args_tl
+\cs_new_protected:cpn { @@_grab_m_1:w } #1 \@@_run_code:
   {
-    \exp_after:wN \cs_set_protected_nopar:Npn \l_@@_fn_tl
-      ##1##2
-      {
-        \tl_put_right:Nn \l_@@_args_tl { {##1} {##2} }
-        #1 \l_@@_args_tl
-      }
-    \l_@@_fn_tl
+    \tl_set:Nn \l_@@_signature_tl {#1}
+    \exp_after:wN \cs_set_eq:NN \l_@@_fn_tl \@@_grab_m_aux:Nnnnnnnnn
+    \l_@@_fn_tl \use_none:nnnnnnn { } { } { } { } { } { } { }
   }
-\cs_new_protected:cpn { @@_grab_m_3:w } #1 \l_@@_args_tl
+\cs_new_protected:cpn { @@_grab_m_2:w } #1 \@@_run_code:
   {
-    \exp_after:wN \cs_set_protected_nopar:Npn \l_@@_fn_tl
-      ##1##2##3
-      {
-        \tl_put_right:Nn \l_@@_args_tl { {##1} {##2} {##3} }
-        #1 \l_@@_args_tl
-      }
-    \l_@@_fn_tl
+    \tl_set:Nn \l_@@_signature_tl {#1}
+    \exp_after:wN \cs_set_eq:NN \l_@@_fn_tl \@@_grab_m_aux:Nnnnnnnnn
+    \l_@@_fn_tl \use_none:nnnnnn { } { } { } { } { } { }
   }
-\cs_new_protected:cpn { @@_grab_m_4:w } #1 \l_@@_args_tl
+\cs_new_protected:cpn { @@_grab_m_3:w } #1 \@@_run_code:
   {
-    \exp_after:wN \cs_set_protected_nopar:Npn \l_@@_fn_tl
-      ##1##2##3##4
-      {
-        \tl_put_right:Nn \l_@@_args_tl { {##1} {##2} {##3} {##4} }
-        #1 \l_@@_args_tl
-      }
-    \l_@@_fn_tl
+    \tl_set:Nn \l_@@_signature_tl {#1}
+    \exp_after:wN \cs_set_eq:NN \l_@@_fn_tl \@@_grab_m_aux:Nnnnnnnnn
+    \l_@@_fn_tl \use_none:nnnnn { } { } { } { } { }
   }
-\cs_new_protected:cpn { @@_grab_m_5:w } #1 \l_@@_args_tl
+\cs_new_protected:cpn { @@_grab_m_4:w } #1 \@@_run_code:
   {
-    \exp_after:wN \cs_set_protected_nopar:Npn \l_@@_fn_tl
-      ##1##2##3##4##5
-      {
-        \tl_put_right:Nn \l_@@_args_tl { {##1} {##2} {##3} {##4} {##5} }
-        #1 \l_@@_args_tl
-      }
-    \l_@@_fn_tl
+    \tl_set:Nn \l_@@_signature_tl {#1}
+    \exp_after:wN \cs_set_eq:NN \l_@@_fn_tl \@@_grab_m_aux:Nnnnnnnnn
+    \l_@@_fn_tl \use_none:nnnn { } { } { } { }
   }
-\cs_new_protected:cpn { @@_grab_m_6:w } #1 \l_@@_args_tl
+\cs_new_protected:cpn { @@_grab_m_5:w } #1 \@@_run_code:
   {
-    \exp_after:wN \cs_set_protected_nopar:Npn \l_@@_fn_tl
-      ##1##2##3##4##5##6
-      {
-        \tl_put_right:Nn \l_@@_args_tl
-          { {##1} {##2} {##3} {##4} {##5} {##6} }
-        #1 \l_@@_args_tl
-      }
-    \l_@@_fn_tl
+    \tl_set:Nn \l_@@_signature_tl {#1}
+    \exp_after:wN \cs_set_eq:NN \l_@@_fn_tl \@@_grab_m_aux:Nnnnnnnnn
+    \l_@@_fn_tl \use_none:nnn { } { } { }
   }
-\cs_new_protected:cpn { @@_grab_m_7:w } #1 \l_@@_args_tl
+\cs_new_protected:cpn { @@_grab_m_6:w } #1 \@@_run_code:
   {
-    \exp_after:wN \cs_set_protected_nopar:Npn \l_@@_fn_tl
-      ##1##2##3##4##5##6##7
-      {
-        \tl_put_right:Nn \l_@@_args_tl
-          { {##1} {##2} {##3} {##4} {##5} {##6} {##7} }
-        #1 \l_@@_args_tl
-      }
-    \l_@@_fn_tl
+    \tl_set:Nn \l_@@_signature_tl {#1}
+    \exp_after:wN \cs_set_eq:NN \l_@@_fn_tl \@@_grab_m_aux:Nnnnnnnnn
+    \l_@@_fn_tl \use_none:nn { } { }
   }
-\cs_new_protected:cpn { @@_grab_m_8:w } #1 \l_@@_args_tl
+\cs_new_protected:cpn { @@_grab_m_7:w } #1 \@@_run_code:
   {
-    \exp_after:wN \cs_set_protected_nopar:Npn \l_@@_fn_tl
-      ##1##2##3##4##5##6##7##8
-      {
-        \tl_put_right:Nn \l_@@_args_tl
-          { {##1} {##2} {##3} {##4} {##5} {##6} {##7} {##8} }
-        #1 \l_@@_args_tl
-      }
-    \l_@@_fn_tl
+    \tl_set:Nn \l_@@_signature_tl {#1}
+    \exp_after:wN \cs_set_eq:NN \l_@@_fn_tl \@@_grab_m_aux:Nnnnnnnnn
+    \l_@@_fn_tl \use_none:n { }
+  }
+\cs_new_protected:cpn { @@_grab_m_8:w } #1 \@@_run_code:
+  {
+    \tl_set:Nn \l_@@_signature_tl {#1}
+    \exp_after:wN \cs_set_eq:NN \l_@@_fn_tl \@@_grab_m_aux:Nnnnnnnnn
+    \l_@@_fn_tl \prg_do_nothing:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2369,27 +2544,27 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
 %
 % \begin{macro}{\@@_grab_R:w, \@@_grab_R_long:w}
-% \begin{macro}[aux]{\@@_grab_R_aux:NNnnN}
+% \begin{macro}[aux]{\@@_grab_R_aux:NNnN}
 %  The grabber for \texttt{R}-type arguments is basically the same as
 %  that for \texttt{D}-type ones, but always skips spaces (as it is mandatory)
 %  and has a hard-coded error message.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_R:w #1#2#3#4 \l_@@_args_tl
-  { \@@_grab_R_aux:NNnnN #1 #2 {#3} {#4} \cs_set_protected_nopar:Npn }
-\cs_new_protected:Npn \@@_grab_R_long:w #1#2#3#4 \l_@@_args_tl
-  { \@@_grab_R_aux:NNnnN #1 #2 {#3} {#4} \cs_set_protected:Npn }
-\cs_new_protected:Npn \@@_grab_R_aux:NNnnN #1#2#3#4#5
+\cs_new_protected:Npn \@@_grab_R:w #1#2#3 \@@_run_code:
+  { \@@_grab_R_aux:NNnN #1 #2 {#3} \cs_set_protected_nopar:Npn }
+\cs_new_protected:Npn \@@_grab_R_long:w #1#2#3 \@@_run_code:
+  { \@@_grab_R_aux:NNnN #1 #2 {#3} \cs_set_protected:Npn }
+\cs_new_protected:Npn \@@_grab_R_aux:NNnN #1#2#3#4
   {
-    \@@_grab_D_aux:NNnN #1 #2 {#4} #5
+    \@@_grab_D_aux:NNnN #1 #2 {#3} #4
     \peek_meaning_remove_ignore_spaces:NTF #1
-      { \@@_grab_arg:w }
+      { \@@_grab_D_call:Nw #1 }
       {
-        \__msg_kernel_error:nnxx { xparse } { missing-required }
-          { \token_to_str:N #1 } { \tl_to_str:n {#3} }
-        \@@_add_arg:n {#3}
-        #4 \l_@@_args_tl
+        \__msg_kernel_error:nnx { xparse } { missing-required }
+          { \token_to_str:N #1 }
+        \@@_add_arg:o \c_@@_no_value_tl
       }
   }
 %    \end{macrocode}
@@ -2404,30 +2579,25 @@
 %   Dealing with a token is quite easy. Check the match, remove the
 %   token if needed and add a flag to the output.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_t:w #1#2 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_t:w #1#2 \@@_run_code:
   {
     \@@_grab_t_aux:NnNn #1 {#2} \cs_set_protected_nopar:Npn
       { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_t_long:w #1#2 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_t_long:w #1#2 \@@_run_code:
   { \@@_grab_t_aux:NnNn #1 {#2} \cs_set_protected:Npn { _ignore_spaces } }
-\cs_new_protected:Npn \@@_grab_t_trailing:w #1#2 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_t_trailing:w #1#2 \@@_run_code:
   { \@@_grab_t_aux:NnNn #1 {#2} \cs_set_protected_nopar:Npn { } }
-\cs_new_protected:Npn \@@_grab_t_long_trailing:w #1#2 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_t_long_trailing:w #1#2 \@@_run_code:
   { \@@_grab_t_aux:NnNn #1 {#2} \cs_set_protected:Npn { } }
 \cs_new_protected:Npn \@@_grab_t_aux:NnNn #1#2#3#4
   {
+    \tl_set:Nn \l_@@_signature_tl {#2}
     \exp_after:wN #3 \l_@@_fn_tl
       {
         \use:c { peek_meaning_remove #4 :NTF } #1
-          {
-            \@@_add_arg:n { \BooleanTrue }
-            #2 \l_@@_args_tl
-          }
-          {
-            \@@_add_arg:n { \BooleanFalse }
-            #2 \l_@@_args_tl
-          }
+          { \@@_add_arg:n { \BooleanTrue } }
+          { \@@_add_arg:n { \BooleanFalse } }
       }
     \l_@@_fn_tl
   }
@@ -2444,17 +2614,15 @@
 %   Grabbing up to a list of tokens is quite easy: define the grabber,
 %   and then collect.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_u:w #1#2 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_u:w #1#2 \@@_run_code:
   { \@@_grab_u_aux:nnN {#1} {#2} \cs_set_protected_nopar:Npn }
-\cs_new_protected:Npn \@@_grab_u_long:w #1#2 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_u_long:w #1#2 \@@_run_code:
   { \@@_grab_u_aux:nnN {#1} {#2} \cs_set_protected:Npn }
 \cs_new_protected:Npn \@@_grab_u_aux:nnN #1#2#3
   {
+    \tl_set:Nn \l_@@_signature_tl {#2}
     \exp_after:wN #3 \l_@@_fn_tl ##1 #1
-      {
-        \@@_add_arg:n {##1}
-        #2 \l_@@_args_tl
-      }
+      { \@@_add_arg:n {##1} }
     \l_@@_fn_tl
   }
 %    \end{macrocode}
@@ -2466,7 +2634,6 @@
 % \begin{macro}{\@@_grab_v_long:w}
 % \begin{macro}{\@@_grab_v_aux:w}
 % \begin{macro}{\@@_grab_v_group_end:}
-% \begin{variable}{\l_@@_v_rest_of_signature_tl}
 % \begin{variable}{\l_@@_v_arg_tl}
 %   The opening delimiter is the first non-space token, and is never
 %   read verbatim.  This is required by consistency with the case where
@@ -2484,7 +2651,6 @@
 %   It is ended by \cs{@@_grab_v_group_end:}, which smuggles
 %   the collected argument out of the group.
 %    \begin{macrocode}
-\tl_new:N \l_@@_v_rest_of_signature_tl
 \tl_new:N \l_@@_v_arg_tl
 \cs_new_protected:Npn \@@_grab_v:w
   {
@@ -2496,9 +2662,9 @@
     \bool_set_true:N \l_@@_long_bool
     \@@_grab_v_aux:w
   }
-\cs_new_protected:Npn \@@_grab_v_aux:w #1 \l_@@_args_tl
+\cs_new_protected:Npn \@@_grab_v_aux:w #1 \@@_run_code:
   {
-    \tl_set:Nn \l_@@_v_rest_of_signature_tl {#1}
+    \tl_set:Nn \l_@@_signature_tl {#1}
     \group_begin:
       \group_align_safe_begin:
         \tex_escapechar:D = 92 \scan_stop:
@@ -2522,7 +2688,6 @@
     \tl_set:Nn \l_@@_v_arg_tl { \l_@@_v_arg_tl }
   }
 %    \end{macrocode}
-% \end{variable}
 % \end{variable}
 % \end{macro}
 % \end{macro}
@@ -2586,8 +2751,7 @@
 \cs_new_protected:Npn \@@_grab_v_aux_loop_end:
   {
     \@@_grab_v_group_end:
-    \exp_args:Nx \@@_add_arg:n { \tl_tail:N \l_@@_v_arg_tl }
-    \l_@@_v_rest_of_signature_tl \l_@@_args_tl
+    \@@_add_arg:x { \tl_tail:N \l_@@_v_arg_tl }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2681,7 +2845,6 @@
 \cs_new_protected:Npn \@@_grab_v_aux_abort:n #1
   {
     \@@_grab_v_group_end:
-    \@@_add_arg:o \c_@@_no_value_tl
     \exp_after:wN \exp_after:wN \exp_after:wN
       \peek_meaning_remove:NTF \char_generate:nn { \tex_endlinechar:D } { 6 }
       {
@@ -2689,14 +2852,14 @@
           { \exp_after:wN \token_to_str:N \l_@@_fn_tl }
           { \tl_to_str:N \l_@@_v_arg_tl }
           { \tl_to_str:n {#1} }
-        \l_@@_v_rest_of_signature_tl \l_@@_args_tl
+        \@@_add_arg:o \c_@@_no_value_tl
       }
       {
         \__msg_kernel_error:nnxxx { xparse } { verbatim-tokenized }
           { \exp_after:wN \token_to_str:N \l_@@_fn_tl }
           { \tl_to_str:N \l_@@_v_arg_tl }
           { \tl_to_str:n {#1} }
-        \l_@@_v_rest_of_signature_tl \l_@@_args_tl
+        \@@_add_arg:o \c_@@_no_value_tl
       }
   }
 %    \end{macrocode}
@@ -2732,45 +2895,17 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_add_arg:n, \@@_add_arg:V, \@@_add_arg:o}
-% \begin{macro}[aux]{\@@_add_arg_aux:n, \@@_add_arg_aux:V}
-%   The argument-storing system provides a single point for interfacing
-%   with processors. They are done in a loop, counting downward. In this
-%   way, the processor which was found last is executed first. The result
-%   is that processors apply from right to left, as intended. Notice that
-%   a set of braces are added back around the result of processing so that
-%   the internal function will correctly pick up one argument for each
-%   input argument.
+% \begin{macro}{\@@_add_arg:n, \@@_add_arg:V, \@@_add_arg:o, \@@_add_arg:x}
+%   When an argument is found it is stored, then further arguments are
+%   grabbed by calling \cs{l_@@_signature_tl}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_arg:n #1
   {
-    \int_compare:nNnTF \l_@@_processor_int = \c_zero
-      { \tl_put_right:Nn \l_@@_args_tl { {#1} } }
-      {
-        \tl_clear:N \ProcessedArgument
-        \@@_if_no_value:nTF {#1}
-          {
-            \int_zero:N \l_@@_processor_int
-            \tl_put_right:Nn \l_@@_args_tl { {#1} }
-          }
-          { \@@_add_arg_aux:n {#1} }
-      }
+    \tl_put_right:Nn \l_@@_args_tl { {#1} }
+    \l_@@_signature_tl \@@_run_code:
   }
-\cs_generate_variant:Nn \@@_add_arg:n { V , o }
-\cs_new_protected:Npn \@@_add_arg_aux:n #1
-  {
-    \use:c { @@_processor_ \int_use:N \l_@@_processor_int :n } {#1}
-    \int_decr:N \l_@@_processor_int
-    \int_compare:nNnTF \l_@@_processor_int = \c_zero
-      {
-        \tl_put_right:Nx \l_@@_args_tl
-          { { \exp_not:V \ProcessedArgument } }
-      }
-      { \@@_add_arg_aux:V \ProcessedArgument }
-}
-\cs_generate_variant:Nn \@@_add_arg_aux:n { V }
+\cs_generate_variant:Nn \@@_add_arg:n { V , o , x }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \subsection{Grabbing arguments expandably}
@@ -3038,19 +3173,6 @@
 % \end{macro}
 %
 % \subsection{Argument processors}
-%
-% \begin{macro}{\@@_process_arg:n}
-%   Processors are saved for use later during the grabbing process.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_process_arg:n #1
-  {
-    \int_incr:N \l_@@_processor_int
-    \cs_set_protected:cpx
-      { @@_processor_ \int_use:N \l_@@_processor_int :n } ##1
-      { \exp_not:n {#1} {##1} }
-  }
-%    \end{macrocode}
-% \end{macro}
 %
 % \begin{macro}{\@@_bool_reverse:N}
 %   A simple reversal.
@@ -3342,6 +3464,34 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\@@_tl_mapthread_function:NNN}
+% \begin{macro}[aux]{\@@_tl_mapthread_loop:w}
+%   Analogue of \cs{seq_mapthread_function:NNN} for token lists.
+%    \begin{macrocode}
+\cs_new:Npn \@@_tl_mapthread_function:NNN #1#2#3
+  {
+    \exp_after:wN \exp_after:wN
+    \exp_after:wN \@@_tl_mapthread_loop:w
+    \exp_after:wN \exp_after:wN
+    \exp_after:wN #3
+    \exp_after:wN #1
+    \exp_after:wN \q_recursion_tail
+    \exp_after:wN \q_mark
+    #2
+    \q_recursion_tail
+    \q_recursion_stop
+  }
+\cs_new:Npn \@@_tl_mapthread_loop:w #1#2#3 \q_mark #4
+  {
+    \quark_if_recursion_tail_stop:n {#2}
+    \quark_if_recursion_tail_stop:n {#4}
+    #1 {#2} {#4}
+    \@@_tl_mapthread_loop:w #1#3 \q_mark
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \subsection{Messages}
 %
 % Some messages intended as errors.
@@ -3408,11 +3558,18 @@
     \\ \\
     LaTeX~will~assume~you~want~a~standard~mandatory~argument~(type~'m').
   }
+\__msg_kernel_new:nnnn { xparse } { loop-in-defaults }
+  { Unresolved~circular~dependency~in~default~values~for~'#1'. }
+  {
+    \c__msg_coding_error_text_tl
+    The~default~values~of~two~or~more~arguments~of~'#1'~depend~on~each~
+    other~in~a~way~that~cannot~be~resolved.
+  }
 \__msg_kernel_new:nnnn { xparse } { missing-required }
   { Failed~to~find~required~argument~starting~with~'#1'. }
   {
     There~is~supposed~to~be~an~argument~to~the~current~function~starting~with~
-    '#1'.~LaTeX~did~not~find~it,~and~will~insert~'#2'~as~the~value~to~be~
+    '#1'.~LaTeX~did~not~find~it,~and~will~insert~a~default~value~to~be~
     processed.
   }
 \__msg_kernel_new:nnnn { xparse } { non-xparse-command }
