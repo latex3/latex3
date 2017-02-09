@@ -349,9 +349,6 @@
 %   \margins [1cm] {a} [2cm] {b}  % => {(1cm,a,2cm,b)}
 % \end{verbatim}
 %
-% Currently, referring to other arguments in default values is not
-% supported for expandable commands.
-%
 % Users should note that support for default arguments referring to
 % other arguments is somewhat experimental. Feedback is therefore very
 % welcome on the \texttt{LaTeX-L} mailing list.
@@ -1091,12 +1088,23 @@
     \cs_generate_from_arg_count:cNnn
       { \l_@@_function_tl \c_space_tl code }
       \cs_set:Npn \l_@@_current_arg_int {#3}
+    \bool_if:NT \l_@@_defaults_bool
+      {
+        \use:x
+          {
+            \cs_generate_from_arg_count:cNnn
+              { \l_@@_function_tl \c_space_tl defaults }
+              \cs_set:Npn \l_@@_current_arg_int
+              { \exp_not:o \l_@@_defaults_tl }
+          }
+      }
     \cs_set_nopar:Npx #1
       {
-        \exp_not:N \@@_start_expandable:nNNn
+        \exp_not:N \@@_start_expandable:nNNNn
           { \exp_not:n {#2} }
           \exp_not:c { \l_@@_function_tl \c_space_tl }
           \exp_not:c { \l_@@_function_tl \c_space_tl code }
+          \exp_not:c { \l_@@_function_tl \c_space_tl defaults }
           { \exp_not:o \l_@@_signature_tl }
       }
     \bool_if:NTF \l_@@_all_long_bool
@@ -1169,18 +1177,6 @@
 % \end{macro}
 %
 % \subsection{Structure of \pkg{xparse} commands}
-%
-% \begin{macro}{\@@_start_expandable:nNNn}
-%   This is called for all expandable commands.  |#4| is the signature,
-%   responsible for grabbing arguments.  |#3| is the code to run.
-%   |#2|~is a function (named after the command) that grabs a single
-%   argument in the input stream.  The argument specification |#1| is
-%   unused but used by diagnostic functions.
-%    \begin{macrocode}
-\cs_new:Npn \@@_start_expandable:nNNn #1#2#3#4
-  { #4 \@@_grab_expandable_end:wN #3 \q_@@ #2 }
-%    \end{macrocode}
-% \end{macro}
 %
 % \begin{macro}{\@@_start:nNNnnn}
 %   This sets up a few variables to minimize the boilerplate code
@@ -1343,6 +1339,77 @@
   { \exp_args:No \@@_args_process_aux:nn { \ProcessedArgument } }
 \cs_new_protected:Npn \@@_args_process_aux:nn #1#2 { #2 {#1} }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_start_expandable:nNNNn}
+%   This is called for all expandable commands.  |#5| is the signature,
+%   responsible for grabbing arguments.  |#4| is used to determine
+%   default values.  |#3| is the code to run.
+%   |#2|~is a function (named after the command) that grabs a single
+%   argument in the input stream.  The argument specification |#1| is
+%   unused but used by diagnostic functions.
+%    \begin{macrocode}
+\cs_new:Npn \@@_start_expandable:nNNNn #1#2#3#4#5
+  { #5 \@@_end_expandable:NNw #4 #3 \q_@@ #2 }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_end_expandable:NNw}
+% \begin{macro}[EXP,aux]{\@@_end_expandable_aux:w,
+%   \@@_end_expandable_aux:nNNN, \@@_end_expandable_defaults:nnnNNn}
+% \begin{macro}[EXP,aux]{\@@_end_expandable_defaults:nnw,
+%   \@@_end_expandable_defaults:nw}
+%   Followed by a function |#1| to determine default values, the code
+%   |#2|, arguments that have been grabbed, then \cs{q_@@} and a generic
+%   grabber.  The idea to find default values is similar to the
+%   non-expandable case but we cannot define an auxiliary function, so
+%   at every step in the loop we need to go through all arguments
+%   searching for which ones started out as |-NoValue-| and replacing
+%   these by the newly computed values.  In fact we need to keep track
+%   of three versions of all arguments: the original version, the
+%   previous version with default values, and the currently built
+%   version (first argument of \cs{@@_end_expandable_defaults:nnnNNn}).
+%    \begin{macrocode}
+\cs_new:Npn \@@_end_expandable:NNw #1#2
+  { \@@_end_expandable_aux:w #1#2 \prg_do_nothing: }
+\cs_new:Npn \@@_end_expandable_aux:w #1#2#3 \q_@@ #4
+  { \exp_args:No \@@_end_expandable_aux:nNNN {#3} #1 #2 #4 }
+\cs_new:Npn \@@_end_expandable_aux:nNNN #1#2#3#4
+  {
+    \cs_if_exist:NF #2 { \exp_after:wN \use_iv:nnnn }
+    \@@_end_expandable_defaults:nnnNNn {#1} { } {#1} #2#3
+      { } { } { } { } { } { } { } { } { } { }
+      {
+        \__msg_kernel_expandable_error:nnn
+          { xparse } { loop-in-defaults } {#4}
+        \use_iv:nnnn
+      }
+    \q_stop
+  }
+\cs_new:Npn \@@_end_expandable_defaults:nnnNNn #1#2#3#4#5#6
+  {
+    #6
+    \str_if_eq:nnTF {#1} {#2}
+      { \use_i_delimit_by_q_stop:nw { #5 #1 } }
+      {
+        \exp_args:No \@@_tl_mapthread_function:nnN
+          { #4 #1 } {#3}
+          \@@_end_expandable_defaults:nnw
+        \@@_end_expandable_defaults:nnnNNn { } {#1} {#3} #4 #5
+      }
+  }
+\cs_new:Npn \@@_end_expandable_defaults:nnw #1#2
+  {
+    \@@_if_no_value:nTF {#2}
+      { \exp_args:No \@@_end_expandable_defaults:nw { \use_none:n #1 } }
+      { \@@_end_expandable_defaults:nw {#2} }
+  }
+\cs_new:Npn \@@_end_expandable_defaults:nw
+    #1#2 \@@_end_expandable_defaults:nnnNNn #3
+  { #2 \@@_end_expandable_defaults:nnnNNn { #3 {#1} } }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -1961,6 +2028,7 @@
 %   that default value (it may involve other arguments).  Defaults are
 %   always stored with a leading |.| except for \texttt{E}-type
 %   arguments, to distinguish them.
+%   This is also used by expandable functions.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_default:n #1
   {
@@ -1998,26 +2066,27 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_add_expandable_type_D:w}
-% \begin{macro}{\@@_add_expandable_type_D_aux:NNn}
-% \begin{macro}{\@@_add_expandable_type_D_aux:Nn}
+% \begin{macro}{\@@_add_expandable_type_D_aux:NN}
+% \begin{macro}{\@@_add_expandable_type_D_aux:N}
 %   The set up for \texttt{d}- and \texttt{D}-type arguments is the same,
 %   and involves constructing a rather complex auxiliary which is used
 %   repeatedly when grabbing. There is an auxiliary here so that the
 %   \texttt{R}-type can share code readily.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_D:w #1#2
+\cs_new_protected:Npn \@@_add_expandable_type_D:w #1#2#3
   {
+    \@@_add_default:n {#3}
     \tl_if_eq:nnTF {#1} {#2}
       {
         \@@_add_expandable_grabber_optional:n { D_alt }
-        \@@_add_expandable_type_D_aux:Nn #1
+        \@@_add_expandable_type_D_aux:N #1
       }
       {
         \@@_add_expandable_grabber_optional:n { D }
-        \@@_add_expandable_type_D_aux:NNn #1#2
+        \@@_add_expandable_type_D_aux:NN #1#2
       }
   }
-\cs_new_protected:Npn \@@_add_expandable_type_D_aux:NNn #1#2#3
+\cs_new_protected:Npn \@@_add_expandable_type_D_aux:NN #1#2
   {
     \bool_if:NTF \l_@@_all_long_bool
       { \cs_set:cpx }
@@ -2027,7 +2096,7 @@
     \tl_put_right:Nx \l_@@_signature_tl
       {
         \exp_not:c  { \l_@@_expandable_aux_name_tl }
-        \exp_not:n { #1 #2 {#3} }
+        \exp_not:n { #1 #2 }
       }
     \bool_set_false:N \l_@@_long_bool
     \@@_prepare_signature:N
@@ -2037,7 +2106,7 @@
 %  contrast to the non-expandable route, the grabber here has to act
 %  differently for this case.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_D_aux:Nn #1#2
+\cs_new_protected:Npn \@@_add_expandable_type_D_aux:N #1
   {
     \bool_if:NTF \l_@@_all_long_bool
       { \cs_set:cpx }
@@ -2047,7 +2116,7 @@
     \tl_put_right:Nx \l_@@_signature_tl
       {
         \exp_not:c  { \l_@@_expandable_aux_name_tl }
-        \exp_not:n { #1 {#2} }
+        \exp_not:n {#1}
       }
     \bool_set_false:N \l_@@_long_bool
     \@@_prepare_signature:N
@@ -2065,6 +2134,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_expandable_type_m:w
   {
+    \@@_add_default:
     \int_incr:N \l_@@_m_args_int
     \@@_add_expandable_grabber_mandatory:n { m }
     \bool_set_false:N \l_@@_long_bool
@@ -2077,16 +2147,17 @@
 %   The \texttt{R}-type is very similar to the \texttt{D}-type
 %   argument, and so the same internals are used.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_R:w #1#2
+\cs_new_protected:Npn \@@_add_expandable_type_R:w #1#2#3
   {
+    \@@_add_default:n {#3}
     \tl_if_eq:nnTF {#1} {#2}
       {
         \@@_add_expandable_grabber_mandatory:n { R_alt }
-        \@@_add_expandable_type_D_aux:Nn #1
+        \@@_add_expandable_type_D_aux:N #1
       }
       {
         \@@_add_expandable_grabber_mandatory:n { R }
-        \@@_add_expandable_type_D_aux:NNn #1#2
+        \@@_add_expandable_type_D_aux:NN #1#2
       }
   }
 %    \end{macrocode}
@@ -2096,6 +2167,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_expandable_type_t:w #1
   {
+    \@@_add_default:
     \@@_add_expandable_grabber_optional:n { t }
     \bool_if:NTF \l_@@_all_long_bool
       { \cs_set:cpn }
@@ -2945,7 +3017,7 @@
 % \subsection{Grabbing arguments expandably}
 %
 % \begin{macro}[EXP]{\@@_expandable_grab_D:w}
-% \begin{macro}[EXP, aux]{\@@_expandable_grab_D:NNNnwN}
+% \begin{macro}[EXP, aux]{\@@_expandable_grab_D:NNNwNn}
 % \begin{macro}[EXP, aux]{\@@_expandable_grab_D:NNNwNnnn}
 % \begin{macro}[EXP, aux]{\@@_expandable_grab_D:Nw}
 % \begin{macro}[EXP, aux]{\@@_expandable_grab_D:nnNNNwN}
@@ -2954,25 +3026,24 @@
 %   it.
 %    \begin{macrocode}
 \cs_new:Npn \@@_expandable_grab_D:w #1 \q_@@ #2
-  { #2 { \@@_expandable_grab_D:NNNnwNn #1 \q_@@ #2 } }
+  { #2 { \@@_expandable_grab_D:NNNwNn #1 \q_@@ #2 } }
 %    \end{macrocode}
-%   We then wish to test whether |#7|, which we just grabbed, is exactly |#2|.
+%   We then wish to test whether |#6|, which we just grabbed, is exactly |#2|.
 %   Expand the only grabber function we have, |#1|, once: the two strings below
-%   are equal if and only if |#7| matches |#2| exactly.\footnote{It is obvious
-%   that if \texttt{\#7} matches \texttt{\#2} then the strings are equal. We
+%   are equal if and only if |#6| matches |#2| exactly.\footnote{It is obvious
+%   that if \texttt{\#6} matches \texttt{\#2} then the strings are equal. We
 %   must check the converse. The right-hand-side of \cs{str_if_eq:onTF} does
 %   not end with \texttt{\#3}, implying that the grabber function took
 %   everything as its arguments. The first brace group can only be empty if
-%   \texttt{\#7} starts with \texttt{\#2}, otherwise the brace group preceding
-%   \texttt{\#7} would not vanish. The third brace group is empty, thus the
+%   \texttt{\#6} starts with \texttt{\#2}, otherwise the brace group preceding
+%   \texttt{\#6} would not vanish. The third brace group is empty, thus the
 %   \cs{q_@@} that was used by our grabber \texttt{\#1} must be the one
-%   that we inserted (not some token in \texttt{\#7}), hence the second brace
-%   group contains the end of \texttt{\#7} followed by \texttt{\#2}. Since this
+%   that we inserted (not some token in \texttt{\#6}), hence the second brace
+%   group contains the end of \texttt{\#6} followed by \texttt{\#2}. Since this
 %   is \texttt{\#2} on the right-hand-side, and no brace can be lost there,
-%   \texttt{\#7} must contain nothing else than its leading \texttt{\#2}.} If
-%   |#7| does not match |#2|, then the optional argument is missing, we use the
-%   default |#4|, and put back the argument |#7| in the input stream.
-%   %^^A There is probably a bug similar to the non-expandable O{\par} bug.
+%   \texttt{\#6} must contain nothing else than its leading \texttt{\#2}.} If
+%   |#6| does not match |#2|, then the optional argument is missing, we use the
+%   default |-NoValue-|, and put back the argument |#6| in the input stream.
 %
 %   If it does match, then interesting things need to be done. We will grab the
 %   argument piece by piece, with the following pattern:
@@ -2994,19 +3065,24 @@
 %   \meta{piece 2}. We stop grabbing arguments once the \meta{piece 2} contains
 %   no opening delimiter any more, hence the balance is reached, and the final
 %   argument is \meta{piece 1} \meta{piece 2}.
+%   The indirection via \cs{@@_tmp:w} allows to insert |-NoValue-| expanded.
 %    \begin{macrocode}
-\cs_new:Npn \@@_expandable_grab_D:NNNnwNn #1#2#3#4#5 \q_@@ #6#7
+\cs_set_protected:Npn \@@_tmp:w #1
   {
-    \str_if_eq:onTF
-      { #1 { } { } #7 #2 \q_@@ #3 }
-      { { } {#2} { } }
+    \cs_new:Npn \@@_expandable_grab_D:NNNwNn ##1##2##3##4 \q_@@ ##5##6
       {
-        #1
-          { \@@_expandable_grab_D:NNNwNnnn #1#2#3#5 \q_@@ #6 }
-          \q_nil { } #2 \ERROR \q_@@ \ERROR
+        \str_if_eq:onTF
+          { ##1 { } { } ##6 ##2 \q_@@ ##3 }
+          { { } {##2} { } }
+          {
+            ##1
+              { \@@_expandable_grab_D:NNNwNnnn ##1##2##3##4 \q_@@ ##5 }
+              \q_nil { } ##2 \ERROR \q_@@ \ERROR
+          }
+          { ##4 {#1} \q_@@ ##5 {##6} }
       }
-      { #5 {#4} \q_@@ #6 {#7} }
   }
+\exp_args:No \@@_tmp:w { \c_@@_no_value_tl }
 %    \end{macrocode}
 %   At this stage, |#6| is \cs{q_nil} \Arg{piece 1} \meta{more for piece 1},
 %   and we want to concatenate all that, removing \cs{q_nil}, and keeping the
@@ -3065,26 +3141,30 @@
 % \end{macro}
 %
 % \begin{macro}[EXP]{\@@_expandable_grab_D_alt:w}
-% \begin{macro}[EXP]{\@@_expandable_grab_D_alt:NNnwNn}
-% \begin{macro}[EXP]{\@@_expandable_grab_D_alt:Nw}
+% \begin{macro}[EXP]{\@@_expandable_grab_D_alt:NNwNn}
+% \begin{macro}[EXP]{\@@_expandable_grab_D_alt:Nwn}
 %   When the delimiters are identical, nesting is not possible and a simplified
 %   approach is used. The test concept here is the same as for the case where
 %   the delimiters are different.
 %    \begin{macrocode}
 \cs_new:Npn \@@_expandable_grab_D_alt:w #1 \q_@@ #2
-  { #2 { \@@_expandable_grab_D_alt:NNnwNn #1 \q_@@ #2 } }
-\cs_new:Npn \@@_expandable_grab_D_alt:NNnwNn #1#2#3#4 \q_@@ #5#6
+  { #2 { \@@_expandable_grab_D_alt:NNwNn #1 \q_@@ #2 } }
+\cs_set_protected:Npn \@@_tmp:w #1
   {
-    \str_if_eq:onTF
-      { #1 { } #6 #2 #2 }
-      { { } #2 }
+    \cs_new:Npn \@@_expandable_grab_D_alt:NNwNn ##1##2##3 \q_@@ ##4##5
       {
-        #1
-          { \@@_expandable_grab_D_alt:Nwn #5 #4 \q_@@ }
-          #6 \ERROR
+        \str_if_eq:onTF
+          { ##1 { } ##5 ##2 ##2 }
+          { { } ##2 }
+          {
+            ##1
+              { \@@_expandable_grab_D_alt:Nwn ##4 ##3 \q_@@ }
+              ##5 \ERROR
+          }
+          { ##3 {#1} \q_@@ ##4 {##5} }
       }
-      { #4 {#3} \q_@@ #5 {#6} }
   }
+\exp_args:No \@@_tmp:w { \c_@@_no_value_tl }
 \cs_new:Npn \@@_expandable_grab_D_alt:Nwn #1#2 \q_@@ #3
   {
     \tl_if_blank:oTF { \use_none:n #3 }
@@ -3117,56 +3197,64 @@
 % \end{macro}
 %
 % \begin{macro}[EXP]{\@@_expandable_grab_R:w}
-% \begin{macro}[EXP, aux]{\@@_expandable_grab_R_aux:NNwn}
+% \begin{macro}[EXP, aux]{\@@_expandable_grab_R_aux:NNNwNn}
 %   Much the same as for the \texttt{D}-type argument, with only the lead-off
 %   function varying.
 %    \begin{macrocode}
 \cs_new:Npn \@@_expandable_grab_R:w #1 \q_@@ #2
-  { #2 { \@@_expandable_grab_R_aux:NNNnwNn #1 \q_@@ #2 } }
-\cs_new:Npn \@@_expandable_grab_R_aux:NNNnwNn #1#2#3#4#5 \q_@@ #6#7
+  { #2 { \@@_expandable_grab_R_aux:NNNwNn #1 \q_@@ #2 } }
+\cs_set_protected:Npn \@@_tmp:w #1
   {
-    \str_if_eq:onTF
-      { #1 { } { } #7 #2 \q_@@ #3 }
-      { { } {#2} { } }
+    \cs_new:Npn \@@_expandable_grab_R_aux:NNNwNn ##1##2##3##4 \q_@@ ##5##6
       {
-        #1
-          { \@@_expandable_grab_D:NNNwNnnn #1#2#3#5 \q_@@ #6 }
-          \q_nil { } #2 \ERROR \q_@@ \ERROR
-      }
-      {
-        \__msg_kernel_expandable_error:nnn
-          { xparse } { missing-required } {#2}
-        #5 {#4} \q_@@ #6 {#7}
+        \str_if_eq:onTF
+          { ##1 { } { } ##6 ##2 \q_@@ ##3 }
+          { { } {##2} { } }
+          {
+            ##1
+              { \@@_expandable_grab_D:NNNwNnnn ##1##2##3##4 \q_@@ ##5 }
+              \q_nil { } ##2 \ERROR \q_@@ \ERROR
+          }
+          {
+            \__msg_kernel_expandable_error:nnn
+              { xparse } { missing-required } {##2}
+            ##4 {#1} \q_@@ ##5 {##6}
+          }
       }
   }
+\exp_args:No \@@_tmp:w { \c_@@_no_value_tl }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
 % \begin{macro}[EXP]{\@@_expandable_grab_R_alt:w}
-% \begin{macro}[EXP]{\@@_expandable_grab_R_alt_aux:NNnwNn}
+% \begin{macro}[EXP]{\@@_expandable_grab_R_alt_aux:NNwNn}
 %   When the delimiters are identical, nesting is not possible and a simplified
 %   approach is used. The test concept here is the same as for the case where
 %   the delimiters are different.
 %    \begin{macrocode}
 \cs_new:Npn \@@_expandable_grab_R_alt:w #1 \q_@@ #2
   { #2 { \@@_expandable_grab_R_alt_aux:NNnwNn #1 \q_@@ #2 } }
-\cs_new:Npn \@@_expandable_grab_R_alt_aux:NNnwNn #1#2#3#4 \q_@@ #5#6
+\cs_set_protected:Npn \@@_tmp:w #1
   {
-    \str_if_eq:onTF
-      { #1 { } #6 #2 #2 }
-      { { } #2 }
+    \cs_new:Npn \@@_expandable_grab_R_alt_aux:NNwNn ##1##2##3 \q_@@ ##4##5
       {
-        #1
-          { \@@_expandable_grab_D_alt:Nwn #5 #4 \q_@@ }
-          #6 \ERROR
-      }
-      {
-        \__msg_kernel_expandable_error:nnn
-          { xparse } { missing-required } {#2}
-        #4 {#3} \q_@@ #5 {#6}
+        \str_if_eq:onTF
+          { ##1 { } ##5 ##2 ##2 }
+          { { } ##2 }
+          {
+            ##1
+              { \@@_expandable_grab_D_alt:Nwn ##4 ##3 \q_@@ }
+              ##5 \ERROR
+          }
+          {
+            \__msg_kernel_expandable_error:nnn
+              { xparse } { missing-required } {##2}
+            ##3 {#1} \q_@@ ##4 {##5}
+          }
       }
   }
+\exp_args:No \@@_tmp:w { \c_@@_no_value_tl }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -3195,14 +3283,6 @@
 %    \begin{macrocode}
 \cs_new:Npn \@@_put_arg_expandable:nw #1#2 \q_@@ { #2 {#1} \q_@@ }
 \cs_generate_variant:Nn \@@_put_arg_expandable:nw { o }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\@@_grab_expandable_end:wN}
-%   For the end of the grabbing sequence: get rid of the generic grabber and
-%   insert the code function followed by its arguments.
-%    \begin{macrocode}
-\cs_new:Npn \@@_grab_expandable_end:wN #1 \q_@@ #2 {#1}
 %    \end{macrocode}
 % \end{macro}
 %
@@ -3551,7 +3631,7 @@
 %   To determine whether the command is an \pkg{xparse} command check
 %   that its |arg_spec| is empty (this also excludes non-macros) and
 %   that its |replacement_spec| starts with either \cs{@@_start:nNNnnn}
-%   (non-expandable command) or \cs{@@_start_expandable:nNNn}
+%   (non-expandable command) or \cs{@@_start_expandable:nNNNn}
 %   (expandable command).
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_cmd_if_xparse:NTF #1
@@ -3566,7 +3646,7 @@
       }
       {
         { \token_to_str:N \@@_start:nNNnnn } { }
-        { \token_to_str:N \@@_start_expandable:nNNn } { }
+        { \token_to_str:N \@@_start_expandable:nNNNn } { }
       }
   }
 \cs_new:Npn \@@_cmd_if_xparse_aux:w #1 ~ #2 \q_stop {#1}
