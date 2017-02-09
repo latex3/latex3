@@ -1415,17 +1415,42 @@
 %
 % \subsection{Normalizing the argument specifications}
 %
+% The goal here is to expand aliases and check that the argument
+% specification is valid before the main parsing run.  If it is not
+% valid the entire set up is abandoned to avoid any strange internal
+% errors.  A function is provided for each argument type that will grab
+% any extra arguments and call the loop function.
+%
+% The first thing that is done in the loop is to check that the various
+% argument types have the correct number of data items associated with
+% them.  The opportunity is also taken to make sure that where a single
+% token is required, one has actually been supplied.
+%
+% The second is that processors and the marker~|+| for long arguments
+% must be followed by arguments.
+%
+% The third is to check for forbidden types for expandable commands,
+% namely \texttt{e}, \texttt{E} (could be implemented), \texttt{g},
+% \texttt{G}, \texttt{l} (as the next left brace may have been inserted
+% by \pkg{xparse} due to a failed search for an optional argument),
+% \texttt{u} (any preceding optional argument may wrap part of the
+% delimiter up in braces), and \texttt{v}.
+%
+% The fourth is that an optional argument should not be followed by a
+% mandatory argument with the same delimiter, as otherwise the optional
+% argument could never be omitted.
+%
+% The last is to count mandatory arguments.
+%
 % \begin{macro}{\@@_normalize_arg_spec:n}
 % \begin{macro}{\@@_normalize_arg_spec_loop:n}
-%   Loop through the argument specification to get rid of shorthands, check the
-%   argument specification is valid, and count up mandatory arguments before the main
-%   parsing run.  While normally the auxiliary should only get single
-%   tokens, we allow multiple tokens to catch invalid argument specifications as
-%   \enquote{unknown argument types}.  Also detect when there are more than $9$
-%   arguments.  Expandable commands may not end with an optional
-%   argument; this case is detected by using the fact that
-%   \cs{l_@@_last_delimiters_tl} is cleared by every mandatory argument
-%   and filled by every optional argument.
+%   Loop through the argument specification, calling an auxiliary
+%   specific to each argument type.  If any argument is unknown stop the
+%   definition.  After the loop, if there are more than
+%   $9$ arguments, stop.  Additionally, expandable commands may not end
+%   with an optional argument; this case is detected by using the fact
+%   that \cs{l_@@_last_delimiters_tl} is cleared by every mandatory
+%   argument and filled by every optional argument.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_normalize_arg_spec:n #1
   {
@@ -1477,8 +1502,10 @@
 %   }
 %   These argument types are aliases of more general ones, for example
 %   with the default argument |-NoValue-|.  To easily insert that marker
-%   expanded in the definitions we will call \cs{@@_tmp:w} with argument
-%   |-NoValue-|.
+%   expanded in the definitions we call \cs{@@_tmp:w} with the argument
+%   |-NoValue-|.  For argument types that need additional data, check
+%   that that data is present (not \cs{q_recursion_tail}) before
+%   proceeding.
 %    \begin{macrocode}
 \cs_set_protected:Npn \@@_tmp:w #1
   {
@@ -1514,47 +1541,16 @@
 %   {
 %     \@@_normalize_type_>:w,
 %     \@@_normalize_type_+:w,
-%     \@@_normalize_type_D:w,
-%     \@@_normalize_type_E:w,
-%     \@@_normalize_type_G:w,
-%     \@@_normalize_type_l:w,
-%     \@@_normalize_type_m:w,
-%     \@@_normalize_type_R:w,
-%     \@@_normalize_type_t:w,
-%     \@@_normalize_type_u:w
-%     \@@_normalize_type_v:w
 %   }
-%   A function is provided for each argument type that will grab any
-%   extra arguments and call the loop function.
-%
-%   The first thing that is done here is to check that the various
-%   argument types have the correct number of data items associated with
-%   them. If this fails to be the case, the entire set up is abandoned
-%   to avoid any strange internal errors. The opportunity is also taken
-%   to make sure that where a single token is required, one has actually
-%   been supplied.
-%
-%   The second is that processors and the marker~|+| for long arguments
-%   must be followed by arguments. For this, just check that the next
-%   token is not \cs{q_recursion_tail}, and remember to leave it after
-%   the looping macro.
-%
-%   The third is to check for forbidden types for expandable commands,
-%   namely \texttt{e}, \texttt{E} (could be implemented), \texttt{g},
-%   \texttt{G}, \texttt{l} (as the next left brace may have been
-%   inserted by \pkg{xparse} due to a failed search for an optional
-%   argument), \texttt{u} (any preceding optional argument may wrap part
-%   of the delimiter up in braces), and \texttt{v}.
-%
-%   The fourth is that an optional argument should not be followed by a
-%   mandatory argument with the same delimiter, as otherwise the
-%   optional argument could never be omitted.
-%
-%   The last is to count mandatory arguments.
+%   Check that these prefixes have arguments, namely that the next token
+%   is not \cs{q_recursion_tail}, and remember to leave it after the
+%   looping macro.  Processors are forbidden in expandable commands.
+%   If all is good, store the prefix in the cleaned up
+%   \cs{l_@@_arg_spec_tl}, and decrement the argument number as prefixes
+%   do not correspond to arguments.
 %    \begin{macrocode}
 \cs_new_protected:cpn { @@_normalize_type_>:w } #1#2
   {
-    \int_decr:N \l_@@_current_arg_int
     \quark_if_recursion_tail_stop_do:nn {#2} { \@@_bad_arg_spec:wn }
     \bool_if:NT \l_@@_expandable_bool
       {
@@ -1563,15 +1559,36 @@
         \@@_bad_def:wn
       }
     \tl_put_right:Nn \l_@@_arg_spec_tl { > {#1} }
+    \int_decr:N \l_@@_current_arg_int
     \@@_normalize_arg_spec_loop:n {#2}
   }
 \cs_new_protected:cpn { @@_normalize_type_+:w } #1
   {
-    \int_decr:N \l_@@_current_arg_int
     \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
     \tl_put_right:Nn \l_@@_arg_spec_tl { + }
+    \int_decr:N \l_@@_current_arg_int
     \@@_normalize_arg_spec_loop:n {#1}
   }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     \@@_normalize_type_D:w,
+%     \@@_normalize_type_E:w,
+%     \@@_normalize_type_G:w,
+%     \@@_normalize_type_t:w,
+%   }
+%   Optional argument types.  Check that all required data is present
+%   (and consists of single tokens if applicable) and check for
+%   forbidden types for expandable commands.  For \texttt{E}-type
+%   require that there is at least one embellishment, that each one is a
+%   single token, and that there aren't more optional arguments than
+%   embellishments.  Then store the data in \cs{l_@@_arg_spec_tl}, and
+%   for later checks store in \cs{l_@@_last_delimiters_tl} the tokens
+%   whose presence determines whether there is an optional argument (for
+%   braces store |{}|, seen later as an empty delimiter).
+%    \begin{macrocode}
 \cs_new_protected:Npn \@@_normalize_type_D:w #1#2#3
   {
     \@@_single_token_check:n {#1}
@@ -1601,19 +1618,48 @@
     \tl_put_right:Nn \l_@@_last_delimiters_tl { { } }
     \@@_normalize_arg_spec_loop:n
   }
+\cs_new_protected:Npn \@@_normalize_type_t:w #1
+  {
+    \@@_single_token_check:n {#1}
+    \quark_if_recursion_tail_stop_do:Nn #1 { \@@_bad_arg_spec:wn }
+    \tl_put_right:Nn \l_@@_arg_spec_tl { t #1 }
+    \tl_put_right:Nn \l_@@_last_delimiters_tl {#1}
+    \@@_normalize_arg_spec_loop:n
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     \@@_normalize_type_l:w,
+%     \@@_normalize_type_m:w,
+%     \@@_normalize_type_R:w,
+%     \@@_normalize_type_u:w
+%     \@@_normalize_type_v:w
+%   }
+%   Mandatory arguments.  First check the required data is present,
+%   consists of single tokens where applicable, and that the argument
+%   type is allowed for expandable commands if applicable.  For the
+%   \texttt{m} and \texttt{R} argument types check that they do not
+%   follow some optional argument with that delimiter as otherwise the
+%   optional argument could not be omitted.  Then save data in
+%   \cs{l_@@_arg_spec_tl}, count the mandatory argument, and empty the
+%   list of last delimiters.
+%    \begin{macrocode}
 \cs_new_protected:Npn \@@_normalize_type_l:w
   {
     \@@_normalize_error_if_expandable:N l
-    \int_incr:N \l_@@_mandatory_args_int
     \tl_put_right:Nn \l_@@_arg_spec_tl { l }
+    \int_incr:N \l_@@_mandatory_args_int
     \tl_clear:N \l_@@_last_delimiters_tl
     \@@_normalize_arg_spec_loop:n
   }
 \cs_new_protected:Npn \@@_normalize_type_m:w
   {
-    \int_incr:N \l_@@_mandatory_args_int
-    \tl_put_right:Nn \l_@@_arg_spec_tl { m }
     \@@_delimiter_check:nnn { } { m } { \iow_char:N \{ }
+    \tl_put_right:Nn \l_@@_arg_spec_tl { m }
+    \int_incr:N \l_@@_mandatory_args_int
+    \tl_clear:N \l_@@_last_delimiters_tl
     \@@_normalize_arg_spec_loop:n
   }
 \cs_new_protected:Npn \@@_normalize_type_R:w #1#2#3
@@ -1621,17 +1667,10 @@
     \@@_single_token_check:n {#1}
     \@@_single_token_check:n {#2}
     \quark_if_recursion_tail_stop_do:nn {#3} { \@@_bad_arg_spec:wn }
+    \@@_delimiter_check:nnn {#1} { R/r } { \tl_to_str:n {#1} }
     \tl_put_right:Nn \l_@@_arg_spec_tl { R #1 #2 {#3} }
     \int_incr:N \l_@@_mandatory_args_int
-    \@@_delimiter_check:nnn {#1} { R/r } { \tl_to_str:n {#1} }
-    \@@_normalize_arg_spec_loop:n
-  }
-\cs_new_protected:Npn \@@_normalize_type_t:w #1
-  {
-    \@@_single_token_check:n {#1}
-    \quark_if_recursion_tail_stop_do:Nn #1 { \@@_bad_arg_spec:wn }
-    \tl_put_right:Nn \l_@@_arg_spec_tl { t #1 }
-    \tl_put_right:Nn \l_@@_last_delimiters_tl {#1}
+    \tl_clear:N \l_@@_last_delimiters_tl
     \@@_normalize_arg_spec_loop:n
   }
 \cs_new_protected:Npn \@@_normalize_type_u:w #1
@@ -1646,8 +1685,8 @@
 \cs_new_protected:Npn \@@_normalize_type_v:w
   {
     \@@_normalize_error_if_expandable:N v
-    \int_incr:N \l_@@_mandatory_args_int
     \tl_put_right:Nn \l_@@_arg_spec_tl { v }
+    \int_incr:N \l_@@_mandatory_args_int
     \tl_clear:N \l_@@_last_delimiters_tl
     \@@_normalize_arg_spec_loop:n
   }
@@ -1686,9 +1725,10 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_delimiter_check:nnn}
-%   Called for mandatory arguments.  Checks that the leading token does
-%   not coincide with the token denoting the presence of a previous
-%   optional argument.
+%   Called for \texttt{m} and \texttt{R} arguments.  Checks that the
+%   leading token does not coincide with the token denoting the presence
+%   of a previous optional argument.  Instead of dealing with braces for
+%   the \texttt{m}-type we use an empty delimiter to denote that case.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_delimiter_check:nnn #1#2#3
   {
@@ -1700,7 +1740,6 @@
               {#2} {#3}
           }
       }
-    \tl_clear:N \l_@@_last_delimiters_tl
   }
 %    \end{macrocode}
 % \end{macro}
