@@ -1,7 +1,7 @@
 Experimental LaTeX3 Concepts
 ============================
 
-Release 2017/02/07 (r6846)
+Release 2017/02/09 (r6869)
 
 Overview
 --------
