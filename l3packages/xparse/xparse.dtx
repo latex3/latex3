@@ -1422,7 +1422,10 @@
 %   parsing run.  While normally the auxiliary should only get single
 %   tokens, we allow multiple tokens to catch invalid argument specifications as
 %   \enquote{unknown argument types}.  Also detect when there are more than $9$
-%   arguments.
+%   arguments.  Expandable commands may not end with an optional
+%   argument; this case is detected by using the fact that
+%   \cs{l_@@_last_delimiters_tl} is cleared by every mandatory argument
+%   and filled by every optional argument.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_normalize_arg_spec:n #1
   {
@@ -1436,7 +1439,15 @@
       {
         \__msg_kernel_error:nnx { xparse } { too-many-arguments }
           { \tl_to_str:n {#1} }
-        \@@_bad_arg_spec_no_error:wn
+        \@@_bad_def:wn
+      }
+    \bool_if:NT \l_@@_expandable_bool
+      {
+        \tl_if_empty:NF \l_@@_last_delimiters_tl
+          {
+            \__msg_kernel_error:nn { xparse } { expandable-ending-optional }
+            \@@_bad_def:wn
+          }
       }
   }
 \cs_new_protected:Npn \@@_normalize_arg_spec_loop:n #1
@@ -1447,7 +1458,7 @@
       {
         \__msg_kernel_error:nnx { xparse } { unknown-argument-type }
           { \tl_to_str:n {#1} }
-        \@@_bad_arg_spec_no_error:wn
+        \@@_bad_def:wn
       }
   }
 %    \end{macrocode}
@@ -1549,7 +1560,7 @@
       {
         \__msg_kernel_error:nnx { xparse } { processor-in-expandable }
           { \iow_char:N\\ \l_@@_function_tl }
-        \@@_bad_arg_spec_no_error:wn
+        \@@_bad_def:wn
       }
     \tl_put_right:Nn \l_@@_arg_spec_tl { > {#1} }
     \@@_normalize_arg_spec_loop:n {#2}
@@ -1653,7 +1664,7 @@
       {
         \__msg_kernel_error:nnx { xparse } { not-single-token }
           { \tl_to_str:n {#1} }
-        \@@_bad_arg_spec_no_error:wn
+        \@@_bad_def:wn
       }
   }
 %    \end{macrocode}
@@ -1668,7 +1679,7 @@
       {
         \__msg_kernel_error:nnx
           { xparse } { invalid-expandable-argument-type } {#1}
-        \@@_bad_arg_spec_no_error:wn
+        \@@_bad_def:wn
       }
   }
 %    \end{macrocode}
@@ -1694,13 +1705,13 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_bad_arg_spec:wn, \@@_bad_arg_spec_no_error:wn}
+% \begin{macro}{\@@_bad_arg_spec:wn, \@@_bad_def:wn}
 %   If the argument specification is wrong, this provides an escape from the entire
 %   definition process.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_bad_arg_spec:wn #1 \@@_break_point:n #2
   { \__msg_kernel_error:nnx { xparse } { bad-arg-spec } { \tl_to_str:n {#2} } }
-\cs_new_protected:Npn \@@_bad_arg_spec_no_error:wn #1 \@@_break_point:n #2 { }
+\cs_new_protected:Npn \@@_bad_def:wn #1 \@@_break_point:n #2 { }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1711,7 +1722,8 @@
 % \begin{macro}{\@@_prepare_signature_bypass:N}
 %   Actually creating the signature uses the same loop approach as counting
 %   up mandatory arguments. There are first a number of variables which need
-%   to be set to track what is going on.
+%   to be set to track what is going on. Many of these variables are unused
+%   when defining expandable commands.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_prepare_signature:n #1
   {
@@ -2048,17 +2060,14 @@
 % the general grabbers are dealt with later.
 %
 % \begin{macro}{\@@_add_expandable_type_+:w}
-%   Check that a plus is given only if it occurs for every argument.
+%   If this is the first argument set the long status of the whole
+%   function.
 %    \begin{macrocode}
 \cs_new_protected:cpn { @@_add_expandable_type_+:w }
   {
     \bool_set_true:N \l_@@_long_bool
-    \int_compare:nNnTF \l_@@_current_arg_int = \c_one
+    \int_compare:nNnT \l_@@_current_arg_int = \c_one
       { \bool_set_true:N \l_@@_all_long_bool }
-      {
-        \bool_if:NF \l_@@_all_long_bool
-          { \__msg_kernel_error:nn { xparse } { inconsistent-long } }
-      }
     \int_decr:N \l_@@_current_arg_int
     \@@_prepare_signature:N
   }
@@ -2066,78 +2075,70 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_add_expandable_type_D:w}
+% \begin{macro}{\@@_add_expandable_type_D_aux:NNNn}
+% \begin{macro}{\@@_add_expandable_type_D_aux:NNN}
 % \begin{macro}{\@@_add_expandable_type_D_aux:NN}
-% \begin{macro}{\@@_add_expandable_type_D_aux:N}
-%   The set up for \texttt{d}- and \texttt{D}-type arguments is the same,
-%   and involves constructing a rather complex auxiliary which is used
+%   The set up for \texttt{D}-type arguments involves constructing a
+%   rather complex auxiliary which is used
 %   repeatedly when grabbing. There is an auxiliary here so that the
-%   \texttt{R}-type can share code readily.
+%   \texttt{R}-type can share code readily: |#1| is |D| or~|R|.
+%   The |_aux:NN| auxiliary is needed if the two delimiting tokens are
+%   identical: in contrast to the non-expandable route, the grabber here
+%   has to act differently for this case.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_D:w #1#2#3
+\cs_new_protected:Npn \@@_add_expandable_type_D:w
+  { \@@_add_expandable_type_D_aux:NNNn D }
+\cs_new_protected:Npn \@@_add_expandable_type_D_aux:NNNn #1#2#3#4
   {
-    \@@_add_default:n {#3}
-    \tl_if_eq:nnTF {#1} {#2}
-      {
-        \@@_add_expandable_grabber_optional:n { D_alt }
-        \@@_add_expandable_type_D_aux:N #1
-      }
-      {
-        \@@_add_expandable_grabber_optional:n { D }
-        \@@_add_expandable_type_D_aux:NN #1#2
-      }
+    \@@_add_default:n {#4}
+    \tl_if_eq:nnTF {#2} {#3}
+      { \@@_add_expandable_type_D_aux:NN #1 #2 }
+      { \@@_add_expandable_type_D_aux:NNN #1 #2 #3 }
+    \bool_set_false:N \l_@@_long_bool
+    \@@_prepare_signature:N
   }
-\cs_new_protected:Npn \@@_add_expandable_type_D_aux:NN #1#2
+\cs_new_protected:Npn \@@_add_expandable_type_D_aux:NNN #1#2#3
   {
+    \@@_add_expandable_grabber:n {#1}
     \bool_if:NTF \l_@@_all_long_bool
       { \cs_set:cpx }
       { \cs_set_nopar:cpx }
-      { \l_@@_expandable_aux_name_tl } ##1 ##2 #1 ##3 \q_@@ ##4 #2
+      { \l_@@_expandable_aux_name_tl } ##1 ##2 #2 ##3 \q_@@ ##4 #3
       { ##1 {##2} {##3} {##4} }
     \tl_put_right:Nx \l_@@_signature_tl
       {
         \exp_not:c  { \l_@@_expandable_aux_name_tl }
-        \exp_not:n { #1 #2 }
+        \exp_not:n { #2 #3 }
       }
-    \bool_set_false:N \l_@@_long_bool
-    \@@_prepare_signature:N
   }
-%    \end{macrocode}
-%  This route is needed if the two delimiting tokens are identical: in
-%  contrast to the non-expandable route, the grabber here has to act
-%  differently for this case.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_D_aux:N #1
+\cs_new_protected:Npn \@@_add_expandable_type_D_aux:NN #1#2
   {
+    \@@_add_expandable_grabber:n { #1_alt }
     \bool_if:NTF \l_@@_all_long_bool
       { \cs_set:cpx }
       { \cs_set_nopar:cpx }
-      { \l_@@_expandable_aux_name_tl } ##1 #1 ##2 #1
+      { \l_@@_expandable_aux_name_tl } ##1 #2 ##2 #2
       { ##1 {##2} }
     \tl_put_right:Nx \l_@@_signature_tl
       {
         \exp_not:c  { \l_@@_expandable_aux_name_tl }
-        \exp_not:n {#1}
+        \exp_not:n {#2}
       }
-    \bool_set_false:N \l_@@_long_bool
-    \@@_prepare_signature:N
   }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\@@_add_expandable_type_m:w}
 %   Unlike the standard case, when working expandably each argument is always
-%   grabbed separately unless the function takes only \texttt{m}-type
-%   arguments. To deal with the latter case, the value of
-%   \cs{l_@@_m_args_int} needs to be increased appropriately.
+%   grabbed separately.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_expandable_type_m:w
   {
     \@@_add_default:
-    \int_incr:N \l_@@_m_args_int
-    \@@_add_expandable_grabber_mandatory:n { m }
-    \bool_set_false:N \l_@@_long_bool
+    \@@_add_expandable_grabber:n { m }
     \@@_prepare_signature:N
   }
 %    \end{macrocode}
@@ -2147,28 +2148,19 @@
 %   The \texttt{R}-type is very similar to the \texttt{D}-type
 %   argument, and so the same internals are used.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_type_R:w #1#2#3
-  {
-    \@@_add_default:n {#3}
-    \tl_if_eq:nnTF {#1} {#2}
-      {
-        \@@_add_expandable_grabber_mandatory:n { R_alt }
-        \@@_add_expandable_type_D_aux:N #1
-      }
-      {
-        \@@_add_expandable_grabber_mandatory:n { R }
-        \@@_add_expandable_type_D_aux:NN #1#2
-      }
-  }
+\cs_new_protected:Npn \@@_add_expandable_type_R:w
+  { \@@_add_expandable_type_D_aux:NNNn R }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\@@_add_expandable_type_t:w}
+%   An auxiliary delimited by |#1| is built now.  It will be used to
+%   test for the presence of that token.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_expandable_type_t:w #1
   {
     \@@_add_default:
-    \@@_add_expandable_grabber_optional:n { t }
+    \@@_add_expandable_grabber:n { t }
     \bool_if:NTF \l_@@_all_long_bool
       { \cs_set:cpn }
       { \cs_set_nopar:cpn }
@@ -2184,41 +2176,24 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}
-%   {
-%     \@@_add_expandable_grabber_mandatory:n,
-%     \@@_add_expandable_grabber_optional:n
-%   }
-% \begin{macro}[aux]{\@@_add_expandable_long_check:}
-%   Adding a grabber to the signature is very simple here, with only a test to
-%   ensure that optional arguments still have mandatory ones to follow. This
+% \begin{macro}{\@@_add_expandable_grabber:n}
+%   Adding a grabber to the signature is very simple here. This
 %   is also a good place to check on the consistency of the long status of
 %   arguments.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_add_expandable_grabber_mandatory:n #1
+\cs_new_protected:Npn \@@_add_expandable_grabber:n #1
   {
-    \@@_add_expandable_long_check:
     \tl_put_right:Nx \l_@@_signature_tl
       { \exp_not:c { @@_expandable_grab_ #1 :w } }
+    \bool_if:nT
+      { \bool_xor_p:nn { \l_@@_all_long_bool } { \l_@@_long_bool } }
+      {
+        \__msg_kernel_error:nn { xparse } { inconsistent-long }
+        \@@_bad_def:wn
+      }
     \bool_set_false:N \l_@@_long_bool
-    \int_decr:N \l_@@_mandatory_args_int
-  }
-\cs_new_protected:Npn \@@_add_expandable_grabber_optional:n #1
-  {
-    \@@_add_expandable_long_check:
-    \int_compare:nNnF \l_@@_mandatory_args_int > \c_zero
-      { \__msg_kernel_error:nn { xparse } { expandable-ending-optional } }
-    \tl_put_right:Nx \l_@@_signature_tl
-      { \exp_not:c { @@_expandable_grab_ #1 :w } }
-    \bool_set_false:N \l_@@_long_bool
-  }
-\cs_new_protected:Npn \@@_add_expandable_long_check:
-  {
-    \bool_if:nT { \l_@@_all_long_bool && ! \l_@@_long_bool }
-      { \__msg_kernel_error:nn { xparse } { inconsistent-long } }
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \subsection{Grabbing arguments}
