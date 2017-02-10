@@ -800,6 +800,15 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_all_long_set_bool}
+%   Whether \cs{l_@@_all_long_bool}'s value is fixed yet or not.  This
+%   is to deal with the case of leading \texttt{t}-type argument, whose
+%   \enquote{long} status should be ignored.
+%    \begin{macrocode}
+\bool_new:N \l_@@_all_long_set_bool
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_@@_arg_spec_tl}
 %   Holds the argument specification after normalization of shorthands.
 %    \begin{macrocode}
@@ -1804,6 +1813,7 @@
 \cs_new_protected:Npn \@@_prepare_signature:n #1
   {
     \bool_set_false:N \l_@@_all_long_bool
+    \bool_set_false:N \l_@@_all_long_set_bool
     \int_zero:N \l_@@_current_arg_int
     \bool_set_false:N \l_@@_long_bool
     \int_zero:N \l_@@_m_args_int
@@ -2143,14 +2153,11 @@
 % the general grabbers are dealt with later.
 %
 % \begin{macro}{\@@_add_expandable_type_+:w}
-%   If this is the first argument set the long status of the whole
-%   function.
+%   ^^A todo
 %    \begin{macrocode}
 \cs_new_protected:cpn { @@_add_expandable_type_+:w }
   {
     \bool_set_true:N \l_@@_long_bool
-    \int_compare:nNnT \l_@@_current_arg_int = \c_one
-      { \bool_set_true:N \l_@@_all_long_bool }
     \int_decr:N \l_@@_current_arg_int
     \@@_prepare_signature:N
   }
@@ -2279,7 +2286,7 @@
 \cs_new_protected:Npn \@@_add_expandable_type_t:w #1
   {
     \@@_add_default:
-    \@@_add_expandable_grabber:n { t }
+    \@@_add_expandable_grabber_t:
     \@@_get_grabber:NN #1 \l_@@_tmpa_tl
     \tl_put_right:Nx \l_@@_signature_tl
       {
@@ -2292,22 +2299,39 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_add_expandable_grabber:n}
-%   Adding a grabber to the signature is very simple here. This
-%   is also a good place to check on the consistency of the long status of
-%   arguments.
+% \begin{macro}{\@@_add_expandable_grabber:n, \@@_add_expandable_grabber_t:}
+%   For \texttt{t}-type arguments, simply add a grabber to the signature
+%   and reset the boolean keeping track of~\texttt{+} markers (they
+%   should be ignored for the purpose of determining the long status of
+%   the command because they take no argument).  For all other
+%   arguments, if the command's long status is already known then check
+%   that this argument has the correct long status, and otherwise set
+%   the long status to this argument's long status.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_add_expandable_grabber:n #1
   {
+    \bool_if:NTF \l_@@_all_long_set_bool
+      {
+        \bool_if:nT
+          { \bool_xor_p:nn { \l_@@_all_long_bool } { \l_@@_long_bool } }
+          {
+            \__msg_kernel_error:nnx { xparse } { inconsistent-long }
+              { \iow_char:N \\ \l_@@_function_tl }
+            \@@_bad_def:wn
+          }
+      }
+      {
+        \bool_set:Nn \l_@@_all_long_bool { \l_@@_long_bool }
+        \bool_set_true:N \l_@@_all_long_set_bool
+      }
     \tl_put_right:Nx \l_@@_signature_tl
       { \exp_not:c { @@_expandable_grab_ #1 :w } }
-    \bool_if:nT
-      { \bool_xor_p:nn { \l_@@_all_long_bool } { \l_@@_long_bool } }
-      {
-        \__msg_kernel_error:nnx { xparse } { inconsistent-long }
-          { \iow_char:N \\ \l_@@_function_tl }
-        \@@_bad_def:wn
-      }
+    \bool_set_false:N \l_@@_long_bool
+  }
+\cs_new_protected:Npn \@@_add_expandable_grabber_t:
+  {
+    \tl_put_right:Nn \l_@@_signature_tl
+      { \@@_expandable_grab_t:w }
     \bool_set_false:N \l_@@_long_bool
   }
 %    \end{macrocode}
@@ -2820,27 +2844,22 @@
 % \begin{macro}{\@@_grab_t_long:w}
 % \begin{macro}{\@@_grab_t_trailing:w}
 % \begin{macro}{\@@_grab_t_long_trailing:w}
-% \begin{macro}[aux]{\@@_grab_t_aux:NnNn}
+% \begin{macro}[aux]{\@@_grab_t_aux:NNw}
 %   Dealing with a token is quite easy. Check the match, remove the
 %   token if needed and add a flag to the output.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_grab_t:w #1#2 \@@_run_code:
+\cs_new_protected:Npn \@@_grab_t:w
+  { \@@_grab_t_aux:NNw \peek_meaning_remove_ignore_spaces:NTF }
+\cs_new_eq:NN \@@_grab_t_long:w \@@_grab_t:w
+\cs_new_protected:Npn \@@_grab_t_trailing:w
+  { \@@_grab_t_aux:NNw \peek_meaning_remove:NTF }
+\cs_new_eq:NN \@@_grab_t_long_trailing:w \@@_grab_t_trailing:w
+\cs_new_protected:Npn \@@_grab_t_aux:NNw #1#2#3 \@@_run_code:
   {
-    \@@_grab_t_aux:NnNn #1 {#2} \cs_set_protected_nopar:Npn
-      { _ignore_spaces }
-  }
-\cs_new_protected:Npn \@@_grab_t_long:w #1#2 \@@_run_code:
-  { \@@_grab_t_aux:NnNn #1 {#2} \cs_set_protected:Npn { _ignore_spaces } }
-\cs_new_protected:Npn \@@_grab_t_trailing:w #1#2 \@@_run_code:
-  { \@@_grab_t_aux:NnNn #1 {#2} \cs_set_protected_nopar:Npn { } }
-\cs_new_protected:Npn \@@_grab_t_long_trailing:w #1#2 \@@_run_code:
-  { \@@_grab_t_aux:NnNn #1 {#2} \cs_set_protected:Npn { } }
-\cs_new_protected:Npn \@@_grab_t_aux:NnNn #1#2#3#4
-  {
-    \tl_set:Nn \l_@@_signature_tl {#2}
-    \exp_after:wN #3 \l_@@_fn_tl
+    \tl_set:Nn \l_@@_signature_tl {#3}
+    \exp_after:wN \cs_set_protected:Npn \l_@@_fn_tl
       {
-        \use:c { peek_meaning_remove #4 :NTF } #1
+        #1 #2
           { \@@_add_arg:n { \BooleanTrue } }
           { \@@_add_arg:n { \BooleanFalse } }
       }
