@@ -818,12 +818,6 @@ function formatlog(logfile, newfile, engine)
       line,
       "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
     )
-    -- Remove luaotfload absolute paths
-    line = string.gsub(
-        line,
-        "%(load luc: (.*)/(.-%.luc)%)",
-        "(load luc: [..]/%2)"
-      )
     -- Normalise a case where fixing a TeX bug changes the message text
     line = string.gsub(line, "\\csname\\endcsname ", "\\csname\\endcsname")
     -- Zap "on line <num>" and replace with "on line ..."
