@@ -818,6 +818,12 @@ function formatlog(logfile, newfile, engine)
       line,
       "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
     )
+    -- Remove luaotfload absolute paths
+    line = string.gsub(
+        line,
+        "%(load luc: (.*)/(.-%.luc)%)",
+        "(load luc: [..]/%2)"
+      )
     -- Normalise a case where fixing a TeX bug changes the message text
     line = string.gsub(line, "\\csname\\endcsname ", "\\csname\\endcsname")
     -- Zap "on line <num>" and replace with "on line ..."
@@ -1124,7 +1130,7 @@ function runcheck(name, hide)
       errlevel = compare_tlg(name, engine)
     end
     if errlevel ~= 0 and opthalt then
-      checkdiff()
+      showfaileddiff()
       if errlevel ~= 0 then
         return 1
       end
@@ -1602,6 +1608,23 @@ function checkdiff()
     print("  - " .. testdir .. "/" .. i)
   end
   print("")
+end
+
+function showfaileddiff()
+  print("\nCheck failed with difference file")
+  for _,i in ipairs(filelist(testdir, "*" .. os_diffext)) do
+    print("  - " .. testdir .. "/" .. i)
+    print("")
+    local f = io.open(testdir .. "/" .. i,"r")
+    local content = f:read("*all")
+    f:close()
+    print("-----------------------------------------------------------------------------------")
+    print(content)
+    print("-----------------------------------------------------------------------------------")
+  end
+  for _,i in ipairs(filelist(testdir, "*" .. os_cmpext)) do
+    print("  - " .. testdir .. "/" .. i)
+  end
 end
 
 -- Remove all generated files
