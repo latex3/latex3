@@ -1,6 +1,6 @@
 % \iffalse meta-comment
 %
-%% File: l3flag.dtx Copyright (C) 2011-2012,2014-2016 The LaTeX3 Project
+%% File: l3flag.dtx Copyright (C) 2011-2012,2014-2017 The LaTeX3 Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -82,9 +82,10 @@
 % can also be queried expandably. However, decreasing it, or setting it
 % to zero requires non-expandable assignments.
 %
-% Flag variables are always local. They are referenced by a \meta{name}
-% of the form \meta{package}\texttt{_}\meta{flag name}, for instance,
-% \texttt{str_missing}.
+% Flag variables are always local. They are referenced by a \meta{flag
+% name} such as \texttt{str_missing}.  The \meta{flag name} is used as
+% part of \cs{use:c} constructions hence is expanded at point of use.
+% It must expand to character tokens only, with no spaces.
 %
 % \section{Setting up flags}
 %
@@ -92,11 +93,10 @@
 %   \begin{syntax}
 %     \cs{flag_new:n} \Arg{flag name}
 %   \end{syntax}
-%   Creates a new \meta{flag} with a name given by \meta{flag name}, or
-%   raises an error if the name is already taken. The \meta{flag name}
-%   must consist of character tokens only. The declaration is global,
-%   but flags are always local variables. The \meta{flag} will initially
-%   have zero height.
+%   Creates a new flag with a name given by \meta{flag name}, or raises
+%   an error if the name is already taken. The \meta{flag name} may not
+%   contain spaces. The declaration is global, but flags are always
+%   local variables. The \meta{flag} will initially have zero height.
 % \end{function}
 %
 % \begin{function}{\flag_clear:n}
@@ -113,6 +113,20 @@
 %   Ensures that the \meta{flag} exists globally by applying
 %   \cs{flag_new:n} if necessary, then applies \cs{flag_zero:n}, setting
 %   the height to zero locally.
+% \end{function}
+%
+% \begin{function}{\flag_show:n}
+%   \begin{syntax}
+%     \cs{flag_show:n} \Arg{flag name}
+%   \end{syntax}
+%   Displays the \meta{flag}'s height in the terminal.
+% \end{function}
+%
+% \begin{function}{\flag_log:n}
+%   \begin{syntax}
+%     \cs{flag_log:n} \Arg{flag name}
+%   \end{syntax}
+%   Writes the \meta{flag}'s height to the log file.
 % \end{function}
 %
 % \begin{function}{\flag_set_trap:nn}
@@ -186,32 +200,41 @@
 %
 % \subsection{Non-expandable flag commands}
 %
+% The height $h$ of a flag (initially zero) is stored by setting control
+% sequences of the form \cs[no-index]{flag \meta{name} \meta{integer}}
+% to \tn{relax} for $0\leq\meta{integer}<h$.  When a flag is raised, a
+% \enquote{trap} function \cs[no-index]{flag \meta{name}} is called.
+% The existence of this function is also used to test for the existence
+% of a flag.
+%
 % \begin{macro}{\flag_new:n}
 %   For each flag, we define a \enquote{trap} function, which by default
-%   simply increases the flag by $1$.
+%   simply increases the flag by $1$ by letting the appropriate control
+%   sequence to \tn{relax}.  This can be done expandably!
 %   \begin{macrocode}
 \cs_new_protected:Npn \flag_new:n #1
   {
-    \cs_new:cpn { @@_trap_#1:w } ##1 ;
-      { \exp_after:wN \use_none:n \cs:w @@_#1_##1: \cs_end: }
+    \cs_new:cpn { flag~#1 } ##1 ;
+      { \exp_after:wN \use_none:n \cs:w flag~#1~##1 \cs_end: }
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\flag_clear:n}
 % \begin{macro}[aux]{\@@_clear:ww}
-%   Undefine control sequences, starting from the |_0| flag, upwards,
-%   until reaching an undefined control sequence.
+%   Undefine control sequences, starting from the |0| flag, upwards,
+%   until reaching an undefined control sequence.  We don't use
+%   \cs{cs_undefine:N} because that would act globally.
 %    \begin{macrocode}
 \cs_new_protected:Npn \flag_clear:n #1
   { \@@_clear:ww 0 ; #1 \q_stop }
 \cs_new_protected:Npn \@@_clear:ww #1 ; #2 \q_stop
   {
-    \if_cs_exist:w @@_#2_#1: \cs_end:
+    \if_cs_exist:w flag~#2~#1 \cs_end:
     \else:
       \exp_after:wN \use_none_delimit_by_q_stop:w
     \fi:
-    \cs_set_eq:cN { @@_#2_#1: } \tex_undefined:D
+    \cs_set_eq:cN { flag~#2~#1 } \tex_undefined:D
     \exp_after:wN \@@_clear:ww
     \__int_value:w \__int_eval:w \c_one + #1 ;
     #2 \q_stop
@@ -229,12 +252,33 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\flag_show:n, \flag_log:n}
+%   Show the height (terminal or log file) using appropriate \pkg{l3msg}
+%   auxiliaries.
+%    \begin{macrocode}
+\cs_new_protected:Npn \flag_show:n #1
+  { \__msg_show_wrap:n { > ~ flag ~ #1 ~ height = \flag_height:n {#1} } }
+\cs_new_protected:Npn \flag_log:n
+  { \__msg_log_next: \flag_show:n }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\flag_set_trap:nn}
-%   ^^A todo: check that the flag exists.
-%   Redefine the trap.
+%   Redefine the trap if the flag exists.
 %    \begin{macrocode}
 \cs_new_protected:Npn \flag_set_trap:nn #1#2
-  { \cs_set:cpn { @@_trap_#1:w } ##1 ; {#2} }
+  {
+    \flag_if_exist:nTF {#1}
+      { \cs_set:cpn { flag~#1 } ##1 ; {#2} }
+      { \__msg_kernel_error:nnn { kernel } { flag-not-defined } {#1} }
+  }
+\__msg_kernel_new:nnnn { kernel } { flag-not-defined }
+  { Flag~#1~undefined. }
+  {
+    \c_@@_coding_error_text_tl
+    LaTeX~has~been~asked~to~affect~the~flag~#1~but~
+    this~has~not~been~defined~yet.
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -246,7 +290,7 @@
 %    \begin{macrocode}
 \prg_new_conditional:Npnn \flag_if_exist:n #1 { p , T , F , TF }
   {
-    \cs_if_exist:cTF { @@_trap_#1:w }
+    \cs_if_exist:cTF { flag~#1 }
       { \prg_return_true: } { \prg_return_false: }
   }
 %    \end{macrocode}
@@ -257,7 +301,7 @@
 %    \begin{macrocode}
 \prg_new_conditional:Npnn \flag_if_raised:n #1 { p , T , F , TF }
   {
-    \if_cs_exist:w @@_#1_0: \cs_end:
+    \if_cs_exist:w flag~#1~0 \cs_end:
       \prg_return_true:
     \else:
       \prg_return_false:
@@ -269,12 +313,12 @@
 % \begin{macro}[EXP]{\flag_height:n}
 % \begin{macro}[EXP, aux]{\@@_height_loop:ww, \@@_height_end:ww}
 %   Extract the value of the flag by going through all of the
-%   |_|\meta{integer} control sequences starting from $0$.
+%   control sequences starting from |0|.
 %    \begin{macrocode}
 \cs_new:Npn \flag_height:n #1 { \@@_height_loop:ww 0; #1 \q_stop }
 \cs_new:Npn \@@_height_loop:ww #1 ; #2 \q_stop
   {
-    \if_cs_exist:w @@_#2_#1: \cs_end:
+    \if_cs_exist:w flag~#2~#1 \cs_end:
       \exp_after:wN \@@_height_loop:ww \__int_value:w \__int_eval:w \c_one +
     \else:
       \exp_after:wN \@@_height_end:ww
@@ -291,7 +335,7 @@
 %    \begin{macrocode}
 \cs_new:Npn \flag_raise:n #1
   {
-    \cs:w @@_trap_#1:w \exp_after:wN \cs_end:
+    \cs:w flag~#1 \exp_after:wN \cs_end:
     \__int_value:w \flag_height:n {#1} ;
   }
 %    \end{macrocode}
