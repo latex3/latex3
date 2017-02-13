@@ -995,6 +995,16 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_simple_args_bool}
+%   When defining a non-expandable command, indicates whether the
+%   arguments can all safely be grabbed by expandable grabbers.  This is
+%   to support abuses of \pkg{xparse} that use protected functions
+%   inside csname constructions.  Better name welcome.
+%    \begin{macrocode}
+\bool_new:N \l_@@_simple_args_bool
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_@@_tmp_prop, \l_@@_tmpa_tl, \l_@@_tmpb_tl}
 % \begin{macro}{\@@_tmp:w}
 %   Scratch space.
@@ -1077,13 +1087,17 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_declare_cmd_code:Nnn
   {
-    \bool_if:NTF \l_@@_expandable_bool
+    \bool_if:nTF
+      {
+        \l_@@_expandable_bool ||
+        \l_@@_simple_args_bool && ! \l_@@_environment_bool
+      }
       { \@@_declare_cmd_code_expandable:Nnn }
       { \@@_declare_cmd_code_aux:Nnn }
    }
 %    \end{macrocode}
-%   Standard functions call
-%   \cs{@@_start:nNNnnn}, which receives an auxiliary used for
+%   Standard functions call \cs{@@_start:nNNnnn}, which receives the
+%   argument specification, an auxiliary used for
 %   grabbing arguments, an auxiliary containing the code, and then the
 %   signature, default arguments, and processors.
 %    \begin{macrocode}
@@ -1109,11 +1123,21 @@
           }
       }
   }
+%    \end{macrocode}
+%   Expandable functions and functions whose arguments can be grabbed
+%   expandably call \cs{@@_start_expandable:nNNNn}, which receives the
+%   argument specification, auxiliaries used for grabbing arguments, for
+%   the code, and for default arguments, and finally the signature.
+%   Non-expandable functions that take this branch should nevertheless
+%   be protected, as well as their \texttt{code} function.  They will
+%   only be expanded in contexts such as constructing a csname.
+%    \begin{macrocode}
 \cs_new_protected:Npn \@@_declare_cmd_code_expandable:Nnn #1#2#3
   {
-    \cs_generate_from_arg_count:cNnn
+    \exp_args:Ncc \cs_generate_from_arg_count:NNnn
       { \l_@@_function_tl \c_space_tl code }
-      \cs_set:Npn \l_@@_current_arg_int {#3}
+      { cs_set \bool_if:NF \l_@@_expandable_bool { _protected } :Npn }
+      \l_@@_current_arg_int {#3}
     \bool_if:NT \l_@@_defaults_bool
       {
         \use:x
@@ -1124,7 +1148,8 @@
               { \exp_not:o \l_@@_defaults_tl }
           }
       }
-    \cs_set_nopar:Npx #1
+    \bool_if:NTF \l_@@_expandable_bool
+      { \cs_set_nopar:Npx } { \cs_set_protected_nopar:Npx } #1
       {
         \exp_not:N \@@_start_expandable:nNNNn
           { \exp_not:n {#2} }
@@ -1205,12 +1230,20 @@
 % \subsection{Structure of \pkg{xparse} commands}
 %
 % \begin{macro}{\@@_start:nNNnnn}
+% \begin{macro}[aux]{\@@_start_aux:nNNnnn}
 %   This sets up a few variables to minimize the boilerplate code
 %   included in all \pkg{xparse}-defined commands.  It then runs the
 %   grabbers~|#4|.  Again, the argument specification |#1| is only for
-%   diagnostics.
+%   diagnostics.  The control sequence equal to \cs{scan_stop:} protects
+%   against \texttt{f}-expansion and ensures errors are more reasonable
+%   when an \pkg{xparse} command is placed in a csname.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_start:nNNnnn #1#2#3#4#5#6
+\cs_new_protected:Npx \@@_start:nNNnnn
+  {
+    \exp_not:c { xparse~function~is~not~expandable }
+    \exp_not:N \@@_start_aux:nNNnnn
+  }
+\cs_new_protected:Npn \@@_start_aux:nNNnnn #1#2#3#4#5#6
   {
     \tl_clear:N \l_@@_args_tl
     \tl_set:Nn \l_@@_fn_tl {#2}
@@ -1220,6 +1253,7 @@
     #4 \@@_run_code:
   }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\@@_run_code:}
@@ -1509,6 +1543,7 @@
     \int_zero:N \l_@@_current_arg_int
     \tl_clear:N \l_@@_last_delimiters_tl
     \tl_clear:N \l_@@_arg_spec_tl
+    \bool_set_true:N \l_@@_simple_args_bool
     \@@_normalize_arg_spec_loop:n #1
       \q_recursion_tail \q_recursion_tail \q_recursion_tail \q_recursion_stop
     \int_compare:nNnT \l_@@_current_arg_int > 9
@@ -1612,6 +1647,7 @@
       }
     \tl_put_right:Nn \l_@@_arg_spec_tl { > {#1} }
     \int_decr:N \l_@@_current_arg_int
+    \bool_set_false:N \l_@@_simple_args_bool
     \@@_normalize_arg_spec_loop:n {#2}
   }
 \cs_new_protected:cpn { @@_normalize_type_+:w } #1
@@ -1619,6 +1655,7 @@
     \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
     \tl_put_right:Nn \l_@@_arg_spec_tl { + }
     \int_decr:N \l_@@_current_arg_int
+    \bool_set_false:N \l_@@_simple_args_bool
     \@@_normalize_arg_spec_loop:n {#1}
   }
 %    \end{macrocode}
@@ -1649,6 +1686,7 @@
     \quark_if_recursion_tail_stop_do:nn {#3} { \@@_bad_arg_spec:wn }
     \tl_put_right:Nn \l_@@_arg_spec_tl { D #1 #2 {#3} }
     \tl_put_right:Nn \l_@@_last_delimiters_tl {#1}
+    \bool_set_false:N \l_@@_simple_args_bool
     \@@_normalize_arg_spec_loop:n
   }
 \cs_new_protected:Npn \@@_normalize_type_E:w #1#2
@@ -1661,6 +1699,7 @@
       { \@@_bad_arg_spec:wn }
     \tl_put_right:Nn \l_@@_arg_spec_tl { E {#1} {#2} }
     \tl_put_right:Nn \l_@@_last_delimiters_tl {#1}
+    \bool_set_false:N \l_@@_simple_args_bool
     \@@_normalize_arg_spec_loop:n
   }
 \cs_new_protected:Npn \@@_normalize_E_unique_check:w #1#2 \q_stop
@@ -1677,6 +1716,7 @@
     \@@_normalize_error_if_expandable:N G
     \tl_put_right:Nn \l_@@_arg_spec_tl { G {#1} }
     \tl_put_right:Nn \l_@@_last_delimiters_tl { { } }
+    \bool_set_false:N \l_@@_simple_args_bool
     \@@_normalize_arg_spec_loop:n
   }
 \cs_new_protected:Npn \@@_normalize_type_t:w #1
@@ -1685,6 +1725,7 @@
     \quark_if_recursion_tail_stop_do:Nn #1 { \@@_bad_arg_spec:wn }
     \tl_put_right:Nn \l_@@_arg_spec_tl { t #1 }
     \tl_put_right:Nn \l_@@_last_delimiters_tl {#1}
+    \bool_set_false:N \l_@@_simple_args_bool
     \@@_normalize_arg_spec_loop:n
   }
 %    \end{macrocode}
@@ -1714,6 +1755,7 @@
     \tl_put_right:Nn \l_@@_arg_spec_tl { l }
     \int_incr:N \l_@@_mandatory_args_int
     \tl_clear:N \l_@@_last_delimiters_tl
+    \bool_set_false:N \l_@@_simple_args_bool
     \@@_normalize_arg_spec_loop:n
   }
 \cs_new_protected:Npn \@@_normalize_type_m:w
@@ -1733,6 +1775,7 @@
     \tl_put_right:Nn \l_@@_arg_spec_tl { R #1 #2 {#3} }
     \int_incr:N \l_@@_mandatory_args_int
     \tl_clear:N \l_@@_last_delimiters_tl
+    \bool_set_false:N \l_@@_simple_args_bool
     \@@_normalize_arg_spec_loop:n
   }
 \cs_new_protected:Npn \@@_normalize_type_u:w #1
@@ -1742,6 +1785,7 @@
     \tl_put_right:Nn \l_@@_arg_spec_tl { u {#1} }
     \int_incr:N \l_@@_mandatory_args_int
     \tl_clear:N \l_@@_last_delimiters_tl
+    \bool_set_false:N \l_@@_simple_args_bool
     \@@_normalize_arg_spec_loop:n
   }
 \cs_new_protected:Npn \@@_normalize_type_v:w
@@ -1750,6 +1794,7 @@
     \tl_put_right:Nn \l_@@_arg_spec_tl { v }
     \int_incr:N \l_@@_mandatory_args_int
     \tl_clear:N \l_@@_last_delimiters_tl
+    \bool_set_false:N \l_@@_simple_args_bool
     \@@_normalize_arg_spec_loop:n
   }
 %    \end{macrocode}
@@ -1869,7 +1914,12 @@
     \use:c
       {
          @@_add
-         \bool_if:NT \l_@@_expandable_bool { _expandable }
+         \bool_if:nT
+           {
+             \l_@@_expandable_bool ||
+             \l_@@_simple_args_bool && ! \l_@@_environment_bool
+           }
+           { _expandable }
          _type_  \token_to_str:N #1 :w
       }
   }
