@@ -696,8 +696,8 @@
 %       mandatory types \texttt{m} or \texttt{r}.
 %     \item All arguments are either short or long: it is not possible
 %       to mix short and long argument types.
-%     \item The mandatory argument types \texttt{l} and \texttt{u} are
-%       not available.
+%     \item The mandatory argument types \texttt{l} and \texttt{u} may
+%       not be used after optional arguments.
 %     \item The optional argument types \texttt{g}
 %       and \texttt{G} are not available.
 %     \item The \enquote{verbatim} argument type \texttt{v} is not available.
@@ -1515,11 +1515,9 @@
 % must be followed by arguments.
 %
 % The third is to check for forbidden types for expandable commands,
-% namely \texttt{g},
-% \texttt{G}, \texttt{l} (as the next left brace may have been inserted
-% by \pkg{xparse} due to a failed search for an optional argument),
-% \texttt{u} (any preceding optional argument may wrap part of the
-% delimiter up in braces), and \texttt{v}.
+% namely \texttt{G}/\texttt{v} always, and \texttt{l}/\texttt{u} after
+% optional arguments (\pkg{xparse} may have inserted braces due to a
+% failed search for an optional argument).
 %
 % The fourth is that an optional argument should not be followed by a
 % mandatory argument with the same delimiter, as otherwise the optional
@@ -1713,7 +1711,7 @@
 \cs_new_protected:Npn \@@_normalize_type_G:w #1
   {
     \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
-    \@@_normalize_error_if_expandable:N G
+    \@@_normalize_check_gv:N G
     \tl_put_right:Nn \l_@@_arg_spec_tl { G {#1} }
     \tl_put_right:Nn \l_@@_last_delimiters_tl { { } }
     \bool_set_false:N \l_@@_simple_args_bool
@@ -1751,7 +1749,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_normalize_type_l:w
   {
-    \@@_normalize_error_if_expandable:N l
+    \@@_normalize_check_lu:N l
     \tl_put_right:Nn \l_@@_arg_spec_tl { l }
     \int_incr:N \l_@@_mandatory_args_int
     \tl_clear:N \l_@@_last_delimiters_tl
@@ -1781,7 +1779,7 @@
 \cs_new_protected:Npn \@@_normalize_type_u:w #1
   {
     \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
-    \@@_normalize_error_if_expandable:N u
+    \@@_normalize_check_lu:N u
     \tl_put_right:Nn \l_@@_arg_spec_tl { u {#1} }
     \int_incr:N \l_@@_mandatory_args_int
     \tl_clear:N \l_@@_last_delimiters_tl
@@ -1790,7 +1788,7 @@
   }
 \cs_new_protected:Npn \@@_normalize_type_v:w
   {
-    \@@_normalize_error_if_expandable:N v
+    \@@_normalize_check_gv:N v
     \tl_put_right:Nn \l_@@_arg_spec_tl { v }
     \int_incr:N \l_@@_mandatory_args_int
     \tl_clear:N \l_@@_last_delimiters_tl
@@ -1816,10 +1814,11 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_normalize_error_if_expandable:N}
-%   Called for arguments that are forbidden for expandable commands.
+% \begin{macro}{\@@_normalize_check_gv:N, \@@_normalize_check_lu:N}
+%   Called for arguments that are always forbidden, or forbidden after
+%   an optional argument, for expandable commands.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_normalize_error_if_expandable:N #1
+\cs_new_protected:Npn \@@_normalize_check_gv:N #1
   {
     \bool_if:NT \l_@@_expandable_bool
       {
@@ -1827,6 +1826,19 @@
           { xparse } { invalid-expandable-argument-type }
           { \iow_char:N \\ \l_@@_function_tl } { \tl_to_str:n {#1} }
         \@@_bad_def:wn
+      }
+  }
+\cs_new_protected:Npn \@@_normalize_check_lu:N #1
+  {
+    \bool_if:NT \l_@@_expandable_bool
+      {
+        \tl_if_empty:NF \l_@@_last_delimiters_tl
+          {
+            \__msg_kernel_error:nnxx
+              { xparse } { invalid-after-optional-expandably }
+              { \iow_char:N \\ \l_@@_function_tl } { \tl_to_str:n {#1} }
+            \@@_bad_def:wn
+          }
       }
   }
 %    \end{macrocode}
@@ -2327,6 +2339,16 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\@@_add_expandable_type_l:w}
+%   Reuse type \texttt{u}, thanks to the fact that \TeX{} macros whose
+%   parameter text ends with |#| in fact end up being delimited by an
+%   open brace.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_add_expandable_type_l:w
+  { \@@_add_expandable_type_u:w ## }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\@@_add_expandable_type_m:w}
 %   Unlike the standard case, when working expandably each argument is always
 %   grabbed separately.
@@ -2364,6 +2386,26 @@
         \exp_not:N #1
       }
     \bool_set_false:N \l_@@_long_bool
+    \@@_prepare_signature:N
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_add_expandable_type_u:w}
+%   Define an auxiliary that will be used directly in the signature.  It
+%   grabs one argument delimited by |#1| and places it before \cs{q_@@}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_add_expandable_type_u:w #1
+  {
+    \@@_add_default:
+    \@@_add_expandable_grabber:n { u }
+    \bool_if:NTF \l_@@_all_long_bool
+      { \cs_set:cpn }
+      { \cs_set_nopar:cpn }
+      { \l_@@_expandable_aux_name_tl } ##1 \q_@@ ##2 ##3 #1
+      { ##1 {##3} \q_@@ ##2 }
+    \tl_put_right:Nx \l_@@_signature_tl
+      { \exp_not:c  { \l_@@_expandable_aux_name_tl } }
     \@@_prepare_signature:N
   }
 %    \end{macrocode}
@@ -3481,8 +3523,9 @@
 %
 % \begin{macro}[EXP]{\@@_expandable_grab_m:w}
 % \begin{macro}[EXP, aux]{\@@_expandable_grab_m_aux:wNn}
-%   The mandatory case is easy: find the auxiliary after the \cs{q_@@}, and
-%   use it directly to grab the argument.
+%   The mandatory case is easy: find the auxiliary after the \cs{q_@@},
+%   and use it directly to grab the argument.  The auxiliary here is
+%   used also for \texttt{u}-type (and \texttt{l}-type) arguments.
 %    \begin{macrocode}
 \cs_new:Npn \@@_expandable_grab_m:w #1 \q_@@ #2
   { #2 { \@@_expandable_grab_m_aux:wNn #1 \q_@@ #2 } }
@@ -3571,6 +3614,14 @@
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_expandable_grab_u:w}
+%   It turns out there is nothing to do: this is followed by an
+%   auxiliary named after the function, that does everything.
+%    \begin{macrocode}
+\cs_new_eq:NN \@@_expandable_grab_u:w \prg_do_nothing:
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[EXP]
@@ -4014,6 +4065,18 @@
     \c__msg_coding_error_text_tl
     The~letter~'#2'~does~not~specify~an~argument~type~which~can~be~used~
     in~an~expandable~command.
+    \\ \\
+    LaTeX~will~ignore~this~entire~definition.
+  }
+\__msg_kernel_new:nnnn { xparse } { invalid-after-optional-expandably }
+  {
+    Argument~type~'#2'~not~available~after~optional~argument~
+    for~expandable~command~'#1'.
+  }
+  {
+    \c__msg_coding_error_text_tl
+    The~letter~'#2'~does~not~specify~an~argument~type~which~can~be~used~
+    in~an~expandable~command~after~an~optional~argument.
     \\ \\
     LaTeX~will~ignore~this~entire~definition.
   }
