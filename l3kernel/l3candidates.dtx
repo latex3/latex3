@@ -961,6 +961,41 @@
 %   \end{texnote}
 % \end{function}
 %
+% \begin{function}[EXP, added = 2017-02-17]
+%   {\tl_range:Nnn, \tl_range:cnn, \tl_range:nnn}
+%   \begin{syntax}
+%     \cs{tl_range:Nnn} \meta{tl~var} \Arg{start index} \Arg{end index}
+%     \cs{tl_range:nnn} \Arg{token list} \Arg{start index} \Arg{end index}
+%   \end{syntax}
+%   Leaves in the input stream the items from the \meta{start index} to the
+%   \meta{end index} inclusive.  Positive \meta{indices} are counted
+%   from the start of the \meta{token list}, $1$~being the first item, and
+%   negative \meta{indices} are counted from the end of the token list,
+%   $-1$~being the last item.  If either of \meta{start index} or
+%   \meta{end index} is~$0$, the result is empty.  For instance,
+%   \begin{verbatim}
+%     \iow_term:x { \tl_range:nnn { abcdef } { 2 } { 5 } }
+%     \iow_term:x { \tl_range:nnn { abcdef } { -4 } { -1 } }
+%     \iow_term:x { \tl_range:nnn { abcdef } { -2 } { -1 } }
+%     \iow_term:x { \tl_range:nnn { abcdef } { 0 } { -1 } }
+%   \end{verbatim}
+%   will print \texttt{{b}{c}{d}{e}}, \texttt{{c}{d}{e}{f}}, \texttt{{e}{f}}, and an empty
+%   line to the terminal. The \meta{start index} must always be smaller than
+%   or equal to the \meta{end index}: if this is not the case then no output
+%   is generated. Thus
+%   \begin{verbatim}
+%     \iow_term:x { \tl_range:nnn { abcdef } { 5 } { 2 } }
+%     \iow_term:x { \tl_range:nnn { abcdef } { -1 } { -4 } }
+%   \end{verbatim}
+%   both yield empty token lists.
+%   \begin{texnote}
+%     The result is returned within the \tn{unexpanded}
+%     primitive (\cs{exp_not:n}), which means that the \meta{item}
+%     will not expand further when appearing in an \texttt{x}-type
+%     argument expansion.
+%   \end{texnote}
+% \end{function}
+%
 % \section{Additions to \pkg{l3tokens}}
 %
 % \begin{function}[TF, updated = 2012-12-20]{\peek_N_type:}
@@ -4300,6 +4335,8 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \subsubsection{Other additions to \pkg{l3tl}}
+%
 % \begin{macro}{\tl_rand_item:n, \tl_rand_item:N, \tl_rand_item:c}
 %   Importantly \cs{tl_item:nn} only evaluates its argument once.
 %    \begin{macrocode}
@@ -4310,6 +4347,105 @@
   }
 \cs_new:Npn \tl_rand_item:N { \exp_args:No \tl_rand_item:n }
 \cs_generate_variant:Nn \tl_rand_item:N { c }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\tl_range:Nnn, \tl_range:cnn, \tl_range:nnn}
+% \begin{macro}[aux]{\@@_range:nnnw, \@@_range:nnw, \@@_range_normalize:nn, \@@_range_collect:w, \@@_range_skip:w}
+%   To avoid checking for the end of the token list at every step, start
+%   by counting the number $l$ of items and \enquote{normalizing} the
+%   bounds, namely clamping them to the interval $[0,l]$ and dealing
+%   with negative indices.  More precisely, \cs{@@_range:nnw} receives
+%   the number of items to skip at the beginning of the token list, and
+%   the index of the last item to keep.  If nothing should be kept,
+%   leave |{}|: this stops the \texttt{f}-expansion of \cs{tl_head:f}
+%   and that function produces an empty result.  Otherwise, repeatedly
+%   call \cs{@@_range_skip:w} to delete |#1| items from the input stream
+%   (the extra brace group avoids an off-by-one mistake), then
+%   repeatedly call \cs{@@_range_collect:w} to store in its second
+%   argument the items to be kept.  Eventually, the result is a brace
+%   group followed by the rest of the token list, and \cs{tl_head:f}
+%   cleans up and gives the result in \cs{exp_not:n}.
+%    \begin{macrocode}
+\cs_new:Npn \tl_range:Nnn { \exp_args:No \tl_range:nnn }
+\cs_generate_variant:Nn \tl_range:Nnn { c }
+\cs_new:Npn \tl_range:nnn #1#2#3
+  {
+    \tl_head:f
+      {
+        \exp_args:Nf \@@_range:nnnw { \tl_count:n {#1} } {#2} {#3}
+        #1
+      }
+  }
+\cs_new:Npn \@@_range:nnnw #1#2#3
+  {
+    \exp_args:Nff \@@_range:nnw
+      {
+        \exp_args:Nf \@@_range_normalize:nn
+          { \int_eval:n { #2 - 1 } } {#1}
+      }
+      {
+        \exp_args:Nf \@@_range_normalize:nn
+          { \int_eval:n {#3} } {#1}
+      }
+  }
+\cs_new:Npn \@@_range:nnw #1#2
+  {
+    \if_int_compare:w #2 > #1 \exp_stop_f: \else:
+      \exp_after:wN { \exp_after:wN }
+    \fi:
+    \exp_after:wN \@@_range_collect:w
+    \__int_value:w \__int_eval:w #2 - #1 \exp_after:wN ;
+    \exp_after:wN { \exp_after:wN }
+    \exp:w \@@_range_skip:w #1 ; { }
+  }
+\cs_new:Npn \@@_range_skip:w #1 ; #2
+  {
+    \if_int_compare:w #1 > \c_zero
+      \exp_after:wN \@@_range_skip:w
+      \__int_value:w \__int_eval:w #1 - 1 \exp_after:wN ;
+    \else:
+      \exp_after:wN \exp_end:
+    \fi:
+  }
+\cs_new:Npn \@@_range_collect:w #1 ; #2#3
+  {
+    \if_int_compare:w #1 > \c_one
+      \exp_after:wN \@@_range_collect:w
+      \__int_value:w \__int_eval:w #1 - 1 \exp_after:wN ;
+    \fi:
+    { #2 {#3} }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \begin{macro}[EXP, aux]{\@@_range_normalize:nn}
+%   This function converts an \meta{index} argument into an explicit
+%   position in the token list (a result of $0$ denoting \enquote{out of
+%   bounds}).  Expects two explicit integer arguments: the \meta{index}
+%   |#1| and the string count~|#2|.  If |#1| is negative, replace it by
+%   $|#1| + |#2| + 1$, then limit to the range $[0, |#2|]$.
+%    \begin{macrocode}
+\cs_new:Npn \@@_range_normalize:nn #1#2
+  {
+    \int_eval:n
+      {
+        \if_int_compare:w #1 < \c_zero
+          \if_int_compare:w #1 < -#2 \exp_stop_f:
+            \c_zero
+          \else:
+            #1 + #2 + \c_one
+          \fi:
+        \else:
+          \if_int_compare:w #1 < #2 \exp_stop_f:
+            #1
+          \else:
+            #2
+          \fi:
+        \fi:
+      }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
