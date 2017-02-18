@@ -1656,13 +1656,20 @@ function cmdcheck()
   mkdir(localdir)
   cleandir(testdir)
   depinstall(checkdeps)
+  for _,i in ipairs({bibfiles, docfiles, sourcefiles, typesetfiles}) do
+    for _,j in ipairs(i) do
+      cp(j, ".", testdir)
+    end
+  end
+  for _,i in ipairs(typesetsuppfiles) do
+    cp(i, supportdir, testdir)
+  end
   local engine = string.gsub(stdengine, "tex$", "latex")
   local localdir = relpath(localdir, testdir)
   print("Checking source files")
   for _,i in ipairs(cmdchkfiles) do
     for _,j in ipairs(filelist(".", i)) do
       print("  " .. stripext(j))
-      cp(j, ".", testdir)
       run(
         testdir,
         os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir
