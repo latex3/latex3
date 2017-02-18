@@ -1,6 +1,6 @@
 % \iffalse meta-comment
 %
-%% File: l3alloc.dtx Copyright (C) 1990-2012,2014-2016 The LaTeX3 Project
+%% File: l3alloc.dtx Copyright (C) 1990-2012,2014-2017 The LaTeX3 Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -51,70 +51,25 @@
 %
 % \begin{documentation}
 %
-%  Note that this module is only used for generating an \pkg{expl3}-based
-%  format. Under \LaTeX{}, the \pkg{etex} package is used for allocation
-%  management.
+% This module provides the basic mechanism for allocating \TeX{}'s
+% registers when operating in format mode. When loaded as a package on
+% an existing format, the mechanisms from the latter are used.
 %
-%  This module provides the basic mechanism for allocating \TeX{}'s
-%  registers. While designing this we have to take into account the
-%  following characteristics:
-%  \begin{itemize}
-%    \item |\box255| is reserved for use in the output routine, so it
-%      should not be allocated otherwise.
-%    \item \TeX{} can load up $256$ hyphenation patterns (registers
-%      \tn{language} $0$ to $255$),
-%    \item \TeX{} can load no more than $16$ math families,
-%    \item \TeX{} supports no more than $16$ I/O streams for reading
-%      (\tn{read}) and $16$ I/O streams for writing (\tn{write}),
-%    \item \TeX{} supports no more than $256$ inserts.
-%    \item The other registers (\tn{count}, \tn{dimen}, \tn{skip},
-%      \tn{muskip}, \tn{box}, and \tn{toks}) range from $0$ to $32\,767$
-%      ($65\,535$ for \LuaTeX{}), but registers numbered above $255$ are
-%      accessed somewhat less efficiently (except in \LuaTeX{}, where access
-%      is \enquote[flat}).
-%    \item Registers could be allocated both globally and locally; the
-%      use of registers could also be global or local. Here we
-%      provide support for globally allocated registers for both
-%      global and local use.
-%  \end{itemize}
-%  We also need to allow for some bookkeeping: we need to know which
-%  register was allocated last and which registers can not be
-%  allocated by the standard mechanisms.
+% The approach used here is informed by the mechanisms used in plain
+% \TeX{}/\LaTeX{} but noting that newer engines provide us much more
+% flexibility. In addition to this, we do not need allocators for all
+% register types: for example \texttt{toks} are not used by \LaTeX3 whilst
+% reads/writes are handled using a pool and thus do not need a classical
+% allocator.
 %
-% \section{Internal functions}
-%
-% Register-based allocation is a low-level process, and is therefore
-% only to be used as part of kernel code.
-%
-% \begin{function}[updated = 2012-11-09]{\__alloc_new:nnnN}
-%   \begin{syntax}
-%     \cs{__alloc_new:nnnN} \Arg{type} \Arg{min} \Arg{max} \meta{function}
-%   \end{syntax}
-%   Shorthand for allocating new registers. Defines \cs{\meta{type}_new:N} as
-%   and allocator function of the specified \meta{type}, indexed up from
-%   \meta{min} to a \meta{max}, and with assignment carried out by
-%   the \meta{function}. This process will create two token lists,
-%   \cs{g_\meta{type}_allocation_tl} and \cs{c_\meta{type}_allocation_max_tl},
-%   to store the current and maximum allocation numbers, respectively.
-% \end{function}
-%
-%  \begin{function}[updated = 2011-09-05]{\__alloc_setup_type:nnn}
-%    \begin{syntax}
-%      \cs{__alloc_setup_type:nnn} \Arg{type} \Arg{min} \Arg{max}
-%    \end{syntax}
-%    Sets up the storage needed for the administration of registers of
-%    \Arg{type}, which will start allocating at \meta{min} and will issue
-%    an error if there is an attempt to allocate past the \meta{max}.
-%  \end{function}
-%
-%  \begin{function}{\__alloc_reg:nNN}
-%    \begin{syntax}
-%      \cs{__alloc_reg:nNN} \Arg{type} \meta{function} \meta{register}
-%    \end{syntax}
-%    Preforms the allocation for a new \meta{register} of \meta{type},
-%    using the allocator \meta{function} (which will be either a
-%    primitive \tn{\ldots def} or \tn{chardef}).
-%  \end{function}
+% In classical (non-\LuaTeX{}) engines, there are various restriction on
+% registers, for example |\box255| is hard-coded as the output box and
+% inserts have to be allocated below this (not in the extended pool). Rather
+% than worry about this, allocations for the registers affected (\TeX{}
+% |box|, |count|, |dimen| and |skip| types) are simply made only from the
+% extended pool. (There is a performance impact in engines other than
+% \LuaTeX{} but the free use of registers in \pkg{expl3} means that code
+% cannot be sure of obtaining a low-numbered register in any case.)
 %
 % \end{documentation}
 %
@@ -130,127 +85,80 @@
 %<@@=alloc>
 %    \end{macrocode}
 %
-% \begin{macro}[int]{\@@_new:nnnN}
-%   Shorthand for defining new register types and their allocators: creates
-%   the appropriate variables and the allocator function itself.
+% \begin{variable}[int]
+%   {
+%     \g_@@_int_int    ,
+%     \g_@@_dim_int    ,
+%     \g_@@_muskip_int ,
+%     \g_@@_int_int    ,
+%     \g_@@_box_int
+%   }
+%   The core register tracking is done using the same raw \TeX{} count
+%   registers as reserved by plain \TeX{} and \LaTeXe{}, as there may be the
+%   odd piece of generic code that needs to work by number. However, as not
+%   all of our variables work the same way, some of the older registers are
+%   simply ignored. For the same reason, there is no special status for the
+%   low-numbers registers other than counts. To avoid having to worry about
+%   inserts and reflecting the register availability in \eTeX{}, the lower
+%   register space is unused here (though is available for hard-coded
+%   use).
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_new:nnnN #1#2#3#4
-  {
-    \@@_setup_type:nnn {#1} {#2} {#3}
-    \cs_new_protected:cpn { #1 _new:N } ##1 { \@@_reg:nNN {#1} #4 ##1 }
-  }
+\tex_countdef:D \g_@@_int_int    = 10 ~
+\tex_countdef:D \g_@@_dim_int    = 11 ~
+\tex_countdef:D \g_@@_skip_int   = 12 ~
+\tex_countdef:D \g_@@_muskip_int = 13 ~
+\tex_countdef:D \g_@@_box_int    = 14 ~
+\g_@@_int_int    = 255 ~
+\g_@@_dim_int    = 255 ~
+\g_@@_skip_int   = 255 ~
+\g_@@_muskip_int =   0 ~
+\g_@@_box_int    = 255 ~
 %    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_setup_type:nnn}
-%   For each type of register we need to \enquote{counters} that hold the
-%   last allocated global register, plus a constant for the maximum
-%   allocation.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_setup_type:nnn #1#2#3
-  {
-    \tl_new:c   { g__ #1 _allocation_tl }
-    \tl_gset:cx { g__ #1 _allocation_tl } { \int_eval:n {#2} }
-    \tl_const:cx { c__ #1 _allocation_max_tl } { \int_eval:n {#3} }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\int_eval:n}
-%   For bootstrapping purposes, a definition of \cs{int_eval:n} is needed
-%   in terms of primitives. This is replaced in \pkg{l3int} with a clearer
-%   one.
-%    \begin{macrocode}
-\cs_new:Npn \int_eval:n #1 { \tex_number:D \etex_numexpr:D #1 \scan_stop: }
-%    \end{macrocode}
-% \end{macro}
+% \end{variable}
 %
 % \begin{macro}
 %   {\box_new:N, \dim_new:N, \int_new:N, \muskip_new:N \skip_new:N}
-%   To get everything to work correctly for inserts, some register types
-%   need to have their allocators set up \enquote{early}. It therefore
-%   makes sense to collect most of them together here.
+%   Each of the public allocators is a wrapper around the one internal
+%   function needed here.
 %    \begin{macrocode}
-\cs_if_exist:NTF \luatex_luatexversion:D
-  { \@@_new:nnnN { box } { 0 } \c_max_register_int \tex_chardef:D }
-  { \@@_new:nnnN { box } { 0 } \c_max_register_int \tex_mathchardef:D }
-\@@_new:nnnN { dim }     { 0 } \c_max_register_int \tex_dimendef:D
-\@@_new:nnnN { int }    { 10 } \c_max_register_int \tex_countdef:D
-\@@_new:nnnN { muskip }  { 0 } \c_max_register_int \tex_muskipdef:D
-\@@_new:nnnN { skip }    { 0 } \c_max_register_int \tex_skipdef:D
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\insert_new:N}
-%   For inserts, there is a need to reserve space in various other registers.
-%   First, the basic allocation is done.
-%    \begin{macrocode}
-\@@_new:nnnN { insert } { 221 } { 254 } \tex_chardef:D
-%    \end{macrocode}
-%   Reserve a gap in the \texttt{box}, \texttt{dim}, \texttt{int} and
-%   \texttt{skip} lists. (An inline token list mapping would read better here,
-%   but this does not work until \texttt{int} allocation is available!) Note
-%   that \texttt{box255} is reserved by \TeX{} itself (\LuaTeX{} does make
-%   this alterable, but that doesn't really do much for us so we ignore
-%   that!)
-%    \begin{macrocode}
-\tl_const:Nn \c__box_allocation_reserve_begin_tl  { 221 }
-\tl_const:Nn \c__box_allocation_reserve_end_tl    { 255 }
-\tl_const:Nn \c__dim_allocation_reserve_begin_tl  { 221 }
-\tl_const:Nn \c__dim_allocation_reserve_end_tl    { 254 }
-\tl_const:Nn \c__int_allocation_reserve_begin_tl  { 221 }
-\tl_const:Nn \c__int_allocation_reserve_end_tl    { 254 }
-\tl_const:Nn \c__skip_allocation_reserve_begin_tl { 221 }
-\tl_const:Nn \c__skip_allocation_reserve_end_tl   { 254 }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_reg:nNN}
-%   This internal macro performs the actual allocation.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_reg:nNN #1#2#3
+\cs_new_protected:Npx \box_new:N #1
   {
-    \__chk_if_free_cs:N #3
-    \int_compare:nNnTF
-      { \tl_use:c { g__ #1 _allocation_tl } }
-      > { \tl_use:c { c__ #1 _allocation_max_tl } }
-      { \__msg_kernel_fatal:nnx { kernel } { out-of-registers } {#1} }
+    \exp_not:N \@@_reg:nNnN { box }
+      \cs_if_exist:NTF \luatex_luatexversion:D
+        { \tex_chardef:D }
+        { \tex_mathchardef:D }
+      \c_max_register_int
+      #1
+  }
+\cs_new_protected:Npn \dim_new:N #1
+  { \@@_reg:nNnN { dim } \tex_dimendef:D \c_max_register_int #1 }
+\cs_new_protected:Npn \int_new:N #1
+  { \@@_reg:nNnN { int } \tex_countdef:D \c_max_register_int #1 }
+\cs_new_protected:Npn \muskip_new:N #1
+  { \@@_reg:nNnN { muskip } \tex_muskipdef:D \c_max_register_int #1 }
+\cs_new_protected:Npn \skip_new:N #1
+  { \@@_reg:nNnN { skip } \tex_skipdef:D \c_max_register_int #1 }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_reg:nNNN}
+%   The allocator itself is modeled somewhat on \LaTeXe{}'s \tn{e@alloc},
+%   though there is no need to set \tn{allocationnumber}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_reg:nNnN #1#2#3#4
+  {
+    \__chk_if_free_cs:N #4
+    \int_compare:nNnTF { \int_use:c { g_@@_ #1 _int } } < {#3}
       {
-        \tex_global:D #2 #3 \tl_use:c { g__ #1 _allocation_tl } \scan_stop:
+        \int_gincr:c { g_@@_ #1 _int }
+        \tex_global:D #2 #4 \int_use:c { g_@@_ #1 _int }
         \iow_log:x
           {
-            \token_to_str:N #3 ~=~ #1 ~register~
-            \tl_use:c { g__ #1 _allocation_tl }
-          }
-        \@@_next:n {#1}
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[aux]{\@@_next:n}
-%   Set up the next allocation by adding one to the current number, and if
-%   necessary skipping over a reserved block.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_next:n #1
-  {
-    \tl_gset:cx { g__ #1 _allocation_tl }
-      {
-        \int_eval:n
-          {
-            \tl_if_exist:cTF { c__ #1 _allocation_reserve_begin_tl }
-              {
-                \int_compare:nNnTF
-                  { \tl_use:c { g__ #1 _allocation_tl } + 1 }
-                  =
-                  { \tl_use:c { c__ #1 _allocation_reserve_begin_tl } }
-                  { \tl_use:c { c__ #1 _allocation_reserve_end_tl } }
-                  { \tl_use:c { g__ #1 _allocation_tl } }
-              }
-              { \tl_use:c { g__ #1 _allocation_tl } }
-            + 1
+            \token_to_str:N #4 ~=~ #1 ~register~
+            \int_use:c { g_@@_ #1 _int }
           }
       }
+      { \__msg_kernel_fatal:nnx { kernel } { out-of-registers } {#1} }
   }
 %    \end{macrocode}
 % \end{macro}
