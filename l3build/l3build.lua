@@ -774,6 +774,8 @@ function formatlog(logfile, newfile, engine)
     -- Zap line numbers from \show, \showbox, \box_show and the like:
     -- do this before wrapping lines
     line = string.gsub(line, "^l%.%d+ ", "l. ...")
+    -- Also from lua stack traces.
+    line = string.gsub(line, "lua:%d+: in function", "lua:...: in function")
     -- Allow for wrapped lines: preserve the content and wrap
     -- Skip lines that have an explicit marker for truncation
     if string.len(line) == maxprintline  and
