@@ -1086,9 +1086,9 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[int]{\@@_item_exact:nn, \@@_item_exact_cs:c}
+% \begin{macro}[int]{\@@_item_exact:nn, \@@_item_exact_cs:n}
 %   This matches an exact \meta{category}-\meta{character code} pair, or
-%   an exact control sequence.
+%   an exact control sequence, more precisely one of several possible control sequences.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_item_exact:nn #1#2
   {
@@ -1098,16 +1098,18 @@
       \fi:
     \fi:
   }
-\cs_new_protected:Npn \@@_item_exact_cs:c #1
+\cs_new_protected:Npn \@@_item_exact_cs:n #1
   {
     \int_compare:nNnTF \l_@@_current_catcode_int = 0
       {
-        \str_if_eq_x:nnTF
+        \tl_set:Nx \l_@@_internal_a_tl
           {
+            \scan_stop:
             \exp_after:wN \exp_after:wN \exp_after:wN \cs_to_str:N
             \tex_the:D \tex_toks:D \l_@@_current_pos_int
+            \scan_stop:
           }
-          { #1 }
+        \tl_if_in:noTF { \scan_stop: #1 \scan_stop: } \l_@@_internal_a_tl
           { \@@_break_true:w } { }
       }
       { }
@@ -1620,7 +1622,9 @@
 %   \item \cs{@@_item_catcode_reverse:nT} \Arg{catcode bitmap} \Arg{tests}
 %   \item \cs{@@_item_reverse:n} \Arg{tests}
 %   \item \cs{@@_item_exact:nn} \Arg{catcode} \Arg{char code}
-%   \item \cs{@@_item_exact_cs:c} \Arg{csname}
+%   \item \cs{@@_item_exact_cs:n} \Arg{csnames}, more precisely given as
+%     \meta{csname} \cs{scan_stop:} \meta{csname} \cs{scan_stop:}
+%     \meta{csname} and so on in a brace group.
 %   \item \cs{@@_item_cs:n} \Arg{compiled regex}
 % \end{itemize}
 %
@@ -2011,9 +2015,7 @@
       \int_compare:nNnT \l_@@_mode_int < \c_@@_outer_mode_int
         {
           \__msg_kernel_error:nn { regex } { c-missing-rbrace }
-          \@@_compile_end:
-          \@@_compile_one:x
-            { \@@_item_cs:n { \exp_not:o \l_@@_internal_regex } }
+          \@@_compile_end_cs:
           \prg_do_nothing: \prg_do_nothing:
           \prg_do_nothing: \prg_do_nothing:
         }
@@ -2951,25 +2953,82 @@
 % \end{macro}
 %
 % \begin{macro}+\@@_compile_}:+
+% \begin{macro}{\@@_compile_end_cs:}
+% \begin{macro}[EXP,aux]{\@@_compile_cs_aux:Nn, \@@_compile_cs_aux:NNnnnN}
 %   Non-escaped right braces are only special if they appear when
 %   compiling the regular expression for a csname, but not within a
-%   class: |\c{[}{]}| matches the control sequences |\}| and
-%   |\{|\ldots{} Admittedly, that would be better done as
-%   |\c{[{}]}|. So, end compiling the inner regex (this closes any
-%   dangling class or group).  Then insert the corresponding test in the
-%   outer regex.
+%   class: |\c{[{}]}| matches the control sequences |\{| and |\}|.  So,
+%   end compiling the inner regex (this closes any dangling class or
+%   group).  Then insert the corresponding test in the outer regex.  As
+%   an optimization, if the control sequence test simply consists of
+%   several explicit possibilities (branches) then use
+%   \cs{@@_item_exact_cs:n} with an argument consisting of all
+%   possibilities separated by \cs{scan_stop:}.
 %    \begin{macrocode}
+\flag_new:n { @@_cs }
 \cs_new_protected:cpn { @@_compile_ \c_right_brace_str : }
   {
     \@@_if_in_cs:TF
-      {
-        \@@_compile_end:
-        \@@_compile_one:x
-          { \@@_item_cs:n { \exp_not:o \l_@@_internal_regex } }
-      }
+      { \@@_compile_end_cs: }
       { \exp_after:wN \@@_compile_raw:N \c_right_brace_str }
   }
+\cs_new_protected:Npn \@@_compile_end_cs:
+  {
+    \@@_compile_end:
+    \flag_clear:n { @@_cs }
+    \tl_set:Nx \l_@@_internal_a_tl
+      {
+        \exp_after:wN \@@_compile_cs_aux:Nn \l_@@_internal_regex
+        \q_nil \q_nil \q_recursion_stop
+      }
+    \exp_args:Nx \@@_compile_one:x
+      {
+        \flag_if_raised:nTF { @@_cs }
+          { \@@_item_cs:n { \exp_not:o \l_@@_internal_regex } }
+          { \@@_item_exact_cs:n { \tl_tail:N \l_@@_internal_a_tl } }
+      }
+  }
+\cs_new:Npn \@@_compile_cs_aux:Nn #1#2
+  {
+    \cs_if_eq:NNTF #1 \@@_branch:n
+      {
+        \scan_stop:
+        \@@_compile_cs_aux:NNnnnN #2
+        \q_nil \q_nil \q_nil \q_nil \q_nil \q_nil \q_recursion_stop
+        \@@_compile_cs_aux:Nn
+      }
+      {
+        \quark_if_nil:NF #1 { \flag_raise:n { @@_cs } }
+        \use_none_delimit_by_q_recursion_stop:w
+      }
+  }
+\cs_new:Npn \@@_compile_cs_aux:NNnnnN #1#2#3#4#5#6
+  {
+    \bool_lazy_all:nTF
+      {
+        { \cs_if_eq_p:NN #1 \@@_class:NnnnN }
+        {#2}
+        { \tl_if_head_eq_meaning_p:nN {#3} \@@_item_caseful_equal:n }
+        { \int_compare_p:nNn { \tl_count:n {#3} } = { 2 } }
+        { \int_compare_p:nNn {#5} = { 0 } }
+      }
+      {
+        \prg_replicate:nn {#4}
+          { \char_generate:nn { \use_ii:nn #3 } {12} }
+        \@@_compile_cs_aux:NNnnnN
+      }
+      {
+        \quark_if_nil:NF #1
+          {
+            \flag_raise:n { @@_cs }
+            \use_i_delimit_by_q_recursion_stop:nw
+          }
+        \use_none_delimit_by_q_recursion_stop:w
+      }
+  }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 % \subsubsection{Raw token lists with \cs{u}}
@@ -3082,7 +3141,7 @@
             \@@_class:NnnnN \c_true_bool
               {
                 \if_int_compare:w "##2 = 0 \exp_stop_f:
-                  \@@_item_exact_cs:c { \exp_after:wN \cs_to_str:N ##1 }
+                  \@@_item_exact_cs:n { \exp_after:wN \cs_to_str:N ##1 }
                 \else:
                   \@@_item_exact:nn { \__int_value:w "##2 } { ##3 }
                 \fi:
@@ -3160,8 +3219,7 @@
         { \@@_show_scope:nn { Reversed~match } }
       \cs_set_protected:Npn \@@_item_exact:nn ##1##2
         { \@@_show_one:n { char~##2,~catcode~##1 } }
-      \cs_set_protected:Npn \@@_item_exact_cs:c ##1
-        { \@@_show_one:n { control~sequence~\iow_char:N\\##1 } }
+      \cs_set_eq:NN \@@_item_exact_cs:n \@@_show_item_exact_cs:n
       \cs_set_protected:Npn \@@_item_cs:n
         { \@@_show_scope:nn { control~sequence } }
       \cs_set:cpn { @@_prop_.: } { \@@_show_one:n { any~token } }
@@ -3318,6 +3376,19 @@
         , ~
         \bool_if:NF #1 { negative~ } class
       }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_show_item_exact_cs:n}
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_show_item_exact_cs:n #1
+  {
+    \seq_set_split:Nnn \l_@@_internal_seq { \scan_stop: } {#1}
+    \seq_set_map:NNn \l_@@_internal_seq
+      \l_@@_internal_seq { \iow_char:N\\##1 }
+    \@@_show_one:n
+      { control~sequence~ \seq_use:Nn \l_@@_internal_seq { ~or~ } }
   }
 %    \end{macrocode}
 % \end{macro}
