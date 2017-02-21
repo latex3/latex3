@@ -20,10 +20,20 @@ updated at the same time.
 
 Currently included in the CTAN release of `l3packages` are the following
 bundles:
+* `fpu`
 * `l3keys2e`
 * `xfrac`
 * `xparse`
 * `xtemplate`
+
+`fpu`
+-----
+
+The `fpu` package provides a document-level interface for the LaTeX3
+FPU. As such, it is a wrapper around the core `\fp_eval:n` function
+but does not require code syntax. It provides the expandable command
+`\fpeval`, which can be used inside for example `\edef` or contexts
+where TeX requires a number.
 
 `l3keys2e`
 ----------
