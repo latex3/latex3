@@ -10,6 +10,9 @@ module = "fpu"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
+-- Need xparse
+checkdeps = {maindir .. "/l3build", maindir .. "/l3packages/xparse"}
+
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded
 -- As the build system is 'self-contained' there is no module set up here: just
