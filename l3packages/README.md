@@ -21,7 +21,7 @@ updated at the same time.
 Currently included in the CTAN release of `l3packages` are the following
 bundles:
 * `l3keys2e`
-* `xfpu`
+* `xfp`
 * `xfrac`
 * `xparse`
 * `xtemplate`
@@ -34,10 +34,10 @@ and class options with LaTeX2e. This is tied to the method the existing kernel
 uses for processing options, and so it is likely that a stand-alone LaTeX3
 kernel will use a very different approach.
 
-`xfpu`
+`xfp`
 -----
 
-The `xfpu` package provides a document-level interface for the LaTeX3
+The `xfp` package provides a document-level interface for the LaTeX3
 FPU. As such, it is a wrapper around the core `\fp_eval:n` function
 but does not require code syntax. It provides the expandable command
 `\fpeval`, which can be used inside for example `\edef` or contexts
