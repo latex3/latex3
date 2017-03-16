@@ -29,6 +29,8 @@ typesetfiles =
   }
 typesetskipfiles = {"source3-body.tex"}
 unpackfiles      = {"l3.ins"}
+versionfiles     =
+  {"*.dtx", "README.md", "l3styleguide.tex", "l3syntax-changes.tex"}
 
 -- No deps other than the test system
 checkdeps   = {maindir .. "/l3build"}
