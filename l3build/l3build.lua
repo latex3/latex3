@@ -1958,7 +1958,7 @@ if versionform ~= "" and not setversion_update_line then
       end
       return line
     end
-  elseif versionform == "ExplFileName" then
+  elseif versionform == "ExplFileDate" then
     function setversion_update_line(line, date, release)
       if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}$") then
         line = "\\def\\ExplFileDate{" .. string.gsub(date, "%-", "/") .. "}"
