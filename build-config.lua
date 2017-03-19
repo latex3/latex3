@@ -36,8 +36,22 @@ setversion_update_line =
   setversion_update_line or function(line, date, version)
   local date = string.gsub(date, "%-", "/")
   -- Replace the identifiers
-  if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}%%?$") then
+  if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}%%?$") or
+     string.match(line, "^%%? ?\\date{Released %d%d%d%d/%d%d/%d%d}$") then
     line = string.gsub(line, "%d%d%d%d/%d%d/%d%d", date)
+  end
+  -- No real regex so do it one type at a time
+  for _,i in pairs({"Class", "File", "Package"}) do
+    if string.match(
+      line,
+      "^\\ProvidesExpl" .. i .. " *{[a-zA-Z0-9%-%.]+}"
+    ) then
+      line = string.gsub(
+        line,
+        "{%d%d%d%d/%d%d/%d%d}",
+        "{" .. string.gsub(date, "%-", "/") .. "}"
+      )
+   end
   end
   -- Update the interlock
   if string.match(
@@ -51,7 +65,7 @@ setversion_update_line =
     line = "%<package>\\@ifpackagelater{expl3}{" .. date .. "}"
   end
   if string.match(
-    line, "^Release %d%d%d%d/%d%d/%d%d$$"
+    line, "^Release %d%d%d%d/%d%d/%d%d$"
   ) then
     line = "Release " .. date
   end
