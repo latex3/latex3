@@ -409,7 +409,12 @@ if os.type == "windows" then
   os_diffext  = os.getenv("diffext") or ".fc"
   os_diffexe  = os.getenv("diffexe") or "fc /n"
   os_grepexe  = "findstr /r"
-  os_newline  = "\r\n"
+  os_newline  = "\n"
+  if tonumber(status.luatex_version) < 100 or
+     (tonumber(status.luatex_version) == 100
+       and tonumber(status.luatex_revision) < 4) then
+    os_newline = "\r\n"
+  end
   os_null     = "nul"
   os_pathsep  = ";"
   os_setenv   = "set"
