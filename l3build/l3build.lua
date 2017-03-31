@@ -875,7 +875,7 @@ function formatlog(logfile, newfile, engine)
   local file = assert(io.open(logfile, "rb"))
   local contents = file:read("*all") .. os_newline
   io.close(file)
-  for line in string.gmatch(contents, "([^\r\n]*)[" .. os_newline .."]") do
+  for line in string.gmatch(contents, "([^\r\n]*)" .. os_newline) do
     if line == "START-TEST-LOG" then
       prestart = false
     elseif line == "END-TEST-LOG" then
@@ -1072,7 +1072,7 @@ function formatlualog(logfile, newfile)
   local file = assert(io.open(logfile, "rb"))
   local contents = file:read("*all") .. os_newline
   io.close(file)
-  for line in string.gmatch(contents, "([^\r\n]*)[" .. os_newline .."]") do
+  for line in string.gmatch(contents, "([^\r\n]*)" .. os_newline) do
     line, lastline, dropping = normalize(line, lastline, dropping)
     if not string.match(line, "^ *$") then
       newlog = newlog .. line .. os_newline
