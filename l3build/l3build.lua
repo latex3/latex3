@@ -830,16 +830,8 @@ function formatlog(logfile, newfile, engine)
     -- Two similar cases, Lua patterns mean we need to do them separately
     line = string.gsub(line, "on line %d*", "on line ...")
     line = string.gsub(line, "on input line %d*", "on input line ...")
-    -- LuaTeX v1.04+ follows Lua and drops line content after ^@:
-    -- Normalise so that we get the same results with all engines
-    if string.match(line, string.char(0)) then -- Older LuaTeX
-      return "", string.gsub(line, string.char(0) .. "*", "")
-    end
-    if string.match(line, "%^%^@") then -- pdfTeX, etc.
-      return "", string.gsub(line, "%^%^@" .. "*", "")
-    end
     -- Tidy up to ^^ notation
-    for i = 1, 31 do
+    for i = 0, 31 do
       line = string.gsub(line, string.char(i), "^^" .. string.char(64 + i))
     end
     -- Remove 'normal' direction information on boxes with (u)pTeX
