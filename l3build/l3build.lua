@@ -1840,22 +1840,24 @@ function doc(files)
   unpack()
   -- Main loop for doc creation
   for _,i in ipairs(typesetfiles) do
-    for _,j in ipairs(filelist(".", i)) do
-      -- Allow for command line selection of files
-      local typeset = true
-      if files and next(files) then
-        typeset = false
-        for _,k in ipairs(files) do
-          if k == stripext(j) then
-            typeset = true
-            break
+    for _, dir in ipairs({unpackdir, typesetdir}) do
+      for _,j in ipairs(filelist(dir, i)) do
+        -- Allow for command line selection of files
+        local typeset = true
+        if files and next(files) then
+          typeset = false
+          for _,k in ipairs(files) do
+            if k == stripext(j) then
+              typeset = true
+              break
+            end
           end
         end
-      end
-      if typeset then
-        local errorlevel = typesetpdf(j)
-        if errorlevel ~= 0 then
-          return errorlevel
+        if typeset then
+          local errorlevel = typesetpdf(relpath(dir, ".") .. "/" .. j)
+          if errorlevel ~= 0 then
+            return errorlevel
+          end
         end
       end
     end
