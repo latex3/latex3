@@ -1396,6 +1396,12 @@ function stripext(file)
   return name or file
 end
 
+-- Strip the path from a file name (if present)
+function basename(file)
+  local name = string.match(file, "^.*/([^/]*)$")
+  return name or file
+end
+
 -- Look for a test: could be in the testfiledir or the unpackdir
 function testexists(test)
   return(locate({testfiledir, unpackdir}, {test .. lvtext}))
@@ -1488,7 +1494,7 @@ function tex(file)
 end
 
 function typesetpdf(file)
-  local name = stripext(file)
+  local name = stripext(basename(file))
   print("Typesetting " .. name)
   local errorlevel = typeset(file)
   if errorlevel == 0 then
@@ -1505,7 +1511,7 @@ typeset = typeset or function(file)
   if errorlevel ~= 0 then
     return errorlevel
   else
-    local name = stripext(file)
+    local name = stripext(basename(file))
     errorlevel = biber(name) + bibtex(name)
     if errorlevel == 0 then
       local function cycle(name)
