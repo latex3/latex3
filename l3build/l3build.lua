@@ -1996,11 +1996,11 @@ setversion_update_line = setversion_update_line or function(line, date, release)
   return line
 end
 
-function setversion()
-  local function rewrite(file, date, version)
+function setversion(dir)
+  local function rewrite(dir, file, date, version)
     local changed = false
     local lines = ""
-    for line in io.lines(file) do
+    for line in io.lines(dir .. "/" .. file) do
       local newline = setversion_update_line(line, date, version)
       if newline ~= line then
         line = newline
@@ -2010,19 +2010,19 @@ function setversion()
     end
     if changed then
       -- Avoid adding/removing end-of-file newline
-      local f = io.open(file, "rb")
+      local f = io.open(dir .. "/" .. file, "rb")
       local content = f:read("*all")
       io.close(f)
       if not string.match(content, os_newline .. "$") then
         string.gsub(lines, os_newline .. "$", "")
       end
       -- Write the new file
-      ren(".", file, file .. bakext)
-      local f = io.open(file, "w")
+      ren(dir, file, file .. bakext)
+      local f = io.open(dir .. "/" .. file, "w")
       io.output(f)
       io.write(lines)
       io.close(f)
-      rm(".", file .. bakext)
+      rm(dir, file .. bakext)
     end
   end
   local date = os.date("%Y-%m-%d")
@@ -2033,9 +2033,10 @@ function setversion()
   if optrelease then
     release = optrelease[1] or release
   end
+  local dir = dir or "."
   for _,i in pairs(versionfiles) do
-    for _,j in pairs(filelist(".", i)) do
-      rewrite(j, date, release)
+    for _,j in pairs(filelist(dir, i)) do
+      rewrite(dir, j, date, release)
     end
   end
   return 0
