@@ -1997,11 +1997,11 @@ setversion_update_line = setversion_update_line or function(line, date, release)
 end
 
 function setversion(dir)
-  local function rewrite(dir, file, date, version)
+  local function rewrite(dir, file, date, release)
     local changed = false
     local lines = ""
     for line in io.lines(dir .. "/" .. file) do
-      local newline = setversion_update_line(line, date, version)
+      local newline = setversion_update_line(line, date, release)
       if newline ~= line then
         line = newline
         changed = true
