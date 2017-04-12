@@ -736,7 +736,7 @@
 %<*package>
 \ProvidesExplPackage{l3regex}{2017/04/01}{}
   {L3 Experimental regular expressions}
-\RequirePackage{l3tl-build, l3tl-analysis, l3str-convert}
+\RequirePackage{l3tl-build, l3tl-analysis}
 %</package>
 %    \end{macrocode}
 %
@@ -918,6 +918,20 @@
 %
 % \subsubsection{Testing characters}
 %
+% \begin{macro}{\c_@@_ascii_min_int, \c_@@_ascii_max_control_int, \c_@@_ascii_max_int}
+%    \begin{macrocode}
+\int_const:Nn \c_@@_ascii_min_int { 0 }
+\int_const:Nn \c_@@_ascii_max_control_int { 31 }
+\int_const:Nn \c_@@_ascii_max_int { 127 }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\c_@@_ascii_lower_int}
+%    \begin{macrocode}
+\int_const:Nn \c_@@_ascii_lower_int { `a - `A }
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{macro}[int]{\@@_break_point:TF}
 % \begin{macro}[int]{\@@_break_true:w}
 %   When testing whether a character of the query token list matches
@@ -1027,12 +1041,12 @@
     \if_int_compare:w \l_@@_current_char_int > `Z \exp_stop_f:
       \if_int_compare:w \l_@@_current_char_int > `z \exp_stop_f: \else:
         \if_int_compare:w \l_@@_current_char_int < `a \exp_stop_f: \else:
-          \int_sub:Nn \l_@@_case_changed_char_int { \c__str_ascii_lower_int }
+          \int_sub:Nn \l_@@_case_changed_char_int { \c_@@_ascii_lower_int }
         \fi:
       \fi:
     \else:
       \if_int_compare:w \l_@@_current_char_int < `A \exp_stop_f: \else:
-        \int_add:Nn \l_@@_case_changed_char_int { \c__str_ascii_lower_int }
+        \int_add:Nn \l_@@_case_changed_char_int { \c_@@_ascii_lower_int }
       \fi:
     \fi:
   }
@@ -1214,16 +1228,16 @@
 \cs_new_protected:Npn \@@_posix_ascii:
   {
     \@@_item_caseful_range:nn
-      \c__str_ascii_min_int
-      \c__str_ascii_max_int
+      \c_@@_ascii_min_int
+      \c_@@_ascii_max_int
   }
 \cs_new_eq:NN \@@_posix_blank: \@@_prop_h:
 \cs_new_protected:Npn \@@_posix_cntrl:
   {
     \@@_item_caseful_range:nn
-      \c__str_ascii_min_int
-      \c__str_ascii_max_control_int
-    \@@_item_caseful_equal:n \c__str_ascii_max_int
+      \c_@@_ascii_min_int
+      \c_@@_ascii_max_control_int
+    \@@_item_caseful_equal:n \c_@@_ascii_max_int
   }
 \cs_new_eq:NN \@@_posix_digit: \@@_prop_d:
 \cs_new_protected:Npn \@@_posix_graph:
@@ -1302,7 +1316,7 @@
       \cs_set:Npn \@@_escape_escaped:N ##1 { #2 }
       \cs_set:Npn \@@_escape_raw:N ##1 { #3 }
       \int_set:Nn \tex_escapechar:D { `\\ }
-      \__str_gset_other:Nn \g_@@_internal_tl { #4 }
+      \tl_gset:Nx \g_@@_internal_tl { \__str_to_other_fast:n {#4} }
       \tl_set:Nx \l_@@_internal_b_tl
         {
           \exp_after:wN \@@_escape_loop:N \g_@@_internal_tl
@@ -1389,12 +1403,11 @@
 %
 % \begin{macro}[aux]{\@@_escape_/x:w}
 % \begin{macro}[aux]{\@@_escape_x_end:w, \@@_escape_x_large:n}
-%   When |\x| is encountered, \cs{@@_escape_x_test:N} is responsible
-%   for grabbing some hexadecimal digits, and feeding the result to
-%   \cs{@@_escape_x_end:w}. If the number is $<256$, then it is
-%   turned into a byte and fed to \cs{@@_escape_raw:N}. Otherwise,
-%   interrupt the assignment, and either produce an error, or use a
-%   standard \tn{lowercase} trick depending on the precise value.
+%   When |\x| is encountered, \cs{@@_escape_x_test:N} is responsible for
+%   grabbing some hexadecimal digits, and feeding the result to
+%   \cs{@@_escape_x_end:w}. If the number is too big interrupt the
+%   assignment and produce an error, otherwise call \cs{@@_escape_raw:N}
+%   on the corresponding character token.
 %    \begin{macrocode}
 \cs_new:cpn { @@_escape_/x:w } \@@_escape_loop:N
   {
@@ -1403,40 +1416,23 @@
   }
 \cs_new:Npn \@@_escape_x_end:w #1 ;
   {
-    \int_compare:nNnTF {#1} > \c__str_max_byte_int
-      { \@@_escape_x_large:n {#1} }
+    \int_compare:nNnTF {#1} > \c_max_char_int
+      {
+        \if_false: { \fi: }
+        \__tl_build_one:o \l_@@_internal_b_tl
+        \__msg_kernel_error:nnx { regex } { x-overflow } {#1}
+        \tl_set:Nx \l_@@_internal_b_tl
+          { \if_false: } \fi:
+      }
       {
         \exp_last_unbraced:Nf \@@_escape_raw:N
-          { \__str_output_byte:n {#1} }
+          { \char_generate:nn {#1} { 12 } }
       }
   }
-\group_begin:
-  \char_set_catcode_other:n { 0 }
-  \cs_new:Npn \@@_escape_x_large:n #1
-    {
-      \if_false: { \fi: }
-      \__tl_build_one:o \l_@@_internal_b_tl
-      \int_compare:nNnTF {#1} > \c_max_char_int
-        {
-          \__msg_kernel_error:nnx { regex } { x-overflow } {#1}
-          \tl_set:Nx \l_@@_internal_b_tl
-            { \if_false: } \fi:
-        }
-        {
-          \char_set_lccode:nn { 0 } {#1}
-          \tex_lowercase:D
-            {
-              \tl_set:Nx \l_@@_internal_b_tl
-                { \if_false: } \fi:
-                \@@_escape_raw:N ^^@
-            }
-        }
-    }
-\group_end:
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
-% ^^A todo: use char_generate in above and rest of file
+% ^^A todo: use char_generate in the rest of the file
 % \begin{macro}[aux]{\@@_escape_x_test:N, \@@_escape_x_testii:N}
 %   Find out whether the first character is a left brace (allowing any
 %   number of hexadecimal digits), or not (allowing up to two
@@ -1461,7 +1457,7 @@
     \if_charcode:w \c_left_brace_str #1
       \exp_after:wN \@@_escape_x_loop:N
     \else:
-      \__str_hexadecimal_use:NTF #1
+      \@@_hexadecimal_use:NTF #1
         { \exp_after:wN \@@_escape_x:N }
         { ; \exp_after:wN \@@_escape_loop:N \exp_after:wN #1 }
     \fi:
@@ -1476,7 +1472,7 @@
   {
     \str_if_eq_x:nnTF {#1} { break } { ; }
       {
-        \__str_hexadecimal_use:NTF #1
+        \@@_hexadecimal_use:NTF #1
           { ; \@@_escape_loop:N }
           { ; \@@_escape_loop:N #1 }
       }
@@ -1494,7 +1490,7 @@
     \str_if_eq_x:nnTF {#1} { break }
       { ; \@@_escape_x_loop_error:n { } {#1} }
       {
-        \__str_hexadecimal_use:NTF #1
+        \@@_hexadecimal_use:NTF #1
           { \@@_escape_x_loop:N }
           {
             \token_if_eq_charcode:NNTF \c_space_token #1
@@ -1516,6 +1512,35 @@
     \__msg_kernel_error:nnx { regex } { x-missing-rbrace } {#1}
     \tl_set:Nx \l_@@_internal_b_tl
       { \if_false: } \fi: \@@_escape_loop:N #1
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[aux, rEXP]{\@@_hexadecimal_use:NTF}
+%   \TeX{} detects uppercase hexadecimal digits for us but not the
+%   lowercase letters, which we need to detect and replace by their
+%   uppercase counterpart.
+%    \begin{macrocode}
+\prg_new_conditional:Npnn \@@_hexadecimal_use:N #1 { TF }
+  {
+    \if_int_compare:w 1 < "1 \token_to_str:N #1 \exp_stop_f:
+      #1 \prg_return_true:
+    \else:
+      \if_case:w \__int_eval:w
+          \exp_after:wN ` \token_to_str:N #1 - `a
+        \__int_eval_end:
+           A
+      \or: B
+      \or: C
+      \or: D
+      \or: E
+      \or: F
+      \else:
+        \prg_return_false:
+        \exp_after:wN \use_none:n
+      \fi:
+      \prg_return_true:
+    \fi:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1549,7 +1574,7 @@
   {
     \if_int_compare:w `#1 > `Z \exp_stop_f:
       \if_int_compare:w `#1 > `z \exp_stop_f:
-        \if_int_compare:w `#1 < \c__str_ascii_max_int
+        \if_int_compare:w `#1 < \c_@@_ascii_max_int
           \prg_return_true: \else: \prg_return_false: \fi:
       \else:
         \if_int_compare:w `#1 < `a \exp_stop_f:
@@ -3105,8 +3130,8 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_compile_u_in_cs:
   {
-    \exp_args:NNo \__str_gset_other:Nn \g_@@_internal_tl
-      { \l_@@_internal_a_tl }
+    \tl_gset:Nx \g_@@_internal_tl
+      { \exp_args:No \__str_to_other_fast:n { \l_@@_internal_a_tl } }
     \__tl_build_one:x
       {
         \tl_map_function:NN \g_@@_internal_tl
