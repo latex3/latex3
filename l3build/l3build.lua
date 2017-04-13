@@ -85,27 +85,27 @@ end
 -- File types for various operations
 -- Use Unix-style globs
 -- All of these may be set earlier, so a initialised conditionally
-bibfiles         = bibfiles         or {"*.bib"}
-binaryfiles      = binaryfiles      or {"*.pdf", "*.zip"}
-bstfiles         = bstfiles         or {"*.bst"}
-checkfiles       = checkfiles       or { }
-checksuppfiles   = checksuppfiles   or { }
-cmdchkfiles      = cmdchkfiles      or { }
-cleanfiles       = cleanfiles       or {"*.log", "*.pdf", "*.zip"}
-demofiles        = demofiles        or { }
-docfiles         = docfiles         or { }
-excludefiles     = excludefiles     or {"*~"}
-installfiles     = installfiles     or {"*.sty"}
-makeindexfiles   = makeindexfiles   or {"*.ist"}
-sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"}
-textfiles        = textfiles        or {"*.md", "*.txt"}
-typesetdemofiles = typesetdemofiles or { }
-typesetfiles     = typesetfiles     or {"*.dtx"}
-typesetsuppfiles = typesetsuppfiles or { }
+bibfiles           = bibfiles           or {"*.bib"}
+binaryfiles        = binaryfiles        or {"*.pdf", "*.zip"}
+bstfiles           = bstfiles           or {"*.bst"}
+checkfiles         = checkfiles         or { }
+checksuppfiles     = checksuppfiles     or { }
+cmdchkfiles        = cmdchkfiles        or { }
+cleanfiles         = cleanfiles         or {"*.log", "*.pdf", "*.zip"}
+demofiles          = demofiles          or { }
+docfiles           = docfiles           or { }
+excludefiles       = excludefiles       or {"*~"}
+installfiles       = installfiles       or {"*.sty"}
+makeindexfiles     = makeindexfiles     or {"*.ist"}
+sourcefiles        = sourcefiles        or {"*.dtx", "*.ins"}
+textfiles          = textfiles          or {"*.md", "*.txt"}
+typesetdemofiles   = typesetdemofiles   or { }
+typesetfiles       = typesetfiles       or {"*.dtx"}
+typesetsuppfiles   = typesetsuppfiles   or { }
 typesetsourcefiles = typesetsourcefiles or { }
-unpackfiles      = unpackfiles      or {"*.ins"}
-unpacksuppfiles  = unpacksuppfiles  or { }
-versionfiles     = versionfiles     or {"*.dtx"}
+unpackfiles        = unpackfiles        or {"*.ins"}
+unpacksuppfiles    = unpacksuppfiles    or { }
+versionfiles       = versionfiles       or {"*.dtx"}
 
 -- Roots which should be unpacked to support unpacking/testing/typesetting
 checkdeps   = checkdeps   or { }
