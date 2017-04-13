@@ -99,6 +99,7 @@ installfiles     = installfiles     or {"*.sty"}
 makeindexfiles   = makeindexfiles   or {"*.ist"}
 sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"}
 textfiles        = textfiles        or {"*.md", "*.txt"}
+typesetdemofiles = typesetdemofiles or { }
 typesetfiles     = typesetfiles     or {"*.dtx"}
 typesetsuppfiles = typesetsuppfiles or { }
 unpackfiles      = unpackfiles      or {"*.ins"}
@@ -1839,7 +1840,9 @@ end
 function doc(files)
   -- Set up
   cleandir(typesetdir)
-  for _,i in ipairs({bibfiles, docfiles, sourcefiles, typesetfiles}) do
+  for _,i in ipairs(
+    {bibfiles, docfiles, sourcefiles, typesetfiles, typesetdemofiles}
+  ) do
     for _,j in ipairs(i) do
       cp(j, ".", typesetdir)
     end
@@ -1850,24 +1853,26 @@ function doc(files)
   depinstall(typesetdeps)
   unpack()
   -- Main loop for doc creation
-  for _,i in ipairs(typesetfiles) do
-    for _, dir in ipairs({unpackdir, typesetdir}) do
-      for _,j in ipairs(filelist(dir, i)) do
-        -- Allow for command line selection of files
-        local typeset = true
-        if files and next(files) then
-          typeset = false
-          for _,k in ipairs(files) do
-            if k == stripext(j) then
-              typeset = true
-              break
+  for _, typesetfiles in ipairs({typesetdemofiles, typesetfiles}) do
+    for _,i in ipairs(typesetfiles) do
+      for _, dir in ipairs({unpackdir, typesetdir}) do
+        for _,j in ipairs(filelist(dir, i)) do
+          -- Allow for command line selection of files
+          local typeset = true
+          if files and next(files) then
+            typeset = false
+            for _,k in ipairs(files) do
+              if k == stripext(j) then
+                typeset = true
+                break
+              end
             end
           end
-        end
-        if typeset then
-          local errorlevel = typesetpdf(abspath(dir) .. "/" .. j)
-          if errorlevel ~= 0 then
-            return errorlevel
+          if typeset then
+            local errorlevel = typesetpdf(relpath(dir, ".") .. "/" .. j)
+            if errorlevel ~= 0 then
+              return errorlevel
+            end
           end
         end
       end
