@@ -622,12 +622,11 @@
 %
 % Code improvements to come.
 % \begin{itemize}
-%   \item Change \tn{skip} to \tn{dimen} for the array of active
-%     threads, and shift the array of submatch informations so that it
-%     starts at \tn{skip}$0$.
+%   \item Shift arrays so that the useful information starts at
+%     position~$1$.
 %   \item Optimize |\c{abc}| for matching a specific control sequence.
 %   \item Only build \c{...} once.
-%   \item Use \tn{skip} for the left and right state stacks when
+%   \item Use arrays for the left and right state stacks when
 %     compiling a regex.
 %   \item Should \cs{__regex_action_free_group:n} only be used for greedy
 %     |{n,}| quantifier? (I think not.)
@@ -638,7 +637,7 @@
 %     \texttt{current_state} and \texttt{current_submatches}.
 %   \item If possible, when a state is reused by the same thread, kill
 %     other subthreads.
-%   \item Use \tn{dimen} registers rather than \cs{l__regex_balance_tl}
+%   \item Use an array rather than \cs{l__regex_balance_tl}
 %     to build \cs{__regex_replacement_balance_one_match:n}.
 %   \item Reduce the number of epsilon-transitions in alternatives.
 %   \item Optimize simple strings: use less states (|abcade| should give
@@ -680,13 +679,11 @@
 %     This requires to manipulate a lot of data, probably using tree-boxes.
 % \end{itemize}
 %
-% The following features of \textsc{pcre} or Perl will probably not be
+% The following features of \textsc{pcre} or Perl may or may not be
 % implemented.
 % \begin{itemize}
 %   \item |\ddd|, matching the character with octal code \texttt{ddd};
-%   \item Callout with |(?C...)|, we cannot run arbitrary user code
-%     during the matching, because the regex code uses registers in an
-%     unsafe way;
+%   \item Callout with |(?C...)|;
 %   \item Conditional subpatterns (other than with a look-ahead or
 %     look-behind condition): this is non-regular, isn't it?
 %   \item Named subpatterns: \TeX{} programmers have lived so far
@@ -705,9 +702,7 @@
 %     non-backtracking algorithm, and difficult to implement.
 %   \item Subroutine calls: this syntactic sugar is difficult to include
 %     in a non-backtracking algorithm, in particular because the
-%     corresponding group should be treated as atomic. Also, we cannot
-%     afford to run user code within the regular expression matching,
-%     because of our \enquote{misuse} of registers.
+%     corresponding group should be treated as atomic.
 %   \item Recursion: this is a non-regular feature.
 %   \item Back-references: non-regular feature, this requires
 %     backtracking, which is prohibitively slow.
@@ -736,7 +731,7 @@
 %<*package>
 \ProvidesExplPackage{l3regex}{2017/04/01}{}
   {L3 Experimental regular expressions}
-\RequirePackage{l3tl-build, l3tl-analysis}
+\RequirePackage{l3tl-build, l3tl-analysis, l3array}
 %</package>
 %    \end{macrocode}
 %
@@ -754,7 +749,7 @@
 %   \item (Compiling.) Analyse the regex, finding invalid input, and
 %     convert it to an internal representation.
 %   \item (Building.) Convert the compiled regex to a non-deterministic
-%     finite automaton (\textsc{nfa}) with roughly $n$ states which
+%     finite automaton (\textsc{nfa}) with $O(n)$ states which
 %     accepts precisely token lists matching that regex.
 %   \item (Matching.) Loop through the query token list one token (one
 %     \enquote{position}) at a time, exploring in parallel every
@@ -787,46 +782,42 @@
 %     unique id for all the steps of the matching algorithm.
 % \end{itemize}
 %
-% To achieve a good performance, we abuse \TeX{}'s registers in two
-% ways.  We access registers directly by number rather than tying them
-% to control sequence using \cs{int_new:N} and other allocation
-% functions. And we store integers in \tn{dimen} registers in scaled
-% points (\texttt{sp}), using \TeX{}'s implicit conversion from
-% dimensions to integers in some contexts. Specifically, the registers
-% are used as follows. When compiling, \tn{toks} registers are used
-% under the hood by functions from the \pkg{l3tl-build} module.  When
-% building,
+% We use \pkg{l3array} to manipulate arrays of integers (stored into
+% some dimension registers in scaled points).  We also abuse \TeX{}'s
+% \tn{toks} registers, by accessing them directly by number rather than
+% tying them to control sequence using the \tn{newtoks} allocation
+% functions. Specifically, these arrays and \tn{toks} are used as
+% follows. When compiling, \tn{toks} registers are used under the hood
+% by functions from the \pkg{l3tl-build} module.  When building,
+% \tn{toks}\meta{state} holds the tests and actions to perform in the
+% \meta{state} of the \textsc{nfa}.  When matching,
 % \begin{itemize}
-%   \item \tn{toks}\meta{state} holds the tests and actions to perform
-%     in the \meta{state} of the \textsc{nfa}.
-%   \item (Not implemented yet.)
-%     \tn{skip}$i$ has the form \meta{group id} \texttt{plus}
-%     \meta{left state} \texttt{minus} \meta{right state}.
-% \end{itemize}
-% When matching,
-% \begin{itemize}
-%   \item \tn{dimen}\meta{state} is equal to the last \meta{step} in
-%     which the \meta{state} was active.
-%   \item (Currently, we use \tn{skip} instead of \tn{dimen}.)
-%     \tn{dimen}\meta{thread}, with $\texttt{min_active} \leq
-%     \meta{thread} < \texttt{max_active}$, is equal to the
-%     \meta{state} in which the \meta{thread} currently is. The
+%   \item \cs{g_@@_state_active_array} holds the last \meta{step} in
+%     which each \meta{state} was active.
+%   \item \cs{g_@@_thread_state_array} maps each \meta{thread} (with
+%     $\texttt{min_active} \leq \meta{thread} < \texttt{max_active}$) to
+%     the \meta{state} in which the \meta{thread} currently is. The
 %     \meta{threads} or ordered starting from the best to the least
 %     preferred.
 %   \item \tn{toks}\meta{thread} holds the submatch information for the
 %     \meta{thread}, as the contents of a property list.
-%   \item \tn{muskip}\meta{position} holds as its main and stretch
-%     components the character and category code of the token at this
+%   \item \cs{g_@@_charcode_array} and \cs{g_@@_catcode_array} hold the
+%     character codes and category codes of tokens at each
 %     \meta{position} in the query.
+%   \item \cs{g_@@_balance_array} holds the balance of begin-group and
+%     end-group character tokens which appear before that point in the
+%     token list.
 %   \item \tn{toks}\meta{position} holds \meta{tokens} which \texttt{o}-
 %     and \texttt{x}-expand to the \meta{position}-th token in the query.
-%   \item \tn{skip} registers hold the value of end-points of all
-%     submatches as would be extracted by the \cs{regex_extract}
-%     functions. Since smaller \tn{skip} registers are used, the minimum
-%     index is twice \texttt{max_state}, and the used registers go up to
-%     \cs{l_@@_submatch_int}. They are organized in blocks of
-%     \texttt{capturing_group}, each block corresponding to one match
-%     with all its submatches stored in consecutive \tn{skip}s.
+%   \item \cs{g_@@_submatch_prev_array}, \cs{g_@@_submatch_begin_array}
+%     and \cs{g_@@_submatch_end_array} hold, for each submatch (as would
+%     be extracted by \cs{regex_extract_all:nnN}), the place where the
+%     submatch started to be looked for and its two end-points.  For
+%     historical reasons, the minimum index is twice \texttt{max_state},
+%     and the used registers go up to \cs{l_@@_submatch_int}. They are
+%     organized in blocks of \cs{l_@@_capturing_group_int} entries, each
+%     block corresponding to one match with all its submatches stored in
+%     consecutive entries.
 % \end{itemize}
 % \tn{count} registers are not abused, which means that we can safely
 % use named integers in this module. Note that \tn{box} registers are
@@ -894,14 +885,24 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_@@_balance_int}
+% \begin{variable}{\g_@@_charcode_array, \g_@@_catcode_array, \g_@@_balance_array}
 %   The first thing we do when matching is to go once through the query
-%   token list and store the information for each token as \tn{muskip}
-%   and \tn{toks} registers. During this phase, \cs{l_@@_balance_int}
-%   counts the balance of begin-group and end-group character tokens
-%   which appear before a given point in the token list, and we store it
-%   as the shrink component of each \tn{muskip} register. This variable
-%   is also used to keep track of the balance in the replacement text.
+%   token list and store the information for each token into
+%   \cs{g_@@_charcode_array}, \cs{g_@@_catcode_array} and \tn{toks}
+%   registers.  We also store the balance of begin-group/end-group
+%   characters into \cs{g_@@_balance_array}.
+%    \begin{macrocode}
+\__array_new:Nn \g_@@_charcode_array { 65536 }
+\__array_new:Nn \g_@@_catcode_array { 65536 }
+\__array_new:Nn \g_@@_balance_array { 65536 }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_balance_int}
+%   During this phase, \cs{l_@@_balance_int} counts the balance of
+%   begin-group and end-group character tokens which appear before a
+%   given point in the token list. This variable is also used to keep
+%   track of the balance in the replacement text.
 %    \begin{macrocode}
 \int_new:N \l_@@_balance_int
 %    \end{macrocode}
@@ -3421,10 +3422,11 @@
 % \begin{variable}{\l_@@_min_state_int, \l_@@_max_state_int}
 %   The last state that was allocated is $\cs{l_@@_max_state_int}-1$,
 %   so that \cs{l_@@_max_state_int} always points to a free state.
-%   The \texttt{min_state} variable is always $0$, but is included to
-%   avoid hard-coding this value.
+%   The \texttt{min_state} variable is $1$, but is included to
+%   avoid hard-coding this value everywhere.
 %    \begin{macrocode}
 \int_new:N  \l_@@_min_state_int
+\int_set:Nn \l_@@_min_state_int { 1 }
 \int_new:N  \l_@@_max_state_int
 %    \end{macrocode}
 % \end{variable}
@@ -4157,7 +4159,7 @@
 % transitions, the instruction at the new state of the \textsc{nfa} is
 % performed immediately.  When a transition consumes a character, the
 % new state is appended to a list of \enquote{active states}, stored in
-% \tn{skip} registers: this thread will be active again when the next
+% \cs{g_@@_thread_state_array}: this thread will be active again when the next
 % token is read from the query.  At every step (for each token in the
 % query), we unpack that list of active states and the corresponding
 % submatch props, and empty those.
@@ -4201,7 +4203,7 @@
 %   }
 %   The tokens in the query are indexed from \texttt{min_pos} for the
 %   first to $\texttt{max_pos}-1$ for the last, and their information is
-%   stored in \tn{muskip} and \tn{toks} registers with those numbers. We
+%   stored in several arrays and \tn{toks} registers with those numbers. We
 %   don't start from $0$ because the \tn{toks} registers with low
 %   numbers are used to hold the states of the \textsc{nfa}. We match
 %   without backtracking, keeping all threads in lockstep at the
@@ -4268,15 +4270,15 @@
 %
 % \begin{variable}{\l_@@_step_int}
 %   This integer, always even, is increased every time a character in
-%   the query is read, and not reset when doing multiple matches. For
-%   each \meta{state} in the \textsc{nfa} we store in
-%   \tn{dimen}\meta{state} the last step in which this state was
-%   encountered. This lets us break infinite loops by not visiting the
-%   same state twice in the same step. In fact, \tn{dimen}\meta{state}
-%   is equal \texttt{step} when we have started performing the
-%   operations of \tn{toks}\meta{state}, but not finished yet. However,
-%   once we finish, we set \tn{dimen}\meta{state} to
-%   $\text{\texttt{step}}+1$. This is needed to track submatches
+%   the query is read, and not reset when doing multiple matches.  We
+%   store in \cs{g_@@_state_active_array} the last step in which each
+%   \meta{state} in the \textsc{nfa} was encountered. This lets us break
+%   infinite loops by not visiting the same state twice in the same
+%   step. In fact, the step we store is equal to \texttt{step} when we
+%   have started performing the operations of \tn{toks}\meta{state}, but
+%   not finished yet. However, once we finish, we store
+%   $\text{\texttt{step}}+1$ in \cs{g_@@_state_active_array}.  This is
+%   needed to track submatches
 %   properly (see building phase). The \texttt{step} is also used to
 %   attach each set of submatch information to a given iteration (and
 %   automatically discard it when it corresponds to a past step).
@@ -4286,8 +4288,8 @@
 % \end{variable}
 %
 % \begin{variable}{\l_@@_min_active_int, \l_@@_max_active_int}
-%   All the currently active states are kept in order of precedence in
-%   the \tn{skip} registers, and the corresponding submatches in the
+%   All the currently active threads are kept in order of precedence in
+%   \cs{g_@@_thread_state_array}, and the corresponding submatches in the
 %   \tn{toks}. For our purposes, those serve as an array, indexed from
 %   \texttt{min_active} (inclusive) to \texttt{max_active} (excluded).
 %   At the start of every step, the whole array is unpacked, so that the
@@ -4296,6 +4298,17 @@
 %    \begin{macrocode}
 \int_new:N \l_@@_min_active_int
 \int_new:N \l_@@_max_active_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_state_active_array, \g_@@_thread_state_array}
+%   \cs{g_@@_state_active_array} stores the last \meta{step} in which
+%   each \meta{state} was active.  \cs{g_@@_thread_state_array} stores
+%   threads that will be considered in the next step, more precisely the
+%   states in which these threads are.
+%    \begin{macrocode}
+\__array_new:Nn \g_@@_state_active_array { 65536 }
+\__array_new:Nn \g_@@_thread_state_array { 65536 }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -4357,11 +4370,11 @@
 % \subsubsection{Matching: framework}
 %
 % \begin{macro}[int]{\@@_match:n}
-%   First store the query into \tn{toks} and \tn{muskip} registers (see
+%   First store the query into \tn{toks} registers and arrays (see
 %   \cs{@@_query_set:nnn}). Then initialize the variables that should
 %   be set once for each user function (even for multiple
 %   matches). Namely, the overall matching is not yet successful; none of
-%   the states should be marked as visited (\tn{dimen} registers), and
+%   the states should be marked as visited (\cs{g_@@_state_active_array}), and
 %   we start at step $0$; we pretend that there was a previous match
 %   ending at the start of the query, which was not empty (to avoid
 %   smothering an empty match at the start). Once all this is set up, we
@@ -4383,12 +4396,13 @@
     \bool_gset_false:N \g_@@_success_bool
     \int_step_inline:nnnn
       \l_@@_min_state_int { 1 } { \l_@@_max_state_int - 1 }
-      { \tex_dimen:D ##1 ~ 1 sp \scan_stop: }
+      { \__array_gset_fast:Nnn \g_@@_state_active_array {##1} { 1 } }
     \int_set_eq:NN \l_@@_min_active_int \l_@@_max_state_int
     \int_zero:N \l_@@_step_int
     \int_set_eq:NN \l_@@_success_pos_int \l_@@_min_pos_int
-    \int_set:Nn \l_@@_submatch_int
+    \int_set:Nn \l_@@_min_submatch_int
       { 2 * \l_@@_max_state_int }
+    \int_set_eq:NN \l_@@_submatch_int \l_@@_min_submatch_int
     \bool_set_false:N \l_@@_empty_success_bool
     \@@_match_once:
 %<trace>    \trace_pop:nnx { regex } { 1 } { @@_match }
@@ -4458,7 +4472,7 @@
 % \end{macro}
 %
 % \begin{macro}[aux]{\@@_match_loop:}
-% \begin{macro}[aux, rEXP]{\@@_match_one_active:w}
+% \begin{macro}[aux, rEXP]{\@@_match_one_active:n}
 %   At each new position, set some variables and get the new character
 %   and category from the query. Then unpack the array of active
 %   threads, and clear it by resetting its length
@@ -4481,8 +4495,11 @@
     \use:x
       {
         \int_set_eq:NN \l_@@_max_active_int \l_@@_min_active_int
-        \exp_after:wN \@@_match_one_active:w
-          \int_use:N \l_@@_min_active_int ;
+        \int_step_function:nnnN
+          { \l_@@_min_active_int }
+          { 1 }
+          { \l_@@_max_active_int - 1 }
+          \@@_match_one_active:n
       }
     \__prg_break_point:
     \bool_set_false:N \l_@@_fresh_thread_bool %^^A was arg of break_point:n
@@ -4492,15 +4509,11 @@
       \fi:
     \fi:
   }
-\cs_new:Npn \@@_match_one_active:w #1;
+\cs_new:Npn \@@_match_one_active:n #1
   {
-    \if_int_compare:w #1 < \l_@@_max_active_int
-      \@@_use_state_and_submatches:nn
-        { \__int_value:w \tex_skip:D #1 }
-        { \tex_the:D \tex_toks:D #1 }
-      \exp_after:wN \@@_match_one_active:w
-        \__int_value:w \__int_eval:w #1 + 1 \exp_after:wN ;
-    \fi:
+    \@@_use_state_and_submatches:nn
+      { \__array_item_fast:Nn \g_@@_thread_state_array {#1} }
+      { \tex_the:D \tex_toks:D #1 }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4510,17 +4523,17 @@
 %   The arguments are: tokens that \texttt{o} and \texttt{x} expand to
 %   one token of the query, the catcode, and the character code. Store
 %   those, and the current brace balance (used later to check for
-%   overall brace balance) in a \tn{muskip} register and a \tn{toks},
+%   overall brace balance) in a \tn{toks} register and some arrays,
 %   then update the \texttt{balance}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_query_set:nnn #1#2#3
   {
-    \tex_muskip:D \l_@@_current_pos_int
-      = \etex_gluetomu:D
-        #3 sp
-        plus #2 sp
-        minus \l_@@_balance_int sp
-      \scan_stop:
+    \__array_gset_fast:Nnn \g_@@_charcode_array
+      { \l_@@_current_pos_int } {#3}
+    \__array_gset_fast:Nnn \g_@@_catcode_array
+      { \l_@@_current_pos_int } {#2}
+    \__array_gset_fast:Nnn \g_@@_balance_array
+      { \l_@@_current_pos_int } { \l_@@_balance_int }
     \tex_toks:D \l_@@_current_pos_int {#1}
     \int_incr:N \l_@@_current_pos_int
     \if_case:w #2 \exp_stop_f:
@@ -4532,17 +4545,17 @@
 % \end{macro}
 %
 % \begin{macro}[aux]{\@@_query_get:}
-%   Extract the current character and category codes from the
-%   \tn{muskip} register of the current position: those are the main and
-%   the stretch components, and we need a conversion to avoid \TeX{}'s
-%   \enquote{incompatible glue units} error.
+%   Extract the current character and category codes at the current
+%   position from the appropriate arrays.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_query_get:
   {
     \l_@@_current_char_int
-      = \etex_mutoglue:D \tex_muskip:D \l_@@_current_pos_int
-    \l_@@_current_catcode_int = \etex_gluestretch:D
-      \etex_mutoglue:D \tex_muskip:D \l_@@_current_pos_int
+      = \__array_item_fast:Nn \g_@@_charcode_array
+          { \l_@@_current_pos_int } \scan_stop:
+    \l_@@_current_catcode_int
+      = \__array_item_fast:Nn \g_@@_catcode_array
+          { \l_@@_current_pos_int } \scan_stop:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4562,11 +4575,11 @@
 %<*trace>
     \trace:nnx { regex } { 2 } { state~\int_use:N \l_@@_current_state_int }
 %</trace>
-    \tex_dimen:D \l_@@_current_state_int
-      = \l_@@_step_int sp \scan_stop:
+    \__array_gset_fast:Nnn \g_@@_state_active_array
+      { \l_@@_current_state_int } { \l_@@_step_int }
     \tex_the:D \tex_toks:D \l_@@_current_state_int
-    \tex_dimen:D \l_@@_current_state_int
-      = \__int_eval:w \l_@@_step_int + 1 \__int_eval_end: sp \scan_stop:
+    \__array_gset_fast:Nnn \g_@@_state_active_array
+      { \l_@@_current_state_int } { \l_@@_step_int + 1 }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4580,7 +4593,9 @@
 \cs_new_protected:Npn \@@_use_state_and_submatches:nn #1 #2
   {
     \int_set:Nn \l_@@_current_state_int {#1}
-    \if_int_compare:w \tex_dimen:D \l_@@_current_state_int
+    \if_int_compare:w
+        \__array_item_fast:Nn \g_@@_state_active_array
+          { \l_@@_current_state_int }
                       < \l_@@_step_int
       \tl_set:Nn \l_@@_current_submatches_prop {#2}
       \exp_after:wN \@@_use_state:
@@ -4635,7 +4650,10 @@
         \int_add:Nn \l_@@_current_state_int {#2}
         \exp_not:n
           {
-            \if_int_compare:w \tex_dimen:D \l_@@_current_state_int #1
+            \if_int_compare:w
+                \__array_item_fast:Nn \g_@@_state_active_array
+                  { \l_@@_current_state_int }
+                #1
               \exp_after:wN \@@_use_state:
             \fi:
           }
@@ -4651,7 +4669,7 @@
 %
 % \begin{macro}[int]{\@@_action_cost:n}
 %   A transition which consumes the current character and shifts the
-%   state by |#1|.  The resulting state is stored in the \tn{skip} array
+%   state by |#1|.  The resulting state is stored in the appropriate array
 %   for use at the next position, and we also store the current
 %   submatches.
 %    \begin{macrocode}
@@ -4665,17 +4683,15 @@
 %
 % \begin{macro}[int]{\@@_store_state:n}
 % \begin{macro}[aux]{\@@_store_submatches:}
-%   Put the given state in the array of \tn{skip} registers (converted
-%   to a dimension in scaled points), and increment the length of the
-%   array. Then store the current submatch in the This is done by
-%   increasing the pointer \cs{l_@@_max_active_int}, and converting
-%   the integer to a dimension (suitable for a \tn{skip} assignment) in
-%   scaled points.
+%   Put the given state in \cs{g_@@_thread_state_array}, and increment
+%   the length of the array. Also store the current submatch in the
+%   appropriate \tn{toks}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_store_state:n #1
   {
     \@@_store_submatches:
-    \tex_skip:D \l_@@_max_active_int = #1 sp \scan_stop:
+    \__array_gset_fast:Nnn \g_@@_thread_state_array
+      { \l_@@_max_active_int } {#1}
     \int_incr:N \l_@@_max_active_int
   }
 \cs_new_protected:Npn \@@_store_submatches:
@@ -4764,8 +4780,9 @@
 % \end{variable}
 %
 % \begin{macro}[aux, rEXP]{\@@_replacement_balance_one_match:n}
-%   This expects as an argument the first index of a range of \tn{skip}
-%   registers which hold the submatch information for a given match. It
+%   This expects as an argument the first index of a set of entries in
+%   \cs{g_@@_submatch_begin_array} (and related arrays) which hold the
+%   submatch information for a given match. It
 %   can be used within an integer expression to obtain the brace balance
 %   incurred by performing the replacement on that match. This combines
 %   the braces lost by removing the match, braces added by all the
@@ -4789,13 +4806,13 @@
 %   with all possible arguments (one call for each match), as well as
 %   the range from the end of the last match to the end of the string,
 %   will produce the fully replaced token list. The initialization does
-%   not matter, but we set it as for an empty replacement.
+%   not matter, but (as an example) we set it as for an empty replacement.
 %    \begin{macrocode}
 \cs_new:Npn \@@_replacement_do_one_match:n #1
   {
     \@@_query_range:nn
-      { \etex_glueshrink:D \tex_skip:D #1 }
-      { \tex_skip:D #1 }
+      { \__array_item_fast:Nn \g_@@_submatch_prev_array {#1} }
+      { \__array_item_fast:Nn \g_@@_submatch_begin_array {#1} }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4850,17 +4867,13 @@
 % \end{macro}
 %
 % \begin{macro}[int]{\@@_query_submatch:n}
-%   When this function is called, \tn{skip}$i$ holds the start and end
-%   positions for the $i$-th overall submatch as its main and stretch
-%   components. In the case of repeated matches, submatches from all the
-%   matches are put one after the other in blocks of
-%   \cs{l_@@_capturing_group_int} \tn{skip} registers.
+%   Find the start and end positions for a given submatch (of a given match).
 %    \begin{macrocode}
 \cs_new:Npn \@@_query_submatch:n #1
   {
     \@@_query_range:nn
-      { \tex_skip:D \__int_eval:w #1 }
-      { \etex_gluestretch:D \tex_skip:D \__int_eval:w #1 }
+      { \__array_item_fast:Nn \g_@@_submatch_begin_array {#1} }
+      { \__array_item_fast:Nn \g_@@_submatch_end_array {#1} }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4868,21 +4881,31 @@
 % \begin{macro}[rEXP]{\@@_submatch_balance:n}
 %   Every user function must result in a balanced token list (unbalanced
 %   token lists cannot be stored by TeX). When we unpacked the query, we
-%   kept track of the brace balance as the shrink component of
-%   \tn{muskip} registers, hence the contribution from a given range is
-%   the difference between the shrink components of
-%   \tn{muskip}\meta{max~pos} and \tn{muskip}\meta{min~pos}. For the
-%   $i$-th submatch, the end-points of the range are the main and
-%   stretch components of \tn{skip}$i$. The trailing \cs{scan_stop:} is
-%   gobbled by \cs{etex_muexpr:D}, and the whole expression can be cast
-%   safely to an integer (no trailing expansion).
+%   kept track of the brace balance, hence the contribution from a given
+%   range is the difference between the brace balances at the
+%   \meta{max~pos} and \meta{min~pos}.  These two positions are found in
+%   the corresponding \enquote{submatch} arrays.
+%^^A todo: understand when these int_compare are needed
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_submatch_balance:n #1
   {
-    \etex_glueshrink:D \etex_mutoglue:D \etex_muexpr:D
-      \tex_muskip:D \etex_gluestretch:D \tex_skip:D #1
-      - \tex_muskip:D \tex_skip:D #1
-    \scan_stop:
+    \__int_eval:w
+      \int_compare:nNnTF
+        { \__array_item_fast:Nn \g_@@_submatch_end_array {#1} } = 0
+        { 0 }
+        {
+          \__array_item_fast:Nn \g_@@_balance_array
+            { \__array_item_fast:Nn \g_@@_submatch_end_array {#1} }
+        }
+      -
+      \int_compare:nNnTF
+        { \__array_item_fast:Nn \g_@@_submatch_begin_array {#1} } = 0
+        { 0 }
+        {
+          \__array_item_fast:Nn \g_@@_balance_array
+            { \__array_item_fast:Nn \g_@@_submatch_begin_array {#1} }
+        }
+    \__int_eval_end:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4938,8 +4961,8 @@
     \cs_set:Npn \@@_replacement_do_one_match:n ##1
       {
         \@@_query_range:nn
-          { \etex_glueshrink:D \tex_skip:D ##1 }
-          { \tex_skip:D ##1 }
+          { \__array_item_fast:Nn \g_@@_submatch_prev_array {##1} }
+          { \__array_item_fast:Nn \g_@@_submatch_begin_array {##1} }
         #1
       }
   }
@@ -5459,20 +5482,29 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_@@_submatch_int, \l_@@_zeroth_submatch_int}
-%   The end-points of each submatch are stored as main and stretch
-%   components of \tn{skip}\meta{submatch}, where \meta{submatch} ranges
-%   from \cs{l_@@_max_state_int} (inclusive) to
+% \begin{variable}{\l_@@_min_submatch_int, \l_@@_submatch_int, \l_@@_zeroth_submatch_int}
+%   The end-points of each submatch are stored in two arrays whose index \meta{submatch} ranges
+%   from \cs{l_@@_min_submatch_int} (inclusive) to
 %   \cs{l_@@_submatch_int} (exclusive). Each successful match comes
 %   with a $0$-th submatch (the full match), and one match for each
 %   capturing group: submatches corresponding to the last successful
-%   match are labelled starting at
-%   \texttt{zeroth_submatch}. Additionally, the shrink component of this
-%   $0$-th submatch is the position at which that match attempt started:
-%   this is used for splitting and replacements.
+%   match are labelled starting at \texttt{zeroth_submatch}. The entry
+%   \cs{l_@@_zeroth_submatch_int} in \cs{g_@@_submatch_prev_array} holds
+%   the position at which that match attempt started: this is used for
+%   splitting and replacements.
 %    \begin{macrocode}
+\int_new:N \l_@@_min_submatch_int
 \int_new:N \l_@@_submatch_int
 \int_new:N \l_@@_zeroth_submatch_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_submatch_prev_array, \g_@@_submatch_begin_array, \g_@@_submatch_end_array}
+%   Hold the place where the match attempt begun and the end-points of each submatch.
+%    \begin{macrocode}
+\__array_new:Nn \g_@@_submatch_prev_array { 65536 }
+\__array_new:Nn \g_@@_submatch_begin_array { 65536 }
+\__array_new:Nn \g_@@_submatch_end_array { 65536 }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -5569,8 +5601,7 @@
 %   match, store the last part of the token list, which ranges from the
 %   start of the match attempt to the end of the query. This step is
 %   inhibited if the last match was empty and at the very end: decrement
-%   \cs{l_@@_submatch_int}, which controls which \tn{skip} registers
-%   will be used.
+%   \cs{l_@@_submatch_int}, which controls which matches will be used.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_split:nnN #1#2#3
   {
@@ -5579,16 +5610,30 @@
         {
           \if_int_compare:w \l_@@_start_pos_int < \l_@@_success_pos_int
             \@@_extract:
-            \tex_skip:D \l_@@_zeroth_submatch_int
-              = \l_@@_start_pos_int sp
-                plus \tex_skip:D \l_@@_zeroth_submatch_int \scan_stop:
+            \__array_gset_fast:Nnn \g_@@_submatch_prev_array
+              { \l_@@_zeroth_submatch_int } { 0 }
+            \__array_gset_fast:Nnn \g_@@_submatch_end_array
+              { \l_@@_zeroth_submatch_int }
+              {
+                \__array_item_fast:Nn \g_@@_submatch_begin_array
+                  { \l_@@_zeroth_submatch_int }
+              }
+            \__array_gset_fast:Nnn \g_@@_submatch_begin_array
+              { \l_@@_zeroth_submatch_int }
+              { \l_@@_start_pos_int }
           \fi:
         }
       #1
       \@@_match:n {#2}
 %<assert>\assert_int:n { \l_@@_current_pos_int = \l_@@_max_pos_int }
-      \tex_skip:D \l_@@_submatch_int
-        = \l_@@_start_pos_int sp plus \l_@@_max_pos_int sp \scan_stop:
+      \__array_gset_fast:Nnn \g_@@_submatch_prev_array
+        { \l_@@_submatch_int } { 0 }
+      \__array_gset_fast:Nnn \g_@@_submatch_end_array
+        { \l_@@_submatch_int }
+        { \l_@@_max_pos_int }
+      \__array_gset_fast:Nnn \g_@@_submatch_begin_array
+        { \l_@@_submatch_int }
+        { \l_@@_start_pos_int }
       \int_incr:N \l_@@_submatch_int
       \if_meaning:w \c_true_bool \l_@@_empty_success_bool
         \if_int_compare:w \l_@@_start_pos_int = \l_@@_max_pos_int
@@ -5601,8 +5646,8 @@
 % \end{macro}
 %
 % \begin{macro}[aux]{\@@_group_end_extract_seq:N}
-%   The end-points of submatches are stored as the main and stretch
-%   components of \tn{skip} registers from \cs{l_@@_max_state_int} to
+%   The end-points of submatches are stored as entries of two arrays
+%   from \cs{l_@@_min_submatch_int} to
 %   \cs{l_@@_submatch_int} (exclusive). Extract the relevant ranges
 %   into \cs{l_@@_internal_a_tl}. We detect unbalanced results using
 %   the two flags \texttt{@@_begin} and \texttt{@@_end}, raised
@@ -5619,7 +5664,7 @@
         {
           \s__seq
           \int_step_function:nnnN
-            { 2 * \l_@@_max_state_int }
+            { \l_@@_min_submatch_int }
             { 1 }
             { \l_@@_submatch_int - 1 }
             \@@_extract_seq_aux:n
@@ -5675,14 +5720,14 @@
 %   {\@@_extract:, \@@_extract_b:wn, \@@_extract_e:wn}
 %   Our task here is to extract from the property list
 %   \cs{l_@@_success_submatches_prop} the list of end-points of
-%   submatches, and store them in \tn{skip} registers, from
+%   submatches, and store them in appropriate array entries, from
 %   \cs{l_@@_zeroth_submatch_int} upwards. We begin by emptying those
-%   \tn{skip} registers. Then for each \meta{key}--\meta{value} pair in
-%   the property list update the appropriate \tn{skip} component. This
+%   entries. Then for each \meta{key}--\meta{value} pair in
+%   the property list update the appropriate entry. This
 %   is somewhat a hack: the \meta{key} is a non-negative integer
 %   followed by |<| or |>|, which we use in a comparison to $-1$. At the
 %   end, store the information about the position at which the match
-%   attempt started, as a shrink component.
+%   attempt started, in \cs{g_@@_submatch_prev_array}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_extract:
   {
@@ -5690,7 +5735,12 @@
       \int_set_eq:NN \l_@@_zeroth_submatch_int \l_@@_submatch_int
       \prg_replicate:nn \l_@@_capturing_group_int
         {
-          \tex_skip:D \l_@@_submatch_int 0 sp \scan_stop:
+          \__array_gset_fast:Nnn \g_@@_submatch_begin_array
+            { \l_@@_submatch_int } { 0 }
+          \__array_gset_fast:Nnn \g_@@_submatch_end_array
+            { \l_@@_submatch_int } { 0 }
+          \__array_gset_fast:Nnn \g_@@_submatch_prev_array
+            { \l_@@_submatch_int } { 0 }
           \int_incr:N \l_@@_submatch_int
         }
       \prop_map_inline:Nn \l_@@_success_submatches_prop
@@ -5702,21 +5752,14 @@
           \fi:
           \__int_eval:w \l_@@_zeroth_submatch_int + ##1 {##2}
         }
-      \tex_skip:D \l_@@_zeroth_submatch_int
-        = \tex_the:D \tex_skip:D \l_@@_zeroth_submatch_int
-          minus \l_@@_start_pos_int sp \scan_stop:
+      \__array_gset_fast:Nnn \g_@@_submatch_prev_array
+        { \l_@@_zeroth_submatch_int } { \l_@@_start_pos_int }
     \fi:
   }
 \cs_new_protected:Npn \@@_extract_b:wn #1 < #2
-  {
-    \tex_skip:D #1 = #2 sp
-      plus \etex_gluestretch:D \tex_skip:D #1 \scan_stop:
-  }
+  { \__array_gset_fast:Nnn \g_@@_submatch_begin_array {#1} {#2} }
 \cs_new_protected:Npn \@@_extract_e:wn #1 > #2
-  {
-    \tex_skip:D #1
-      = 1 \tex_skip:D #1 plus #2 sp \scan_stop:
-  }
+  { \__array_gset_fast:Nnn \g_@@_submatch_end_array {#1} {#2} }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -5756,7 +5799,10 @@
           {
             \@@_replacement_do_one_match:n { \l_@@_zeroth_submatch_int }
             \@@_query_range:nn
-              { \etex_gluestretch:D \tex_skip:D \l_@@_zeroth_submatch_int }
+              {
+                \__array_item_fast:Nn \g_@@_submatch_end_array
+                  { \l_@@_zeroth_submatch_int }
+              }
               { \l_@@_max_pos_int }
           }
         \@@_group_end_replace:N #3
@@ -5767,12 +5813,11 @@
 %
 % \begin{macro}[aux]{\@@_replace_all:nnN}
 %   Match multiple times, and for every match, extract submatches and
-%   additionally store the position at which the match attempt started
-%   (as the shrink component of a \tn{skip} register). The \tn{skip}
-%   registers from \cs{l_@@_max_state_int} to
+%   additionally store the position at which the match attempt started.
+%   The entries from \cs{l_@@_min_submatch_int} to
 %   \cs{l_@@_submatch_int} hold information about submatches of every
 %   match in order; each match corresponds to
-%   \cs{l_@@_capturing_group_int} consecutive \tn{skip} registers.
+%   \cs{l_@@_capturing_group_int} consecutive entries.
 %   Compute the brace balance corresponding to doing all the
 %   replacements: this is the sum of brace balances for replacing each
 %   match. Join together the replacement texts for each match (including
@@ -5789,7 +5834,7 @@
         {
           0
           \int_step_function:nnnN
-            { 2 * \l_@@_max_state_int }
+            { \l_@@_min_submatch_int }
             \l_@@_capturing_group_int
             { \l_@@_submatch_int - 1 }
             \@@_replacement_balance_one_match:n
@@ -5797,7 +5842,7 @@
       \tl_set:Nx \l_@@_internal_a_tl
         {
           \int_step_function:nnnN
-            { 2 * \l_@@_max_state_int }
+            { \l_@@_min_submatch_int }
             \l_@@_capturing_group_int
             { \l_@@_submatch_int - 1 }
             \@@_replacement_do_one_match:n
