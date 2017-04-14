@@ -570,13 +570,23 @@ function tree(path, glob)
   function cropdots(path)
     return gsub(gsub(path, "^%./", ""), "/%./", "/")
   end
-  dirs = {["."]=cropdots(path)}
-  for pattern in gmatch(cropdots(glob), "[^/]+") do
+  function always_true()
+    return true
+  end
+  function is_dir(file)
+    return lfs.attributes(file)["mode"] == "directory"
+  end
+  local dirs = {["."]=cropdots(path)}
+  for pattern, critereon in gmatch(cropdots(glob), "([^/]+)(/?)") do
+    local critereon = critereon == "/" and is_dir or always_true
     local newdirs = {}
     for path, dir in pairs(dirs) do
       for _, file in ipairs(filelist(dir, pattern)) do
         if file ~= "." and file ~= ".." then
-          newdirs[path .. "/" .. file] = dir .. "/" .. file
+          local fulldir = dir .. "/" .. file
+          if critereon(fulldir) then
+            newdirs[path .. "/" .. file] = fulldir
+          end
         end
       end
     end
