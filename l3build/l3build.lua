@@ -22,7 +22,7 @@ for those people who are interested.
 
 --]]
 
--- Version information: should be identical to that in l3build.dtx
+-- Version information
 release_date = "2017/04/01"
 
 -- "module" is a deprecated function in Lua 5.2: as we want the name
@@ -57,7 +57,7 @@ end
 maindir     = maindir or "."
 
 -- Substructure for tests and support files
-testfiledir = testfiledir or "testfiles" -- Set to "" to cancel any tests
+testfiledir = testfiledir or "testfiles"
 testsuppdir = testsuppdir or testfiledir .. "/support"
 supportdir  = supportdir  or maindir .. "/support"
 
@@ -128,7 +128,6 @@ stdengine    = stdengine    or "pdftex"
 
 -- Enable access to trees outside of the repo
 -- As these may be set false, a more elaborate test than normal is needed
--- here
 if checksearch == nil then
   checksearch = true
 end
@@ -156,8 +155,8 @@ asciiengines = asciiengines or {"pdftex"}
 checkruns    = checkruns    or 1
 epoch        = epoch        or 1463734800
 maxprintline = maxprintline or 79
-packtdszip   = packtdszip   or false -- Not actually needed but clearer
-scriptname   = scriptname   or "build.lua" -- Script used in each directory
+packtdszip   = packtdszip   or false
+scriptname   = scriptname   or "build.lua"
 typesetcmds  = typesetcmds  or ""
 versionform  = versionform  or ""
 
@@ -171,10 +170,7 @@ pdfext = pdfext or ".pdf"
 psext  = psext  or ".ps"
 tlgext = tlgext or ".tlg"
 
--- Run time options
--- These are parsed into a global table, and all optional args
--- are made available as a related global var
-
+-- Parse command line options
 function argparse()
   local result = { }
   local files  = { }
@@ -393,10 +389,6 @@ function glob_to_pattern(glob)
   return pattern
 end
 
--- File operation support
--- Much of this is OS-dependent as Lua offers a very limited range of file
--- operations 'natively'.
-
 -- Detect the operating system in use
 -- Support items are defined here for cases where a single string can cover
 -- both Windows and Unix cases: more complex situations are handled inside
@@ -503,7 +495,6 @@ end
 
 -- Generate a table containing all file names of the given glob or all files
 -- if absent
--- Not actually OS-dependent but in the same area
 function filelist(path, glob)
   local files = { }
   local pattern
