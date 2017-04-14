@@ -354,7 +354,6 @@ options = argparse()
 local optdate    = options["date"]
 local optengines = options["engine"]
 local opthalt    = options["halt"]
-local opthelp    = options["help"]
 local optpdf     = options["pdf"]
 local optquiet   = options["quiet"]
 local optrelease = options["release"]
