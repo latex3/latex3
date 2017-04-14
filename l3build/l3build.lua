@@ -173,6 +173,40 @@ tlgext = tlgext or ".tlg"
 -- File operations are aided by the LuaFileSystem module
 local lfs = require("lfs")
 
+-- Local access to functions
+local ipairs           = ipairs
+local print            = print
+local select           = select
+local tonumber         = tonumber
+local close            = io.close
+local lines            = io.lines
+local open             = io.open
+local output           = io.output
+local stderr           = io.stderr
+local write            = io.write
+local set_program_name = kpse.set_program_name
+local var_value        = kpse.var_value
+local lfs_attributes   = lfs.attributes
+local lfs_dir          = lfs.dir
+local os_date          = os.date
+local execute          = os.execute
+local exit             = os.exit
+local getenv           = os.getenv
+local os_remove        = os.remove
+local os_type          = os.type
+local luatex_revision  = status.luatex_revision
+local luatex_version   = status.luatex_version
+local char             = string.char
+local find             = string.find
+local format           = string.format
+local gmatch           = string.gmatch
+local gsub             = string.gsub
+local len              = string.len
+local match            = string.match
+local sub              = string.sub
+local concat           = table.concat
+local insert           = table.insert
+
 -- Parse command line options
 -- This is done as a function (rather than do ... end) as it allows early
 -- termination (break)
@@ -221,7 +255,7 @@ local function argparse()
   result["target"] = "help"
   if a then
     -- No options are allowed in position 1, so filter those out
-    if not string.match(a, "^%-") then
+    if not match(a, "^%-") then
       result["target"] = a
     end
   end
@@ -233,7 +267,7 @@ local function argparse()
   local function remainder(num)
     local files = { }
     for i = num, #arg do
-      table.insert(files, arg[i])
+      insert(files, arg[i])
     end
     return files
   end
@@ -252,22 +286,22 @@ local function argparse()
     local opt, optarg
     local opts
     -- Look for and option and get it into a variable
-    if string.match(a, "^%-") then
-      if string.match(a, "^%-%-") then
+    if match(a, "^%-") then
+      if match(a, "^%-%-") then
         opts = long_options
-        local pos = string.find(a, "=", 1, true)
+        local pos = find(a, "=", 1, true)
         if pos then
-          opt    = string.sub(a, 3, pos - 1)
-          optarg = string.sub(a, pos + 1)
+          opt    = sub(a, 3, pos - 1)
+          optarg = sub(a, pos + 1)
         else
-          opt = string.sub(a,3)
+          opt = sub(a,3)
         end
       else
         opts = short_options
-        opt  = string.sub(a, 2, 2)
+        opt  = sub(a, 2, 2)
         -- Only set optarg if it is there
         if #a > 2 then
-          optarg = string.sub(a, 3)
+          optarg = sub(a, 3)
         end
       end
       -- Now check that the option is valid and sort out the argument
@@ -279,25 +313,25 @@ local function argparse()
         if reqarg and not optarg then
           optarg = arg[i + 1]
           if not optarg then
-            io.stderr:write("Missing value for option " .. a .."\n")
+            stderr:write("Missing value for option " .. a .."\n")
             return {"help"}
           end
           i = i + 1
         end
         if not reqarg and optarg then
-          io.stderr:write("Value not allowed for option " .. a .."\n")
+          stderr:write("Value not allowed for option " .. a .."\n")
           return {"help"}
         end
       else
-        io.stderr:write("Unknown option " .. a .."\n")
+        stderr:write("Unknown option " .. a .."\n")
         return {"help"}
       end
       -- Store the result
       if optarg then
         local opts = result[optname] or { }
         local match
-        for match in string.gmatch(optarg, "([^,%s]+)") do
-          table.insert(opts, match)
+        for match in gmatch(optarg, "([^,%s]+)") do
+          insert(opts, match)
         end
         result[optname] = opts
       else
@@ -363,13 +397,13 @@ function glob_to_pattern(glob)
 
   -- escape pattern char
   local function escape(char)
-    return string.match(char, "^%w$") and char or "%" .. char
+    return match(char, "^%w$") and char or "%" .. char
   end
 
   -- Convert tokens.
   while true do
     i = i + 1
-    char = string.sub(glob, i, i)
+    char = sub(glob, i, i)
     if char == "" then
       pattern = pattern .. "$"
       break
@@ -382,7 +416,7 @@ function glob_to_pattern(glob)
       print("[...] syntax not supported in globs!")
     elseif char == "\\" then
       i = i + 1
-      char = string.sub(glob, i, i)
+      char = sub(glob, i, i)
       if char == "" then
         pattern = pattern .. "\\$"
         break
@@ -399,18 +433,18 @@ end
 -- Support items are defined here for cases where a single string can cover
 -- both Windows and Unix cases: more complex situations are handled inside
 -- the support functions
-if os.type == "windows" then
+if os_type == "windows" then
   os_ascii    = "@echo."
-  os_cmpexe   = os.getenv("cmpexe") or "fc /b"
-  os_cmpext   = os.getenv("cmpext") or ".cmp"
+  os_cmpexe   = getenv("cmpexe") or "fc /b"
+  os_cmpext   = getenv("cmpext") or ".cmp"
   os_concat   = "&"
-  os_diffext  = os.getenv("diffext") or ".fc"
-  os_diffexe  = os.getenv("diffexe") or "fc /n"
+  os_diffext  = getenv("diffext") or ".fc"
+  os_diffexe  = getenv("diffexe") or "fc /n"
   os_grepexe  = "findstr /r"
   os_newline  = "\n"
-  if tonumber(status.luatex_version) < 100 or
-     (tonumber(status.luatex_version) == 100
-       and tonumber(status.luatex_revision) < 4) then
+  if tonumber(luatex_version) < 100 or
+     (tonumber(luatex_version) == 100
+       and tonumber(luatex_revision) < 4) then
     os_newline = "\r\n"
   end
   os_null     = "nul"
@@ -420,11 +454,11 @@ if os.type == "windows" then
   os_yes      = "for /l %I in (1,1,200) do @echo y"
 else
   os_ascii    = "echo \"\""
-  os_cmpexe   = os.getenv("cmpexe") or "cmp"
-  os_cmpext   = os.getenv("cmpext") or ".cmp"
+  os_cmpexe   = getenv("cmpexe") or "cmp"
+  os_cmpext   = getenv("cmpext") or ".cmp"
   os_concat   = ";"
-  os_diffext  = os.getenv("diffext") or ".diff"
-  os_diffexe  = os.getenv("diffexe") or "diff -c --strip-trailing-cr"
+  os_diffext  = getenv("diffext") or ".diff"
+  os_diffexe  = getenv("diffexe") or "diff -c --strip-trailing-cr"
   os_grepexe  = "grep"
   os_newline  = "\n"
   os_null     = "/dev/null"
@@ -449,19 +483,19 @@ function cp(glob, source, dest)
   for _,i in ipairs(filelist(source, glob)) do
     local source = source .. "/" .. i
     if os_windows then
-      if lfs.attributes(source)["mode"] == "directory" then
-        errorlevel = os.execute(
+      if lfs_attributes(source)["mode"] == "directory" then
+        errorlevel = execute(
           "xcopy /y /e /i " .. unix_to_win(source) .. " "
              .. unix_to_win(dest .. "/" .. i) .. " > nul"
         )
       else
-        errorlevel = os.execute(
+        errorlevel = execute(
           "xcopy /y " .. unix_to_win(source) .. " "
              .. unix_to_win(dest) .. " > nul"
         )
       end
     else
-      errorlevel = os.execute("cp -rf " .. source .. " " .. dest)
+      errorlevel = execute("cp -rf " .. source .. " " .. dest)
     end
     if errorlevel ~=0 then
       return errorlevel
@@ -475,9 +509,9 @@ function direxists(dir)
   local errorlevel
   if os_windows then
     errorlevel =
-      os.execute("if not exist \"" .. unix_to_win(dir) .. "\" exit 1")
+      execute("if not exist \"" .. unix_to_win(dir) .. "\" exit 1")
   else
-    errorlevel = os.execute("[ -d " .. dir .. " ]")
+    errorlevel = execute("[ -d " .. dir .. " ]")
   end
   if errorlevel ~= 0 then
     return false
@@ -486,9 +520,9 @@ function direxists(dir)
 end
 
 function fileexists(file)
-  local f = io.open(file, "r")
+  local f = open(file, "r")
   if f ~= nil then
-    io.close(f)
+    close(f)
     return true
   else
     return false
@@ -504,14 +538,14 @@ function filelist(path, glob)
     pattern = glob_to_pattern(glob)
   end
   if direxists(path) then
-    for entry in lfs.dir(path) do
+    for entry in lfs_dir(path) do
       if pattern then
-        if string.match(entry, pattern) then
-          table.insert(files, entry)
+        if match(entry, pattern) then
+          insert(files, entry)
         end
       else
         if entry ~= "." and entry ~= ".." then
-          table.insert(files, entry)
+          insert(files, entry)
         end
       end
     end
@@ -524,11 +558,11 @@ function mkdir(dir)
     -- Windows (with the extensions) will automatically make directory trees
     -- but issues a warning if the dir already exists: avoid by including a test
     local dir = unix_to_win(dir)
-    return os.execute(
+    return execute(
       "if not exist "  .. dir .. "\\nul " .. "mkdir " .. dir
     )
   else
-    return os.execute("mkdir -p " .. dir)
+    return execute("mkdir -p " .. dir)
   end
 end
 
@@ -542,13 +576,13 @@ function relpath(target, source)
   local trimpattern = "^[^/]*/"
   -- Trim off identical leading directories
   while
-    (string.match(target, trimpattern) or "X") ==
-    (string.match(target, trimpattern) or "Y") do
-    target = string.gsub(target, trimpattern, "")
-    source = string.gsub(source, trimpattern, "")
+    (match(target, trimpattern) or "X") ==
+    (match(target, trimpattern) or "Y") do
+    target = gsub(target, trimpattern, "")
+    source = gsub(source, trimpattern, "")
   end
   -- Go up from the source
-  for i = 0, select(2, string.gsub(target, "/", "")) do
+  for i = 0, select(2, gsub(target, "/", "")) do
     resultdir = resultdir .. "../"
   end
   -- Return the relative part plus the unique part of the target
@@ -559,18 +593,18 @@ end
 function ren(dir, source, dest)
   local dir = dir .. "/"
   if os_windows then
-    return os.execute("ren " .. unix_to_win(dir) .. source .. " " .. dest)
+    return execute("ren " .. unix_to_win(dir) .. source .. " " .. dest)
   else
-    return os.execute("mv " .. dir .. source .. " " .. dir .. dest)
+    return execute("mv " .. dir .. source .. " " .. dir .. dest)
   end
 end
 
 -- Remove file(s) based on a glob
 function rm(source, glob)
   for _,i in ipairs(filelist(source, glob)) do
-    os.remove(source .. "/" .. i)
+    os_remove(source .. "/" .. i)
   end
-  -- os.remove doesn't give a sensible errorlevel
+  -- os_remove doesn't give a sensible errorlevel
   return 0
 end
 
@@ -579,20 +613,20 @@ function rmdir(dir)
   -- First, make sure it exists to avoid any errors
   mkdir(dir)
   if os_windows then
-    return os.execute("rmdir /s /q " .. unix_to_win(dir))
+    return execute("rmdir /s /q " .. unix_to_win(dir))
   else
-    return os.execute("rm -r " .. dir)
+    return execute("rm -r " .. dir)
   end
 end
 
 -- Run a command in a given directory
 function run(dir, cmd)
-  return os.execute("cd " .. dir .. os_concat .. cmd)
+  return execute("cd " .. dir .. os_concat .. cmd)
 end
 
 -- Deal with the fact that Windows and Unix use different path separators
 function unix_to_win(path)
-  return string.gsub(path, "/", "\\")
+  return gsub(path, "/", "\\")
 end
 
 --
@@ -613,7 +647,7 @@ function allmodules(target)
     end
     local engines = ""
     if optengines then
-      engines = " --engine=" .. table.concat(optengines, ",")
+      engines = " --engine=" .. concat(optengines, ",")
     end
     local release = ""
     if optrelease then
@@ -662,7 +696,7 @@ function checkinit()
   for _,i in ipairs(checksuppfiles) do
     cp(i, supportdir, testdir)
   end
-  os.execute(os_ascii .. ">" .. testdir .. "/ascii.tcx")
+  execute(os_ascii .. ">" .. testdir .. "/ascii.tcx")
 end
 
 -- Copy files to the main CTAN release directory
@@ -708,7 +742,7 @@ function copytds()
     for _,i in ipairs(files) do
       for _,j in ipairs(i) do
         for _,k in ipairs(filelist(source, j)) do
-          table.insert(filenames, k)
+          insert(filenames, k)
         end
       end
     end
@@ -753,14 +787,14 @@ function formatlog(logfile, newfile, engine)
   end
   local function killcheck(line)
       -- Skip lines containing file dates
-      if string.match(line, "[^<]%d%d%d%d/%d%d/%d%d") then
+      if match(line, "[^<]%d%d%d%d/%d%d/%d%d") then
         return true
       elseif
       -- Skip \openin/\openout lines in web2c 7.x
       -- As Lua doesn't allow "(in|out)", a slightly complex approach:
       -- do a substitution to check the line is exactly what is required!
-        string.match(
-          string.gsub(line, "^\\openin", "\\openout"), "^\\openout%d%d? = "
+        match(
+          gsub(line, "^\\openin", "\\openout"), "^\\openout%d%d? = "
         ) then
         return true
       end
@@ -770,13 +804,13 @@ function formatlog(logfile, newfile, engine)
   local function normalize(line, lastline)
     -- Zap line numbers from \show, \showbox, \box_show and the like:
     -- do this before wrapping lines
-    line = string.gsub(line, "^l%.%d+ ", "l. ...")
+    line = gsub(line, "^l%.%d+ ", "l. ...")
     -- Also from lua stack traces.
-    line = string.gsub(line, "lua:%d+: in function", "lua:...: in function")
+    line = gsub(line, "lua:%d+: in function", "lua:...: in function")
     -- Allow for wrapped lines: preserve the content and wrap
     -- Skip lines that have an explicit marker for truncation
-    if string.len(line) == maxprintline  and
-       not string.match(line, "%.%.%.$") then
+    if len(line) == maxprintline  and
+       not match(line, "%.%.%.$") then
       return "", (lastline or "") .. line
     end
     local line = (lastline or "") .. line
@@ -785,77 +819,77 @@ function formatlog(logfile, newfile, engine)
     -- This needs to extract the base name from the log name,
     -- and one to allow for the case that there might be "-" chars
     -- in the name (other cases are ignored)
-    line = string.gsub(
+    line = gsub(
       line,
-      string.gsub(
-        string.match("/" .. logfile, ".*/(.*)%" .. logext .. "$"),
+      gsub(
+        match("/" .. logfile, ".*/(.*)%" .. logext .. "$"),
         "-",
         "%%-"
       ),
       ""
     )
     -- Zap ./ at begin of filename
-    line = string.gsub(line, "%(%.%/", "(")
+    line = gsub(line, "%(%.%/", "(")
     -- Zap paths if places other than 'here' are accessible
     if checksearch then
       local pattern = "%w?:?/[^ ]*/([^/%(%)]*%.%w*)"
       -- Files loaded from TeX: all start ( -- )
-      line = string.gsub(line, "%(" .. pattern, "(../%1")
+      line = gsub(line, "%(" .. pattern, "(../%1")
       -- luaotfload files start with keywords
-      line = string.gsub(line, "from " .. pattern .. "%(", "from. ./%1(")
-      line = string.gsub(line, ": " .. pattern .. "%)", ": ../%1)")
+      line = gsub(line, "from " .. pattern .. "%(", "from. ./%1(")
+      line = gsub(line, ": " .. pattern .. "%)", ": ../%1)")
     end
     -- Deal with the fact that "(.aux)" may have still a leading space
-    line = string.gsub(line, "^ %(%.aux%)", "(.aux)")
+    line = gsub(line, "^ %(%.aux%)", "(.aux)")
     -- Merge all of .fd data into one line so will be removed later
-    if string.match(line, "^ *%([%.%/%w]+%.fd[^%)]*$") then
+    if match(line, "^ *%([%.%/%w]+%.fd[^%)]*$") then
       lastline = (lastline or "") .. line
       return "", (lastline or "") .. line
     end
     -- TeX90/XeTeX knows only the smaller set of dimension units
-    line = string.gsub(
+    line = gsub(
       line,
       "cm, mm, dd, cc, bp, or sp", "cm, mm, dd, cc, nd, nc, bp, or sp"
     )
     -- Normalise a case where fixing a TeX bug changes the message text
-    line = string.gsub(line, "\\csname\\endcsname ", "\\csname\\endcsname")
+    line = gsub(line, "\\csname\\endcsname ", "\\csname\\endcsname")
     -- Zap "on line <num>" and replace with "on line ..."
     -- Two similar cases, Lua patterns mean we need to do them separately
-    line = string.gsub(line, "on line %d*", "on line ...")
-    line = string.gsub(line, "on input line %d*", "on input line ...")
+    line = gsub(line, "on line %d*", "on line ...")
+    line = gsub(line, "on input line %d*", "on input line ...")
     -- Tidy up to ^^ notation
     for i = 0, 31 do
-      line = string.gsub(line, string.char(i), "^^" .. string.char(64 + i))
+      line = gsub(line, char(i), "^^" .. char(64 + i))
     end
     -- Remove 'normal' direction information on boxes with (u)pTeX
-    line = string.gsub(line, ",? yoko direction,?", "")
+    line = gsub(line, ",? yoko direction,?", "")
     -- Remove the \special line that in DVI mode keeps PDFs comparable
-    if string.match(line, "^%.*\\special%{pdf: docinfo << /Creator") then
+    if match(line, "^%.*\\special%{pdf: docinfo << /Creator") then
       return ""
     end
     -- Remove the \special line possibly present in DVI mode for paper size
-    if string.match(line, "^%.*\\special%{papersize") then
+    if match(line, "^%.*\\special%{papersize") then
       return ""
     end
     -- Remove ConTeXt stuff
-    if string.match(line, "^backend         >") or
-       string.match(line, "^close source    >") or
-       string.match(line, "^mkiv lua stats  >") or
-       string.match(line, "^pages           >") or
-       string.match(line, "^system          >") or
-       string.match(line, "^used file       >") or
-       string.match(line, "^used option     >") or
-       string.match(line, "^used structure  >") then
+    if match(line, "^backend         >") or
+       match(line, "^close source    >") or
+       match(line, "^mkiv lua stats  >") or
+       match(line, "^pages           >") or
+       match(line, "^system          >") or
+       match(line, "^used file       >") or
+       match(line, "^used option     >") or
+       match(line, "^used structure  >") then
        return ""
     end
     -- A tidy-up to keep LuaTeX and other engines in sync
     local utf8_char = unicode.utf8.char
-    line = string.gsub(line, utf8_char(127), "^^?")
+    line = gsub(line, utf8_char(127), "^^?")
     -- Unicode engines display chars in the upper half of the 8-bit range:
     -- tidy up to match pdfTeX if an ASCII engine is in use
     if next(asciiengines) then
       for i = 128, 255 do
-        line = string.gsub(line, utf8_char(i), "^^" .. string.format("%02x", i))
+        line = gsub(line, utf8_char(i), "^^" .. format("%02x", i))
       end
     end
     return line, lastline
@@ -865,29 +899,29 @@ function formatlog(logfile, newfile, engine)
   local prestart = true
   local skipping = false
   -- Read the entire log file as a binary: deals with ^@/^[, etc.
-  local file = assert(io.open(logfile, "rb"))
-  local contents = string.gsub(file:read("*all") .. "\n", "\r\n", "\n")
-  io.close(file)
-  for line in string.gmatch(contents, "([^\n]*)\n") do
+  local file = assert(open(logfile, "rb"))
+  local contents = gsub(file:read("*all") .. "\n", "\r\n", "\n")
+  close(file)
+  for line in gmatch(contents, "([^\n]*)\n") do
     if line == "START-TEST-LOG" then
       prestart = false
     elseif line == "END-TEST-LOG" then
       break
     elseif line == "OMIT" then
       skipping = true
-    elseif string.match(line, "^%)?TIMO$") then
+    elseif match(line, "^%)?TIMO$") then
       skipping = false
     elseif not prestart and not skipping then
       line, lastline = normalize(line, lastline)
-      if not string.match(line, "^ *$") and not killcheck(line) then
+      if not match(line, "^ *$") and not killcheck(line) then
         newlog = newlog .. line .. os_newline
       end
     end
   end
-  local newfile = io.open(newfile, "w")
-  io.output(newfile)
-  io.write(newlog)
-  io.close(newfile)
+  local newfile = open(newfile, "w")
+  output(newfile)
+  write(newlog)
+  close(newfile)
 end
 
 -- Additional normalization for LuaTeX
@@ -895,44 +929,44 @@ function formatlualog(logfile, newfile)
   local function normalize(line, lastline, dropping)
     -- Find \discretionary or \whatsit lines:
     -- These may come back later
-    if string.match(line, "^%.+\\discretionary$")                or
-       string.match(line, "^%.+\\discretionary %(penalty 50%)$") or
-       string.match(line, "^%.+\\discretionary50%|$")            or
-       string.match(line, "^%.+\\discretionary50%| replacing $") or
-       string.match(line, "^%.+\\whatsit$")                      then
+    if match(line, "^%.+\\discretionary$")                or
+       match(line, "^%.+\\discretionary %(penalty 50%)$") or
+       match(line, "^%.+\\discretionary50%|$")            or
+       match(line, "^%.+\\discretionary50%| replacing $") or
+       match(line, "^%.+\\whatsit$")                      then
       return "", line
     end
     -- For \mathon, we always need this line but the next
     -- may be affected
-    if string.match(line, "^%.+\\mathon$") then
+    if match(line, "^%.+\\mathon$") then
       return line, line
     end
     -- LuaTeX has a flexible output box
-    line = string.gsub(line,"\\box\\outputbox", "\\box255")
+    line = gsub(line,"\\box\\outputbox", "\\box255")
     -- LuaTeX identifies spaceskip glue
-    line = string.gsub(line,"%(\\spaceskip%) ", " ")
+    line = gsub(line,"%(\\spaceskip%) ", " ")
     -- Remove 'display' at end of display math boxes:
     -- LuaTeX omits this as it includes direction in all cases
-    line = string.gsub(line, "(\\hbox%(.*), display$", "%1")
+    line = gsub(line, "(\\hbox%(.*), display$", "%1")
     -- Remove 'normal' direction information on boxes:
     -- any bidi/vertical stuff will still show
-    line = string.gsub(line, ", direction TLT", "")
+    line = gsub(line, ", direction TLT", "")
     -- Find glue setting and round out the last place
     local function round_digits(l, m)
-      return string.gsub(
+      return gsub(
         l,
         m .. " (%-?)%d+%.%d+",
         m .. " %1"
-          .. string.format(
+          .. format(
             "%.3f",
-            string.match(line, m .. " %-?(%d+%.%d+)") or 0
+            match(line, m .. " %-?(%d+%.%d+)") or 0
           )
       )
     end
-    if string.match(line, "glue set %-?%d+%.%d+") then
+    if match(line, "glue set %-?%d+%.%d+") then
       line = round_digits(line, "glue set")
     end
-    if string.match(
+    if match(
         line, "glue %-?%d+%.%d+ plus %-?%d+%.%d+ minus %-?%d+%.%d+$"
       )
       then
@@ -941,35 +975,35 @@ function formatlualog(logfile, newfile)
       line = round_digits(line, "minus")
     end
     -- LuaTeX writes ^^M as a new line, which we lose
-    line = string.gsub(line, "%^%^M", "")
+    line = gsub(line, "%^%^M", "")
     -- Remove U+ notation in the "Missing character" message
-    line = string.gsub(
+    line = gsub(
         line,
         "Missing character: There is no (%^%^..) %(U%+(....)%)",
         "Missing character: There is no %1"
       )
     -- A function to handle the box prefix part
     local function boxprefix(s)
-      return string.gsub(string.match(s, "^(%.+)"), "%.", "%%.")
+      return gsub(match(s, "^(%.+)"), "%.", "%%.")
     end
     -- 'Recover' some discretionary data
-    if string.match(lastline, "^%.+\\discretionary %(penalty 50%)$") and
-       string.match(line, boxprefix(lastline) .. "%.= ") then
-       return string.gsub(line, "%.= ", ""),""
+    if match(lastline, "^%.+\\discretionary %(penalty 50%)$") and
+       match(line, boxprefix(lastline) .. "%.= ") then
+       return gsub(line, "%.= ", ""),""
     end
     -- Where the last line was a discretionary, looks for the
     -- info one level in about what it represents
-    if string.match(lastline, "^%.+\\discretionary$")                or
-       string.match(lastline, "^%.+\\discretionary %(penalty 50%)$") or
-       string.match(lastline, "^%.+\\discretionary50%|$")            or
-       string.match(lastline, "^%.+\\discretionary50%| replacing $") then
+    if match(lastline, "^%.+\\discretionary$")                or
+       match(lastline, "^%.+\\discretionary %(penalty 50%)$") or
+       match(lastline, "^%.+\\discretionary50%|$")            or
+       match(lastline, "^%.+\\discretionary50%| replacing $") then
       local prefix = boxprefix(lastline)
-      if string.match(line, prefix .. "%.") or
-         string.match(line, prefix .. "%|") then
-         if string.match(lastline, " replacing $") and
+      if match(line, prefix .. "%.") or
+         match(line, prefix .. "%|") then
+         if match(lastline, " replacing $") and
             not dropping then
            -- Modify the return line
-           return string.gsub(line, "^%.", ""), lastline, true
+           return gsub(line, "^%.", ""), lastline, true
          else
            return "", lastline, true
          end
@@ -979,11 +1013,11 @@ function formatlualog(logfile, newfile)
           return line, ""
         else
           -- Not quite a normal discretionary
-          if string.match(lastline, "^%.+\\discretionary50%|$") then
-            lastline =  string.gsub(lastline, "50%|$", "")
+          if match(lastline, "^%.+\\discretionary50%|$") then
+            lastline =  gsub(lastline, "50%|$", "")
           end
           -- Remove some info that TeX90 lacks
-          lastline = string.gsub(lastline, " %(penalty 50%)$", "")
+          lastline = gsub(lastline, " %(penalty 50%)$", "")
           -- A normal (TeX90) discretionary:
           -- add with the line break reintroduced
           return lastline .. os_newline .. line, ""
@@ -992,13 +1026,13 @@ function formatlualog(logfile, newfile)
     end
     -- Look for another form of \discretionary, replacing a "-"
     pattern = "^%.+\\discretionary replacing *$"
-    if string.match(line, pattern) then
+    if match(line, pattern) then
       return "", line
     else
-      if string.match(lastline, pattern) then
+      if match(lastline, pattern) then
         local prefix = boxprefix(lastline)
-        if string.match(line, prefix .. "%.\\kern") then
-          return string.gsub(line, "^%.", ""), lastline, true
+        if match(line, prefix .. "%.\\kern") then
+          return gsub(line, "^%.", ""), lastline, true
         elseif dropping then
           return "", ""
         else
@@ -1008,26 +1042,26 @@ function formatlualog(logfile, newfile)
     end
     -- For \mathon, if the current line is an empty \hbox then
     -- drop it
-    if string.match(lastline, "^%.+\\mathon$") then
+    if match(lastline, "^%.+\\mathon$") then
       local prefix = boxprefix(lastline)
-      if string.match(line, prefix .. "\\hbox%(0%.0%+0%.0%)x0%.0$") then
+      if match(line, prefix .. "\\hbox%(0%.0%+0%.0%)x0%.0$") then
         return "", ""
       end
     end
     -- Various \local... things that other engines do not do:
     -- Only remove the no-op versions
-    if string.match(line, "^%.+\\localpar$")                or
-       string.match(line, "^%.+\\localinterlinepenalty=0$") or
-       string.match(line, "^%.+\\localbrokenpenalty=0$")    or
-       string.match(line, "^%.+\\localleftbox=null$")       or
-       string.match(line, "^%.+\\localrightbox=null$")      then
+    if match(line, "^%.+\\localpar$")                or
+       match(line, "^%.+\\localinterlinepenalty=0$") or
+       match(line, "^%.+\\localbrokenpenalty=0$")    or
+       match(line, "^%.+\\localleftbox=null$")       or
+       match(line, "^%.+\\localrightbox=null$")      then
        return "", ""
     end
     -- Older LuaTeX versions set the above up as a whatsit
     -- (at some stage this can therefore go)
-    if string.match(lastline, "^%.+\\whatsit$") then
+    if match(lastline, "^%.+\\whatsit$") then
       local prefix = boxprefix(lastline)
-      if string.match(line, prefix .. "%.") then
+      if match(line, prefix .. "%.") then
         return "", lastline, true
       else
         -- End of a \whatsit block
@@ -1037,44 +1071,44 @@ function formatlualog(logfile, newfile)
     -- Wrap some cases that can be picked out
     -- In some places LuaTeX does use max_print_line, then we
     -- get into issues with different wrapping approaches
-    if string.len(line) == maxprintline then
+    if len(line) == maxprintline then
       return "", lastline .. line
-    elseif string.len(lastline) == maxprintline then
-      if string.match(line, "\\ETC%.%}$") then
+    elseif len(lastline) == maxprintline then
+      if match(line, "\\ETC%.%}$") then
         -- If the line wrapped at \ETC we might have lost a space
         return lastline
-          .. ((string.match(line, "^\\ETC%.%}$") and " ") or "")
+          .. ((match(line, "^\\ETC%.%}$") and " ") or "")
           .. line, ""
-      elseif string.match(line, "^%}%}%}$") then
+      elseif match(line, "^%}%}%}$") then
         return lastline .. line, ""
       else
         return lastline .. os_newline .. line, ""
       end
     -- Return all of the text for a wrapped (multi)line
-    elseif string.len(lastline) > maxprintline then
+    elseif len(lastline) > maxprintline then
       return lastline .. line, ""
     end
     -- Remove spaces at the start of lines: deals with the fact that LuaTeX
     -- uses a different number to the other engines
-    return string.gsub(line, "^%s+", ""), ""
+    return gsub(line, "^%s+", ""), ""
   end
   local newlog = ""
   local lastline = ""
   local dropping = false
   -- Read the entire log file as a binary: deals with ^@/^[, etc.
-  local file = assert(io.open(logfile, "rb"))
-  local contents = string.gsub(file:read("*all") .. "\n", "\r\n", "\n")
-  io.close(file)
-  for line in string.gmatch(contents, "([^\n]*)\n") do
+  local file = assert(open(logfile, "rb"))
+  local contents = gsub(file:read("*all") .. "\n", "\r\n", "\n")
+  close(file)
+  for line in gmatch(contents, "([^\n]*)\n") do
     line, lastline, dropping = normalize(line, lastline, dropping)
-    if not string.match(line, "^ *$") then
+    if not match(line, "^ *$") then
       newlog = newlog .. line .. os_newline
     end
   end
-  local newfile = io.open(newfile, "w")
-  io.output(newfile)
-  io.write(newlog)
-  io.close(newfile)
+  local newfile = open(newfile, "w")
+  output(newfile)
+  write(newlog)
+  close(newfile)
 end
 
 -- Look for files, directory by directory, and return the first existing
@@ -1093,13 +1127,13 @@ end
 function listmodules()
   local modules = { }
   local exclmodules = exclmodules or { }
-  for entry in lfs.dir(".") do
+  for entry in lfs_dir(".") do
     if entry ~= "." and entry ~= ".." then
-      local attr = lfs.attributes(entry)
+      local attr = lfs_attributes(entry)
       assert(type(attr) == "table")
       if attr.mode == "directory" then
         if not exclmodules[entry] then
-          table.insert(modules, entry)
+          insert(modules, entry)
         end
       end
     end
@@ -1160,7 +1194,7 @@ function setup_check(name, engine)
         "Error: failed to find " .. pdfext .. ", " .. tlgext .. " or "
           .. lveext .. " file for " .. name .. "!"
       )
-      os.exit(1)
+      exit(1)
     end
     runtest(name, engine, true, lveext, true)
     pdffile = testdir .. "/" .. testname .. pdfext
@@ -1174,19 +1208,19 @@ function setup_check(name, engine)
     for _,v in pairs({pdffile, tlgfile}) do
       if v then
         cp(
-          string.match(v, ".*/(.*)"),
-          string.match(v, "(.*)/.*"),
+          match(v, ".*/(.*)"),
+          match(v, "(.*)/.*"),
           testdir
         )
       end
     end
   end
   if pdffile then
-    local pdffile = string.match(pdffile, ".*/(.*)")
+    local pdffile = match(pdffile, ".*/(.*)")
     ren(
       testdir,
       pdffile,
-      string.gsub(pdffile, pdfext .. "$", ".ref" .. pdfext)
+      gsub(pdffile, pdfext .. "$", ".ref" .. pdfext)
     )
     return true
   else
@@ -1208,11 +1242,11 @@ function compare_pdf(name, engine)
   if os_windows then
     refpdffile = unix_to_win(refpdffile)
   end
-  errorlevel = os.execute(
+  errorlevel = execute(
     os_cmpexe .. " " .. refpdffile .. " " .. pdffile .. " > " .. cmpfile
   )
   if errorlevel == 0 then
-    os.remove(cmpfile)
+    os_remove(cmpfile)
   end
   return errorlevel
 end
@@ -1232,7 +1266,7 @@ function compare_tlg(name, engine)
   -- Do additional log formatting if the engine is LuaTeX, there is no
   -- LuaTeX-specific .tlg file and the default engine is not LuaTeX
   if engine == "luatex"
-    and not string.match(tlgfile, "%.luatex" .. "%" .. tlgext)
+    and not match(tlgfile, "%.luatex" .. "%" .. tlgext)
     and stdengine ~= "luatex"
     and stdengine ~= "luajittex"
     then
@@ -1245,11 +1279,11 @@ function compare_tlg(name, engine)
     -- This allows code sharing below: we only need the .tlg name in one place
     tlgfile = luatlgfile
   end
-  errorlevel = os.execute(
+  errorlevel = execute(
     os_diffexe .. " " .. tlgfile .. " " .. logfile .. " > " .. difffile
   )
   if errorlevel == 0 then
-    os.remove(difffile)
+    os_remove(difffile)
   end
   return errorlevel
 end
@@ -1265,31 +1299,31 @@ function runtest(name, engine, hide, ext, makepdf)
   local realengine = engine
   local format
   if
-    string.match(checkformat, "tex$") and
-    not string.match(engine, checkformat) then
-    format = " -fmt=" .. string.gsub(engine, "(.*)tex$", "%1") .. checkformat
+    match(checkformat, "tex$") and
+    not match(engine, checkformat) then
+    format = " -fmt=" .. gsub(engine, "(.*)tex$", "%1") .. checkformat
   else
     format = ""
   end
   -- Special casing for e-LaTeX format
   if
-    string.match(checkformat, "^latex$") and
-    string.match(engine, "^etex$") then
+    match(checkformat, "^latex$") and
+    match(engine, "^etex$") then
     format = " -fmt=latex"
   end
   -- Special casing for (u)pTeX LaTeX formats
   if
-    string.match(checkformat, "^latex$") and
-    string.match(engine, "^u?ptex$") then
+    match(checkformat, "^latex$") and
+    match(engine, "^u?ptex$") then
     realengine = "e" .. engine
   end
   -- Special casing for XeTeX engine
   local checkopts = checkopts
-  if string.match(engine, "xetex") and not makepdf then
+  if match(engine, "xetex") and not makepdf then
     checkopts = checkopts .. " -no-pdf"
   end
   -- Special casing for ConTeXt
-  if string.match(checkformat, "^context$") then
+  if match(checkformat, "^context$") then
     format = ""
     if engine == "luatex" or engine == "luajittex" then
       realengine = "context"
@@ -1299,7 +1333,7 @@ function runtest(name, engine, hide, ext, makepdf)
       realengine = "texexec --xetex"
     else
       print("Engine incompatible with format")
-      os.exit(1)
+      exit(1)
     end
   end
   local logfile = testdir .. "/" .. name .. logext
@@ -1342,12 +1376,12 @@ function runtest(name, engine, hide, ext, makepdf)
   formatlog(logfile, newfile, engine)
   -- Store secondary files for this engine
   for _,i in ipairs(filelist(testdir, name .. ".???")) do
-    local ext = string.match(i, "%....")
+    local ext = match(i, "%....")
     if ext ~= lvtext and ext ~= tlgext and ext ~= lveext and ext ~= logext then
       if not fileexists(testsuppdir .. "/" .. i) then
         ren(
-          testdir, i, string.gsub(
-            i, string.gsub(name, "%-", "%%-"), name .. "." .. engine
+          testdir, i, gsub(
+            i, gsub(name, "%-", "%%-"), name .. "." .. engine
           )
         )
       end
@@ -1361,7 +1395,7 @@ runtest_tasks = runtest_tasks or function(name)
 end
 
 function dvitopdf(name, dir, engine, hide)
-  if string.match(engine, "^u?ptex$") then
+  if match(engine, "^u?ptex$") then
     run(
       dir,
       os_setenv .. " SOURCE_DATE_EPOCH=" .. epoch
@@ -1385,13 +1419,13 @@ end
 
 -- Strip the extension from a file name (if present)
 function stripext(file)
-  local name = string.match(file, "^(.*)%.")
+  local name = match(file, "^(.*)%.")
   return name or file
 end
 
 -- Strip the path from a file name (if present)
 function basename(file)
-  local name = string.match(file, "^.*/([^/]*)$")
+  local name = match(file, "^.*/([^/]*)$")
   return name or file
 end
 
@@ -1491,7 +1525,7 @@ function typesetpdf(file)
   print("Typesetting " .. name)
   local errorlevel = typeset(file)
   if errorlevel == 0 then
-    os.remove(name .. ".pdf")
+    os_remove(name .. ".pdf")
     cp(name .. ".pdf", typesetdir, ".")
   else
     print(" ! Compilation failed")
@@ -1571,14 +1605,14 @@ function check(names)
     -- No names passed: find all test files
     if not next(names) then
       for _,i in pairs(filelist(testfiledir, "*" .. lvtext)) do
-        table.insert(names, stripext(i))
+        insert(names, stripext(i))
       end
       for _,i in ipairs(filelist(unpackdir, "*" .. lvtext)) do
         if fileexists(testfiledir .. "/" .. i) then
           print("Duplicate test file: " .. i)
           return 1
         else
-          table.insert(names, stripext(i))
+          insert(names, stripext(i))
         end
       end
     end
@@ -1622,7 +1656,7 @@ function showfaileddiff()
   for _,i in ipairs(filelist(testdir, "*" .. os_diffext)) do
     print("  - " .. testdir .. "/" .. i)
     print("")
-    local f = io.open(testdir .. "/" .. i,"r")
+    local f = open(testdir .. "/" .. i,"r")
     local content = f:read("*all")
     f:close()
     print("-----------------------------------------------------------------------------------")
@@ -1677,7 +1711,7 @@ function cmdcheck()
   for _,i in ipairs(typesetsuppfiles) do
     cp(i, supportdir, testdir)
   end
-  local engine = string.gsub(stdengine, "tex$", "latex")
+  local engine = gsub(stdengine, "tex$", "latex")
   local localdir = relpath(localdir, testdir)
   print("Checking source files")
   for _,i in ipairs(cmdchkfiles) do
@@ -1692,9 +1726,9 @@ function cmdcheck()
           " \"\\PassOptionsToClass{check}{l3doc} \\input " .. j .. "\""
           .. " > " .. os_null
       )
-      for line in io.lines(testdir .. "/" .. stripext(j) .. ".cmds") do
-        if string.match(line, "^%!") then
-          print("   - " .. string.match(line, "^%! (.*)"))
+      for line in lines(testdir .. "/" .. stripext(j) .. ".cmds") do
+        if match(line, "^%!") then
+          print("   - " .. match(line, "^%! (.*)"))
         end
       end
     end
@@ -1792,7 +1826,7 @@ function bundlectan()
     for _,i in ipairs(include) do
       for _,j in ipairs(filelist(".", i)) do
         if not excludelist[j] then
-          table.insert(includelist, j)
+          insert(includelist, j)
         end
       end
     end
@@ -1804,7 +1838,7 @@ function bundlectan()
     -- Work out what PDF files are available
     pdffiles = { }
     for _,i in ipairs(typesetfiles) do
-      table.insert(pdffiles, (string.gsub(i, "%.%w+$", ".pdf")))
+      insert(pdffiles, (gsub(i, "%.%w+$", ".pdf")))
     end
     typesetlist = excludelist(typesetfiles, {sourcefiles})
     sourcelist = excludelist(
@@ -1864,8 +1898,8 @@ function install()
   if errorlevel ~= 0 then
     return errorlevel
   end
-  kpse.set_program_name("latex")
-  local texmfhome = kpse.var_value("TEXMFHOME")
+  set_program_name("latex")
+  local texmfhome = var_value("TEXMFHOME")
   local installdir = texmfhome .. "/tex/" .. moduledir
   errorlevel = cleandir(installdir)
   if errorlevel ~= 0 then
@@ -1929,13 +1963,13 @@ if versionform ~= "" and not setversion_update_line then
     function setversion_update_line(line, date, release)
       -- No real regex so do it one type at a time
       for _,i in pairs({"Class", "File", "Package"}) do
-        if string.match(
+        if match(
           line,
           "^\\Provides" .. i .. "{[a-zA-Z0-9%-%.]+}%[[^%]]*%]$"
         ) then
-          line = string.gsub(line, "%[%d%d%d%d/%d%d/%d%d", "["
-            .. string.gsub(date, "%-", "/"))
-          line = string.gsub(
+          line = gsub(line, "%[%d%d%d%d/%d%d/%d%d", "["
+            .. gsub(date, "%-", "/"))
+          line = gsub(
             line, "(%[%d%d%d%d/%d%d/%d%d) [^ ]*", "%1 " .. release
           )
           break
@@ -1947,14 +1981,14 @@ if versionform ~= "" and not setversion_update_line then
     function setversion_update_line(line, date, release)
       -- No real regex so do it one type at a time
       for _,i in pairs({"Class", "File", "Package"}) do
-        if string.match(
+        if match(
           line,
           "^\\ProvidesExpl" .. i .. " *{[a-zA-Z0-9%-%.]+}"
         ) then
-          line = string.gsub(
+          line = gsub(
             line,
             "{%d%d%d%d/%d%d/%d%d}( *){[^}]*}",
-            "{" .. string.gsub(date, "%-", "/") .. "}%1{" .. release .. "}"
+            "{" .. gsub(date, "%-", "/") .. "}%1{" .. release .. "}"
           )
           break
         end
@@ -1963,20 +1997,20 @@ if versionform ~= "" and not setversion_update_line then
     end
   elseif versionform == "filename" then
     function setversion_update_line(line, date, release)
-      if string.match(line, "^\\def\\filedate{%d%d%d%d/%d%d/%d%d}$") then
-        line = "\\def\\filedate{" .. string.gsub(date, "%-", "/") .. "}"
+      if match(line, "^\\def\\filedate{%d%d%d%d/%d%d/%d%d}$") then
+        line = "\\def\\filedate{" .. gsub(date, "%-", "/") .. "}"
       end
-      if string.match(line, "^\\def\\fileversion{[^}]+}$") then
+      if match(line, "^\\def\\fileversion{[^}]+}$") then
         line = "\\def\\fileversion{" .. release .. "}"
       end
       return line
     end
   elseif versionform == "ExplFileDate" then
     function setversion_update_line(line, date, release)
-      if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}$") then
-        line = "\\def\\ExplFileDate{" .. string.gsub(date, "%-", "/") .. "}"
+      if match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}$") then
+        line = "\\def\\ExplFileDate{" .. gsub(date, "%-", "/") .. "}"
       end
-      if string.match(line, "^\\def\\ExplFileVersion{[^}]+}$") then
+      if match(line, "^\\def\\ExplFileVersion{[^}]+}$") then
         line = "\\def\\ExplFileVersion{" .. release .. "}"
       end
       return line
@@ -1993,7 +2027,7 @@ function setversion(dir)
   local function rewrite(dir, file, date, release)
     local changed = false
     local result = ""
-    for line in io.lines(dir .. "/" .. file) do
+    for line in lines(dir .. "/" .. file) do
       local newline = setversion_update_line(line, date, release)
       if newline ~= line then
         line = newline
@@ -2003,22 +2037,22 @@ function setversion(dir)
     end
     if changed then
       -- Avoid adding/removing end-of-file newline
-      local f = io.open(dir .. "/" .. file, "rb")
+      local f = open(dir .. "/" .. file, "rb")
       local content = f:read("*all")
-      io.close(f)
-      if not string.match(content, os_newline .. "$") then
-        string.gsub(result, os_newline .. "$", "")
+      close(f)
+      if not match(content, os_newline .. "$") then
+        gsub(result, os_newline .. "$", "")
       end
       -- Write the new file
       ren(dir, file, file .. bakext)
-      local f = io.open(dir .. "/" .. file, "w")
-      io.output(f)
-      io.write(result)
-      io.close(f)
+      local f = open(dir .. "/" .. file, "w")
+      output(f)
+      write(result)
+      close(f)
       rm(dir, file .. bakext)
     end
   end
-  local date = os.date("%Y-%m-%d")
+  local date = os_date("%Y-%m-%d")
   if optdate then
     date = optdate[1] or date
   end
@@ -2085,9 +2119,9 @@ bundleunpack = bundleunpack or function(sourcedir)
       -- This 'yes' business is needed to pass a series of "y\n" to
       -- TeX if \askforoverwrite is true
       -- That is all done using a file as it's the only way on Windows and
-      -- on Unix the "yes" command can't be used inside os.execute (it never
+      -- on Unix the "yes" command can't be used inside execute (it never
       -- stops, which confuses Lua)
-      os.execute(os_yes .. ">>" .. localdir .. "/yes")
+      execute(os_yes .. ">>" .. localdir .. "/yes")
       local localdir = relpath(localdir, unpackdir)
       errorlevel = run(
         unpackdir,
@@ -2109,7 +2143,7 @@ end
 function version()
   print(
     "\n"
-    .. "l3build Release " .. string.gsub(release_date, "/", "-") .. "\n"
+    .. "l3build Release " .. gsub(release_date, "/", "-") .. "\n"
   )
 end
 
@@ -2189,9 +2223,9 @@ function stdmain(target, files)
     end
   end
   if errorlevel ~= 0 then
-    os.exit(1)
+    exit(1)
   else
-    os.exit(0)
+    exit(0)
   end
 end
 
