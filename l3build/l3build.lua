@@ -170,6 +170,9 @@ pdfext = pdfext or ".pdf"
 psext  = psext  or ".ps"
 tlgext = tlgext or ".tlg"
 
+-- File operations are aided by the LuaFileSystem module
+lfs = require("lfs")
+
 -- Parse command line options
 -- This is done as a function (rather than do ... end) as it allows early
 -- termination (break)
@@ -430,10 +433,6 @@ else
   os_windows  = false
   os_yes      = "printf 'y\\n%.0s' {1..200}"
 end
-
--- File operations are aided by the LuaFileSystem module, which is available
--- within texlua
-lfs = require("lfs")
 
 -- For cleaning out a directory, which also ensures that it exists
 function cleandir(dir)
