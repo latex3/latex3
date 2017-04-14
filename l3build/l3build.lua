@@ -2133,20 +2133,21 @@ bundleunpack = bundleunpack or function(sourcedir, sources)
     end
   end
   for _,i in ipairs(unpackfiles) do
-    for _,j in ipairs(filelist(unpackdir, i)) do
+    for j,_ in pairs(tree(unpackdir, i)) do
       -- This 'yes' business is needed to pass a series of "y\n" to
       -- TeX if \askforoverwrite is true
       -- That is all done using a file as it's the only way on Windows and
       -- on Unix the "yes" command can't be used inside execute (it never
       -- stops, which confuses Lua)
       execute(os_yes .. ">>" .. localdir .. "/yes")
+      local path, name = splitpath(j)
       local localdir = abspath(localdir)
       errorlevel = run(
-        unpackdir,
+        unpackdir .. "/" .. path,
         os_setenv .. " TEXINPUTS=." .. os_pathsep
           .. localdir .. (unpacksearch and os_pathsep or "") ..
         os_concat ..
-        unpackexe .. " " .. unpackopts .. " " .. j .. " < "
+        unpackexe .. " " .. unpackopts .. " " .. name .. " < "
           .. localdir .. "/yes"
           .. (optquiet and (" > " .. os_null) or "")
       )
