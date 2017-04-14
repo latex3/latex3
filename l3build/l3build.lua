@@ -490,7 +490,7 @@ end
 -- Copy files 'quietly'
 function cp(glob, source, dest)
   local errorlevel
-  for _,i in ipairs(filelist(source, glob)) do
+  for i,_ in pairs(tree(source, glob)) do
     local source = source .. "/" .. i
     if os_type == "windows" then
       if lfs_attributes(source)["mode"] == "directory" then
@@ -561,6 +561,28 @@ function filelist(path, glob)
     end
   end
   return files
+end
+
+-- Does what filelist does, but can also glob subdirectories. In the returned
+-- table, the keys are paths relative to the given starting path, the values
+-- are their counterparts relative to the current working directory.
+function tree(path, glob)
+  function cropdots(path)
+    return gsub(gsub(path, "^%./", ""), "/%./", "/")
+  end
+  dirs = {["."]=cropdots(path)}
+  for pattern in gmatch(cropdots(glob), "[^/]+") do
+    local newdirs = {}
+    for path, dir in pairs(dirs) do
+      for _, file in ipairs(filelist(dir, pattern)) do
+        if file ~= "." and file ~= ".." then
+          newdirs[path .. "/" .. file] = dir .. "/" .. file
+        end
+      end
+    end
+    dirs = newdirs
+  end
+  return dirs
 end
 
 function mkdir(dir)
