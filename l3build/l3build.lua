@@ -171,7 +171,7 @@ psext  = psext  or ".ps"
 tlgext = tlgext or ".tlg"
 
 -- File operations are aided by the LuaFileSystem module
-lfs = require("lfs")
+local lfs = require("lfs")
 
 -- Parse command line options
 -- This is done as a function (rather than do ... end) as it allows early
