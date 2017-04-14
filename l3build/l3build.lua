@@ -1417,15 +1417,19 @@ function dvitopdf(name, dir, engine, hide)
   end
 end
 
--- Strip the path from a file name (if present)
-function basename(file)
-  local name = match(file, "^.*/([^/]*)$")
-  return name or file
+-- Split a path into file and directory component
+function splitpath(file)
+  local path, name = match(file, "^(.*)/([^/]*)$")
+  if path then
+    return path, name
+  else
+    return ".", file
+  end
 end
 
 -- Strip the extension from a file name (if present)
 function jobname(file)
-  local name = match(basename(file), "^(.*)%.")
+  local name = match(select(2, splitpath(file)), "^(.*)%.")
   return name or file
 end
 
@@ -1521,7 +1525,7 @@ function tex(file)
 end
 
 function typesetpdf(file)
-  local name = jobname(file)
+  local name = jobname(select(2, splitpath(file))
   print("Typesetting " .. name)
   local errorlevel = typeset(file)
   if errorlevel == 0 then
@@ -1538,7 +1542,7 @@ typeset = typeset or function(file)
   if errorlevel ~= 0 then
     return errorlevel
   else
-    local name = jobname(file)
+    local name = jobname(select(2, splitpath(file)))
     errorlevel = biber(name) + bibtex(name)
     if errorlevel == 0 then
       local function cycle(name)
