@@ -579,15 +579,30 @@ function tree(path, glob)
   local dirs = {["."]=cropdots(path)}
   for pattern, critereon in gmatch(cropdots(glob), "([^/]+)(/?)") do
     local critereon = critereon == "/" and is_dir or always_true
-    local newdirs = {}
-    for path, dir in pairs(dirs) do
+    function fill(path, dir, table)
       for _, file in ipairs(filelist(dir, pattern)) do
         if file ~= "." and file ~= ".." then
           local fulldir = dir .. "/" .. file
           if critereon(fulldir) then
-            newdirs[path .. "/" .. file] = fulldir
+            table[path .. "/" .. file] = fulldir
           end
         end
+      end
+    end
+    local newdirs = {}
+    if pattern == "**" then
+      while true do
+        path, dir = next(dirs)
+        if not path then
+          break
+        end
+        dirs[path] = nil
+        newdirs[path] = dir
+        fill(path, dir, dirs)
+      end
+    else
+      for path, dir in pairs(dirs) do
+        fill(path, dir, newdirs)
       end
     end
     dirs = newdirs
