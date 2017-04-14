@@ -565,27 +565,13 @@ function mkdir(dir)
   end
 end
 
--- Find the relationship between two directories
-function relpath(target, source)
-  -- A shortcut for the case where the two are the same
-  if target == source then
-    return ""
-  end
-  local resultdir = ""
-  local trimpattern = "^[^/]*/"
-  -- Trim off identical leading directories
-  while
-    (match(target, trimpattern) or "X") ==
-    (match(target, trimpattern) or "Y") do
-    target = gsub(target, trimpattern, "")
-    source = gsub(source, trimpattern, "")
-  end
-  -- Go up from the source
-  for i = 0, select(2, gsub(target, "/", "")) do
-    resultdir = resultdir .. "../"
-  end
-  -- Return the relative part plus the unique part of the target
-  return resultdir .. target
+-- Return an absolute path from a relative one
+function abspath(path)
+  local oldpwd = lfs.currentdir()
+  lfs.chdir(path)
+  local result = lfs.currentdir()
+  lfs.chdir(oldpwd)
+  return result
 end
 
 -- Rename
@@ -1442,7 +1428,7 @@ function runtool(envvar, command)
     run(
       typesetdir,
       os_setenv .. " " .. envvar .. "=." .. os_pathsep
-        .. relpath(localdir, typesetdir)
+        .. abspath(localdir)
         .. (typesetsearch and os_pathsep or "") ..
       os_concat ..
       command
@@ -1483,7 +1469,7 @@ function bibtex(name)
         runtool(
           "BIBINPUTS",
           os_setenv .. " BSTINPUTS=." .. os_pathsep
-            .. relpath(localdir, typesetdir)
+            .. abspath(localdir)
             .. (typesetsearch and os_pathsep or "") ..
           os_concat ..
           bibtexexe .. " " .. bibtexopts .. " " .. name
@@ -1710,7 +1696,7 @@ function cmdcheck()
     cp(i, supportdir, testdir)
   end
   local engine = gsub(stdengine, "tex$", "latex")
-  local localdir = relpath(localdir, testdir)
+  local localdir = abspath(localdir)
   print("Checking source files")
   for _,i in ipairs(cmdchkfiles) do
     for _,j in ipairs(filelist(".", i)) do
@@ -1879,7 +1865,7 @@ function doc(files)
           end
         end
         if typeset then
-          local errorlevel = typesetpdf(relpath(dir, ".") .. "/" .. j)
+          local errorlevel = typesetpdf(abspath(dir) .. "/" .. j)
           if errorlevel ~= 0 then
             return errorlevel
           end
@@ -2120,7 +2106,7 @@ bundleunpack = bundleunpack or function(sourcedir)
       -- on Unix the "yes" command can't be used inside execute (it never
       -- stops, which confuses Lua)
       execute(os_yes .. ">>" .. localdir .. "/yes")
-      local localdir = relpath(localdir, unpackdir)
+      local localdir = abspath(localdir)
       errorlevel = run(
         unpackdir,
         os_setenv .. " TEXINPUTS=." .. os_pathsep
