@@ -390,7 +390,7 @@ local optrelease = options["release"]
   (end license)
 
 --]]
-function glob_to_pattern(glob)
+local function glob_to_pattern(glob)
 
   local pattern = "^" -- pattern being built
   local i = 0 -- index in glob
