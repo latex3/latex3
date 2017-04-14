@@ -210,6 +210,7 @@ local function argparse()
       release     = true,
       testfiledir = true
     }
+  local args = args
   -- arg[1] is a special case: must be a command or "-h"/"--help"
   -- Deal with this by assuming help and storing only apparently-valid
   -- input
