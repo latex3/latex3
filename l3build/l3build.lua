@@ -448,24 +448,24 @@ local os_setenv  = "export"
 local os_windows = false
 local os_yes     = "printf 'y\\n%.0s' {1..200}"
 if os_type == "windows" then
-  os_ascii    = "@echo."
-  os_cmpexe   = getenv("cmpexe") or "fc /b"
-  os_cmpext   = getenv("cmpext") or ".cmp"
-  os_concat   = "&"
-  os_diffext  = getenv("diffext") or ".fc"
-  os_diffexe  = getenv("diffexe") or "fc /n"
-  os_grepexe  = "findstr /r"
-  os_newline  = "\n"
+  os_ascii   = "@echo."
+  os_cmpexe  = getenv("cmpexe") or "fc /b"
+  os_cmpext  = getenv("cmpext") or ".cmp"
+  os_concat  = "&"
+  os_diffext = getenv("diffext") or ".fc"
+  os_diffexe = getenv("diffexe") or "fc /n"
+  os_grepexe = "findstr /r"
+  os_newline = "\n"
   if tonumber(luatex_version) < 100 or
      (tonumber(luatex_version) == 100
        and tonumber(luatex_revision) < 4) then
     os_newline = "\r\n"
   end
-  os_null     = "nul"
-  os_pathsep  = ";"
-  os_setenv   = "set"
-  os_windows  = true
-  os_yes      = "for /l %I in (1,1,200) do @echo y"
+  os_null    = "nul"
+  os_pathsep = ";"
+  os_setenv  = "set"
+  os_windows = true
+  os_yes     = "for /l %I in (1,1,200) do @echo y"
 end
 
 -- For cleaning out a directory, which also ensures that it exists
