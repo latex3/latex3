@@ -100,9 +100,9 @@ makeindexfiles   = makeindexfiles   or {"*.ist"}
 sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"}
 textfiles        = textfiles        or {"*.md", "*.txt"}
 typesetdemofiles = typesetdemofiles or { }
-typesetfiles     = typesetfiles     or {"*.dtx"}
+typesetfiles     = typesetfiles     or {"**/*.dtx"}
 typesetsuppfiles = typesetsuppfiles or { }
-unpackfiles      = unpackfiles      or {"*.ins"}
+unpackfiles      = unpackfiles      or {"**/*.ins"}
 unpacksuppfiles  = unpacksuppfiles  or { }
 versionfiles     = versionfiles     or {"*.dtx"}
 
