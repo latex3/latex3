@@ -206,6 +206,7 @@ local match            = string.match
 local sub              = string.sub
 local concat           = table.concat
 local insert           = table.insert
+local utf8_char        = unicode.utf8.char
 
 -- Parse command line options
 -- This is done as a function (rather than do ... end) as it allows early
@@ -882,7 +883,6 @@ function formatlog(logfile, newfile, engine)
        return ""
     end
     -- A tidy-up to keep LuaTeX and other engines in sync
-    local utf8_char = unicode.utf8.char
     line = gsub(line, utf8_char(127), "^^?")
     -- Unicode engines display chars in the upper half of the 8-bit range:
     -- tidy up to match pdfTeX if an ASCII engine is in use
