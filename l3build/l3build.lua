@@ -1430,10 +1430,14 @@ function stripext(file)
   return name or file
 end
 
--- Strip the path from a file name (if present)
-function basename(file)
-  local name = match(file, "^.*/([^/]*)$")
-  return name or file
+-- Split a path into file and directory component
+function splitpath(file)
+  local path, name = match(file, "^(.*)/([^/]*)$")
+  if path then
+    return path, name
+  else
+    return ".", file
+  end
 end
 
 -- Look for a test: could be in the testfiledir or the unpackdir
@@ -1528,7 +1532,7 @@ function tex(file)
 end
 
 function typesetpdf(file)
-  local name = stripext(basename(file))
+  local name = stripext(select(2, splitpath(file))
   print("Typesetting " .. name)
   local errorlevel = typeset(file)
   if errorlevel == 0 then
@@ -1545,7 +1549,7 @@ typeset = typeset or function(file)
   if errorlevel ~= 0 then
     return errorlevel
   else
-    local name = stripext(basename(file))
+    local name = stripext(select(2, splitpath(file)))
     errorlevel = biber(name) + bibtex(name)
     if errorlevel == 0 then
       local function cycle(name)
