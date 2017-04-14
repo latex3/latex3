@@ -38,7 +38,7 @@ bundle = bundle or ""
 
 -- Sanity check
 if module == "" and bundle == "" then
-  if string.match(arg[0], ".*l3build%.lua$") then
+  if string.match(arg[0], "l3build%.lua$") then
     print(
       "\n"
         .. "Error: Call l3build using a configuration file, not directly.\n"
