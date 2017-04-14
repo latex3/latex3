@@ -330,7 +330,6 @@ local function argparse()
       -- Store the result
       if optarg then
         local opts = result[optname] or { }
-        local match
         for match in gmatch(optarg, "([^,%s]+)") do
           insert(opts, match)
         end
