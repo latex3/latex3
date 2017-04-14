@@ -30,26 +30,26 @@ function main (target)
     local errorlevel = 0
     for _,i in ipairs (bundles) do
       local date = ""
-      if optdate then
-        date = " --date=" .. optdate[1]
+      if options.date then
+        date = " --date=" .. options.date[1]
       end
       local engines = ""
-      if optengines then
-        engines = " --engine=" .. table.concat(optengines, ",")
+      if options.engines then
+        options.engines = " --engine=" .. table.concat(options.engines, ",")
       end
       local release = ""
-      if optrelease then
-        release = " --release=" .. optrelease[1]
+      if options.release then
+        release = " --release=" .. options.release[1]
       end
       errorlevel = run(
         i,
         "texlua " .. scriptname .. " "
           .. target
-          .. (opthalt and " -H" or "")
+          .. (options.halt and " -H" or "")
           .. date
           .. engines
-          .. (optpdf and " -p" or "")
-          .. (optquiet and " -q" or "")
+          .. (options.pdf and " -p" or "")
+          .. (options.quiet and " -q" or "")
           .. release
       )
       if errorlevel ~= 0 then

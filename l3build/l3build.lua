@@ -351,13 +351,13 @@ end
 
 userargs = argparse()
 
-optdate    = userargs["date"]
-optengines = userargs["engine"]
-opthalt    = userargs["halt"]
-opthelp    = userargs["help"]
-optpdf     = userargs["pdf"]
-optquiet   = userargs["quiet"]
-optrelease = userargs["release"]
+local optdate    = userargs["date"]
+local optengines = userargs["engine"]
+local opthalt    = userargs["halt"]
+local opthelp    = userargs["help"]
+local optpdf     = userargs["pdf"]
+local optquiet   = userargs["quiet"]
+local optrelease = userargs["release"]
 
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
