@@ -434,6 +434,19 @@ end
 -- Support items are defined here for cases where a single string can cover
 -- both Windows and Unix cases: more complex situations are handled inside
 -- the support functions
+local os_ascii   = "echo \"\""
+local os_cmpexe  = getenv("cmpexe") or "cmp"
+local os_cmpext  = getenv("cmpext") or ".cmp"
+local os_concat  = ";"
+local os_diffext = getenv("diffext") or ".diff"
+local os_diffexe = getenv("diffexe") or "diff -c --strip-trailing-cr"
+local os_grepexe = "grep"
+local os_newline = "\n"
+local os_null    = "/dev/null"
+local os_pathsep = ":"
+local os_setenv  = "export"
+local os_windows = false
+local os_yes     = "printf 'y\\n%.0s' {1..200}"
 if os_type == "windows" then
   os_ascii    = "@echo."
   os_cmpexe   = getenv("cmpexe") or "fc /b"
@@ -453,20 +466,6 @@ if os_type == "windows" then
   os_setenv   = "set"
   os_windows  = true
   os_yes      = "for /l %I in (1,1,200) do @echo y"
-else
-  os_ascii    = "echo \"\""
-  os_cmpexe   = getenv("cmpexe") or "cmp"
-  os_cmpext   = getenv("cmpext") or ".cmp"
-  os_concat   = ";"
-  os_diffext  = getenv("diffext") or ".diff"
-  os_diffexe  = getenv("diffexe") or "diff -c --strip-trailing-cr"
-  os_grepexe  = "grep"
-  os_newline  = "\n"
-  os_null     = "/dev/null"
-  os_pathsep  = ":"
-  os_setenv   = "export"
-  os_windows  = false
-  os_yes      = "printf 'y\\n%.0s' {1..200}"
 end
 
 -- For cleaning out a directory, which also ensures that it exists
