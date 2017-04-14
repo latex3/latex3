@@ -283,7 +283,8 @@ local function argparse()
       break
     end
     -- Look for optionals
-    local opt, optarg
+    local opt
+    local optarg
     local opts
     -- Look for and option and get it into a variable
     if match(a, "^%-") then
@@ -294,7 +295,7 @@ local function argparse()
           opt    = sub(a, 3, pos - 1)
           optarg = sub(a, pos + 1)
         else
-          opt = sub(a,3)
+          opt = sub(a, 3)
         end
       else
         opts = short_options
