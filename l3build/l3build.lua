@@ -171,7 +171,9 @@ psext  = psext  or ".ps"
 tlgext = tlgext or ".tlg"
 
 -- Parse command line options
-function argparse()
+-- This is done as a function (rather than do ... end) as it allows early
+-- termination (break)
+local function argparse()
   local result = { }
   local files  = { }
   local long_options =
