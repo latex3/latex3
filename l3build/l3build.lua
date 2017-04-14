@@ -349,15 +349,15 @@ local function argparse()
   return result
 end
 
-userargs = argparse()
+options = argparse()
 
-local optdate    = userargs["date"]
-local optengines = userargs["engine"]
-local opthalt    = userargs["halt"]
-local opthelp    = userargs["help"]
-local optpdf     = userargs["pdf"]
-local optquiet   = userargs["quiet"]
-local optrelease = userargs["release"]
+local optdate    = options["date"]
+local optengines = options["engine"]
+local opthalt    = options["halt"]
+local opthelp    = options["help"]
+local optpdf     = options["pdf"]
+local optquiet   = options["quiet"]
+local optrelease = options["release"]
 
 -- Convert a file glob into a pattern for use by e.g. string.gub
 -- Based on https://github.com/davidm/lua-glob-pattern
@@ -2234,9 +2234,9 @@ end
 main = main or stdmain
 
 -- Pick up and read any per-run testfiledir
-if userargs["testfiledir"] then
-  if #userargs["testfiledir"] == 1 then
-    testfiledir = userargs["testfiledir"][1]
+if options["testfiledir"] then
+  if #options["testfiledir"] == 1 then
+    testfiledir = options["testfiledir"][1]
     if fileexists(testfiledir .. "/config.lua") then
       dofile(testfiledir .. "/config.lua")
     end
@@ -2247,4 +2247,4 @@ if userargs["testfiledir"] then
 end
 
 -- Call the main function
-main(userargs["target"], userargs["files"])
+main(options["target"], options["files"])
