@@ -1992,14 +1992,14 @@ end
 function setversion(dir)
   local function rewrite(dir, file, date, release)
     local changed = false
-    local lines = ""
+    local result = ""
     for line in io.lines(dir .. "/" .. file) do
       local newline = setversion_update_line(line, date, release)
       if newline ~= line then
         line = newline
         changed = true
       end
-      lines = lines .. line .. os_newline
+      result = result .. line .. os_newline
     end
     if changed then
       -- Avoid adding/removing end-of-file newline
@@ -2007,13 +2007,13 @@ function setversion(dir)
       local content = f:read("*all")
       io.close(f)
       if not string.match(content, os_newline .. "$") then
-        string.gsub(lines, os_newline .. "$", "")
+        string.gsub(result, os_newline .. "$", "")
       end
       -- Write the new file
       ren(dir, file, file .. bakext)
       local f = io.open(dir .. "/" .. file, "w")
       io.output(f)
-      io.write(lines)
+      io.write(result)
       io.close(f)
       rm(dir, file .. bakext)
     end
