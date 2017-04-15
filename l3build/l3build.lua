@@ -735,7 +735,6 @@ function copytds()
         moduledir = module
       end
     end
-    local installdir = tdsdir .. "/" .. dest .. "/" .. moduledir
     -- Convert the file table(s) to a list of individual files
     local filenames = { }
     for _,i in ipairs(files) do
@@ -747,6 +746,7 @@ function copytds()
     end
     -- The target is only created if there are actual files to install
     if next(filenames) ~= nil then
+      local installdir = tdsdir .. "/" .. dest .. "/" .. moduledir
       mkdir(installdir)
       for _,i in ipairs(filenames) do
         cp(i, source, installdir)
