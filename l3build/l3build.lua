@@ -767,7 +767,7 @@ function copytds()
 end
 
 -- Unpack files needed to support testing/typesetting/unpacking
-local function depinstall(deps)
+function depinstall(deps)
   local errorlevel
   for _,i in ipairs(deps) do
     print("Installing dependency: " .. i)
