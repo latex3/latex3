@@ -699,7 +699,7 @@ local function checkinit()
 end
 
 -- Unpack files needed to support testing/typesetting/unpacking
-function depinstall(deps)
+local function depinstall(deps)
   local errorlevel
   for _,i in ipairs(deps) do
     print("Installing dependency: " .. i)
@@ -713,7 +713,7 @@ end
 
 -- Convert the raw log file into one for comparison/storage: keeps only
 -- the 'business' part from the tests and removes system-dependent stuff
-function formatlog(logfile, newfile, engine)
+local function formatlog(logfile, newfile, engine)
   local maxprintline = maxprintline
   if engine == "luatex" or engine == "luajittex" then
     maxprintline = maxprintline + 1 -- Deal with an out-by-one error
@@ -857,7 +857,7 @@ function formatlog(logfile, newfile, engine)
 end
 
 -- Additional normalization for LuaTeX
-function formatlualog(logfile, newfile)
+local function formatlualog(logfile, newfile)
   local function normalize(line, lastline, dropping)
     -- Find \discretionary or \whatsit lines:
     -- These may come back later
