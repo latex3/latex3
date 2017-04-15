@@ -174,7 +174,9 @@ tlgext = tlgext or ".tlg"
 local lfs = require("lfs")
 
 -- Local access to functions
+local assert           = assert
 local ipairs           = ipairs
+local next             = next
 local print            = print
 local select           = select
 local tonumber         = tonumber
