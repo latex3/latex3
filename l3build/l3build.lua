@@ -634,24 +634,24 @@ end
 
 -- Do some subtarget for all modules in a bundle
 function allmodules(target)
+  local date = ""
+  if optdate then
+    date = " --date=" .. optdate[1]
+  end
+  local engines = ""
+  if optengines then
+    engines = " --engine=" .. concat(optengines, ",")
+  end
+  local release = ""
+  if optrelease then
+    release = " --release=" .. optrelease[1]
+  end
   for _,i in ipairs(modules) do
     print(
       "Running script " .. scriptname .. " with target \"" .. target
         .. "\" for module "
         .. i
     )
-    local date = ""
-    if optdate then
-      date = " --date=" .. optdate[1]
-    end
-    local engines = ""
-    if optengines then
-      engines = " --engine=" .. concat(optengines, ",")
-    end
-    local release = ""
-    if optrelease then
-      release = " --release=" .. optrelease[1]
-    end
     local errorlevel = run(
       i,
       "texlua " .. scriptname .. " " .. target
