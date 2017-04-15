@@ -700,6 +700,72 @@ local function checkinit()
   execute(os_ascii .. ">" .. testdir .. "/ascii.tcx")
 end
 
+-- Copy files to the main CTAN release directory
+function copyctan()
+  -- Do all of the copying in one go
+  for _,i in ipairs(
+      {
+        bibfiles,
+        demofiles,
+        docfiles,
+        pdffiles,
+        sourcefiles,
+        textfiles,
+        typesetlist
+      }
+    ) do
+    for _,j in ipairs(i) do
+      cp(j, ".", ctandir .. "/" .. ctanpkg)
+    end
+  end
+end
+
+-- Copy files to the correct places in the TDS tree
+function copytds()
+  local function install(source, dest, files, tool)
+    local moduledir = moduledir
+    -- For material associated with secondary tools (BibTeX, MakeIndex)
+    -- the structure needed is slightly different from those items going
+    -- into the tex/doc/source trees
+    if tool then
+      -- "base" is reserved for the tools themselves: make the assumption
+      -- in this case that the tdsroot name is the right place for stuff to
+      -- go (really just for the team)
+      if module == "base" then
+        moduledir = tdsroot
+      else
+        moduledir = module
+      end
+    end
+    -- Convert the file table(s) to a list of individual files
+    local filenames = { }
+    for _,i in ipairs(files) do
+      for _,j in ipairs(i) do
+        for _,k in ipairs(filelist(source, j)) do
+          insert(filenames, k)
+        end
+      end
+    end
+    -- The target is only created if there are actual files to install
+    if next(filenames) ~= nil then
+      local installdir = tdsdir .. "/" .. dest .. "/" .. moduledir
+      mkdir(installdir)
+      for _,i in ipairs(filenames) do
+        cp(i, source, installdir)
+      end
+    end
+  end
+  install(
+    ".",
+    "doc",
+    {bibfiles, demofiles, docfiles, pdffiles, textfiles, typesetlist}
+  )
+  install(unpackdir, "makeindex", {makeindexfiles}, true)
+  install(unpackdir, "bibtex/bst", {bstfiles}, true)
+  install(".", "source", {sourcelist})
+  install(unpackdir, "tex", {installfiles})
+end
+
 -- Unpack files needed to support testing/typesetting/unpacking
 local function depinstall(deps)
   local errorlevel
@@ -1742,72 +1808,6 @@ function ctan(standalone)
     print("====================\n")
   end
   return errorlevel
-end
-
--- Copy files to the main CTAN release directory
-function copyctan()
-  -- Do all of the copying in one go
-  for _,i in ipairs(
-      {
-        bibfiles,
-        demofiles,
-        docfiles,
-        pdffiles,
-        sourcefiles,
-        textfiles,
-        typesetlist
-      }
-    ) do
-    for _,j in ipairs(i) do
-      cp(j, ".", ctandir .. "/" .. ctanpkg)
-    end
-  end
-end
-
--- Copy files to the correct places in the TDS tree
-function copytds()
-  local function install(source, dest, files, tool)
-    local moduledir = moduledir
-    -- For material associated with secondary tools (BibTeX, MakeIndex)
-    -- the structure needed is slightly different from those items going
-    -- into the tex/doc/source trees
-    if tool then
-      -- "base" is reserved for the tools themselves: make the assumption
-      -- in this case that the tdsroot name is the right place for stuff to
-      -- go (really just for the team)
-      if module == "base" then
-        moduledir = tdsroot
-      else
-        moduledir = module
-      end
-    end
-    -- Convert the file table(s) to a list of individual files
-    local filenames = { }
-    for _,i in ipairs(files) do
-      for _,j in ipairs(i) do
-        for _,k in ipairs(filelist(source, j)) do
-          insert(filenames, k)
-        end
-      end
-    end
-    -- The target is only created if there are actual files to install
-    if next(filenames) ~= nil then
-      local installdir = tdsdir .. "/" .. dest .. "/" .. moduledir
-      mkdir(installdir)
-      for _,i in ipairs(filenames) do
-        cp(i, source, installdir)
-      end
-    end
-  end
-  install(
-    ".",
-    "doc",
-    {bibfiles, demofiles, docfiles, pdffiles, textfiles, typesetlist}
-  )
-  install(unpackdir, "makeindex", {makeindexfiles}, true)
-  install(unpackdir, "bibtex/bst", {bstfiles}, true)
-  install(".", "source", {sourcelist})
-  install(unpackdir, "tex", {installfiles})
 end
 
 function bundlectan()
