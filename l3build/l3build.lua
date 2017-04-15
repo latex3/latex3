@@ -633,7 +633,7 @@ end
 --
 
 -- Do some subtarget for all modules in a bundle
-function allmodules(target)
+local function allmodules(target)
   local date = ""
   if optdate then
     date = " --date=" .. optdate[1]
@@ -671,7 +671,7 @@ end
 
 -- Set up the check system files: needed for checking one or more tests and
 -- for saving the test files
-function checkinit()
+local function checkinit()
   cleandir(testdir)
   depinstall(checkdeps)
   -- Copy dependencies to the test directory itself: this makes the paths
