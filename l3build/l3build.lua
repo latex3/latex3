@@ -446,7 +446,6 @@ local os_newline = "\n"
 local os_null    = "/dev/null"
 local os_pathsep = ":"
 local os_setenv  = "export"
-local os_windows = false
 local os_yes     = "printf 'y\\n%.0s' {1..200}"
 if os_type == "windows" then
   os_ascii   = "@echo."
@@ -465,7 +464,6 @@ if os_type == "windows" then
   os_null    = "nul"
   os_pathsep = ";"
   os_setenv  = "set"
-  os_windows = true
   os_yes     = "for /l %I in (1,1,200) do @echo y"
 end
 
@@ -483,7 +481,7 @@ function cp(glob, source, dest)
   local errorlevel
   for _,i in ipairs(filelist(source, glob)) do
     local source = source .. "/" .. i
-    if os_windows then
+    if os_type == "windows" then
       if lfs_attributes(source)["mode"] == "directory" then
         errorlevel = execute(
           "xcopy /y /e /i " .. unix_to_win(source) .. " "
@@ -508,7 +506,7 @@ end
 -- OS-dependent test for a directory
 function direxists(dir)
   local errorlevel
-  if os_windows then
+  if os_type == "windows" then
     errorlevel =
       execute("if not exist \"" .. unix_to_win(dir) .. "\" exit 1")
   else
@@ -555,7 +553,7 @@ function filelist(path, glob)
 end
 
 function mkdir(dir)
-  if os_windows then
+  if os_type == "windows" then
     -- Windows (with the extensions) will automatically make directory trees
     -- but issues a warning if the dir already exists: avoid by including a test
     local dir = unix_to_win(dir)
@@ -593,7 +591,7 @@ end
 -- Rename
 function ren(dir, source, dest)
   local dir = dir .. "/"
-  if os_windows then
+  if os_type == "windows" then
     return execute("ren " .. unix_to_win(dir) .. source .. " " .. dest)
   else
     return execute("mv " .. dir .. source .. " " .. dir .. dest)
@@ -613,7 +611,7 @@ end
 function rmdir(dir)
   -- First, make sure it exists to avoid any errors
   mkdir(dir)
-  if os_windows then
+  if os_type == "windows" then
     return execute("rmdir /s /q " .. unix_to_win(dir))
   else
     return execute("rm -r " .. dir)
@@ -1239,7 +1237,7 @@ function compare_pdf(name, engine)
   if not refpdffile then
     return
   end
-  if os_windows then
+  if os_type == "windows" then
     refpdffile = unix_to_win(refpdffile)
   end
   errorlevel = execute(
@@ -1260,7 +1258,7 @@ function compare_tlg(name, engine)
   if not tlgfile then
     return
   end
-  if os_windows then
+  if os_type == "windows" then
     tlgfile = unix_to_win(tlgfile)
   end
   -- Do additional log formatting if the engine is LuaTeX, there is no
@@ -1271,7 +1269,7 @@ function compare_tlg(name, engine)
     and stdengine ~= "luajittex"
     then
     local luatlgfile = testdir .. "/" .. name .. ".luatex" ..  tlgext
-    if os_windows then
+    if os_type == "windows" then
       luatlgfile = unix_to_win(luatlgfile)
     end
     formatlualog(tlgfile, luatlgfile)
@@ -1466,7 +1464,7 @@ function bibtex(name)
     -- LaTeX always generates an .aux file, so there is a need to
     -- look inside it for a \citation line
     local grep
-    if os_windows then
+    if os_type == "windows" then
       grep = "\\\\"
     else
      grep = "\\\\\\\\"
