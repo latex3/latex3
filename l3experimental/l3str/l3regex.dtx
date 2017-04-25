@@ -381,7 +381,8 @@
 % \end{verbatim}
 % results in \cs{l_my_tl} holding |H(ell--el)(o,--o) w(or--o)(ld--l)!|
 %
-% Submatches keep the same category codes as in the original token list.
+% Submatches always keep the same category codes as in the original
+% token list.
 % The characters inserted by the replacement have category code $12$
 % (other) by default, with the exception of space characters.  Spaces
 % inserted through \verb*|\ | have category code $10$, while spaces
@@ -389,9 +390,11 @@
 % The escape sequence |\c| allows to insert characters
 % with arbitrary category codes, as well as control sequences.
 % \begin{l3regex-syntax}
-% \item[\\cXY] Produces the character~|Y| (which can be given as an
-%   escape sequence such as~|\t| for tab) with category code~|X|, which
-%   must be one of |CBEMTPUDSLOA| as in regular expressions.
+% \item[\\cX(\ldots{})] Produces the characters \enquote{\ldots{}} with
+%   category~|X|, which must be one of |CBEMTPUDSLOA| as in regular
+%   expressions.  Parentheses are optional for a single character (which
+%   can be an escape sequence).  This can be nested, for instance
+%   |\cL(Hello\cS\ world)!|
 % \item[\\c\Arg{text}] Produces the control sequence with csname
 %   \meta{text}.  The \meta{text} may contain references to the
 %   submatches |\0|, |\1|, and so on, as in the example for |\u| below.
@@ -399,7 +402,7 @@
 %
 % The escape sequence |\u|\Arg{tl~var~name} allows to insert the
 % contents of the token list with name \meta{tl~var~name} directly into
-% the replacement, avoiding the need to escape special characters.
+% the replacement, giving an easier control of category codes.
 % Within |\c{|\ldots{}|}| and |\u{|\ldots{}|}| constructions, the |\u|
 % and |\c|~escape sequences perform \cs{tl_to_str:v}, namely extract the
 % value of the control sequence and turn it into a string.
@@ -678,7 +681,6 @@
 % The following features are likely to be implemented at some point
 % in the future.
 % \begin{itemize}
-%   \item Allow |\cL(abc)| in replacement text.
 %   \item General look-ahead/behind assertions.
 %   \item Regex matching on external files.
 %   \item Conditional subpatterns with look ahead/behind: \enquote{if
@@ -4828,6 +4830,15 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_replacement_category_tl, \l_@@_replacement_category_seq}
+%   This sequence of letters is used to correctly restore categories in
+%   nested constructions such as |\cL(abc\cD(_)d)|.
+%    \begin{macrocode}
+\tl_new:N \l_@@_replacement_category_tl
+\seq_new:N \l_@@_replacement_category_seq
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_@@_balance_tl}
 %   This token list holds the replacement text for
 %   \cs{@@_replacement_balance_one_match:n} while it is being built
@@ -4992,10 +5003,14 @@
       \@@_escape_use:nnnn
         {
           \if_charcode:w \c_right_brace_str ##1
-            \@@_replacement_rbrace:N \else: \__tl_build_one:n \fi: ##1
+            \@@_replacement_rbrace:N
+          \else:
+            \@@_replacement_normal:n
+          \fi:
+          ##1
         }
         { \@@_replacement_escaped:N ##1 }
-        { \__tl_build_one:n ##1 }
+        { \@@_replacement_normal:n ##1 }
         {#1}
       \prg_do_nothing: \prg_do_nothing:
       \if_int_compare:w \l_@@_replacement_csnames_int > 0 \exp_stop_f:
@@ -5004,6 +5019,12 @@
         \__tl_build_one:x
           { \prg_replicate:nn \l_@@_replacement_csnames_int \cs_end: }
       \fi:
+      \seq_if_empty:NF \l_@@_replacement_category_seq
+        {
+          \__msg_kernel_error:nnx { regex } { replacement-missing-rparen }
+            { \seq_count:N \l_@@_replacement_category_seq }
+          \seq_clear:N \l_@@_replacement_category_seq
+        }
       \cs_gset:Npx \@@_replacement_balance_one_match:n ##1
         {
           + \int_use:N \l_@@_balance_int
@@ -5028,6 +5049,35 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}[aux]{\@@_replacement_normal:n}
+%   Most characters are simply sent to the output by
+%   \cs{__tl_build_one:n}, unless a particular category code has been
+%   requested: then \cs{@@_replacement_c_A:w} or a similar auxiliary is
+%   called.  One exception is right parentheses, which restore the
+%   category code in place before the group started.  Note that the
+%   sequence is non-empty there: it contains an empty entry
+%   corresponding to the initial value of
+%   \cs{l_@@_replacement_category_tl}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_replacement_normal:n #1
+  {
+    \tl_if_empty:NTF \l_@@_replacement_category_tl
+      { \__tl_build_one:n {#1} }
+      { % (
+        \token_if_eq_charcode:NNTF #1 )
+          {
+            \seq_pop:NN \l_@@_replacement_category_seq
+              \l_@@_replacement_category_tl
+          }
+          {
+            \use:c { @@_replacement_c_ \l_@@_replacement_category_tl :w }
+              \@@_replacement_normal:n {#1}
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[aux]{\@@_replacement_escaped:N}
 %   As in parsing a regular expression, we use an auxiliary built from
 %   |#1| if defined. Otherwise, check for escaped digits (standing from
@@ -5041,7 +5091,8 @@
         \if_int_compare:w 1 < 1#1 \exp_stop_f:
           \@@_replacement_put_submatch:n {#1}
         \else:
-          \__tl_build_one:o { \token_to_str:N #1 }
+          \exp_args:No \@@_replacement_normal:n
+            { \token_to_str:N #1 }
         \fi:
       }
   }
@@ -5079,7 +5130,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_replacement_g:w #1#2
   {
-    \str_if_eq_x:nnTF { #1#2 } { \__tl_build_one:n \c_left_brace_str }
+    \str_if_eq_x:nnTF { #1#2 } { \@@_replacement_normal:n \c_left_brace_str }
       {
         \int_zero:N \l_@@_internal_a_int
         \@@_replacement_g_digits:NN
@@ -5088,7 +5139,7 @@
   }
 \cs_new_protected:Npn \@@_replacement_g_digits:NN #1#2
   {
-    \token_if_eq_meaning:NNTF #1 \__tl_build_one:n
+    \token_if_eq_meaning:NNTF #1 \@@_replacement_normal:n
       {
         \if_int_compare:w 1 < 1#2 \exp_stop_f:
           \int_set:Nn \l_@@_internal_a_int
@@ -5118,25 +5169,26 @@
 % \subsubsection{Csnames in replacement}
 %
 % \begin{macro}[aux]{\@@_replacement_c:w}
-% \begin{macro}[aux]+\@@_replacement_c_{:w+
-%   |\c| can be followed by a left brace, or by a letter for which we
-%   have defined a way to produce that category of characters.  The
-%   appropriate definitions for catcodes are introduced later.  For
-%   control sequences, call an auxiliary that starts a control sequence.
+%   |\c| may only be followed by an unescaped character.  If followed by
+%   a left brace, start a control sequence by calling an auxiliary
+%   common with |\u|.  Otherwise test whether the category is known; if
+%   it is not, complain.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_replacement_c:w #1#2
   {
-    \token_if_eq_meaning:NNTF #1 \__tl_build_one:n
+    \token_if_eq_meaning:NNTF #1 \@@_replacement_normal:n
       {
-        \cs_if_exist_use:cF { @@_replacement_c_#2:w }
-          { \@@_replacement_error:NNN c #1#2 }
+        \exp_after:wN \token_if_eq_charcode:NNTF \c_left_brace_str #2
+          { \@@_replacement_cu_aux:Nw \@@_replacement_exp_not:N }
+          {
+            \cs_if_exist:cTF { @@_replacement_c_#2:w }
+              { \@@_replacement_cat:NNN #2 }
+              { \@@_replacement_error:NNN c #1#2 }
+          }
       }
       { \@@_replacement_error:NNN c #1#2 }
   }
-\cs_new_protected:cpn { @@_replacement_c_ \c_left_brace_str :w }
-  { \@@_replacement_cu_aux:Nw \@@_replacement_exp_not:N }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[aux]{\@@_replacement_cu_aux:Nw}
@@ -5166,7 +5218,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_replacement_u:w #1#2
   {
-    \str_if_eq_x:nnTF { #1#2 } { \__tl_build_one:n \c_left_brace_str }
+    \str_if_eq_x:nnTF { #1#2 } { \@@_replacement_normal:n \c_left_brace_str }
       { \@@_replacement_cu_aux:Nw \exp_not:V }
       { \@@_replacement_error:NNN u #1#2 }
   }
@@ -5184,13 +5236,46 @@
       \__tl_build_one:n \cs_end:
       \int_decr:N \l_@@_replacement_csnames_int
     \else:
-      \__tl_build_one:n #1
+      \@@_replacement_normal:n {#1}
     \fi:
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \subsubsection{Characters in replacement}
+%
+% \begin{macro}[aux]{\@@_replacement_cat:NNN}
+%   Here, |#1| is a letter among |BEMTPUDSLOA| and |#2#3| denote the
+%   next character.  Complain if we reach the end of the replacement or
+%   if the construction appears inside |\c{|\ldots{}|}| or
+%   |\u{|\ldots{}|}|, and detect the case of a parenthesis.  In that
+%   case, store the current category in a sequence and switch to a new
+%   one.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_replacement_cat:NNN #1#2#3
+  {
+    \token_if_eq_meaning:NNTF \prg_do_nothing: #3
+      { \__msg_kernel_error:nn { regex } { replacement-catcode-end } }
+      {
+        \int_compare:nNnTF { \l_@@_replacement_csnames_int } > 0
+          {
+            \__msg_kernel_error:nnnn
+              { regex } { replacement-catcode-in-cs } {#1} {#3}
+            #2 #3
+          }
+          {
+            \str_if_eq:nnTF { #2 #3 } { \@@_replacement_normal:n ( } % )
+              {
+                \seq_push:NV \l_@@_replacement_category_seq
+                  \l_@@_replacement_category_tl
+                \tl_set:Nn \l_@@_replacement_category_tl {#1}
+              }
+              { \use:c { @@_replacement_c_#1:w } #2 #3 }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
 %
 % We will need to change the category code of the null character many
 % times, hence work in a group. The catcode-specific macros below are
@@ -5212,12 +5297,8 @@
 %    \begin{macrocode}
   \cs_new_protected:Npn \@@_replacement_char:nNN #1#2#3
     {
-      \if_meaning:w \prg_do_nothing: #3
-        \__msg_kernel_error:nn { regex } { replacement-catcode-end }
-      \else:
-        \tex_lccode:D 0 = `#3 \scan_stop:
-        \tex_lowercase:D { \__tl_build_one:n {#1} }
-      \fi:
+      \tex_lccode:D 0 = `#3 \scan_stop:
+      \tex_lowercase:D { \__tl_build_one:n {#1} }
     }
 %    \end{macrocode}
 % \end{macro}
@@ -5343,15 +5424,11 @@
 %    \begin{macrocode}
   \cs_new_protected:Npn \@@_replacement_c_S:w #1#2
     {
-      \if_meaning:w \prg_do_nothing: #2
-        \__msg_kernel_error:nn { regex } { replacement-catcode-end }
-      \else:
-        \if_int_compare:w `#2 = 0 \exp_stop_f:
-          \__msg_kernel_error:nn { regex } { replacement-null-space }
-        \fi:
-        \tex_lccode:D `\ = `#2 \scan_stop:
-        \tex_lowercase:D { \__tl_build_one:n {~} }
+      \if_int_compare:w `#2 = 0 \exp_stop_f:
+        \__msg_kernel_error:nn { regex } { replacement-null-space }
       \fi:
+      \tex_lccode:D `\ = `#2 \scan_stop:
+      \tex_lowercase:D { \__tl_build_one:n {~} }
     }
 %    \end{macrocode}
 % \end{macro}
@@ -6206,6 +6283,16 @@
     the~character~category.~Then,~a~character~must~follow.~LaTeX~
     reached~the~end~of~the~replacement~when~looking~for~that.
   }
+\__msg_kernel_new:nnnn { regex } { replacement-catcode-in-cs }
+  {
+    Category~code~'\iow_char:N\\c#1#3'~ignored~inside~
+    '\iow_char:N\\c\{...\}'~in~a~replacement~text.
+  }
+  {
+    In~a~replacement~text,~the~category~codes~of~the~argument~of~
+    '\iow_char:N\\c\{...\}'~are~ignored~when~building~the~control~
+    sequence~name.
+  }
 \__msg_kernel_new:nnnn { regex } { replacement-null-space }
   { TeX~cannot~build~a~space~token~with~character~code~0. }
   {
@@ -6220,6 +6307,12 @@
   {
     There~ \int_compare:nTF { #1 = 1 } { was } { were } ~ #1~
     missing~right~\int_compare:nTF { #1 = 1 } { brace } { braces } .
+  }
+\__msg_kernel_new:nnnn { regex } { replacement-missing-rparen }
+  { Missing~right~parenthesis~inserted~in~replacement~text. }
+  {
+    There~ \int_compare:nTF { #1 = 1 } { was } { were } ~ #1~
+    missing~right~\int_compare:nTF { #1 = 1 } { parenthesis } { parentheses } .
   }
 %    \end{macrocode}
 %
