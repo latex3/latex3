@@ -11,7 +11,7 @@ module = "l3benchmark"
 maindir = "../.."
 
 -- Non-standard settings
-testfiledir = ""
+checkengines = {"pdftex", "xetex", "ptex", "uptex"}
 
 -- Load the common build code: this is the one place that a path needs to be
 -- hard-coded

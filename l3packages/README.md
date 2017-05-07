@@ -1,7 +1,7 @@
 LaTeX3 High-Level Concepts
 ==========================
 
-Release 2017/02/10 (r6878)
+Release 2017/04/01
 
 Overview
 --------
@@ -20,20 +20,11 @@ updated at the same time.
 
 Currently included in the CTAN release of `l3packages` are the following
 bundles:
-* `fpu`
 * `l3keys2e`
+* `xfp`
 * `xfrac`
 * `xparse`
 * `xtemplate`
-
-`fpu`
------
-
-The `fpu` package provides a document-level interface for the LaTeX3
-FPU. As such, it is a wrapper around the core `\fp_eval:n` function
-but does not require code syntax. It provides the expandable command
-`\fpeval`, which can be used inside for example `\edef` or contexts
-where TeX requires a number.
 
 `l3keys2e`
 ----------
@@ -42,6 +33,15 @@ The `l3keys2e` package allows keys defined using `l3keys` to be used as package
 and class options with LaTeX2e. This is tied to the method the existing kernel
 uses for processing options, and so it is likely that a stand-alone LaTeX3
 kernel will use a very different approach.
+
+`xfp`
+-----
+
+The `xfp` package provides a document-level interface for the LaTeX3
+FPU. As such, it is a wrapper around the core `\fp_eval:n` function
+but does not require code syntax. It provides the expandable command
+`\fpeval`, which can be used inside for example `\edef` or contexts
+where TeX requires a number.
 
 `xfrac`
 -------

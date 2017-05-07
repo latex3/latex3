@@ -20,25 +20,19 @@ versionfiles = {"*.dtx", "*.md", "l3build.lua"}
 -- Detail how to set the version automatically
 function setversion_update_line(line, date, version)
   local date = string.gsub(date, "%-", "/")
-  -- Replace the identifiers in .dtx files
-  if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}$") then
-    line = "\\def\\ExplFileDate{" .. date .. "}"
-  end
-  if string.match(line, "^\\def\\ExplFileVersion{%d+}$") then
-    line = "\\def\\ExplFileVersion{" .. version .. "}"
+  -- .dtx file
+  if string.match(line, "^%% \\date{Released %d%d%d%d/%d%d/%d%d}$") then
+    line = string.gsub(line, "%d%d%d%d/%d%d/%d%d", date)
   end
   -- Markdown files
   if string.match(
-    line, "^Release %d%d%d%d/%d%d/%d%d %(r%d%d%d%d%)$"
+    line, "^Release %d%d%d%d/%d%d/%d%d$"
   ) then
-    line = "Release " .. date .. " (r" .. version .. ")"
+    line = "Release " .. date
   end
   -- l3build.lua
   if string.match(line, "^release_date = \"%d%d%d%d/%d%d/%d%d\"$") then
     line = "release_date = \"" .. date .. "\""
-  end
-  if string.match(line, "^release_ver  = \"%d%d%d%d\"$") then
-    line = "release_ver  = \"" .. version .. "\""
   end
   return line
 end

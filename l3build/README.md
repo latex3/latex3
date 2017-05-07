@@ -1,7 +1,7 @@
 l3build: a testing and building system for LaTeX3
 =================================================
 
-Release 2017/02/10 (r6878)
+Release 2017/04/01
 
 Overview
 --------
@@ -74,6 +74,6 @@ the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
-<p>Copyright (C) 2014,2015 The LaTeX3 Project <br />
+<p>Copyright (C) 2014-2017 The LaTeX3 Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>
