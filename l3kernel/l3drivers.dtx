@@ -551,6 +551,93 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \subsubsection{Box operations}
+%
+% \begin{macro}{\@@_box_use_clip:N}
+%   The general method is to save the current location, define a clipping path
+%   equivalent to the bounding box, then insert the content at the current
+%   position and in a zero width box. The \enquote{real} width is then made up
+%   using a horizontal skip before tidying up. There are other approaches that
+%   can be taken (for example using XForm objects), but the logic here shares
+%   as much code as possible and uses the same conversions (and so same
+%   rounding errors) in all cases.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_clip:N #1
+  {
+    \@@_scope_begin:
+    \@@_literal:n
+      {
+        0~
+        \dim_to_decimal_in_bp:n { -\box_dp:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
+        re~W~n
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+    \skip_horizontal:n { \box_wd:N #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_box_use_rotate:Nn}
+% \begin{variable}{\l_@@_cos_fp, \l_@@_sin_fp}
+%   Rotations are set using an affine transformation matrix which therefore
+%   requires sine/cosine values not the angle itself. We store the rounded
+%   values to avoid rounding twice. There are also a couple of comparisons to
+%   ensure that |-0| is not written to the output, as this avoids any issues
+%   with problematic display programs.  Note that numbers are compared to~$0$
+%   after rounding.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_rotate:Nn #1#2
+  {
+    \@@_scope_begin:
+    \box_set_wd:Nn #1 \c_zero_dim
+    \fp_set:Nn \l_@@_cos_fp { round ( cosd ( #2 ) , 5 ) }
+    \fp_compare:nNnT \l_@@_cos_fp = \c_zero_fp
+      { \fp_zero:N \l_@@_cos_fp }
+    \fp_set:Nn \l_@@_sin_fp { round ( sind ( #2 ) , 5 ) }
+    \@@_matrix:n
+      {
+        \fp_use:N \l_@@_cos_fp \c_space_tl
+        \fp_compare:nNnTF \l_@@_sin_fp = \c_zero_fp
+          { 0~0 }
+          {
+            \fp_use:N \l_@@_sin_fp
+            \c_space_tl
+            \fp_eval:n { -\l_@@_sin_fp }
+          }
+        \c_space_tl
+        \fp_use:N \l_@@_cos_fp
+      }
+   \box_use:N #1
+   \@@_scope_end:
+  }
+\fp_new:N \l_@@_cos_fp
+\fp_new:N \l_@@_sin_fp
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+% \begin{macro}{\@@_box_use_scale:Nnn}
+%   The same idea as for rotation but without the complexity of signs and
+%   cosines.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_scale:Nnn #1#2#3
+  {
+    \@@_scope_begin:
+    \@@_matrix:n
+      {
+        \fp_eval:n { round ( #2 , 5 ) } ~
+        0~0~
+        \fp_eval:n { round ( #3 , 5 ) }
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Color}
 %
 % \begin{variable}{\l_@@_current_color_tl}
@@ -650,90 +737,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsubsection{Color}
-%
-% \begin{variable}{\l_@@_current_color_tl}
-%   The current color in driver-dependent format.
-%    \begin{macrocode}
-\tl_new:N \l_@@_current_color_tl
-\tl_set:Nn \l_@@_current_color_tl { [ 0 ] }
-%<*package>
-\AtBeginDocument
-  {
-    \@ifpackageloaded { color }
-      { \tl_set:Nn \l_@@_current_color_tl { \current@color } }
-      { }
-  }
-%</package>
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{macro}[int]{\@@_color_ensure_current:}
-% \begin{macro}[aux]{\@@_color_reset:}
-%   Directly set the color using the specials with optimisation support.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_color_ensure_current:
-  {
-    \tex_special:D { pdf:bcolor~\l_@@_current_color_tl }
-    \group_insert_after:N \@@_color_reset:
-  }
-\cs_new_protected:Npn \@@_color_reset:
-  { \tex_special:D { pdf:ecolor } }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-%    \begin{macrocode}
-%</dvipdfmx|xdvipdfmx>
-%    \end{macrocode}
-%
-% \subsection{\texttt{xdvipdfmx} driver}
-%
-%    \begin{macrocode}
-%<*xdvipdfmx>
-%    \end{macrocode}
-%
-% \subsubsection{Color}
-%
-% \begin{macro}[int]{\@@_color_ensure_current:}
-% \begin{macro}[aux]{\@@_color_reset:}
-%   The \LaTeXe{} driver uses \texttt{dvips}-like specials so there has to
-%   be a change of set up if \pkg{color} is loaded.
-%    \begin{macrocode}
-%<*package>
-\AtBeginDocument
-  {
-    \@ifpackageloaded { color }
-      {
-        \cs_set_protected:Npn \@@_color_ensure_current:
-          {
-            \tex_special:D { color~push~\l_@@_current_color_tl }
-            \group_insert_after:N \@@_color_reset:
-          }
-        \cs_set_protected:Npn \@@_color_reset:
-          { \tex_special:D { color~pop } }
-      }
-      { }
-  }
-%</package>
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-%    \begin{macrocode}
-%</xdvipdfmx>
-%    \end{macrocode}
-%
-% \subsection{Common code for PDF production}
-%
-% As all of the drivers which understand PDF-targeted specials act in much
-% the same way there is a lot of shared code. Rather than try to DocStrip it
-% interspersed with the above, we collect all of it here.
-%
-%    \begin{macrocode}
-%<*dvipdfmx|pdfmode|xdvipdfmx>
-%    \end{macrocode}
-%
 % \subsubsection{Box operations}
 %
 % \begin{macro}{\@@_box_use_clip:N}
@@ -820,6 +823,90 @@
   }
 %    \end{macrocode}
 % \end{macro}
+%
+% \subsubsection{Color}
+%
+% \begin{variable}{\l_@@_current_color_tl}
+%   The current color in driver-dependent format.
+%    \begin{macrocode}
+\tl_new:N \l_@@_current_color_tl
+\tl_set:Nn \l_@@_current_color_tl { [ 0 ] }
+%<*package>
+\AtBeginDocument
+  {
+    \@ifpackageloaded { color }
+      { \tl_set:Nn \l_@@_current_color_tl { \current@color } }
+      { }
+  }
+%</package>
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}[int]{\@@_color_ensure_current:}
+% \begin{macro}[aux]{\@@_color_reset:}
+%   Directly set the color using the specials with optimisation support.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_color_ensure_current:
+  {
+    \tex_special:D { pdf:bcolor~\l_@@_current_color_tl }
+    \group_insert_after:N \@@_color_reset:
+  }
+\cs_new_protected:Npn \@@_color_reset:
+  { \tex_special:D { pdf:ecolor } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{\texttt{xdvipdfmx} driver}
+%
+%    \begin{macrocode}
+%<*xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsubsection{Color}
+%
+% \begin{macro}[int]{\@@_color_ensure_current:}
+% \begin{macro}[aux]{\@@_color_reset:}
+%   The \LaTeXe{} driver uses \texttt{dvips}-like specials so there has to
+%   be a change of set up if \pkg{color} is loaded.
+%    \begin{macrocode}
+%<*package>
+\AtBeginDocument
+  {
+    \@ifpackageloaded { color }
+      {
+        \cs_set_protected:Npn \@@_color_ensure_current:
+          {
+            \tex_special:D { color~push~\l_@@_current_color_tl }
+            \group_insert_after:N \@@_color_reset:
+          }
+        \cs_set_protected:Npn \@@_color_reset:
+          { \tex_special:D { color~pop } }
+      }
+      { }
+  }
+%</package>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{Common code for PDF production}
+%
+% As all of the drivers which understand PDF-targeted specials act in much
+% the same way there is a lot of shared code. Rather than try to DocStrip it
+% interspersed with the above, we collect all of it here.
+%
+%    \begin{macrocode}
+%<*dvipdfmx|pdfmode|xdvipdfmx>
+%    \end{macrocode}
 %
 % \subsection{Drawing}
 %
