@@ -23,7 +23,7 @@ for those people who are interested.
 --]]
 
 -- Version information
-release_date = "2017/04/01"
+release_date = "2017/05/13"
 
 -- "module" is a deprecated function in Lua 5.2: as we want the name
 -- for other purposes, and it should eventually be 'free', simply
@@ -175,7 +175,9 @@ tlgext = tlgext or ".tlg"
 local lfs = require("lfs")
 
 -- Local access to functions
+local assert           = assert
 local ipairs           = ipairs
+local next             = next
 local print            = print
 local select           = select
 local tonumber         = tonumber
@@ -434,19 +436,18 @@ end
 -- Support items are defined here for cases where a single string can cover
 -- both Windows and Unix cases: more complex situations are handled inside
 -- the support functions
+os_concat  = ";"
+os_null    = "/dev/null"
+os_pathsep = ":"
+os_setenv  = "export"
+os_yes     = "printf 'y\\n%.0s' {1..200}"
 local os_ascii   = "echo \"\""
 local os_cmpexe  = getenv("cmpexe") or "cmp"
 local os_cmpext  = getenv("cmpext") or ".cmp"
-local os_concat  = ";"
 local os_diffext = getenv("diffext") or ".diff"
 local os_diffexe = getenv("diffexe") or "diff -c --strip-trailing-cr"
 local os_grepexe = "grep"
 local os_newline = "\n"
-local os_null    = "/dev/null"
-local os_pathsep = ":"
-local os_setenv  = "export"
-local os_windows = false
-local os_yes     = "printf 'y\\n%.0s' {1..200}"
 if os_type == "windows" then
   os_ascii   = "@echo."
   os_cmpexe  = getenv("cmpexe") or "fc /b"
@@ -464,7 +465,6 @@ if os_type == "windows" then
   os_null    = "nul"
   os_pathsep = ";"
   os_setenv  = "set"
-  os_windows = true
   os_yes     = "for /l %I in (1,1,200) do @echo y"
 end
 
@@ -482,7 +482,7 @@ function cp(glob, source, dest)
   local errorlevel
   for _,i in ipairs(filelist(source, glob)) do
     local source = source .. "/" .. i
-    if os_windows then
+    if os_type == "windows" then
       if lfs_attributes(source)["mode"] == "directory" then
         errorlevel = execute(
           "xcopy /y /e /i " .. unix_to_win(source) .. " "
@@ -507,7 +507,7 @@ end
 -- OS-dependent test for a directory
 function direxists(dir)
   local errorlevel
-  if os_windows then
+  if os_type == "windows" then
     errorlevel =
       execute("if not exist \"" .. unix_to_win(dir) .. "\" exit 1")
   else
@@ -554,7 +554,7 @@ function filelist(path, glob)
 end
 
 function mkdir(dir)
-  if os_windows then
+  if os_type == "windows" then
     -- Windows (with the extensions) will automatically make directory trees
     -- but issues a warning if the dir already exists: avoid by including a test
     local dir = unix_to_win(dir)
@@ -566,33 +566,19 @@ function mkdir(dir)
   end
 end
 
--- Find the relationship between two directories
-function relpath(target, source)
-  -- A shortcut for the case where the two are the same
-  if target == source then
-    return ""
-  end
-  local resultdir = ""
-  local trimpattern = "^[^/]*/"
-  -- Trim off identical leading directories
-  while
-    (match(target, trimpattern) or "X") ==
-    (match(target, trimpattern) or "Y") do
-    target = gsub(target, trimpattern, "")
-    source = gsub(source, trimpattern, "")
-  end
-  -- Go up from the source
-  for i = 0, select(2, gsub(target, "/", "")) do
-    resultdir = resultdir .. "../"
-  end
-  -- Return the relative part plus the unique part of the target
-  return resultdir .. target
+-- Return an absolute path from a relative one
+function abspath(path)
+  local oldpwd = lfs.currentdir()
+  lfs.chdir(path)
+  local result = lfs.currentdir()
+  lfs.chdir(oldpwd)
+  return result
 end
 
 -- Rename
 function ren(dir, source, dest)
   local dir = dir .. "/"
-  if os_windows then
+  if os_type == "windows" then
     return execute("ren " .. unix_to_win(dir) .. source .. " " .. dest)
   else
     return execute("mv " .. dir .. source .. " " .. dir .. dest)
@@ -612,7 +598,7 @@ end
 function rmdir(dir)
   -- First, make sure it exists to avoid any errors
   mkdir(dir)
-  if os_windows then
+  if os_type == "windows" then
     return execute("rmdir /s /q " .. unix_to_win(dir))
   else
     return execute("rm -r " .. dir)
@@ -699,6 +685,72 @@ local function checkinit()
   execute(os_ascii .. ">" .. testdir .. "/ascii.tcx")
 end
 
+-- Copy files to the main CTAN release directory
+function copyctan()
+  -- Do all of the copying in one go
+  for _,i in ipairs(
+      {
+        bibfiles,
+        demofiles,
+        docfiles,
+        pdffiles,
+        sourcefiles,
+        textfiles,
+        typesetlist
+      }
+    ) do
+    for _,j in ipairs(i) do
+      cp(j, ".", ctandir .. "/" .. ctanpkg)
+    end
+  end
+end
+
+-- Copy files to the correct places in the TDS tree
+function copytds()
+  local function install(source, dest, files, tool)
+    local moduledir = moduledir
+    -- For material associated with secondary tools (BibTeX, MakeIndex)
+    -- the structure needed is slightly different from those items going
+    -- into the tex/doc/source trees
+    if tool then
+      -- "base" is reserved for the tools themselves: make the assumption
+      -- in this case that the tdsroot name is the right place for stuff to
+      -- go (really just for the team)
+      if module == "base" then
+        moduledir = tdsroot
+      else
+        moduledir = module
+      end
+    end
+    -- Convert the file table(s) to a list of individual files
+    local filenames = { }
+    for _,i in ipairs(files) do
+      for _,j in ipairs(i) do
+        for _,k in ipairs(filelist(source, j)) do
+          insert(filenames, k)
+        end
+      end
+    end
+    -- The target is only created if there are actual files to install
+    if next(filenames) ~= nil then
+      local installdir = tdsdir .. "/" .. dest .. "/" .. moduledir
+      mkdir(installdir)
+      for _,i in ipairs(filenames) do
+        cp(i, source, installdir)
+      end
+    end
+  end
+  install(
+    ".",
+    "doc",
+    {bibfiles, demofiles, docfiles, pdffiles, textfiles, typesetlist}
+  )
+  install(unpackdir, "makeindex", {makeindexfiles}, true)
+  install(unpackdir, "bibtex/bst", {bstfiles}, true)
+  install(".", "source", {sourcelist})
+  install(unpackdir, "tex", {installfiles})
+end
+
 -- Unpack files needed to support testing/typesetting/unpacking
 function depinstall(deps)
   local errorlevel
@@ -714,7 +766,7 @@ end
 
 -- Convert the raw log file into one for comparison/storage: keeps only
 -- the 'business' part from the tests and removes system-dependent stuff
-function formatlog(logfile, newfile, engine)
+local function formatlog(logfile, newfile, engine)
   local maxprintline = maxprintline
   if engine == "luatex" or engine == "luajittex" then
     maxprintline = maxprintline + 1 -- Deal with an out-by-one error
@@ -858,7 +910,7 @@ function formatlog(logfile, newfile, engine)
 end
 
 -- Additional normalization for LuaTeX
-function formatlualog(logfile, newfile)
+local function formatlualog(logfile, newfile)
   local function normalize(line, lastline, dropping)
     -- Find \discretionary or \whatsit lines:
     -- These may come back later
@@ -1172,7 +1224,7 @@ function compare_pdf(name, engine)
   if not refpdffile then
     return
   end
-  if os_windows then
+  if os_type == "windows" then
     refpdffile = unix_to_win(refpdffile)
   end
   errorlevel = execute(
@@ -1193,7 +1245,7 @@ function compare_tlg(name, engine)
   if not tlgfile then
     return
   end
-  if os_windows then
+  if os_type == "windows" then
     tlgfile = unix_to_win(tlgfile)
   end
   -- Do additional log formatting if the engine is LuaTeX, there is no
@@ -1204,7 +1256,7 @@ function compare_tlg(name, engine)
     and stdengine ~= "luajittex"
     then
     local luatlgfile = testdir .. "/" .. name .. ".luatex" ..  tlgext
-    if os_windows then
+    if os_type == "windows" then
       luatlgfile = unix_to_win(luatlgfile)
     end
     formatlualog(tlgfile, luatlgfile)
@@ -1377,7 +1429,7 @@ function runtool(envvar, command)
     run(
       typesetdir,
       os_setenv .. " " .. envvar .. "=." .. os_pathsep
-        .. relpath(localdir, typesetdir)
+        .. abspath(localdir)
         .. (typesetsearch and os_pathsep or "") ..
       os_concat ..
       command
@@ -1399,7 +1451,7 @@ function bibtex(name)
     -- LaTeX always generates an .aux file, so there is a need to
     -- look inside it for a \citation line
     local grep
-    if os_windows then
+    if os_type == "windows" then
       grep = "\\\\"
     else
      grep = "\\\\\\\\"
@@ -1418,7 +1470,7 @@ function bibtex(name)
         runtool(
           "BIBINPUTS",
           os_setenv .. " BSTINPUTS=." .. os_pathsep
-            .. relpath(localdir, typesetdir)
+            .. abspath(localdir)
             .. (typesetsearch and os_pathsep or "") ..
           os_concat ..
           bibtexexe .. " " .. bibtexopts .. " " .. name
@@ -1645,7 +1697,7 @@ function cmdcheck()
     cp(i, supportdir, testdir)
   end
   local engine = gsub(stdengine, "tex$", "latex")
-  local localdir = relpath(localdir, testdir)
+  local localdir = abspath(localdir)
   print("Checking source files")
   for _,i in ipairs(cmdchkfiles) do
     for _,j in ipairs(filelist(".", i)) do
@@ -1743,72 +1795,6 @@ function ctan(standalone)
   return errorlevel
 end
 
--- Copy files to the main CTAN release directory
-function copyctan()
-  -- Do all of the copying in one go
-  for _,i in ipairs(
-      {
-        bibfiles,
-        demofiles,
-        docfiles,
-        pdffiles,
-        sourcefiles,
-        textfiles,
-        typesetlist
-      }
-    ) do
-    for _,j in ipairs(i) do
-      cp(j, ".", ctandir .. "/" .. ctanpkg)
-    end
-  end
-end
-
--- Copy files to the correct places in the TDS tree
-function copytds()
-  local function install(source, dest, files, tool)
-    local moduledir = moduledir
-    -- For material associated with secondary tools (BibTeX, MakeIndex)
-    -- the structure needed is slightly different from those items going
-    -- into the tex/doc/source trees
-    if tool then
-      -- "base" is reserved for the tools themselves: make the assumption
-      -- in this case that the tdsroot name is the right place for stuff to
-      -- go (really just for the team)
-      if module == "base" then
-        moduledir = tdsroot
-      else
-        moduledir = module
-      end
-    end
-    -- Convert the file table(s) to a list of individual files
-    local filenames = { }
-    for _,i in ipairs(files) do
-      for _,j in ipairs(i) do
-        for _,k in ipairs(filelist(source, j)) do
-          insert(filenames, k)
-        end
-      end
-    end
-    -- The target is only created if there are actual files to install
-    if next(filenames) ~= nil then
-      local installdir = tdsdir .. "/" .. dest .. "/" .. moduledir
-      mkdir(installdir)
-      for _,i in ipairs(filenames) do
-        cp(i, source, installdir)
-      end
-    end
-  end
-  install(
-    ".",
-    "doc",
-    {bibfiles, demofiles, docfiles, pdffiles, textfiles, typesetlist}
-  )
-  install(unpackdir, "makeindex", {makeindexfiles}, true)
-  install(unpackdir, "bibtex/bst", {bstfiles}, true)
-  install(".", "source", {sourcelist})
-  install(unpackdir, "tex", {installfiles})
-end
-
 function bundlectan()
   -- Generate a list of individual file names excluding those in the second
   -- argument: the latter is a table
@@ -1880,11 +1866,11 @@ function doc(files)
               end
             end
           end
-          if typeset then
-            local errorlevel = typesetpdf(relpath(dir, ".") .. "/" .. j)
-            if errorlevel ~= 0 then
-              return errorlevel
-            end
+        end
+        if typeset then
+          local errorlevel = typesetpdf(abspath(dir) .. "/" .. j)
+          if errorlevel ~= 0 then
+            return errorlevel
           end
         end
       end
@@ -2123,7 +2109,7 @@ bundleunpack = bundleunpack or function(sourcedir)
       -- on Unix the "yes" command can't be used inside execute (it never
       -- stops, which confuses Lua)
       execute(os_yes .. ">>" .. localdir .. "/yes")
-      local localdir = relpath(localdir, unpackdir)
+      local localdir = abspath(localdir)
       errorlevel = run(
         unpackdir,
         os_setenv .. " TEXINPUTS=." .. os_pathsep
