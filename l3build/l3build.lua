@@ -100,6 +100,7 @@ makeindexfiles   = makeindexfiles   or {"*.ist"}
 sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"}
 textfiles        = textfiles        or {"*.md", "*.txt"}
 typesetfiles     = typesetfiles     or {"*.dtx"}
+typesetsilent    = typesetsilent    or { }
 typesetsuppfiles = typesetsuppfiles or { }
 unpackfiles      = unpackfiles      or {"*.ins"}
 unpacksuppfiles  = unpacksuppfiles  or { }
@@ -1839,7 +1840,7 @@ end
 function doc(files)
   -- Set up
   cleandir(typesetdir)
-  for _,i in ipairs({bibfiles, docfiles, sourcefiles, typesetfiles}) do
+  for _,i in ipairs({bibfiles, docfiles, sourcefiles, typesetfiles, typesetsilent}) do
     for _,j in ipairs(i) do
       cp(j, ".", typesetdir)
     end
@@ -1850,17 +1851,19 @@ function doc(files)
   depinstall(typesetdeps)
   unpack()
   -- Main loop for doc creation
-  for _,i in ipairs(typesetfiles) do
-    for _, dir in ipairs({unpackdir, typesetdir}) do
-      for _,j in ipairs(filelist(dir, i)) do
-        -- Allow for command line selection of files
-        local typeset = true
-        if files and next(files) then
-          typeset = false
-          for _,k in ipairs(files) do
-            if k == stripext(j) then
-              typeset = true
-              break
+  for _, typesetfiles in ipairs({typesetsilent, typesetfiles}) do
+    for _,i in ipairs(typesetfiles) do
+      for _, dir in ipairs({unpackdir, typesetdir}) do
+        for _,j in ipairs(filelist(dir, i)) do
+          -- Allow for command line selection of files
+          local typeset = true
+          if files and next(files) then
+            typeset = false
+            for _,k in ipairs(files) do
+              if k == stripext(j) then
+                typeset = true
+                break
+              end
             end
           end
         end
