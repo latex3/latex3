@@ -1825,6 +1825,12 @@ function bundlectan()
     for _,i in ipairs(typesetfiles) do
       insert(pdffiles, (gsub(i, "%.%w+$", ".pdf")))
     end
+    -- For the purposes here, any typesetting demo files need to be
+    -- part of the main typesetting list
+    local typesetfiles
+    for _,v in pairs(typesetdemofiles) do
+      insert(typesetfiles, v)
+    end
     typesetlist = excludelist(typesetfiles, {sourcefiles})
     sourcelist = excludelist(
       sourcefiles, {bstfiles, installfiles, makeindexfiles}
