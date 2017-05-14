@@ -23,7 +23,7 @@ for those people who are interested.
 --]]
 
 -- Version information
-release_date = "2017/04/01"
+release_date = "2017/05/13"
 
 -- "module" is a deprecated function in Lua 5.2: as we want the name
 -- for other purposes, and it should eventually be 'free', simply
@@ -99,6 +99,7 @@ installfiles     = installfiles     or {"*.sty"}
 makeindexfiles   = makeindexfiles   or {"*.ist"}
 sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"}
 textfiles        = textfiles        or {"*.md", "*.txt"}
+typesetdemofiles = typesetdemofiles or { }
 typesetfiles     = typesetfiles     or {"*.dtx"}
 typesetsuppfiles = typesetsuppfiles or { }
 unpackfiles      = unpackfiles      or {"*.ins"}
@@ -565,27 +566,13 @@ function mkdir(dir)
   end
 end
 
--- Find the relationship between two directories
-function relpath(target, source)
-  -- A shortcut for the case where the two are the same
-  if target == source then
-    return ""
-  end
-  local resultdir = ""
-  local trimpattern = "^[^/]*/"
-  -- Trim off identical leading directories
-  while
-    (match(target, trimpattern) or "X") ==
-    (match(target, trimpattern) or "Y") do
-    target = gsub(target, trimpattern, "")
-    source = gsub(source, trimpattern, "")
-  end
-  -- Go up from the source
-  for i = 0, select(2, gsub(target, "/", "")) do
-    resultdir = resultdir .. "../"
-  end
-  -- Return the relative part plus the unique part of the target
-  return resultdir .. target
+-- Return an absolute path from a relative one
+function abspath(path)
+  local oldpwd = lfs.currentdir()
+  lfs.chdir(path)
+  local result = lfs.currentdir()
+  lfs.chdir(oldpwd)
+  return result
 end
 
 -- Rename
@@ -1442,7 +1429,7 @@ function runtool(envvar, command)
     run(
       typesetdir,
       os_setenv .. " " .. envvar .. "=." .. os_pathsep
-        .. relpath(localdir, typesetdir)
+        .. abspath(localdir)
         .. (typesetsearch and os_pathsep or "") ..
       os_concat ..
       command
@@ -1483,7 +1470,7 @@ function bibtex(name)
         runtool(
           "BIBINPUTS",
           os_setenv .. " BSTINPUTS=." .. os_pathsep
-            .. relpath(localdir, typesetdir)
+            .. abspath(localdir)
             .. (typesetsearch and os_pathsep or "") ..
           os_concat ..
           bibtexexe .. " " .. bibtexopts .. " " .. name
@@ -1710,7 +1697,7 @@ function cmdcheck()
     cp(i, supportdir, testdir)
   end
   local engine = gsub(stdengine, "tex$", "latex")
-  local localdir = relpath(localdir, testdir)
+  local localdir = abspath(localdir)
   print("Checking source files")
   for _,i in ipairs(cmdchkfiles) do
     for _,j in ipairs(filelist(".", i)) do
@@ -1838,6 +1825,12 @@ function bundlectan()
     for _,i in ipairs(typesetfiles) do
       insert(pdffiles, (gsub(i, "%.%w+$", ".pdf")))
     end
+    -- For the purposes here, any typesetting demo files need to be
+    -- part of the main typesetting list
+    local typesetfiles
+    for _,v in pairs(typesetdemofiles) do
+      insert(typesetfiles, v)
+    end
     typesetlist = excludelist(typesetfiles, {sourcefiles})
     sourcelist = excludelist(
       sourcefiles, {bstfiles, installfiles, makeindexfiles}
@@ -1853,7 +1846,9 @@ end
 function doc(files)
   -- Set up
   cleandir(typesetdir)
-  for _,i in ipairs({bibfiles, docfiles, sourcefiles, typesetfiles}) do
+  for _,i in ipairs(
+    {bibfiles, docfiles, sourcefiles, typesetfiles, typesetdemofiles}
+  ) do
     for _,j in ipairs(i) do
       cp(j, ".", typesetdir)
     end
@@ -1864,24 +1859,26 @@ function doc(files)
   depinstall(typesetdeps)
   unpack()
   -- Main loop for doc creation
-  for _,i in ipairs(typesetfiles) do
-    for _, dir in ipairs({unpackdir, typesetdir}) do
-      for _,j in ipairs(filelist(dir, i)) do
-        -- Allow for command line selection of files
-        local typeset = true
-        if files and next(files) then
-          typeset = false
-          for _,k in ipairs(files) do
-            if k == stripext(j) then
-              typeset = true
-              break
+  for _, typesetfiles in ipairs({typesetdemofiles, typesetfiles}) do
+    for _,i in ipairs(typesetfiles) do
+      for _, dir in ipairs({unpackdir, typesetdir}) do
+        for _,j in ipairs(filelist(dir, i)) do
+          -- Allow for command line selection of files
+          local typeset = true
+          if files and next(files) then
+            typeset = false
+            for _,k in ipairs(files) do
+              if k == stripext(j) then
+                typeset = true
+                break
+              end
             end
           end
-        end
-        if typeset then
-          local errorlevel = typesetpdf(relpath(dir, ".") .. "/" .. j)
-          if errorlevel ~= 0 then
-            return errorlevel
+          if typeset then
+            local errorlevel = typesetpdf(relpath(dir, ".") .. "/" .. j)
+            if errorlevel ~= 0 then
+              return errorlevel
+            end
           end
         end
       end
@@ -2120,7 +2117,7 @@ bundleunpack = bundleunpack or function(sourcedir)
       -- on Unix the "yes" command can't be used inside execute (it never
       -- stops, which confuses Lua)
       execute(os_yes .. ">>" .. localdir .. "/yes")
-      local localdir = relpath(localdir, unpackdir)
+      local localdir = abspath(localdir)
       errorlevel = run(
         unpackdir,
         os_setenv .. " TEXINPUTS=." .. os_pathsep
