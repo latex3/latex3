@@ -196,12 +196,12 @@
 % \end{variable}
 %
 % \begin{macro}[int]{\__image_extract_bb:n, \__image_read_bb:n}
-% \begin{macro}[aux]{\@@_read_bb_auxi:nn}
+% \begin{macro}[aux]{\@@_read_bb_auxi:nnn, \@@_read_bb_auxii:nnn}
 % \begin{macro}[aux]
 %   {
 %     \@@_read_bb_auxii:w  ,
-%     \@@_read_bb_auxiii:w ,
-%     \@@_read_bb_auxiv:w
+%     \@@_read_bb_auxiv:w ,
+%     \@@_read_bb_auxv:w
 %   }
 %  Extracting the bounding box from an |.eps| or |.bb| file is done by
 %  reading each line and searching for the marker text (|%%BoundingBox:|
@@ -213,16 +213,43 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \__image_extract_bb:n #1
   {
-    \tex_openin:D \l_@@_tmp_ior = "|extractbb~-O~#1"
-    \@@_read_bb_auxi:nn {#1} { pipe-failed }
+    \@@_read_bb_auxi:nnn {#1}
+      { \tex_openin:D \l_@@_tmp_ior = "|extractbb~-O~#1" }
+      { pipe-failed }
   }
 \cs_new_protected:Npn \__image_read_bb:n #1
   {
-    \ior_open:Nn \l_@@_tmp_ior {#1}
-    \@@_read_bb_auxi:nn {#1} { image-not-found }
+    \@@_read_bb_auxi:nnn {#1}
+      { \ior_open:Nn \l_@@_tmp_ior {#1} }
+      { image-not-found }
   }
-\cs_new_protected:Npx \@@_read_bb_auxi:nn #1#2
+%   \end{macrocode}
+%  Before any real searching, a check to see if there are cached values
+%  available. The name of each image will be unique and so it's sensible to
+%  store the bounding box data in \TeX{}: this avoids multiple file operations.
+%  As bounding boxes here start away from the lower-left origin, we need to
+%  store all four values (contrast with for example the \texttt{pdfmode}
+%  driver).
+%   \begin{macrocode}
+\cs_new_protected:Npx \@@_read_bb_auxi:nnn #1#2#3
   {
+    \dim_if_exist:cTF { c_@@_ \tl_to_str:n {#1} _llx_dim }
+      {
+        \bool_set_true:N \l__image_bb_found_bool
+        \dim_set_eq:Nc \l__image_llx_dim
+          { c_@@_ \tl_to_str:n {#1} _llx_dim }
+        \dim_set_eq:Nc \l__image_lly_dim
+          { c_@@_ \tl_to_str:n {#1} _lly_dim }
+        \dim_set_eq:Nc \l__image_urx_dim
+          { c_@@_ \tl_to_str:n {#1} _urx_dim }
+        \dim_set_eq:Nc \l__image_ury_dim
+          { c_@@_ \tl_to_str:n {#1} _ury_dim }
+      }
+      { \@@_read_bb_auxii:nnn {#2} {#3} {#1} }
+  }
+\cs_new_protected:Npx \@@_read_bb_auxii:nnn #1#2#3
+  {
+    #2
     \dim_zero:N \l__image_llx_dim
     \dim_zero:N \l__image_lly_dim
     \dim_set:Nn \l__image_urx_dim { 72bp }
@@ -230,20 +257,31 @@
     \bool_set_false:N \l__image_bb_found_bool
     \exp_not:N \ior_if_eof:NTF \exp_not:N \l_@@_tmp_ior
       {
-        \__msg_kernel_error:nnn { kernel } {#2} {#1}
+        \__msg_kernel_error:nnn { kernel } {#3} {#1}
       }
       {
         \ior_str_map_inline:Nn \exp_not:N \l_@@_tmp_ior
           {
-            \exp_not:N \@@_image_read_bb_auxii:w
+            \exp_not:N \@@_image_read_bb_auxiii:w
               ##1 ~ \c_colon_str \exp_not:N \q_stop
           }
       }
     \ior_close:N \exp_not:N \l_@@_tmp_ior
+    \bool_if:NT \l__image_bb_found_bool
+      {
+        \dim_const:cn { c_@@_ \tl_to_str:n {#1} _llx_dim }
+          { \l__image_llx_dim }
+        \dim_const:cn { c_@@_ \tl_to_str:n {#1} _lly_dim }
+          { \l__image_lly_dim }
+        \dim_const:cn { c_@@_ \tl_to_str:n {#1} _urx_dim }
+          { \l__image_urx_dim }
+        \dim_const:cn { c_@@_ \tl_to_str:n {#1} _ury_dim }
+          { \l__image_ury_dim }
+      }
   }
 \use:x
   {
-    \cs_new_protected:Npn \exp_not:N \@@_read_bb_auxii:w
+    \cs_new_protected:Npn \exp_not:N \@@_read_bb_auxiii:w
       ##1 \c_colon_str ##2 \exp_not:N \q_stop
   }
   {
@@ -254,7 +292,7 @@
         BoundingBox
       }
       {#1}
-      { \@@_read_bb_auxiii:w #2 ( ) \q_stop }
+      { \@@_read_bb_auxiv:w #2 ( ) \q_stop }
   }
 %    \end{macrocode}
 %   If the bounding box is |atend|, just ignore the current one and keep going.
@@ -264,7 +302,7 @@
 %   whitespace. \TeX{} will then tidy up for us, with just a leading space to
 %   worry about: that is taken out by the |\use:n| here.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_read_bb_auxiii:w #1 ( #2 ) #3 \q_stop
+\cs_new_protected:Npn \@@_read_bb_auxiv:w #1 ( #2 ) #3 \q_stop
   {
     \str_if_eq:nnF {#2} { atend }
       {
@@ -274,14 +312,14 @@
             \char_set_catcode_space:n { 32 }
           }
           { \use:n #1 }
-        \exp_after:wN \@@_read_bb_auxiv:w \l_@@_tmp_tl \q_stop
+        \exp_after:wN \@@_read_bb_auxv:w \l_@@_tmp_tl \q_stop
       }
   }
 %    \end{macrocode}
 %   A trailing space was deliberately added earlier so we know that the final
 %   data point is terminated by a space.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_read_bb_auxiv:w #1~#2~#3~#4~#5 \q_stop
+\cs_new_protected:Npn \@@_read_bb_auxv:w #1~#2~#3~#4~#5 \q_stop
   {
     \dim_set:Nn \l__image_llx_dim { #1 bp }
     \dim_set:Nn \l__image_lly_dim { #2 bp }
