@@ -59,6 +59,11 @@
 % which in themselves contain no driver-specific code. This functionality
 % is made available here.
 %
+% \begin{variable}[int]{\l__image_page_int}
+%   The page to extract from a multi-page image file: used for |.pdf| files
+%   which may contain multiple pages.
+% \end{variable}
+%
 % \begin{variable}[int]
 %   {
 %     \l__image_llx_dim, \l__image_lly_dim ,
@@ -88,6 +93,9 @@
 %   using this function has made such a check. File types such as |.pdf| and
 %   |.jpg| are appropriate for parsing using this function.
 %
+%   When \cs{l__image_page_int} is positive the appropriate page will be
+%   queried from the image file.
+%
 %   Note that this function requires pipe shell calls to be enabled: this is
 %   generally true but may require the option |--enable-pipes| to be enabled
 %   when running the \TeX{} job.
@@ -110,7 +118,8 @@
 %   of the bounding box expressed in PostScript (\enquote{big}) points. The
 %   four values are used to set the dimensions \cs{l__image_llx_dim},
 %   \emph{etc.} The data format searched for depends on the option |hiresbb|.
-%   The boolean \cs{l__image_bb_found_bool} is set |true| on successful determination of a bounding box. In the
+%   The boolean \cs{l__image_bb_found_bool} is set |true| on successful
+%   determination of a bounding box. In the
 %   case where no data is obtained, this variable is |false| and the
 %   four dimensions are set to place holders: |llx|/|lly| to $0\,\mathrm{bp}$
 %   and |urx|/|ury| to $72\,\mathrm{bp}$.
@@ -151,6 +160,18 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \subsection{Image feature support}
+%
+% \begin{macro}[int]{\l__image_page_int}
+%   Keys which control features of images.
+%    \begin{macrocode}
+\keys_define:nn { image }
+  {
+    page .int_set:N = \l__image_page_int
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Obtaining bounding box data}
 %
 % \begin{variable}[int]
@@ -168,7 +189,9 @@
 % \end{variable}
 %
 % \begin{macro}[int]{\__image_extract_bb:n, \__image_read_bb:n}
-% \begin{macro}[aux]{\@@_read_bb_auxi:nnn, \@@_read_bb_auxii:nnn}
+% \begin{macro}[aux]{\__image_extract_bb_aux:nn, \__image_extract_bb_aux:nV}
+% \begin{macro}[aux]{\__image_extract_bb_aux:nnn}
+% \begin{macro}[aux]{\@@_read_bb_auxi:nnnn, \@@_read_bb_auxii:nnnn}
 % \begin{macro}[aux]
 %   {
 %     \@@_read_bb_auxii:w  ,
@@ -185,13 +208,21 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \__image_extract_bb:n #1
   {
-    \@@_read_bb_auxi:nnn {#1}
-      { \tex_openin:D \l_@@_tmp_ior = "|extractbb~-O~#1" }
+    \int_compare:nNnTF \l__image_page_int > 0
+      { \__image_extract_bb_aux:nV \l__image_page_int }
+      { \__image_extract_bb_aux:nnn {#1} { } { } }
+\cs_new_protected:Npn \__image_extract_bb_aux:nn #1#2
+  { \__image_extract_bb_aux:nnn {#1} { :P #2 } { -p~#2~ } }
+\cs_generate_variant:Nn \__image_extract_bb_aux:nn { nV }
+\cs_new_protected:Npn \__image_extract_bb_aux:nnn #1#2#3
+  {
+    \@@_read_bb_auxi:nnnn {#1} {#2}
+      { \tex_openin:D \l_@@_tmp_ior = "|extractbb~#3-O~#1" }
       { pipe-failed }
   }
 \cs_new_protected:Npn \__image_read_bb:n #1
   {
-    \@@_read_bb_auxi:nnn {#1}
+    \@@_read_bb_auxi:nnn {#1} { }
       { \ior_open:Nn \l_@@_tmp_ior {#1} }
       { image-not-found }
   }
@@ -201,26 +232,25 @@
 %  store the bounding box data in \TeX{}: this avoids multiple file operations.
 %  As bounding boxes here start away from the lower-left origin, we need to
 %  store all four values (contrast with for example the \texttt{pdfmode}
-%  driver).
+%  driver). Here |#2| is a potential page identifier: used to allow caching of
+%  individual pages in a multi-page document.
 %   \begin{macrocode}
-\cs_new_protected:Npx \@@_read_bb_auxi:nnn #1#2#3
+\cs_new_protected:Npx \@@_read_bb_auxi:nnnn #1#2#3#4
   {
-    \dim_if_exist:cTF { c_@@_ #1 _llx_dim }
+    \dim_if_exist:cTF { c_@@_ #1#2 _llx_dim }
       {
-        \dim_set_eq:Nc \l__image_llx_dim { c_@@_ #1 _llx_dim }
-        \dim_set_eq:Nc \l__image_lly_dim { c_@@_ #1 _lly_dim }
-        \dim_set_eq:Nc \l__image_urx_dim { c_@@_ #1 _urx_dim }
-        \dim_set_eq:Nc \l__image_ury_dim { c_@@_ #1 _ury_dim }
+        \dim_set_eq:Nc \l__image_llx_dim { c_@@_ #1#2 _llx_dim }
+        \dim_set_eq:Nc \l__image_lly_dim { c_@@_ #1#2 _lly_dim }
+        \dim_set_eq:Nc \l__image_urx_dim { c_@@_ #1#2 _urx_dim }
+        \dim_set_eq:Nc \l__image_ury_dim { c_@@_ #1#2 _ury_dim }
       }
-      { \@@_read_bb_auxii:nnn {#2} {#3} {#1} }
+      { \@@_read_bb_auxii:nnn {#3} {#4} {#1} {#2} }
   }
-\cs_new_protected:Npx \@@_read_bb_auxii:nnn #1#2#3
+\cs_new_protected:Npx \@@_read_bb_auxii:nnnn #1#2#3#4
   {
-    #2
+    #3
     \exp_not:N \ior_if_eof:NTF \exp_not:N \l_@@_tmp_ior
-      {
-        \__msg_kernel_error:nnn { kernel } {#3} {#1}
-      }
+      { \__msg_kernel_error:nnn { kernel } {#2} {#3} }
       {
         \ior_str_map_inline:Nn \exp_not:N \l_@@_tmp_ior
           {
@@ -229,10 +259,10 @@
           }
       }
     \ior_close:N \exp_not:N \l_@@_tmp_ior
-    \dim_const:cn { c_@@_ #1 _llx_dim } { \l__image_llx_dim }
-    \dim_const:cn { c_@@_ #1 _lly_dim } { \l__image_lly_dim }
-    \dim_const:cn { c_@@_ #1 _urx_dim } { \l__image_urx_dim }
-    \dim_const:cn { c_@@_ #1 _ury_dim } { \l__image_ury_dim }
+    \dim_const:cn { c_@@_ #3#4 _llx_dim } { \l__image_llx_dim }
+    \dim_const:cn { c_@@_ #3#4 _lly_dim } { \l__image_lly_dim }
+    \dim_const:cn { c_@@_ #3#4 _urx_dim } { \l__image_urx_dim }
+    \dim_const:cn { c_@@_ #3#4 _ury_dim } { \l__image_ury_dim }
   }
 \use:x
   {
@@ -279,6 +309,8 @@
     \ior_map_break:
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
