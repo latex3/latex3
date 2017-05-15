@@ -1875,7 +1875,7 @@ function doc(files)
             end
           end
           if typeset then
-            local errorlevel = typesetpdf(relpath(dir, ".") .. "/" .. j)
+            local errorlevel = typesetpdf(abspath(dir) .. "/" .. j)
             if errorlevel ~= 0 then
               return errorlevel
             end
