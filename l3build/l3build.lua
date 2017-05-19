@@ -1799,6 +1799,8 @@ function bundlectan()
   -- Generate a list of individual file names excluding those in the second
   -- argument: the latter is a table
   local function excludelist(include, exclude)
+    local include = include or { }
+    local exclude = exclude or { }
     local includelist = { }
     local excludelist = { }
     for _,i in ipairs(exclude) do
