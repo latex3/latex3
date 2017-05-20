@@ -572,7 +572,7 @@ function abspath(path)
   lfs.chdir(path)
   local result = lfs.currentdir()
   lfs.chdir(oldpwd)
-  return result
+  return gsub(result, "\\", "/")
 end
 
 -- Rename
