@@ -583,7 +583,9 @@ function tree(path, glob)
       for _, file in ipairs(filelist(dir, pattern)) do
         local fullpath = path .. "/" .. file
         if file ~= "." and file ~= ".." and
-          fullpath ~= maindir .. "/build"
+          fullpath ~= maindir .. "/build" and
+          (string.sub(pattern, 1, 1) == "."
+            or string.sub(file, 1, 1) ~= ".")
         then
           local fulldir = dir .. "/" .. file
           if critereon(fulldir) then
