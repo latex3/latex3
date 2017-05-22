@@ -581,10 +581,13 @@ function tree(path, glob)
     local critereon = critereon == "/" and is_dir or always_true
     function fill(path, dir, table)
       for _, file in ipairs(filelist(dir, pattern)) do
-        if file ~= "." and file ~= ".." then
+        local fullpath = path .. "/" .. file
+        if file ~= "." and file ~= ".." and
+          fullpath ~= maindir .. "/build"
+        then
           local fulldir = dir .. "/" .. file
           if critereon(fulldir) then
-            table[path .. "/" .. file] = fulldir
+            table[fullpath] = fulldir
           end
         end
       end
