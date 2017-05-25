@@ -46,7 +46,7 @@ function format()
   if errorlevel ~=0 then
     return errorlevel
   end
-  local localdir = relpath(localdir, unpackdir)
+  local localdir = abspath(localdir)
   errorlevel = run(
     unpackdir,
     os_setenv .. " TEXINPUTS=." .. os_pathsep
