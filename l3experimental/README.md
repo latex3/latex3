@@ -32,11 +32,7 @@ A 'string' in TeX terms is a token list in which all of the tokens have
 category code 12 ('other'), with the exception of spaces which have the
 category code 10 ('space'). The `l3str` bundle consists of two parts. The
 first is `l3str` itself. This is a collection of functions to act on strings,
-including for manipulations such as UTF8 mappings in pdfTeX. The second
-part of the bundle is `l3regex`, a regular expression search-and-replace
-implementation written in TeX primitives. The regex module works on token
-lists, and is part of `l3str` (currently) for historical reasons: the team
-anticipate splitting the two in the future.
+including for manipulations such as UTF8 mappings in pdfTeX.
 
 `xcoffins`
 ----------
