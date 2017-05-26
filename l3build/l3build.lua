@@ -1438,6 +1438,7 @@ function runtool(envvar, command)
 end
 
 function biber(name)
+  local name = basename(name)
   if fileexists(typesetdir .. "/" .. name .. ".bcf") then
     return(
       runtool("BIBINPUTS",  biberexe .. " " .. biberopts .. " " .. name)
@@ -1447,6 +1448,7 @@ function biber(name)
 end
 
 function bibtex(name)
+  local name = basename(name)
   if fileexists(typesetdir .. "/" .. name .. ".aux") then
     -- LaTeX always generates an .aux file, so there is a need to
     -- look inside it for a \citation line
@@ -1482,6 +1484,7 @@ function bibtex(name)
 end
 
 function makeindex(name, inext, outext, logext, style)
+  local name = basename(name)
   if fileexists(typesetdir .. "/" .. name .. inext) then
     return(
       runtool(
