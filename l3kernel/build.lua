@@ -124,7 +124,7 @@ function typeset(file)
   if errorlevel ~= 0 then
     return errorlevel
   else
-    local name = stripext(file)
+    local name = stripext(basename(file))
     errorlevel = biber(name) + bibtex(name)
     if errorlevel == 0 then
       local function cycle(name)
