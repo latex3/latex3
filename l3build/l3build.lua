@@ -1352,7 +1352,7 @@ function runtest(name, engine, hide, ext, makepdf)
         .. checkopts .. " " .. asciiopt .. lvtfile
         .. (hide and (" > " .. os_null) or "")
         .. os_concat ..
-      runtest_tasks(stripext(lvtfile))
+      runtest_tasks(jobname(lvtfile))
     )
   end
   if makepdf and fileexists(testdir .. "/" .. name .. dviext) then
@@ -1409,8 +1409,8 @@ function basename(file)
 end
 
 -- Strip the extension from a file name (if present)
-function stripext(file)
-  local name = match(file, "^(.*)%.")
+function jobname(file)
+  local name = match(basename(file), "^(.*)%.")
   return name or file
 end
 
@@ -1506,7 +1506,7 @@ function tex(file)
 end
 
 function typesetpdf(file)
-  local name = stripext(basename(file))
+  local name = jobname(file)
   print("Typesetting " .. name)
   local errorlevel = typeset(file)
   if errorlevel == 0 then
@@ -1523,7 +1523,7 @@ typeset = typeset or function(file)
   if errorlevel ~= 0 then
     return errorlevel
   else
-    local name = stripext(basename(file))
+    local name = jobname(file)
     errorlevel = biber(name) + bibtex(name)
     if errorlevel == 0 then
       local function cycle(name)
@@ -1590,14 +1590,14 @@ function check(names)
     -- No names passed: find all test files
     if not next(names) then
       for _,i in pairs(filelist(testfiledir, "*" .. lvtext)) do
-        insert(names, stripext(i))
+        insert(names, jobname(i))
       end
       for _,i in ipairs(filelist(unpackdir, "*" .. lvtext)) do
         if fileexists(testfiledir .. "/" .. i) then
           print("Duplicate test file: " .. i)
           return 1
         else
-          insert(names, stripext(i))
+          insert(names, jobname(i))
         end
       end
     end
@@ -1701,7 +1701,7 @@ function cmdcheck()
   print("Checking source files")
   for _,i in ipairs(cmdchkfiles) do
     for _,j in ipairs(filelist(".", i)) do
-      print("  " .. stripext(j))
+      print("  " .. jobname(j))
       run(
         testdir,
         os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir
@@ -1711,7 +1711,7 @@ function cmdcheck()
           " \"\\PassOptionsToClass{check}{l3doc} \\input " .. j .. "\""
           .. " > " .. os_null
       )
-      for line in lines(testdir .. "/" .. stripext(j) .. ".cmds") do
+      for line in lines(testdir .. "/" .. jobname(j) .. ".cmds") do
         if match(line, "^%!") then
           print("   - " .. match(line, "^%! (.*)"))
         end
@@ -1870,7 +1870,7 @@ function doc(files)
           if files and next(files) then
             typeset = false
             for _,k in ipairs(files) do
-              if k == stripext(j) then
+              if k == jobname(j) then
                 typeset = true
                 break
               end
