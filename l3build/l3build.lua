@@ -468,6 +468,15 @@ if os_type == "windows" then
   os_yes     = "for /l %I in (1,1,200) do @echo y"
 end
 
+-- Return an absolute path from a relative one
+function abspath(path)
+  local oldpwd = lfs.currentdir()
+  lfs.chdir(path)
+  local result = lfs.currentdir()
+  lfs.chdir(oldpwd)
+  return gsub(result, "\\", "/")
+end
+
 -- For cleaning out a directory, which also ensures that it exists
 function cleandir(dir)
   local errorlevel = mkdir(dir)
@@ -564,15 +573,6 @@ function mkdir(dir)
   else
     return execute("mkdir -p " .. dir)
   end
-end
-
--- Return an absolute path from a relative one
-function abspath(path)
-  local oldpwd = lfs.currentdir()
-  lfs.chdir(path)
-  local result = lfs.currentdir()
-  lfs.chdir(oldpwd)
-  return gsub(result, "\\", "/")
 end
 
 -- Rename
@@ -1402,15 +1402,15 @@ function dvitopdf(name, dir, engine, hide)
   end
 end
 
--- Strip the extension from a file name (if present)
-function stripext(file)
-  local name = match(file, "^(.*)%.")
-  return name or file
-end
-
 -- Strip the path from a file name (if present)
 function basename(file)
   local name = match(file, "^.*/([^/]*)$")
+  return name or file
+end
+
+-- Strip the extension from a file name (if present)
+function stripext(file)
+  local name = match(file, "^(.*)%.")
   return name or file
 end
 
