@@ -93,6 +93,7 @@ the team members are
 * Johannes Braams
 * David Carlisle
 * Robin Fairbairns
+* Enrico Gregorio
 * Morten Høgholm
 * Bruno Le Floch
 * Frank Mittelbach
@@ -115,6 +116,6 @@ the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
-<p>Copyright (C) 2011,2012,2014-2016 The LaTeX3 Project<br />
+<p>Copyright (C) 2011,2012,2014-2017 The LaTeX3 Project<br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>
