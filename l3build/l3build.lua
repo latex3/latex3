@@ -849,6 +849,7 @@ local function formatlog(logfile, newfile, engine)
     end
     -- Remove 'normal' direction information on boxes with (u)pTeX
     line = gsub(line, ",? yoko direction,?", "")
+    line = gsub(line, ",? yoko%(math%) direction,?", "")
     -- Remove the \special line that in DVI mode keeps PDFs comparable
     if match(line, "^%.*\\special%{pdf: docinfo << /Creator") then
       return ""
