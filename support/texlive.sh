@@ -86,6 +86,7 @@ tlmgr install   \
   units         \
   xcolor        \
   xecjk         \
+  xkeyval       \
   xunicode      \
   zhmetrics     \
   zhnumber
