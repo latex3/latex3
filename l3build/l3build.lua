@@ -818,9 +818,13 @@ local function formatlog(logfile, newfile, engine)
     line = gsub(line, "%(%.%/", "(")
     -- Zap paths if places other than 'here' are accessible
     if checksearch then
-      local pattern = "%w?:?/[^ ]*/([^/%(%)]*%.%w*)"
+      -- The pattern excludes < and > as the image part can have
+      -- several entries on one line
+      local pattern = "%w?:?/[^ %<%>]*/([^/%(%)]*%.%w*)"
       -- Files loaded from TeX: all start ( -- )
       line = gsub(line, "%(" .. pattern, "(../%1")
+      -- Images
+      line = gsub(line, "<" .. pattern .. ">", "<../%1>")
       -- luaotfload files start with keywords
       line = gsub(line, "from " .. pattern .. "%(", "from. ./%1(")
       line = gsub(line, ": " .. pattern .. "%)", ": ../%1)")
