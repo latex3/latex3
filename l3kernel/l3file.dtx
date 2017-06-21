@@ -68,12 +68,19 @@
 %
 % \section{File operation functions}
 %
-% \begin{variable}[added = 2017-06-18]{\g_file_current_name_str}
-%   Contains the name of the current \LaTeX{} file. This variable
-%   should not be modified: it is intended for information only. It
-%   will be equal to \cs{c_sys_jobname_str} at the start of a \LaTeX{}
-%   run and will be modified each time a file is read using
-%   \cs{file_input:n}.
+% \begin{variable}[added = 2017-06-21]
+%   {
+%     \g_file_current_dir_str,
+%     \g_file_current_name_str,
+%     \g_file_current_ext_str
+%   }
+%   Contain the directory, name and extension of the current file. The
+%   directory will be empty if the file was loaded without an explicit
+%   path (\emph{i.e.}~if it is in the \TeX{} search path), and will
+%   \emph{not} end in |/| other than the case that it is exactly equal
+%   to the root directory. The \meta{name} and \meta{ext} parts together
+%   make up the file name, thus the \meta{name} part mahy be thought of
+%   as the \enquote{job name} for the current file.
 % \end{variable}
 %
 % \begin{variable}[added = 2017-06-18]{\l_file_search_path_seq}
@@ -608,16 +615,10 @@
 %   Used to test for the existence of files when opening.
 % \end{variable}
 %
-% \begin{variable}{\l__file_name_str, \l__file_path_str}
-%   Used to store and transfer the file name and (partial) file path
-%   whilst reading files.
-% \end{variable}
-%
-% \begin{variable}{\l__file_internal_name_tl}
-%   Used to return the full name of a file for internal use. This is
-%   set by \cs{file_if_exist:nTF} and \cs{__file_if_exist:nT}, and
-%   the value may then be used to load a file directly provided no
-%   further operations intervene.
+% \begin{variable}{\l__file_basename_str, \l__file_path_str}
+%   Used to store and transfer the file name (including extension)
+%   and (partial) file path whilst reading files. (The file base is the
+%   basename plus any preceeding directory name.)
 % \end{variable}
 %
 % \begin{function}[added = 2017-06-19]{\__file_name_sanitize:nN}
@@ -687,12 +688,19 @@
 %
 % \subsection{File operations}
 %
-% \begin{variable}{\g_file_current_name_str}
+% \begin{variable}
+%   {
+%     \g_file_current_dir_str ,
+%     \g_file_current_ext_str ,
+%     \g_file_current_name_str
+%   }
 %   The name of the current file should be available at all times.
 %   For the format the file name needs to be picked up at the start of the
 %   file. In \LaTeXe{} package mode the current file name is collected from
 %   \tn{@currname}.
 %    \begin{macrocode}
+\str_new:N \g_file_current_dir_str
+\str_new:N \g_file_current_ext_str
 \str_new:N \g_file_current_name_str
 %<*initex>
 \tex_everyjob:D \exp_after:wN
@@ -712,7 +720,8 @@
 %   The input list of files is stored as a sequence stack. In package
 %   mode we can recover the information from the details held by
 %   \LaTeXe{} (we must be in the preamble and loaded using \tn{usepackage}
-%   or \tn{RequirePackage}).
+%   or \tn{RequirePackage}). As \LaTeXe{} doesn't store directory and
+%   name separately, we stick to the same convention here.
 %    \begin{macrocode}
 \seq_new:N \g_@@_stack_seq
 %<*package>
@@ -721,7 +730,7 @@
     {
       \tl_if_blank:nTF {#1}
         {
-          \cs_set:Npn \@@_tmp:w ##1 " ##2 " ##3 \q_stop { ##2 }
+          \cs_set:Npn \@@_tmp:w ##1 " ##2 " ##3 \q_stop { { } {##2} {  } }
           \seq_gput_right:Nx \g_@@_stack_seq
             {
               \exp_after:wN \exp_after:wN \exp_after:wN
@@ -732,7 +741,7 @@
             }
         }
         {
-          \seq_gput_right:Nn \g_@@_stack_seq {#1}
+          \seq_gput_right:Nn \g_@@_stack_seq { { } {#1} {#2} }
           \@@_tmp:w
         }
     }
@@ -768,11 +777,21 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l__file_name_str, \l__file_path_str}
-%   For storing the name and full path whilst passing data internally.
+% \begin{variable}{\l__file_basename_str, \l__file_path_str}
+%   For storing the basename and full path whilst passing data internally.
 %    \begin{macrocode}
-\str_new:N \l__file_name_str
+\str_new:N \l__file_basename_str
 \str_new:N \l__file_path_str
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_dir_str, \l_@@_ext_str, \l_@@_name_str}
+%   Used in parsing a path into parts: in contrast to the above, these are
+%   never used outside of the current module.
+%    \begin{macrocode}
+\str_new:N \l_@@_dir_str
+\str_new:N \l_@@_ext_str
+\str_new:N \l_@@_name_str
 %    \end{macrocode}
 % \end{variable}
 %
@@ -866,8 +885,8 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \file_find:nN #1#2
   {
-    \__file_name_sanitize:nN {#1} \l__file_name_str
-    \__file_name_quote:VN \l__file_name_str \l__file_path_str
+    \__file_name_sanitize:nN {#1} \l__file_basename_str
+    \__file_name_quote:VN \l__file_basename_str \l__file_path_str
     \__ior_open:No \g_@@_internal_ior \l__file_path_str
     \ior_if_eof:NTF \g_@@_internal_ior
       { \@@_find_search:N #2 }
@@ -891,7 +910,7 @@
     \seq_map_inline:Nn \l_file_search_path_seq
       {
         \str_set:Nx \l__file_path_str
-          { \tl_to_str:n {##1} / \l__file_name_str }
+          { \tl_to_str:n {##1} / \l__file_basename_str }
         \__file_name_quote:VN \l__file_path_str \l__file_path_str
         \__ior_open:NV \g_@@_internal_ior \l__file_path_str
         \ior_if_eof:NF \g_@@_internal_ior
@@ -941,6 +960,9 @@
 % \begin{macro}[aux]{\@@_missing:n}
 % \begin{macro}[aux]{\@@_input:n, \@@_input:V}
 % \begin{macro}[aux]{\@@_input_aux:n, \@@_input_aux:o}
+% \begin{macro}[aux]{\@@_input_push:n}
+% \begin{macro}[aux]{\@@_input_pop:}
+% \begin{macro}[aux]{\@@_input_pop:nnn}
 %   Loading a file is done in a safe way, checking first that the file
 %   exists and loading only if it does.  Push the file name on the
 %   \cs{g_@@_stack_seq}, and add it to the file list, either
@@ -954,9 +976,9 @@
   }
 \cs_new_protected:Npn \@@_missing:n #1
   {
-    \__file_name_sanitize:nN {#1} \l__file_name_str
+    \__file_name_sanitize:nN {#1} \l__file_basename_str
     \__msg_kernel_error:nnx { kernel } { file-not-found }
-      { \l__file_name_str }
+      { \l__file_basename_str }
   }
 \cs_new_protected:Npn \@@_input:n #1
   {
@@ -975,14 +997,44 @@
       { \@addtofilelist {#1} }
       { \seq_gput_right:Nn \g_@@_record_seq {#1} }
 %</package>
-    \seq_gpush:No \g_@@_stack_seq \g_file_current_name_str
-    \tl_gset:Nn \g_file_current_name_str {#1}
+    \@@_input_push:n {#1}
     \tex_input:D #1 \c_space_tl
-    \seq_gpop:NN \g_@@_stack_seq \l_@@_tmp_tl
-    \tl_gset_eq:NN \g_file_current_name_str \l_@@_tmp_tl
+    \@@_input_pop:
   }
 \cs_generate_variant:Nn \@@_input_aux:n { o }
 %    \end{macrocode}
+%   Keeping a track of the file data is easy enough: we store the separated
+%   parts so we do not need to parse them twice.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_input_push:n #1
+  {
+    \seq_gpush:Nx \g_@@_stack_seq
+      {
+        { \g_file_current_dir_str }
+        { \g_file_current_name_str }
+        { \g_file_current_ext_str }
+      }
+    \file_parse_path:nNNN {#1}
+      \l_@@_dir_str \l_@@_name_str \l_@@_ext_str
+    \str_gset_eq:NN \g_file_current_dir_str  \l_@@_dir_str
+    \str_gset_eq:NN \g_file_current_name_str \l_@@_name_str
+    \str_gset_eq:NN \g_file_current_ext_str  \l_@@_ext_str
+  }
+\cs_new_protected:Npn \@@_input_pop:
+  {
+    \seq_gpop:NN \g_@@_stack_seq \l_@@_tmp_tl
+    \exp_after:wN \@@_input_pop:nnn \l_@@_tmp_tl
+  }
+\cs_new_protected:Npn \@@_input_pop:nnn #1#2#3
+  {
+    \str_gset:Nn \g_file_current_dir_str  {#1}
+    \str_gset:Nn \g_file_current_name_str {#2}
+    \str_gset:Nn \g_file_current_ext_str  {#3}
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -1194,8 +1246,8 @@
     \file_find:nN {#2} \l__file_path_str
     \str_if_empty:NTF \l__file_path_str
       {
-        \__file_name_sanitize:nN {#2} \l__file_name_str
-        \__msg_kernel_error:nnx { kernel } { file-not-found } \l__file_name_str
+        \__file_name_sanitize:nN {#2} \l__file_basename_str
+        \__msg_kernel_error:nnx { kernel } { file-not-found } \l__file_basename_str
       }
       { \@@_open:No #1 \l__file_path_str }
   }
@@ -1209,7 +1261,7 @@
 %    \begin{macrocode}
 \prg_new_protected_conditional:Npnn \ior_open:Nn #1#2 { T , F , TF }
   {
-    \file_find:VN \l__file_name_str \l__file_path_str
+    \file_find:VN \l__file_basename_str \l__file_path_str
     \str_if_empty:NTF \l__file_path_str
       { \prg_return_false: }
       {
@@ -1551,10 +1603,10 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \iow_open:Nn #1#2
   {
-    \__file_name_sanitize:nN {#2} \l__file_name_str
+    \__file_name_sanitize:nN {#2} \l__file_basename_str
     \iow_close:N #1
     \seq_gpop:NNTF \g_@@_streams_seq \l_@@_stream_tl
-      { \@@_open_stream:NV #1 \l__file_name_str }
+      { \@@_open_stream:NV #1 \l__file_basename_str }
 %<*initex>
       { \__msg_kernel_fatal:nn { kernel } { output-streams-exhausted } }
 %</initex>
@@ -1562,7 +1614,7 @@
       {
         \@@_new:N #1
         \tl_set:Nx \l_@@_stream_tl { \int_eval:n {#1} }
-        \@@_open_stream:NV #1 \l__file_name_str 
+        \@@_open_stream:NV #1 \l__file_basename_str
       }
 %</package>
   }
@@ -1905,7 +1957,7 @@
 %   done, reset \cs{iow_indent:n} to its error definition: it only works
 %   in the first argument of \cs{iow_wrap:nnnN}.
 %    \begin{macrocode}
-%<*initex> 
+%<*initex>
       \tl_set:Nx \l_@@_wrap_tl {#1}
 %</initex>
 %<*package>
