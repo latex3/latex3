@@ -801,19 +801,6 @@ local function formatlog(logfile, newfile, engine)
     end
     local line = (lastline or "") .. line
     lastline = ""
-    -- Remove test file name from lines
-    -- This needs to extract the base name from the log name,
-    -- and one to allow for the case that there might be "-" chars
-    -- in the name (other cases are ignored)
-    line = gsub(
-      line,
-      gsub(
-        match("/" .. logfile, ".*/(.*)%" .. logext .. "$"),
-        "-",
-        "%%-"
-      ),
-      ""
-    )
     -- Zap ./ at begin of filename
     line = gsub(line, "%(%.%/", "(")
     -- Zap paths if places other than 'here' are accessible
