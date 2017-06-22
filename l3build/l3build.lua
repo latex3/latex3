@@ -658,7 +658,7 @@ end
 
 -- Set up the check system files: needed for checking one or more tests and
 -- for saving the test files
-local function checkinit()
+function checkinit()
   cleandir(testdir)
   depinstall(checkdeps)
   -- Copy dependencies to the test directory itself: this makes the paths
