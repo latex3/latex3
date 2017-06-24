@@ -490,7 +490,7 @@ end
 -- Copy files 'quietly'
 function cp(glob, source, dest)
   local errorlevel
-  for _,i in ipairs(filelist(source, glob)) do
+  for i,_ in pairs(tree(source, glob)) do
     local source = source .. "/" .. i
     if os_type == "windows" then
       if lfs_attributes(source)["mode"] == "directory" then
@@ -561,6 +561,58 @@ function filelist(path, glob)
     end
   end
   return files
+end
+
+-- Does what filelist does, but can also glob subdirectories. In the returned
+-- table, the keys are paths relative to the given starting path, the values
+-- are their counterparts relative to the current working directory.
+function tree(path, glob)
+  function cropdots(path)
+    return gsub(gsub(path, "^%./", ""), "/%./", "/")
+  end
+  function always_true()
+    return true
+  end
+  function is_dir(file)
+    return lfs.attributes(file)["mode"] == "directory"
+  end
+  local dirs = {["."]=cropdots(path)}
+  for pattern, critereon in gmatch(cropdots(glob), "([^/]+)(/?)") do
+    local critereon = critereon == "/" and is_dir or always_true
+    function fill(path, dir, table)
+      for _, file in ipairs(filelist(dir, pattern)) do
+        local fullpath = path .. "/" .. file
+        if file ~= "." and file ~= ".." and
+          fullpath ~= maindir .. "/build" and
+          (string.sub(pattern, 1, 1) == "."
+            or string.sub(file, 1, 1) ~= ".")
+        then
+          local fulldir = dir .. "/" .. file
+          if critereon(fulldir) then
+            table[fullpath] = fulldir
+          end
+        end
+      end
+    end
+    local newdirs = {}
+    if pattern == "**" then
+      while true do
+        path, dir = next(dirs)
+        if not path then
+          break
+        end
+        dirs[path] = nil
+        newdirs[path] = dir
+        fill(path, dir, dirs)
+      end
+    else
+      for path, dir in pairs(dirs) do
+        fill(path, dir, newdirs)
+      end
+    end
+    dirs = newdirs
+  end
+  return dirs
 end
 
 function mkdir(dir)
@@ -1395,6 +1447,16 @@ function dvitopdf(name, dir, engine, hide)
   end
 end
 
+-- Split a path into file and directory component
+function splitpath(file)
+  local path, name = match(file, "^(.*)/([^/]*)$")
+  if path then
+    return path, name
+  else
+    return ".", file
+  end
+end
+  
 -- Strip the path from a file name (if present)
 function basename(file)
   local name = match(file, "^.*/([^/]*)$")
@@ -1417,12 +1479,13 @@ end
 --
 
 -- An auxiliary used to set up the environmental variables
-function runtool(envvar, command)
+function runtool(subdir, dir, envvar, command)
   return(
     run(
-      typesetdir,
+      typesetdir .. "/" .. subdir,
       os_setenv .. " " .. envvar .. "=." .. os_pathsep
-        .. abspath(localdir)
+        .. abspath(localdir) .. os_pathsep
+        .. abspath(dir .. "/" .. subdir)
         .. (typesetsearch and os_pathsep or "") ..
       os_concat ..
       command
@@ -1430,16 +1493,17 @@ function runtool(envvar, command)
   )
 end
 
-function biber(name)
+function biber(name, dir)
   if fileexists(typesetdir .. "/" .. name .. ".bcf") then
+    local path, name = splitpath(name)
     return(
-      runtool("BIBINPUTS",  biberexe .. " " .. biberopts .. " " .. name)
+      runtool(path, dir, "BIBINPUTS",  biberexe .. " " .. biberopts .. " " .. name)
     )
   end
   return 0
 end
 
-function bibtex(name)
+function bibtex(name, dir)
   if fileexists(typesetdir .. "/" .. name .. ".aux") then
     -- LaTeX always generates an .aux file, so there is a need to
     -- look inside it for a \citation line
@@ -1449,6 +1513,7 @@ function bibtex(name)
     else
      grep = "\\\\\\\\"
     end
+    local path, name = splitpath(name)
     if run(
         typesetdir,
         os_grepexe .. " \"^" .. grep .. "citation{\" " .. name .. ".aux > "
@@ -1461,6 +1526,7 @@ function bibtex(name)
       return(
         -- Cheat slightly as we need to set two variables
         runtool(
+          path, dir,
           "BIBINPUTS",
           os_setenv .. " BSTINPUTS=." .. os_pathsep
             .. abspath(localdir)
@@ -1474,34 +1540,38 @@ function bibtex(name)
   return 0
 end
 
-function makeindex(name, inext, outext, logext, style)
+function makeindex(name, dir, inext, outext, logext, style)
   if fileexists(typesetdir .. "/" .. name .. inext) then
+    local path, name = splitpath(name)
     return(
       runtool(
+        path, dir,
         "INDEXSTYLE",
         makeindexexe .. " " .. makeindexopts .. " "
           .. " -s " .. style .. " -o " .. name .. outext
-          .. " -t " .. name .. logext .. " "  .. name .. inext
+          .. " -t " .. name .. " "  .. name .. inext
       )
     )
   end
   return 0
 end
 
-function tex(file)
+function tex(file, dir)
+  local path, name = splitpath(file)
   return(
     runtool(
+      path, dir,
       "TEXINPUTS",
       typesetexe .. " " .. typesetopts .. " \"" .. typesetcmds
-        .. "\\input " .. file .. "\""
+        .. "\\input " .. name .. "\""
     )
   )
 end
 
-function typesetpdf(file)
+function typesetpdf(file, dir)
   local name = jobname(file)
   print("Typesetting " .. name)
-  local errorlevel = typeset(file)
+  local errorlevel = typeset(file, dir)
   if errorlevel == 0 then
     os_remove(name .. ".pdf")
     cp(name .. ".pdf", typesetdir, ".")
@@ -1511,24 +1581,25 @@ function typesetpdf(file)
   return errorlevel
 end
 
-typeset = typeset or function(file)
-  local errorlevel = tex(file)
+typeset = typeset or function(file, dir)
+  dir = dir or "."
+  local errorlevel = tex(file, dir)
   if errorlevel ~= 0 then
     return errorlevel
   else
     local name = jobname(file)
-    errorlevel = biber(name) + bibtex(name)
+    errorlevel = biber(name, dir) + bibtex(name, dir)
     if errorlevel == 0 then
-      local function cycle(name)
+      local function cycle(name, dir)
         return(
-          makeindex(name, ".glo", ".gls", ".glg", glossarystyle) +
-          makeindex(name, ".idx", ".ind", ".ilg", indexstyle)    +
-          tex(file)
+          makeindex(name, dir, ".glo", ".gls", ".glg", glossarystyle) +
+          makeindex(name, dir, ".idx", ".ind", ".ilg", indexstyle)    +
+          tex(file, dir)
         )
       end
-      errorlevel = cycle(name)
+      errorlevel = cycle(name, dir)
       if errorlevel == 0 then
-        errorlevel = cycle(name)
+        errorlevel = cycle(name, dir)
       end
     end
     return errorlevel
@@ -1857,7 +1928,7 @@ function doc(files)
   for _, typesetfiles in ipairs({typesetdemofiles, typesetfiles}) do
     for _,i in ipairs(typesetfiles) do
       for _, dir in ipairs({unpackdir, typesetdir}) do
-        for _,j in ipairs(filelist(dir, i)) do
+        for j,_ in pairs(tree(dir, i)) do
           -- Allow for command line selection of files
           local typeset = true
           if files and next(files) then
@@ -1870,7 +1941,7 @@ function doc(files)
             end
           end
           if typeset then
-            local errorlevel = typesetpdf(abspath(dir) .. "/" .. j)
+            local errorlevel = typesetpdf(j, dir)
             if errorlevel ~= 0 then
               return errorlevel
             end
@@ -2107,20 +2178,21 @@ bundleunpack = bundleunpack or function(sourcedir, sources)
     end
   end
   for _,i in ipairs(unpackfiles) do
-    for _,j in ipairs(filelist(unpackdir, i)) do
+    for j,_ in pairs(tree(unpackdir, i)) do
       -- This 'yes' business is needed to pass a series of "y\n" to
       -- TeX if \askforoverwrite is true
       -- That is all done using a file as it's the only way on Windows and
       -- on Unix the "yes" command can't be used inside execute (it never
       -- stops, which confuses Lua)
       execute(os_yes .. ">>" .. localdir .. "/yes")
+      local path, name = splitpath(j)
       local localdir = abspath(localdir)
       errorlevel = run(
-        unpackdir,
+        unpackdir .. "/" .. path,
         os_setenv .. " TEXINPUTS=." .. os_pathsep
           .. localdir .. (unpacksearch and os_pathsep or "") ..
         os_concat ..
-        unpackexe .. " " .. unpackopts .. " " .. j .. " < "
+        unpackexe .. " " .. unpackopts .. " " .. name .. " < "
           .. localdir .. "/yes"
           .. (optquiet and (" > " .. os_null) or "")
       )
