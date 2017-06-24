@@ -101,6 +101,7 @@ sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"}
 textfiles        = textfiles        or {"*.md", "*.txt"}
 typesetdemofiles = typesetdemofiles or { }
 typesetfiles     = typesetfiles     or {"*.dtx"}
+docfiledir       = docfiledir       or maindir .. "/doc"
 typesetsuppfiles = typesetsuppfiles or { }
 unpackfiles      = unpackfiles      or {"*.ins"}
 unpacksuppfiles  = unpacksuppfiles  or { }
@@ -1851,7 +1852,7 @@ function doc(files)
     cp(i, supportdir, typesetdir)
   end
   depinstall(typesetdeps)
-  unpack()
+  unpack({".", docfiledir})
   -- Main loop for doc creation
   for _, typesetfiles in ipairs({typesetdemofiles, typesetfiles}) do
     for _,i in ipairs(typesetfiles) do
@@ -2060,12 +2061,12 @@ end
 
 -- Unpack the package files using an 'isolated' system: this requires
 -- a copy of the 'basic' DocStrip program, which is used then removed
-function unpack()
+function unpack(sourcedir)
   local errorlevel = depinstall(unpackdeps)
   if errorlevel ~= 0 then
     return errorlevel
   end
-  errorlevel = bundleunpack()
+  errorlevel = bundleunpack(sourcedir)
   if errorlevel ~= 0 then
     return errorlevel
   end
