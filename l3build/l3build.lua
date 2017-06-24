@@ -23,7 +23,7 @@ for those people who are interested.
 --]]
 
 -- Version information
-release_date = "2017/05/19"
+release_date = "2017/05/29"
 
 -- "module" is a deprecated function in Lua 5.2: as we want the name
 -- for other purposes, and it should eventually be 'free', simply
@@ -85,26 +85,27 @@ end
 -- File types for various operations
 -- Use Unix-style globs
 -- All of these may be set earlier, so a initialised conditionally
-bibfiles         = bibfiles         or {"*.bib"}
-binaryfiles      = binaryfiles      or {"*.pdf", "*.zip"}
-bstfiles         = bstfiles         or {"*.bst"}
-checkfiles       = checkfiles       or { }
-checksuppfiles   = checksuppfiles   or { }
-cmdchkfiles      = cmdchkfiles      or { }
-cleanfiles       = cleanfiles       or {"*.log", "*.pdf", "*.zip"}
-demofiles        = demofiles        or { }
-docfiles         = docfiles         or { }
-excludefiles     = excludefiles     or {"*~"}
-installfiles     = installfiles     or {"*.sty"}
-makeindexfiles   = makeindexfiles   or {"*.ist"}
-sourcefiles      = sourcefiles      or {"*.dtx", "*.ins"}
-textfiles        = textfiles        or {"*.md", "*.txt"}
-typesetdemofiles = typesetdemofiles or { }
-typesetfiles     = typesetfiles     or {"**/*.dtx"}
-typesetsuppfiles = typesetsuppfiles or { }
-unpackfiles      = unpackfiles      or {"**/*.ins"}
-unpacksuppfiles  = unpacksuppfiles  or { }
-versionfiles     = versionfiles     or {"*.dtx"}
+bibfiles           = bibfiles           or {"*.bib"}
+binaryfiles        = binaryfiles        or {"*.pdf", "*.zip"}
+bstfiles           = bstfiles           or {"*.bst"}
+checkfiles         = checkfiles         or { }
+checksuppfiles     = checksuppfiles     or { }
+cmdchkfiles        = cmdchkfiles        or { }
+cleanfiles         = cleanfiles         or {"*.log", "*.pdf", "*.zip"}
+demofiles          = demofiles          or { }
+docfiles           = docfiles           or { }
+excludefiles       = excludefiles       or {"*~"}
+installfiles       = installfiles       or {"*.sty"}
+makeindexfiles     = makeindexfiles     or {"*.ist"}
+sourcefiles        = sourcefiles        or {"*.dtx", "*.ins"}
+textfiles          = textfiles          or {"*.md", "*.txt"}
+typesetdemofiles   = typesetdemofiles   or { }
+typesetfiles       = typesetfiles       or {"*.dtx"}
+typesetsuppfiles   = typesetsuppfiles   or { }
+typesetsourcefiles = typesetsourcefiles or { }
+unpackfiles        = unpackfiles        or {"*.ins"}
+unpacksuppfiles    = unpacksuppfiles    or { }
+versionfiles       = versionfiles       or {"*.dtx"}
 
 -- Roots which should be unpacked to support unpacking/testing/typesetting
 checkdeps   = checkdeps   or { }
@@ -468,6 +469,15 @@ if os_type == "windows" then
   os_yes     = "for /l %I in (1,1,200) do @echo y"
 end
 
+-- Return an absolute path from a relative one
+function abspath(path)
+  local oldpwd = lfs.currentdir()
+  lfs.chdir(path)
+  local result = lfs.currentdir()
+  lfs.chdir(oldpwd)
+  return gsub(result, "\\", "/")
+end
+
 -- For cleaning out a directory, which also ensures that it exists
 function cleandir(dir)
   local errorlevel = mkdir(dir)
@@ -618,15 +628,6 @@ function mkdir(dir)
   end
 end
 
--- Return an absolute path from a relative one
-function abspath(path)
-  local oldpwd = lfs.currentdir()
-  lfs.chdir(path)
-  local result = lfs.currentdir()
-  lfs.chdir(oldpwd)
-  return gsub(result, "\\", "/")
-end
-
 -- Rename
 function ren(dir, source, dest)
   local dir = dir .. "/"
@@ -710,7 +711,7 @@ end
 
 -- Set up the check system files: needed for checking one or more tests and
 -- for saving the test files
-local function checkinit()
+function checkinit()
   cleandir(testdir)
   depinstall(checkdeps)
   -- Copy dependencies to the test directory itself: this makes the paths
@@ -853,26 +854,17 @@ local function formatlog(logfile, newfile, engine)
     end
     local line = (lastline or "") .. line
     lastline = ""
-    -- Remove test file name from lines
-    -- This needs to extract the base name from the log name,
-    -- and one to allow for the case that there might be "-" chars
-    -- in the name (other cases are ignored)
-    line = gsub(
-      line,
-      gsub(
-        match("/" .. logfile, ".*/(.*)%" .. logext .. "$"),
-        "-",
-        "%%-"
-      ),
-      ""
-    )
     -- Zap ./ at begin of filename
     line = gsub(line, "%(%.%/", "(")
     -- Zap paths if places other than 'here' are accessible
     if checksearch then
-      local pattern = "%w?:?/[^ ]*/([^/%(%)]*%.%w*)"
+      -- The pattern excludes < and > as the image part can have
+      -- several entries on one line
+      local pattern = "%w?:?/[^ %<%>]*/([^/%(%)]*%.%w*)"
       -- Files loaded from TeX: all start ( -- )
       line = gsub(line, "%(" .. pattern, "(../%1")
+      -- Images
+      line = gsub(line, "<" .. pattern .. ">", "<../%1>")
       -- luaotfload files start with keywords
       line = gsub(line, "from " .. pattern .. "%(", "from. ./%1(")
       line = gsub(line, ": " .. pattern .. "%)", ": ../%1)")
@@ -901,6 +893,7 @@ local function formatlog(logfile, newfile, engine)
     end
     -- Remove 'normal' direction information on boxes with (u)pTeX
     line = gsub(line, ",? yoko direction,?", "")
+    line = gsub(line, ",? yoko%(math%) direction,?", "")
     -- Remove the \special line that in DVI mode keeps PDFs comparable
     if match(line, "^%.*\\special%{pdf: docinfo << /Creator") then
       return ""
@@ -1404,7 +1397,7 @@ function runtest(name, engine, hide, ext, makepdf)
         .. checkopts .. " " .. asciiopt .. lvtfile
         .. (hide and (" > " .. os_null) or "")
         .. os_concat ..
-      runtest_tasks(stripext(lvtfile))
+      runtest_tasks(jobname(lvtfile))
     )
   end
   if makepdf and fileexists(testdir .. "/" .. name .. dviext) then
@@ -1454,12 +1447,6 @@ function dvitopdf(name, dir, engine, hide)
   end
 end
 
--- Strip the extension from a file name (if present)
-function stripext(file)
-  local name = match(file, "^(.*)%.")
-  return name or file
-end
-
 -- Split a path into file and directory component
 function splitpath(file)
   local path, name = match(file, "^(.*)/([^/]*)$")
@@ -1468,6 +1455,17 @@ function splitpath(file)
   else
     return ".", file
   end
+  
+-- Strip the path from a file name (if present)
+function basename(file)
+  local name = match(file, "^.*/([^/]*)$")
+  return name or file
+end
+
+-- Strip the extension from a file name (if present)
+function jobname(file)
+  local name = match(basename(file), "^(.*)%.")
+  return name or file
 end
 
 -- Look for a test: could be in the testfiledir or the unpackdir
@@ -1570,7 +1568,7 @@ function tex(file, dir)
 end
 
 function typesetpdf(file, dir)
-  local name = stripext(file)
+  local name = jobname(file)
   print("Typesetting " .. name)
   local errorlevel = typeset(file, dir)
   if errorlevel == 0 then
@@ -1588,7 +1586,7 @@ typeset = typeset or function(file, dir)
   if errorlevel ~= 0 then
     return errorlevel
   else
-    local name = stripext(file)
+    local name = jobname(file)
     errorlevel = biber(name, dir) + bibtex(name, dir)
     if errorlevel == 0 then
       local function cycle(name, dir)
@@ -1655,14 +1653,14 @@ function check(names)
     -- No names passed: find all test files
     if not next(names) then
       for _,i in pairs(filelist(testfiledir, "*" .. lvtext)) do
-        insert(names, stripext(i))
+        insert(names, jobname(i))
       end
       for _,i in ipairs(filelist(unpackdir, "*" .. lvtext)) do
         if fileexists(testfiledir .. "/" .. i) then
           print("Duplicate test file: " .. i)
           return 1
         else
-          insert(names, stripext(i))
+          insert(names, jobname(i))
         end
       end
     end
@@ -1766,7 +1764,7 @@ function cmdcheck()
   print("Checking source files")
   for _,i in ipairs(cmdchkfiles) do
     for _,j in ipairs(filelist(".", i)) do
-      print("  " .. stripext(j))
+      print("  " .. jobname(j))
       run(
         testdir,
         os_setenv .. " TEXINPUTS=." .. os_pathsep .. localdir
@@ -1776,7 +1774,7 @@ function cmdcheck()
           " \"\\PassOptionsToClass{check}{l3doc} \\input " .. j .. "\""
           .. " > " .. os_null
       )
-      for line in lines(testdir .. "/" .. stripext(j) .. ".cmds") do
+      for line in lines(testdir .. "/" .. jobname(j) .. ".cmds") do
         if match(line, "^%!") then
           print("   - " .. match(line, "^%! (.*)"))
         end
@@ -1924,7 +1922,7 @@ function doc(files)
     cp(i, supportdir, typesetdir)
   end
   depinstall(typesetdeps)
-  unpack()
+  unpack({sourcefiles, typesetsourcefiles})
   -- Main loop for doc creation
   for _, typesetfiles in ipairs({typesetdemofiles, typesetfiles}) do
     for _,i in ipairs(typesetfiles) do
@@ -1935,7 +1933,7 @@ function doc(files)
           if files and next(files) then
             typeset = false
             for _,k in ipairs(files) do
-              if k == stripext(j) then
+              if k == jobname(j) then
                 typeset = true
                 break
               end
@@ -2133,12 +2131,12 @@ end
 
 -- Unpack the package files using an 'isolated' system: this requires
 -- a copy of the 'basic' DocStrip program, which is used then removed
-function unpack()
+function unpack(sources)
   local errorlevel = depinstall(unpackdeps)
   if errorlevel ~= 0 then
     return errorlevel
   end
-  errorlevel = bundleunpack()
+  errorlevel = bundleunpack({"."}, sources)
   if errorlevel ~= 0 then
     return errorlevel
   end
@@ -2153,7 +2151,7 @@ end
 
 -- Split off from the main unpack so it can be used on a bundle and not
 -- leave only one modules files
-bundleunpack = bundleunpack or function(sourcedir)
+bundleunpack = bundleunpack or function(sourcedir, sources)
   local errorlevel = mkdir(localdir)
   if errorlevel ~=0 then
     return errorlevel
@@ -2163,10 +2161,12 @@ bundleunpack = bundleunpack or function(sourcedir)
     return errorlevel
   end
   for _,i in ipairs(sourcedir or {"."}) do
-    for _,j in ipairs(sourcefiles) do
-      errorlevel = cp(j, i, unpackdir)
-      if errorlevel ~=0 then
-        return errorlevel
+    for _,j in ipairs(sources or {sourcefiles}) do
+      for _,k in ipairs(j) do
+        errorlevel = cp(k, i, unpackdir)
+        if errorlevel ~=0 then
+          return errorlevel
+        end
       end
     end
   end

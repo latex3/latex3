@@ -44,7 +44,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2017/04/01}
+% \date{Released 2017/05/29}
 %
 % \maketitle
 %
@@ -60,6 +60,13 @@
 % \begin{variable}{page}
 %   The page number of an image to be used when including a multi-page
 %   PDF file as an image. This key will be ignored for non-PDF images.
+% \end{variable}
+%
+% \begin{variable}{pagebox}
+%   The page box setting used when determining the bounding box of an image:
+%   used for |.pdf| images which may present multiple page boxes. Valid
+%   settings are |artbox|, |bleedbox|, |cropbox| (the standard setting),
+%   |mediabox| and |trimbox|.
 % \end{variable}
 %
 % \subsection{Internal functions}
@@ -78,12 +85,17 @@
 %   which may contain multiple pages.
 % \end{variable}
 %
-% \begin{variable}{\l__image_ht_dim, \l__image_wd_dim}
-%   Dimensions holding the height and width of the image file.
-%   These values may be extracted/read from the image files themselves
-%   (see \cs{__image_extract_bb:n} and \cs{__image_read_bb:n}).  Note that
-%   image files have no depth: they are always included such that the reference
-%   point is at $(0,0)$.
+% \begin{variable}{\l__image_pagebox_tl}
+%   The nature of the page box setting used to determine the bounding box of
+%   material: used for |.pdf| files which feature multiple page box
+%   specifications.
+% \end{variable}
+%
+% \begin{variable}
+%   {\l__image_llx_dim, \l__image_lly_dim, \l__image_urx_dim, \l__image_ury_dim}
+%   Dimensions which return the points $(\meta{llx},\meta{lly})$ and
+%   $(\meta{urx},\meta{ury})$ for the image. For many images only the resulting
+%   height and width are significant, but this is driver-dependent.
 % \end{variable}
 %
 % \begin{function}{\__image_extract_bb:n}
@@ -91,8 +103,9 @@
 %     \cs{__image_extract_bb:n} \meta{file}
 %   \end{syntax}
 %   Extracts bounding box data for the image \meta{file} using the |extractbb|
-%   utility, and stores the size of the image file in \cs{l__image_ht_dim} and
-%   \cs{l__image_wd_dim}.
+%   utility, and stores the bounding box of the image file in
+%   \cs{l__image_llx_dim}, \cs{l__image_lly_dim}, \cs{l__image_urx_dim} and
+%   \cs{l__image_ury_dim}.
 %
 %   The \meta{file} name should be fully-qualified and sanitized: no search
 %   or other manipulation is carried out at this level. No check is made on
@@ -123,8 +136,8 @@
 %   \end{verbatim}
 %   where \meta{llx}, \meta{lly}, \meta{urx} and \meta{ury} are the corners
 %   of the bounding box expressed in PostScript (\enquote{big}) points. The
-%   values are used to set the variables \cs{l__image_ht_dim} and
-%   \cs{l__image_wd_dim}.
+%   values are stored in \cs{l__image_llx_dim}, \cs{l__image_lly_dim},
+%   \cs{l__image_urx_dim} and \cs{l__image_ury_dim}.
 %
 %   The \meta{file} name should be fully-qualified and sanitized: no search
 %   or other manipulation is carried out at this level. No check is made on
@@ -149,7 +162,7 @@
 %
 %    \begin{macrocode}
 %<*package>
-\ProvidesExplPackage{l3image}{2017/04/01}{}
+\ProvidesExplPackage{l3image}{2017/05/29}{}
   {L3 Experimental image inclusion support}
 %</package>
 %    \end{macrocode}
@@ -164,30 +177,46 @@
 %
 % \subsection{Image feature support}
 %
-% \begin{macro}[int]{\l__image_interpolate_bool, \l__image_page_int}
-%   Keys which control features of images.
+% \begin{macro}[int]
+%   {\l__image_interpolate_bool, \l__image_page_int, \l__image_pagebox_tl}
+%   Keys which control features of images. The standard value of |[pagebox|
+%   set up here should match the default for the drivers themselves: in
+%   the absence of any other setting the |cropbox| should be used.
 %    \begin{macrocode}
+\tl_new:N \l__image_pagebox_tl
 \keys_define:nn { image }
   {
     interpolate .bool_set:N = \l__image_interpolate_bool ,
-    page        .int_set:N  = \l__image_page_int
+    page        .int_set:N  = \l__image_page_int         ,
+    pagebox     .choices:nn =
+      { artbox , bleedbox , cropbox , mediabox , trimbox }
+      { \tl_set:Nn \l__image_pagebox_tl {#1} },
+    pagebox     .initial:n  = cropbox
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Obtaining bounding box data}
 %
-% \begin{variable}[int]{\l__image_ht_dim , \l__image_wd_dim}
-%   Storage for the return of results.
+% \begin{variable}[int]
+%   {
+%     \l__image_llx_dim , \l__image_lly_dim,
+%     \l__image_urx_dim , \l__image_ury_dim
+%   } 
+%   Storage for the return of bounding box.
 %    \begin{macrocode}
-\dim_new:N \l__image_ht_dim
-\dim_new:N \l__image_wd_dim
+\dim_new:N \l__image_llx_dim
+\dim_new:N \l__image_lly_dim
+\dim_new:N \l__image_urx_dim
+\dim_new:N \l__image_ury_dim
 %    \end{macrocode}
 % \end{variable}
 %
 % \begin{macro}[int]{\__image_extract_bb:n, \__image_read_bb:n}
 % \begin{macro}[aux]{\@@_extract_bb_auix:nn, \@@_extract_bb_auix:Vn}
 % \begin{macro}[aux]{\@@_extract_bb_auxii:nnn}
+% \begin{macro}[aux]{\@@_extract_bb_auxiii:nnnn, \@@_extract_bb_auxiii:Vnnn}
+% \begin{macro}[aux]{\@@_extract_bb_auxiv:nnn}
 % \begin{macro}[aux]{\@@_read_bb_auxi:nnnn, \@@_read_bb_auxii:Vnnn}
 % \begin{macro}[aux]
 %   {
@@ -214,6 +243,16 @@
 \cs_generate_variant:Nn \@@_extract_bb_auxi:nn { Vn }
 \cs_new_protected:Npn \@@_extract_bb_auxii:nnn #1#2#3
   {
+   \tl_if_empty:NTF \l__image_pagebox_tl
+      { \@@_extract_bb_auxiv:nnn }
+      { \@@_extract_bb_auxiii:Vnnn \l__image_pagebox_tl }
+      {#1} {#2} {#3}
+  }
+\cs_new_protected:Npn \@@_extract_bb_auxiii:nnnn #1#2#3#4
+  { \@@_extract_bb_auxiv:nnn {#2} { : #1 #3 } { #4 -B~#1~ } }
+\cs_generate_variant:Nn \@@_extract_bb_auxiii:nnnn { V }
+\cs_new_protected:Npn \@@_extract_bb_auxiv:nnn #1#2#3
+  {
     \@@_read_bb_auxi:nnnn {#1} {#2}
       { \tex_openin:D \l_@@_tmp_ior = "|extractbb~#3-O~#1" }
       { pipe-failed }
@@ -231,14 +270,22 @@
 %  As bounding boxes here start away from the lower-left origin, we need to
 %  store all four values (contrast with for example the \texttt{pdfmode}
 %  driver). Here |#2| is a potential page identifier: used to allow caching of
-%  individual pages in a multi-page document.
+%  individual pages in a multi-page document. Caching is applied to the
+%  upper-right position in all cases, but as the lower-left will often be
+%  $(0,0)$ it is only cached if required.
 %   \begin{macrocode}
 \cs_new_protected:Npx \@@_read_bb_auxi:nnnn #1#2#3#4
   {
-    \dim_if_exist:cTF { c_@@_ #1#2 _ht_dim }
+    \dim_if_exist:cTF { c_@@_ #1#2 _urx_dim }
       {
-        \dim_set_eq:Nc \l__image_ht_dim { c_@@_ #1#2 _ht_dim }
-        \dim_set_eq:Nc \l__image_wd_dim { c_@@_ #1#2 _wd_dim }
+        \dim_set_eq:Nc \l__image_urx_dim { c_@@_ #1#2 _urx_dim }
+        \dim_set_eq:Nc \l__image_ury_dim { c_@@_ #1#2 _ury_dim }
+        \dim_if_exist:cTF { c_@@_ #1#2 _llx_dim }
+          { \dim_set_eq:Nc \l__image_llx_dim { c_@@_ #1#2 _llx_dim } }
+          { \dim_zero:N \l__image_urx_dim }
+        \dim_if_exist:cTF { c_@@_ #1#2 _lly_dim }
+          { \dim_set_eq:Nc \l__image_lly_dim { c_@@_ #1#2 _lly_dim } }
+          { \dim_zero:N \l__image_lly_dim }
       }
       { \@@_read_bb_auxii:nnn {#3} {#4} {#1} {#2} }
   }
@@ -255,8 +302,12 @@
           }
       }
     \ior_close:N \exp_not:N \l_@@_tmp_ior
-    \dim_const:cn { c_@@_ #3#4 _ht_dim } { \l__image_ht_dim }
-    \dim_const:cn { c_@@_ #3#4 _wd_dim } { \l__image_wd_dim }
+    \dim_if_zero:NF \l__image_llx_dim
+      { \dim_const:cn { c_@@_ #3#4 _llx_dim } { \l__image_llx_dim } }
+    \dim_if_zero:NF \l__image_lly_dim
+      { \dim_const:cn { c_@@_ #3#4 _lly_dim } { \l__image_lly_dim } }
+    \dim_const:cn { c_@@_ #3#4 _urx_dim } { \l__image_urx_dim }
+    \dim_const:cn { c_@@_ #3#4 _ury_dim } { \l__image_ury_dim }
   }
 \use:x
   {
@@ -296,11 +347,15 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_read_bb_auxv:w #1~#2~#3~#4~#5 \q_stop
   {
-    \dim_set:Nn \l__image_ht_dim { #4 bp - #2 bp }
-    \dim_set:Nn \l__image_wd_dim { #3 bp - #1 bp }
+    \dim_set:Nn \l__image_llx_dim { #1 bp }
+    \dim_set:Nn \l__image_lly_dim { #2 bp }
+    \dim_set:Nn \l__image_urx_dim { #3 bp }
+    \dim_set:Nn \l__image_ury_dim { #4 bp }
     \ior_map_break:
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}

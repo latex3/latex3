@@ -45,7 +45,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2017/05/13}
+% \date{Released 2017/05/29}
 %
 % \maketitle
 %
@@ -487,175 +487,113 @@
 %</package>
 %    \end{macrocode}
 %
-% \subsection{\texttt{pdfmode} driver}
+% The order of the driver code here is such that we get somewhat logical
+% outcomes in terms of code sharing whilst keeping things readable. (Trying to
+% mix all of the code by concept is almost unmanageable.) The key parts which
+% are shared are
+% \begin{itemize}
+%   \item Color support is either \texttt{dvips}-like or \texttt{pdfmode}-like.
+%   \item \texttt{pdfmode} and \texttt{(x)dvipdfmx} share drawing routines.
+%   \item \texttt{xdvipdfmx} is largely the same as \texttt{dvipdfmx} so
+%     takes most of the same code.
+% \end{itemize}
+%
+% \subsection{Color support}
+%
+% Whilst \texttt{(x)dvipdfmx} does have its own approach to color specials,
+% it is easier to use \texttt{dvips}-like ones for all cases except direct
+% PDF output. As such the color code is collected here in two blocks.
+%
+% \subsubsection{\texttt{dvips}-style}
+%
+%    \begin{macrocode}
+%<*dvisvgm|dvipdfmx|dvips|xdvipdfmx>
+%    \end{macrocode}
+%
+% \begin{macro}[aux]{\@@_color_pickup:}
+%   Allow for \LaTeXe{}.
+%    \begin{macrocode}
+%<*package>
+\AtBeginDocument
+  {
+    \@ifpackageloaded { color }
+      {
+        \cs_new_protected:Npn \@@_color_pickup:
+          { \tl_set_eq:NN \l__color_current_tl \current@color }
+      }
+      { \cs_new_protected:Npn \@@_color_pickup: { } }
+  }
+%</package>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_color_ensure_current:}
+% \begin{macro}[aux]{\@@_color_reset:}
+%   Directly set the color using the specials: no optimisation here.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_color_ensure_current:
+  {
+%<*package>
+    \@@_color_pickup:
+%</package>
+    \tex_special:D { color~push~\l__color_current_tl }
+  }
+\cs_new_protected:Npn \@@_color_reset:
+  { \tex_special:D { color~pop } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvisvgm|dvipdfmx|dvips|xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsubsection{\texttt{pdfmode}}
 %
 %    \begin{macrocode}
 %<*pdfmode>
 %    \end{macrocode}
 %
-% The direct PDF driver covers both \pdfTeX{} and \LuaTeX{}. The latter
-% renames/restructures the driver primitives but this can be handled
-% at one level of abstraction. As such, we avoid using two separate drivers
-% for this material at the cost of some \texttt{x}-type definitions to get
-% everything expanded up-front.
-%
-% \subsubsection{Basics}
-%
-% \begin{macro}[int]{\@@_literal:n}
-%   This is equivalent to \verb|\special{pdf:}| but the engine can
-%   track it. Without the \texttt{direct} keyword everything is kept in
-%   sync: the transformation matrix is set to the current point automatically.
-%   Note that this is still inside the text (\texttt{BT} \dots \texttt{ET}
-%   block).
-%    \begin{macrocode}
-\cs_new_protected:Npx \@@_literal:n #1
-  {
-    \cs_if_exist:NTF \luatex_pdfextension:D
-      { \luatex_pdfextension:D literal }
-      { \pdftex_pdfliteral:D }
-        {#1}
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_scope_begin:, \@@_scope_end:}
-%  Higher-level interfaces for saving and restoring the graphic state.
-%    \begin{macrocode}
-\cs_new_protected:Npx \@@_scope_begin:
-  {
-    \cs_if_exist:NTF \luatex_pdfextension:D
-      { \luatex_pdfextension:D save \scan_stop: }
-      { \pdftex_pdfsave:D }
-  }
-\cs_new_protected:Npx \@@_scope_end:
-  {
-    \cs_if_exist:NTF \luatex_pdfextension:D
-      { \luatex_pdfextension:D restore \scan_stop: }
-      { \pdftex_pdfrestore:D }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_matrix:n}
-%   Here the appropriate function is set up to insert an affine matrix
-%   into the PDF. With \pdfTeX{} and \LuaTeX{} in direct PDF output mode there
-%   is a primitive for this, which only needs the rotation/scaling/skew part.
-%    \begin{macrocode}
-\cs_new_protected:Npx \@@_matrix:n #1
-  {
-    \cs_if_exist:NTF \luatex_pdfextension:D
-      { \luatex_pdfextension:D setmatrix }
-      { \pdftex_pdfsetmatrix:D }
-        {#1}
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \subsubsection{Box operations}
-%
-% \begin{macro}{\@@_box_use_clip:N}
-%   The general method is to save the current location, define a clipping path
-%   equivalent to the bounding box, then insert the content at the current
-%   position and in a zero width box. The \enquote{real} width is then made up
-%   using a horizontal skip before tidying up. There are other approaches that
-%   can be taken (for example using XForm objects), but the logic here shares
-%   as much code as possible and uses the same conversions (and so same
-%   rounding errors) in all cases.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_box_use_clip:N #1
-  {
-    \@@_scope_begin:
-    \@@_literal:n
-      {
-        0~
-        \dim_to_decimal_in_bp:n { -\box_dp:N #1 } ~
-        \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
-        \dim_to_decimal_in_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
-        re~W~n
-      }
-    \hbox_overlap_right:n { \box_use:N #1 }
-    \@@_scope_end:
-    \skip_horizontal:n { \box_wd:N #1 }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_box_use_rotate:Nn}
-% \begin{variable}{\l_@@_cos_fp, \l_@@_sin_fp}
-%   Rotations are set using an affine transformation matrix which therefore
-%   requires sine/cosine values not the angle itself. We store the rounded
-%   values to avoid rounding twice. There are also a couple of comparisons to
-%   ensure that |-0| is not written to the output, as this avoids any issues
-%   with problematic display programs.  Note that numbers are compared to~$0$
-%   after rounding.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_box_use_rotate:Nn #1#2
-  {
-    \@@_scope_begin:
-    \box_set_wd:Nn #1 \c_zero_dim
-    \fp_set:Nn \l_@@_cos_fp { round ( cosd ( #2 ) , 5 ) }
-    \fp_compare:nNnT \l_@@_cos_fp = \c_zero_fp
-      { \fp_zero:N \l_@@_cos_fp }
-    \fp_set:Nn \l_@@_sin_fp { round ( sind ( #2 ) , 5 ) }
-    \@@_matrix:n
-      {
-        \fp_use:N \l_@@_cos_fp \c_space_tl
-        \fp_compare:nNnTF \l_@@_sin_fp = \c_zero_fp
-          { 0~0 }
-          {
-            \fp_use:N \l_@@_sin_fp
-            \c_space_tl
-            \fp_eval:n { -\l_@@_sin_fp }
-          }
-        \c_space_tl
-        \fp_use:N \l_@@_cos_fp
-      }
-   \box_use:N #1
-   \@@_scope_end:
-  }
-\fp_new:N \l_@@_cos_fp
-\fp_new:N \l_@@_sin_fp
-%    \end{macrocode}
-% \end{variable}
-% \end{macro}
-%
-% \begin{macro}{\@@_box_use_scale:Nnn}
-%   The same idea as for rotation but without the complexity of signs and
-%   cosines.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_box_use_scale:Nnn #1#2#3
-  {
-    \@@_scope_begin:
-    \@@_matrix:n
-      {
-        \fp_eval:n { round ( #2 , 5 ) } ~
-        0~0~
-        \fp_eval:n { round ( #3 , 5 ) }
-      }
-    \hbox_overlap_right:n { \box_use:N #1 }
-    \@@_scope_end:
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \subsubsection{Color}
-%
-% \begin{variable}{\l_@@_color_current_tl}
+% \begin{macro}[aux]{\@@_color_pickup:}
+% \begin{macro}[aux]{\@@_color_pickup_aux:}
 %   The current color in driver-dependent format: pick up the package-mode
-%   data if available.
+%   data if available. We end up converting back and forward in this route as
+%   we store our color data in \texttt{dvips} format.
 %    \begin{macrocode}
-\tl_new:N \l_@@_color_current_tl
-\tl_set:Nn \l_@@_color_current_tl { 0~g~0~G }
 %<*package>
 \AtBeginDocument
   {
     \@ifpackageloaded { color }
-      { \tl_set:Nn \l_@@_color_current_tl { \current@color } }
-      { }
+      {
+        \cs_new_protected:Npn \@@_color_pickup:
+          {
+            \tl_set:Nx \l__color_current_tl
+              {
+                \exp_after:wN \@@_color_pickup_aux:w
+                  \current@color ~ 0 ~ 0 ~ 0 \q_stop
+              }
+          }
+        \cs_new:Npn \@@_color_pickup_aux:w #1 ~ #2 ~ #3 ~ #4 ~ #5 ~ #6 \q_stop
+          {
+            \str_if_eq:nnTF {#2} { g }
+              { gray ~ #1 }
+              {
+                \str_if_eq:nnTF {#4} { rg }
+                  { rgb ~ #1 ~ #2 ~ #3 }
+                  {
+                    \str_if_eq:nnTF {#5} { k }
+                      { cmyk ~ #1 ~ #2 ~ #3 ~ #4 }
+                      { gray ~ #1 }
+                  }
+              }
+          }
+      }
+      { \cs_new_protected:Npn \@@_color_pickup: { } }
   }
 %</package>
 %    \end{macrocode}
-% \end{variable}
+% \end{macro}
+% \end{macro}
 %
 % \begin{variable}{\l_@@_color_stack_int}
 %   \pdfTeX{} and \LuaTeX{} have multiple stacks available, and to track
@@ -666,19 +604,42 @@
 % \end{variable}
 %
 % \begin{macro}[int]{\@@_color_ensure_current:}
+% \begin{macro}[aux, EXP]
+%   {
+%     \@@_color_convert:w, \@@_color_convert_gray:w,
+%     \@@_color_convert_cmyk:w, \@@_color_convert_rgb:w
+%   }
 % \begin{macro}[aux]{\@@_color_reset:}
 %   There is a dedicated primitive/primitive interface for setting colors.
 %   As with scoping, this approach is not suitable for cached operations.
+%   Since we are using the \texttt{dvips} format to store color, there is a
+%   bit of work to correctly place it in the output.
 %    \begin{macrocode}
 \cs_new_protected:Npx \@@_color_ensure_current:
   {
+%<*package>
+    \exp_not:N \@@_color_pickup:
+%</package>
     \cs_if_exist:NTF \luatex_pdfextension:D
       { \luatex_pdfextension:D colorstack }
       { \pdftex_pdfcolorstack:D }
         \exp_not:N \l_@@_color_stack_int push
-          { \exp_not:N \l_@@_color_current_tl }
-    \group_insert_after:N \exp_not:N \@@_color_reset:
+          {
+            \exp_not:N \exp_after:wN
+            \exp_not:N \@@_color_convert:w
+            \exp_not:N \l__color_current_tl
+            \c_space_tl 0 ~ 0 ~ 0
+            \exp_not:N \q_stop
+          }
   }
+\cs_new:Npn \@@_color_convert:w #1 ~
+  { \use:c { @@_color_convert_ #1 :w } }
+\cs_new:Npn \@@_color_convert_gray:w #1 ~ #2 \q_stop
+  { #1 ~ g ~ #1 ~ G }
+\cs_new:Npn \@@_color_convert_cmyk:w #1 ~ #2 ~ #3 ~ #4 \q_stop
+  { #1 ~ #2 ~ #3 ~ rg ~ #1 ~ #2 ~ #3 ~ RG }
+\cs_new:Npn \@@_color_convert_rgb:w #1 ~ #2 ~ #3 ~ #4 ~ #5 \q_stop
+  { #1 ~ #2 ~ #3 ~ #4 ~ k ~ #1 ~ #2 ~ #3 ~ #4 ~ K }
 \cs_new_protected:Npx \@@_color_reset:
   {
     \cs_if_exist:NTF \luatex_pdfextension:D
@@ -689,782 +650,10 @@
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
-%
-% \subsection{Images}
-%
-% \begin{variable}{\l_@@_image_attr_tl}
-%   In PDF mode, additional attributes of an image (such as page number) are
-%   needed both to obtain the bounding box and when inserting the image: this
-%   occurs as the image dictionary approach means they are read as part of
-%   the bounding box operation. As such, it is easier to track additional
-%   attributes using a dedicated |tl| rather than build up the same data
-%   twice.
-%    \begin{macrocode}
-\tl_new:N \l_@@_image_attr_tl
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{macro}[int]
-%   {\@@_image_getbb_jpg:n, \@@_image_getbb_pdf:n, \@@_image_getbb_png:n}
-% \begin{macro}[aux]
-%   {\@@_image_getbb_auxi:n, \@@_image_getbb_auxii:n}
-%   Getting the bounding box here requires us to box up the image and
-%   measure it. To deal with the difference in feature support in bitmap
-%   and vector images but keeping the common parts, there is a little work
-%   to do in terms of auxiliaries. The key here is to notice that we need
-%   two forms of the attributes: a \enquote{short} set to allow us to
-%   track for caching, and the full form to pass to the primitive. Note that
-%   in |pdftex.def| the short reference is stored to be used in the inclusion
-%   stage: may be required when there are more aspects to track.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_image_getbb_jpg:n #1
-  {
-    \int_zero:N \l__image_page_int
-    \tl_set:Nx \l_@@_image_attr_tl
-      {
-        \bool_if:NT \l__image_interpolate_bool
-          { :I }
-      }
-    \@@_image_getbb_auxi:n {#1}
-  }
-\cs_new_eq:NN \@@_image_getbb_png:n \@@_image_getbb_jpg:n
-\cs_new_protected:Npn \@@_image_getbb_pdf:n #1
-  {
-    \bool_set_false:N \l__image_interpolate_bool
-    \tl_set:Nx \l_@@_image_attr_tl
-      {
-        \int_compare:nNnT \l__image_page_int > 0
-          { :P \int_use:N \l__image_page_int }
-      }
-    \@@_image_getbb_auxi:n {#1}
-  }
-\cs_new_protected:Npn \@@_image_getbb_auxi:n #1
-  {
-    \dim_if_exist:cTF { c__image_ #1 \l_@@_image_attr_tl _ht_dim }
-      {
-        \dim_set_eq:Nc \l__image_ht_dim
-          { c__image_ #1 \l_@@_image_attr_tl _ht_dim }
-        \dim_set_eq:Nc \l__image_wd_dim
-          { c__image_ #1 \l_@@_image_attr_tl _wd_dim }
-      }
-      { \@@_image_getbb_auxii:n {#1} }
-  }
-%    \begin{macrocode}
-%   Measuring the image is done by boxing up: for PDF images we could
-%   use |\pdftex_pdfximagebbox:D|, but if doesn't work for other types.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_image_getbb_auxii:n #1
-  {
-    \tex_immediate:D \pdftex_pdfximage:D
-      \bool_if:NT \l__image_interpolate_bool
-        { attr ~ { /Interpolate~true } }
-      \int_compare:nNnT \l__image_page_int > 0
-        { page ~ \int_use:N \l__image_page_int }
-      {#1}
-    \hbox_set:Nn \l__image_tmp_box
-      { \pdftex_pdfrefximage:D \pdftex_pdflastximage:D }
-    \dim_set:Nn \l__image_ht_dim { \box_ht:N \l__image_tmp_box }
-    \dim_set:Nn \l__image_wd_dim { \box_wd:N \l__image_tmp_box }
-    \int_const:cn { c__image_ #1 \l_@@_image_attr_tl _int }
-      { \tex_the:D \pdftex_pdflastximage:D }
-    \dim_const:cn { c__image_ #1 \l_@@_image_attr_tl _ht_dim }
-      { \l__image_ht_dim }
-    \dim_const:cn { c__image_ #1 \l_@@_image_attr_tl _wd_dim }
-      { \l__image_wd_dim }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[int]
-%   {\@@_image_include_jpg:n, \@@_image_include_pdf:n, \@@_image_include_png:n}
-%   Images are already loaded for the measurement part of the code, so
-%   inclusion is straight-forward, with only any attributes to worry about. The
-%   latter carry through from determination of the bounding box.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_image_include_jpg:n #1
-  {
-    \pdftex_pdfrefximage:D
-      \int_use:c { c__image_ #1 \l_@@_image_attr_tl _int }
-  }
-\cs_new_eq:NN \@@_image_include_pdf:n \@@_image_include_jpg:n
-\cs_new_eq:NN \@@_image_include_png:n \@@_image_include_jpg:n
-%    \end{macrocode}
 % \end{macro}
 %
 %    \begin{macrocode}
 %</pdfmode>
-%    \end{macrocode}
-%
-% \subsection{\texttt{dvipdfmx} driver}
-%
-%    \begin{macrocode}
-%<*dvipdfmx|xdvipdfmx>
-%    \end{macrocode}
-%
-% The \texttt{dvipdfmx} shares code with the PDF mode one (using the common
-% section to this file) but also with \texttt{xdvipdfmx}. The latter is close
-% to identical to \texttt{dvipdfmx} and so all of the code here is extracted
-% for both drivers, with some \texttt{clean up} for \texttt{xdvipdfmx} as
-% required.
-%
-% \subsubsection{Basics}
-%
-% \begin{macro}[int]{\@@_literal:n}
-%   Equivalent to \texttt{pdf:content} but favored as the link to
-%   the \pdfTeX{} primitive approach is clearer. Some higher-level operations
-%   use |\tex_special:D| directly: see the later comments on where this is
-%   useful.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_literal:n #1
-  { \tex_special:D { pdf:literal~ #1 } }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_scope_begin:, \@@_scope_end:}
-%   Scoping is done using the driver-specific specials.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_scope_begin:
-  { \tex_special:D { x:gsave } }
-\cs_new_protected:Npn \@@_scope_end:
-  { \tex_special:D { x:grestore } }
-%    \end{macrocode}
-% \end{macro}
-%
-% \subsubsection{Box operations}
-%
-% \begin{macro}{\@@_box_use_clip:N}
-%   The code here is idential to that for \texttt{pdfmode}: unlike rotation and
-%   scaling, there is no higher-level support in the driver for clipping.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_box_use_clip:N #1
-  {
-    \@@_scope_begin:
-    \@@_literal:n
-      {
-        0~
-        \dim_to_decimal_in_bp:n { -\box_dp:N #1 } ~
-        \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
-        \dim_to_decimal_in_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
-        re~W~n
-      }
-    \hbox_overlap_right:n { \box_use:N #1 }
-    \@@_scope_end:
-    \skip_horizontal:n { \box_wd:N #1 }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_box_use_rotate:Nn}
-%   Rotating in \texttt{(x)}dvipdmfx can be implemented using either PDF or
-%   driver-specific code. The former approach however is not \enquote{aware}
-%   of the content of boxes: this means that any links embded will not be
-%   adjusted by the rotation. As such, the driver-native approach is prefered:
-%   the code therefore is similar (though not identical) to the \texttt{dvips}
-%   version (notice the rotation angle here is positive). As for
-%   \texttt{dvips}, zero rotation is written as |0| not |-0|.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_box_use_rotate:Nn #1#2
-  {
-    \@@_scope_begin:
-    \tex_special:D
-      {
-        x:rotate~
-        \fp_compare:nNnTF {#2} = \c_zero_fp
-          { 0 }
-          { \fp_eval:n { round ( #2 , 5 ) } }
-      }
-    \box_use:N #1
-    \@@_scope_end:
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@@_box_use_scale:Nnn}
-%   Much the same idea for scaling: use the higher-level driver operation to allow
-%   for box content.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_box_use_scale:Nnn #1#2#3
-  {
-    \@@_scope_begin:
-    \tex_special:D
-      {
-        x:scale~
-        \fp_eval:n { round ( #2 , 5 ) } ~
-        \fp_eval:n { round ( #3 , 5 ) }
-      }
-    \hbox_overlap_right:n { \box_use:N #1 }
-    \@@_scope_end:
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \subsubsection{Color}
-%
-% \begin{variable}{\l_@@_color_current_tl}
-%   The current color in driver-dependent format.
-%    \begin{macrocode}
-\tl_new:N \l_@@_color_current_tl
-\tl_set:Nn \l_@@_color_current_tl { [ 0 ] }
-%<*package>
-\AtBeginDocument
-  {
-    \@ifpackageloaded { color }
-      { \tl_set:Nn \l_@@_color_current_tl { \current@color } }
-      { }
-  }
-%</package>
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{macro}[int]{\@@_color_ensure_current:}
-% \begin{macro}[aux]{\@@_color_reset:}
-%   Directly set the color using the specials with optimisation support.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_color_ensure_current:
-  {
-    \tex_special:D { pdf:bcolor~\l_@@_color_current_tl }
-    \group_insert_after:N \@@_color_reset:
-  }
-\cs_new_protected:Npn \@@_color_reset:
-  { \tex_special:D { pdf:ecolor } }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \subsection{Images}
-%
-% \begin{macro}[int]
-%   {
-%     \@@_image_getbb_eps:n, \@@_image_getbb_jpg:n,
-%     \@@_image_getbb_pdf:n, \@@_image_getbb_png:n
-%   }
-%   Simply use the generic functions: only for \texttt{dvipdfmx} in the
-%   extraction cases.
-%    \begin{macrocode}
-\cs_new_eq:NN \@@_image_getbb_eps:n \__image_read_bb:n
-%<*dvipdfmx>
-\cs_new_protected:Npn \@@_image_getbb_jpg:n #1
-  {
-    \int_zero:N \l__image_page_int
-    \__image_extract_bb:n {#1}
-  }
-\cs_new_eq:NN \@@_image_getbb_png:n \@@_image_getbb_jpg:n
-\cs_new_protected:Npn \@@_image_getbb_pdf:n #1
-  {
-    \bool_set_false:N \l__image_interpolate_tl
-    \__image_extract_bb:n {#1}
-  }
-%</dvipdfmx>
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{variable}[aux]{\g_@@_image_int}
-%   Used to track the object number associated with each image.
-%    \begin{macrocode}
-\int_new:N \g_@@_image_int
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{macro}[int]
-%   {
-%     \@@_image_include_eps:n, \@@_image_include_jpg:n,
-%     \@@_image_include_pdf:n, \@@_image_include_png:n
-%   }
-%  \begin{macro}[aux]{\@@_image_include_auxi:nn}
-%  \begin{macro}[aux]{\@@_image_include_auxii:nnn, \@@_image_include_auxii:xnn}
-%  \begin{macro}[aux]{\@@_image_include_auxiii:nn}
-%  The special syntax depends on the file type.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_image_include_eps:n #1
-  {
-    \tex_special:D { PSfile = #1 }
-  }
-\cs_new_protected:Npn \@@_image_include_jpg:n #1
-  { \@@_image_include_auxi:nn {#1} { image } }
-\cs_new_eq:NN \@@_image_include_png:n \@@_image_include_png:n
-\cs_new_protected:Npn \@@_image_include_pdf:n #1
-  { \@@_image_include_auxi:nn {#1} { epdf } }
-%    \end{macrocode}
-%   Image inclusion is set up to use the fact that each image is stored in
-%   the PDF as an XObject. This means that we can include repeated images
-%   only once and refer to them. To allow that, track the nature of each
-%   image: much the same as for the direct PDF mode case.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_image_include_auxi:nn #1#2
-  {
-    \@@_image_include_auxii:xnn
-      {
-        \int_compare:nNnT \l__image_page_int > 0
-          { :P \int_use:N \l__image_page_int }
-        \bool_if:NT \l__image_interpolate_bool
-           { :I }
-      }
-      {#1} {#2}
-  }
-\cs_new_protected:Npn \@@_image_include_auxii:nnn #1#2#3
-  {
-    \int_if_exist:cTF { c__image_ #2#1 _int }
-      {
-        \tex_special:D
-          { pdf:usexobj~@image \int_use:c { c__image_ #2#1 _int } }
-      }
-      { \@@_image_include_auxiii:nn {#2} {#1} {#3} }
-  }
-\cs_generate_variant:Nn \@@_image_include_auxii:nnn { x }
-\cs_new_protected:Npn \@@_image_include_auxiii:nnn #1#2#3
-  {
-    \int_gincr:N \g_@@_image_int
-    \int_const:cn { c__image_ #1#2 _int } { \g_@@_image_int }
-    \tex_special:D
-      {
-        pdf:#3~
-        @image \int_use:c { c__image_ #1#2 _int }
-        \int_compare:nNnT \l__image_page_int > 0
-          { page ~ \int_use:N \l__image_page_int \c_space_tl }
-        (#1)
-        \bool_if:NT \l__image_interpolate_bool
-          { <</Interpolate~true>> }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-%    \begin{macrocode}
-%</dvipdfmx|xdvipdfmx>
-%    \end{macrocode}
-%
-% \subsection{\texttt{xdvipdfmx} driver}
-%
-%    \begin{macrocode}
-%<*xdvipdfmx>
-%    \end{macrocode}
-%
-% \subsubsection{Color}
-%
-% \begin{macro}[int]{\@@_color_ensure_current:}
-% \begin{macro}[aux]{\@@_color_reset:}
-%   The \LaTeXe{} driver uses \texttt{dvips}-like specials so there has to
-%   be a change of set up if \pkg{color} is loaded.
-%    \begin{macrocode}
-%<*package>
-\AtBeginDocument
-  {
-    \@ifpackageloaded { color }
-      {
-        \cs_set_protected:Npn \@@_color_ensure_current:
-          {
-            \tex_special:D { color~push~\l_@@_color_current_tl }
-            \group_insert_after:N \@@_color_reset:
-          }
-        \cs_set_protected:Npn \@@_color_reset:
-          { \tex_special:D { color~pop } }
-      }
-      { }
-  }
-%</package>
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \subsection{Images}
-%
-% \begin{macro}[int]
-%   {\@@_image_getbb_jpg:n, \@@_image_getbb_pdf:n, \@@_image_getbb_png:n}
-% \begin{macro}[aux]{\@@_image_getbb_auxi:nN}
-% \begin{macro}[aux]{\@@_image_getbb_auxii:nnN, \@@_image_getbb_auxii:VnN}
-% \begin{macro}[aux]{\@@_image_getbb_auxiii:nNnn}
-%   For \texttt{xdvipdfmx}, there are two primitives that allow us to obtain
-%   the bounding box without needing \texttt{extractbb}.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_image_getbb_jpg:n #1
-  {
-    \int_zero:N \l__image_page_int
-    \@@_image_getbb_auxi:nN {#1} \xetex_picfile:D
-  }
-\cs_new_eq:NN \@@_image_getbb_png:n \@@_image_getbb_jpg:n
-\cs_new_protected:Npn \@@_image_getbb_pdf:n #1
-  { \@@_image_getbb_auxi:nN {#1} \xetex_pdffile:D }
-\cs_new_protected:Npn \@@_image_getbb_auxi:nN #1#2
-  {
-    \int_compare:nNnTF \l__image_page_int > 0
-      { \@@_image_getbb_auxii:VnN \l__image_page_int {#1} #2  }
-      { \@@_image_getbb_auxiii:nNnn {#1} #2 }
-  }
-\cs_new_protected:Npn \@@_image_getbb_auxii:nnN #1#2#3
-  { \@@_image_getbb_auxiii:nNnn {#2} #3 { :P #1 } { page #1 } }
-\cs_generate_variant:Nn \@@_image_getbb_auxii:nnN { V }
-\cs_new_protected:Npn \@@_image_getbb_auxiii:nNnn #1#2#3#4
-  {
-    \dim_if_exist:cTF { c__image_ #1#3 _ht_dim }
-      {
-        \dim_set_eq:Nc \l__image_ht_dim { c__image_ #1#3 _ht_dim }
-        \dim_set_eq:Nc \l__image_wd_dim { c__image_ #1#3 _wd_dim }
-      }
-      { \@@_image_getbb_auxvi:nNnn {#1} #2 {#3} {#4} }
-  }
-\cs_new_protected:Npn \@@_image_getbb_auxvi:nNnn #1#2#3#4
-  {
-    \hbox_set:Nn \l__image_tmp_box { #2 #1 ~ #4 }
-    \dim_set:Nn \l__image_ht_dim { \box_ht:N \l__image_tmp_box }
-    \dim_set:Nn \l__image_wd_dim { \box_wd:N \l__image_tmp_box }
-    \dim_const:cn { c__image_ #1#3 _ht_dim }
-      { \l__image_ht_dim }
-    \dim_const:cn { c__image_ #1#3 _wd_dim }
-      { \l__image_wd_dim }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-%    \begin{macrocode}
-%</xdvipdfmx>
-%    \end{macrocode}
-%
-% \subsection{Drawing commands: \texttt{pdfmode} and \texttt{(x)dvipdfmx}}
-%
-% Both \texttt{pdfmode} and \texttt{(x)dvipdfmx} directly produce PDF output
-% and understand a shared set of specials for drawing commands.
-%
-%    \begin{macrocode}
-%<*dvipdfmx|pdfmode|xdvipdfmx>
-%    \end{macrocode}
-%
-% \subsection{Drawing}
-%
-% \begin{macro}[aux]{\@@_draw_literal:n, \@@_draw_literal:x}
-%   Pass data through using a dedicated interface.
-%     \begin{macrocode}
-\cs_new_eq:NN \@@_draw_literal:n \@@_literal:n
-\cs_generate_variant:Nn \@@_draw_literal:n { x }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_draw_begin:, \@@_draw_end:}
-%   No special requirements here, so simply set up a drawing scope.
-%     \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_begin:
-  { \@@_draw_scope_begin: }
-\cs_new_protected:Npn \@@_draw_end:
-  { \@@_draw_scope_end: }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_draw_scope_begin:, \@@_draw_scope_end:}
-%   In contrast to a general scope, a drawing scope is always done using
-%   the PDF operators so is the same for all relevant drivers.
-%     \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_scope_begin:
-  { \@@_draw_literal:n { q } }
-\cs_new_protected:Npn \@@_draw_scope_end:
-  { \@@_draw_literal:n { Q } }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_draw_moveto:nn, \@@_draw_lineto:nn}
-% \begin{macro}[int]{\@@_draw_curveto:nnnnnn}
-% \begin{macro}[int]{\@@_draw_rectangle:nnnn}
-%   Path creation operations all resolve directly to PDF primitive steps, with
-%   only the need to convert to \texttt{bp}. Notice that \texttt{x}-type
-%   expansion is included here to ensure that any variable values are
-%   forced to literals before any possible caching.
-%     \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_moveto:nn #1#2
-  {
-    \@@_draw_literal:x
-      { \dim_to_decimal_in_bp:n {#1} ~ \dim_to_decimal_in_bp:n {#2} ~ m }
-  }
-\cs_new_protected:Npn \@@_draw_lineto:nn #1#2
-  {
-    \@@_draw_literal:x
-      { \dim_to_decimal_in_bp:n {#1} ~ \dim_to_decimal_in_bp:n {#2} ~ l }
-  }
-\cs_new_protected:Npn \@@_draw_curveto:nnnnnn #1#2#3#4#5#6
-  {
-    \@@_draw_literal:x
-      {
-        \dim_to_decimal_in_bp:n {#1} ~ \dim_to_decimal_in_bp:n {#2} ~
-        \dim_to_decimal_in_bp:n {#3} ~ \dim_to_decimal_in_bp:n {#4} ~
-        \dim_to_decimal_in_bp:n {#5} ~ \dim_to_decimal_in_bp:n {#6} ~
-        c
-      }
- }
-\cs_new_protected:Npn \@@_draw_rectangle:nnnn #1#2#3#4
-  {
-     \@@_draw_literal:x
-      {
-        \dim_to_decimal_in_bp:n {#1} ~ \dim_to_decimal_in_bp:n {#2} ~
-        \dim_to_decimal_in_bp:n {#3} ~ \dim_to_decimal_in_bp:n {#4} ~
-        re
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_draw_evenodd_rule:, \@@_draw_nonzero_rule:}
-% \begin{variable}[aux]{\g_@@_draw_eor_bool}
-%    The even-odd rule here can be implemented as a simply switch.
-%     \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_evenodd_rule:
-  { \bool_gset_true:N \g_@@_draw_eor_bool }
-\cs_new_protected:Npn \@@_draw_nonzero_rule:
-  { \bool_gset_false:N \g_@@_draw_eor_bool }
-\bool_new:N \g_@@_draw_eor_bool
-%    \end{macrocode}
-% \end{variable}
-% \end{macro}
-%
-% \begin{macro}[int]
-%   {
-%     \@@_draw_closepath:   ,
-%     \@@_draw_stroke:      ,
-%     \@@_draw_closestroke: ,
-%     \@@_draw_fill:        ,
-%     \@@_draw_fillstroke:  ,
-%     \@@_draw_clip:        ,
-%     \@@_draw_discardpath:
-%   }
-%   Converting paths to output is again a case of mapping directly to
-%   PDF operations.
-%     \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_closepath:
-  { \@@_draw_literal:n { h } }
-\cs_new_protected:Npn \@@_draw_stroke:
-  { \@@_draw_literal:n { S } }
-\cs_new_protected:Npn \@@_draw_closestroke:
-  { \@@_draw_literal:n { s } }
-\cs_new_protected:Npn \@@_draw_fill:
-  {
-    \@@_draw_literal:x
-      { f \bool_if:NT \g_@@_draw_eor_bool * }
-  }
-\cs_new_protected:Npn \@@_draw_fillstroke:
-  {
-    \@@_draw_literal:x
-      { B \bool_if:NT \g_@@_draw_eor_bool * }
-  }
-\cs_new_protected:Npn \@@_draw_clip:
-  {
-    \@@_draw_literal:x
-      { W \bool_if:NT \g_@@_draw_eor_bool * }
-  }
-\cs_new_protected:Npn \@@_draw_discardpath:
-  { \@@_draw_literal:n { n } }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_draw_dash:nn}
-% \begin{macro}[aux]{\@@_draw_dash:n}
-% \begin{macro}[int]{\@@_draw_linewidth:n}
-% \begin{macro}[int]{\@@_draw_miterlimit:n}
-% \begin{macro}[int]
-%   {
-%     \@@_draw_cap_butt:, \@@_draw_cap_round:, \@@_draw_cap_rectangle:,
-%     \@@_draw_join_miter:, \@@_draw_join_round:, \@@_draw_join_bevel:
-%   }
-%   Converting paths to output is again a case of mapping directly to
-%   PDF operations.
-%     \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_dash:nn #1#2
-  {
-    \@@_draw_literal:x
-      {
-        [ ~
-          \clist_map_function:nN {#1} \@@_draw_dash:n
-        ] ~
-        \dim_to_decimal_in_bp:n {#2} ~ d
-      }
-  }
-\cs_new:Npn \@@_draw_dash:n #1
-  { \dim_to_decimal_in_bp:n {#1} ~ }
-\cs_new_protected:Npn \@@_draw_linewidth:n #1
-  {
-    \@@_draw_literal:x
-      { \dim_to_decimal_in_bp:n {#1} ~ w }
-  }
-\cs_new_protected:Npn \@@_draw_miterlimit:n #1
-  { \@@_draw_literal:x { \fp_eval:n {#1} ~ M } }
-\cs_new_protected:Npn \@@_draw_cap_butt:
-  { \@@_draw_literal:n { 0 ~ J } }
-\cs_new_protected:Npn \@@_draw_cap_round:
-  { \@@_draw_literal:n { 1 ~ J } }
-\cs_new_protected:Npn \@@_draw_cap_rectangle:
-  { \@@_draw_literal:n { 2 ~ J } }
-\cs_new_protected:Npn \@@_draw_join_miter:
-  { \@@_draw_literal:n { 0 ~ j } }
-\cs_new_protected:Npn \@@_draw_join_round:
-  { \@@_draw_literal:n { 1 ~ j } }
-\cs_new_protected:Npn \@@_draw_join_bevel:
-  { \@@_draw_literal:n { 2 ~ j } }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[int]
-%   {
-%     \@@_draw_color_cmyk:nnnn        ,
-%     \@@_draw_color_cmyk_fill:nnnn   ,
-%     \@@_draw_color_cmyk_stroke:nnnn
-%   }
-% \begin{macro}[aux]{\@@_draw_color_cmyk_aux:nnnn}
-% \begin{macro}[int]
-%   {
-%     \@@_draw_color_gray:n        ,
-%     \@@_draw_color_gray_fill:n   ,
-%     \@@_draw_color_gray_stroke:n
-%   }
-% \begin{macro}[aux]{\@@_draw_color_gray_aux:n}
-% \begin{macro}[int]
-%   {
-%     \@@_draw_color_rgb:nnn        ,
-%     \@@_draw_color_rgb_fill:nnn   ,
-%     \@@_draw_color_rgb_stroke:nnn
-%   }
-% \begin{macro}[aux]{\@@_draw_color_rgb_aux:nnn}
-%   Yet more fast conversion, all using the FPU to allow for expressions
-%   in numerical input.
-%     \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_color_cmyk:nnnn #1#2#3#4
-  {
-    \use:x
-      {
-        \@@_draw_color_cmyk_aux:nnnn
-          { \fp_eval:n {#1} }
-          { \fp_eval:n {#2} }
-          { \fp_eval:n {#3} }
-          { \fp_eval:n {#4} }
-      }
-  }
-\cs_new_protected:Npn \@@_draw_color_cmyk_aux:nnnn #1#2#3#4
-  {
-    \@@_draw_literal:n
-      { #1 ~ #2 ~ #3 ~ #4 ~ k ~ #1 ~ #2 ~ #3 ~ #4 ~ K }
-  }
-\cs_new_protected:Npn \@@_draw_color_cmyk_fill:nnnn #1#2#3#4
-  {
-    \@@_draw_literal:x
-      {
-        \fp_eval:n {#1} ~ \fp_eval:n {#2} ~
-        \fp_eval:n {#3} ~ \fp_eval:n {#4} ~
-        k
-      }
-  }
-\cs_new_protected:Npn \@@_draw_color_cmyk_stroke:nnnn #1#2#3#4
-  {
-    \@@_draw_literal:x
-      {
-        \fp_eval:n {#1} ~ \fp_eval:n {#2} ~
-        \fp_eval:n {#3} ~ \fp_eval:n {#4} ~
-        K
-      }
-  }
-\cs_new_protected:Npn \@@_draw_color_gray:n #1
-  {
-    \use:x
-      { \@@_draw_color_gray_aux:n { \fp_eval:n {#1} } }
-  }
-\cs_new_protected:Npn \@@_draw_color_gray_aux:n #1
-  {
-    \@@_draw_literal:n { #1 ~ g ~ #1 ~ G }
-  }
-\cs_new_protected:Npn \@@_draw_color_gray_fill:n #1
-  { \@@_draw_literal:x { \fp_eval:n {#1} ~ g } }
-\cs_new_protected:Npn \@@_draw_color_gray_stroke:n #1
-  { \@@_draw_literal:x { \fp_eval:n {#1} ~ G } }
-\cs_new_protected:Npn \@@_draw_color_rgb:nnn #1#2#3
-  {
-    \use:x
-      {
-        \@@_draw_color_rgb_aux:nnn
-          { \fp_eval:n {#1} }
-          { \fp_eval:n {#2} }
-          { \fp_eval:n {#3} }
-      }
-  }
-\cs_new_protected:Npn \@@_draw_color_rgb_aux:nnn #1#2#3
-  {
-    \@@_draw_literal:n
-      { #1 ~ #2 ~ #3 ~ rg ~ #1 ~ #2 ~ #3 ~ RG }
-  }
-\cs_new_protected:Npn \@@_draw_color_rgb_fill:nnn #1#2#3
-  {
-    \@@_draw_literal:x
-      { \fp_eval:n {#1} ~ \fp_eval:n {#2} ~ \fp_eval:n {#3} ~ rg }
-  }
-\cs_new_protected:Npn \@@_draw_color_rgb_stroke:nnn #1#2#3
-  {
-    \@@_draw_literal:x
-      { \fp_eval:n {#1} ~ \fp_eval:n {#2} ~ \fp_eval:n {#3} ~ RG }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_draw_transformcm:nnnnnn}
-%   The first four arguments here are floats (the affine matrix), the last
-%   two are a displacement vector. Once again, force evaluation to allow for
-%   caching.
-%     \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_transformcm:nnnnnn #1#2#3#4#5#6
-  {
-    \@@_draw_literal:x
-      {
-        \fp_eval:n {#1} ~ \fp_eval:n {#2} ~
-        \fp_eval:n {#3} ~ \fp_eval:n {#4} ~
-        \dim_to_decimal_in_bp:n {#5} ~ \dim_to_decimal_in_bp:n {#6} ~
-        cm
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[int]{\@@_draw_hbox:Nnnnnnn}
-% \begin{variable}[aux]{\l_@@_tmp_box}
-%   Inserting a \TeX{} box transformed to the requested position and using
-%   the current matrix is done using a mixture of \TeX{} and low-level
-%   manipulation. The offset can be handled by \TeX{}, so only any rotation/^^A
-%   skew/scaling component needs to be done using the matrix operation. As this
-%   operation can never be cached, the scope is set directly not using the
-%   \texttt{draw} version.
-%     \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_hbox:Nnnnnnn #1#2#3#4#5#6#7
-  {
-    \hbox_set:Nn \l_@@_tmp_box
-      {
-        \tex_kern:D \__dim_eval:w #6 \__dim_eval_end:
-        \@@_scope_begin:
-        \@@_draw_transformcm:nnnnnn {#2} {#3} {#4} {#5}
-          { 0pt } { 0pt }
-        \box_move_up:nn {#7} { \box_use:N #1 }
-        \@@_scope_end:
-      }
-    \box_set_wd:Nn \l_@@_tmp_box { 0pt }
-    \box_set_ht:Nn \l_@@_tmp_box { 0pt }
-    \box_set_dp:Nn \l_@@_tmp_box { 0pt }
-    \box_use:N \l_@@_tmp_box
-  }
-\box_new:N \l_@@_tmp_box
-%    \end{macrocode}
-% \end{variable}
-% \end{macro}
-%
-%    \begin{macrocode}
-%</dvipdfmx|pdfmode|xdvipdfmx>
 %    \end{macrocode}
 %
 % \subsection{\texttt{dvips} driver}
@@ -1595,39 +784,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsubsection{Color}
-%
-% \begin{variable}{\l_@@_color_current_tl}
-%   The current color in driver-dependent format.
-%    \begin{macrocode}
-\tl_new:N \l_@@_color_current_tl
-\tl_set:Nn \l_@@_color_current_tl { gray~0 }
-%<*package>
-\AtBeginDocument
-  {
-    \@ifpackageloaded { color }
-      { \tl_set:Nn \l_@@_color_current_tl { \current@color } }
-      { }
-  }
-%</package>
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{macro}[int]{\@@_color_ensure_current:}
-% \begin{macro}[aux]{\@@_color_reset:}
-%   Directly set the color using the specials: no optimisation here.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_color_ensure_current:
-  {
-    \tex_special:D { color~push~\l_@@_color_current_tl }
-    \group_insert_after:N \@@_color_reset:
-  }
-\cs_new_protected:Npn \@@_color_reset:
-  { \tex_special:D { color~pop } }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
 % \subsection{Images}
 %
 % \begin{macro}[int]{\@@_image_getbb_eps:n}
@@ -1722,7 +878,7 @@
        {
          \dim_to_decimal_in_bp:n {#4} ~ \dim_to_decimal_in_bp:n {#3} ~
          \dim_to_decimal_in_bp:n {#1} ~ \dim_to_decimal_in_bp:n {#2} ~
-         moveto~dup~0~rlineto~exch~0~exch~rlineto~neg~0~rlineto~clospath
+         moveto~dup~0~rlineto~exch~0~exch~rlineto~neg~0~rlineto~closepath
       }
   }
 \cs_new_protected:Npn \@@_draw_curveto:nnnnnn #1#2#3#4#5#6
@@ -2077,6 +1233,947 @@
 %</dvips>
 %    \end{macrocode}
 %
+% \subsection{\texttt{pdfmode} driver}
+%
+%    \begin{macrocode}
+%<*pdfmode>
+%    \end{macrocode}
+%
+% The direct PDF driver covers both \pdfTeX{} and \LuaTeX{}. The latter
+% renames/restructures the driver primitives but this can be handled
+% at one level of abstraction. As such, we avoid using two separate drivers
+% for this material at the cost of some \texttt{x}-type definitions to get
+% everything expanded up-front.
+%
+% \subsubsection{Basics}
+%
+% \begin{macro}[int]{\@@_literal:n}
+%   This is equivalent to \verb|\special{pdf:}| but the engine can
+%   track it. Without the \texttt{direct} keyword everything is kept in
+%   sync: the transformation matrix is set to the current point automatically.
+%   Note that this is still inside the text (\texttt{BT} \dots \texttt{ET}
+%   block).
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_literal:n #1
+  {
+    \cs_if_exist:NTF \luatex_pdfextension:D
+      { \luatex_pdfextension:D literal }
+      { \pdftex_pdfliteral:D }
+        {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_scope_begin:, \@@_scope_end:}
+%  Higher-level interfaces for saving and restoring the graphic state.
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_scope_begin:
+  {
+    \cs_if_exist:NTF \luatex_pdfextension:D
+      { \luatex_pdfextension:D save \scan_stop: }
+      { \pdftex_pdfsave:D }
+  }
+\cs_new_protected:Npx \@@_scope_end:
+  {
+    \cs_if_exist:NTF \luatex_pdfextension:D
+      { \luatex_pdfextension:D restore \scan_stop: }
+      { \pdftex_pdfrestore:D }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_matrix:n}
+%   Here the appropriate function is set up to insert an affine matrix
+%   into the PDF. With \pdfTeX{} and \LuaTeX{} in direct PDF output mode there
+%   is a primitive for this, which only needs the rotation/scaling/skew part.
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_matrix:n #1
+  {
+    \cs_if_exist:NTF \luatex_pdfextension:D
+      { \luatex_pdfextension:D setmatrix }
+      { \pdftex_pdfsetmatrix:D }
+        {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Box operations}
+%
+% \begin{macro}{\@@_box_use_clip:N}
+%   The general method is to save the current location, define a clipping path
+%   equivalent to the bounding box, then insert the content at the current
+%   position and in a zero width box. The \enquote{real} width is then made up
+%   using a horizontal skip before tidying up. There are other approaches that
+%   can be taken (for example using XForm objects), but the logic here shares
+%   as much code as possible and uses the same conversions (and so same
+%   rounding errors) in all cases.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_clip:N #1
+  {
+    \@@_scope_begin:
+    \@@_literal:n
+      {
+        0~
+        \dim_to_decimal_in_bp:n { -\box_dp:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
+        re~W~n
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+    \skip_horizontal:n { \box_wd:N #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_box_use_rotate:Nn}
+% \begin{variable}{\l_@@_cos_fp, \l_@@_sin_fp}
+%   Rotations are set using an affine transformation matrix which therefore
+%   requires sine/cosine values not the angle itself. We store the rounded
+%   values to avoid rounding twice. There are also a couple of comparisons to
+%   ensure that |-0| is not written to the output, as this avoids any issues
+%   with problematic display programs.  Note that numbers are compared to~$0$
+%   after rounding.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_rotate:Nn #1#2
+  {
+    \@@_scope_begin:
+    \box_set_wd:Nn #1 \c_zero_dim
+    \fp_set:Nn \l_@@_cos_fp { round ( cosd ( #2 ) , 5 ) }
+    \fp_compare:nNnT \l_@@_cos_fp = \c_zero_fp
+      { \fp_zero:N \l_@@_cos_fp }
+    \fp_set:Nn \l_@@_sin_fp { round ( sind ( #2 ) , 5 ) }
+    \@@_matrix:n
+      {
+        \fp_use:N \l_@@_cos_fp \c_space_tl
+        \fp_compare:nNnTF \l_@@_sin_fp = \c_zero_fp
+          { 0~0 }
+          {
+            \fp_use:N \l_@@_sin_fp
+            \c_space_tl
+            \fp_eval:n { -\l_@@_sin_fp }
+          }
+        \c_space_tl
+        \fp_use:N \l_@@_cos_fp
+      }
+   \box_use:N #1
+   \@@_scope_end:
+  }
+\fp_new:N \l_@@_cos_fp
+\fp_new:N \l_@@_sin_fp
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+% \begin{macro}{\@@_box_use_scale:Nnn}
+%   The same idea as for rotation but without the complexity of signs and
+%   cosines.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_scale:Nnn #1#2#3
+  {
+    \@@_scope_begin:
+    \@@_matrix:n
+      {
+        \fp_eval:n { round ( #2 , 5 ) } ~
+        0~0~
+        \fp_eval:n { round ( #3 , 5 ) }
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Images}
+%
+% \begin{variable}{\l_@@_image_attr_tl}
+%   In PDF mode, additional attributes of an image (such as page number) are
+%   needed both to obtain the bounding box and when inserting the image: this
+%   occurs as the image dictionary approach means they are read as part of
+%   the bounding box operation. As such, it is easier to track additional
+%   attributes using a dedicated |tl| rather than build up the same data
+%   twice.
+%    \begin{macrocode}
+\tl_new:N \l_@@_image_attr_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}[int]
+%   {\@@_image_getbb_jpg:n, \@@_image_getbb_pdf:n, \@@_image_getbb_png:n}
+% \begin{macro}[aux]
+%   {\@@_image_getbb_auxi:n, \@@_image_getbb_auxii:n}
+%   Getting the bounding box here requires us to box up the image and
+%   measure it. To deal with the difference in feature support in bitmap
+%   and vector images but keeping the common parts, there is a little work
+%   to do in terms of auxiliaries. The key here is to notice that we need
+%   two forms of the attributes: a \enquote{short} set to allow us to
+%   track for caching, and the full form to pass to the primitive.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_image_getbb_jpg:n #1
+  {
+    \int_zero:N \l__image_page_int
+    \tl_clear:N \l__image_pagebox_tl
+    \tl_set:Nx \l_@@_image_attr_tl
+      {
+        \bool_if:NT \l__image_interpolate_bool
+          { :I }
+      }
+    \tl_clear:N \l_@@_image_attr_tl
+    \@@_image_getbb_auxi:n {#1}
+  }
+\cs_new_eq:NN \@@_image_getbb_png:n \@@_image_getbb_jpg:n
+\cs_new_protected:Npn \@@_image_getbb_pdf:n #1
+  {
+    \bool_set_false:N \l__image_interpolate_bool
+    \tl_set:Nx \l_@@_image_attr_tl
+      {
+        : \l__image_pagebox_tl
+        \int_compare:nNnT \l__image_page_int > 1
+          { :P \int_use:N \l__image_page_int }
+      }
+    \@@_image_getbb_auxi:n {#1}
+  }
+\cs_new_protected:Npn \@@_image_getbb_auxi:n #1
+  {
+    \dim_zero:N \l__image_llx_dim
+    \dim_zero:N \l__image_lly_dim
+    \dim_if_exist:cTF { c__image_ #1 \l_@@_image_attr_tl _urx_dim }
+      {
+        \dim_set_eq:Nc \l__image_urx_dim
+          { c__image_ #1 \l_@@_image_attr_tl _urx_dim }
+        \dim_set_eq:Nc \l__image_ury_dim
+          { c__image_ #1 \l_@@_image_attr_tl _ury_dim }
+      }
+      { \@@_image_getbb_auxii:n {#1} }
+  }
+%    \begin{macrocode}
+%   Measuring the image is done by boxing up: for PDF images we could
+%   use |\pdftex_pdfximagebbox:D|, but if doesn't work for other types.
+%   As the box will always start at $(0,0)$ there is no need to worry about
+%   the lower-left position.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_image_getbb_auxii:n #1
+  {
+    \tex_immediate:D \pdftex_pdfximage:D
+      \bool_if:NT \l__image_interpolate_bool
+        { attr ~ { /Interpolate~true } }
+      \int_compare:nNnT \l__image_page_int > 0
+        { page ~ \int_use:N \l__image_page_int }
+      \tl_if_empty:NF \l__image_pagebox_tl
+        { \l__image_pagebox_tl }
+      {#1}
+    \hbox_set:Nn \l__image_tmp_box
+      { \pdftex_pdfrefximage:D \pdftex_pdflastximage:D }
+    \dim_set:Nn \l__image_urx_dim { \box_wd:N \l__image_tmp_box }
+    \dim_set:Nn \l__image_ury_dim { \box_ht:N \l__image_tmp_box }
+    \int_const:cn { c__image_ #1 \l_@@_image_attr_tl _int }
+      { \tex_the:D \pdftex_pdflastximage:D }
+    \dim_const:cn { c__image_ #1 \l_@@_image_attr_tl _urx_dim }
+      { \l__image_urx_dim }
+    \dim_const:cn { c__image_ #1 \l_@@_image_attr_tl _ury_dim }
+      { \l__image_ury_dim }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]
+%   {\@@_image_include_jpg:n, \@@_image_include_pdf:n, \@@_image_include_png:n}
+%   Images are already loaded for the measurement part of the code, so
+%   inclusion is straight-forward, with only any attributes to worry about. The
+%   latter carry through from determination of the bounding box.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_image_include_jpg:n #1
+  {
+    \pdftex_pdfrefximage:D
+      \int_use:c { c__image_ #1 \l_@@_image_attr_tl _int }
+  }
+\cs_new_eq:NN \@@_image_include_pdf:n \@@_image_include_jpg:n
+\cs_new_eq:NN \@@_image_include_png:n \@@_image_include_jpg:n
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</pdfmode>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvipdfmx} driver}
+%
+%    \begin{macrocode}
+%<*dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% The \texttt{dvipdfmx} shares code with the PDF mode one (using the common
+% section to this file) but also with \texttt{xdvipdfmx}. The latter is close
+% to identical to \texttt{dvipdfmx} and so all of the code here is extracted
+% for both drivers, with some \texttt{clean up} for \texttt{xdvipdfmx} as
+% required.
+%
+% \subsubsection{Basics}
+%
+% \begin{macro}[int]{\@@_literal:n}
+%   Equivalent to \texttt{pdf:content} but favored as the link to
+%   the \pdfTeX{} primitive approach is clearer. Some higher-level operations
+%   use |\tex_special:D| directly: see the later comments on where this is
+%   useful.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_literal:n #1
+  { \tex_special:D { pdf:literal~ #1 } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_scope_begin:, \@@_scope_end:}
+%   Scoping is done using the driver-specific specials.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_scope_begin:
+  { \tex_special:D { x:gsave } }
+\cs_new_protected:Npn \@@_scope_end:
+  { \tex_special:D { x:grestore } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Box operations}
+%
+% \begin{macro}{\@@_box_use_clip:N}
+%   The code here is idential to that for \texttt{pdfmode}: unlike rotation and
+%   scaling, there is no higher-level support in the driver for clipping.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_clip:N #1
+  {
+    \@@_scope_begin:
+    \@@_literal:n
+      {
+        0~
+        \dim_to_decimal_in_bp:n { -\box_dp:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
+        re~W~n
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+    \skip_horizontal:n { \box_wd:N #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_box_use_rotate:Nn}
+%   Rotating in \texttt{(x)}dvipdmfx can be implemented using either PDF or
+%   driver-specific code. The former approach however is not \enquote{aware}
+%   of the content of boxes: this means that any links embded will not be
+%   adjusted by the rotation. As such, the driver-native approach is prefered:
+%   the code therefore is similar (though not identical) to the \texttt{dvips}
+%   version (notice the rotation angle here is positive). As for
+%   \texttt{dvips}, zero rotation is written as |0| not |-0|.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_rotate:Nn #1#2
+  {
+    \@@_scope_begin:
+    \tex_special:D
+      {
+        x:rotate~
+        \fp_compare:nNnTF {#2} = \c_zero_fp
+          { 0 }
+          { \fp_eval:n { round ( #2 , 5 ) } }
+      }
+    \box_use:N #1
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_box_use_scale:Nnn}
+%   Much the same idea for scaling: use the higher-level driver operation to allow
+%   for box content.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_box_use_scale:Nnn #1#2#3
+  {
+    \@@_scope_begin:
+    \tex_special:D
+      {
+        x:scale~
+        \fp_eval:n { round ( #2 , 5 ) } ~
+        \fp_eval:n { round ( #3 , 5 ) }
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Images}
+%
+% \begin{macro}[int]
+%   {
+%     \@@_image_getbb_eps:n, \@@_image_getbb_jpg:n,
+%     \@@_image_getbb_pdf:n, \@@_image_getbb_png:n
+%   }
+%   Simply use the generic functions: only for \texttt{dvipdfmx} in the
+%   extraction cases.
+%    \begin{macrocode}
+\cs_new_eq:NN \@@_image_getbb_eps:n \__image_read_bb:n
+%<*dvipdfmx>
+\cs_new_protected:Npn \@@_image_getbb_jpg:n #1
+  {
+    \int_zero:N \l__image_page_int
+    \tl_clear:N \l__image_pagebox_tl
+    \__image_extract_bb:n {#1}
+  }
+\cs_new_eq:NN \@@_image_getbb_png:n \@@_image_getbb_jpg:n
+\cs_new_protected:Npn \@@_image_getbb_pdf:n #1
+  {
+    \bool_set_false:N \l__image_interpolate_tl
+    \__image_extract_bb:n {#1}
+  }
+%</dvipdfmx>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}[aux]{\g_@@_image_int}
+%   Used to track the object number associated with each image.
+%    \begin{macrocode}
+\int_new:N \g_@@_image_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}[int]
+%   {
+%     \@@_image_include_eps:n, \@@_image_include_jpg:n,
+%     \@@_image_include_pdf:n, \@@_image_include_png:n
+%   }
+%  \begin{macro}[aux]{\@@_image_include_auxi:nn}
+%  \begin{macro}[aux]{\@@_image_include_auxii:nnn, \@@_image_include_auxii:xnn}
+%  \begin{macro}[aux]{\@@_image_include_auxiii:nn}
+%   The special syntax depends on the file type. There is a difference in
+%   how PDF images are best handled between |dvipdfmx| and |xdvipdfmx|: for
+%   the latter it is better to use the primitive route. The relevant code for
+%   that is included later in this file.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_image_include_eps:n #1
+  {
+    \tex_special:D { PSfile = #1 }
+  }
+\cs_new_protected:Npn \@@_image_include_jpg:n #1
+  { \@@_image_include_auxi:nn {#1} { image } }
+\cs_new_eq:NN \@@_image_include_png:n \@@_image_include_jpg:n
+%<*dvipdfmx>
+\cs_new_protected:Npn \@@_image_include_pdf:n #1
+  { \@@_image_include_auxi:nn {#1} { epdf } }
+%</dvipdfmx>
+%    \end{macrocode}
+%   Image inclusion is set up to use the fact that each image is stored in
+%   the PDF as an XObject. This means that we can include repeated images
+%   only once and refer to them. To allow that, track the nature of each
+%   image: much the same as for the direct PDF mode case.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_image_include_auxi:nn #1#2
+  {
+    \@@_image_include_auxii:xnn
+      {
+        \tl_if_empty:NF \l__image_pagebox_tl
+          { : \l__image_pagebox_tl }
+        \int_compare:nNnT \l__image_page_int > 1
+          { :P \int_use:N \l__image_page_int }
+        \bool_if:NT \l__image_interpolate_bool
+           { :I }
+      }
+      {#1} {#2}
+  }
+\cs_new_protected:Npn \@@_image_include_auxii:nnn #1#2#3
+  {
+    \int_if_exist:cTF { c__image_ #2#1 _int }
+      {
+        \tex_special:D
+          { pdf:usexobj~@image \int_use:c { c__image_ #2#1 _int } }
+      }
+      { \@@_image_include_auxiii:nn {#2} {#1} {#3} }
+  }
+\cs_generate_variant:Nn \@@_image_include_auxii:nnn { x }
+%    \end{macrocode}
+%  Inclusion using the specials is relatively straight-forward, but there
+%  is one wrinkle. To get the |pagebox| correct for PDF images in all cases,
+%  it is necessary to provide both that information and the |bbox| argument:
+%  odd things happen otherwise!
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_image_include_auxiii:nnn #1#2#3
+  {
+    \int_gincr:N \g_@@_image_int
+    \int_const:cn { c__image_ #1#2 _int } { \g_@@_image_int }
+    \tex_special:D
+      {
+        pdf:#3~
+        @image \int_use:c { c__image_ #1#2 _int }
+        \int_compare:nNnT \l__image_page_int > 1
+          { page ~ \int_use:N \l__image_page_int \c_space_tl }
+        \tl_if_empty:NF \l__image_pagebox_tl
+          {
+            pagebox ~ \l__image_pagebox_tl \c_space_tl
+            bbox ~
+              \dim_to_decimal_in_bp:n \l__image_llx_dim \c_space_tl
+              \dim_to_decimal_in_bp:n \l__image_lly_dim \c_space_tl
+              \dim_to_decimal_in_bp:n \l__image_urx_dim \c_space_tl
+              \dim_to_decimal_in_bp:n \l__image_ury_dim \c_space_tl
+          }
+        (#1)
+        \bool_if:NT \l__image_interpolate_bool
+          { <</Interpolate~true>> }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{\texttt{xdvipdfmx} driver}
+%
+%    \begin{macrocode}
+%<*xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{Images}
+%
+% \begin{macro}[int]
+%   {\@@_image_getbb_jpg:n, \@@_image_getbb_pdf:n, \@@_image_getbb_png:n}
+% \begin{macro}[aux]{\@@_image_getbb_auxi:nN}
+% \begin{macro}[aux]{\@@_image_getbb_auxii:nnN, \@@_image_getbb_auxii:VnN}
+% \begin{macro}[aux]{\@@_image_getbb_auxiii:nNnn}
+% \begin{macro}[aux]{\@@_image_getbb_auxiv:nnNnn, \@@_image_getbb_auxiv:VnNnn}
+% \begin{macro}[aux]{\@@_image_getbb_auxv:nNnn, \@@_image_getbb_auxv:nNnn}
+% \begin{macro}[aux, EXP]{\@@_image_getbb_pagebox:w}
+%   For \texttt{xdvipdfmx}, there are two primitives that allow us to obtain
+%   the bounding box without needing \texttt{extractbb}. The only complexity
+%   is passing the various minor variations to a common core process. The
+%   \XeTeX{} primitive omits the text |box| from the page box specification,
+%   so there is also some \enquote{trimming} to do here.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_image_getbb_jpg:n #1
+  {
+    \int_zero:N \l__image_page_int
+    \@@_image_getbb_auxi:nN {#1} \xetex_picfile:D
+  }
+\cs_new_eq:NN \@@_image_getbb_png:n \@@_image_getbb_jpg:n
+\cs_new_protected:Npn \@@_image_getbb_pdf:n #1
+  { \@@_image_getbb_auxi:nN {#1} \xetex_pdffile:D }
+\cs_new_protected:Npn \@@_image_getbb_auxi:nN #1#2
+  {
+    \int_compare:nNnTF \l__image_page_int > 1
+      { \@@_image_getbb_auxii:VnN \l__image_page_int {#1} #2  }
+      { \@@_image_getbb_auxiii:nNnn {#1} #2 }
+  }
+\cs_new_protected:Npn \@@_image_getbb_auxii:nnN #1#2#3
+  { \@@_image_getbb_aux:nNnn {#2} #3 { :P #1 } { page #1 } }
+\cs_generate_variant:Nn \@@_image_getbb_auxii:nnN { V }
+\cs_new_protected:Npn \@@_image_getbb_auxiii:nNnn #1#2#3#4
+  {
+    \tl_if_empty:NTF \l__image_pagebox_tl
+      { \@@_image_getbb_auxiv:VnNnn \l__image_pagebox_tl }
+      { \@@_image_getbb_auxv:nNnn }
+      {#1} #2 {#3} {#4}
+  }
+\cs_new_protected:Npn \@@_image_getbb_auxiv:nnNnn #1#2#3#4#5
+  {
+    \use:x
+      {
+        \@@_image_getbb_auxv:nNnn {#2} #3 { : #1 #4 }
+          { #5 ~ \@@_image_getbb_pagebox:w #1 }
+      }
+  }
+\cs_generate_variant:Nn \@@_image_getbb_auxiv:nnNnn { V }
+\cs_new_protected:Npn \@@_image_getbb_auxv:nNnn #1#2#3#4
+  {
+    \dim_zero:N \l__image_llx_dim
+    \dim_zero:N \l__image_lly_dim
+    \dim_if_exist:cTF { c__image_ #1#3 _urx_dim }
+      {
+        \dim_set_eq:Nc \l__image_urx_dim { c__image_ #1#3 _urx_dim }
+        \dim_set_eq:Nc \l__image_ury_dim { c__image_ #1#3 _ury_dim }
+      }
+      { \@@_image_getbb_auxvi:nNnn {#1} #2 {#3} {#4} }
+  }
+\cs_new_protected:Npn \@@_image_getbb_auxvi:nNnn #1#2#3#4
+  {
+    \hbox_set:Nn \l__image_tmp_box { #2 #1 ~ #4 }
+    \dim_set:Nn \l__image_utx_dim { \box_wd:N \l__image_tmp_box }
+    \dim_set:Nn \l__image_ury_dim { \box_ht:N \l__image_tmp_box }
+    \dim_const:cn { c__image_ #1#3 _urx_dim }
+      { \l__image_urx_dim }
+    \dim_const:cn { c__image_ #1#3 _ury_dim }
+      { \l__image_ury_dim }
+  }
+\cs_new:Npn \@@_image_getbb_pagebox:w #1 box {#1}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_image_include_pdf:n}
+%   For PDF images, properly supporting the |pagebox| concept in \XeTeX{}
+%   is best done using the |\xetex_pdffile:D| primitive. The syntax here
+%   is the same as for the image measurement part, although we know at this
+%   stage that there must be some valid setting for \cs{l__image_pagebox_tl}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_image_include_pdf:n #1
+  {
+    \xetex_pdffile:D "#1" ~
+      \int_compare:nNnT \l__image_page_int > 0
+        { page~ \int_use:N \l__image_page_int }
+      \@@_image_getbb_auxiv:VnNnn \l__image_pagebox_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{Drawing commands: \texttt{pdfmode} and \texttt{(x)dvipdfmx}}
+%
+% Both \texttt{pdfmode} and \texttt{(x)dvipdfmx} directly produce PDF output
+% and understand a shared set of specials for drawing commands.
+%
+%    \begin{macrocode}
+%<*dvipdfmx|pdfmode|xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{Drawing}
+%
+% \begin{macro}[aux]{\@@_draw_literal:n, \@@_draw_literal:x}
+%   Pass data through using a dedicated interface.
+%     \begin{macrocode}
+\cs_new_eq:NN \@@_draw_literal:n \@@_literal:n
+\cs_generate_variant:Nn \@@_draw_literal:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_draw_begin:, \@@_draw_end:}
+%   No special requirements here, so simply set up a drawing scope.
+%     \begin{macrocode}
+\cs_new_protected:Npn \@@_draw_begin:
+  { \@@_draw_scope_begin: }
+\cs_new_protected:Npn \@@_draw_end:
+  { \@@_draw_scope_end: }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_draw_scope_begin:, \@@_draw_scope_end:}
+%   In contrast to a general scope, a drawing scope is always done using
+%   the PDF operators so is the same for all relevant drivers.
+%     \begin{macrocode}
+\cs_new_protected:Npn \@@_draw_scope_begin:
+  { \@@_draw_literal:n { q } }
+\cs_new_protected:Npn \@@_draw_scope_end:
+  { \@@_draw_literal:n { Q } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_draw_moveto:nn, \@@_draw_lineto:nn}
+% \begin{macro}[int]{\@@_draw_curveto:nnnnnn}
+% \begin{macro}[int]{\@@_draw_rectangle:nnnn}
+%   Path creation operations all resolve directly to PDF primitive steps, with
+%   only the need to convert to \texttt{bp}. Notice that \texttt{x}-type
+%   expansion is included here to ensure that any variable values are
+%   forced to literals before any possible caching.
+%     \begin{macrocode}
+\cs_new_protected:Npn \@@_draw_moveto:nn #1#2
+  {
+    \@@_draw_literal:x
+      { \dim_to_decimal_in_bp:n {#1} ~ \dim_to_decimal_in_bp:n {#2} ~ m }
+  }
+\cs_new_protected:Npn \@@_draw_lineto:nn #1#2
+  {
+    \@@_draw_literal:x
+      { \dim_to_decimal_in_bp:n {#1} ~ \dim_to_decimal_in_bp:n {#2} ~ l }
+  }
+\cs_new_protected:Npn \@@_draw_curveto:nnnnnn #1#2#3#4#5#6
+  {
+    \@@_draw_literal:x
+      {
+        \dim_to_decimal_in_bp:n {#1} ~ \dim_to_decimal_in_bp:n {#2} ~
+        \dim_to_decimal_in_bp:n {#3} ~ \dim_to_decimal_in_bp:n {#4} ~
+        \dim_to_decimal_in_bp:n {#5} ~ \dim_to_decimal_in_bp:n {#6} ~
+        c
+      }
+ }
+\cs_new_protected:Npn \@@_draw_rectangle:nnnn #1#2#3#4
+  {
+     \@@_draw_literal:x
+      {
+        \dim_to_decimal_in_bp:n {#1} ~ \dim_to_decimal_in_bp:n {#2} ~
+        \dim_to_decimal_in_bp:n {#3} ~ \dim_to_decimal_in_bp:n {#4} ~
+        re
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_draw_evenodd_rule:, \@@_draw_nonzero_rule:}
+% \begin{variable}[int]{\g_@@_draw_eor_bool}
+%    The even-odd rule here can be implemented as a simply switch.
+%     \begin{macrocode}
+\cs_new_protected:Npn \@@_draw_evenodd_rule:
+  { \bool_gset_true:N \g_@@_draw_eor_bool }
+\cs_new_protected:Npn \@@_draw_nonzero_rule:
+  { \bool_gset_false:N \g_@@_draw_eor_bool }
+\bool_new:N \g_@@_draw_eor_bool
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+% \begin{macro}[int]
+%   {
+%     \@@_draw_closepath:   ,
+%     \@@_draw_stroke:      ,
+%     \@@_draw_closestroke: ,
+%     \@@_draw_fill:        ,
+%     \@@_draw_fillstroke:  ,
+%     \@@_draw_clip:        ,
+%     \@@_draw_discardpath:
+%   }
+%   Converting paths to output is again a case of mapping directly to
+%   PDF operations.
+%     \begin{macrocode}
+\cs_new_protected:Npn \@@_draw_closepath:
+  { \@@_draw_literal:n { h } }
+\cs_new_protected:Npn \@@_draw_stroke:
+  { \@@_draw_literal:n { S } }
+\cs_new_protected:Npn \@@_draw_closestroke:
+  { \@@_draw_literal:n { s } }
+\cs_new_protected:Npn \@@_draw_fill:
+  {
+    \@@_draw_literal:x
+      { f \bool_if:NT \g_@@_draw_eor_bool * }
+  }
+\cs_new_protected:Npn \@@_draw_fillstroke:
+  {
+    \@@_draw_literal:x
+      { B \bool_if:NT \g_@@_draw_eor_bool * }
+  }
+\cs_new_protected:Npn \@@_draw_clip:
+  {
+    \@@_draw_literal:x
+      { W \bool_if:NT \g_@@_draw_eor_bool * }
+  }
+\cs_new_protected:Npn \@@_draw_discardpath:
+  { \@@_draw_literal:n { n } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_draw_dash:nn}
+% \begin{macro}[aux]{\@@_draw_dash:n}
+% \begin{macro}[int]{\@@_draw_linewidth:n}
+% \begin{macro}[int]{\@@_draw_miterlimit:n}
+% \begin{macro}[int]
+%   {
+%     \@@_draw_cap_butt:, \@@_draw_cap_round:, \@@_draw_cap_rectangle:,
+%     \@@_draw_join_miter:, \@@_draw_join_round:, \@@_draw_join_bevel:
+%   }
+%   Converting paths to output is again a case of mapping directly to
+%   PDF operations.
+%     \begin{macrocode}
+\cs_new_protected:Npn \@@_draw_dash:nn #1#2
+  {
+    \@@_draw_literal:x
+      {
+        [ ~
+          \clist_map_function:nN {#1} \@@_draw_dash:n
+        ] ~
+        \dim_to_decimal_in_bp:n {#2} ~ d
+      }
+  }
+\cs_new:Npn \@@_draw_dash:n #1
+  { \dim_to_decimal_in_bp:n {#1} ~ }
+\cs_new_protected:Npn \@@_draw_linewidth:n #1
+  {
+    \@@_draw_literal:x
+      { \dim_to_decimal_in_bp:n {#1} ~ w }
+  }
+\cs_new_protected:Npn \@@_draw_miterlimit:n #1
+  { \@@_draw_literal:x { \fp_eval:n {#1} ~ M } }
+\cs_new_protected:Npn \@@_draw_cap_butt:
+  { \@@_draw_literal:n { 0 ~ J } }
+\cs_new_protected:Npn \@@_draw_cap_round:
+  { \@@_draw_literal:n { 1 ~ J } }
+\cs_new_protected:Npn \@@_draw_cap_rectangle:
+  { \@@_draw_literal:n { 2 ~ J } }
+\cs_new_protected:Npn \@@_draw_join_miter:
+  { \@@_draw_literal:n { 0 ~ j } }
+\cs_new_protected:Npn \@@_draw_join_round:
+  { \@@_draw_literal:n { 1 ~ j } }
+\cs_new_protected:Npn \@@_draw_join_bevel:
+  { \@@_draw_literal:n { 2 ~ j } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]
+%   {
+%     \@@_draw_color_cmyk:nnnn        ,
+%     \@@_draw_color_cmyk_fill:nnnn   ,
+%     \@@_draw_color_cmyk_stroke:nnnn
+%   }
+% \begin{macro}[aux]{\@@_draw_color_cmyk_aux:nnnn}
+% \begin{macro}[int]
+%   {
+%     \@@_draw_color_gray:n        ,
+%     \@@_draw_color_gray_fill:n   ,
+%     \@@_draw_color_gray_stroke:n
+%   }
+% \begin{macro}[aux]{\@@_draw_color_gray_aux:n}
+% \begin{macro}[int]
+%   {
+%     \@@_draw_color_rgb:nnn        ,
+%     \@@_draw_color_rgb_fill:nnn   ,
+%     \@@_draw_color_rgb_stroke:nnn
+%   }
+% \begin{macro}[aux]{\@@_draw_color_rgb_aux:nnn}
+%   Yet more fast conversion, all using the FPU to allow for expressions
+%   in numerical input.
+%     \begin{macrocode}
+\cs_new_protected:Npn \@@_draw_color_cmyk:nnnn #1#2#3#4
+  {
+    \use:x
+      {
+        \@@_draw_color_cmyk_aux:nnnn
+          { \fp_eval:n {#1} }
+          { \fp_eval:n {#2} }
+          { \fp_eval:n {#3} }
+          { \fp_eval:n {#4} }
+      }
+  }
+\cs_new_protected:Npn \@@_draw_color_cmyk_aux:nnnn #1#2#3#4
+  {
+    \@@_draw_literal:n
+      { #1 ~ #2 ~ #3 ~ #4 ~ k ~ #1 ~ #2 ~ #3 ~ #4 ~ K }
+  }
+\cs_new_protected:Npn \@@_draw_color_cmyk_fill:nnnn #1#2#3#4
+  {
+    \@@_draw_literal:x
+      {
+        \fp_eval:n {#1} ~ \fp_eval:n {#2} ~
+        \fp_eval:n {#3} ~ \fp_eval:n {#4} ~
+        k
+      }
+  }
+\cs_new_protected:Npn \@@_draw_color_cmyk_stroke:nnnn #1#2#3#4
+  {
+    \@@_draw_literal:x
+      {
+        \fp_eval:n {#1} ~ \fp_eval:n {#2} ~
+        \fp_eval:n {#3} ~ \fp_eval:n {#4} ~
+        K
+      }
+  }
+\cs_new_protected:Npn \@@_draw_color_gray:n #1
+  {
+    \use:x
+      { \@@_draw_color_gray_aux:n { \fp_eval:n {#1} } }
+  }
+\cs_new_protected:Npn \@@_draw_color_gray_aux:n #1
+  {
+    \@@_draw_literal:n { #1 ~ g ~ #1 ~ G }
+  }
+\cs_new_protected:Npn \@@_draw_color_gray_fill:n #1
+  { \@@_draw_literal:x { \fp_eval:n {#1} ~ g } }
+\cs_new_protected:Npn \@@_draw_color_gray_stroke:n #1
+  { \@@_draw_literal:x { \fp_eval:n {#1} ~ G } }
+\cs_new_protected:Npn \@@_draw_color_rgb:nnn #1#2#3
+  {
+    \use:x
+      {
+        \@@_draw_color_rgb_aux:nnn
+          { \fp_eval:n {#1} }
+          { \fp_eval:n {#2} }
+          { \fp_eval:n {#3} }
+      }
+  }
+\cs_new_protected:Npn \@@_draw_color_rgb_aux:nnn #1#2#3
+  {
+    \@@_draw_literal:n
+      { #1 ~ #2 ~ #3 ~ rg ~ #1 ~ #2 ~ #3 ~ RG }
+  }
+\cs_new_protected:Npn \@@_draw_color_rgb_fill:nnn #1#2#3
+  {
+    \@@_draw_literal:x
+      { \fp_eval:n {#1} ~ \fp_eval:n {#2} ~ \fp_eval:n {#3} ~ rg }
+  }
+\cs_new_protected:Npn \@@_draw_color_rgb_stroke:nnn #1#2#3
+  {
+    \@@_draw_literal:x
+      { \fp_eval:n {#1} ~ \fp_eval:n {#2} ~ \fp_eval:n {#3} ~ RG }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_draw_transformcm:nnnnnn}
+%   The first four arguments here are floats (the affine matrix), the last
+%   two are a displacement vector. Once again, force evaluation to allow for
+%   caching.
+%     \begin{macrocode}
+\cs_new_protected:Npn \@@_draw_transformcm:nnnnnn #1#2#3#4#5#6
+  {
+    \@@_draw_literal:x
+      {
+        \fp_eval:n {#1} ~ \fp_eval:n {#2} ~
+        \fp_eval:n {#3} ~ \fp_eval:n {#4} ~
+        \dim_to_decimal_in_bp:n {#5} ~ \dim_to_decimal_in_bp:n {#6} ~
+        cm
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_draw_hbox:Nnnnnnn}
+% \begin{variable}[aux]{\l_@@_tmp_box}
+%   Inserting a \TeX{} box transformed to the requested position and using
+%   the current matrix is done using a mixture of \TeX{} and low-level
+%   manipulation. The offset can be handled by \TeX{}, so only any rotation/^^A
+%   skew/scaling component needs to be done using the matrix operation. As this
+%   operation can never be cached, the scope is set directly not using the
+%   \texttt{draw} version.
+%     \begin{macrocode}
+\cs_new_protected:Npn \@@_draw_hbox:Nnnnnnn #1#2#3#4#5#6#7
+  {
+    \hbox_set:Nn \l_@@_tmp_box
+      {
+        \tex_kern:D \__dim_eval:w #6 \__dim_eval_end:
+        \@@_scope_begin:
+        \@@_draw_transformcm:nnnnnn {#2} {#3} {#4} {#5}
+          { 0pt } { 0pt }
+        \box_move_up:nn {#7} { \box_use:N #1 }
+        \@@_scope_end:
+      }
+    \box_set_wd:Nn \l_@@_tmp_box { 0pt }
+    \box_set_ht:Nn \l_@@_tmp_box { 0pt }
+    \box_set_dp:Nn \l_@@_tmp_box { 0pt }
+    \box_use:N \l_@@_tmp_box
+  }
+\box_new:N \l_@@_tmp_box
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|pdfmode|xdvipdfmx>
+%    \end{macrocode}
+%
 % \subsection{\texttt{dvisvgm} driver}
 %
 %    \begin{macrocode}
@@ -2246,36 +2343,37 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsubsection{Color}
+% \subsection{Images}
 %
-% \begin{variable}{\l_@@_color_current_tl}
-%   The current color in driver-dependent format: the same as for
-%   \texttt{dvips}.
+% \begin{macro}[int]{\@@_image_getbb_png:n, \@@_image_getbb_jpg:n}
+%   These can be included by extracting the bounding box data.
 %    \begin{macrocode}
-\tl_new:N \l_@@_color_current_tl
-\tl_set:Nn \l_@@_color_current_tl { gray~0 }
-%<*package>
-\AtBeginDocument
-  {
-    \@ifpackageloaded { color }
-      { \tl_set:Nn \l_@@_color_current_tl { \current@color } }
-      { }
-  }
-%</package>
+\cs_new_eq:NN \@@_image_getbb_png:n \__image_extract_bb:n
+\cs_new_eq:NN \@@_image_getbb_jpg:n \__image_extract_bb:n
 %    \end{macrocode}
-% \end{variable}
+% \end{macro}
 %
-% \begin{macro}[int]{\@@_color_ensure_current:}
-% \begin{macro}[aux]{\@@_color_reset:}
-%   Directly set the color: same as \texttt{dvips}.
+% \begin{macro}[int]{\@@_image_include_png:n, \@@_image_include_jpg:n}
+% \begin{macro}[aux]{\@@_image_include_bitmap_quote:w}
+%   The driver here has built-in support for basic image inclusion (see
+%   \texttt{dvisvgm.def} for a more complex approach, needed if clipping,
+%   \emph{etc.}, is covered at the image driver level). The only issue is
+%   that |#1| must be quoted corrected. The \texttt{dvisvgm:img} operation
+%   will quote the file name, but if it is already quoted (contains spaces)
+%   then we have an issue: we simply strip off any quotes as a result.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_color_ensure_current:
+\cs_new_protected:Npn \@@_image_include_png:n #1
   {
-    \tex_special:D { color~push~\l_@@_color_current_tl }
-    \group_insert_after:N \@@_color_reset:
+     \tex_special:D
+       {
+         dvisvgm:img~
+         \dim_to_decimal:n { \l__image_ury_dim } ~
+         \dim_to_decimal:n { \l__image_ury_dim } ~
+         \@@_image_include_bitmap_quote:w #1 " " \q_stop
+       }
   }
-\cs_new_protected:Npn \@@_color_reset:
-  { \tex_special:D { color~pop } }
+\cs_new_eq:NN \@@_image_include_jpg:n \@@_image_include_png:n
+\cs_new:Npn \@@_image_include_bitmap_quote:w #1 " #2 " #3 \q_stop { #1#2 }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}

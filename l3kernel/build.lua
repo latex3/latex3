@@ -46,7 +46,7 @@ function format()
   if errorlevel ~=0 then
     return errorlevel
   end
-  local localdir = relpath(localdir, unpackdir)
+  local localdir = abspath(localdir)
   errorlevel = run(
     unpackdir,
     os_setenv .. " TEXINPUTS=." .. os_pathsep
@@ -124,7 +124,7 @@ function typeset(file)
   if errorlevel ~= 0 then
     return errorlevel
   else
-    local name = stripext(file)
+    local name = jobname(file)
     errorlevel = biber(name) + bibtex(name)
     if errorlevel == 0 then
       local function cycle(name)
