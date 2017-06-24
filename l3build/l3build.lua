@@ -1455,6 +1455,7 @@ function splitpath(file)
   else
     return ".", file
   end
+end
   
 -- Strip the path from a file name (if present)
 function basename(file)
