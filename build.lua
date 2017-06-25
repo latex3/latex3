@@ -7,17 +7,16 @@ bundle  = "LaTeX3"
 module  = ""
 
 -- A couple of custom variables: the order here is set up for 'importance'
-bundles      = {"l3build", "l3kernel", "l3packages", "l3experimental", "l3trial"}
+bundles      = {"l3kernel", "l3packages", "l3experimental", "l3trial"}
 checkbundles =
   {
-    "l3build",
     "l3kernel",
     "l3packages",
     "l3experimental",
     "l3trial",
     "contrib"
   }
-ctanbundles  = {"l3build", "l3kernel", "l3packages", "l3experimental"}
+ctanbundles  = {"l3kernel", "l3packages", "l3experimental"}
 
 -- Location of main directory: use Unix-style path separators
 maindir = "."
@@ -90,8 +89,6 @@ function main (target)
   end
 end
 
--- Load the common build code: this is the one place that a path needs to be
--- hard-coded
--- As the build system is 'self-contained' there is no module set up here: just
---load the file in a similar way to a TeX \input
-dofile (maindir .. "/l3build/l3build.lua")
+-- Find and run the build system
+kpse.set_program_name("kpsewhich")
+dofile(kpse.lookup("l3build.lua"))
