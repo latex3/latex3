@@ -1457,6 +1457,15 @@ function splitpath(file)
   end
 end
 
+-- Arguably clearer names
+function basename(file)
+  return(select(2, splitpath(file)))
+end
+
+function dirname(file)
+  return(select(1, splitpath(file)))
+end
+
 -- Strip the extension from a file name (if present)
 function jobname(file)
   local name = match(select(2, splitpath(file)), "^(.*)%.")
