@@ -83,9 +83,9 @@
 %   make up the file name, thus the \meta{name} part may be thought of
 %   as the \enquote{job name} for the current file. Note that \TeX{} does
 %   not provide information on the \meta{ext} part for the main (top
-%   level) file, which will always have an empty \meta{dir} component.
+%   level) file and it will always have an empty \meta{dir} component.
 %   Also, the \meta{name} here will be equal to \cs{c_sys_jobname_str},
-%   which may be different to the reql file name (if set using
+%   which may be different from the real file name (if set using
 %   |--jobname|, for example).
 % \end{variable}
 %
@@ -120,7 +120,7 @@
 %   \begin{syntax}
 %     \cs{file_parse_full_name:nNNN} \Arg{full name} \meta{dir} \meta{name} \meta{ext}
 %   \end{syntax}
-%   Parsers the \meta{file path} and splits it into three parts, each of
+%   Parses the \meta{full name} and splits it into three parts, each of
 %   which is returned by settings the appropriate local string variable:
 %   \begin{itemize}
 %     \item The \meta{dir}: everything up to the last |/| (path separator)
@@ -135,6 +135,9 @@
 %        \meta{ext} in the \meta{file path}, the \TeX{} standard value
 %        \texttt{.tex} will be returned.
 %   \end{itemize}
+%   This function does not expand the \meta{full name} before turning it
+%   to a string.  It assume that the \meta{full name} either contains no
+%   quote (|"|) or is surrounded by a pair of quotes.
 % \end{function}
 %
 % \begin{function}[updated = 2012-02-17]{\file_input:n}
@@ -615,12 +618,20 @@
 % \begin{variable}{\l__file_base_name_str, \l__file_full_name_str}
 %   Used to store and transfer the file name (including extension)
 %   and (partial) file path whilst reading files. (The file base is the
-%   basename plus any preceding directory name.)
+%   base name plus any preceding directory name.)
 % \end{variable}
+%
+% \begin{function}[added = 2017-06-25]{\__file_missing:n}
+%   \begin{syntax}
+%     \cs{__file_missing:n} \Arg{name}
+%   \end{syntax}
+%   Expands the \meta{name} as per \cs{__file_name_sanitize:nN} then
+%   produces an error message indicating that that file was not found.
+% \end{function}
 %
 % \begin{function}[added = 2017-06-19]{\__file_name_sanitize:nN}
 %   \begin{syntax}
-%     \cs{__file_name_sanitize:nn} \Arg{name} \Arg{str var}
+%     \cs{__file_name_sanitize:nN} \Arg{name} \meta{str var}
 %   \end{syntax}
 %   Exhaustively-expands the \meta{name} with the exception of any
 %   category \meta{active} (catcode~$13$) tokens, which are not expanded.
@@ -628,14 +639,14 @@
 %   The \meta{str var} is then set to the \meta{sanitized name}.
 % \end{function}
 %
-% \begin{function}[added = 2017-06-19]
-%   {\__file_name_quote:nN, \__file_name_quote:VN}
+% \begin{function}[added = 2017-06-19, updated = 2017-06-25]{\__file_name_quote:nN}
 %   \begin{syntax}
-%     \cs{__file_name_quote:nn} \Arg{name} \Arg{str var}
+%     \cs{__file_name_quote:nN} \Arg{name} \meta{str var}
 %   \end{syntax}
-%   Set the \meta{str var} to the \meta{name} quoted using |"| at each
+%   Expands the \meta{name} (without special-casing active tokens), then
+%   sets the \meta{str var} to the \meta{name} quoted using |"| at each
 %   end if required by the presence of spaces in the \meta{name}. Any existing
-%   |"| tokens will be removed.
+%   |"| tokens is removed and if their number is odd an error is raised.
 % \end{function}
 %
 % \subsection{Internal input--output functions}
@@ -693,7 +704,7 @@
 %   }
 %   The name of the current file should be available at all times.
 %   For the format the file name needs to be picked up at the start of the
-%   file. In \LaTeXe{} package mode the current file name is collected from
+%   run. In \LaTeXe{} package mode the current file name is collected from
 %   \tn{@currname}.
 %    \begin{macrocode}
 \str_new:N \g_file_curr_dir_str
@@ -730,11 +741,8 @@
           \cs_set:Npn \@@_tmp:w ##1 " ##2 " ##3 \q_stop { { } {##2} {  } }
           \seq_gput_right:Nx \g_@@_stack_seq
             {
-              \exp_after:wN \exp_after:wN \exp_after:wN
-              \@@_tmp:w
-                \exp_after:wN \tex_jobname:D
-                \exp_after:wN " \tex_jobname:D "
-                \q_stop
+              \exp_after:wN \@@_tmp:w \tex_jobname:D
+                " \tex_jobname:D " \q_stop
             }
         }
         {
@@ -799,15 +807,6 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_@@_saved_search_path_seq}
-%   The current search path has to be saved for package use.
-%    \begin{macrocode}
-%<*package>
-\seq_new:N \l_@@_saved_search_path_seq
-%</package>
-%    \end{macrocode}
-% \end{variable}
-%
 % \begin{variable}{\l_@@_tmp_seq}
 %   Scratch space for comma list conversion in package mode.
 %    \begin{macrocode}
@@ -818,7 +817,7 @@
 % \end{variable}
 %
 % \begin{macro}[int]{\__file_name_sanitize:nN}
-% \begin{macro}[int]{\__file_name_quote:nN, \__file_name_quote:VN}
+% \begin{macro}[int]{\__file_name_quote:nN}
 % \begin{macro}[int, aux]{\@@_name_sanitize_aux:n}
 %   For converting a token list to a string where active characters are treated
 %   as strings from the start. The logic to the quoting normalisation is the
@@ -842,28 +841,17 @@
   }
 \cs_new_protected:Npn \__file_name_quote:nN #1#2
   {
-    \str_set:Nn #2 {#1}
-    \int_compare:nNnTF
-      {
-        \int_mod:nn
-          {
-            0 \tl_map_function:NN #2
-              \@@_name_quote_aux:n
-          }
-          { 2 }
-      }
-      = 0
-      {
-        \tl_remove_all:Nn #2 { " }
-        \tl_if_in:NnT #2 { ~ }
-          { \str_set:Nx #2 { " \exp_not:V #2 " } }
-      }
+    \str_set:Nx #2 {#1}
+    \int_if_even:nF
+      { 0 \tl_map_function:NN #2 \@@_name_quote_aux:n }
       {
         \__msg_kernel_error:nnx
           { kernel } { unbalanced-quote-in-filename } {#2}
       }
+    \tl_remove_all:Nn #2 { " }
+    \tl_if_in:NnT #2 { ~ }
+      { \str_set:Nx #2 { " \exp_not:V #2 " } }
   }
-\cs_generate_variant:Nn \__file_name_quote:nN { V }
 \cs_new:Npn \@@_name_quote_aux:n #1
   { \token_if_eq_charcode:NNT #1 " { + 1 } }
 %    \end{macrocode}
@@ -872,57 +860,40 @@
 % \end{macro}
 %
 % \begin{macro}{\file_get_full_name:nN, \file_get_full_name:VN}
-% \begin{macro}[aux]{\@@_get_full_name_search:N}
-%   The way to test if a file exists is to try to open it: if it does not
-%   exist then \TeX{} will report end-of-file. For files which are in the
-%   current directory, this is straight-forward.  For other locations, a
-%   search has to be made looking at each potential path in turn. The first
-%   location is of course treated as the correct one. If nothing is found,
-%   |#2| is returned empty.
+% \begin{macro}[aux]{\@@_get_full_name_search:nN}
+%   The way to test if a file exists is to try to open it: if it does
+%   not exist then \TeX{} will report end-of-file. A search is made
+%   looking at each potential path in turn (starting from the current
+%   directory). The first location is of course treated as the correct
+%   one: this is done by jumping to \cs{__prg_break_point:}. If nothing
+%   is found, |#2| is returned empty.
 %    \begin{macrocode}
 \cs_new_protected:Npn \file_get_full_name:nN #1#2
   {
     \__file_name_sanitize:nN {#1} \l__file_base_name_str
-    \__file_name_quote:VN \l__file_base_name_str \l__file_full_name_str
-    \__ior_open:No \g_@@_internal_ior \l__file_full_name_str
-    \ior_if_eof:NTF \g_@@_internal_ior
-      { \@@_get_full_name_search:N #2 }
-      { \str_set_eq:NN #2 \l__file_full_name_str }
+    \@@_get_full_name_search:nN { } \use:n
+    \seq_map_inline:Nn \l_file_search_path_seq
+      { \@@_get_full_name_search:nN { ##1 / } \seq_map_break:n }
+%<*package>
+    \cs_if_exist:NT \input@path
+      {
+        \clist_map_inline:Nn \input@path
+          { \@@_get_full_name_search:nN { ##1 / } \clist_map_break:n }
+      }
+%</package>
+    \str_clear:N \l__file_full_name_str
+    \__prg_break_point:
+    \str_set_eq:NN #2 \l__file_full_name_str
     \ior_close:N \g_@@_internal_ior
   }
 \cs_generate_variant:Nn \file_get_full_name:nN { V }
-\cs_new_protected:Npn \@@_get_full_name_search:N #1
+\cs_new_protected:Npn \@@_get_full_name_search:nN #1#2
   {
-    \str_clear:N #1
-%<*package>
-    \cs_if_exist:NT \input@path
-      {
-        \seq_set_eq:NN \l_@@_saved_search_path_seq
-          \l_file_search_path_seq
-        \seq_set_split:NnV \l_@@_tmp_seq { , } \input@path
-        \seq_concat:NNN \l_file_search_path_seq
-          \l_file_search_path_seq \l_@@_tmp_seq
-      }
-%</package>
-    \seq_map_inline:Nn \l_file_search_path_seq
-      {
-        \str_set:Nx \l__file_full_name_str
-          { \tl_to_str:n {##1} / \l__file_base_name_str }
-        \__file_name_quote:VN \l__file_full_name_str \l__file_full_name_str
-        \__ior_open:NV \g_@@_internal_ior \l__file_full_name_str
-        \ior_if_eof:NF \g_@@_internal_ior
-          {
-            \str_set_eq:NN #1 \l__file_full_name_str
-            \seq_map_break:
-          }
-      }
-%<*package>
-    \cs_if_exist:NT \input@path
-      {
-        \seq_set_eq:NN \l_file_search_path_seq
-          \l_@@_saved_search_path_seq
-      }
-%</package>
+    \__file_name_quote:nN
+      { \tl_to_str:n {#1} \l__file_base_name_str }
+      \l__file_full_name_str
+    \__ior_open:No \g_@@_internal_ior \l__file_full_name_str
+    \ior_if_eof:NF \g_@@_internal_ior { #2 { \__prg_break: } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -932,7 +903,7 @@
 %   The test for the existence of a file is a wrapper around the function to
 %   add a path to a file. If the file was found, the path will contain
 %   something, whereas if the file was not located then the return value
-%   will be \cs{q_no_value}.
+%   will be empty.
 %    \begin{macrocode}
 \prg_new_protected_conditional:Npnn \file_if_exist:n #1 { T , F , TF }
   {
@@ -944,8 +915,19 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[int]{\__file_missing:n}
+%   An error message for a missing file, also used in \cs{ior_open:Nn}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__file_missing:n #1
+  {
+    \__file_name_sanitize:nN {#1} \l__file_base_name_str
+    \__msg_kernel_error:nnx { kernel } { file-not-found }
+      { \l__file_base_name_str }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\file_input:n}
-% \begin{macro}[aux]{\@@_missing:n}
 % \begin{macro}[aux]{\@@_input:n, \@@_input:V}
 % \begin{macro}[aux]{\@@_input_aux:n, \@@_input_aux:o}
 % \begin{macro}[aux]{\@@_input_push:n}
@@ -960,14 +942,8 @@
   {
     \file_get_full_name:nN {#1} \l__file_full_name_str
     \str_if_empty:NTF \l__file_full_name_str
-      { \@@_missing:n {#1} }
+      { \__file_missing:n {#1} }
       { \@@_input:V \l__file_full_name_str }
-  }
-\cs_new_protected:Npn \@@_missing:n #1
-  {
-    \__file_name_sanitize:nN {#1} \l__file_base_name_str
-    \__msg_kernel_error:nnx { kernel } { file-not-found }
-      { \l__file_base_name_str }
   }
 \cs_new_protected:Npn \@@_input:n #1
   {
@@ -1031,71 +1007,57 @@
 %
 % \begin{macro}{\file_parse_full_name:nNNN}
 % \begin{macro}[aux]
-%   {\@@_parse_full_name_auxi:w, \@@_parse_full_name_auxii:w, \@@_parse_full_name_auxiii:w}
-%   Parsing starts by stripping off any surrounding quotes. Assuming there is
-%   then something to read, the next step is to split off the directory.
-%   We don't want to add |/| until at least one parent directory is found,
-%   but that will loose a leading |/| (absolute path). To deal with that,
-%   there is a second test for that construct at the end of directory
-%   discovery.
+%   {\@@_parse_full_name_auxi:w, \@@_parse_full_name_split:nNNNTF}
+%   Parsing starts by stripping off any surrounding quotes.  Then find
+%   the directory |#4| by splitting at the last~|/|.  (The auxiliary
+%   returns \texttt{true}/\texttt{false} depending on whether it found
+%   the delimiter.)  We correct for the case of a file in the root |/|,
+%   as in that case we wish to keep the trailing (and only) slash.  Then
+%   split the base name |#5| at the last dot.  If there was indeed a
+%   dot, |#5| contains the name and |#6| the extension without the dot,
+%   which we add back for convenience.  In the special case of no
+%   extension given, the auxiliary stored the name into |#6|; we assume
+%   under such circumstances these are |.tex| files.  One exception is
+%   when we were just given a directory, in which case we don't add any
+%   extension.
 %    \begin{macrocode}
 \cs_new_protected:Npn \file_parse_full_name:nNNN #1#2#3#4
   {
-    \@@_parse_full_name_auxi:w #1 " #1 " \q_stop #2#3#4
+    \exp_after:wN \@@_parse_full_name_auxi:w
+      \tl_to_str:n { #1 " #1 " } \q_stop #2#3#4
   }
 \cs_new_protected:Npn \@@_parse_full_name_auxi:w #1 " #2 " #3 \q_stop #4#5#6
   {
-    \str_clear:N #4
-    \str_clear:N #5
-    \str_clear:N #6
-    \tl_if_blank:nF {#2}
-     { \@@_parse_full_name_auxii:w #2 / \q_mark #2 \q_stop #4#5#6 }
-  }
-\cs_new_protected:Npn \@@_parse_full_name_auxii:w #1 / #2 \q_mark #3 \q_stop #4#5#6
-  {
-    \tl_if_blank:nTF {#2}
+    \@@_parse_full_name_split:nNNNTF {#2} / #4 #5
+      { \str_if_empty:NT #4 { \str_set:Nn #4 { / } } }
+      { }
+    \exp_args:No \@@_parse_full_name_split:nNNNTF {#5} . #5 #6
+      { \str_put_left:Nn #6 { . } }
       {
-        \tl_if_head_eq_charcode:nNT {#3} { / }
-          { \str_set:Nx #4 { / #4 } }
-        \tl_if_blank:nF {#1}
-          { \@@_parse_full_name_auxiii:w #1 . \q_stop #5#6 }
-      }
-      {
-        \str_set:Nx #4
-          {
-            #4
-            \str_if_empty:NF #4 { / }
-            #1
-          }
-        \@@_parse_full_name_auxii:w #2 \q_mark #3 \q_stop #4#5#6
+        \str_set_eq:NN #5 #6
+        \str_if_empty:NF #6 { \str_set:Nn #6 { .tex } }
       }
   }
-%    \end{macrocode}
-%   For the file name, we again need to deal with the special case of no
-%   extension given. That is handled by assuming under such circumstances
-%   these are |.tex| files. We also use a loop here to deal with multi-dot
-%   names, \emph{cf.}~how \tn{filename@parse} would deal with this.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_parse_full_name_auxiii:w #1 . #2 \q_stop #3#4
+\cs_new_protected:Npn \@@_parse_full_name_split:nNNNTF #1#2#3#4
   {
-    \tl_if_blank:nTF {#2}
+    \cs_set_protected:Npn \@@_tmp:w ##1 ##2 #2 ##3 \q_stop
       {
-        \str_if_empty:NTF #3
+        \tl_if_empty:nTF {##3}
           {
-            \str_set:Nn #3 {#1}
-            \str_set:Nn #4 { .tex }
+            \str_set:Nn #4 {##2}
+            \tl_if_empty:nTF {##1}
+              {
+                \str_clear:N #3
+                \use_ii:nn
+              }
+              {
+                \str_set:Nx #3 { \str_tail:n {##1} }
+                \use_i:nn
+              }
           }
-          { \str_set:Nn #4 { . #1 } }
+          { \@@_tmp:w { ##1 #2 ##2 } ##3 \q_stop }
       }
-      {
-        \str_set:Nx #3
-          {
-            #3
-            \str_if_empty:NF #3 { . }
-            #1
-          }
-        \@@_parse_full_name_auxiii:w #2 \q_stop #3#4
-      }
+    \@@_tmp:w { } #1 #2 \q_stop
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1110,17 +1072,15 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \file_list:
   {
-    \seq_set_eq:NN \l_@@_tmp_seq \g_@@_record_seq
+    \seq_clear:N \l_@@_tmp_seq
 %<*package>
     \clist_if_exist:NT \@filelist
       {
-        \clist_map_inline:Nn \@filelist
-          {
-            \seq_put_right:No \l_@@_tmp_seq
-              { \tl_to_str:n {##1} }
-          }
+        \exp_args:NNx \seq_set_from_clist:Nn \l_@@_tmp_seq
+          { \tl_to_str:N \@filelist }
       }
 %</package>
+    \seq_concat:NNN \l_@@_tmp_seq \l_@@_tmp_seq \g_@@_record_seq
     \seq_remove_duplicates:N \l_@@_tmp_seq
     \iow_log:n { *~File~List~* }
     \seq_map_inline:Nn \l_@@_tmp_seq { \iow_log:n {##1} }
@@ -1137,8 +1097,9 @@
 %<*package>
 \AtBeginDocument
   {
-    \clist_map_inline:Nn \@filelist
-      { \seq_gput_right:No \g_@@_record_seq { \tl_to_str:n {#1} } }
+    \exp_args:NNx \seq_set_from_clist:Nn \l_@@_tmp_seq
+      { \tl_to_str:N \@filelist }
+    \seq_gconcat:NNN \g_@@_record_seq \g_@@_record_seq \l_@@_tmp_seq
   }
 %</package>
 %    \end{macrocode}
@@ -1234,10 +1195,7 @@
   {
     \file_get_full_name:nN {#2} \l__file_full_name_str
     \str_if_empty:NTF \l__file_full_name_str
-      {
-        \__file_name_sanitize:nN {#2} \l__file_base_name_str
-        \__msg_kernel_error:nnx { kernel } { file-not-found } \l__file_base_name_str
-      }
+      { \__file_missing:n {#2} }
       { \@@_open:No #1 \l__file_full_name_str }
   }
 \cs_generate_variant:Nn \ior_open:Nn { c }
@@ -1250,7 +1208,7 @@
 %    \begin{macrocode}
 \prg_new_protected_conditional:Npnn \ior_open:Nn #1#2 { T , F , TF }
   {
-    \file_get_full_name:VN \l__file_base_name_str \l__file_full_name_str
+    \file_get_full_name:nN {#2} \l__file_full_name_str
     \str_if_empty:NTF \l__file_full_name_str
       { \prg_return_false: }
       {
@@ -2363,7 +2321,7 @@
 %
 % \subsection{Deprecated functions}
 %
-% \begin{variable}{\g_file_current_name_tl}
+% \begin{variable}[deprecated = 2018-12-31]{\g_file_current_name_tl}
 %   For removal after 2018-12-31.
 %    \begin{macrocode}
 \tl_new:N \g_file_current_name_tl
@@ -2371,19 +2329,33 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\file_path_include:n}
-% \begin{macro}{\file_path_remove:n}
-% \begin{macro}[aux]{\__file_path_include:n}
+% \begin{macro}[deprecated = 2018-12-31]{\file_path_include:n}
+% \begin{macro}[deprecated = 2018-12-31]{\file_path_remove:n}
+% \begin{macro}[deprecated = 2018-12-31, aux]{\__file_path_include:n}
 %   Wrapper functions to manage the search path.
 %    \begin{macrocode}
 \cs_new_protected:Npn \file_path_include:n #1
   {
+    \__msg_kernel_warning:nnxxx { kernel } { deprecated-command }
+      { 2018-12-31 }
+      { \token_to_str:N \file_path_include:n }
+      {
+        \token_to_str:N \seq_put_right:Nn \c_space_tl
+        \token_to_str:N \l_file_search_path_seq
+      }
     \__file_name_sanitize:nN {#1} \l__file_full_name_str
     \seq_if_in:NVF \l_file_search_path_seq \l__file_full_name_str
       { \seq_put_right:NV \l_file_search_path_seq \l__file_full_name_str }
   }
 \cs_new_protected:Npn \file_path_remove:n #1
   {
+    \__msg_kernel_warning:nnxxx { kernel } { deprecated-command }
+      { 2018-12-31 }
+      { \token_to_str:N \file_path_remove:n }
+      {
+        \token_to_str:N \seq_remove_all:Nn \c_space_tl
+        \token_to_str:N \l_file_search_path_seq
+      }
     \__file_name_sanitize:nN {#1} \l__file_full_name_str
     \seq_remove_all:NV \l_file_search_path_seq \l__file_full_name_str
   }
@@ -2392,11 +2364,15 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\file_add_path:nN}
+% \begin{macro}[deprecated = 2018-12-31]{\file_add_path:nN}
 %   For removal after 2018-12-31.
 %    \begin{macrocode}
 \cs_new_protected:Npn \file_add_path:nN #1#2
   {
+    \__msg_kernel_warning:nnxxx { kernel } { deprecated-command }
+      { 2018-12-31 }
+      { \token_to_str:N \file_add_path:nN }
+      { \token_to_str:N \file_get_full_name:nN }
     \file_get_full_name:nN {#1} #2
     \str_if_empty:NT #2
       { \tl_set:Nn #2 { \q_no_value } }
