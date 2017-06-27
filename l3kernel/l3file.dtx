@@ -105,7 +105,7 @@
 %   \cs{l_file_search_path_seq}.
 % \end{function}
 %
-% \begin{function}[updated = 2017-06-23]
+% \begin{function}[updated = 2017-06-26]
 %   {\file_get_full_name:nN, \file_get_full_name:VN}
 %   \begin{syntax}
 %     \cs{file_get_full_name:nN} \Arg{file name} \meta{str var}
@@ -113,10 +113,12 @@
 %   Searches for \meta{file name} in the path as detailed for
 %   \cs{file_if_exist:nTF}, and if found sets the \meta{str var} the
 %   fully-qualified name of the file, \emph{i.e.}~the path and file name.
+%   This includes an extension |.tex| when the given \meta{file name}
+%   has no extension but the file found has that extension.
 %   If the file is not found then the \meta{str var} is empty.
 % \end{function}
 %
-% \begin{function}[added = 2017-06-23]{\file_parse_full_name:nNNN}
+% \begin{function}[added = 2017-06-23, updated = 2017-06-26]{\file_parse_full_name:nNNN}
 %   \begin{syntax}
 %     \cs{file_parse_full_name:nNNN} \Arg{full name} \meta{dir} \meta{name} \meta{ext}
 %   \end{syntax}
@@ -125,22 +127,22 @@
 %   \begin{itemize}
 %     \item The \meta{dir}: everything up to the last |/| (path separator)
 %       in the \meta{file path}. As with system \texttt{PATH} variables
-%       and related functions, the \meta{dir} does \emph{not} feature a trailing
+%       and related functions, the \meta{dir} does \emph{not} include the trailing
 %       |/| unless it points to the root directory. If there is no path (only
 %       a file name), \meta{dir} is empty.
 %     \item The \meta{name}: everything after the last |/| up to the last |.|,
 %       where both of those characters are optional. The \meta{name} may
-%       contain multiple |.| characters.
-%      \item The \meta{ext}: everything after the last |.| (including the dot).
-%        If there is no \meta{ext} in the \meta{file path}, the \TeX{} standard
-%        value \texttt{.tex} is returned.
+%       contain multiple |.| characters. It is empty if \meta{full name} consists
+%       only of a directory name.
+%     \item The \meta{ext}: everything after the last |.| (including the dot).
+%       The \meta{ext} is empty if there is no |.| after the last |/|.
 %   \end{itemize}
 %   This function does not expand the \meta{full name} before turning it
 %   to a string.  It assume that the \meta{full name} either contains no
 %   quote (|"|) or is surrounded by a pair of quotes.
 % \end{function}
 %
-% \begin{function}[updated = 2012-02-17]{\file_input:n}
+% \begin{function}[updated = 2017-06-26]{\file_input:n}
 %   \begin{syntax}
 %     \cs{file_input:n} \Arg{file name}
 %   \end{syntax}
@@ -866,7 +868,10 @@
 %   looking at each potential path in turn (starting from the current
 %   directory). The first location is of course treated as the correct
 %   one: this is done by jumping to \cs{__prg_break_point:}. If nothing
-%   is found, |#2| is returned empty.
+%   is found, |#2| is returned empty. A special case when there is no
+%   extension is that once the first location is found we test the
+%   existence of the file with |.tex| extension in that directory, and
+%   if it exists we include the |.tex| extension in the result.
 %    \begin{macrocode}
 \cs_new_protected:Npn \file_get_full_name:nN #1#2
   {
@@ -883,6 +888,18 @@
 %</package>
     \str_clear:N \l__file_full_name_str
     \__prg_break_point:
+    \str_if_empty:NF \l__file_full_name_str
+      {
+        \exp_args:NV \file_parse_full_name:nNNN \l__file_full_name_str
+          \l_@@_dir_str \l_@@_name_str \l_@@_ext_str
+        \str_if_empty:NT \l_@@_ext_str
+          {
+            \__ior_open:No \g_@@_internal_ior
+              { \l__file_full_name_str .tex }
+            \ior_if_eof:NF \g_@@_internal_ior
+              { \str_put_right:Nn \l__file_full_name_str { .tex } }
+          }
+      }
     \str_set_eq:NN #2 \l__file_full_name_str
     \ior_close:N \g_@@_internal_ior
   }
@@ -929,7 +946,6 @@
 %
 % \begin{macro}{\file_input:n}
 % \begin{macro}[aux]{\@@_input:n, \@@_input:V}
-% \begin{macro}[aux]{\@@_input_aux:n, \@@_input_aux:o}
 % \begin{macro}[aux]{\@@_input_push:n}
 % \begin{macro}[aux]{\@@_input_pop:}
 % \begin{macro}[aux]{\@@_input_pop:nnn}
@@ -947,13 +963,6 @@
   }
 \cs_new_protected:Npn \@@_input:n #1
   {
-    \tl_if_in:nnTF {#1} { . }
-      { \@@_input_aux:n {#1} }
-      { \@@_input_aux:o { \tl_to_str:n { #1 . tex } } }
-  }
-\cs_generate_variant:Nn \@@_input:n { V }
-\cs_new_protected:Npn \@@_input_aux:n #1
-  {
 %<*initex>
     \seq_gput_right:Nn \g_@@_record_seq {#1}
 %</initex>
@@ -966,7 +975,7 @@
     \tex_input:D #1 \c_space_tl
     \@@_input_pop:
   }
-\cs_generate_variant:Nn \@@_input_aux:n { o }
+\cs_generate_variant:Nn \@@_input:n { V }
 %    \end{macrocode}
 %   Keeping a track of the file data is easy enough: we store the separated
 %   parts so we do not need to parse them twice.
@@ -1002,7 +1011,6 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
-% \end{macro}
 %
 % \begin{macro}{\file_parse_full_name:nNNN}
 % \begin{macro}[aux]
@@ -1015,10 +1023,8 @@
 %   split the base name |#5| at the last dot.  If there was indeed a
 %   dot, |#5| contains the name and |#6| the extension without the dot,
 %   which we add back for convenience.  In the special case of no
-%   extension given, the auxiliary stored the name into |#6|; we assume
-%   under such circumstances these are |.tex| files.  One exception is
-%   when we were just given a directory, in which case we don't add any
-%   extension.
+%   extension given, the auxiliary stored the name into |#6|, we just
+%   have to move it to |#5|.
 %    \begin{macrocode}
 \cs_new_protected:Npn \file_parse_full_name:nNNN #1#2#3#4
   {
@@ -1034,7 +1040,7 @@
       { \str_put_left:Nn #6 { . } }
       {
         \str_set_eq:NN #5 #6
-        \str_if_empty:NF #6 { \str_set:Nn #6 { .tex } }
+        \str_clear:N #6
       }
   }
 \cs_new_protected:Npn \@@_parse_full_name_split:nNNNTF #1#2#3#4
