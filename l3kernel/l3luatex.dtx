@@ -136,6 +136,33 @@
 %   the result to \TeX{}.
 % \end{function}
 %
+% \begin{function}{l3kernel.filemdfivesum}
+%   \begin{syntax}
+%     \cs{l3kernel.filemdfivesum}|(|\meta{file}|)|
+%   \end{syntax}
+%   Returns the of the MD5 sum of the file contents read as bytes. If the
+%   \meta{file} is not found, nothing is returned with \emph{no error raised}.
+% \end{function}
+%
+% \begin{function}{l3kernel.filemoddate}
+%   \begin{syntax}
+%     \cs{l3kernel.filemoddate}|(|\meta{file}|)|
+%   \end{syntax}
+%   Returns the of the date/time of last modification of the \meta{file} in the
+%   format |D:|\meta{year}\meta{month}\meta{day}\meta{hour}\meta{minute}^^A
+%   \meta{second}\meta{offset}, where the latter may be |Z| (UTC) or
+%   \meta{plus-minus}\meta{hours}|'|\meta{minutes}|'|. If the \meta{file} is
+%   not found, nothing is returned with \emph{no error raised}.
+% \end{function}
+%
+% \begin{function}{l3kernel.filesize}
+%   \begin{syntax}
+%     \cs{l3kernel.filesize}|(|\meta{file}|)|
+%   \end{syntax}
+%   Returns the size of the \meta{file} in bytes. If the \meta{file} is not
+%   found, nothing is returned with \emph{no error raised}.
+% \end{function}
+%
 % \begin{function}{l3kernel.strcmp}
 %   \begin{syntax}
 %     \cs{l3kernel.strcmp}|(|\meta{str one}, \meta{str two}|)|
@@ -221,6 +248,9 @@
 %<*lua>
 %    \end{macrocode}
 %
+% Most of the emulation of \pdfTeX{} here is based heavily on Heiko Oberdiek's
+% \pkg{pdftexcmds} package.
+%
 % \begin{macro}[int]{l3kernel}
 %   Create a table for the kernel's own use.
 %    \begin{macrocode}
@@ -230,17 +260,47 @@ l3kernel = l3kernel or { }
 %
 %   Local copies of global tables.
 %    \begin{macrocode}
+local io      = io
+local kpse    = kpse
+local lfs     = lfs
+local math    = math
+local md5     = md5
+local os      = os
+local string  = string
 local tex     = tex
 local unicode = unicode
 %    \end{macrocode}
 %
 %   Local copies of standard functions.
 %    \begin{macrocode}
+local abs        = math.abs
+local byte       = string.byte
+local floor      = math.floor
+local format     = string.format
+local gsub       = string.gsub
+local kpse_find  = kpse.find_file
+local lfs_attr   = lfs.attributes
+local md5_sum    = md5.sum
+local open       = io.open
+local os_date    = os.date
 local setcatcode = tex.setcatcode
+local str_format = string.format
 local sprint     = tex.sprint
 local write      = tex.write
 local utf8_char  = unicode.utf8.char
 %    \end{macrocode}
+%
+% \begin{macro}[aux]{escapehex}
+%   An internal auxiliary to convert a string to the matching hex escape.
+%   This works on a byte basis: extension to handled UTF-8 input is
+%   covered in \pkg{pdftexcmds} but is not currently required here.
+%    \begin{macrocode}
+local function escapehex(str)
+  write((gsub(str, ".",
+    function (ch) return format("%02X", byte(ch)) end)))
+end
+%    \end{macrocode}
+% \end{macro}
 %
 % \begin{macro}[int]{l3kernel.charcat}
 %   Creating arbitrary chars needs a category code table. As set up here,
@@ -254,6 +314,95 @@ local function charcat(charcode, catcode)
   sprint(charcat_table, utf8_char(charcode))
 end
 l3kernel.charcat = charcat
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{l3kernel.filemdfivesum}
+%   Read an entire file and hash it: the hash function itself is a built-in.
+%   As Lua is byte-based there is no work needed here in terms of UTF-8
+%   (see \pkg{pdftexcmds} and how it handles strings that have passed through
+%   \LuaTeX{}).
+%    \begin{macrocode}
+local function filemdfivesum(name)
+  local file =  kpse_find(name, "tex", true)
+  if file then
+    local f = open(file, "r")
+    if f then
+      local data = f:read("*a")
+      escapehex(md5_sum(data))
+      f:close()
+    end
+  end
+end
+l3kernel.filemdfivesum = filemdfivesum
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{l3kernel.filemoddate}
+%   See procedure \texttt{makepdftime} in \texttt{utils.c} of
+%   \pdfTeX{}.
+%    \begin{macrocode}
+local function filemoddate(name)
+  local file =  kpse_find(name, "tex", true)
+  if file then
+    local date = lfs_attr(file, "modification")
+    if date then
+      local d = os_date("*t", date)
+      if d.sec >= 60 then
+        d.sec = 59
+      end
+      local u = os_date("!*t", date)
+      local off = 60 * (d.hour - u.hour) + d.min - u.min
+      if d.year ~= u.year then
+        if d.year > u.year then
+          off = off + 1440
+        else
+          off = off - 1440
+        end
+      elseif d.yday ~= u.yday then
+        if d.yday > u.yday then
+          off = off + 1440
+        else
+          off = off - 1440
+        end
+      end
+      local timezone
+      if off == 0 then
+        timezone = "Z"
+      else
+        local hours = floor(off / 60)
+        local mins  = abs(off - hours * 60)
+        timezone = str_format("%+03d", hours)
+          .. "'" .. str_format("%02d", mins) .. "'"
+      end
+      write("D:"
+        .. str_format("%04d", d.year)
+        .. str_format("%02d", d.month)
+        .. str_format("%02d", d.day)
+        .. str_format("%02d", d.hour)
+        .. str_format("%02d", d.min)
+        .. str_format("%02d", d.sec)
+        .. timezone)
+    end
+  end
+end
+l3kernel.filemoddate = filemoddate
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{l3kernel.filesize}
+%   A simple disk lookup.
+%    \begin{macrocode}
+local function filesize(name)
+  local file =  kpse_find(name, "tex", true)
+  if file then
+    local size = lfs_attr(file, "size")
+    if size then
+      write(size)
+    end
+  end
+end
+l3kernel.filesize = filesize
 %    \end{macrocode}
 % \end{macro}
 %

@@ -206,6 +206,40 @@
 %
 % \section{Additions to \pkg{l3file}}
 %
+% \begin{function}[added = 2017-07-09]{\file_get_hash:nN}
+%   \begin{syntax}
+%     \cs{file_get_hash:nN} \Arg{file name} \meta{str var}
+%   \end{syntax}
+%   Searches for \meta{file name} using the current \TeX{} search
+%   path and the additional paths controlled by \cs{file_path_include:n}.
+%   If found, sets the \meta{str var} to the MD5 sum generated from the
+%   content of the file.
+%   Where the file is not found, the \meta{str var} will be empty.
+% \end{function}
+%
+% \begin{function}[added = 2017-07-09]{\file_get_size:nN}
+%   \begin{syntax}
+%     \cs{file_get_size:nN} \Arg{file name} \meta{str var}
+%   \end{syntax}
+%   Searches for \meta{file name} using the current \TeX{} search
+%   path and the additional paths controlled by \cs{file_path_include:n}.
+%   If found, sets the \meta{str var} to the size of the file in bytes.
+%   Where the file is not found, the \meta{str var} will be empty.
+% \end{function}
+%
+% \begin{function}[added = 2017-07-09]{\file_get_timestamp:nN}
+%   \begin{syntax}
+%     \cs{file_get_timestamp:nN} \Arg{file name} \meta{str var}
+%   \end{syntax}
+%   Searches for \meta{file name} using the current \TeX{} search
+%   path and the additional paths controlled by \cs{file_path_include:n}.
+%   If found, sets the \meta{str var} to the modification timestamp of
+%   the file in the form D:|\meta{year}\meta{month}\meta{day}\meta{hour}^^A
+%   \meta{minute}\meta{second}\meta{offset}, where the latter may be |Z|
+%   (UTC) or \meta{plus-minus}\meta{hours}|'|\meta{minutes}|'|.
+%   Where the file is not found, the \meta{str var} will be empty.
+% \end{function}
+%
 % \begin{function}[TF, added = 2014-07-02]{\file_if_exist_input:n}
 %   \begin{syntax}
 %     \cs{file_if_exist_input:n} \Arg{file name}
@@ -213,7 +247,7 @@
 %   \end{syntax}
 %   Searches for \meta{file name} using the current \TeX{} search
 %   path and the additional paths controlled by
-%   \cs{file_path_include:n}). If found, inserts the \meta{true code} then
+%   \cs{file_path_include:n}. If found, inserts the \meta{true code} then
 %   reads in the file as additional \LaTeX{} source as described for
 %   \cs{file_input:n}. Note that \cs{file_if_exist_input:n} does not raise
 %   an error if the file is not found, in contrast to \cs{file_input:n}.
@@ -1520,6 +1554,77 @@
 %    \begin{macrocode}
 %<@@=file>
 %    \end{macrocode}
+%
+% \begin{macro}{\file_get_hash:nN, \file_get_size:nN, \file_get_timestamp:nN, }
+% \begin{macro}[aux]{\@@_get_details:nnN}
+%   These are all wrappers around the \pdfTeX{} primitives doing the same
+%   jobs: as we want consistent file paths to be found, they are all set up
+%   using \cs{file_get_full_name:nN} and so are non-expandable \texttt{get}
+%   functions. Much of the code is repetitive but we need to branch for
+%   \LuaTeX{} (emulation in Lua), for the slightly different syntax
+%   needed for \tn{pdftex_mdfivesum:D} and for the fact that primitive
+%   coverage varies in other engines.
+%    \begin{macrocode}
+\cs_new_protected:Npn \file_get_hash:nN #1#2
+  { \@@_get_details:nnN {#1} { mdfivesum } {#2} }
+\cs_new_protected:Npn \file_get_size:nN #1#2
+  { \@@_get_details:nnN {#1} { size } {#2} }
+\cs_new_protected:Npn \file_get_timestamp:nN #1#2
+  { \@@_get_details:nnN {#1} { moddate } {#2} }
+\cs_new_protected:Npn \@@_get_details:nnN #1#2#3
+  {
+    \file_get_full_name:nN {#1} \l_@@_full_name_str
+    \str_set:Nx #3
+      {
+        \use:c { pdftex_file #2 :D } \exp_after:wN
+          { \l_@@_full_name_str }
+      }
+  }
+\cs_if_exist:NTF \luatex_directlua:D
+  {
+    \cs_set_protected:Npn \@@_get_details:nnN #1#2#3
+      {
+        \file_get_full_name:nN {#1} \l_@@_full_name_str
+        \str_set:Nx #3
+          {
+            \lua_now_x:n
+              {
+                l3kernel.file#2
+                  ( " \lua_escape_x:n { \l_@@_full_name_str } " )
+              }
+          }
+       }
+  }
+  {
+    \cs_set_protected:Npn \file_get_hash:nN #1#2
+      {
+        \file_get_full_name:nN {#1} \l_@@_full_name_str
+        \tl_set:Nx #2
+          {
+            \pdftex_mdfivesum:D file \exp_after:wN
+              { \l_@@_full_name_str }
+          }
+      }
+    \cs_if_exist:NT \xetex_XeTeXversion:D
+      {
+        \cs_set_protected:Npn \@@_get_details:nnN #1#2#3
+          {
+            \tl_clear:N #3
+            \__msg_kernel_error:nnx
+              { kernel } { xetex-primitive-not-available }
+              { \exp_not:c { pdffile #2 } }
+          }
+      }
+  }
+\__msg_kernel_new:nnnn { kernel } { xetex-primitive-not-available }
+  { Primitive~\token_to_str:N #1 not~available }
+  {
+    XeTeX~does~not~currently~provide~functionality~equivalent~to~the~
+    \token_to_str:N #1 primitive.
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 %
 % \begin{macro}[TF]{\file_if_exist_input:n}
 %   Input of a file with a test for existence cannot be done the usual
