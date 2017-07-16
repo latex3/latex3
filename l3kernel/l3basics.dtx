@@ -1688,6 +1688,328 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \subsection{Debugging and patching later definitions}
+%
+% \begin{macro}[int]{\__debug:TF}
+%   A more meaningful test of whether debugging is enabled than messing
+%   up with guards.  We can also more easily change the logic in one
+%   place then.  At present, debugging is disabled in the format and in
+%   generic mode, while in \LaTeXe{} mode it is enabled if one of the
+%   options \texttt{enable-debug}, \texttt{log-functions} or
+%   \texttt{check-declarations} was given.
+%    \begin{macrocode}
+\cs_set_protected:Npn \__debug:TF #1#2 {#2}
+%<*package>
+\tex_ifodd:D \l@expl@enable@debug@bool
+  \cs_set_protected:Npn \__debug:TF #1#2 {#1}
+\fi:
+%</package>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\debug_check_declarations_on:, \debug_check_declarations_off:}
+% \begin{macro}[int]{\__chk_if_exist_var:N}
+%   When debugging is not active these two user functions produce an
+%   error.  Otherwise they set up \cs{__chk_if_exist_var:N}, a function
+%   which when \texttt{check-declarations} is active tests that a given
+%   variable is defined.
+%    \begin{macrocode}
+\__debug:TF
+  {
+    \cs_set_protected:Npn \debug_check_declarations_on:
+      {
+        \cs_set_protected:Npn \__chk_if_exist_var:N ##1
+          {
+            \cs_if_exist:NF ##1
+              {
+                \__msg_kernel_error:nnx { check } { non-declared-variable }
+                  { \token_to_str:N ##1 }
+              }
+          }
+      }
+    \cs_set_protected:Npn \debug_check_declarations_off:
+      { \cs_set_protected:Npn \__chk_if_exist_var:N ##1 { } }
+    \tex_ifodd:D \l@expl@check@declarations@bool
+      \debug_check_declarations_on:
+    \else:
+      \debug_check_declarations_off:
+    \fi:
+  }
+  {
+    \cs_set_protected:Npn \debug_check_declarations_on:
+      {
+        \__msg_kernel_error:nnx { kernel } { enable-debug }
+          { \token_to_str:N \debug_check_declarations_on: }
+      }
+    \cs_set_protected:Npn \debug_check_declarations_off:
+      {
+        \__msg_kernel_error:nnx { kernel } { enable-debug }
+          { \token_to_str:N \debug_check_declarations_off: }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\debug_log_functions_on:, \debug_log_functions_off:}
+% \begin{macro}[int]{\__debug_log:x, \__debug_suspend_log:, \__debug_resume_log:}
+%   The \cs{debug_log_functions_on:} and \texttt{off} functions
+%   (corresponding to the \pkg{expl3} option \texttt{log-functions})
+%   control whether \cs{__debug_log:x} writes to the log file or not.
+%   Since \cs{iow_log:x} does not yet have its final definition we do
+%   not use \cs{cs_set_eq:NN} (not defined yet anyway).  The
+%   \cs{__debug_suspend_log:} function disables \cs{__debug_log:x} until
+%   the matching \cs{__debug_resume_log:}.  These two commands are used
+%   to improve the logging for datatypes with multiple parts, currently
+%   only coffins.  They should come in pairs, which can be nested (this
+%   complicates the code here and is currently unused).  The function
+%   \cs{exp_not:o} is defined in \pkg{l3expan} later on but
+%   \cs{__debug_suspend_log:} and \cs{__debug_resume_log:} are not used
+%   before that point.  Once everything is defined, turn logging on or
+%   off depending on what option was given.
+%   When debugging is not enabled, simply produce an error.
+%    \begin{macrocode}
+\__debug:TF
+  {
+    \cs_set_protected:Npn \debug_log_functions_on:
+      {
+        \cs_set_protected:Npn \__debug_log:x { \iow_log:x }
+        \cs_set_protected:Npn \__debug_suspend_log:
+          {
+            \cs_set_protected:Npx \__debug_resume_log:
+              {
+                \cs_set_protected:Npn \__debug_resume_log:
+                  { \exp_not:o { \__debug_resume_log: } }
+                \cs_set_protected:Npn \__debug_log:x
+                  { \exp_not:o { \__debug_log:x } }
+              }
+            \cs_set_protected:Npn \__debug_log:x { \use_none:n }
+          }
+        \cs_set_protected:Npn \__debug_resume_log: { }
+      }
+    \cs_set_protected:Npn \debug_log_functions_off:
+      {
+        \cs_set_protected:Npn \__debug_log:x { \use_none:n }
+        \cs_set_protected:Npn \__debug_suspend_log: { }
+        \cs_set_protected:Npn \__debug_resume_log: { }
+      }
+    \tex_ifodd:D \l@expl@log@functions@bool
+      \debug_log_functions_on:
+    \else:
+      \debug_log_functions_off:
+    \fi:
+  }
+  {
+    \cs_set_protected:Npn \debug_log_functions_on:
+      {
+        \__msg_kernel_error:nnx { kernel } { enable-debug }
+          { \token_to_str:N \debug_log_functions_on: }
+      }
+    \cs_set_protected:Npn \debug_log_functions_off:
+      {
+        \__msg_kernel_error:nnx { kernel } { enable-debug }
+          { \token_to_str:N \debug_log_functions_off: }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\debug_deprecation_on:, \debug_deprecation_off:}
+% \begin{variable}{\g__debug_deprecation_on_tl, \g__debug_deprecation_off_tl}
+%   Some commands were more recently deprecated and not yet removed;
+%   only make these into errors if the user requests it.  This relies on
+%   two token lists, filled up by calls to
+%   \cs{__debug_deprecation:nnNNpn} in each module.
+%    \begin{macrocode}
+\__debug:TF
+  {
+    \cs_set_protected:Npn \debug_deprecation_on:
+      { \g__debug_deprecation_on_tl }
+    \cs_set_protected:Npn \debug_deprecation_off:
+      { \g__debug_deprecation_off_tl }
+    \cs_set_nopar:Npn \g__debug_deprecation_on_tl { }
+    \cs_set_nopar:Npn \g__debug_deprecation_off_tl { }
+  }
+  {
+    \cs_set_protected:Npn \debug_deprecation_on:
+      {
+        \__msg_kernel_error:nnx { kernel } { enable-debug }
+          { \token_to_str:N \debug_deprecation_on: }
+      }
+    \cs_set_protected:Npn \debug_deprecation_off:
+      {
+        \__msg_kernel_error:nnx { kernel } { enable-debug }
+          { \token_to_str:N \debug_deprecation_off: }
+      }
+  }
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+% \begin{macro}[int]{\__debug_deprecation:nnNNpn}
+% \begin{macro}[aux]{\__debug_deprecation_aux:nnNnn}
+%   Grab a definition (at present, must be \cs{cs_new_protected:Npn}).
+%   Add to \cs{g__debug_deprecation_on_tl} some code that makes the
+%   defined macro |#3| outer (and defines it as an error).  Add to
+%   \cs{g__debug_deprecation_off_tl} the definition itself.  In both
+%   cases we undefine the token with \cs{tex_let:D} to avoid taking a
+%   potentially outer macro as the argument of some \pkg{expl3}
+%   function.  Finally define the macro itself to produce a warning then
+%   redefine and call itself.  The macro initially takes no parameters:
+%   together with the \texttt{x}-expanding assignment and \cs{exp_not:n}
+%   this gives a convenient way of storing the macro's definition in
+%   itself in order to only produce the warning once for each macro.
+%   If debugging is disabled, \cs{__debug_deprecation:nnNNpn} lets the
+%   definition happen.
+%    \begin{macrocode}
+\__debug:TF
+  {
+    \cs_set_protected:Npn \__debug_deprecation:nnNNpn #1#2#3#4#5#
+      {
+        \if_meaning:w \cs_new_protected:Npn #3
+        \else:
+          \__msg_kernel_error:nnx { kernel } { debug-unpatchable }
+            { \token_to_str:N #3 ~(for~deprecation) }
+        \fi:
+        \__debug_deprecation_aux:nnNnn {#1} {#2} #4 {#5}
+      }
+    \cs_set_protected:Npn \__debug_deprecation_aux:nnNnn #1#2#3#4#5
+      {
+        \tl_gput_right:Nn \g__debug_deprecation_on_tl
+          {
+            \tex_let:D #3 \scan_stop:
+            \__deprecation_error:Nnn #3 {#2} {#1}
+          }
+        \tl_gput_right:Nn \g__debug_deprecation_off_tl
+          {
+            \tex_let:D #3 \scan_stop:
+            \cs_set_protected:Npn #3 #4 {#5}
+          }
+        \cs_new_protected:Npx #3
+          {
+            \exp_not:N \__msg_kernel_warning:nnxxx
+              { kernel } { deprecated-command }
+              {#1} { \token_to_str:N #3 } { \tl_to_str:n {#2} }
+            \exp_not:n { \cs_gset_protected:Npn #3 #4 {#5} }
+            \exp_not:N #3
+          }
+      }
+  }
+  { \cs_set_protected:Npn \__debug_deprecation:nnNNpn #1#2 { } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\__debug_patch:nnNw}
+% \begin{macro}[aux,EXP]{\__debug_patch_case:N}
+% \begin{macro}[aux]
+%   {
+%     \__debug_patch_param:NNnnNnp,
+%     \__debug_patch_cs:nnNNnn,
+%     \__debug_patch_conditional:nnNNnnn
+%   }
+%   When debugging is not enabled, \cs{__debug_patch:nnNw} throws the
+%   patch away.  Otherwise it can be followed by \cs{cs_new:Npn} or
+%   \cs{prg_new_conditional:Npnn} or their protected counterparts.  In
+%   each case, grab the name of the function to be defined and its
+%   parameters using \cs{__debug_patch_param:w} then insert tokens
+%   before and after the definition.  Of course for a conditional one
+%   should likely not insert anything after the code.
+%    \begin{macrocode}
+\__debug:TF
+  {
+    \cs_set_protected:Npn \__debug_patch:nnNw #1#2#3
+      {
+        \tex_ifcase:D \__debug_patch_case:N #3
+        \or:
+          \exp_after:wN \__debug_patch_param:NNnnNnp
+          \exp_after:wN \__debug_patch_cs:nnNNnn
+        \else:
+          \exp_after:wN \__debug_patch_param:NNnnNnp
+          \exp_after:wN \__debug_patch_conditional:nnNNnnn
+        \fi:
+        \use_none:nn {#1} {#2} #3
+      }
+    \cs_set:Npn \__debug_patch_case:N #1
+      {
+        \if_meaning:w #1 \cs_new_protected:Npn  1~ \fi:
+        \if_meaning:w #1 \cs_new:Npn            1~ \fi:
+        \if_meaning:w #1 \cs_set_protected:Npn  1~ \fi:
+        \if_meaning:w #1 \cs_set:Npn            1~ \fi:
+        \if_meaning:w #1 \cs_gset_protected:Npn 1~ \fi:
+        \if_meaning:w #1 \cs_gset:Npn           1~ \fi:
+        \if_meaning:w #1 \prg_new_protected_conditional:Npnn 2~ \fi:
+        \if_meaning:w #1 \prg_new_conditional:Npnn           2~ \fi:
+        0~ %
+        \__msg_kernel_error:nnx { kernel } { debug-unpatchable }
+          { \token_to_str:N #1 }
+      }
+    \cs_set_protected:Npn \__debug_patch_param:NNnnNnp #1#2#3#4#5#6#7#
+      { #1 {#3} {#4} #5 #6 {#7} }
+    \cs_set_protected:Npn \__debug_patch_cs:nnNNnn #1#2#3#4#5#6
+      { #3 #4 #5 { #1 #6 #2 } }
+    \cs_set_protected:Npn \__debug_patch_conditional:nnNNnnn
+        #1#2#3#4#5#6#7
+      { #3 #4 #5 {#6} { #1 #7 #2 } }
+  }
+  { \cs_set_protected:Npn \__debug_patch:nnNw #1#2 { } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[int]{\__debug_patch_args:nNw}
+% \begin{macro}[aux]
+%   {
+%     \__debug_tmp:w,
+%     \__debug_patch_args_param:NNnNnp,
+%     \__debug_patch_args_cs:nNNnn,
+%     \__debug_patch_args_conditional:nNNnnn
+%   }
+%   See \cs{__debug_patch:nnNw}.  The first argument is something like
+%   |{#1}{(#2)}|.  Define a temporary macro using the \meta{parameters}
+%   and \meta{code} of the definition that follows, then expand that
+%   temporary macro in front of the first argument to obtain new
+%   \meta{code}.  Then perform the definition as if that new \meta{code}
+%   was directly typed in the file.  To make it easy to expand in the
+%   definition, treat it as a \enquote{pre}-code to an empty definition.
+%    \begin{macrocode}
+\__debug:TF
+  {
+    \cs_set_protected:Npn \__debug_patch_args:nNw #1#2
+      {
+        \tex_ifcase:D \__debug_patch_case:N #2
+        \or:
+          \exp_after:wN \__debug_patch_args_param:NNnNnp
+          \exp_after:wN \__debug_patch_args_cs:nNNnn
+        \else:
+          \exp_after:wN \__debug_patch_args_param:NNnNnp
+          \exp_after:wN \__debug_patch_args_conditional:nNNnnn
+        \fi:
+        \use_none:n {#1} #2
+      }
+    \cs_set_protected:Npn \__debug_patch_args_param:NNnNnp #1#2#3#4#5#6#
+      { #1 {#3} #4 #5 {#6} }
+    \cs_set_protected:Npn \__debug_patch_args_cs:nNNnn #1#2#3#4#5
+      {
+        \cs_set:Npn \__debug_tmp:w #4 {#5}
+        \exp_after:wN \__debug_patch_cs:nnNNnn \exp_after:wN
+          { \__debug_tmp:w #1 } { } #2 #3 {#4} { }
+      }
+    \cs_set_protected:Npn \__debug_patch_args_conditional:nNNnnn
+        #1#2#3#4#5#6
+      {
+        \cs_set:Npn \__debug_tmp:w #4 {#6}
+        \exp_after:wN \__debug_patch_conditional:nnNNnnn \exp_after:wN
+          { \__debug_tmp:w #1 } { } #2 #3 {#4} {#5} { }
+      }
+  }
+  { \cs_set_protected:Npn \__debug_patch_args:nNw #1 { } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \subsection{Conditional processing and definitions}
 %
 % Underneath any predicate function (|_p|) or other conditional forms
@@ -2301,7 +2623,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsection{Checking and patching (new) functions}
+% \subsection{Preliminaries for new functions}
 %
 %    We provide two kinds of functions that can be used to define
 %    control sequences. On the one hand we have functions that check
@@ -2361,188 +2683,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\debug_log_functions_on:, \debug_log_functions_off:}
-% \begin{macro}[int]{\__debug_log:x, \__debug_suspend_log:, \__debug_resume_log:}
-%   When debugging is not enabled at all (including in the format), the
-%   \cs[index=debug_log_functions_on:]{debug_log_functions_on/off:}
-%   functions simply produce errors, while \cs{__debug_suspend_log:} and
-%   \cs{__debug_resume_log:} do nothing.
-%    \begin{macrocode}
-\cs_set_protected:Npn \debug_log_functions_on:
-  {
-    \__msg_kernel_error:nnx { kernel } { enable-debug }
-      { \token_to_str:N \debug_log_functions_on: }
-  }
-\cs_set_protected:Npn \debug_log_functions_off:
-  {
-    \__msg_kernel_error:nnx { kernel } { enable-debug }
-      { \token_to_str:N \debug_log_functions_off: }
-  }
-\cs_set_protected:Npn \__debug_suspend_log: { }
-\cs_set_protected:Npn \__debug_resume_log: { }
-%    \end{macrocode}
-%   Otherwise, they set up \cs{__debug_log:x},
-%   \cs{__debug_suspend_log:}, and \cs{__debug_resume_log:} to have the
-%   following behaviour.  The function \cs{__debug_log:x} is used to
-%   write some information to the \texttt{log} file in case the
-%   \texttt{log-function} option is active and to otherwise ignore its
-%   argument.  Using this function rather than directly using
-%   \cs{iow_log:x} allows for \cs{__debug_suspend_log:} which disables
-%   such messages until the matching \cs{__debug_resume_log:}.  These
-%   two commands are used to improve the logging for datatypes with
-%   multiple parts (currently only coffins).  They should come in pairs,
-%   which can be nested.  The function \cs{exp_not:o} is defined in
-%   \pkg{l3expan} later on but \cs{__debug_suspend_log:} and
-%   \cs{__debug_resume_log:} are not used before that point.  Once
-%   everything is defined, turn logging on or off depending on what
-%   option was given.
-%    \begin{macrocode}
-%<*package>
-\tex_ifodd:D \l@expl@enable@debug@bool
-  \cs_set_protected:Npn \debug_log_functions_on:
-    {
-      \cs_set_protected:Npn \__debug_log:x { \iow_log:x }
-      \cs_set_protected:Npn \__debug_suspend_log:
-        {
-          \cs_set_protected:Npx \__debug_resume_log:
-            {
-              \cs_set_protected:Npn \__debug_resume_log:
-                { \exp_not:o { \__debug_resume_log: } }
-              \cs_set_protected:Npn \__debug_log:x
-                { \exp_not:o { \__debug_log:x } }
-            }
-          \cs_set_protected:Npn \__debug_log:x { \use_none:n }
-        }
-      \cs_set_protected:Npn \__debug_resume_log: { }
-    }
-  \cs_set_protected:Npn \debug_log_functions_off:
-    {
-      \cs_set_protected:Npn \__debug_log:x { \use_none:n }
-      \cs_set_protected:Npn \__debug_suspend_log: { }
-      \cs_set_protected:Npn \__debug_resume_log: { }
-    }
-  \tex_ifodd:D \l@expl@log@functions@bool
-    \debug_log_functions_on:
-  \else:
-    \debug_log_functions_off:
-  \fi:
-\fi:
-%</package>
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[int]{\__debug_patch:nnNw}
-% \begin{macro}[aux,EXP]{\__debug_patch_case:N}
-% \begin{macro}[aux]
-%   {
-%     \__debug_patch_param:NNnnNnp,
-%     \__debug_patch_cs:nnNNnn,
-%     \__debug_patch_conditional:nnNNnnn
-%   }
-%   When debugging is not enabled, \cs{__debug_patch:nnNw} throws the
-%   patch away.  Otherwise it can be followed by \cs{cs_new:Npn} or
-%   \cs{prg_new_conditional:Npnn} or their protected counterparts.  In
-%   each case, grab the name of the function to be defined and its
-%   parameters using \cs{__debug_patch_param:w} then insert tokens
-%   before and after the definition.  Of course for a conditional one
-%   should likely not insert anything after the code.
-%    \begin{macrocode}
-\cs_set_protected:Npn \__debug_patch:nnNw #1#2 { }
-%<*package>
-\tex_ifodd:D \l@expl@enable@debug@bool
-  \cs_set_protected:Npn \__debug_patch:nnNw #1#2#3
-    {
-      \tex_ifcase:D \__debug_patch_case:N #3
-      \or:
-        \exp_after:wN \__debug_patch_param:NNnnNnp
-        \exp_after:wN \__debug_patch_cs:nnNNnn
-      \else:
-        \exp_after:wN \__debug_patch_param:NNnnNnp
-        \exp_after:wN \__debug_patch_conditional:nnNNnnn
-      \fi:
-      \use_none:nn {#1} {#2} #3
-    }
-  \cs_set:Npn \__debug_patch_case:N #1
-    {
-      \if_meaning:w #1 \cs_new_protected:Npn  1~ \fi:
-      \if_meaning:w #1 \cs_new:Npn            1~ \fi:
-      \if_meaning:w #1 \cs_set_protected:Npn  1~ \fi:
-      \if_meaning:w #1 \cs_set:Npn            1~ \fi:
-      \if_meaning:w #1 \cs_gset_protected:Npn 1~ \fi:
-      \if_meaning:w #1 \cs_gset:Npn           1~ \fi:
-      \if_meaning:w #1 \prg_new_protected_conditional:Npnn 2~ \fi:
-      \if_meaning:w #1 \prg_new_conditional:Npnn           2~ \fi:
-      0~ %
-      \__msg_kernel_error:nnx { kernel } { debug-unpatchable }
-        { \token_to_str:N #1 }
-    }
-  \cs_set_protected:Npn \__debug_patch_param:NNnnNnp #1#2#3#4#5#6#7#
-    { #1 {#3} {#4} #5 #6 {#7} }
-  \cs_set_protected:Npn \__debug_patch_cs:nnNNnn #1#2#3#4#5#6
-    { #3 #4 #5 { #1 #6 #2 } }
-  \cs_set_protected:Npn \__debug_patch_conditional:nnNNnnn
-      #1#2#3#4#5#6#7
-    { #3 #4 #5 {#6} { #1 #7 #2 } }
-\fi:
-%</package>
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[int]{\__debug_patch_args:nNw}
-% \begin{macro}[aux]
-%   {
-%     \__debug_tmp:w,
-%     \__debug_patch_args_param:NNnNnp,
-%     \__debug_patch_args_cs:nNNnn,
-%     \__debug_patch_args_conditional:nNNnnn
-%   }
-%   See \cs{__debug_patch:nnNw}.  The first argument is something like
-%   |{#1}{(#2)}|.  Define a temporary macro using the \meta{parameters}
-%   and \meta{code} of the definition that follows, then expand that
-%   temporary macro in front of the first argument to obtain new
-%   \meta{code}.  Then perform the definition as if that new \meta{code}
-%   was directly typed in the file.  To make it easy to expand in the
-%   definition, treat it as a \enquote{pre}-code to an empty definition.
-%    \begin{macrocode}
-\cs_set_protected:Npn \__debug_patch_args:nNw #1 { }
-%<*package>
-\tex_ifodd:D \l@expl@enable@debug@bool
-  \cs_set_protected:Npn \__debug_patch_args:nNw #1#2
-    {
-      \tex_ifcase:D \__debug_patch_case:N #2
-      \or:
-        \exp_after:wN \__debug_patch_args_param:NNnNnp
-        \exp_after:wN \__debug_patch_args_cs:nNNnn
-      \else:
-        \exp_after:wN \__debug_patch_args_param:NNnNnp
-        \exp_after:wN \__debug_patch_args_conditional:nNNnnn
-      \fi:
-      \use_none:n {#1} #2
-    }
-  \cs_set_protected:Npn \__debug_patch_args_param:NNnNnp #1#2#3#4#5#6#
-    { #1 {#3} #4 #5 {#6} }
-  \cs_set_protected:Npn \__debug_patch_args_cs:nNNnn #1#2#3#4#5
-    {
-      \cs_set:Npn \__debug_tmp:w #4 {#5}
-      \exp_after:wN \__debug_patch_cs:nnNNnn \exp_after:wN
-        { \__debug_tmp:w #1 } { } #2 #3 {#4} { }
-    }
-  \cs_set_protected:Npn \__debug_patch_args_conditional:nNNnnn
-      #1#2#3#4#5#6
-    {
-      \cs_set:Npn \__debug_tmp:w #4 {#6}
-      \exp_after:wN \__debug_patch_conditional:nnNNnnn \exp_after:wN
-        { \__debug_tmp:w #1 } { } #2 #3 {#4} {#5} { }
-    }
-\fi:
-%</package>
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
 % \begin{macro}[int]{\__chk_if_free_cs:N, \__chk_if_free_cs:c}
 %   This command is called by \cs{cs_new_nopar:Npn} and \cs{cs_new_eq:NN}
 %   \emph{etc.}\
@@ -2565,49 +2705,6 @@
 \cs_set_protected:Npn \__chk_if_free_cs:c
   { \exp_args:Nc \__chk_if_free_cs:N }
 %    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\debug_check_declarations_on:, \debug_check_declarations_off:}
-% \begin{macro}[int]{\__chk_if_exist_var:N}
-%   When debugging is not active these two user functions produce an
-%   error.  Otherwise they set up \cs{__chk_if_exist_var:N}, a function
-%   which when \texttt{check-declarations} is active tests that a given
-%   variable is defined.
-%    \begin{macrocode}
-\cs_set_protected:Npn \debug_check_declarations_on:
-  {
-    \__msg_kernel_error:nnx { kernel } { enable-debug }
-      { \token_to_str:N \debug_check_declarations_on: }
-  }
-\cs_set_protected:Npn \debug_check_declarations_off:
-  {
-    \__msg_kernel_error:nnx { kernel } { enable-debug }
-      { \token_to_str:N \debug_check_declarations_off: }
-  }
-%<*package>
-\tex_ifodd:D \l@expl@enable@debug@bool
-  \cs_set_protected:Npn \debug_check_declarations_on:
-    {
-      \cs_set_protected:Npn \__chk_if_exist_var:N ##1
-        {
-          \cs_if_exist:NF ##1
-            {
-              \__msg_kernel_error:nnx { check } { non-declared-variable }
-                { \token_to_str:N ##1 }
-            }
-        }
-    }
-  \cs_set_protected:Npn \debug_check_declarations_off:
-    { \cs_set_protected:Npn \__chk_if_exist_var:N ##1 { } }
-  \tex_ifodd:D \l@expl@check@declarations@bool
-    \debug_check_declarations_on:
-  \else:
-    \debug_check_declarations_off:
-  \fi:
-\fi:
-%</package>
-%    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[int]{\__chk_if_exist_cs:N, \__chk_if_exist_cs:c}
