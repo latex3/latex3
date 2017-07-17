@@ -313,12 +313,8 @@
 % The whole process takes linear time, because we avoid building the
 % result one item at a time.
 %
-% To ease the difficult first pass, we first do some setup with
-% \cs{@@_setup:n}. Active characters set equal to non-active
-% characters cause trouble, so we disable all active characters by
-% setting them equal to \texttt{undefined} locally. We also set there
-% the escape character to be printable (backslash, but this later
-% oscillates between slash and backslash): this makes it possible to
+% We make the escape character printable (backslash, but this later
+% oscillates between slash and backslash): this allows us to
 % distinguish characters from control sequences.
 %
 % A token has two characteristics: its \tn{meaning}, and what it looks
@@ -339,7 +335,7 @@
 %   \item a non-active character, in which case its meaning is
 %     automatically that associated to its character code and category
 %     code, we call it \enquote{true} character;
-%   \item an active character (we eliminate those in the setup step);
+%   \item an active character;
 %   \item a control sequence.
 % \end{itemize}
 % The only tokens which are not valid \texttt{N}-type arguments are true
@@ -360,7 +356,6 @@
   {
     \group_begin:
       \group_align_safe_begin:
-        \@@_setup:n {#1}
         \@@_a:n {#1}
         \@@_b:n {#1}
       \group_align_safe_end:
@@ -369,53 +364,35 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsection{Setup}
+% \subsection{Disabling active characters}
 %
-% \begin{macro}[int]{\@@_setup:n}
-% \begin{macro}[aux]{\@@_disable_loop:N}
-%   Active characters can cause problems later on in the processing,
-%   so the first step is to disable them, by setting them to
-%   \texttt{undefined}. Since Unicode contains too many characters
-%   to loop over all of them, we instead loop over the input token
-%   list as a string: any active character in the token list
-%   must appear in its string representation. The string is shortened
-%   a little by making the escape character unprintable. The active
-%   space must be disabled separately (the loop skips over it otherwise),
-%   and we end the loop by feeding an odd non-\texttt{N}-type argument
-%   to the looping macro.  For \pTeX{} and \upTeX{} we skip characters
-%   beyond $[0,255]$ because \tn{lccode} only allows those values.
+% \begin{macro}[aux]{\@@_disable:n}
+%   Active characters can cause problems later on in the processing, so
+%   we provide a way to disable them, by setting them to
+%   \texttt{undefined}. Since Unicode contains too many characters to
+%   loop over all of them, we instead do this whenever we encounter a
+%   character.  For \pTeX{} and \upTeX{} we skip characters beyond
+%   $[0,255]$ because \tn{lccode} only allows those values.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_setup:n #1
-  {
-    \int_set:Nn \tex_escapechar:D { -1 }
-    \exp_after:wN \@@_disable_loop:N
-      \tl_to_str:n {#1} { ~ } { ? \__prg_break: }
-    \__prg_break_point:
-    \scan_stop:
-  }
 \group_begin:
   \char_set_catcode_active:N \^^@
-  \cs_new_protected:Npn \@@_disable_loop:N #1
+  \cs_new_protected:Npn \@@_disable:n #1
     {
-      \tex_lccode:D 0 = `#1 ~
+      \tex_lccode:D 0 = #1 \exp_stop_f:
       \tex_lowercase:D { \tex_let:D ^^@ } \tex_undefined:D
-      \@@_disable_loop:N
     }
   \cs_if_exist:NT \ptex_kanjiskip:D
     {
-      \cs_gset_protected:Npn \@@_disable_loop:N #1
+      \cs_gset_protected:Npn \@@_disable:n #1
         {
-          \use_none:n #1 \scan_stop:
-          \if_int_compare:w 256 > `#1 \exp_stop_f:
-            \tex_lccode:D 0 = `#1 ~
+          \if_int_compare:w 256 > #1 \exp_stop_f:
+            \tex_lccode:D 0 = #1 \exp_stop_f:
             \tex_lowercase:D { \tex_let:D ^^@ } \tex_undefined:D
           \fi:
-          \@@_disable_loop:N
         }
     }
 \group_end:
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \subsection{First pass}
@@ -425,14 +402,14 @@
 % Also, we wish to store some representation of each special token
 % in a \tn{toks} register.
 %
-% After the setup step, we have $11$ types of tokens:
+% We have $11$ types of tokens:
 % \begin{itemize}
 % \item[1.] a true non-space begin-group character;
 % \item[2.] a true space begin-group character;
 % \item[3.] a true non-space end-group character;
 % \item[4.] a true space end-group character;
 % \item[5.] a true space blank space character;
-% \item[6.] an undefined active character;
+% \item[6.] an active character;
 % \item[7.] any other true character;
 % \item[8.] a control sequence equal to a begin-group token (category code $1$);
 % \item[9.] a control sequence equal to an end-group token (category code $2$);
@@ -463,6 +440,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_a:n #1
   {
+    \@@_disable:n { 32 }
     \int_set:Nn \tex_escapechar:D { 92 }
     \int_zero:N \l_@@_normal_int
     \int_zero:N \l_@@_index_int
@@ -484,7 +462,7 @@
 % \begin{macro}[int]{\@@_a_type:w}
 %   At this point, \cs{l_@@_token} holds the meaning
 %   of the following token. We store in \cs{l_@@_type_int}
-%   the meaning of the token ahead:
+%   information about the meaning of the token ahead:
 %   \begin{itemize}
 %   \item 0 space token;
 %   \item 1 begin-group token;
@@ -528,17 +506,18 @@
 % \begin{macro}[int]{\@@_a_space:w}
 % \begin{macro}[aux]{\@@_a_space_test:w}
 %   In this branch, the following token's meaning is a blank space.
-%   Apply \tn{string} to that token: if it is a control sequence
-%   the result starts with the escape character; otherwise it is
-%   a true blank space, whose string representation is also a blank space.
-%   We test for that in \cs{@@_a_space_test:w},
-%   after grabbing as \cs{l_@@_char_token} the first character
-%   of the string representation.
+%   Apply \tn{string} to that token: a true blank space gives a space, a
+%   control sequence gives a result starting with the escape character,
+%   an active character gives something else than a space since we
+%   disabled the space.  We grab as \cs{l_@@_char_token} the first
+%   character of the string representation then test it in
+%   \cs{@@_a_space_test:w}.
 %   Also, since \cs{@@_a_store:} expects the special token to be
 %   stored in the relevant \tn{toks} register, we do that. The extra
 %   \cs{exp_not:n} is unnecessary of course, but it makes the treatment
 %   of all tokens more homogeneous.
 %   If we discover that the next token was actually a control sequence
+%   or an active character
 %   instead of a true space, then we step the counter of normal tokens.
 %   We now have in front of us the whole string representation of
 %   the control sequence, including potential spaces; those will appear
@@ -569,29 +548,29 @@
 % \end{macro}
 %
 % \begin{macro}[int]{\@@_a_bgroup:w, \@@_a_egroup:w}
-% \begin{macro}[aux]{\@@_a_group:nw}
-% \begin{macro}[aux]{\@@_a_group_test:w}
-%   The token might be either a true character token with
-%   catcode $1$ or $2$, or it could be a control sequence.
-%   The only tricky case is if the character code happens
-%   to be equal to the escape character: then we change
-%   the escape character from backslash to solidus or back,
-%   so that the string representation of the true character
-%   and of a control sequence set equal to it start differently.
-%   Then probe what the first character of that string
-%   representation is: this is the place where we need
-%   \cs{l_@@_char_token} to be a separate control
-%   sequence from \cs{l_@@_token}, to compare them.
+% \begin{macro}[aux]
+%   {\@@_a_group:nw, \@@_a_group_aux:w, \@@_a_group_auxii:w, \@@_a_group_test:w}
+%   The token is most likely a true character token with catcode $1$ or
+%   $2$, but it might be a control sequence, or an active character.
+%   Optimizing for the first case, we store in a toks register some code
+%   that expands to that token.  Since we will turn what follows into
+%   a string, we make sure the escape character is different from the
+%   current character code (by switching between solidus and backslash).
+%   To detect the special case of an active character let to the catcode
+%   $1$ or~$2$ character with the same character code, we disable the
+%   active character with that character code and re-test: if the
+%   following token has become undefined we can in fact safely grab it.
+%   We are finally ready to turn what follows to a string and test it.
+%   This is one place where we need \cs{l_@@_char_token} to be a
+%   separate control sequence from \cs{l_@@_token}, to compare them.
 %    \begin{macrocode}
 \group_begin:
-  \char_set_catcode_group_begin:N \^^@
-  \char_set_catcode_group_end:N \^^E
+  \char_set_catcode_group_begin:N \^^@ % {
   \cs_new_protected:Npn \@@_a_bgroup:w
-    { \@@_a_group:nw { \exp_after:wN ^^@ \if_false: ^^E \fi: } }
-  \char_set_catcode_group_begin:N \^^B
+    { \@@_a_group:nw { \exp_after:wN ^^@ \if_false: } \fi: } }
   \char_set_catcode_group_end:N \^^@
   \cs_new_protected:Npn \@@_a_egroup:w
-    { \@@_a_group:nw { \if_false: ^^B \fi: ^^@ } }
+    { \@@_a_group:nw { \if_false: { \fi: ^^@ } } % }
 \group_end:
 \cs_new_protected:Npn \@@_a_group:nw #1
   {
@@ -600,6 +579,19 @@
     \if_int_compare:w \tex_lccode:D 0 = \tex_escapechar:D
       \int_set:Nn \tex_escapechar:D { 139 - \tex_escapechar:D }
     \fi:
+    \@@_disable:n { \tex_lccode:D 0 }
+    \tex_futurelet:D \l_@@_token \@@_a_group_aux:w
+  }
+\cs_new_protected:Npn \@@_a_group_aux:w
+  {
+    \if_meaning:w \l_@@_token \tex_undefined:D
+      \exp_after:wN \@@_a_safe:N
+    \else:
+      \exp_after:wN \@@_a_group_auxii:w
+    \fi:
+  }
+\cs_new_protected:Npn \@@_a_group_auxii:w
+  {
     \tex_afterassignment:D \@@_a_group_test:w
     \exp_after:wN \cs_set_eq:NN
     \exp_after:wN \l_@@_char_token
@@ -615,7 +607,6 @@
     \@@_a_loop:w
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -643,17 +634,17 @@
 %   \item 2 space begin-group character.
 %   \end{itemize}
 %   This has the property that non-space characters correspond to odd
-%   values of \cs{l_@@_type_int}.
-%   The number of normal tokens, and the type of special token,
-%   are packed into a \tn{skip} register.
-%   Finally, we check whether we reached the last closing brace, in which
-%   case we stop by disabling the looping function (locally).
+%   values of \cs{l_@@_type_int}.  The number of normal tokens until
+%   here and the type of special token are packed into a \tn{skip}
+%   register.  Finally, we check whether we reached the last closing
+%   brace, in which case we stop by disabling the looping function
+%   (locally).
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_a_store:
   {
     \tex_advance:D \l_@@_nesting_int \l_@@_type_int
     \if_int_compare:w \tex_lccode:D 0 = `\ \exp_stop_f:
-      \tex_multiply:D \l_@@_type_int 2 \exp_stop_f:
+      \tex_advance:D \l_@@_type_int \l_@@_type_int
     \fi:
     \tex_skip:D \l_@@_index_int
       = \l_@@_normal_int sp plus \l_@@_type_int sp \scan_stop:
@@ -669,11 +660,11 @@
 % \begin{macro}[int]{\@@_a_safe:N}
 % \begin{macro}[aux]{\@@_a_cs:ww}
 %   This should be the simplest case: since the upcoming token is safe,
-%   we can simply grab it in a second pass. However, other branches of
-%   the code must pass their tokens through \tn{string}, hence we do it
-%   here as well, with some optimizations. If the token is a single
+%   we can simply grab it in a second pass. If the token is a single
 %   character (including space), the \cs{if_charcode:w} test yields
-%   true, and we simply count one \enquote{normal} token. On the other
+%   true; we disable a potentially active character (that could
+%   otherwise masquerade as the true character in the next pass) and we
+%   count one \enquote{normal} token. On the other
 %   hand, if the token is a control sequence, we should replace it by
 %   its string representation for compatibility with other code
 %   branches. Instead of slowly looping through the characters with
@@ -692,10 +683,15 @@
         \scan_stop:
         \exp_after:wN \use_none:n \token_to_str:N #1 \prg_do_nothing:
         \scan_stop:
-      \int_incr:N \l_@@_normal_int
+      \exp_after:wN \use_i:nn
     \else:
-      \@@_cs_space_count:NN \@@_a_cs:ww #1
+      \exp_after:wN \use_ii:nn
     \fi:
+      {
+        \@@_disable:n { `#1 }
+        \int_incr:N \l_@@_normal_int
+      }
+      { \@@_cs_space_count:NN \@@_a_cs:ww #1 }
     \@@_a_loop:w
   }
 \cs_new_protected:Npn \@@_a_cs:ww #1; #2;
@@ -704,10 +700,10 @@
       \tex_skip:D \l_@@_index_int
         = \__int_eval:w \l_@@_normal_int + 1 sp \scan_stop:
       \tex_advance:D \l_@@_index_int #1 \exp_stop_f:
-      \l_@@_normal_int #2 \exp_stop_f:
     \else:
-      \tex_advance:D \l_@@_normal_int #2 \exp_stop_f:
+      \tex_advance:D
     \fi:
+    \l_@@_normal_int #2 \exp_stop_f:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -753,8 +749,9 @@
 %   character to a printable value). In both cases, we leave
 %   \cs{exp_not:n} \Arg{token} \cs{s__tl} in the input stream
 %   (after \texttt{x}-expansion). Here, \cs{exp_not:n} is used
-%   rather than \cs{exp_not:N} because |#3| could be \cs{s__tl},
-%   hence must be hidden behind braces in the result.
+%   rather than \cs{exp_not:N} because |#3| could be
+%   a macro parameter character or could be \cs{s__tl}
+%   (which must be hidden behind braces in the result).
 %    \begin{macrocode}
 \cs_new:Npn \@@_b_normals:ww #1;
   {
@@ -861,7 +858,7 @@
       \fi:
       \tex_the:D \tex_toks:D #1 \s__tl
       \if_case:w \etex_gluestretch:D \tex_skip:D #1 \exp_stop_f:
-             A
+             \token_to_str:N A
       \or:   1
       \or:   1
       \else: 2
