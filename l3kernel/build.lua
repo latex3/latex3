@@ -30,7 +30,10 @@ typesetfiles =
 typesetskipfiles = {"source3-body.tex"}
 unpackfiles      = {"l3.ins"}
 versionfiles     =
-  {"*.dtx", "README.md", "l3styleguide.tex", "l3syntax-changes.tex"}
+  {
+    "*.dtx", "README.md", "interface3.tex", "l3styleguide.tex",
+    "l3syntax-changes.tex", "source3.tex"
+  }
 
 -- No deps other than the test system
 typesetdeps = {maindir .. "/l3packages/xparse"}
