@@ -28,7 +28,7 @@ function main (target)
     errorlevel = call(checkbundles, "check")
   elseif target == "clean" then
     print ("Cleaning up")
-    dobundles (bundles, "clean")
+    call(bundles, "clean")
     rm (".", "*.zip")
   elseif target == "ctan" then
     errorlevel = call (ctanbundles, "ctan")
