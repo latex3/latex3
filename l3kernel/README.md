@@ -1,7 +1,7 @@
 LaTeX3 Programming Conventions
 ==============================
 
-Release 2017/05/13
+Release 2017/07/19
 
 Overview
 --------
@@ -30,15 +30,14 @@ Requirements
 The `l3kernel` bundle requires the e-TeX extensions and additional functionality
 to support string comparisons, expandable character generation with arbitrary
 category codes (for Unicode engines) and PDF support primitives (where direct
-PDF generation is used). The bundle will therefore only work with the following
-engines:
+PDF generation is used). The bundle only works with the following engines:
 * pdfTeX v1.40 or later
 * XeTeX v0.9994 or later
 * LuaTeX v0.70 or later
 * e-(u)pTeX from mid-2012 onward
 
 pdfTeX v1.40 was released in 2007, and so any recent TeX distribution
-will support `l3kernel`. Both XeTeX and LuaTeX have developed more
+supports `l3kernel`. Both XeTeX and LuaTeX have developed more
 actively over the past few years, and for this reason only recent
 releases of these engines are supported.
 

@@ -30,10 +30,12 @@ typesetfiles =
 typesetskipfiles = {"source3-body.tex"}
 unpackfiles      = {"l3.ins"}
 versionfiles     =
-  {"*.dtx", "README.md", "l3styleguide.tex", "l3syntax-changes.tex"}
+  {
+    "*.dtx", "README.md", "interface3.tex", "l3styleguide.tex",
+    "l3syntax-changes.tex", "source3.tex"
+  }
 
 -- No deps other than the test system
-checkdeps   = {maindir .. "/l3build"}
 typesetdeps = {maindir .. "/l3packages/xparse"}
 unpackdeps  = { }
 
@@ -46,7 +48,7 @@ function format()
   if errorlevel ~=0 then
     return errorlevel
   end
-  local localdir = relpath(localdir, unpackdir)
+  local localdir = abspath(localdir)
   errorlevel = run(
     unpackdir,
     os_setenv .. " TEXINPUTS=." .. os_pathsep
@@ -124,7 +126,7 @@ function typeset(file)
   if errorlevel ~= 0 then
     return errorlevel
   else
-    local name = stripext(file)
+    local name = jobname(file)
     errorlevel = biber(name) + bibtex(name)
     if errorlevel == 0 then
       local function cycle(name)
@@ -146,9 +148,9 @@ function typeset(file)
   end
 end
 
--- Load the common build code: this is the one place that a path needs to be
--- hard-coded
--- As the build system is 'self-contained' there is no module set up here: just
---load the file in a similar way to a TeX \input
-dofile (maindir .. "/build-config.lua")
-dofile (maindir .. "/l3build/l3build.lua")
+-- Load the common build code
+dofile(maindir .. "/build-config.lua")
+
+-- Find and run the build system
+kpse.set_program_name("kpsewhich")
+dofile(kpse.lookup("l3build.lua"))

@@ -1,6 +1,6 @@
 -- Common settings for LaTeX3 development repo, used by l3build script
 
-checkdeps   = checkdeps   or {maindir .. "/l3kernel", maindir .. "/l3build"}
+checkdeps   = checkdeps   or {maindir .. "/l3kernel"}
 typesetdeps = typesetdeps or {maindir .. "/l3kernel"}
 unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 
@@ -14,6 +14,7 @@ checksuppfiles  = checksuppfiles  or
     "minimal.cls",
     "ot1enc.def",
     "regression-test.cfg",
+    "regression-test.tex",
     "SpecialCasing.txt",
     "UnicodeData.txt",
   }

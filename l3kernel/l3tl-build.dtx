@@ -1,0 +1,280 @@
+% \iffalse meta-comment
+%
+%% File: l3tl-build.dtx Copyright (C) 2011-2017 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    http://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3kernel bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver>
+\documentclass[full]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+%
+% \title{^^A
+%   The \textsf{l3tl-build} package: building token lists^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2017/07/19}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \section{\pkg{l3tl-build} documentation}
+%
+% This module provides no user function: it is meant for kernel use
+% only.
+%
+% There are two main ways of building token lists from individual
+% tokens. Either in one go within an \texttt{x}-expanding assignment, or
+% by repeatedly using \cs{tl_put_right:Nn}. The first method takes a
+% linear time, but only allows expandable operations. The second method
+% takes a time quadratic in the length of the token list, but allows
+% expandable and non-expandable operations.
+%
+% The goal of this module is to provide functions to build a token list
+% piece by piece in linear time, while allowing non-expandable
+% operations. This is achieved by abusing \tn{toks}: adding some tokens
+% to the token list is done by storing them in a free token register
+% (time $O(1)$ for each such operation). Those token registers are only
+% put together at the end, within an \texttt{x}-expanding assignment,
+% which takes a linear time.\footnote{If we run out of token registers,
+%   then the currently filled-up \tn{toks} are put together in a
+%   temporary token list, and cleared, and we ultimately use
+%   \cs{tl_put_right:Nx} to put those chunks together. Hence the true
+%   asymptotic is quadratic, with a very small constant.}  Of course,
+% all this must be done in a group: we can't go and clobber the values
+% of legitimate \tn{toks} used by \LaTeXe{}.
+%
+% Since none of the current applications need the ability to insert
+% material on the left of the token list, I have not implemented
+% that. This could be done for instance by using odd-numbered \tn{toks}
+% for the left part, and even-numbered \tn{toks} for the right part.
+%
+% \subsection{Internal functions}
+%
+% \begin{function}
+%   {
+%     \__tl_build:Nw, \__tl_gbuild:Nw,
+%     \__tl_build_x:Nw, \__tl_gbuild_x:Nw
+%   }
+%   \begin{syntax}
+%     \cs{__tl_build:Nw} \meta{tl~var} \texttt{\ldots{}}
+%     \cs{__tl_build_one:n} \Arg{tokens_1} \texttt{\ldots{}}
+%     \cs{__tl_build_one:n} \Arg{tokens_2} \texttt{\ldots{}}
+%     \ldots{}
+%     \cs{__tl_build_end:}
+%   \end{syntax}
+%   Defines the \meta{tl~var} to contain the contents of \meta{tokens1}
+%   followed by \meta{tokens2}, \emph{etc.} This is built in such a way
+%   to be more efficient than repeatedly using \cs{tl_put_right:Nn}. The
+%   code in \enquote{\texttt{\ldots{}}} does not need to be
+%   expandable. The commands \cs{__tl_build:Nw} and \cs{__tl_build_end:}
+%   start and end a group. The assignment to the \meta{tl~var} occurs
+%   just after the end of that group, using \cs{tl_set:Nn},
+%   \cs{tl_gset:Nn}, \cs{tl_set:Nx}, or \cs{tl_gset:Nx}.
+% \end{function}
+%
+% \begin{function}{\__tl_build_one:n, \__tl_build_one:o, \__tl_build_one:x}
+%   \begin{syntax}
+%     \cs{__tl_build_one:n} \Arg{tokens}
+%   \end{syntax}
+%   This function may only be used within the scope of a
+%   \cs{__tl_build:Nw} function. It adds the \meta{tokens} on the
+%   right of the current token list.
+% \end{function}
+%
+% \begin{function}{\__tl_build_end:}
+%   Ends the scope started by \cs{__tl_build:Nw}, and performs the
+%   relevant assignment.
+% \end{function}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3tl-build} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=tl_build>
+%    \end{macrocode}
+%
+% \subsection{Variables and helper functions}
+%
+% \begin{variable}{\l_@@_start_index_int, \l_@@_index_int}
+%   Integers pointing to the starting index (currently always starts at
+%   zero), and the current index. The corresponding \tn{toks} are
+%   accessed directly by number.
+%    \begin{macrocode}
+\int_new:N \l_@@_start_index_int
+\int_new:N \l_@@_index_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_result_tl}
+%   The resulting token list is normally built in one go by unpacking
+%   all \tn{toks} in some range. In the rare cases where there are too
+%   many \cs{@@_one:n} commands, leading to the depletion of
+%   registers, the contents of the current set of \tn{toks} is unpacked
+%   into \cs{l_@@_result_tl}. This prevents overflow from
+%   affecting the end-user (beyond an obvious performance hit).
+%    \begin{macrocode}
+\tl_new:N \l_@@_result_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\@@_unpack:}
+% \begin{macro}[aux, EXP]{\@@_unpack_loop:w}
+%   The various pieces of the token list are built in \tn{toks} from the
+%   \texttt{start_index} (inclusive) to the (current) \texttt{index}
+%   (excluded). Those \tn{toks} are unpacked and stored in order in the
+%   \texttt{result} token list.  Optimizations would be possible here,
+%   for instance, unpacking $10$ \tn{toks} at a time with a macro
+%   expanding to |\the\toks#10...\the\toks#19|, but this should be kept
+%   for much later.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_unpack:
+  {
+    \tl_put_right:Nx \l_@@_result_tl
+      {
+        \exp_after:wN \@@_unpack_loop:w
+          \int_use:N \l_@@_start_index_int ;
+        \__prg_break_point:
+      }
+  }
+\cs_new:Npn \@@_unpack_loop:w #1 ;
+  {
+    \if_int_compare:w #1 = \l_@@_index_int
+      \exp_after:wN \__prg_break:
+    \fi:
+    \tex_the:D \tex_toks:D #1 \exp_stop_f:
+    \exp_after:wN \@@_unpack_loop:w
+      \int_use:N \__int_eval:w #1 + 1 ;
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Building the token list}
+%
+% \begin{macro}
+%   {
+%     \@@:Nw  , \@@_x:Nw  ,
+%     \__tl_gbuild:Nw , \__tl_gbuild_x:Nw
+%   }
+% \begin{macro}[aux]{\@@_aux:NNw}
+%   Similar to what is done for coffins: redefine some command, here
+%   \cs{@@_end_aux:n} to hold the relevant assignment (see
+%   \cs{@@_end:} for details). Then initialize the start index and
+%   the current index at zero, and empty the \texttt{result} token list.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@:Nw
+  { \@@_aux:NNw \tl_set:Nn }
+\cs_new_protected:Npn \@@_x:Nw
+  { \@@_aux:NNw \tl_set:Nx }
+\cs_new_protected:Npn \__tl_gbuild:Nw
+  { \@@_aux:NNw \tl_gset:Nn }
+\cs_new_protected:Npn \__tl_gbuild_x:Nw
+  { \@@_aux:NNw \tl_gset:Nx }
+\cs_new_protected:Npn \@@_aux:NNw #1#2
+  {
+    \group_begin:
+      \cs_set:Npn \@@_end_assignment:n
+        { \group_end: #1 #2 }
+      \int_zero:N \l_@@_start_index_int
+      \int_zero:N \l_@@_index_int
+      \tl_clear:N \l_@@_result_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_end:}
+% \begin{macro}[aux]{\@@_end_assignment:n}
+%   When we are done building a token list, unpack all \tn{toks} into
+%   the \texttt{result} token list, and expand this list before closing
+%   the group. The \cs{@@_end_assignment:n} function is defined by
+%   \cs{@@_aux:NNw} to end the group and hold the relevant
+%   assignment. Its value outside is irrelevant, but just in case, we
+%   set it to a function which would clean up the contents of
+%   \cs{l_@@_result_tl}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_end:
+  {
+      \@@_unpack:
+      \exp_args:No
+    \@@_end_assignment:n \l_@@_result_tl
+  }
+\cs_new_eq:NN \@@_end_assignment:n \use_none:n
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_one:n, \@@_one:o, \@@_one:x}
+%   Store the tokens in a free \tn{toks}, then move the pointer to the
+%   next one. If we overflow, unpack the current \tn{toks}, and reset
+%   the current index, preparing to fill more \tn{toks}.  This could be
+%   optimized by avoiding to read |#1|, using \tn{afterassignment}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_one:n #1
+  {
+    \tex_toks:D \l_@@_index_int {#1}
+    \int_incr:N \l_@@_index_int
+    \if_int_compare:w \l_@@_index_int > \c_max_register_int
+      \@@_unpack:
+      \l_@@_index_int \l_@@_start_index_int
+    \fi:
+  }
+\cs_new_protected:Npn \@@_one:o #1
+  {
+    \tex_toks:D \l_@@_index_int \exp_after:wN {#1}
+    \int_incr:N \l_@@_index_int
+    \if_int_compare:w \l_@@_index_int > \c_max_register_int
+      \@@_unpack:
+      \l_@@_index_int \l_@@_start_index_int
+    \fi:
+  }
+\cs_new_protected:Npn \@@_one:x #1
+  { \use:x { \@@_one:n {#1} } }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex

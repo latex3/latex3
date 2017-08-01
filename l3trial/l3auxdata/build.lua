@@ -10,15 +10,12 @@ module = "l3auxdata"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
--- Non-standard settings
-checkdeps   = {maindir .. "/l3experimental/l3str", maindir .. "/l3build"}
-testfiledir = ""
+--- Non-standard settings
 typesetcmds = ""
-typesetdeps = {maindir .. "/l3experimental/l3str"}
 
--- Load the common build code: this is the one place that a path needs to be
--- hard-coded
--- As the build system is 'self-contained' there is no module set up here: just
---load the file in a similar way to a TeX \input
-dofile (maindir .. "/build-config.lua")
-dofile (maindir .. "/l3build/l3build.lua")
+-- Load the common build code
+dofile(maindir .. "/build-config.lua")
+
+-- Find and run the build system
+kpse.set_program_name("kpsewhich")
+dofile(kpse.lookup("l3build.lua"))
