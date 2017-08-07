@@ -564,6 +564,19 @@ and all files in that bundle must be distributed together.
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}[int]{\l_@@_detect_internals_bool, \l_@@_detect_internals_tl}
+%   If \texttt{true}, \pkg{l3doc} will check for use of internal
+%   commands \cs[no-index]{__\meta{pkg}_\ldots{}} from other packages in
+%   \texttt{macrocode} environments and in~\cs{cs}.  Also a token list
+%   to store temporary data for this purpose.
+%    \begin{macrocode}
+\bool_new:N \l_@@_detect_internals_bool
+\bool_set_true:N \l_@@_detect_internals_bool
+\tl_new:N \l_@@_detect_internals_tl
+\tl_new:N \l_@@_detect_internals_cs_tl
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}[int]{\l_@@_output_coffin}
 %   The \env{function} environment is typeset by combining coffins
 %   containing various pieces (function names, description, \emph{etc.})
@@ -968,9 +981,23 @@ and all files in that bundle must be distributed together.
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[int]{\@@_trim_right:Nn, \@@_trim_right:No}
+%   Removes all material after |#2| in the token list variable~|#1|.
+%   Perhaps combine with \cs{@@_key_trim_module:n}?
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_trim_right:Nn #1#2
+  {
+    \cs_set:Npn \@@_tmp:w ##1 #2 ##2 \q_stop { \exp_not:n {##1} }
+    \tl_set:Nx #1 { \exp_after:wN \@@_tmp:w #1 #2 \q_stop }
+  }
+\cs_generate_variant:Nn \@@_trim_right:Nn { No }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[int]{\@@_replace_at_at:N}
 % \begin{macro}[aux]{\@@_replace_at_at_aux:Nn}
-%   The goal is to replace |@@| by the current module name.  If there is
+%   The goal is to replace |@@| by the current module name.  We take
+%   advantage of this function to also detect internal macros.  If there is
 %   no \meta{module~name}, do nothing.  Otherwise, sanitize the catcodes
 %   of |@| and~|_|, temporarily change |@@@@| to |aa| with different catcodes and later to |@@|, and replace |__@@| and |_@@| and |@@| by
 %   |__|\meta{module~name}.  The result contains |_| with category
@@ -982,6 +1009,11 @@ and all files in that bundle must be distributed together.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_replace_at_at:N #1
   {
+    \bool_if:NT \l_@@_in_implementation_bool
+      {
+        \bool_if:NT \l_@@_detect_internals_bool
+          { \@@_detect_internals:N #1 }
+      }
     \tl_if_empty:NF \g_@@_module_name_tl
       {
         \exp_args:NNo \@@_replace_at_at_aux:Nn
@@ -1000,6 +1032,48 @@ and all files in that bundle must be distributed together.
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_detect_internals:N}
+%   After splitting at each |__| and removing the leading item from the
+%   sequence (since it does not follow |__|), remove everything after
+%   any space or end-of-line to get a good approximation of the control
+%   sequence (for the warning message), then remove anything after any
+%   |_| or |:| (with either catcode) to get the module name.  If that
+%   name is not empty and differs from the current |@@| name then
+%   complain.
+%    \begin{macrocode}
+\group_begin:
+  \char_set_catcode_active:N \^^M
+  \cs_new_protected:Npn \@@_detect_internals:N #1
+    {
+      \tl_set_eq:NN \l_@@_detect_internals_tl #1
+      \tl_replace_all:Non \l_@@_detect_internals_tl { \token_to_str:N _ } { _ }
+      \seq_set_split:NnV \l_@@_tmpa_seq { _ _ } \l_@@_detect_internals_tl
+      \seq_pop_left:NN \l_@@_tmpa_seq \l_@@_detect_internals_tl
+      \seq_map_variable:NNn \l_@@_tmpa_seq \l_@@_detect_internals_tl
+        {
+          \@@_trim_right:No \l_@@_detect_internals_tl
+            \c_catcode_active_space_tl
+          \@@_trim_right:Nn \l_@@_detect_internals_tl ^^M
+          \tl_set_eq:NN \l_@@_detect_internals_cs_tl \l_@@_detect_internals_tl
+          \@@_trim_right:Nn \l_@@_detect_internals_tl _
+          \@@_trim_right:Nn \l_@@_detect_internals_tl :
+          \@@_trim_right:No \l_@@_detect_internals_tl { \token_to_str:N : }
+          \tl_if_empty:NF \l_@@_detect_internals_tl
+            {
+              \str_if_eq:NNF \l_@@_detect_internals_tl \g_@@_module_name_tl
+                {
+                  \msg_warning:nnxxx { l3doc } { foreign-internal }
+                    { \tl_to_str:N \l_@@_detect_internals_cs_tl }
+                    { \tl_to_str:N \l_@@_detect_internals_tl }
+                    { \tl_to_str:N \g_@@_module_name_tl }
+                }
+            }
+        }
+    }
+\group_end:
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[aux,rEXP]{\@@_signature_base_form:n}
@@ -1243,6 +1317,12 @@ and all files in that bundle must be distributed together.
   {
     The~'syntax'~environment~should~only~be~used~once~in~
     a~'function'~environment.
+  }
+\msg_new:nnn { l3doc } { foreign-internal }
+  {
+    A~control~sequence~of~the~form~'...__#1'~was~used.~
+    It~should~only~be~used~in~the~module~'#2'
+    \tl_if_empty:nF {#3} { ,~not~in~'#3' } .
   }
 %    \end{macrocode}
 %
