@@ -1,0 +1,567 @@
+% \iffalse meta-comment
+%
+%% File: l3color-addn.dtx Copyright(C) 2017 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    http://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3kernel bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver>
+\documentclass[full]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \textsf{l3color-addn} package\\ Experimental additions to color support^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2017/09/18}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \section{Color expressions}
+%
+% \section{Named colors}
+%
+% \begin{function}{\color_set:nn}
+%   \begin{syntax}
+%     \cs{color_set:nn} \marg{name} \marg{color expression}
+%   \end{syntax}
+% \end{function}
+%
+% \begin{function}{\color_set:nnn}
+%   \begin{syntax}
+%     \cs{color_set:nnn} \marg{name} \marg{model} \marg{value(s)}
+%   \end{syntax}
+% \end{function}
+%
+% \begin{function}{\color_set_eq:nn}
+%   \begin{syntax}
+%     \cs{color_set_eq:nn} \meta{name1} \marg{name2}
+%   \end{syntax}
+% \end{function}
+%
+% \section{Selecting colors}
+%
+% \begin{function}{\color_select:n}
+%   \begin{syntax}
+%     \cs{color_select:n} \meta{color expression}
+%   \end{syntax}
+% \end{function}
+%
+% \begin{function}{\color_select:nn}
+%   \begin{syntax}
+%     \cs{color_select:nn} \meta{model} \meta{value(s)}
+%   \end{syntax}
+% \end{function}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3color-addn} Implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+% \subsection{Predefined color names}
+%
+% The ability to predefine colors with a name is a key part of this module and
+% means there has to be a method for storing the results. At first sight, it
+% seems natural to follow the usual \pkg{expl3} model and create a
+% \texttt{color} variable type for the process. That would then allow both
+% local and global colors, constant colors and the like. However, these names
+% need to be accessible in some form at the user level, for selection of colors
+% either simply by name or as part of a more complex expression. This does not
+% require that the full name is exposed but does require that they can be
+% looked up in a predictable way. As such, it is more useful to expose just the
+% color names as part of the interface, with the result that only local color
+% names can be created. (This is also seen for example in key creation in
+% \pkg{l3keys}.) As a result, color names are declarative (no \texttt{new}
+% functions).
+%
+% Since there is no need to manipulate colors \emph{en masse}, each is stored
+% in a separate token list variable, rather than the alternative of using a
+% single property list for all names.
+%
+% \subsection{Setup}
+%
+% \begin{variable}{\l_@@_tmp_tl}
+%    \begin{macrocode}
+\tl_new:N \l_@@_tmp_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \subsection{Utility functions}
+%
+% \begin{macro}[int, TF, EXP]{\@@_if_defined:n}
+%   A simple wrapper to avoid needing to have the lookup repeated in too many
+%   places.
+%    \begin{macrocode}
+\prg_new_conditional:Npnn \@@_if_defined:n #1 { T, F, TF }
+  {
+    \tl_if_exist:cTF { l_@@_named_ #1 _tl }
+      \prg_return_true:
+      \prg_return_false:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{\@@_extract:nNN}
+% \begin{macro}[aux]{\@@_extract:NNw}
+%   Split the model and color from a named color, and store the two. No test
+%   for the existence of the color: that is assumed to be the case (this
+%   is internal only). Somewhat \enquote{old-fashioned} but should be quite
+%   fast.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_extract:nNN #1#2#3
+  {
+    \exp_after:wN \exp_after:wN \exp_after:wN
+      \@@_extract:NNw
+      \exp_after:wN \exp_after:wN \exp_after:wN #2
+      \exp_after:wN \exp_after:wN \exp_after:wN #3
+        \cs:w l_@@_named_ #1 _tl \cs_end: \q_stop
+  }
+\cs_new_protected:Npn \@@_extract:NNw #1#2 #3 ~ #4 \q_stop
+  {
+    \tl_set:Nn #1 {#3}
+    \tl_set:Nn #2 {#4}
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Model conversion}
+%
+% \begin{macro}[int]{\@@_convert:nnN, \@@_convert:VVN}
+% \begin{macro}[aux]{\@@_convert:nnnN}
+% \begin{macro}[aux, EXP]
+%   {
+%     \@@_convert_gray_rgb:w
+%     \@@_convert_gray_cmyk:w
+%     \@@_convert_cmyk_gray:w
+%     \@@_convert_cmyk_rgb:w
+%     \@@_convert_rgb_gray:w
+%     \@@_convert_rgb_cmyk:w
+%   }
+%  \begin{macro}[aux, EXP]{\@@_convert_rgb_cmyk:nnnnn}
+%    Model conversion is carried out using standard formulae, as described in
+%    the manual for \pkg{xcolor} (see also the \emph{PostScript Language
+%    Reference Manual}).
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_convert:nnN #1#2#3
+  { \@@_convert:nnVN {#1} {#2} #3 #3 }
+\cs_generate_variant:Nn \@@_convert:nnN { VV }
+\cs_new_protected:Npn \@@_convert:nnnN #1#2#3#4
+  {
+    \str_if_eq_x:nnT {#1} { spot } % TO DO!!!
+      { }
+    \tl_set:Nx #4
+      { \use:c { @@_convert_ #1 _ #2 :w } #3 ~ 0 ~ 0 ~ 0 \q_stop }
+  }
+\cs_generate_variant:Nn \@@_convert:nnnN { nnV }
+\cs_new:Npn \@@_convert_gray_rgb:w #1 ~ #2 \q_stop
+  { #1 ~ #1 ~ #1 }
+\cs_new:Npn \@@_convert_gray_cmyk:w #1 ~ #2 \q_stop
+  { 0 ~ 0 ~ 0 ~ #1 }
+%    \end{macrocode}
+%   These rather odd values are based on \textsc{ntsc} television: the set are
+%   used for the |cmyk| conversion.
+%    \begin{macrocode}
+\cs_new:Npn \@@_convert_rgb_gray:w #1 ~ #2 ~ #3 ~ #4 \q_stop
+  { \fp_eval:n { 0.3 * #1 + 0.59 * #2 + 0.11 * #3 } }
+%    \end{macrocode}
+%   The conversion from |rgb| to |cmyk| is the most complex: a two-step
+%   procedure which requires \emph{black generation} and \emph{undercolor
+%   removal} functions. The PostScript reference describes them as
+%   device-dependent, but following \pkg{xcolor} we assume they are linear.
+%   Moreover, as the likelihood of anyone using a non-unitary matrix here is
+%   tiny, we simplify and treat those two concepts as no-ops.
+%    \begin{macrocode}
+\cs_new:Npn \@@_convert_rgb_cmyk:w #1 ~ #2 ~ #3 ~ #4 \q_stop
+  {
+    \exp_args:Nf \@@_convert_rgb_cmyk:nnnnn
+      { \fp_eval:n { min ( 1 - #1 , 1 - #2 , 1 - #3 ) } {#1} {#2} {#3}
+  }
+
+\cs_new:Npn \@@_convert_rgb_cmyk:nnnnn #1#2#3#4
+  {
+    \fp_eval:n { min ( 1 , max ( 0 , 1 - #2 - #1 ) ) } \c_space_tl
+    \fp_eval:n { min ( 1 , max ( 0 , 1 - #3 - #1 ) ) } \c_space_tl
+    \fp_eval:n { min ( 1 , max ( 0 , 1 - #4 - #1 ) ) } \c_space_tl
+    #1
+  }
+\cs_new:Npn \@@_convert_cmyk_gray:w #1 ~ #2 ~ #3 ~ #4 ~ #5 \q_stop
+  { \fp_eval:n { 1 - min ( 1 , 0.3 * #1 + 0.59 * #2 + 0.11 * #3 + #4 ) } } }
+\cs_new:Npn \@@_convert_cmyk_rgb:w #1 ~ #2 ~ #3 ~ #4 ~ #5 \q_stop
+  {
+    \fp_eval:n { 1 - min ( 1 , #1 + #4 ) } \c_space_tl
+    \fp_eval:n { 1 - min ( 1 , #2 + #4 ) } \c_space_tl
+    \fp_eval:n { 1 - min ( 1 , #3 + #4 ) }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Color expressions}
+%
+% \begin{variable}
+%   {\l_@@_model_tl, \l_@@_value_tl, \l_@@_next_model_tl, \l_@@_next_value_tl}
+%   Working space to store the color data whilst doing calculations: keeping
+%   it on the stack is attractive but gets tricky (return is non-trivial).
+%    \begin{macrocode}
+\tl_new:N \l_@@_model_tl
+\tl_new:N \l_@@_value_tl
+\tl_new:N \l_@@_next_model_tl
+\tl_new:N \l_@@_next_value_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}[int]{\@@_parse:nn}
+% \begin{macro}[aux]{\@@_parse:n}
+% \begin{macro}[aux]{\@@_parse:w}
+% \begin{macro}[aux]{\@@_parse_loop_init:nn}
+% \begin{macro}[aux]{\@@_parse_loop:w}
+% \begin{macro}[aux]{\@@_parse_loop:nn}
+% \begin{macro}[aux]{\@@_parse_break:w}
+% \begin{macro}[aux]{\@@_parse_end:}
+% \begin{macro}[aux, EXP]{\@@_parse_mix:Nnnn}
+% \begin{macro}[aux, EXP]{\@@_parse_mix:nNnn}
+% \begin{macro}[aux, EXP]
+%   {
+%     \@@_parse_mix_gray:nw ,
+%     \@@_parse_mix_rgb:nw  ,
+%     \@@_parse_mix_cmyk:nw
+%   }
+%   The main function for parsing color expressions removes actives but
+%   otherwise expands, then starts working through the expression itself.
+%   At the end, we apply the payload.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_parse:nn #1#2
+  {
+    \group_begin:
+      \seq_map_inline:Nn \l_char_active_seq
+        {
+          \tl_set:Nx \l_@@_tmp_tl { \cs_to_str:N ##1 }
+          \char_set_active_eq:NN ##1 \l_@@_tmp_tl
+        }
+      \tl_set:Nx \l_@@_tmp_tl {#2}
+    \exp_args:NNV \group_end:
+    \@@_parse:V \l_@@_tmp_tl
+    #1
+  }
+%    \end{macrocode}
+%   Before going to all of the effort of parsing an expression, these two
+%   precursor functions look for a pre-defined name, either on its own or
+%   with a trailing |!| (which is the same thing).
+%    \begin{macrocode}
+\cs_new_protected:Nn \@@_parse:n #1
+  {
+    \tl_if_exist:cTF { l_@@_named_ #1 _tl }
+      { \tl_set_eq:Nc \l__color_current_tl { l_@@_named_ #1 _tl } }
+      { \@@_parse:w #1 ! \q_stop }
+  }
+\cs_new_protected:Npn \@@_parse:w #1 ! #2 \q_stop
+  {
+    \@@_if_defined:nTF {#1}
+      {
+        \tl_if_blank:nTF {#2}
+          { \tl_set_eq:Nc \l__color_current_tl { l_@@_named_ #1 _tl } }
+          { \@@_parse_loop_init:nn {#1} {#2} }
+      }
+      {
+        \msg_kernel_error:nnn { color } { unknown-color } {#2}
+        \tl_set_eq:NN \l__color_current_tl \l_@@_named_black_tl
+      }
+  }
+%    \end{macrocode}
+%   Once we establish that a full parse is needed, the next job is to get the
+%   detail of the first color. That will determine the model we use for the
+%   calculation: splitting here makes checking that a bit easier.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_parse_loop_init:nn #1#2
+  {
+    \group_begin:
+      \@@_extract:nNN {#1} \l_@@_model_tl \l_@@_value_tl
+      \@@_parse_loop:w #2 ! ! ! ! \q_stop
+      \tl_set:Nx \l_@@_tmp_tl
+        { \l_@@_model_tl \c_space_tl \l_@@_value_tl }
+    \exp_args:NNNV \group_end:
+    \tl_set:Nn \l__color_current_tl \l_@@_tmp_tl
+  }
+%    \end{macrocode}
+%   This is the loop proper: there can be an open-ended set of colors to parse,
+%   separated by |!| tokens. There are a few cases to look out for. At the end
+%   of the expression and with we find a mix of $100$ then we simply skip the
+%   next color entirely (we can't stop the loop as there might be a further
+%   valid color to mix in). On the other hand, if we get a mix of $0$ then
+%   drop everything so far and start again. There is also a trailing
+%   |white| to \enquote{read in} if the final explicit data is a mix.
+%   Those conditions are separate from actually looping, which is therefore
+%   sorted out by checking if we have further data to process: in contrast
+%   to \pkg{xcolor}, we don't allow |!!| so the test can be simplified.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_parse_loop:w #1 ! #2 ! #3 ! #4 ! #5 \q_stop
+  {
+    \bool_lazy_or:nnF
+      { \tl_if_blank_p:n {#1} }
+      { ! \int_compare_p:nNn {#1} = 100 }
+      {
+        \int_compare:nNnTF {#1} = { 0 }
+          {
+            \tl_if_blank:nTF {#2}
+              { \@@_extract:nNN { white } }
+              { \@@_extract:nNN {#2} }
+                \l_@@_model_tl \l_@@_value_tl
+          }
+          {
+            \use:x
+              {
+                \@@_parse_loop:nn {#1}
+                  { \tl_if_blank:nTF {#2} { white } {#2} }
+              }
+          }
+      }
+    \tl_if_blank:nF {#3}
+      { \@@_parse_loop:w #3 ! #4 ! #5 \q_stop }
+    \@@_parse_end:
+  }
+%    \end{macrocode}
+%   The \enquote{payload} of calculation in the loop first. If the model for
+%   the upcoming color is different from that of the existing (partial) color,
+%   convert the model. For |gray| the two are flipped round so that the outcome
+%   is something with \enquote{real} color. We are then in a position to do the
+%   actual calculation itself. The two auxiliaries here give us a way to break
+%   the loop should an invalid name be found.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_parse_loop:nn #1#2
+  {
+    \@@_if_defined:nTF {#1}
+      {
+        \@@_extract:nNN {#1} \l_@@_next_model_tl \l_@@_next_value_tl
+        \tl_if_eq:NNF \l_@@_model_tl \l_@@_next_model_tl
+          {
+            \str_if_eq_x:nnT { \l_@@_model_tl } { gray }
+              {
+                \use:x
+                  {
+                    \tl_set:Nn \exp_not:N \l_@@_model_tl
+                      { \l_@@_next_model_tl }
+                    \tl_set:Nn \exp_not:N \l_@@_value_tl
+                      { \l_@@_next_value_tl }
+                    \tl_set:Nn \exp_not:N \l_next_@@_model_tl
+                      { \l_@@_model_tl }
+                    \tl_set:Nn \exp_not:N \l_next_@@_value_tl
+                      { \l_@@_value_tl }
+                  }
+              }
+            \@@_convert:VVN
+              \l_@@_next_model_tl
+              \l_@@_model_tl
+              \l_@@_next_value_tl
+          }
+        \tl_set:Nx \l_@@_value_tl
+          {
+            \@@_parse_mix:NVVn
+              \l_@@_model_tl \l_@@_value_tl \l_@@_next_value_tl {#2}
+          }
+      }
+      {
+        \msg_kernel_error:nnn { color } { unknown-color } {#2}
+        \@@_extract:nNN { black } \l_@@_model_tl \l_@@_value_tl
+        \@@_parse_break:w
+      }
+  }
+\cs_new_protected:Npn \@@_parse_break:w #1 \@@_parse_end: { }
+\cs_new_protected:Npn \@@_parse_end: { }
+%    \end{macrocode}
+%   Do the vector arithmetic: mainly a question of shuffling input, along
+%   with one pre-calculation to keep down the use of division.
+%    \begin{macrocode}
+\cs_new:Npn \@@_parse_mix:Nnnn #1#2#3#4
+  {
+    \exp_args:Nf \@@_parse_mix:nNnn
+      { \fp_eval:n { #4 / 100 } }
+      #1 {#2} {#3}
+  }
+\cs_new:Npn \@@_parse_mix:nNnn #1#2#3#4
+  {
+    \use:c { @@_parse_mix_ #2 :nnw } {#1}
+      #3 \q_mark #4 \q_stop
+  }
+\cs_new:Npn \@@_parse_mix_gray:nw #1#2 \q_mark #3 \q_stop
+  { \fp_eval:n { #2 * #1 + #3 * ( 1 - #1 ) } }
+\cs_new:Npn \@@_parse_mix_rgb:nw
+  #1#2 ~ #3 ~ #4 \q_mark #5 ~ #6 ~ #7 \q_stop
+  {
+    \fp_eval:n { #2 * #1 + #5 * ( 1 - #1 ) } \c_space_tl
+    \fp_eval:n { #3 * #1 + #6 * ( 1 - #1 ) } \c_space_tl
+    \fp_eval:n { #4 * #1 + #7 * ( 1 - #1 ) }
+  }
+\cs_new:Npn \@@_parse_mix_cmyk:nw
+  #1#2 ~ #3 ~ #4 ~ #5 \q_mark #6 ~ #7 ~ #8 ~ #9 \q_stop
+  {
+    \fp_eval:n { #2 * #1 + #6 * ( 1 - #1 ) } \c_space_tl
+    \fp_eval:n { #3 * #1 + #7 * ( 1 - #1 ) } \c_space_tl
+    \fp_eval:n { #4 * #1 + #8 * ( 1 - #1 ) } \c_space_tl
+    \fp_eval:n { #5 * #1 + #9 * ( 1 - #1 ) }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]
+%   {\@@_parse_gray:w, \@@_parse_rgb:w, \@@_parse_cmyk:w, \@@_parse_spot:w}
+% \begin{macro}[EXP]{\@@_parse_spot_aux:w}
+%   Turn the input into internal form.
+%    \begin{macrocode}
+\cs_new:Npn \@@_parse_gray:w #1 , #2 \q_stop {#1}
+\cs_new:Npn \@@_parse_rgb:w #1 , #2 , #3 , #4 \q_stop { #1 ~ #2 ~ #3 }
+\cs_new:Npn \@@_parse_cmyk:w #1 , #2 , #3 , #4 , #5 \q_stop
+  { #1 ~ #2 ~ #3 ~ #4 }
+\cs_new:Npn \@@_parse_spot:w #1 , #2 \q_stop
+  { \@@_parse_spot_aux:w #1 ! 100 ! \q_stop }
+\cs_new:Npn \@@_parse_spot_aux:w #1 ! #2 ! #3 \q_stop
+  { #1 ~ \fp_eval:n { #2 / 100 } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Direct model use}
+%
+% \begin{macro}{\@@_use:nnn}
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_use:nnn #1#2#3
+  {
+    \cs_if_exist:cTF { @@_parse_ #2 :w }
+      {
+        \tl_set:Nx \l__color_current_tl
+          { #2 ~ \use:c {  @@_parse_ #2 :w } #3 , 0 , 0 , 0 , 0 \q_stop }
+        #1
+      }
+      {
+        \__msg_kernel_error:nnn { color } { invalid-model } {#2}
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\color_set:nn}
+% \begin{macro}{\color_set:nnn}
+% \begin{macro}{\color_set_eq:nn}
+%   Defining named colors has to include a step to force creation of the
+%   underlying token list to avoid errors when checking is enabled.
+%    \begin{macrocode}
+\cs_new_protected:Npn \color_set:nn #1
+  { \@@_parse:nn { \@@_store:n {#1} } }
+\cs_new_protected:Npn \color_set:nnn #1
+  { \@@_use:nnn { \@@_store:n {#1} } }
+\cs_new_protected:Npn \color_set_eq:nn #1#2
+  {
+    \@@_if_defined:nTF {#2}
+      {
+        \tl_clear_new:c { l_@@_named_ #1 _tl }
+        \str_if_eq:nnTF {#2} { . }
+          { \tl_et_eq:cN { l_@@_named_ #1 _tl } \l__color_current_tl }
+          { \tl_et_eq:cc { l_@@_named_ #1 _tl } { l_@@_named_ #2 _tl } }
+      }
+      {
+        \msg_kernel_error:nnn { color } { unknown-color } {#2}
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\color_select:n}
+% \begin{macro}{\color_select:nn}
+%   Parse the input expressions then get the driver to actually activate
+%   them.
+%    \begin{macrocode}
+\cs_new_protected:Npn \color_select:n
+  { \@@_parse:nn { \__driver_color_select: } }
+\cs_new_protected:Npn \color_select:nn
+  { \@@_use:nnn { \__driver_color_select: } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Pre-defined color names}
+%
+% \begin{macrocode}
+\color_set:nnn { black } { gray } { 0 }
+\color_set:nnn { white } { gray } { 0 }
+\color_set:nnn { cyan }    { cmyk } { 1~0~0~0 }
+\color_set:nnn { magenta } { cmyk } { 0~1~0~0 }
+\color_set:nnn { yellow }  { cmyk } { 0~0~1~0 }
+\color_set:nnn { red }   { rgb } { 1~0~0 }
+\color_set:nnn { grenn } { rgb } { 0~1~0 }
+\color_set:nnn { blue }  { rgb } { 0~0~1 }
+% \end{macrocode}
+%
+% \begin{macrocode}
+\__msg_kernel_new:nnnn { color } { invalid-model }
+  { Invalid~color~model~'#1'. }
+  {
+    LaTeX~has~been~asked~to~use~a~color~model~called~'#1',~
+    but~this~model~is~not~set~up.
+  }
+\__msg_kernel_new:nnnn { color } { unknown-color }
+  { Unknown~color~'#1'. }
+  {
+    LaTeX~has~been~asked~to~use~a~color~named~'#1',~
+    but~this~has~never~been~defined.
+  }
+% \end{macrocode}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex
