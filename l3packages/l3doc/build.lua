@@ -13,9 +13,7 @@ maindir = "../.."
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
-installfiles = "*.cls"
-
-checkdeps = {maindir .. "/l3packages/xparse"}
+installfiles = {"*.cls"}
 
 checkruns    = 2
 checksearch  = true
