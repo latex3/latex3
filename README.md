@@ -1,8 +1,6 @@
-The LaTeX3 Development Repository
-=================================
+# The LaTeX3 Development Repository
 
-Overview
---------
+## Overview
 
 The repository contains development material for LaTeX3. This includes
 not only code to be developed into the LaTeX3 kernel, but also a variety
@@ -49,8 +47,7 @@ Over time, `xpackages` is expected to be removed from the repository.
 The directory `contrib` is used to test the interaction of LaTeX3
 code with selected contributed packages.
 
-Discussion
-----------
+## Discussion
 
 Discussion concerning the approach, suggestions for improvements,
 changes, additions, _etc._ should be addressed to the list
@@ -64,8 +61,7 @@ with the body containing
 
     subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
 
-Issues
-------
+## Issues
 
 The issue tracker for LaTeX3 is currently located
 [on GitHub](https://github.com/latex3/latex3/issues).
@@ -73,8 +69,7 @@ The issue tracker for LaTeX3 is currently located
 Please report specific issues with LaTeX3 code there; more general
 discussion should be directed to the [LaTeX-L list](#Discussion).
 
-Build status
-------------
+## Build status
 
 LaTeX3 uses [Travis CI](https://travis-ci.org/) as a hosted continuous
 integration service. For each commit, the build status is tested using
@@ -82,40 +77,10 @@ the current release of TeX Live.
 
 _Current build status:_
 [![Build Status](https://travis-ci.org/latex3/latex3.svg?branch=master)](https://travis-ci.org/latex3/latex3)
+## Development team
 
-The LaTeX3 Project
-------------------
+The LaTeX kernel is developed by [The LaTeX3 Project](https://latex-project.org).
 
-Development of LaTeX3 is carried out by
-[The LaTeX3 Project](http://www.latex-project.org/latex3.html). Currently,
-the team members are
+## Copyright
 
-* Johannes Braams
-* David Carlisle
-* Robin Fairbairns
-* Enrico Gregorio
-* Morten Høgholm
-* Bruno Le Floch
-* Frank Mittelbach
-* Will Robertson
-* Chris Rowley
-* Rainer Schöpf
-* Joseph Wright
-
-Former members of The LaTeX3 Project team were
-
-* Michael Downes
-* Denys Duchier
-* Alan Jeffrey
-* Martin Schröder
-* Thomas Lotze
-
-The development team can be contacted
-by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
-the [LaTeX-L list](#Discussion) should be used.
-
------
-
-<p>Copyright (C) 2011,2012,2014-2017 The LaTeX3 Project<br />
-<a href="http://latex-project.org/">http://latex-project.org/</a> <br />
-All rights reserved.</p>
+This README file is copyright 2017 The LaTeX3 Project.
