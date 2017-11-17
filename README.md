@@ -77,6 +77,7 @@ the current release of TeX Live.
 
 _Current build status:_
 [![Build Status](https://travis-ci.org/latex3/latex3.svg?branch=master)](https://travis-ci.org/latex3/latex3)
+
 ## Development team
 
 LaTeX3 is developed by [The LaTeX3 Project](https://latex-project.org).
