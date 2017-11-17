@@ -79,7 +79,7 @@ _Current build status:_
 [![Build Status](https://travis-ci.org/latex3/latex3.svg?branch=master)](https://travis-ci.org/latex3/latex3)
 ## Development team
 
-The LaTeX kernel is developed by [The LaTeX3 Project](https://latex-project.org).
+LaTeX3 is developed by [The LaTeX3 Project](https://latex-project.org).
 
 ## Copyright
 
