@@ -10,9 +10,6 @@ module = "l3tree"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
--- Non-standard settings
-testfiledir = ""
-
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
