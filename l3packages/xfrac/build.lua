@@ -12,6 +12,8 @@ maindir = "../.."
 
 -- Non-standard settings
 checksearch  = true
+checkdeps   = {maindir .. "/l3packages/xparse", maindir .. "/l3packages/xtemplate", maindir .. "/l3packages/l3keys2e"}
+typesetdeps = {maindir .. "/l3packages/xparse", maindir .. "/l3packages/xtemplate", maindir .. "/l3packages/l3keys2e"}
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
