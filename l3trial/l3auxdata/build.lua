@@ -12,6 +12,7 @@ maindir = "../.."
 
 --- Non-standard settings
 typesetcmds = ""
+checksearch = true
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
