@@ -11,7 +11,7 @@ module = "xfrac"
 maindir = "../.."
 
 -- Non-standard settings
-testfiledir  = "" -- No tests
+checksearch  = true
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
