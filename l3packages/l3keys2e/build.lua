@@ -12,7 +12,6 @@ maindir = "../.."
 
 -- Non-standard settings
 demofiles    = {"l3keys2e-demo.tex"}
-testfiledir  = "" -- No tests
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
