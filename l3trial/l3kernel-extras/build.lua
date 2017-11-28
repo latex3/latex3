@@ -14,7 +14,7 @@ maindir = "../.."
 dofile(maindir .. "/build-config.lua")
 
 -- Non-standard settings (have to be after build-config)
-checkengines = {"pdftex", "xetex", "luatex"}
+-- checkengines = {"pdftex", "xetex", "luatex"}
 
 -- Find and run the build system
 kpse.set_program_name("kpsewhich")
