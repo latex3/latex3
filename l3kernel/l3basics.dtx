@@ -1259,6 +1259,23 @@
 %   \cs{cs_if_exist_p:N}, and if not raises a kernel-level error.
 % \end{function}
 %
+% \begin{function}{\__debug_chk_var_local:N, \__debug_chk_var_global:N}
+%   \begin{syntax}
+%     \cs{__debug_chk_var_local:N} \meta{var}
+%     \cs{__debug_chk_var_global:N} \meta{var}
+%   \end{syntax}
+%   These functions are only created if debugging is enabled.  They
+%   check that \meta{var} is a local/global variable, and if not raises
+%   a kernel-level error.  More precisely, if the variable name starts
+%   with a letter and an underscore (normal \pkg{expl3} convention) the
+%   functions check that this single letter is |l| or |g| as
+%   appropriate.  Otherwise the functions cannot know the first time
+%   whether \meta{var} is local or global: instead, they define
+%   |\__debug_chk_/|\meta{var name} to store the information, and if
+%   both \cs{__debug_chk_var_local:N} and \cs{__debug_chk_var_global:N}
+%   are called on the same variable a kernel-level error is raised.
+% \end{function}
+%
 % \begin{function}{\__debug_log:x}
 %   \begin{syntax}
 %     \cs{__debug_log:x} \Arg{message text}
@@ -1267,15 +1284,6 @@
 %   the \meta{message text} to the log file using \cs{iow_log:x}.
 %   Otherwise, the \meta{message text} is ignored using \cs{use_none:n}.
 %   This function is only created if debugging is enabled.
-% \end{function}
-%
-% \begin{function}{\__debug_suspend_log:, \__debug_resume_log:}
-%   \begin{syntax}
-%     \cs{__debug_suspend_log:} \ldots{} \cs{__debug_log:x} \ldots{} \cs{__debug_resume_log:}
-%   \end{syntax}
-%   Any \cs{__debug_log:x} command between \cs{__debug_suspend_log:} and
-%   \cs{__debug_resume_log:} is suppressed.  These two commands can be
-%   nested.  These functions are only created if debugging is enabled.
 % \end{function}
 %
 % \begin{function}{\__debug_patch:nnNNpn}
@@ -1798,15 +1806,57 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[int]{\debug_suspend:, \debug_resume:}
+% \begin{macro}[int]{\@@_suspended:T}
+% \begin{macro}[aux]{\l_@@_suspended_tl}
+%   Suspend and resume locally all debug-related errors and logging
+%   except deprecation errors.  The \cs{debug_suspend:} and \cs{debug_resume:}
+%   pairs can be nested.  We keep track of nesting in a token list
+%   containing a number of periods.  At first begin with the
+%   \enquote{non-suspended} version of \cs{@@_suspended:T}.
+%    \begin{macrocode}
+\@@:TF
+  {
+    \cs_set_nopar:Npn \l_@@_suspended_tl { }
+    \cs_set_protected:Npn \debug_suspend:
+      {
+        \tl_put_right:Nn \l_@@_suspended_tl { . }
+        \cs_set_eq:NN \@@_suspended:T \use:n
+      }
+    \cs_set_protected:Npn \debug_resume:
+      {
+        \tl_set:Nx \l_@@_suspended_tl
+          { \tl_tail:N \l_@@_suspended_tl }
+        \tl_if_empty:NT \l_@@_suspended_tl
+          {
+            \cs_set_eq:NN \@@_suspended:T \use_none:n
+          }
+      }
+    \cs_set:Npn \@@_suspended:T #1 { }
+  }
+  {
+    \cs_set_protected:Npn \debug_suspend: { }
+    \cs_set_protected:Npn \debug_resume: { }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}[aux]
 %   {\@@_check-declarations_on:, \@@_check-declarations_off:}
 % \begin{macro}[int]{\@@_chk_var_exist:N}
 % \begin{macro}[int]{\@@_chk_cs_exist:N, \@@_chk_cs_exist:c}
-%   When debugging is enabled these two functions
-%   set up \cs{@@_chk_var_exist:N} and
-%   \cs{@@_chk_cs_exist:N}, two functions that test (when
-%   \texttt{check-declarations} is active) that their argument is
-%   defined.
+% \begin{macro}[int]{\@@_chk_var_local:N, \@@_chk_var_global:N}
+%   When debugging is enabled these two functions set up functions that
+%   test their argument (when \texttt{check-declarations} is active)
+%   \begin{itemize}
+%     \item \cs{@@_chk_var_exist:N} and \cs{@@_chk_cs_exist:N}, two
+%       functions that test that their argument is defined;
+%     \item \cs{@@_chk_var_local:N} and \cs{@@_chk_var_global:N}, two
+%       functions that check that their argument is a local (resp.\@
+%       global) variable.
+%   \end{itemize}
 %    \begin{macrocode}
 \@@:TF
   {
@@ -1814,6 +1864,7 @@
       {
         \cs_set_protected:Npn \@@_chk_var_exist:N ##1
           {
+            \@@_suspended:T \use_none:nnn
             \cs_if_exist:NF ##1
               {
                 \__msg_kernel_error:nnx { kernel } { non-declared-variable }
@@ -1822,17 +1873,34 @@
           }
         \cs_set_protected:Npn \@@_chk_cs_exist:N ##1
           {
+            \@@_suspended:T \use_none:nnn
             \cs_if_exist:NF ##1
               {
                 \__msg_kernel_error:nnx { kernel } { command-not-defined }
                   { \token_to_str:N ##1 }
               }
           }
+        \cs_set_protected:Npn \@@_chk_var_local:N ##1
+          {
+            \@@_suspended:T \use_none:nnnnn
+            \@@_chk_var_exist:N ##1
+            \@@_chk_var_local_aux:NN l ##1
+          }
+        \cs_set_protected:Npn \@@_chk_var_global:N ##1
+          {
+            \@@_suspended:T \use_none:nnnnn
+            \@@_chk_var_exist:N ##1
+            \@@_chk_var_local_aux:NN g ##1
+          }
       }
     \exp_args:Nc \cs_set_protected:Npn { @@_check-declarations_off: }
       {
         \cs_set_protected:Npn \@@_chk_var_exist:N ##1 { }
         \cs_set_protected:Npn \@@_chk_cs_exist:N ##1 { }
+        \cs_set_protected:Npn \@@_chk_var_local:N ##1
+          { \@@_chk_var_exist:N ##1 }
+        \cs_set_protected:Npn \@@_chk_var_global:N ##1
+          { \@@_chk_var_exist:N ##1 }
       }
     \cs_set_protected:Npn \@@_chk_cs_exist:c
       { \exp_args:Nc \@@_chk_cs_exist:N }
@@ -1841,6 +1909,58 @@
     \else:
       \use:c { @@_check-declarations_off: }
     \fi:
+  }
+  { }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[aux]{\@@_chk_var_local_aux:NN}
+% \begin{macro}[aux]{\@@_chk_var_local_aux:Nn}
+% \begin{macro}[aux]{\@@_chk_var_local_aux:NNn}
+%   First check whether the name of the variable |#2| starts with
+%   \meta{letter}|_|.  If it does then pass that letter, the target
+%   letter |l| or |g|, and the variable name to
+%   \cs{@@_chk_var_local_aux:NNn}.  That function compares the two
+%   letters and triggers an error if they differ (the \cs{scan_stop:}
+%   case is not reachable here).  If the second character was not |_|
+%   then pass the same data to the same auxiliary, except for its first
+%   argument which is now a control sequence.  That control sequence is
+%   actually a token list (but to avoid triggering the checking code we
+%   manipulate it using \cs{cs_set_nopar:Npn}) containing a single
+%   letter |l| or |g| according to what the first assignment to the
+%   given variable was.
+%    \begin{macrocode}
+\@@:TF
+  {
+    \cs_set_protected:Npn \@@_chk_var_local_aux:NN #1#2
+      { \exp_args:NNf \@@_chk_var_local_aux:Nn #1 { \cs_to_str:N #2 } }
+    \cs_set_protected:Npn \@@_chk_var_local_aux:Nn #1#2
+      {
+        \if:w _ \use_i:nn \tl_head:w #2 ? ? \q_stop
+          \exp_after:wN \@@_chk_var_local_aux:NNn
+            \tl_head:w #2 ? \q_stop
+            #1 {#2}
+        \else:
+          \exp_args:Nc \@@_chk_var_local_aux:NNn
+            { @@_chk_/ #2 }
+            #1 {#2}
+        \fi:
+      }
+    \cs_set_protected:Npn \@@_chk_var_local_aux:NNn #1#2#3
+      {
+        \if:w #1 #2
+        \else:
+          \if:w #1 \scan_stop:
+            \cs_gset_nopar:Npn #1 {#2}
+          \else:
+            \__msg_kernel_error:nnxxx { kernel } { local-global }
+              {#1} {#2} { \iow_char:N \\ #3 }
+          \fi:
+        \fi:
+      }
   }
   { }
 %    \end{macrocode}
@@ -1877,6 +1997,7 @@
       {
         \cs_set:Npn \@@_chk_expr:nNnN ##1##2
           {
+            \@@_suspended:T { ##1 \use_none:nnnnnnn }
             \exp_after:wN \@@_chk_expr_aux:nNnN
             \exp_after:wN { \tex_the:D ##2 ##1 \tex_relax:D }
             ##2
@@ -1907,47 +2028,24 @@
 % \end{macro}
 %
 % \begin{macro}[aux]{\@@_log-functions_on:, \@@_log-functions_off:}
-% \begin{macro}[int]{\@@_log:x, \@@_suspend_log:, \@@_resume_log:}
-%   These two functions
-%   (corresponding to the \pkg{expl3} option \texttt{log-functions})
-%   control whether \cs{@@_log:x} writes to the log file or not.
-%   Since \cs{iow_log:x} does not yet have its final definition we do
-%   not use \cs{cs_set_eq:NN} (not defined yet anyway).  The
-%   \cs{@@_suspend_log:} function disables \cs{@@_log:x} until
-%   the matching \cs{@@_resume_log:}.  These two commands are used
-%   to improve the logging for datatypes with multiple parts, currently
-%   only coffins.  They should come in pairs, which can be nested (this
-%   complicates the code here and is currently unused).  The function
-%   \cs{exp_not:o} is defined in \pkg{l3expan} later on but
-%   \cs{@@_suspend_log:} and \cs{@@_resume_log:} are not used
-%   before that point.  Once everything is defined, turn logging on or
-%   off depending on what option was given.
-%   When debugging is not enabled, simply produce an error.
+% \begin{macro}[int]{\@@_log:x}
+%   These two functions (corresponding to the \pkg{expl3} option
+%   \texttt{log-functions}) control whether \cs{@@_log:x} writes to the
+%   log file or not.  Since \cs{iow_log:x} does not yet have its final
+%   definition we do not use \cs{cs_set_eq:NN} (not defined yet anyway).
+%   Once everything is defined, turn logging on or off depending on what
+%   option was given.  When debugging is not enabled, simply produce an
+%   error.
 %    \begin{macrocode}
 \@@:TF
   {
     \exp_args:Nc \cs_set_protected:Npn { @@_log-functions_on: }
       {
-        \cs_set_protected:Npn \@@_log:x { \iow_log:x }
-        \cs_set_protected:Npn \@@_suspend_log:
-          {
-            \cs_set_protected:Npx \@@_resume_log:
-              {
-                \cs_set_protected:Npn \@@_resume_log:
-                  { \exp_not:o { \@@_resume_log: } }
-                \cs_set_protected:Npn \@@_log:x
-                  { \exp_not:o { \@@_log:x } }
-              }
-            \cs_set_protected:Npn \@@_log:x { \use_none:n }
-          }
-        \cs_set_protected:Npn \@@_resume_log: { }
+        \cs_set_protected:Npn \@@_log:x
+          { \@@_suspended:T \use_none:nn \iow_log:x }
       }
     \exp_args:Nc \cs_set_protected:Npn { @@_log-functions_off: }
-      {
-        \cs_set_protected:Npn \@@_log:x { \use_none:n }
-        \cs_set_protected:Npn \@@_suspend_log: { }
-        \cs_set_protected:Npn \@@_resume_log: { }
-      }
+      { \cs_set_protected:Npn \@@_log:x { \use_none:n } }
     \tex_ifodd:D \l@expl@log@functions@bool
       \use:c { @@_log-functions_on: }
     \else:
@@ -1963,7 +2061,7 @@
 % \begin{variable}{\g_@@_deprecation_on_tl, \g_@@_deprecation_off_tl}
 %   Some commands were more recently deprecated and not yet removed;
 %   only make these into errors if the user requests it.  This relies on
-%   two token lists, filled up by calls to
+%   two token lists, mostly filled up by calls to
 %   \cs{@@_deprecation:nnNNpn} in each module.
 %    \begin{macrocode}
 \@@:TF
