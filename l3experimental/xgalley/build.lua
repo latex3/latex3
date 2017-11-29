@@ -10,6 +10,9 @@ module = "xgalley"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
+-- Non-standard settings
+checkdeps = {maindir .. "/l3packages/xparse", maindir .. "/l3packages/xtemplate"}
+
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
