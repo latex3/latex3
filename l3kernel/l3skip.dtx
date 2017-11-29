@@ -1058,12 +1058,16 @@
 %
 % \begin{macro}{\dim_const:Nn, \dim_const:cn}
 %   Contrarily to integer constants, we cannot avoid using a register,
-%   even for constants.
+%   even for constants.  We cannot use \cs{dim_gset:Nn} because
+%   debugging code would complain that the constant is not a global
+%   variable.  Since \cs{dim_const:Nn} does not need to be fast, use
+%   \cs{dim_eval:n} to avoid needing a debugging patch that wraps the
+%   expression in checking code.
 %    \begin{macrocode}
-\cs_new_protected:Npn \dim_const:Nn #1
+\cs_new_protected:Npn \dim_const:Nn #1#2
   {
     \dim_new:N #1
-    \dim_gset:Nn #1
+    \tex_global:D #1 ~ \dim_eval:n {#2} \scan_stop:
   }
 \cs_generate_variant:Nn \dim_const:Nn { c }
 %    \end{macrocode}
@@ -1073,8 +1077,10 @@
 % \begin{macro}{\dim_gzero:N, \dim_gzero:c}
 %   Reset the register to zero.
 %    \begin{macrocode}
+\__debug_patch:nnNNpn { \__debug_chk_var_local:N #1 } { }
 \cs_new_protected:Npn \dim_zero:N #1 { #1 \c_zero_dim }
-\cs_new_protected:Npn \dim_gzero:N { \tex_global:D \dim_zero:N }
+\__debug_patch:nnNNpn { \__debug_chk_var_global:N #1 } { }
+\cs_new_protected:Npn \dim_gzero:N #1 { \tex_global:D #1 \c_zero_dim }
 \cs_generate_variant:Nn \dim_zero:N  { c }
 \cs_generate_variant:Nn \dim_gzero:N { c }
 %    \end{macrocode}
@@ -1106,17 +1112,36 @@
 %
 % \subsection{Setting \texttt{dim} variables}
 %
+% Several functions here have a signature |:Nn| and are such that when
+% debugging, the first argument should be checked to be a local/global
+% variable and the second should be wrapped in code for an expression.
+% The temporary function \cs{@@_tmp:w} finds the name |#3| of the
+% function being redefined and writes the appropriate patch.
+%    \begin{macrocode}
+\cs_set_protected:Npn \@@_tmp:w #1#2#3
+  {
+    \__debug_patch_args:nnnNNpn
+      { #1 ##1 }
+      { }
+      { {##1} { \__debug_chk_expr:nNnN {##2} \@@_eval:w { } #3 } }
+    #2 #3
+  }
+%    \end{macrocode}
+%
 % \begin{macro}{\dim_set:Nn, \dim_set:cn}
 % \begin{macro}{\dim_gset:Nn, \dim_gset:cn}
-%   Setting dimensions is easy enough. The |\scan_stop:| deals with the
-%   case where the variable passed is a skip (for example a \LaTeXe{}
+%   Setting dimensions is easy enough but when debugging we want both to
+%   check that the variable is correctly local/global and to wrap the
+%   expression in some code.  The |\scan_stop:| deals with the case
+%   where the variable passed is a skip (for example a \LaTeXe{}
 %   length).
 %    \begin{macrocode}
-\__debug_patch_args:nNNpn
-  { {#1} { \__debug_chk_expr:nNnN {#2} \@@_eval:w { } \dim_set:Nn } }
+\@@_tmp:w \__debug_chk_var_local:N
 \cs_new_protected:Npn \dim_set:Nn #1#2
   { #1 ~ \@@_eval:w #2 \@@_eval_end: \scan_stop: }
-\cs_new_protected:Npn \dim_gset:Nn { \tex_global:D \dim_set:Nn }
+\@@_tmp:w \__debug_chk_var_global:N
+\cs_new_protected:Npn \dim_gset:Nn #1#2
+  { \tex_global:D #1 ~ \@@_eval:w #2 \@@_eval_end: \scan_stop: }
 \cs_generate_variant:Nn \dim_set:Nn  { c }
 \cs_generate_variant:Nn \dim_gset:Nn { c }
 %    \end{macrocode}
@@ -1128,9 +1153,11 @@
 %   {\dim_gset_eq:NN, \dim_gset_eq:cN, \dim_gset_eq:Nc, \dim_gset_eq:cc}
 %   All straightforward.
 %    \begin{macrocode}
+\__debug_patch:nnNNpn { \__debug_chk_var_local:N #1 } { }
 \cs_new_protected:Npn \dim_set_eq:NN #1#2 { #1 = #2 }
 \cs_generate_variant:Nn \dim_set_eq:NN {       c }
 \cs_generate_variant:Nn \dim_set_eq:NN { Nc , cc }
+\__debug_patch:nnNNpn { \__debug_chk_var_global:N #1 } { }
 \cs_new_protected:Npn \dim_gset_eq:NN #1#2 { \tex_global:D #1 = #2 }
 \cs_generate_variant:Nn \dim_gset_eq:NN {       c }
 \cs_generate_variant:Nn \dim_gset_eq:NN { Nc , cc }
@@ -1142,20 +1169,26 @@
 % \begin{macro}{\dim_gadd:Nn, \dim_gadd:cn}
 % \begin{macro}{\dim_sub:Nn, \dim_sub:cn}
 % \begin{macro}{\dim_gsub:Nn, \dim_gsub:cn}
-%   Using |by| here deals with the (incorrect) case |\dimen123|.
+%   Using |by| here deals with the (incorrect) case |\dimen123|.  Since
+%   debugging checks that the variable is correctly local/global, the
+%   global versions cannot be defined as \cs{tex_global:D} followed by
+%   the local versions.  The debugging code is inserted by
+%   \cs{@@_tmp:w}.
 %    \begin{macrocode}
-\__debug_patch_args:nNNpn
-  { {#1} { \__debug_chk_expr:nNnN {#2} \@@_eval:w { } \dim_add:Nn } }
+\@@_tmp:w \__debug_chk_var_local:N
 \cs_new_protected:Npn \dim_add:Nn #1#2
   { \tex_advance:D #1 by \@@_eval:w #2 \@@_eval_end: }
-\cs_new_protected:Npn \dim_gadd:Nn { \tex_global:D \dim_add:Nn }
+\@@_tmp:w \__debug_chk_var_global:N
+\cs_new_protected:Npn \dim_gadd:Nn #1#2
+  { \tex_global:D \tex_advance:D #1 by \@@_eval:w #2 \@@_eval_end: }
 \cs_generate_variant:Nn \dim_add:Nn  { c }
 \cs_generate_variant:Nn \dim_gadd:Nn { c }
-\__debug_patch_args:nNNpn
-  { {#1} { \__debug_chk_expr:nNnN {#2} \@@_eval:w { } \dim_sub:Nn } }
+\@@_tmp:w \__debug_chk_var_local:N
 \cs_new_protected:Npn \dim_sub:Nn #1#2
   { \tex_advance:D #1 by - \@@_eval:w #2 \@@_eval_end: }
-\cs_new_protected:Npn \dim_gsub:Nn { \tex_global:D \dim_sub:Nn }
+\@@_tmp:w \__debug_chk_var_global:N
+\cs_new_protected:Npn \dim_gsub:Nn #1#2
+  { \tex_global:D \tex_advance:D #1 by - \@@_eval:w #2 \@@_eval_end: }
 \cs_generate_variant:Nn \dim_sub:Nn  { c }
 \cs_generate_variant:Nn \dim_gsub:Nn { c }
 %    \end{macrocode}
@@ -1615,12 +1648,13 @@
 %
 % \begin{macro}{\skip_const:Nn, \skip_const:cn}
 %   Contrarily to integer constants, we cannot avoid using a register,
-%   even for constants.
+%   even for constants.  See \cs{dim_const:Nn} for why we cannot use
+%   \cs{skip_gset:Nn}.
 %    \begin{macrocode}
-\cs_new_protected:Npn \skip_const:Nn #1
+\cs_new_protected:Npn \skip_const:Nn #1#2
   {
     \skip_new:N #1
-    \skip_gset:Nn #1
+    \tex_global:D #1 ~ \skip_eval:n {#2} \scan_stop:
   }
 \cs_generate_variant:Nn \skip_const:Nn { c }
 %    \end{macrocode}
@@ -1630,8 +1664,10 @@
 % \begin{macro}{\skip_gzero:N, \skip_gzero:c}
 %   Reset the register to zero.
 %    \begin{macrocode}
+\__debug_patch:nnNNpn { \__debug_chk_var_local:N #1 } { }
 \cs_new_protected:Npn \skip_zero:N #1 { #1 \c_zero_skip }
-\cs_new_protected:Npn \skip_gzero:N { \tex_global:D \skip_zero:N }
+\__debug_patch:nnNNpn { \__debug_chk_var_global:N #1 } { }
+\cs_new_protected:Npn \skip_gzero:N #1 { \tex_global:D #1 \c_zero_skip }
 \cs_generate_variant:Nn \skip_zero:N  { c }
 \cs_generate_variant:Nn \skip_gzero:N { c }
 %    \end{macrocode}
@@ -1663,15 +1699,31 @@
 %
 % \subsection{Setting \texttt{skip} variables}
 %
+% Much as for \texttt{dim} variables, \cs{@@_tmp:w} prepares a patch
+% for |:Nn| function definitions in which the first argument should be
+% checked to be a local/global variable and the second should be wrapped
+% in code for an expression.
+%    \begin{macrocode}
+\cs_set_protected:Npn \@@_tmp:w #1#2#3
+  {
+    \__debug_patch_args:nnnNNpn
+      { #1 ##1 }
+      { }
+      { {##1} { \__debug_chk_expr:nNnN {##2} \etex_glueexpr:D { } #3 } }
+    #2 #3
+  }
+%    \end{macrocode}
+%
 % \begin{macro}{\skip_set:Nn, \skip_set:cn}
 % \begin{macro}{\skip_gset:Nn, \skip_gset:cn}
 %   Much the same as for dimensions.
 %    \begin{macrocode}
-\__debug_patch_args:nNNpn
-  { {#1} { \__debug_chk_expr:nNnN {#2} \etex_glueexpr:D { } \skip_set:Nn } }
+\@@_tmp:w \__debug_chk_var_local:N
 \cs_new_protected:Npn \skip_set:Nn #1#2
   { #1 ~ \etex_glueexpr:D #2 \scan_stop: }
-\cs_new_protected:Npn \skip_gset:Nn { \tex_global:D \skip_set:Nn }
+\@@_tmp:w \__debug_chk_var_global:N
+\cs_new_protected:Npn \skip_gset:Nn #1#2
+  { \tex_global:D #1 ~ \etex_glueexpr:D #2 \scan_stop: }
 \cs_generate_variant:Nn \skip_set:Nn  { c }
 \cs_generate_variant:Nn \skip_gset:Nn { c }
 %    \end{macrocode}
@@ -1700,18 +1752,20 @@
 % \begin{macro}{\skip_gsub:Nn, \skip_gsub:cn}
 %   Using |by| here deals with the (incorrect) case |\skip123|.
 %    \begin{macrocode}
-\__debug_patch_args:nNNpn
-  { {#1} { \__debug_chk_expr:nNnN {#2} \etex_glueexpr:D { } \skip_add:Nn } }
+\@@_tmp:w \__debug_chk_var_local:N
 \cs_new_protected:Npn \skip_add:Nn #1#2
   { \tex_advance:D #1 by \etex_glueexpr:D #2 \scan_stop: }
-\cs_new_protected:Npn \skip_gadd:Nn { \tex_global:D \skip_add:Nn }
+\@@_tmp:w \__debug_chk_var_global:N
+\cs_new_protected:Npn \skip_gadd:Nn #1#2
+  { \tex_global:D \tex_advance:D #1 by \etex_glueexpr:D #2 \scan_stop: }
 \cs_generate_variant:Nn \skip_add:Nn  { c }
 \cs_generate_variant:Nn \skip_gadd:Nn { c }
-\__debug_patch_args:nNNpn
-  { {#1} { \__debug_chk_expr:nNnN {#2} \etex_glueexpr:D { } \skip_sub:Nn } }
+\@@_tmp:w \__debug_chk_var_local:N
 \cs_new_protected:Npn \skip_sub:Nn #1#2
   { \tex_advance:D #1 by - \etex_glueexpr:D #2 \scan_stop: }
-\cs_new_protected:Npn \skip_gsub:Nn { \tex_global:D \skip_sub:Nn }
+\@@_tmp:w \__debug_chk_var_global:N
+\cs_new_protected:Npn \skip_gsub:Nn #1#2
+  { \tex_global:D \tex_advance:D #1 by - \etex_glueexpr:D #2 \scan_stop: }
 \cs_generate_variant:Nn \skip_sub:Nn  { c }
 \cs_generate_variant:Nn \skip_gsub:Nn { c }
 %    \end{macrocode}
@@ -1749,7 +1803,7 @@
 %   it is quicker to make it search for the string \texttt{fil} which
 %   characterizes infinite glue.
 %    \begin{macrocode}
-\cs_set_protected:Npn \__cs_tmp:w #1
+\cs_set_protected:Npn \@@_tmp:w #1
   {
     \__debug_patch_conditional_args:nNNpnn
       {
@@ -1766,7 +1820,7 @@
       }
     \cs_new:Npn \__skip_if_finite:wwNw ##1 #1 ##2 ; ##3 ##4 \q_stop {##3}
   }
-\exp_args:No \__cs_tmp:w { \tl_to_str:n { fil } }
+\exp_args:No \@@_tmp:w { \tl_to_str:n { fil } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -1886,13 +1940,12 @@
 % \end{macro}
 %
 % \begin{macro}{\muskip_const:Nn, \muskip_const:cn}
-%   Contrarily to integer constants, we cannot avoid using a register,
-%   even for constants.
+%   See \cs{skip_const:Nn}.
 %    \begin{macrocode}
-\cs_new_protected:Npn \muskip_const:Nn #1
+\cs_new_protected:Npn \muskip_const:Nn #1#2
   {
     \muskip_new:N #1
-    \muskip_gset:Nn #1
+    \tex_global:D #1 ~ \muskip_eval:n {#2} \scan_stop:
   }
 \cs_generate_variant:Nn \muskip_const:Nn { c }
 %    \end{macrocode}
@@ -1902,9 +1955,12 @@
 % \begin{macro}{\muskip_gzero:N, \muskip_gzero:c}
 %   Reset the register to zero.
 %    \begin{macrocode}
+\__debug_patch:nnNNpn { \__debug_chk_var_local:N #1 } { }
 \cs_new_protected:Npn \muskip_zero:N #1
   { #1 \c_zero_muskip }
-\cs_new_protected:Npn \muskip_gzero:N { \tex_global:D \muskip_zero:N }
+\__debug_patch:nnNNpn { \__debug_chk_var_global:N #1 } { }
+\cs_new_protected:Npn \muskip_gzero:N #1
+  { \tex_global:D #1 \c_zero_muskip }
 \cs_generate_variant:Nn \muskip_zero:N  { c }
 \cs_generate_variant:Nn \muskip_gzero:N { c }
 %    \end{macrocode}
@@ -1939,21 +1995,34 @@
 %
 % \subsection{Setting \texttt{muskip} variables}
 %
+% See \texttt{skip} case.
+%    \begin{macrocode}
+\cs_set_protected:Npn \@@_tmp:w #1#2#3
+  {
+    \__debug_patch_args:nnnNNpn
+      { #1 ##1 }
+      { }
+      {
+        {##1}
+        {
+          \__debug_chk_expr:nNnN {##2}
+            \etex_muexpr:D { \etex_mutoglue:D } #3
+        }
+      }
+    #2 #3
+  }
+%    \end{macrocode}
+%
 % \begin{macro}{\muskip_set:Nn, \muskip_set:cn}
 % \begin{macro}{\muskip_gset:Nn, \muskip_gset:cn}
 %   This should be pretty familiar.
 %    \begin{macrocode}
-\__debug_patch_args:nNNpn
-  {
-    {#1}
-    {
-      \__debug_chk_expr:nNnN {#2} \etex_muexpr:D
-        { \etex_mutoglue:D } \muskip_set:Nn
-    }
-  }
+\@@_tmp:w \__debug_chk_var_local:N
 \cs_new_protected:Npn \muskip_set:Nn #1#2
   { #1 ~ \etex_muexpr:D #2 \scan_stop: }
-\cs_new_protected:Npn \muskip_gset:Nn { \tex_global:D \muskip_set:Nn }
+\@@_tmp:w \__debug_chk_var_global:N
+\cs_new_protected:Npn \muskip_gset:Nn #1#2
+  { \tex_global:D #1 ~ \etex_muexpr:D #2 \scan_stop: }
 \cs_generate_variant:Nn \muskip_set:Nn  { c }
 \cs_generate_variant:Nn \muskip_gset:Nn { c }
 %    \end{macrocode}
@@ -1972,9 +2041,11 @@
 %   }
 %   All straightforward.
 %    \begin{macrocode}
+\__debug_patch:nnNNpn { \__debug_chk_var_local:N #1 } { }
 \cs_new_protected:Npn \muskip_set_eq:NN #1#2 { #1 = #2 }
 \cs_generate_variant:Nn \muskip_set_eq:NN {       c }
 \cs_generate_variant:Nn \muskip_set_eq:NN { Nc , cc }
+\__debug_patch:nnNNpn { \__debug_chk_var_global:N #1 } { }
 \cs_new_protected:Npn \muskip_gset_eq:NN #1#2 { \tex_global:D #1 = #2 }
 \cs_generate_variant:Nn \muskip_gset_eq:NN {       c }
 \cs_generate_variant:Nn \muskip_gset_eq:NN { Nc , cc }
@@ -1988,30 +2059,20 @@
 % \begin{macro}{\muskip_gsub:Nn, \muskip_gsub:cn}
 %   Using |by| here deals with the (incorrect) case |\muskip123|.
 %    \begin{macrocode}
-\__debug_patch_args:nNNpn
-  {
-    {#1}
-    {
-      \__debug_chk_expr:nNnN {#2} \etex_muexpr:D
-        { \etex_mutoglue:D } \muskip_add:Nn
-    }
-  }
+\@@_tmp:w \__debug_chk_var_local:N
 \cs_new_protected:Npn \muskip_add:Nn #1#2
   { \tex_advance:D #1 by \etex_muexpr:D #2 \scan_stop: }
-\cs_new_protected:Npn \muskip_gadd:Nn { \tex_global:D \muskip_add:Nn }
+\@@_tmp:w \__debug_chk_var_global:N
+\cs_new_protected:Npn \muskip_gadd:Nn #1#2
+  { \tex_global:D \tex_advance:D #1 by \etex_muexpr:D #2 \scan_stop: }
 \cs_generate_variant:Nn \muskip_add:Nn  { c }
 \cs_generate_variant:Nn \muskip_gadd:Nn { c }
-\__debug_patch_args:nNNpn
-  {
-    {#1}
-    {
-      \__debug_chk_expr:nNnN {#2} \etex_muexpr:D
-        { \etex_mutoglue:D } \muskip_sub:Nn
-    }
-  }
+\@@_tmp:w \__debug_chk_var_local:N
 \cs_new_protected:Npn \muskip_sub:Nn #1#2
   { \tex_advance:D #1 by - \etex_muexpr:D #2 \scan_stop: }
-\cs_new_protected:Npn \muskip_gsub:Nn { \tex_global:D \muskip_sub:Nn }
+\@@_tmp:w \__debug_chk_var_global:N
+\cs_new_protected:Npn \muskip_gsub:Nn #1#2
+  { \tex_global:D \tex_advance:D #1 by - \etex_muexpr:D #2 \scan_stop: }
 \cs_generate_variant:Nn \muskip_sub:Nn  { c }
 \cs_generate_variant:Nn \muskip_gsub:Nn { c }
 %    \end{macrocode}
