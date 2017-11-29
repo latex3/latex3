@@ -1259,21 +1259,31 @@
 %   \cs{cs_if_exist_p:N}, and if not raises a kernel-level error.
 % \end{function}
 %
+% \begin{function}{\__debug_chk_var_scope:NN}
+%   \begin{syntax}
+%     \cs{__debug_chk_var_scope:NN} \meta{scope} \meta{var}
+%   \end{syntax}
+%   Checks the \meta{var} has the correct \meta{scope}, and if not
+%   raises a kernel-level error.  This function is only created if
+%   debugging is enabled.  The \meta{scope} is a single letter |l|, |g|,
+%   |c| denoting local variables, global variables, or constants.  More
+%   precisely, if the variable name starts with a letter and an
+%   underscore (normal \pkg{expl3} convention) the function checks that
+%   this single letter matches the \meta{scope}.  Otherwise the function
+%   cannot know the scope \meta{var} the first time: instead, it defines
+%   |\__debug_chk_/|\meta{var name} to store that information for the
+%   next call.  Thus, if a given \meta{var} is subject to assignments of
+%   different scopes a kernel error will result.
+% \end{function}
+%
 % \begin{function}{\__debug_chk_var_local:N, \__debug_chk_var_global:N}
 %   \begin{syntax}
 %     \cs{__debug_chk_var_local:N} \meta{var}
 %     \cs{__debug_chk_var_global:N} \meta{var}
 %   \end{syntax}
-%   These functions are only created if debugging is enabled.  They
-%   check that \meta{var} is a local/global variable, and if not raises
-%   a kernel-level error.  More precisely, if the variable name starts
-%   with a letter and an underscore (normal \pkg{expl3} convention) the
-%   functions check that this single letter is |l| or |g| as
-%   appropriate.  Otherwise the functions cannot know the first time
-%   whether \meta{var} is local or global: instead, they define
-%   |\__debug_chk_/|\meta{var name} to store the information, and if
-%   both \cs{__debug_chk_var_local:N} and \cs{__debug_chk_var_global:N}
-%   are called on the same variable a kernel-level error is raised.
+%   Applies \cs{__debug_chk_var_exist:N} \meta{var}, then
+%   \cs{__debug_chk_var_scope:NN} \meta{scope} \meta{var}, where
+%   \meta{scope} is |l| or~|g|.
 % \end{function}
 %
 % \begin{function}{\__debug_log:x}
@@ -1858,14 +1868,16 @@
 % \begin{macro}[int]{\@@_chk_var_exist:N}
 % \begin{macro}[int]{\@@_chk_cs_exist:N, \@@_chk_cs_exist:c}
 % \begin{macro}[int]{\@@_chk_var_local:N, \@@_chk_var_global:N}
+% \begin{macro}[int]{\@@_chk_var_scope:NN}
 %   When debugging is enabled these two functions set up functions that
 %   test their argument (when \texttt{check-declarations} is active)
 %   \begin{itemize}
 %     \item \cs{@@_chk_var_exist:N} and \cs{@@_chk_cs_exist:N}, two
 %       functions that test that their argument is defined;
-%     \item \cs{@@_chk_var_local:N} and \cs{@@_chk_var_global:N}, two
-%       functions that check that their argument is a local (resp.\@
-%       global) variable.
+%     \item \cs{@@_chk_var_scope:NN} that checks that its argument |#2|
+%       has scope |#1|.
+%     \item \cs{@@_chk_var_local:N} and \cs{@@_chk_var_global:N} that
+%       perform both checks.
 %   \end{itemize}
 %    \begin{macrocode}
 \@@:TF
@@ -1890,27 +1902,31 @@
                   { \token_to_str:N ##1 }
               }
           }
+        \cs_set_protected:Npn \@@_chk_var_scope:NN
+          {
+            \@@_suspended:T \use_none:nnn
+            \@@_chk_var_scope_aux:NN
+          }
         \cs_set_protected:Npn \@@_chk_var_local:N ##1
           {
             \@@_suspended:T \use_none:nnnnn
             \@@_chk_var_exist:N ##1
-            \@@_chk_var_local_aux:NN l ##1
+            \@@_chk_var_scope_aux:NN l ##1
           }
         \cs_set_protected:Npn \@@_chk_var_global:N ##1
           {
             \@@_suspended:T \use_none:nnnnn
             \@@_chk_var_exist:N ##1
-            \@@_chk_var_local_aux:NN g ##1
+            \@@_chk_var_scope_aux:NN g ##1
           }
       }
     \exp_args:Nc \cs_set_protected:Npn { @@_check-declarations_off: }
       {
         \cs_set_protected:Npn \@@_chk_var_exist:N ##1 { }
         \cs_set_protected:Npn \@@_chk_cs_exist:N ##1 { }
-        \cs_set_protected:Npn \@@_chk_var_local:N ##1
-          { \@@_chk_var_exist:N ##1 }
-        \cs_set_protected:Npn \@@_chk_var_global:N ##1
-          { \@@_chk_var_exist:N ##1 }
+        \cs_set_protected:Npn \@@_chk_var_local:N ##1 { }
+        \cs_set_protected:Npn \@@_chk_var_global:N ##1 { }
+        \cs_set_protected:Npn \@@_chk_var_scope:NN ##1##2 { }
       }
     \cs_set_protected:Npn \@@_chk_cs_exist:c
       { \exp_args:Nc \@@_chk_cs_exist:N }
@@ -1926,40 +1942,41 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
 %
-% \begin{macro}[aux]{\@@_chk_var_local_aux:NN}
-% \begin{macro}[aux]{\@@_chk_var_local_aux:Nn}
-% \begin{macro}[aux]{\@@_chk_var_local_aux:NNn}
+% \begin{macro}[aux]{\@@_chk_var_scope_aux:NN}
+% \begin{macro}[aux]{\@@_chk_var_scope_aux:Nn}
+% \begin{macro}[aux]{\@@_chk_var_scope_aux:NNn}
 %   First check whether the name of the variable |#2| starts with
-%   \meta{letter}|_|.  If it does then pass that letter, the target
-%   letter |l| or |g|, and the variable name to
-%   \cs{@@_chk_var_local_aux:NNn}.  That function compares the two
+%   \meta{letter}|_|.  If it does then pass that letter, the
+%   \meta{scope}, and the variable name to
+%   \cs{@@_chk_var_scope_aux:NNn}.  That function compares the two
 %   letters and triggers an error if they differ (the \cs{scan_stop:}
 %   case is not reachable here).  If the second character was not |_|
 %   then pass the same data to the same auxiliary, except for its first
 %   argument which is now a control sequence.  That control sequence is
 %   actually a token list (but to avoid triggering the checking code we
 %   manipulate it using \cs{cs_set_nopar:Npn}) containing a single
-%   letter |l| or |g| according to what the first assignment to the
+%   letter \meta{scope} according to what the first assignment to the
 %   given variable was.
 %    \begin{macrocode}
 \@@:TF
   {
-    \cs_set_protected:Npn \@@_chk_var_local_aux:NN #1#2
-      { \exp_args:NNf \@@_chk_var_local_aux:Nn #1 { \cs_to_str:N #2 } }
-    \cs_set_protected:Npn \@@_chk_var_local_aux:Nn #1#2
+    \cs_set_protected:Npn \@@_chk_var_scope_aux:NN #1#2
+      { \exp_args:NNf \@@_chk_var_scope_aux:Nn #1 { \cs_to_str:N #2 } }
+    \cs_set_protected:Npn \@@_chk_var_scope_aux:Nn #1#2
       {
-        \if:w _ \use_i:nn \tl_head:w #2 ? ? \q_stop
-          \exp_after:wN \@@_chk_var_local_aux:NNn
-            \tl_head:w #2 ? \q_stop
+        \if:w _ \use_i:nn \use_i_delimit_by_q_stop:nw #2 ? ? \q_stop
+          \exp_after:wN \@@_chk_var_scope_aux:NNn
+            \use_i_delimit_by_q_stop:nw #2 ? \q_stop
             #1 {#2}
         \else:
-          \exp_args:Nc \@@_chk_var_local_aux:NNn
+          \exp_args:Nc \@@_chk_var_scope_aux:NNn
             { @@_chk_/ #2 }
             #1 {#2}
         \fi:
       }
-    \cs_set_protected:Npn \@@_chk_var_local_aux:NNn #1#2#3
+    \cs_set_protected:Npn \@@_chk_var_scope_aux:NNn #1#2#3
       {
         \if:w #1 #2
         \else:
