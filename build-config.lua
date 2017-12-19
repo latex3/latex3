@@ -4,7 +4,6 @@ checkdeps   = checkdeps   or {maindir .. "/l3kernel"}
 typesetdeps = typesetdeps or {maindir .. "/l3kernel"}
 unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 
-cmdchkfiles     = cmdchkfiles     or {"*.dtx"}
 checkengines    = checkengines
   or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
 checksuppfiles  = checksuppfiles  or

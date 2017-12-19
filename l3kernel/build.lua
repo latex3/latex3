@@ -12,7 +12,6 @@ maindir = ".."
 -- Non-standard settings
 checkfiles   = {"l3names.def"}
 cleanfiles   = {"*.fmt", "*.log", "*.pdf", "*.zip"}
-cmdchkfiles  = {"source3.tex"}
 docfiles     = {"source3body.tex"}
 installfiles =
   {
@@ -39,6 +38,40 @@ versionfiles     =
 -- No deps other than the test system
 typesetdeps = {maindir .. "/l3packages/xparse"}
 unpackdeps  = { }
+
+function cmdcheck()
+  mkdir(localdir)
+  cleandir(testdir)
+  depinstall(checkdeps)
+  for _,filetype in pairs(
+      {bibfiles, docfiles, typesetfiles, typesetdemofiles}
+    ) do
+    for _,file in pairs(filetype) do
+      cp(file, docfiledir, testdir)
+    end
+  end
+  for _,file in pairs(sourcefiles) do
+    cp(file, sourcefiledir, testdir)
+  end
+  for _,file in pairs(typesetsuppfiles) do
+    cp(file, supportdir, testdir)
+  end
+  print("Checking source3")
+  run(
+    testdir,
+    os_setenv .. " TEXINPUTS=." .. os_pathsep .. abspath(localdir)
+      .. os_pathsep ..
+    os_concat ..
+    string.gsub(stdengine, "tex$", "latex") .. " --interaction=batchmode" ..
+      " \"\\PassOptionsToClass{check}{l3doc} \\input source3.tex \""
+      .. " > " .. os_null
+  )
+  for line in io.lines(testdir .. "/source3.cmds") do
+    if string.match(line, "^%!") then
+      print("   - " .. string.match(line, "^%! (.*)"))
+    end
+  end
+end
 
 function format()
   local engines = checkengines
