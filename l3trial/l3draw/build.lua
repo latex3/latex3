@@ -10,6 +10,8 @@ module = "l3draw"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
+typesetfiles = {"l3draw.dtx"}
+
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
