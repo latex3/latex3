@@ -1,6 +1,6 @@
 % \iffalse meta-comment
 %
-%% File: l3fp-aux.dtx Copyright(C) 2011-2017 The LaTeX3 Project
+%% File: l3fp-aux.dtx Copyright(C) 2011-2018 The LaTeX3 Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -203,6 +203,17 @@
 %
 % \subsection{Constants, and structure of floating points}
 %
+% \begin{macro}{\@@_misused:n}
+%   This receives a floating point object (floating point number or
+%   tuple) and generates an error stating that it was misused.  This is
+%   called when for instance an |fp| variable is left in the input
+%   stream and its contents reach \TeX{}'s stomach.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_misused:n #1
+  { \__kernel_msg_error:nnx { kernel } { misused-fp } { \fp_to_tl:n {#1} } }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\s_@@, \@@_chk:w}
 %   Floating points numbers all start with \cs{s_@@} \cs{@@_chk:w},
 %   where \cs{s_@@} is equal to the \TeX{} primitive \tn{relax}, and
@@ -214,10 +225,7 @@
 %    \begin{macrocode}
 \__scan_new:N \s_@@
 \cs_new_protected:Npn \@@_chk:w #1 ;
-  {
-    \__kernel_msg_error:nnx { kernel } { misused-fp }
-      { \fp_to_tl:n { \s_@@ \@@_chk:w #1 ; } }
-  }
+  { \@@_misused:n { \s_@@ \@@_chk:w #1 ; } }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -385,10 +393,9 @@
 %     \cs{@@_exp_after_f:nw} \Arg{tokens} \meta{floating point}
 %   \end{syntax}
 %   Places \meta{tokens} (empty in the case of \cs{@@_exp_after_o:w})
-%   between the \meta{floating point} and the \meta{more tokens}, then
-%   hits those tokens with either \texttt{o}-expansion (one
-%   \cs{exp_after:wN}) or \texttt{f}-expansion, and leaves the floating
-%   point number unchanged.
+%   between the \meta{floating point} and the following tokens, then
+%   hits those tokens with \texttt{o} or \texttt{f}-expansion, and
+%   leaves the floating point number unchanged.
 %
 %   We first distinguish normal floating points, which have a significand,
 %   from the much simpler special floating points.
@@ -459,25 +466,141 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_exp_after_array_f:w}
-% \begin{macro}[EXP]{\@@_exp_after_stop_f:nw}
-%   \begin{syntax}
-%     \cs{@@_exp_after_array_f:w}
-%       \meta{fp_1} |;|
-%       \ldots{}
-%       \meta{fp_n} |;|
-%       \cs{s_@@_stop}
-%   \end{syntax}
+% \subsection{Other floating point types}
+%
+% \begin{macro}{\s_@@_tuple, \@@_chk_tuple:w}
+% \begin{variable}{\c_@@_empty_tuple_fp}
+%   Floating point tuples take the form \cs{s_@@_tuple}
+%   \cs{@@_chk_tuple:w} |{| \meta{fp 1} \meta{fp 2} \dots |}| |;| where
+%   each \meta{fp} is a floating point number or tuple, hence ends with
+%   |;| itself.  When a tuple is typeset, \cs{@@_chk_tuple:w} produces
+%   an error, just like usual floating point numbers.
+%   Tuples may have zero or one element.
 %    \begin{macrocode}
-\cs_new:Npn \@@_exp_after_array_f:w #1
+\__scan_new:N \s_@@_tuple
+\cs_new_protected:Npn \@@_chk_tuple:w #1 ;
+  { \@@_misused:n { \s_@@_tuple \@@_chk_tuple:w #1 ; } }
+\tl_const:Nn \c_@@_empty_tuple_fp
+  { \s_@@_tuple \@@_chk_tuple:w { } ; }
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_tuple_count:w, \@@_array_count:n}
+% \begin{macro}[EXP]{\@@_tuple_count_loop:Nw}
+%   Count the number of items in a tuple of floating points by counting
+%   semicolons.  The technique is very similar to \cs{tl_count:n}, but
+%   with the loop built-in.  Checking for the end of the loop is done
+%   with the |\use_none:n #1| construction.
+%    \begin{macrocode}
+\cs_new:Npn \@@_array_count:n #1
+  { \@@_tuple_count:w \s_@@_tuple \@@_chk_tuple:w {#1} ; }
+\cs_new:Npn \@@_tuple_count:w \s_@@_tuple \@@_chk_tuple:w #1 ;
   {
-    \cs:w @@_exp_after \@@_type_from_scan:N #1 _f:nw \cs_end:
-      { \@@_exp_after_array_f:w }
-    #1
+    \__int_value:w \__int_eval:w 0
+      \@@_tuple_count_loop:Nw #1 { ? \__prg_break: } ;
+      \__prg_break_point:
+    \__int_eval_end:
+  }
+\cs_new:Npn \@@_tuple_count_loop:Nw #1#2;
+  { \use_none:n #1 + 1 \@@_tuple_count_loop:Nw }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_if_type_fp:NTwFw}
+%   Used as \cs{@@_if_type_fp:NTwFw} \meta{marker} \Arg{true code}
+%   \cs{s__fp} \Arg{false code} \cs{q_stop}, this test whether the
+%   \meta{marker} is \cs{s_@@} or not and runs the appropriate
+%   \meta{code}.  The very unusual syntax is for optimization purposes
+%   as that function is used for all floating point operations.
+%    \begin{macrocode}
+\cs_new:Npn \@@_if_type_fp:NTwFw #1 \s_@@ #2 #3 \q_stop {#2}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]
+%   {\@@_type_from_scan:N, \@@_type_from_scan_other:N, \@@_type_from_scan:w}
+%   Used as \cs{@@_type_from_scan:N} \meta{token}.
+%   Grabs the pieces of the stringified \meta{token} which lies after
+%   the first |s__fp|.  If the \meta{token} does not contain that
+%   string, the result is |_?|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_type_from_scan:N #1
+  {
+    \@@_if_type_fp:NTwFw
+      #1 { }
+      \s_@@ { \@@_type_from_scan_other:N #1 }
+      \q_stop
+  }
+\cs_new:Npx \@@_type_from_scan_other:N #1
+  {
+    \exp_not:N \exp_after:wN \exp_not:N \@@_type_from_scan:w
+    \exp_not:N \token_to_str:N #1 \exp_not:N \q_mark
+      \tl_to_str:n { s_@@ _? } \exp_not:N \q_mark \exp_not:N \q_stop
+  }
+\use:x
+  {
+    \cs_new:Npn \exp_not:N \@@_type_from_scan:w
+      ##1 \tl_to_str:n { s_@@ } ##2 \exp_not:N \q_mark ##3 \exp_not:N \q_stop
+      {##2}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_exp_after_any_f:Nnw, \@@_exp_after_any_f:nw}
+% \begin{macro}[EXP]{\@@_exp_after_stop_f:nw}
+%   The |Nnw| function simply dispatches to the appropriate
+%   \cs[no-index]{@@_exp_after\ldots{}_f:nw} with \enquote{\ldots{}}
+%   (either empty or |_|\meta{type}) extracted from |#1|, which should
+%   start with |\s__fp|.  If it doesn't start with |\s__fp| the function
+%   \cs{@@_exp_after_?_f:nw} defined in \pkg{l3fp-parse} gives an error;
+%   another special \meta{type} is |stop|, useful for loops, see below.
+%   The |nw| function has an important optimization for floating points
+%   numbers; it also fetches its type marker |#2| from the floating
+%   point.
+%    \begin{macrocode}
+\cs_new:Npn \@@_exp_after_any_f:Nnw #1
+  { \cs:w @@_exp_after \@@_type_from_scan_other:N #1 _f:nw \cs_end: }
+\cs_new:Npn \@@_exp_after_any_f:nw #1#2
+  {
+    \@@_if_type_fp:NTwFw
+      #2 \@@_exp_after_f:nw
+      \s_@@ { \@@_exp_after_any_f:Nnw #2 }
+      \q_stop
+    {#1} #2
   }
 \cs_new_eq:NN \@@_exp_after_stop_f:nw \use_none:nn
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_exp_after_tuple_f:nw, \@@_exp_after_array_f:w}
+%   The loop works by using the |n| argument of
+%   \cs{@@_exp_after_any_f:nw} to place the loop macro after the next
+%   item in the tuple and expand it.
+%   \begin{quote}
+%     \cs{@@_exp_after_array_f:w}\\
+%       \meta{fp_1} |;|\\
+%       \ldots{}\\
+%       \meta{fp_n} |;|\\
+%       \cs{s_@@_stop}
+%   \end{quote}
+%    \begin{macrocode}
+\cs_new:Npn \@@_exp_after_tuple_f:nw #1 \s_@@_tuple \@@_chk_tuple:w #2 ;
+  {
+    \exp_after:wN \s_@@_tuple
+    \exp_after:wN \@@_chk_tuple:w
+    \exp_after:wN {
+      \exp:w \exp_end_continue_f:w
+      \@@_exp_after_array_f:w #2 \s_@@_stop
+    \exp_after:wN }
+    \exp_after:wN ;
+    \exp:w \exp_end_continue_f:w #1
+  }
+\cs_new:Npn \@@_exp_after_array_f:w
+  { \@@_exp_after_any_f:nw { \@@_exp_after_array_f:w } }
+%    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Packing digits}
@@ -1011,28 +1134,6 @@
 % \end{macro}
 % \end{macro}
 %
-% \subsection{Length of a floating point array}
-%
-% \begin{macro}[EXP]{\@@_array_count:n}
-% \begin{macro}[EXP]{\@@_array_count_loop:Nw}
-%   Count the number of items in an array of floating points.  The
-%   technique is very similar to \cs{tl_count:n}, but with the loop
-%   built-in.  Checking for the end of the loop is done with the
-%   |\use_none:n #1| construction.
-%    \begin{macrocode}
-\cs_new:Npn \@@_array_count:n #1
-  {
-    \__int_value:w \__int_eval:w 0
-      \@@_array_count_loop:Nw #1 { ? \__prg_break: } ;
-      \__prg_break_point:
-    \__int_eval_end:
-  }
-\cs_new:Npn \@@_array_count_loop:Nw #1#2;
-  { \use_none:n #1 + 1 \@@_array_count_loop:Nw }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
 % \subsection{\texttt{x}-like expansion expandably}
 %
 % \begin{macro}[EXP]{\@@_expand:n}
@@ -1064,6 +1165,20 @@
 % \end{macro}
 % \end{macro}
 %
+% \subsection{Name of a function from its \pkg{l3fp-parse} name}
+%
+% \begin{macro}[EXP]{\@@_func_to_name:N, \@@_func_to_name_aux:w}
+%   The goal is to convert for instance \cs{@@_sin_o:w} to |sin|.
+%   This is used in error messages hence does not need to be fast.
+%    \begin{macrocode}
+\cs_new:Npn \@@_func_to_name:N #1
+  { \exp_last_unbraced:Nf \@@_func_to_name_aux:w { \cs_to_str:N #1 } X }
+\cs_set_protected:Npn \@@_tmp:w #1 #2
+  { \cs_new:Npn \@@_func_to_name_aux:w ##1 #1 ##2 #2 ##3 X {##2} }
+\exp_args:Nff \@@_tmp:w { \tl_to_str:n { @@_ } } { \tl_to_str:n { _o:w } }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Messages}
 %
 % Using a floating point directly is an error.
@@ -1073,7 +1188,7 @@
   {
     To~obtain~the~value~of~a~floating~point~variable,~use~
     '\token_to_str:N \fp_to_decimal:N',~
-    '\token_to_str:N \fp_to_scientific:N',~or~other~
+    '\token_to_str:N \fp_to_tl:N',~or~other~
     conversion~functions.
   }
 %    \end{macrocode}
