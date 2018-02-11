@@ -1777,37 +1777,54 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_parse_apply_unary:NNNwN, \@@_parse_apply_unary_aux:NwNw, \@@_parse_apply_unary_aux:nNNNw}
+% \begin{macro}[EXP]{\@@_parse_apply_unary:NNNwN}
+% \begin{macro}[EXP]{\@@_parse_apply_unary_chk:NwNw, \@@_parse_apply_unary_chk:nNNNw}
+% \begin{macro}[EXP]{\@@_parse_apply_unary_type:NNN, \@@_parse_apply_unary_error:NNw}
 %   In contrast to \cs{@@_parse_apply_function:NNNwN}, this checks that
 %   the operand |#4| is a single argument (namely there is a single
 %   |;|).  We use the fact that any floating point starts with a
-%   \enquote{safe} token like \cs{s__fp}.  If there is no argument
+%   \enquote{safe} token like \cs{s_@@}.  If there is no argument
 %   produce the |fp-no-arg| error; if there are at least two produce
 %   |fp-multi-arg|.  For the error message extract the mathematical
 %   function name (such as |sin|) from the \pkg{expl3} function that
 %   computes it, such as \cs{@@_sin_o:w}.
+%
+%   In addition, since there is a single argument we can dispatch on
+%   type and check that the resulting function exists.  This catches
+%   things like |sin((1,2))| where it does not make sense to take the
+%   sine of a tuple.
 %    \begin{macrocode}
 \cs_new:Npn \@@_parse_apply_unary:NNNwN #1#2#3#4@#5
   {
-    \@@_parse_apply_unary_aux:NwNw #4 @ ; . \q_stop
+    \@@_parse_apply_unary_chk:NwNw #4 @ ; . \q_stop
+    \@@_parse_apply_unary_type:NNN
     #3 #2 #4 @
     \exp:w \exp_end_continue_f:w #5 #1
   }
-\cs_new:Npn \@@_parse_apply_unary_aux:NwNw #1#2 ; #3#4 \q_stop
+\cs_new:Npn \@@_parse_apply_unary_chk:NwNw #1#2 ; #3#4 \q_stop
   {
     \if_meaning:w @ #3 \else:
       \token_if_eq_meaning:NNTF . #3
-        { \@@_parse_apply_unary_aux:nNNNw { no } }
-        { \@@_parse_apply_unary_aux:nNNNw { multi } }
+        { \@@_parse_apply_unary_chk:nNNNNw { no } }
+        { \@@_parse_apply_unary_chk:nNNNNw { multi } }
     \fi:
   }
-\cs_new:Npn \@@_parse_apply_unary_aux:nNNNw #1#2#3#4#5 @
+\cs_new:Npn \@@_parse_apply_unary_chk:nNNNNw #1#2#3#4#5#6 @
   {
     #2
-    \@@_error:nffn { fp-#1-arg } { \@@_func_to_name:N #3 } { } { }
-    \exp_after:wN #3 \exp_after:wN #4 \c_nan_fp @
+    \@@_error:nffn { fp-#1-arg } { \@@_func_to_name:N #4 } { } { }
+    \exp_after:wN #4 \exp_after:wN #5 \c_nan_fp @
   }
+\cs_new:Npn \@@_parse_apply_unary_type:NNN #1#2#3
+  {
+    \@@_change_func_type:NNN #3 #1 \@@_parse_apply_unary_error:NNw
+    #2 #3
+  }
+\cs_new:Npn \@@_parse_apply_unary_error:NNw #1#2
+  { \@@_invalid_operation_o:fw { \@@_func_to_name:N #1 } }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[EXP]{\@@_parse_prefix_-:Nw, \@@_parse_prefix_!:Nw}
@@ -2309,7 +2326,7 @@
     \exp_after:wN #1
     \exp:w \exp_end_continue_f:w
     \@@_exp_after_tuple_f:nw { }
-      \s_@@_tuple \@@_chk_tuple:w { #2 #4 } ;
+      \s_@@_tuple \@@_tuple_chk:w { #2 #4 } ;
     #5 #1
   }
 %    \end{macrocode}
@@ -2587,6 +2604,87 @@
 % \end{macro}
 % \end{macro}
 %
+% \subsection{Tools for functions}
+%
+% \begin{macro}[EXP]{\@@_parse_function_all_fp_o:fnw}
+%   Followed by \Arg{function name} \Arg{code} \meta{float array} |@|
+%   this checks all floats are floating point numbers (no tuples).
+%    \begin{macrocode}
+\cs_new:Npn \@@_parse_function_all_fp_o:fnw #1#2#3 @
+  {
+    \@@_array_if_all_fp:nTF {#3}
+      { #2 #3 @ }
+      {
+        \@@_error:nffn { fp-bad-args }
+          {#1}
+          { \fp_to_tl:n { \s_@@_tuple \@@_tuple_chk:w {#3} ; } }
+          { }
+        \exp_after:wN \c_nan_fp
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_parse_function_one_two:nnw}
+% \begin{macro}[EXP]
+%   {
+%     \@@_parse_function_one_two_error_o:w,
+%     \@@_parse_function_one_two_aux:nnw,
+%     \@@_parse_function_one_two_auxii:nnw
+%   }
+%   This is followed by \Arg{function name} \Arg{code} \meta{float
+%   array} |@|.  It checks that the \meta{float array} consists of one
+%   or two floating point numbers (not tuples), then leaves the
+%   \meta{code} (if there is one float) or its tail (if there are two
+%   floats) followed by the \meta{float array}.  The \meta{code} should
+%   start with a single token such as \cs{@@_atan_default:w} that deals
+%   with the single-float case.
+%
+%   The first \cs{@@_if_type_fp:NTwFw} test catches the case of no
+%   argument and the case of a tuple argument.  The next one
+%   distinguishes the case of a single argument (no error, just add
+%   \cs{c_one_fp}) from a tuple second argument.  Finally check there is
+%   no further argument.
+%    \begin{macrocode}
+\cs_new:Npn \@@_parse_function_one_two:nnw #1#2#3
+  {
+    \@@_if_type_fp:NTwFw
+      #3 { } \s_@@ \@@_parse_function_one_two_error_o:w \q_stop
+    \@@_parse_function_one_two_aux:nnw {#1} {#2} #3
+  }
+\cs_new:Npn \@@_parse_function_one_two_error_o:w #1#2#3#4 @
+  {
+    \@@_error:nffn { fp-bad-args }
+      {#2}
+      { \fp_to_tl:n { \s_@@_tuple \@@_tuple_chk:w {#4} ; } }
+      { }
+    \exp_after:wN \c_nan_fp
+  }
+\cs_new:Npn \@@_parse_function_one_two_aux:nnw #1#2 #3; #4
+  {
+    \@@_if_type_fp:NTwFw
+      #4 { }
+      \s_@@
+      {
+        \if_meaning:w @ #4
+          \exp_after:wN \use_iv:nnnn
+        \fi:
+        \@@_parse_function_one_two_error_o:w
+      }
+      \q_stop
+    \@@_parse_function_one_two_auxii:nnw {#1} {#2} #3; #4
+  }
+\cs_new:Npn \@@_parse_function_one_two_auxii:nnw #1#2#3; #4; #5
+  {
+    \if_meaning:w @ #5 \else:
+      \exp_after:wN \@@_parse_function_one_two_error_o:w
+    \fi:
+    \use_ii:nn {#1} { \use_none:n #2 } #3; #4; #5
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \subsection{Candidate: defining new \pkg{l3fp} functions}
 %
 % \begin{macro}[EXP]{\fp_function:Nw}
@@ -2723,6 +2821,8 @@
   { #1~got~more~than~one~argument;~used~nan. }
 \__kernel_msg_new:nnn { kernel } { fp-num-args }
   { #1~expects~between~#2~and~#3~arguments. }
+\__kernel_msg_new:nnn { kernel } { fp-bad-args }
+  { Arguments~in~#1#2~are~invalid. }
 %<*package>
 \cs_if_exist:cT { @unexpandable@protect }
   {
