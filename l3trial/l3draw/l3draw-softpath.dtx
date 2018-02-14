@@ -1,0 +1,316 @@
+% \iffalse meta-comment
+%
+%% File: l3draw-softpath.dtx Copyright(C) 2018 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    http://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3trial bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver>
+\RequirePackage{expl3}
+\documentclass[full]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \pkg{l3draw-softpath} package\\ Soft paths^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2018/02/05}
+%
+% \maketitle
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3draw-softpath} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=draw>
+%    \end{macrocode}
+%
+% There are two linked aims in the code here. The most significant is to
+% provide a way to modify paths, for example to shorten the ends or round
+% the corners.  This means that the path cannot be written piecemeal as
+% specials, but rather needs to be held in macros. The second aspect that
+% follows from this is performance: simply adding to a single macro a piece
+% at a time will have poor performance as the list gets long. Paths need to
+% be global (as specials are), so we cannot use \pkg{l3tl-build} or a similar
+% approach. Instead, we use the same idea as \pkg{pgf}: use a series of buffer
+% macros such that in most cases we don't add tokens to the main list. This
+% will get slow only for \emph{enormous} paths.
+%
+% Each marker (operation) token takes two arguments, which makes processing
+% more straight-forward. As such, some operations have dummy arguments, whilst
+% others have to be split over several tokens.
+%
+% \begin{variable}
+%   {
+%     \g_@@_softpath_main_tl     ,
+%     \g_@@_softpath_buffer_a_tl ,
+%     \g_@@_softpath_buffer_b_tl
+%   }
+%   The soft path itself.
+%    \begin{macrocode}
+\tl_new:N \g_@@_softpath_main_tl
+\tl_new:N \g_@@_softpath_buffer_a_tl
+\tl_new:N \g_@@_softpath_buffer_b_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}
+%   {
+%     \g_@@_softpath_buffer_a_int ,
+%     \g_@@_softpath_buffer_b_int
+%   }
+%   Tracking data.
+%    \begin{macrocode}
+\int_new:N \g_@@_softpath_buffer_a_int
+\int_new:N \g_@@_softpath_buffer_b_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\@@_softpath_add:n, \@@_softpath_add:x}
+% \begin{macro}{\@@_softpath_concat:n}
+% \begin{macro}{\@@_softpath_reset_buffers:}
+%   The softpath itself is quite simple. We use three token lists to hold the
+%   data: two buffers of limited length, and the main list of arbitrary size.
+%   Most of the time this will mean that we don't add to the full list, so
+%   performance will be acceptable.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_add:n #1
+  {
+    \int_compare:nNnTF \g_@@_softpath_buffer_a_int < { 40 }
+      {
+        \int_gincr:N \g_@@_softpath_buffer_a_int
+        \tl_gput_right:Nn \g_@@_softpath_buffer_a_tl {#1}
+      }
+      {
+        \int_compare:nNnTF \g_@@_softpath_buffer_b_int < { 40 }
+          {
+            \int_gincr:N \g_@@_softpath_buffer_b_int
+            \tl_gset:Nx \g_@@_softpath_buffer_b_tl
+              {
+                \exp_not:V \g_@@_softpath_buffer_b_tl
+                \exp_not:V \g_@@_softpath_buffer_a_tl
+                \exp_not:n {#1}
+              }
+            \int_gzero:N \g_@@_softpath_buffer_a_int
+            \tl_gclear:N \g_@@_softpath_buffer_a_tl
+          }
+          { \@@_softpath_concat:n {#1} }
+      }
+  }
+\cs_generate_variant:Nn \@@_softpath_add:n { x }
+\cs_new_protected:Npn \@@_softpath_concat:n #1
+  {
+    \tl_gset:Nx \g_@@_softpath_main_tl
+      {
+        \exp_not:V \g_@@_softpath_main_tl
+        \exp_not:V \g_@@_softpath_buffer_b_tl
+        \exp_not:V \g_@@_softpath_buffer_a_tl
+        \exp_not:n {#1}
+      }
+    \@@_softpath_reset_buffers:
+  }
+\cs_new_protected:Npn \@@_softpath_reset_buffers:
+  {
+    \int_gzero:N \g_@@_softpath_buffer_a_int
+    \tl_gclear:N \g_@@_softpath_buffer_a_tl
+    \int_gzero:N \g_@@_softpath_buffer_b_int
+    \tl_gclear:N \g_@@_softpath_buffer_b_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_softpath_get:N, \@@_softpath_set_eq:N}
+%   Save and restore functions.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_get:N #1
+  {
+    \@@_softpath_concat:n { }
+    \tl_set_eq:NN #1 \g_@@_softpath_main_tl
+  }
+\cs_new_protected:Npn \@@_softpath_set_eq:N #1
+  {
+    \tl_gset_eq:NN \g_@@_softpath_main_tl #1
+    \@@_softpath_reset_buffers:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {\@@_softpath_use:, \@@_softpath_clear:, \@@_softpath_use_clear:}
+%   Using and clearing is trivial.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_use:
+  {
+    \g_@@_softpath_main_tl
+    \g_@@_softpath_buffer_b_tl
+    \g_@@_softpath_buffer_a_tl
+  }
+\cs_new_protected:Npn \@@_softpath_clear:
+  {
+    \tl_gclear:N \g_@@_softpath_main_tl
+    \tl_gclear:N \g_@@_softpath_buffer_a_tl
+    \tl_gclear:N \g_@@_softpath_buffer_b_tl
+  }
+\cs_new_protected:Npn \@@_softpath_use_clear:
+  {
+    \@@_softpath_use:
+    \@@_softpath_clear:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\g_@@_softpath_lastx_dim, \g_@@_softpath_lasty_dim}
+%   For tracking the end of the path (to close it).
+%    \begin{macrocode}
+\dim_new:N \g_@@_softpath_lastx_dim
+\dim_new:N \g_@@_softpath_lasty_dim
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_softpath_move_bool}
+%   Track if moving a point should update the close position.
+%    \begin{macrocode}
+\bool_new:N \g_@@_softpath_move_bool
+\bool_gset_true:N \g_@@_softpath_move_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\@@_softpath_curveto:nnnnnn}
+% \begin{macro}
+%   {
+%     \@@_softpath_lineto:nn,
+%     \@@_softpath_moveto:nn
+%   }
+% \begin{macro}{\@@_softpath_rectangle:nnnn}
+% \begin{macro}{\@@_softpath_roundpoint:nn}
+%   The various parts of a path expressed as the appropriate soft path
+%   functions.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_closepath:
+  {
+    \@@_softpath_add:x
+      {
+        \@@_softpath_close_op:nn
+          { \dim_use:N \g_@@_softpath_lastx_dim }
+          { \dim_use:N \g_@@_softpath_lasty_dim }
+      }
+  }
+\cs_new_protected:Npn \@@_softpath_curveto:nnnnnn #1#2#3#4#5#6
+  {
+    \@@_softpath_add:n
+      {
+        \@@_softpath_curveto_opi:nn {#1} {#2}
+        \@@_softpath_curveto_opii:nn {#3} {#4}
+        \@@_softpath_curveto_opiii:nn {#5} {#6}
+      }
+  }
+\cs_new_protected:Npn \@@_softpath_lineto:nn #1#2
+  {
+    \@@_softpath_add:n
+      { \@@_softpath_lineto_op:nn {#1} {#2} }
+  }
+\cs_new_protected:Npn \@@_softpath_moveto:nn #1#2
+  {
+    \@@_softpath_add:n
+      { \@@_softpath_moveto_op:nn {#1} {#2} }
+    \bool_if:NT \g_@@_softpath_move_bool
+      {
+        \dim_gset:Nn \g_@@_softpath_lastx_dim {#1}
+        \dim_gset:Nn \g_@@_softpath_lasty_dim {#2}
+      }
+  }
+\cs_new_protected:Npn \@@_softpath_rectangle:nn #1#2#3#4
+  {
+    \@@_softpath_add:n
+      {
+        \@@_softpath_rectangle_opi:nn {#1} {#2}
+        \@@_softpath_rectangle_opii:nn {#3} {#4}
+      }
+  }
+\cs_new_protected:Npn \@@_softpath_roundpoint:nn #1#2
+  {
+    \@@_softpath_add:n
+      { \@@_softpath_round_op:nn {#1} {#2} }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     \@@_softpath_close_op:nn      ,
+%     \@@_softpath_curveto_opi:nn   ,
+%     \@@_softpath_curveto_opii:nn  ,
+%     \@@_softpath_curveto_opiii:nn ,
+%     \@@_softpath_lineto_op:nn     ,
+%     \@@_softpath_moveto_op:nn     ,
+%     \@@_softpath_roundpoint_op:nn ,
+%     \@@_softpath_rectangle_opi:nn ,
+%     \@@_softpath_rectangle_opii:nn
+%   }
+% \begin{macro}{\@@_softpath_curveto_opi:nnNnnNnn}
+% \begin{macro}{\@@_softpath_curveto_opi:nnNnn}
+%   The markers for operations: all the top-level ones take two arguments.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_close_op:nn #1#2
+  { \driver_draw_closepath: }
+\cs_new_protected:Npn \@@_softpath_curveto_opi:nn #1#2 
+  { \@@_softpath_curveto_opi:nnNnnNnn {#1} {#2} }
+\cs_new_protected:Npn \@@_softpath_curveto_opi:nnNnnNnn #1#2#3#4#5#6#7#8
+  { \driver_draw_curevto:nnnnnn {#1} {#2} {#4} {#5} {#7} {#8} }
+\cs_new_protected:Npn \@@_softpath_curveto_opii:nn #1#2 { }
+\cs_new_protected:Npn \@@_softpath_curveto_opiii:nn #1#2 { }
+\cs_new_protected:Npn \@@_softpath_lineto_op:nn #1#2
+  { \driver_draw_lineto:nn {#1} {#2} }
+\cs_new_protected:Npn \@@_softpath_moveto_op:nn #1#2
+  { \driver_draw_moveto:nn {#1} {#2} }
+\cs_new_protected:Npn \@@_softpath_roundpoint_op:nn #1#2 { }
+\cs_new_protected:Npn \@@_softpath_rectangle_opi:nn #1#2 
+  { \@@_softpath_rectangle_opi:nnNnn{#1} {#2} }
+\cs_new_protected:Npn \@@_softpath_rectangle_opi:nnNnnNnn #1#2#3#4#5
+  { \driver_draw_rectangle:nnnn {#1} {#2} {#4} {#5} }
+  \cs_new_protected:Npn \@@_softpath_rectangle_opii:nn #1#2 { }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex
