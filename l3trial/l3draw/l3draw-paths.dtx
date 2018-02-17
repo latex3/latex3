@@ -58,9 +58,11 @@
 %<@@=draw>
 %    \end{macrocode}
 %
-% \begin{variable}{\l_@@_path_tmp_fp, \l_@@_path_tmp_fp}
+% \begin{variable}
+%   {\l_@@_path_tmp_tl, \l_@@_path_xtmp_fp, \l_@@_path_ytmp_fp}
 %   Scratch space.
 %    \begin{macrocode}
+\tl_new:N \l_@@_path_tmp_tl
 \fp_new:N \l_@@_path_xtmp_fp
 \fp_new:N \l_@@_path_ytmp_fp
 %    \end{macrocode}
@@ -241,7 +243,10 @@
     \@@_point_process:nnn
       {
         \@@_point_process:nn
-          { \@@_path_curveto:nnnnnn }
+          {
+            \@@_path_mark_corner:
+            \@@_path_curveto:nnnnnn
+          }
           { \draw_point_transform:n {#1} }
       }
       { \draw_point_transform:n {#2} }
@@ -249,7 +254,6 @@
   }
 \cs_new_protected:Npn \@@_path_curveto:nnnnnn #1#2#3#4#5#6
   {
-     \@@_path_mark_corner:
      \@@_path_update_limits:nn {#1} {#2}
      \@@_path_update_limits:nn {#3} {#4}
      \@@_path_update_limits:nn {#5} {#6}
@@ -310,6 +314,7 @@
     \fp_set:Nn \l_@@_path_ytmp_fp { \c_@@_path_curveto_b_fp * #2 }
     \use:x
       {
+         \@@_path_mark_corner:
          \@@_path_curveto:nnnnnn
            {
              \fp_to_dim:n
@@ -343,6 +348,219 @@
 % \end{variable}
 % \end{macro}
 % \end{macro}
+%
+% \begin{macro}{\draw_path_arc:nnn}
+% \begin{macro}{\@@_path_arc:nnnn}
+% \begin{macro}{\@@_path_arc:nnNnn}
+% \begin{macro}
+%   {
+%     \@@_path_arc_auxi:nnnnNnn,
+%     \@@_path_arc_auxi:fnnnNnn,
+%     \@@_path_arc_auxi:fnfnNnn
+%   }
+% \begin{macro}{\@@_path_arc_auxii:nnnNnnnn}
+% \begin{macro}{\@@_path_arc_auxiii:nn}
+% \begin{macro}{\@@_path_arc_auxiv:nnnn}
+% \begin{macro}{\@@_path_arc_auxv:nn, \@@_path_arc_auxvi:nn}
+% \begin{macro}{\@@_path_arc_add:nnnn}
+% \begin{variable}{\l_@@_path_arc_delta_fp, \l_@@_path_arc_start_fp}
+% \begin{variable}{\c_@@_path_arc_90_fp,\c_@@_path_arc_60_fp}
+%   Drawing an arc means dividing the total curve required into sections:
+%   using Bézier curves we can cover at most $90^{\circ}$ at once. To allow
+%   for later manipulations, we aim to have roughly equal last segments to
+%   the line, with the split set at a final part of $115^{\circ}$.
+%    \begin{macrocode}
+\cs_new_protected:Npn \draw_path_arc:nnn #1#2#3
+  { \@@_path_arc:nnw {#1} {#2} #3 ~ and ~ #3 ~ \q_stop }
+\cs_new_protected:Npn \@@_path_arc:nnw #1#2#3 ~ and ~ #4 ~ #5 \q_stop 
+  {
+    \use:x
+      {
+        \@@_path_arc:nnnn
+          { \fp_eval:n {#1} }
+          { \fp_eval:n {#2} }
+          { \fp_to_dim:n {#3} }
+          { \fp_to_dim:n {#4} }
+       }
+  }
+\cs_new_protected:Npn \@@_path_arc:nnnn #1#2#3#4
+  {
+    \fp_compare:nNnTF {#1} > {#2}
+      { \@@_path_arc:nnNnn {#1} {#2} - {#3} {#4} }
+      { \@@_path_arc:nnNnn {#1} {#2} + {#3} {#4} }
+  }
+\cs_new_protected:Npn \@@_path_arc:nnNnn #1#2#3#4#5
+  {
+    \fp_set:Nn \l_@@_path_arc_start_fp {#1}
+    \fp_set:Nn \l_@@_path_arc_delta_fp { abs( #1 - #2 ) }
+    \fp_while_do:nNnn { \l_@@_path_arc_delta_fp } > { 90 }
+      {
+        \fp_compare:nNnTF \l_@@_path_arc_delta_fp > { 115 }
+          {
+            \@@_path_arc_auxi:ffnnNnn
+              { \fp_to_decimal:N \l_@@_path_arc_start_fp }
+              { \fp_eval:n { \l_@@_path_arc_start_fp #3 90 } }
+              { 90 } {#2}
+              #3 {#4} {#5}
+          }
+          {
+            \@@_path_arc_auxi:ffnnNnn
+              { \fp_to_decimal:N \l_@@_path_arc_start_fp }
+              { \fp_eval:n { \l_@@_path_arc_start_fp #3 60 } }
+              { 60 } {#2}
+              #3 {#4} {#5}
+          }
+      }
+    \@@_path_mark_corner:
+    \@@_path_arc_auxi:fnfnNnn
+      { \fp_to_decimal:N \l_@@_path_arc_start_fp }
+      {#2}
+      { \fp_eval:n { abs( \l_@@_path_arc_start_fp - #2 ) } }
+      {#2}
+      #3 {#4} {#5}
+  }
+%    \end{macrocode}
+%  The auxiliary is responsible for calculating the required points.
+%  The \enquote{magic} number required to determine the length of the
+%  control vectors is well-established for a right-angle:
+%  $\frac{4}{3}(\sqrt{2} - 1) = 0.552\,284\,75$. For other cases, we follow
+%  the calculation used by \pkg{pgf} but with the second common case of
+%  $60^{\circ}$ pre-calculated for speed.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_path_arc_auxi:nnnnNnn #1#2#3#4#5#6#7
+  {
+    \use:x
+      {
+        \@@_path_arc_auxii:nnnNnnnn
+          {#1} {#2} {#4} #5 {#6} {#7}
+          {
+            \fp_to_dim:n
+              {
+                \cs_if_exist_use:cF
+                  { c_@@_path_arc_ #3 _fp }
+                  { 4/3 * tand( 0.25 * #3 ) }
+                  * #6
+              }
+          }
+          {
+            \fp_to_dim:n
+              {
+                \cs_if_exist_use:cF
+                  { c_@@_path_arc_ #3 _fp }
+                  { 4/3 * tand( 0.25 * #3 ) }
+                  * #7
+              }
+          }
+      }
+  }
+\cs_generate_variant:Nn \@@_path_arc_auxi:nnnnNnn { fnf , ff }
+%    \end{macrocode}
+%   We can now calculate the required points. As everything here is
+%   non-expandable, that is best done by using \texttt{x}-type expansion
+%   to build up the tokens. The three points are calculated out-of-order,
+%   since finding the second control point needs the position of the end
+%   point. Once the points are found, fire-off the fundamental path
+%   operation and update the record of where we are up to. The final
+%   point has to be
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_path_arc_auxii:nnnNnnnn #1#2#3#4#5#6#7#8
+  {
+    \tl_clear:N \l_@@_path_tmp_tl
+    \@@_point_process:nn
+      { \@@_path_arc_auxiii:nn }
+      {
+        \draw_point_transform:n
+          { \draw_point_polar:nn { #1 #4 90 } { #7 ~and~ #8 } }
+      }
+    \@@_point_process:nn
+      {
+        \@@_point_process:nn
+          { \@@_path_arc_auxiv:nnnn }
+          {
+            \draw_point_transform:n
+              { \draw_point_polar:nn {#1} { #5 ~and~ #6 } }
+          }
+      }
+      {
+        \draw_point_transform:n
+          { \draw_point_polar:nn {#2} { #5 ~and~ #6 } }
+      }
+    \@@_point_process:nn
+      { \@@_path_arc_auxv:nn }
+      {
+        \draw_point_transform:n
+          { \draw_point_polar:nn { #2 #4 -90 } { #7 ~and~ #8 } }
+      }
+    \exp_after:wN \@@_path_curveto:nnnnnn \l_@@_path_tmp_tl
+    \fp_set:Nn \l_@@_path_arc_delta_fp { abs ( #2 - #3 ) }
+    \fp_set:Nn \l_@@_path_arc_start_fp {#2}
+  }
+%    \end{macrocode}
+%   The first control point: we have to undo any transformation shift
+%   here.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_path_arc_auxiii:nn #1#2
+  {
+    \@@_path_arc_aux_add:nn
+      {
+          \g_@@_path_lastx_dim
+        - \l_@@_transformcm_xshift_dim
+        + #1
+      }
+      {
+          \g_@@_path_lasty_dim
+        - \l_@@_transformcm_yshift_dim
+        + #2
+      }
+  }
+%    \end{macrocode}
+%   The end point: simple arithmetic.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_path_arc_auxiv:nnnn #1#2#3#4
+  {
+    \@@_path_arc_aux_add:nn
+      { \g_@@_path_lastx_dim - #1 + #3 }
+      { \g_@@_path_lasty_dim - #2 + #4 }
+  }
+%    \end{macrocode}
+%   The second control point: extract the last point, do some
+%   rearrangement and record.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_path_arc_auxv:nn #1#2
+  {
+    \exp_after:wN \@@_path_arc_auxvi:nn
+      \l_@@_path_tmp_tl {#1} {#2}
+  }
+\cs_new_protected:Npn \@@_path_arc_auxvi:nn #1#2#3#4#5#6
+  {
+    \tl_set:Nn \l_@@_path_tmp_tl { {#1} {#2} }
+    \@@_path_arc_aux_add:nn
+      { #5 + #3 - \l_@@_transformcm_xshift_dim }
+      { #6 + #4 - \l_@@_transformcm_yshift_dim }
+    \tl_put_right:Nn \l_@@_path_tmp_tl { {#3} {#4} }
+  }
+\cs_new_protected:Npn \@@_path_arc_aux_add:nn #1#2
+  {
+    \tl_put_right:Nx \l_@@_path_tmp_tl
+      { { \fp_to_dim:n {#1} } { \fp_to_dim:n {#2} } }
+  }
+\fp_new:N \l_@@_path_arc_delta_fp
+\fp_new:N \l_@@_path_arc_start_fp
+\fp_const:cn { c_@@_path_arc_90_fp } { 4/3 * (sqrt(2) - 1) }
+\fp_const:cn { c_@@_path_arc_60_fp } { 4/3 * tand(15) }
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
 %    \begin{macrocode}
 %</initex|package>
 %    \end{macrocode}
