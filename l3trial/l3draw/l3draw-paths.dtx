@@ -766,41 +766,129 @@
 %
 % \subsection{Using paths}
 %
-% \begin{macro}{\draw_path_use:n}
-% \begin{macro}
+% \begin{variable}
 %   {
-%     \@@_path_use_clip: ,
-%     \@@_path_use_draw: ,
-%     \@@_path_use_drop: ,
-%     \@@_path_use_fill: ,
-%     \@@_path_use_stroke:
-%     
+%     \l_@@_path_use_clip_bool  ,
+%     \l_@@_path_use_fill_bool  ,
+%     \l_@@_path_use_stroke_bool
 %   }
+%   Actions to pass to the driver.
+%    \begin{macrocode}
+\bool_new:N \l_@@_path_use_clip_bool
+\bool_new:N \l_@@_path_use_fill_bool
+\bool_new:N \l_@@_path_use_stroke_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_path_use_bb_bool, \l_@@_path_use_clear_bool}
+%   Actions handled at the macro layer.
+%    \begin{macrocode}
+\bool_new:N \l_@@_path_use_bb_bool
+\bool_new:N \l_@@_path_use_clear_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\draw_path_use:n, \draw_path_use_clear:n}
+% \begin{macro}{\@@_path_use:n}
+% \begin{macro}{\@@_path_use_action_draw:}
+% \begin{macro}{\@@_path_use_stroke_bb:}  
+% \begin{macro}{\@@_path_use_stroke_bb_aux:NnN}
+%   There are a range of actions which can apply to a path: they are handled
+%   in a single function which can carry out several of them. The first step
+%   is to deal with the special case of clearing the path.
 %    \begin{macrocode}
 \cs_new_protected:Npn \draw_path_use:n #1
   {
-    \@@_softpath_use_clear:
-    \cs_if_exist_use:cF { @@_path_use_ #1 : }
-      { \ERROR }
+    \tl_if_blank:nF {#1}
+      { \@@_path_use:n {#1} }
   }
-\cs_new_protected:Npn \@@_path_use_clip:
+\cs_new_protected:Npn \draw_path_use_clear:n #1
   {
-    \driver_draw_clip:
+    \bool_lazy_or:nnTF
+      { \tl_if_blank_p:n {#1} }
+      { \str_if_eq_p:nn {#1} { clear } }
+      {
+        \@@_softpath_clear:
+        \@@_path_reset_limits:
+      }
+      { \@@_path_use:n { #1 , clear } }
+   }
+%    \end{macrocode}
+%   Map over the actions and set up the data: mainly just booleans,
+%   but with the possibility to cover more complex cases. The business end
+%   of the function is a series of checks on the various flags, then
+%   taking the appropriate action(s).
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_path_use:n #1
+  {
+    \bool_set_false:N \l_@@_path_use_clip_bool
+    \bool_set_false:N \l_@@_path_use_fill_bool
+    \bool_set_false:N \l_@@_path_use_stroke_bool
+    \clist_map_inline:nn {#1}
+      {
+        \cs_if_exist:cTF { l_@@_path_use_ ##1 _ bool }
+          { \bool_set_true:c { l_@@_path_use_ ##1 _ bool } }
+          {
+            \cs_if_exist_use:cF { @@_path_use_action_ ##1 : }
+              { \ERROR }
+          }
+      }
+    \bool_lazy_and:nnT
+      { \l_@@_update_bb_bool }
+      { \l_@@_path_use_stroke_bool }
+      { \@@_path_use_stroke_bb: }
+    \bool_if:NTF \l_@@_path_use_clear_bool
+      { \@@_softpath_use_clear: }
+      { \@@_softpath_use: }
+    \bool_if:NT \l_@@_path_use_clip_bool
+      { \driver_draw_clip: }
+    \bool_lazy_or:nnT
+      { \l_@@_path_use_fill_bool }
+      { \l_@@_path_use_stroke_bool }
+      {
+        \use:c
+          {
+            driver_draw_
+            \bool_if:NT \l_@@_path_use_fill_bool { fill }
+            \bool_if:NT \l_@@_path_use_stroke_bool { stroke }
+            :
+          }
+      }
   }
-\cs_new_protected:Npn \@@_path_use_draw:
+\cs_new_protected:Npn \@@_path_use_action_draw:
   {
-    \driver_draw_stroke:
-  }
-\cs_new_protected:Npn \@@_path_use_drop: { }
-\cs_new_protected:Npn \@@_path_use_fill:
-  {
-    \driver_draw_fill:
-  }
-\cs_new_protected:Npn \@@_path_use_stroke:
-  {
-    \driver_draw_stroke:
+    \bool_set_true:N \l_@@_path_use_stroke_bool
   }
 %    \end{macrocode}
+%   Where the path is relevant to size and is stroked, we need to allow for
+%   the part which overlaps the edge of the bounding box.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_path_use_stroke_bb:
+  {
+    \@@_path_use_stroke_bb_aux:NnN x { max } +
+    \@@_path_use_stroke_bb_aux:NnN y { max } +
+    \@@_path_use_stroke_bb_aux:NnN x { min } -
+    \@@_path_use_stroke_bb_aux:NnN y { min } -
+  }
+\cs_new_protected:Npn \@@_path_use_stroke_bb_aux:NnN #1#2#3
+  {
+    \dim_compare:nNnF { \dim_use:c { g_@@_ #1#2 _dim } } = { #3 -\c_max_dim }
+      {
+        \dim_gset:cn { g_@@_ #1#2 _dim }
+          {
+            \use:c { dim_ #2 :nn }
+              { \dim_use:c { g_@@_ #1#2 _dim } }
+              {
+                  \dim_use:c { g_@@_path_ #1#2 _dim }
+                #3 0.5 \g_@@_linewidth_dim
+              } 
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
