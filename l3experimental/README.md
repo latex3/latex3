@@ -21,9 +21,17 @@ updated at the same time.
 
 Currently included in the CTAN release of l3experimental are the following
 bundles:
+* `l3draw`
 * `l3str`
 * `xcoffins`
 * `xgalley`
+
+`l3draw`
+--------
+
+This module provides a code-level interface for constructing drawings. The
+interfaces are heavily inspired by the `pgf` layer of the widely-used
+TikZ system.
 
 `l3str`
 -------
@@ -111,6 +119,6 @@ the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
-<p>Copyright (C) 1998-2011,2015-2017 The LaTeX3 Project <br />
+<p>Copyright (C) 1998-2011,2015-2018 The LaTeX3 Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>
