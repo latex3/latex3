@@ -386,6 +386,54 @@
 %   \texttt{false}.
 % \end{function}
 %
+% \section{Dimension step functions}
+%
+% \begin{function}[added = 2018-02-18, rEXP]
+%   {\int_step_function:nnnN}
+%   \begin{syntax}
+%     \cs{dim_step_function:nnnN} \Arg{initial value} \Arg{step} \Arg{final value} \meta{function}
+%   \end{syntax}
+%   This function first evaluates the \meta{initial value}, \meta{step}
+%   and \meta{final value}, all of which should be dimension expressions.
+%   The \meta{function} is then placed in front of each \meta{value}
+%   from the \meta{initial value} to the \meta{final value} in turn
+%   (using \meta{step} between each \meta{value}).  The \meta{step} must
+%   be non-zero.  If the \meta{step} is positive, the loop stops when
+%   the \meta{value} becomes larger than the \meta{final value}.  If the
+%   \meta{step} is negative, the loop stops when the \meta{value}
+%   becomes smaller than the \meta{final value}.  The \meta{function}
+%   should absorb one argument.
+% \end{function}
+%
+% \begin{function}[added = 2018-02-18]
+%   {\dim_step_inline:nnnn}
+%   \begin{syntax}
+%     \cs{dim_step_inline:nnnn} \Arg{initial value} \Arg{step} \Arg{final value} \Arg{code}
+%   \end{syntax}
+%   This function first evaluates the \meta{initial value}, \meta{step}
+%   and \meta{final value}, all of which should be dimension expressions.
+%   Then for each \meta{value} from the \meta{initial value} to the
+%   \meta{final value} in turn (using \meta{step} between each
+%   \meta{value}), the \meta{code} is inserted into the input stream
+%   with |#1| replaced by the current \meta{value}.  Thus the
+%   \meta{code} should define a function of one argument~(|#1|).
+% \end{function}
+%
+% \begin{function}[added = 2018-02-18]
+%   {\dim_step_variable:nnnNn}
+%   \begin{syntax}
+%     \cs{dim_step_variable:nnnNn} \\
+%     ~~\Arg{initial value} \Arg{step} \Arg{final value} \meta{tl~var} \Arg{code}
+%   \end{syntax}
+%   This function first evaluates the \meta{initial value}, \meta{step}
+%   and \meta{final value}, all of which should be dimension expressions.
+%   Then for each \meta{value} from the \meta{initial value} to the
+%   \meta{final value} in turn (using \meta{step} between each
+%   \meta{value}), the \meta{code} is inserted into the input stream,
+%   with the \meta{tl~var} defined as the current \meta{value}.  Thus
+%   the \meta{code} should make use of the \meta{tl~var}.
+% \end{function}
+%
 % \section{Using \texttt{dim} expressions and variables}
 %
 % \begin{function}[updated = 2011-10-22, EXP]{\dim_eval:n}
@@ -1490,6 +1538,99 @@
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Dimension step functions}
+%
+% \begin{macro}{\dim_step_function:nnnN}
+% \begin{macro}{\@@_step:wwwN, \@@_step:NnnnN}
+%   Before all else, evaluate the initial value, step, and final value.
+%   Repeating a function by steps first needs a check on the direction
+%   of the steps. After that, do the function for the start value then
+%   step and loop around. It would be more symmetrical to test for a
+%   step size of zero before checking the sign, but we optimize for the
+%   most frequent case (positive step).
+%    \begin{macrocode}
+\__kernel_patch_args:nNNpn
+  {
+    { \__kernel_chk_expr:nNnN {#1} \@@_eval:w { } \dim_step_function:nnnN }
+    { \__kernel_chk_expr:nNnN {#2} \@@_eval:w { } \dim_step_function:nnnN }
+    { \__kernel_chk_expr:nNnN {#3} \@@_eval:w { } \dim_step_function:nnnN }
+  }
+\cs_new:Npn \dim_step_function:nnnN #1#2#3
+  {
+    \exp_after:wN \@@_step:wwwN
+    \tex_the:D \@@_eval:w #1 \exp_after:wN ;
+    \tex_the:D \@@_eval:w #2 \exp_after:wN ;
+    \tex_the:D \@@_eval:w #3 ;
+  }
+\cs_new:Npn \@@_step:wwwN #1; #2; #3; #4
+  {
+    \dim_compare:nNnTF {#2} > \c_zero_dim
+      { \@@_step:NnnnN > }
+      {
+        \dim_compare:nNnTF {#2} = \c_zero_dim
+          {
+            \__kernel_msg_expandable_error:nnn { kernel } { zero-step } {#4}
+            \use_none:nnnn
+          }
+          { \@@_step:NnnnN < }
+      }
+      {#1} {#2} {#3} #4
+  }
+\cs_new:Npn \@@_step:NnnnN #1#2#3#4#5
+  {
+    \dim_compare:nNnF {#2} #1 {#4}
+      {
+        #5 {#2}
+        \exp_args:NNf \@@_step:NnnnN
+          #1 { \dim_eval:n { #2 + #3 } } {#3} {#4} #5
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\dim_step_inline:nnnn}
+% \begin{macro}{\dim_step_variable:nnnNn}
+% \begin{macro}{\@@_step:NNnnnn}
+%   The approach here is to build a function, with a global integer
+%   required to make the nesting safe (as seen in other in line
+%   functions), and map that function using \cs{int_step_function:nnnN}.
+%   We put a \cs{__prg_break_point:Nn} so that \texttt{map_break}
+%   functions from other modules correctly decrement \cs{g__prg_map_int}
+%   before looking for their own break point.  The first argument is
+%   \cs{scan_stop:}, so that no breaking function recognizes this break
+%   point as its own.
+%    \begin{macrocode}
+\cs_new_protected:Npn \dim_step_inline:nnnn
+  {
+    \int_gincr:N \g__prg_map_int
+    \exp_args:NNc \@@_step:NNnnnn
+      \cs_gset_protected:Npn
+      { __prg_map_ \int_use:N \g__prg_map_int :w }
+  }
+\cs_new_protected:Npn \dim_step_variable:nnnNn #1#2#3#4#5
+  {
+    \int_gincr:N \g__prg_map_int
+    \exp_args:NNc \@@_step:NNnnnn
+      \cs_gset_protected:Npx
+      { __prg_map_ \int_use:N \g__prg_map_int :w }
+      {#1}{#2}{#3}
+      {
+        \tl_set:Nn \exp_not:N #4 {##1}
+        \exp_not:n {#5}
+      }
+  }
+\cs_new_protected:Npn \@@_step:NNnnnn #1#2#3#4#5#6
+  {
+    #1 #2 ##1 {#6}
+    \dim_step_function:nnnN {#3} {#4} {#5} #2
+    \__prg_break_point:Nn \scan_stop: { \int_gdecr:N \g__prg_map_int }
+  }
+%    \end{macrocode}
 % \end{macro}
 % \end{macro}
 % \end{macro}
