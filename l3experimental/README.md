@@ -21,10 +21,19 @@ updated at the same time.
 
 Currently included in the CTAN release of l3experimental are the following
 bundles:
+* `l3color3
 * `l3draw`
 * `l3str`
 * `xcoffins`
 * `xgalley`
+
+`l3color`
+---------
+
+This module provides support for setting colors using a range of color models.
+It also allows the construction of 'color expressions', in which multiple colors
+are mixed together at the macro level. There is also support for spot colors:
+the latter is highly experimental.
 
 `l3draw`
 --------
