@@ -21,7 +21,7 @@ updated at the same time.
 
 Currently included in the CTAN release of l3experimental are the following
 bundles:
-* `l3color3
+* `l3color`
 * `l3draw`
 * `l3str`
 * `xcoffins`
