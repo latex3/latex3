@@ -1,11 +1,11 @@
 #!/usr/bin/env texlua
 
--- Build script for LaTeX3 "l3color-extras" files
+-- Build script for LaTeX3 "l3color" files
 
 -- Identify the bundle and module: the module may be empty in the case where
 -- there is no subdivision
 bundle = "l3trial"
-module = "l3color-extras"
+module = "l3color"
 
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
