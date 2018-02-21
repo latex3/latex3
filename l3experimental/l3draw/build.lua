@@ -12,6 +12,9 @@ maindir = "../.."
 
 typesetfiles = {"l3draw.dtx", "l3draw-code.tex"}
 
+-- Need color support
+checkdeps = {maindir .. "/l3kernel", maindir .. "/l3experimental/l3color"}
+
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
