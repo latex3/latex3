@@ -84,4 +84,4 @@ LaTeX3 is developed by [The LaTeX3 Project](https://latex-project.org).
 
 ## Copyright
 
-This README file is copyright 2017 The LaTeX3 Project.
+This README file is copyright 2018 The LaTeX3 Project.
