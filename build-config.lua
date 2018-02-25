@@ -53,17 +53,6 @@ setversion_update_line =
       )
    end
   end
-  -- Update the interlock
-  if string.match(
-    line, "^\\RequirePackage{expl3}%[%d%d%d%d/%d%d/%d%d%]$"
-  ) then
-    line = "\\RequirePackage{expl3}[" .. date .. "]"
-  end
-  if string.match(
-    line, "^%%<package>\\@ifpackagelater{expl3}{%d%d%d%d/%d%d/%d%d}$"
-  ) then
-    line = "%<package>\\@ifpackagelater{expl3}{" .. date .. "}"
-  end
   if string.match(
     line, "^Release %d%d%d%d/%d%d/%d%d$"
   ) then
