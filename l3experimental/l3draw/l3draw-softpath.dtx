@@ -58,6 +58,8 @@
 %<@@=draw>
 %    \end{macrocode}
 %
+% \subsection{Managing soft paths}
+%
 % There are two linked aims in the code here. The most significant is to
 % provide a way to modify paths, for example to shorten the ends or round
 % the corners.  This means that the path cannot be written piecemeal as
@@ -97,6 +99,13 @@
 %    \begin{macrocode}
 \int_new:N \g_@@_softpath_buffer_a_int
 \int_new:N \g_@@_softpath_buffer_b_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_softpath_corners_bool}
+%   Allow for optimised path use.
+%    \begin{macrocode}
+\bool_new:N \g_@@_softpath_corners_bool
 %    \end{macrocode}
 % \end{variable}
 %
@@ -186,6 +195,7 @@
     \tl_gclear:N \g_@@_softpath_main_tl
     \tl_gclear:N \g_@@_softpath_buffer_a_tl
     \tl_gclear:N \g_@@_softpath_buffer_b_tl
+    \bool_gset_false:N \g_@@_softpath_corners_bool
   }
 \cs_new_protected:Npn \@@_softpath_use_clear:
   {
@@ -267,6 +277,7 @@
   {
     \@@_softpath_add:n
       { \@@_softpath_roundpoint_op:nn {#1} {#2} }
+    \bool_gset_true:N \g_@@_softpath_corners_bool
   }
 \cs_generate_variant:Nn \@@_softpath_roundpoint:nn { VV }
 %    \end{macrocode}
@@ -290,6 +301,8 @@
 % \begin{macro}{\@@_softpath_curveto_opi:nnNnnNnn}
 % \begin{macro}{\@@_softpath_rectangle_opi:nnNnn}
 %   The markers for operations: all the top-level ones take two arguments.
+%   The support tokens for curves have to be different in meaning to a
+%   round point, hence being quark-like.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_softpath_close_op:nn #1#2
   { \driver_draw_closepath: }
@@ -297,8 +310,10 @@
   { \@@_softpath_curveto_opi:nnNnnNnn {#1} {#2} }
 \cs_new_protected:Npn \@@_softpath_curveto_opi:nnNnnNnn #1#2#3#4#5#6#7#8
   { \driver_draw_curveto:nnnnnn {#1} {#2} {#4} {#5} {#7} {#8} }
-\cs_new_protected:Npn \@@_softpath_curveto_opii:nn #1#2 { }
-\cs_new_protected:Npn \@@_softpath_curveto_opiii:nn #1#2 { }
+\cs_new_protected:Npn \@@_softpath_curveto_opii:nn #1#2
+  { \@@_softpath_curveto_opii:nn }
+\cs_new_protected:Npn \@@_softpath_curveto_opiii:nn #1#2
+  { \@@_softpath_curveto_opiii:nn }
 \cs_new_protected:Npn \@@_softpath_lineto_op:nn #1#2
   { \driver_draw_lineto:nn {#1} {#2} }
 \cs_new_protected:Npn \@@_softpath_moveto_op:nn #1#2
@@ -310,6 +325,354 @@
   { \driver_draw_rectangle:nnnn {#1} {#2} {#4} {#5} }
   \cs_new_protected:Npn \@@_softpath_rectangle_opii:nn #1#2 { }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Rounding soft path corners}
+%
+% The aim here is to find corner rounding points and to replace them with
+% arcs of appropriate length. The approach is exactly that in \pkg{pgf}:
+% step through, find the corners, find the supporting data, do the rounding.
+%
+% \begin{variable}{\l_@@_softpath_main_tl}
+%   For constructing the updated path: notice that we use \pkg{l3tl-build}
+%   here as grouping can be controlled.
+%    \begin{macrocode}
+\tl_new:N \l_@@_softpath_main_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_softpath_part_tl}
+%   Data structures.
+%    \begin{macrocode}
+\tl_new:N \l_@@_softpath_part_tl
+\tl_new:N \l_@@_softpath_curve_end_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}
+%   {\l_@@_softpath_lastx_fp, \l_@@_softpath_lasty_fp}
+% \begin{variable}
+%   {\l_@@_softpath_corneri_dim, \l_@@_softpath_cornerii_dim}
+% \begin{variable}{\l_@@_softpath_first_tl, \l_@@_softpath_move_tl}
+%   Position tracking: the token list data may be entirely empty or set to
+%   a co-ordinate.
+%    \begin{macrocode}
+\fp_new:N \l_@@_softpath_lastx_fp
+\fp_new:N \l_@@_softpath_lasty_fp
+\dim_new:N \l_@@_softpath_corneri_dim
+\dim_new:N \l_@@_softpath_cornerii_dim
+\tl_new:N \l_@@_softpath_first_tl
+\tl_new:N \l_@@_softpath_move_tl
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+%
+% \begin{macro}{\@@_softpath_round_corners:}
+% \begin{macro}{\@@_softpath_round_loop:Nnn}
+% \begin{macro}{\@@_softpath_round_action:nn}
+% \begin{macro}{\@@_softpath_round_action:Nnn}
+% \begin{macro}{\@@_softpath_round_action_curveto:NnnNnn}
+% \begin{macro}{\@@_softpath_round_action_close:}
+% \begin{macro}{\@@_softpath_round_lookahead:NnnNnn}
+% \begin{macro}{\@@_softpath_round_roundpoint:NnnNnnNnn}
+% \begin{macro}{\@@_softpath_round_calc:nnnNnn}
+% \begin{macro}[EXP]
+%   {\@@_softpath_round_calc:nnnnnn, \@@_softpath_round_calc:fVnnnn}
+% \begin{macro}[EXP]{\@@_softpath_round_calc:nnnnw}
+% \begin{macro}{\@@_softpath_round_close:nn}
+% \begin{macro}[EXP]{\@@_softpath_round_close:w}
+% \begin{macro}{\@@_softpath_round_end:}
+%   Rounding corners on a path means going through the entire path and
+%   adjusting it. As such, we avoid this entirely if we know there are no
+%   corners to deal with. Assuming there is work to do, we recover the existing
+%   path and start a loop, using \pkg{l3tl-build} for the main data storage
+%   (everything here can be in a group).
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_round_corners:
+  {
+    \bool_if:NT \g_@@_softpath_corners_bool
+      {
+        \__tl_build:Nw \l_@@_softpath_main_tl
+        \tl_clear:N \l_@@_softpath_part_tl
+        \fp_zero:N \l_@@_softpath_lastx_fp
+        \fp_zero:N \l_@@_softpath_lasty_fp
+        \tl_clear:N \l_@@_softpath_first_tl
+        \tl_clear:N \l_@@_softpath_move_tl
+        \@@_softpath_concat:n { }
+        \exp_after:wN \@@_softpath_round_loop:Nnn
+          \g_@@_softpath_main_tl
+          \q_recursion_tail ? ?
+          \q_recursion_stop
+      }
+    \bool_gset_false:N \g_@@_softpath_corners_bool
+  }
+%    \end{macrocode}
+%   The loop can take advantage of the fact that all soft path operations are
+%   made up of a token followed by two arguments. At this stage, there is
+%   a simple split: have we round a round point. If so, is there any actual
+%   rounding to be done: if the arcs have come through zero, just ignore it.
+%   In cases where we are not at a corner, we simply move along the path,
+%   allowing for any new part starting due to a \texttt{moveto}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_round_loop:Nnn #1#2#3
+  {
+    \quark_if_recursion_tail_stop_do:Nn #1 { \@@_softpath_round_end: }
+    \token_if_eq_meaning:NNTF #1 \@@_softpath_roundpoint_op:nn
+      { \@@_softpath_round_action:nn {#2} {#3} }
+      {
+        \tl_if_empty:NT \l_@@_softpath_first_tl
+          { \tl_set:Nn \l_@@_softpath_first_tl { {#2} {#3} } }
+        \fp_set:Nn \l_@@_softpath_lastx_fp {#2}
+        \fp_set:Nn \l_@@_softpath_lasty_fp {#3}
+        \token_if_eq_meaning:NNTF #1 \@@_softpath_moveto_op:nn
+          {
+            \__tl_build_one:o \l_@@_softpath_move_tl
+            \__tl_build_one:o \l_@@_softpath_part_tl
+            \tl_set:Nn \l_@@_softpath_move_tl { #1 {#2} {#3} }
+            \tl_clear:N \l_@@_softpath_first_tl
+            \tl_clear:N \l_@@_softpath_part_tl
+          }
+          { \tl_put_right:Nn \l_@@_softpath_part_tl { #1 {#2} {#3} } }
+        \@@_softpath_round_loop:Nnn
+      }
+  }
+\cs_new_protected:Npn \@@_softpath_round_action:nn #1#2
+  {
+    \dim_set:Nn \l_@@_softpath_corneri_dim {#1}
+    \dim_set:Nn \l_@@_softpath_cornerii_dim {#2}
+    \bool_lazy_and:nnTF
+      { \dim_compare_p:nNn \l_@@_softpath_corneri_dim = { 0pt } }
+      { \dim_compare_p:nNn \l_@@_softpath_cornerii_dim = { 0pt } }
+      { \@@_softpath_round_loop:Nnn }
+      { \@@_softpath_round_action:Nnn } 
+  }
+%    \end{macrocode}
+%   We now have a round point to work on and have grabbed the next item in
+%   the path. There are only a few cases where we have to do anything. Each of
+%   them is picked up by looking for the appropriate action.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_round_action:Nnn #1#2#3
+  {
+    \tl_if_empty:NT \l_@@_softpath_first_tl
+      { \tl_set:Nn \l_@@_softpath_first_tl { {#2} {#3} } }
+    \token_if_eq_meaning:NNTF #1 \@@_softpath_curveto_opi:nn
+      { \@@_softpath_round_action_curveto:NnnNnn }
+      {
+        \token_if_eq_meaning:NNTF #1 \@@_softpath_close_op:nn
+          { \@@_softpath_round_action_close: }
+          {
+            \token_if_eq_meaning:NNTF #1 \@@_softpath_lineto_op:nn
+              { \@@_softpath_round_lookahead:NnnNnn }
+              { \@@_softpath_round_loop:Nnn }
+          }
+      }
+      #1 {#2} {#3}
+  }
+%    \end{macrocode}
+%   For a curve, we collect the two control points then move on to grab the
+%   end point and add the curve there: the second control point becomes our
+%   starter.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_round_action_curveto:NnnNnn
+  #1#2#3#4#5#6
+  {
+    \tl_put_right:Nn \l_@@_softpath_part_tl
+      { #1 {#2} {#3} #4 {#5} {#6} }
+    \fp_set:Nn \l_@@_softpath_lastx_fp {#5}
+    \fp_set:Nn \l_@@_softpath_lasty_fp {#6}
+    \@@_softpath_round_lookahead:NnnNnn
+  }
+\cs_new_protected:Npn \@@_softpath_round_action_close:
+  {
+    \bool_lazy_and:nnTF
+      { ! \tl_if_empty_p:N \l_@@_softpath_first_tl }
+      { ! \tl_if_empty_p:N \l_@@_softpath_move_tl }
+      {
+        \exp_after:wN \@@_softpath_round_close:nn
+          \l_@@_softpath_first_tl
+      }
+      { \@@_softpath_round_loop:Nnn }
+  }
+%    \end{macrocode}
+%   At this stage we have a current (sub)operation (|#1|) and the next
+%   operation (|#4|), and can therefore decide whether to round or not.
+%   In the case of yet another rounding marker, we have to look a bit
+%   further ahead.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_round_lookahead:NnnNnn #1#2#3#4#5#6
+  {
+    \bool_lazy_any:nTF
+      {
+        { \token_if_eq_meaning_p:NN #4 \@@_softpath_lineto_op:nn }
+        { \token_if_eq_meaning_p:NN #4 \@@_softpath_curveto_opi:nn }
+        { \token_if_eq_meaning_p:NN #4 \@@_softpath_close_op:nn }
+      }
+      {
+        \@@_softpath_round_calc:nnnNnn
+          \@@_softpath_round_loop:Nnn {#5} {#6}
+      }
+      {
+        \token_if_eq_meaning:NNTF #4 \@@_softpath_roundpoint_op:nn
+          { \@@_softpath_round_roundpoint:NnnNnnNnn }
+          { \@@_softpath_round_loop:Nnn }
+      }
+    #1 {#2} {#3}
+    #4 {#5} {#6}
+  }
+\cs_new_protected:Npn \@@_softpath_round_roundpoint:NnnNnnNnn
+  #1#2#3#4#5#6#7#8#9
+  {
+    \@@_softpath_round_calc:nnnNnn
+      \@@_softpath_round_loop:Nnn
+      {#8} {#9} #1 {#2} {#3}
+    #4 {#5} {#6} #7 {#8} {#9}
+  }
+%    \end{macrocode}
+%   We now have all of the data needed to construct a rounded corner: all that
+%   is left to do is to work out the detail! At this stage, we have details
+%   of where the corner itself is (|#4|, |#5|), and where the next point is
+%   (|#1|, |#2|). There are two types of calculations to do. First, we
+%   need to interpolate from those two points in the direction of the
+%   corner, in order to work out where the curve we are adding will start
+%   and end. From those, plus the points we already have, we work out where
+%   the control points will lie.  All of this is done in an expansion to
+%   avoid multiple calls to |\tl_put_right:Nx|. The end point of the line
+%   is worked out up-front and saved: we need that if dealing with a
+%   close-path operation.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_round_calc:nnnNnn #1#2#3#4#5#6
+  {
+    \tl_set:Nx \l_@@_softpath_curve_end_tl
+      {
+        \draw_point_interpolate_distance:nnn
+          \l_@@_softpath_cornerii_dim
+          { #5 , #6 } { #2 , #3 }
+      }
+    \tl_put_right:Nx \l_@@_softpath_part_tl
+      {
+        \exp_not:N #4
+        \@@_softpath_round_calc:fVnnnn
+          {
+            \draw_point_interpolate_distance:nnn
+              \l_@@_softpath_corneri_dim
+              { #5 , #6 }
+              {
+                \l_@@_softpath_lastx_fp ,
+                \l_@@_softpath_lasty_fp
+              }
+          }
+          \l_@@_softpath_curve_end_tl
+          {#5} {#6} {#2} {#3}
+      }
+    \fp_set:Nn \l_@@_softpath_lastx_fp {#5}
+    \fp_set:Nn \l_@@_softpath_lasty_fp {#6}
+    #1
+  }
+%    \end{macrocode}
+%   At this stage we have the two curve end points, but they are in
+%   co-ordinate form. So we split them up (with some more reordering).
+%    \begin{macrocode}
+\cs_new:Npn \@@_softpath_round_calc:nnnnnn #1#2#3#4#5#6
+  {
+    \@@_softpath_round_calc:nnnnw {#3} {#4} {#5} {#6}
+      #1 \q_mark #2 \q_stop
+  }
+\cs_generate_variant:Nn \@@_softpath_round_calc:nnnnnn { fV }
+%    \end{macrocode}
+%   The calculations themselves are relatively straight-forward, as we use a
+%   quadratic Bézier curve.
+%    \begin{macrocode}
+\cs_new:Npn \@@_softpath_round_calc:nnnnw
+  #1#2#3#4 #5 , #6 \q_mark #7 , #8 \q_stop
+  {
+    {#5} {#6}
+    \exp_not:N \@@_softpath_curveto_opi:nn
+      {
+        \fp_to_dim:n
+          { #5 + \fp_use:c { c_@@_path_arc_90_fp } * ( #1 - #5 ) }
+      }
+      {
+        \fp_to_dim:n
+          { #6 + \fp_use:c { c_@@_path_arc_90_fp } * ( #2 - #6 ) }
+      }
+    \exp_not:N \@@_softpath_curveto_opii:nn
+      {
+        \fp_to_dim:n
+          { #7 + \fp_use:c { c_@@_path_arc_90_fp } * ( #1 - #7 ) }
+      }
+      {
+        \fp_to_dim:n
+          { #8 + \fp_use:c { c_@@_path_arc_90_fp } * ( #2 - #8 ) }
+      }
+    \exp_not:N \@@_softpath_curveto_opiii:nn
+      {#7} {#8}
+  }
+%    \end{macrocode}
+%   To deal with a close-path operation, we need to do some manipulation.
+%   It needs to be treated as a line operation for rounding, and then
+%   have the close path operation re-added at the point where the curve
+%   ends. That means saving the end point in the calculation step (see
+%   earlier), and shuffling a lot.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_round_close:nn #1#2
+  {
+    \use:x
+      {
+        \@@_softpath_round_calc:nnnNnn
+          {
+            \tl_set:Nx \exp_not:N \l_@@_softpath_move_tl
+              {
+                \@@_softpath_moveto_op:nn
+                \exp_not:N \exp_after:wN
+                  \exp_not:N \@@_softpath_round_close:w
+                  \exp_not:N \l_@@_softpath_curve_end_tl
+                    \exp_not:N \q_stop
+              }
+            \use:x
+              {
+                \exp_not:N \exp_not:N \exp_not:N \use_i:nnnn
+                  {
+                    \@@_softpath_round_loop:Nnn
+                      \@@_softpath_close_op:nn
+                      \exp_not:N \exp_after:wN
+                        \exp_not:N \@@_softpath_round_close:w
+                        \exp_not:N \l_@@_softpath_curve_end_tl
+                          \exp_not:N \q_stop
+                  }
+              }
+          }
+          {#1} {#2}
+          \@@_softpath_lineto_op:nn
+          \exp_after:wN \use_none:n \l_@@_softpath_move_tl
+      }
+  }
+\cs_new:Npn \@@_softpath_round_close:w #1 , #2 \q_stop { {#1} {#2} }
+%    \end{macrocode}
+%   Tidy up the parts of the path, complete the built token list and put
+%   it back into action. 
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_softpath_round_end:
+  {
+    \__tl_build_one:o \l_@@_softpath_move_tl
+    \__tl_build_one:o \l_@@_softpath_part_tl
+    \__tl_build_end:
+    \tl_gset_eq:NN \g_@@_softpath_main_tl \l_@@_softpath_main_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
