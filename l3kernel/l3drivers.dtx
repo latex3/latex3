@@ -444,14 +444,13 @@
 %
 % \subsection{Coordinate system transformations}
 %
-% \begin{function}{\driver_draw_transformcm:nnnnnn}
+% \begin{function}{\driver_draw_cm:nnnn}
 %   \begin{syntax}
-%     \cs{driver_draw_transformcm:nnnnnn} \Arg{a} \Arg{b} \Arg{c} \Arg{d}
-%       \Arg{x} \Arg{y}
+%     \cs{driver_draw_cm:nnnn} \Arg{a} \Arg{b} \Arg{c} \Arg{d}
 %   \end{syntax}
-%   Applies the transformation matrix $[a b c d]$ and offset vector
-%   ($x$, $y$) to the current graphic state. This affects any subsequent
-%   items in the same scope but not those already given.
+%   Applies the transformation matrix $[a b c d]$ to the current graphic state.
+%   This affects any subsequent items in the same scope but not those already
+%   given.
 % \end{function}
 %
 % \end{documentation}
@@ -1162,23 +1161,43 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\driver_draw_transformcm:nnnnnn}
-%   The first four arguments here are floats (the affine matrix), the last
-%   two are a displacement vector. Once again, force evaluation to allow for
-%   caching.
+% \begin{macro}{\driver_draw_cm:nnnn}
+% \begin{macro}{\@@_draw_cm:nnnn}
+%   In \texttt{dvips}, keeping the transformations in line with the engine
+%   requires that we use rotations and scalings. This is done by decomposing
+%   the matrix: see the comments for \cs{@@_draw_cm_decompose:nnnnN} (which
+%   is also needed by \texttt{(x)dvipdfmx}).
 %    \begin{macrocode}
-\cs_new_protected:Npn \driver_draw_transformcm:nnnnnn #1#2#3#4#5#6
+\cs_new_protected:Npn \driver_draw_cm:nnnn #1#2#3#4
   {
-    \@@_draw_literal:x
+    \@@_draw_cm_decompose:nnnnN {#1} {#2} {#3} {#4}
+      \@@_draw_cm:nnnn
+  }
+\cs_new_protected:Npn \@@_draw_cm:nnnn #1#2#3#4
+  {
+    \@@_draw_literal:n
       {
-        [
-          #1 ~ #2 ~ #3 ~ #4 ~
-          \dim_to_decimal_in_bp:n {#5} ~ \dim_to_decimal_in_bp:n {#6} ~
-        ] ~
-        concat
+        \fp_compare:nNnTF {#1} = \c_zero_fp
+          { 0 }
+          { \fp_eval:n { round ( -#1 , 5 ) } } ~
+          rotate
+      }
+    \@@_draw_literal:n
+      {
+        \fp_eval:n { round ( #2 , 5 ) } ~
+        \fp_eval:n { round ( #3 , 5 ) } ~
+        scale
+      }
+    \@@_draw_literal:n
+      {
+        \fp_compare:nNnTF {#4} = \c_zero_fp
+          { 0 }
+          { \fp_eval:n { round ( -#1 , 5 ) } } ~
+          rotate
       }
   }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\driver_draw_hbox:Nnnnnnn}
@@ -1195,7 +1214,7 @@
   {
     \@@_scope_begin:
     \@@_draw_literal:n { [end] }
-    \driver_draw_transformcm:nnnnnn {#2} {#3} {#4} {#5} {#6} {#7}
+    \driver_draw_cm:nnnn {#2} {#3} {#4} {#5}
     \@@_draw_literal:n { 72~Resolution~div~72~VResolution~div~neg~scale }
     \@@_draw_literal:n { magscale~{1~DVImag~div~dup~scale}~if }
     \@@_draw_literal:n { l3x~neg~l3y~neg~translate }
@@ -2051,21 +2070,51 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\driver_draw_transformcm:nnnnnn}
-%   The first four arguments here are floats (the affine matrix), the last
-%   two are a displacement vector. Once again, force evaluation to allow for
-%   caching.
+% \begin{macro}{\driver_draw_cc:nnnn}
+% \begin{macro}{\@@_draw_cm:nnnn}
+%   Another split here between \texttt{pdfmode} and \texttt{(x)dvipdfmx}.
+%   In the former, we have a direct method to maintain alignment: the driver
+%   can use a matrix itself. For \texttt{(x)dvipdfmx}, as for \texttt{dvips},
+%   we need to decompose the matrix into rotations and a scaling, then use
+%   that.
 %    \begin{macrocode}
-\cs_new_protected:Npn \driver_draw_transformcm:nnnnnn #1#2#3#4#5#6
+\cs_new_protected:Npn \driver_draw_cm:nnnn #1#2#3#4
   {
-    \@@_draw_literal:x
+%<*pdfmode>
+    \@@_matrix:n { #1 ~ #2 ~ #3 ~ #4 }
+%</pdfmode>
+%<*dvipdfmx|xdvipdfmx>
+    \@@_draw_cm_decompose:nnnnN {#1} {#2} {#3} {#4}
+      \@@_draw_cm:nnnn
+%</dvipdfmx|xdvipdfmx>
+  }
+%<*dvipdfmx|xdvipdfmx>
+\cs_new_protected:Npn \@@_draw_cm:nnnn #1#2#3#4
+  {
+    \@@_draw_literal:n
       {
-        #1 ~ #2 ~ #3 ~ #4 ~
-        \dim_to_decimal_in_bp:n {#5} ~ \dim_to_decimal_in_bp:n {#6} ~
-        cm
+        x:rotate~
+        \fp_compare:nNnTF {#1} = \c_zero_fp
+          { 0 }
+          { \fp_eval:n { round ( #1 , 5 ) } }
+      }
+    \@@_draw_literal:n
+      {
+        x:scale~
+        \fp_eval:n { round ( #2 , 5 ) } ~
+        \fp_eval:n { round ( #3 , 5 ) }
+      }
+    \@@_draw_literal:n
+      {
+        x:rotate~
+        \fp_compare:nNnTF {#4} = \c_zero_fp
+          { 0 }
+          { \fp_eval:n { round ( -#1 , 5 ) } }
       }
   }
+%</dvipdfmx|xdvipdfmx>
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\driver_draw_hbox:Nnnnnnn}
@@ -2083,7 +2132,7 @@
       {
         \tex_kern:D \dim_eval:n {#6}
         \driver_draw_scope_begin:
-        \driver_draw_transformcm:nnnnnn {#2} {#3} {#4} {#5} { 0pt } { 0pt }
+        \driver_draw_cm:nnnn {#2} {#3} {#4} {#5}
         \box_move_up:nn {#7} { \box_use:N #1 }
         \driver_draw_scope_end:
       }
@@ -2669,14 +2718,13 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\driver_draw_transformcm:nnnnnn}
-%   The first four arguments here are floats (the affine matrix), the last
-%   two are a displacement vector. Once again, force evaluation to allow for
-%   caching.
+% \begin{macro}{\driver_draw_cm:nnnn}
+%   The four arguments here are floats (the affine matrix), the last
+%   two are a displacement vector. 
 %    \begin{macrocode}
-\cs_new_protected:Npn \driver_draw_transformcm:nnnnnn #1#2#3#4#5#6
+\cs_new_protected:Npn \driver_draw_cm:nnnn #1#2#3#4
   {
-    \@@_draw_scope:x
+    \@@_draw_scope:n
       {
        transform =
          "
@@ -2684,7 +2732,7 @@
              (
                \fp_eval:n {#1} , \fp_eval:n {#2} ,
                \fp_eval:n {#3} , \fp_eval:n {#4} ,
-               \dim_to_decimal:n {#5} , \dim_to_decimal:n {#6}
+               0pt , 0pt
              )
          "
       }
@@ -2700,7 +2748,7 @@
 \cs_new_protected:Npn \driver_draw_hbox:Nnnnnnn #1#2#3#4#5#6#7
   {
     \@@_scope_begin:
-    \driver_draw_transformcm:nnnnnn {#2} {#3} {#4} {#5} {#6} {#7}
+    \driver_draw_cm:nnnn {#2} {#3} {#4} {#5}
     \@@_literal:n
       {
         < g~
@@ -2721,6 +2769,100 @@
 %    \begin{macrocode}
 %</dvisvgm>
 %    \end{macrocode}
+%
+% \subsection{Support code for drawing}
+%
+% A small number of functions are needed by different parts of the drawing code
+% in a way that doesn't follow the general split. This material is collected up
+% here.
+%
+% \begin{macro}{\@@_draw_cm_decompose:nnnnN}
+% \begin{macro}
+%   {\@@_draw_cm_decompose_auxi:nnnnN, \@@_draw_cm_decompose_auxii:nnnnN}
+%   Internally, transformations for drawing are tracked as a matrix. Not all
+%   engines provide a way of dealing with this: if we use a raw matrix, the
+%   engine looses track of positions (for example for hyperlinks), and this is
+%   not desirable. They do, however, allow us to track rotations and scalings.
+%   Luckily, we can decompose any (two-dimensional) matrix into two rotations
+%   and a single scaling:
+%   \[
+%     \begin{bmatrix}
+%         A & B \\ C & D
+%     \end{bmatrix}
+%     =
+%     \begin{bmatrix}
+%       \cos\beta & \sin\beta \\ -\sin\beta & \cos\beta
+%     \end{bmatrix}
+%     \begin{bmatrix}
+%       w_{1} & 0 \\ 0 & w_{2}
+%     \end{bmatrix}
+%     \begin{bmatrix}
+%       \cos\gamma & \sin\gamma \\ -\sin\gamma & \cos\gamma
+%     \end{bmatrix} 
+%   \]
+%   The parent matrix can be converted to
+%   \[
+%     \begin{bmatrix}
+%       A & B \\ C & D
+%     \end{bmatrix}
+%      =
+%     \begin{bmatrix}
+%       E & H \\-H & E
+%     \end{bmatrix}
+%     +
+%     \begin{bmatrix}
+%       F & G \\ G & -F
+%     \end{bmatrix}
+%   \]
+%   From these, we can find that
+%   \begin{align*}
+%     \frac{w_{1} + w_{2}}{1} &= \sqrt{E^{2} + H^{2}} \\
+%     \frac{w_{1} - w_{2}}{1} &= \sqrt{F^{2} + G^{2}} \\
+%     \gamma - \beta &= \tan^{-1}(G/F) \\
+%     \gamma + \beta &= \tan^{-1}(H/E)
+%   \end{align*}
+%   at which point we just have to do various pieces of re-arrangement to
+%   get all of the values. (See J.~Blinn, \emph{IEEE Comput.\ Graph.\ Appl.},
+%   1996, \textbf{16}, 82--88.)
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_draw_cm_decompose:nnnnN #1#2#3#4#5
+  {
+    \use:x
+      {
+        \@@_draw_cm_decompose_auxi:nnnnN
+          { \fp_eval:n { (#1 + #4) / 2 } }
+          { \fp_eval:n { #1 - (#1 + #4) / 2 } }
+          { \fp_eval:n { (#2 + #3) / 2 } }
+          { \fp_eval:n { #2 - (#2 + #3) / 2 } }
+      }
+        #5
+  }
+\cs_new_protected:Npn \@@_draw_cm_decompose_auxi:nnnnN #1#2#3#4#5
+  {
+    \use:x
+      {
+        \@@_draw_cm_auxii:nnnnN
+          { \fp_eval:n { sqrt ( #1 * #1 + #4 * #4 ) } }
+          { \fp_eval:n { sqrt ( #2 * #2 + #3 * #3 ) } }
+          { \fp_eval:n { arctand ( #3 / #2 ) } }
+          { \fp_eval:n { arctand ( #4 / #1 ) } }
+      }
+         #5
+  }
+\cs_new_protected:Npn \@@_draw_cm_decompose_auxii:nnnnN #1#2#3#4#5
+  {
+    \use:x
+      {
+        \exp_not:N #5
+          { \fp_eval:n { ( #4 - #3 ) / 2 } }
+          { \fp_eval:n { #1 + #2 } }
+          { \fp_eval:n { #1 - #2 } }
+          { \fp_eval:n { ( #4 + #3 ) / 2 } }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 %
 %    \begin{macrocode}
 %</initex|package>
