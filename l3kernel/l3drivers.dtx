@@ -404,51 +404,53 @@
 %
 % \begin{function}
 %   {
-%     \driver_draw_color_cmyk:nnnn ,
-%     \driver_draw_fill_cmyk:nnnn  ,
-%     \driver_draw_stroke_cmyk:nnnn
+%     \driver_draw_color_fill_cmyk:nnnn  ,
+%     \driver_draw_color_stroke_cmyk:nnnn
 %   }
 %   \begin{syntax}
-%     \cs{driver_draw_color_cmyk:nnnn} \Arg{cyan} \Arg{magenta} \Arg{yellow}
+%     \cs{driver_draw_color_fill_cmyk:nnnn} \Arg{cyan} \Arg{magenta} \Arg{yellow}
 %       \Arg{black}
 %   \end{syntax}
 %   Sets the color for drawing to the CMYK values specified, all of which are
-%   fp denotations in the range $0$ and $1$. The
-%   \texttt{fill} and \texttt{stroke} versions set only the color for those
-%   operations. Note that the general setting is more efficient with some
-%   drivers so should in most cases be preferred.
+%   fp denotations in the range $0$ and $1$.
 % \end{function}
 %
 % \begin{function}
 %   {
-%     \driver_draw_color_gray:n ,
-%     \driver_draw_fill_gray:n  ,
-%     \driver_draw_stroke_gray:n
+%     \driver_draw_color_fill_gray:n  ,
+%     \driver_draw_color_stroke_gray:n
 %   }
 %   \begin{syntax}
-%     \cs{driver_draw_color_gray:n} \Arg{gray}
+%     \cs{driver_draw_color_fill_gray:n} \Arg{gray}
 %   \end{syntax}
 %   Sets the color for drawing to the grayscale value specified, which is
-%   fp denotations in the range $0$ and $1$. The
-%   \texttt{fill} and \texttt{stroke} versions set only the color for those
-%   operations. Note that the general setting is more efficient with some
-%   drivers so should in most cases be preferred.
+%   fp denotations in the range $0$ and $1$.
 % \end{function}
 %
 % \begin{function}
 %   {
-%     \driver_draw_color_rgb:nnn ,
-%     \driver_draw_fill_rgb:nnn  ,
-%     \driver_draw_stroke_rgb:nnn
+%     \driver_draw_color_fill_rgb:nnn  ,
+%     \driver_draw_color_stroke_rgb:nnn
 %   }
 %   \begin{syntax}
-%     \cs{driver_draw_color_rgb:nnn} \Arg{red} \Arg{green} \Arg{blue}
+%     \cs{driver_draw_color_fill_rgb:nnn} \Arg{red} \Arg{green} \Arg{blue}
 %   \end{syntax}
 %   Sets the color for drawing to the RGB values specified, all of which are
-%   fp denotations in the range $0$ and $1$. The
-%   \texttt{fill} and \texttt{stroke} versions set only the color for those
-%   operations. Note that the general setting is more efficient with some
-%   drivers so should in most cases be preferred.
+%   fp denotations in the range $0$ and $1$.
+% \end{function}
+%
+% \begin{function}
+%   {\driver_draw_color_fill_reset:, \driver_draw_color_stroke_reset:}
+%   \begin{syntax}
+%     \cs{driver_draw_color_fill_reset:}
+%   \end{syntax}
+%   Resets the active color to that before a call to
+%   \cs{driver_draw_color_fill_\meta{model}:n(nnn)}. This function should be
+%   inserted after the \TeX{} group setting a color, \emph{i.e.}~normally
+%   \begin{verbatim}
+%     % Use of \driver_driver_color_fill_rgb:nnn, etc.
+%     \group_insert_after:N \driver_draw_color_fill_reset:
+%   \end{verbatim}
 % \end{function}
 %
 % \subsection{Inserting \TeX{} material}
@@ -537,9 +539,13 @@
 %
 % \subsection{Color support}
 %
+% Color support is split into two parts: a \enquote{general} concept and
+% one directly linked to drawings (or rather the split between filling
+% and stroking). General color is relatively easy to handle: we have a color
+% stack available with all modern drivers, and can use that.%
 % Whilst \texttt{(x)dvipdfmx} does have its own approach to color specials,
 % it is easier to use \texttt{dvips}-like ones for all cases except direct
-% PDF output. As such the color code is collected here in two blocks.
+% PDF output.
 %
 % \subsubsection{\texttt{dvips}-style}
 %
@@ -587,7 +593,8 @@
 % \begin{macro}{\driver_color_spot:nn}
 % \begin{macro}{\@@_color_select:n}
 % \begin{macro}{\driver_color_reset:}
-%   Simply dump the data.
+%    Push the data to the stack. In the case of \texttt{dvips} also reset the
+%    drawing fill color in raw PostScript.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_color_cmyk:nnnn #1#2#3#4
   { \@@_color_select:n { cmyk~ #1 ~ #2 ~ #3 ~ #4 } }
@@ -598,7 +605,12 @@
 \cs_new_protected:Npn \driver_color_spot:nn #1#2
   { \@@_color_select:n { color~push~\c_space_tl #1 } }
 \cs_new_protected:Npn \@@_color_select:n #1
-  { \tex_special:D { color~push~ #1 } }
+  {
+    \tex_special:D { color~push~ #1 }
+%<*dvips>
+    \tex_special:D { ps::/l3fc~{ }~def }
+%</dvips>
+  }
 \cs_new_protected:Npn \driver_color_reset:
   { \tex_special:D { color~pop } }
 %    \end{macrocode}
@@ -896,6 +908,7 @@
     \@@_draw_literal:n { save }
     \@@_draw_literal:n { /l3x~currentpoint~/l3y~exch~def~def }
     \@@_draw_literal:n { @beginspecial }
+    \@@_draw_literal:n { /l3fc~{ }~def }
   }
 \cs_new_protected:Npn \driver_draw_end:
   {
@@ -987,21 +1000,17 @@
 % \begin{variable}{\g_@@_draw_clip_bool}
 %   Unlike PDF, PostScript doesn't track separate colors for strokes and other
 %   elements. It is also desirable to have the |clip| keyword after a stroke or
-%   fill. To achieve those outcomes, there is some work to do. For color, if a
-%   stroke or fill color is defined it is used for the relevant operation, with
-%   a graphic scope inserted as required. That does mean that once such a color
-%   is set all further uses inside the same scope have to use scoping: see also
-%   the color set up functions. For clipping, the required ordering is achieved
-%   using a \TeX{} switch. All of the operations end with a new path instruction
-%   as they do not terminate (again in contrast to PDF).
+%   fill. To achieve those outcomes, there is some work to do. For color, the
+%   stoke color is simple but the fill one has to be inserted by hand. For
+%   clipping, the required ordering is achieved using a \TeX{} switch. All of
+%   the operations end with a new path instruction  as they do not terminate
+%   (again in contrast to PDF).
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_draw_closepath:
   { \@@_draw_literal:n { closepath } }
 \cs_new_protected:Npn \driver_draw_stroke:
   {
-    \@@_draw_literal:n { currentdict~/l3sc~known~{gsave~l3sc}~if }
-    \@@_draw_literal:n { stroke }
-    \@@_draw_literal:n { currentdict~/l3sc~known~{grestore}~if }
+     \@@_draw_literal:n { stroke }
     \bool_if:NT \g_@@_draw_clip_bool
       {
         \@@_draw_literal:x
@@ -1020,13 +1029,14 @@
   }
 \cs_new_protected:Npn \driver_draw_fill:
   {
-    \@@_draw_literal:n { currentdict~/l3fc~known~{gsave~l3fc}~if }
+    \@@_draw_literal:n { gsave }
+    \@@_draw_literal:n { l3fc }
     \@@_draw_literal:x
       {
         \bool_if:NT \g_@@_draw_eor_bool { eo }
         fill
       }
-    \@@_draw_literal:n { currentdict~/l3fc~known~{grestore}~if }
+    \@@_draw_literal:n { grestore }
     \bool_if:NT \g_@@_draw_clip_bool
       {
         \@@_draw_literal:x
@@ -1040,16 +1050,15 @@
   }
 \cs_new_protected:Npn \driver_draw_fillstroke:
   {
-    \@@_draw_literal:n { currentdict~/l3fc~known~{gsave~l3fc}~if }
+    \@@_draw_literal:n { gsave }
+    \@@_draw_literal:n { l3fc }
     \@@_draw_literal:x
       {
         \bool_if:NT \g_@@_draw_eor_bool { eo }
         fill
       }
-    \@@_draw_literal:n { currentdict~/l3fc~known~{grestore}~if }
-    \@@_draw_literal:n { currentdict~/l3sc~known~{gsave~l3sc}~if }
+    \@@_draw_literal:n { grestore }
     \@@_draw_literal:n { stroke }
-    \@@_draw_literal:n { currentdict~/l3sc~known~{grestore}~if }
     \bool_if:NT \g_@@_draw_clip_bool
       {
         \@@_draw_literal:x
@@ -1131,75 +1140,49 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\@@_draw_color_reset:}
+%
 % \begin{macro}
 %   {
-%     \driver_draw_color_cmyk:nnnn  ,
-%     \driver_draw_fill_cmyk:nnnn   ,
-%     \driver_draw_stroke_cmyk:nnnn
+%     \driver_draw_color_fill_cmyk:nnnn   ,
+%     \driver_draw_color_stroke_cmyk:nnnn
 %   }
 % \begin{macro}
 %   {
-%     \driver_draw_color_gray:n  ,
-%     \driver_draw_fill_gray:n   ,
-%     \driver_draw_stroke_gray:n
+%     \driver_draw_color_fill_gray:n   ,
+%     \driver_draw_color_stroke_gray:n
 %   }
 % \begin{macro}
 %   {
-%     \driver_draw_color_rgb:nnn  ,
-%     \driver_draw_fill_rgb:nnn   ,
-%     \driver_draw_stroke_rgb:nnn
+%     \driver_draw_color_fill_rgb:nnn   ,
+%     \driver_draw_color_stroke_rgb:nnn
 %   }
-%   To allow color to be defined for strokes and fills separately and to
-%   respect scoping, the data needs to be stored at the PostScript level.
-%   We cannot undefine (local) fill/stroke colors once set up but we can
-%   set them blank to improve performance slightly.
+% \begin{macro}{\@@_draw_color_fill:n, \@@_draw_color_stroke:n}
+% \begin{macro}{\driver_draw_color_fill_reset:, \driver_draw_color_stroke_reset:}
+%   For \texttt{dvips}, we can use the standard color stack to deal with
+%   stroke color, but for fills have to switch to raw PostScript. This is
+%   thus not handled by the stack, but the context is very restricted. See
+%   also how fills are implemented.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_color_reset:
-  {
-    \@@_draw_literal:n { currentdict~/l3fc~known~{ /l3fc~ { } ~def }~if }
-    \@@_draw_literal:n { currentdict~/l3sc~known~{ /l3sc~ { } ~def }~if }
-  }
-\cs_new_protected:Npn \driver_draw_color_cmyk:nnnn #1#2#3#4
-  {
-    \@@_draw_literal:n { #1 ~ #2 ~ #3 ~ #4 ~ setcmykcolor }
-    \@@_draw_color_reset:
-  }
-\cs_new_protected:Npn \driver_draw_fill_cmyk:nnnn #1#2#3#4
-  {
-    \@@_draw_literal:n
-      { /l3fc ~ { #1 ~ #2 ~ #3 ~ #4 ~ setcmykcolor ~ } ~ def }
-  }
-\cs_new_protected:Npn \driver_draw_stroke_cmyk:nnnn #1#2#3#4
-  {
-    \@@_draw_literal:n
-      { /l3sc ~ { #1 ~ #2 ~ #3 ~ #4 ~ setcmykcolor ~ } ~ def }
-  }
-\cs_new_protected:Npn \driver_draw_color_gray:n #1
-  {
-    \@@_draw_literal:n { #1 ~ setgray  }
-    \@@_draw_color_reset:
-  }
-\cs_new_protected:Npn \driver_draw_fill_gray:n #1
-  { \@@_draw_literal:n { /l3fc ~ { #1 ~ setgray } ~ def } }
-\cs_new_protected:Npn \driver_draw_stroke_gray:n #1
-  { \@@_draw_literal:n { /l3sc ~ { #1 ~ setgray } ~ def } }
-\cs_new_protected:Npn \driver_draw_color_rgb:nnn #1#2#3
-  {
-    \@@_draw_literal:n { #1 ~ #2 ~ #3 ~ setrgbcolor }
-    \@@_draw_color_reset:
-  }
-\cs_new_protected:Npn \driver_draw_fill_rgb:nnn #1#2#3
-  {
-    \@@_draw_literal:n
-      { /l3fc ~ { #1 ~ #2 ~ #3 ~ setrgbcolor } ~ def }
-  }
-\cs_new_protected:Npn \driver_draw_stroke_rgb:nnn #1#2#3
-  {
-    \@@_draw_literal:n
-      { /l3sc ~ { #1 ~ #2 ~ #3 ~ setrgbcolor } ~ def }
-  }
+\cs_new_protected:Npn \driver_draw_color_fill_cmyk:nnnn #1#2#3#4
+  { \@@_draw_fill:n { #1 ~ #2 ~ #3 ~ #4 ~ setcmykcolor } }
+\cs_new_protected:Npn \driver_draw_color_stroke_cmyk:nnnn #1#2#3#4
+  { \@@_draw_stroke:n { cmyk ~ #1 ~ #2 ~ #3 ~ #4 } }
+\cs_new_protected:Npn \driver_draw_color_fill_gray:n #1
+  { \@@_draw_fill:n { #1 ~ setgray } }
+\cs_new_protected:Npn \driver_draw_color_stroke_gray:n #1
+  { \@@_draw_stroke:n { gray ~ #1 } }
+\cs_new_protected:Npn \driver_draw_color_fill_rgb:nnn #1#2#3
+  { \@@_draw_fill:n { #1 ~ #2 ~ #3 ~ setrgbcolor } }
+\cs_new_protected:Npn \driver_draw_color_stroke_rgb:nnn #1#2#3
+  { \@@_draw_stroke:n { rgb ~ #1 ~ #2 ~ #3 } }
+\cs_new_protected:Npn \@@_draw_color_fill:n #1
+  { \@@_draw_literal:n { /l3fc ~ { #1 } ~ def } }
+\cs_new_protected:Npn \@@_draw_color_stroke:n #1
+  { \tex_special:D { color~push~#1 } }
+\cs_new_protected:Npn \driver_draw_color_fill_reset: { }
+\cs_new_eq:NN \driver_draw_color_stroke_reset: \driver_color_reset:
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -2053,52 +2036,56 @@
 %
 % \begin{macro}
 %   {
-%     \driver_draw_color_cmyk:nnnn  ,
-%     \driver_draw_fill_cmyk:nnnn   ,
-%     \driver_draw_stroke_cmyk:nnnn
+%     \driver_draw_color_fill_cmyk:nnnn   ,
+%     \driver_draw_color_stroke_cmyk:nnnn
 %   }
 % \begin{macro}
 %   {
-%     \driver_draw_color_gray:n  ,
-%     \driver_draw_fill_gray:n   ,
-%     \driver_draw_stroke_gray:n
+%     \driver_draw_color_fill_gray:n   ,
+%     \driver_draw_color_stroke_gray:n
 %   }
 % \begin{macro}
 %   {
-%     \driver_draw_color_rgb:nnn  ,
-%     \driver_draw_fill_rgb:nnn   ,
-%     \driver_draw_stroke_rgb:nnn
+%     \driver_draw_color_fill_rgb:nnn   ,
+%     \driver_draw_color_stroke_rgb:nnn
 %   }
-%   Yet more fast conversion, all using the FPU to allow for expressions
-%   in numerical input.
+% \begin{macro}
+%   {
+%     \driver_draw_color_fill_reset:   ,
+%     \driver_draw_color_stroke_reset:
+%   }
+%    For the stroke color, all engines here can use the color stack to handle
+%    the setting. However, that is not the case for fill color: the stack in
+%    \texttt{(x)dvipdfmx} only covers one type of color. So we have to use
+%    different approaches for the two sets of engines.
 %    \begin{macrocode}
-\cs_new_protected:Npn \driver_draw_color_cmyk:nnnn #1#2#3#4
-  {
-    \@@_draw_literal:n
-      { #1 ~ #2 ~ #3 ~ #4 ~ k ~ #1 ~ #2 ~ #3 ~ #4 ~ K }
-  }
-\cs_new_protected:Npn \driver_draw_fill_cmyk:nnnn #1#2#3#4
-  {
-    \@@_draw_literal:n { #1 ~ #2 ~ #3 ~ #4 ~ k }
-  }
-\cs_new_protected:Npn \driver_draw_stroke_cmyk:nnnn #1#2#3#4
-  { \@@_draw_literal:n { #1 ~ #2 ~ #3 ~ #4 ~ K } }
-\cs_new_protected:Npn \driver_draw_color_gray:n #1
-  { \@@_draw_literal:n { #1 ~ g ~ #1 ~ G } }
-\cs_new_protected:Npn \driver_draw_fill_gray:n #1
-  { \@@_draw_literal:n { #1 ~ g } }
-\cs_new_protected:Npn \driver_draw_stroke_gray:n #1
-  { \@@_draw_literal:n { #1 ~ G } }
-\cs_new_protected:Npn \driver_draw_color_rgb:nnn #1#2#3
-  {
-    \@@_draw_literal:n
-      { #1 ~ #2 ~ #3 ~ rg ~ #1 ~ #2 ~ #3 ~ RG }
-  }
-\cs_new_protected:Npn \driver_draw_fill_rgb:nnn #1#2#3
-  { \@@_draw_literal:n { #1 ~ #2 ~ #3 ~ rg } }
-\cs_new_protected:Npn \driver_draw_stroke_rgb:nnn #1#2#3
-  { \@@_draw_literal:n { #1 ~ #2 ~ #3 ~ RG } }
+\cs_new_protected:Npn \driver_draw_color_fill_cmyk:nnnn #1#2#3#4
+  { \@@_color_fill_select:n { #1 ~ #2 ~ #3 ~ #4 ~ k } }
+\cs_new_protected:Npn \driver_draw_color_stroke_cmyk:nnnn #1#2#3#4
+  { \@@_color_select:n { #1 ~ #2 ~ #3 ~ #4 ~ K } }
+\cs_new_protected:Npn \driver_draw_color_fill_gray:n #1
+  { \@@_color_fill_select:n { #1 ~ g } }
+\cs_new_protected:Npn \driver_draw_color_stroke_gray:n #1
+  { \@@_color_select:n { #1 ~ G } }
+\cs_new_protected:Npn \driver_draw_color_fill_rgb:nnn #1#2#3
+  { \@@_color_fill_select:n { #1 ~ #2 ~ #3 ~ rg } }
+\cs_new_protected:Npn \driver_draw_color_stroke_rgb:nnn #1#2#3
+  { \@@_color_select:n { #1 ~ #2 ~ #3 ~ RG } }
+%<*pdfmode>
+\cs_new_eq:NN \driver_draw_color_fill_reset: \driver_color_reset:
+%</pdfmode>
+%<*dvipdfmx|xdvipdfmx>
+\cs_new_protected:Npn \driver_draw_color_fill_reset: { }
+%</dvipdfmx|xdvipdfmx>
+\cs_new_eq:NN \driver_draw_color_stroke_reset: \driver_color_reset:
+%<*pdfmode>
+\cs_new_eq:NN \@@_color_fill_select:n \@@_color_select:n
+%</pdfmode>
+%<*dvipdfmx|xdvipdfmx>
+\cs_new_eq:NN \@@_color_fill_select:n \@@_draw_literal:n
+%</dvipdfmx|xdvipdfmx>
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -2649,110 +2636,82 @@
 %
 % \begin{macro}
 %   {
-%     \driver_draw_color_cmyk:nnnn  ,
-%     \driver_draw_fill_cmyk:nnnn   ,
-%     \driver_draw_stroke_cmyk:nnnn
+%     \driver_draw_color_fill_cmyk:nnnn   ,
+%     \driver_draw_color_stroke_cmyk:nnnn
 %   }
 % \begin{macro}
 %   {
-%     \driver_draw_color_gray:n  ,
-%     \driver_draw_fill_gray:n   ,
-%     \driver_draw_stroke_gray:n
+%     \driver_draw_color_fill_gray:n   ,
+%     \driver_draw_color_stroke_gray:n
 %   }
 % \begin{macro}
 %   {
-%     \driver_draw_color_rgb:nnn  ,
-%     \driver_draw_fill_rgb:nnn   ,
-%     \driver_draw_stroke_rgb:nnn
+%     \driver_draw_color_fill_rgb:nnn   ,
+%     \driver_draw_color_stroke_rgb:nnn
 %   }
-%   SVG only works with RGB colors, so there is some conversion to
-%   do. The values also need to be given as percentages, which means a
-%   little more maths.
+% \begin{macro}{\@@_draw_color_fill:nnn}
+% \begin{macro}
+%   {
+%     \driver_draw_color_fill_reset:   ,
+%     \driver_draw_color_stroke_reset:
+%   }
+%  SVG fill color has to be covered outside of the stack, as for
+%  \texttt{dvips}. Here, we are only allowed RGB colors so there is some
+%  conversion to do.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_color_cmyk_aux:NNnnnnn #1#2#3#4#5#6
+\cs_new_protected:Npn \driver_draw_color_stroke_cmyk:nnnn #1#2#3#4
   {
     \use:x
       {
-        \@@_draw_color_rgb_auxii:nnn
-          { \fp_eval:n { -100 * ( (#3) * ( 1 - (#6) ) - 1 ) } }
-          { \fp_eval:n { -100 * ( (#4) * ( 1 - (#6) ) + #6 - 1 ) } }
-          { \fp_eval:n { -100 * ( (#5) * ( 1 - (#6) ) + #6 - 1 ) } }
+        \@@_draw_color_fill:nnn
+          { \fp_eval:n { -100 * ( (#1) * ( 1 - (#4) ) - 1 ) } }
+          { \fp_eval:n { -100 * ( (#2) * ( 1 - (#4) ) + #4 - 1 ) } }
+          { \fp_eval:n { -100 * ( (#3) * ( 1 - (#4) ) + #4 - 1 ) } }
       }
-      #1 #2
   }
-\cs_new_protected:Npn \driver_draw_color_cmyk:nnnn
-  { \@@_draw_color_cmyk_aux:NNnnnnn \c_true_bool \c_true_bool }
-\cs_new_protected:Npn \driver_draw_fill_cmyk:nnnn
-  { \@@_draw_color_cmyk_aux:NNnnnnn \c_false_bool \c_true_bool }
-\cs_new_protected:Npn \driver_draw_stroke_cmyk:nnnn
-  { \@@_draw_color_cmyk_aux:NNnnnnn \c_true_bool \c_false_bool }
-\cs_new_protected:Npn \@@_draw_color_gray_aux:NNn #1#2#3
+\cs_new_eq:NN \driver_draw_color_stroke_cmyk:nnnn \driver_color_cmyk:nnnn
+\cs_new_protected:Npn \driver_draw_color_gray:n #1
   {
     \use:x
       {
-        \@@_draw_color_gray_aux:nNN
-          { \fp_eval:n { 100 * (#3)} }
-      }
-        #1 #2
-  }
-\cs_new_protected:Npn \@@_draw_color_gray_aux:nNN #1
-  { \@@_draw_color_rgb_auxii:nnnNN {#1} {#1} {#1} }
-\cs_generate_variant:Nn \@@_draw_color_gray_aux:nNN { x }
-\cs_new_protected:Npn \driver_draw_color_gray:n
-  { \@@_draw_color_gray_aux:NNn \c_true_bool \c_true_bool }
-\cs_new_protected:Npn \driver_draw_fill_gray:n
-  { \@@_draw_color_gray_aux:NNn \c_false_bool \c_true_bool }
-\cs_new_protected:Npn \driver_draw_stroke_gray:n
-  { \@@_draw_color_gray_aux:NNn \c_true_bool \c_false_bool }
-\cs_new_protected:Npn \@@_draw_color_rgb_auxi:NNnnn #1#2#3#4#5
-  {
-    \use:x
-      {
-        \@@_draw_color_rgb_auxii:nnnNN
+        \@@_draw_color_gray_aux:n
           { \fp_eval:n { 100 * (#3) } }
-          { \fp_eval:n { 100 * (#4) } }
-          { \fp_eval:n { 100 * (#5) } }
       }
-        #1 #2
   }
-\cs_new_protected:Npn \@@_draw_color_rgb_auxii:nnnNN #1#2#3#4#5
+\cs_new_protected:Npn \@@_draw_color_gray_aux:n #1
+  { \@@_draw_color_fill:nnn {#1} {#1} {#1} }
+\cs_new_eq:NN \driver_draw_color_stroke_gray:n \driver_color_gray:n
+\cs_new_protected:Npn \driver_draw_color_rgb:nnn #1#2#3
+  {
+    \use:x
+      {
+        \@@_draw_color_fill:nnn
+          { \fp_eval:n { 100 * (#1) } }
+          { \fp_eval:n { 100 * (#2) } }
+          { \fp_eval:n { 100 * (#3) } }
+      }
+  }
+\cs_new_protected:Npn \@@_draw_color_fill:nnn #1#2#3
   {
     \@@_draw_scope:x
       {
-        \bool_if:NT #4
-          {
-            fill =
-             "
-               rgb
-                 (
-                   #1 \c_percent_str ,
-                   #2 \c_percent_str ,
-                   #3 \c_percent_str
-                 )
-             "
-             \bool_if:NT #5 { ~ }
-          }
-        \bool_if:NT #5
-          {
-            stroke =
-             "
-               rgb
-                 (
-                   #1 \c_percent_str ,
-                   #2 \c_percent_str ,
-                   #3 \c_percent_str
-                 )
-             "
-          }
+        fill =
+         "
+           rgb
+             (
+               #1 \c_percent_str ,
+               #2 \c_percent_str ,
+               #3 \c_percent_str
+             )
+         "
       }
   }
-\cs_new_protected:Npn \driver_draw_color_rgb:nnn
-  { \@@_draw_color_rgb_auxi:NNnnn \c_true_bool \c_true_bool }
-\cs_new_protected:Npn \driver_draw_fill_rgb:nnn
-  { \@@_draw_color_rgb_auxi:NNnnn \c_false_bool \c_true_bool }
-\cs_new_protected:Npn \driver_draw_stroke_rgb:nnn
-  { \@@_draw_color_rgb_auxi:NNnnn \c_true_bool \c_false_bool }
+\cs_new_eq:NN \driver_draw_color_stroke_rgb:nnn \driver_color_rgb:nnn
+\cs_new_protected:Npn \driver_draw_color_fill_reset: { }
+\cs_new_eq:NN \driver_draw_color_stroke_reset: \driver_color_reset:
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
