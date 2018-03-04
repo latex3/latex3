@@ -1162,42 +1162,15 @@
 % \end{macro}
 %
 % \begin{macro}{\driver_draw_cm:nnnn}
-% \begin{macro}{\@@_draw_cm:nnnn}
 %   In \texttt{dvips}, keeping the transformations in line with the engine
-%   requires that we use rotations and scalings. This is done by decomposing
-%   the matrix: see the comments for \cs{@@_draw_cm_decompose:nnnnN} (which
-%   is also needed by \texttt{(x)dvipdfmx}).
+%   is unfortunately not possible for scaling and rotations: even if we
+%   decompose the matrix into those operations, there is still no driver
+%   tracking (\emph{cf.}~\texttt{(x)dvipdfmx}). Thus we take the shortest
+%   path available and simply dump the matrix as given.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_draw_cm:nnnn #1#2#3#4
-  {
-    \@@_draw_cm_decompose:nnnnN {#1} {#2} {#3} {#4}
-      \@@_draw_cm:nnnn
-  }
-\cs_new_protected:Npn \@@_draw_cm:nnnn #1#2#3#4
-  {
-    \@@_draw_literal:n
-      {
-        \fp_compare:nNnTF {#1} = \c_zero_fp
-          { 0 }
-          { \fp_eval:n { round ( -#1, 5 ) } } ~
-          rotate
-      }
-    \@@_draw_literal:n
-      {
-        \fp_eval:n { round ( #2 , 5 ) } ~
-        \fp_eval:n { round ( #3 , 5 ) } ~
-        scale
-      }
-    \@@_draw_literal:n
-      {
-        \fp_compare:nNnTF {#4} = \c_zero_fp
-          { 0 }
-          { \fp_eval:n { round ( -#4 , 5 ) } } ~
-          rotate
-      }
-  }
+  { \@@_draw_literal:n { [#1 ~ #2 ~ #3 ~ #4 ~ 0 ~ 0 ] ~ concat } }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\driver_draw_box_use:Nnnnn}
@@ -2071,9 +2044,9 @@
 % \begin{macro}{\@@_draw_cm:nnnn}
 %   Another split here between \texttt{pdfmode} and \texttt{(x)dvipdfmx}.
 %   In the former, we have a direct method to maintain alignment: the driver
-%   can use a matrix itself. For \texttt{(x)dvipdfmx}, as for \texttt{dvips},
-%   we need to decompose the matrix into rotations and a scaling, then use
-%   that.
+%   can use a matrix itself. For \texttt{(x)dvipdfmx} we can to decompose the
+%   matrix into rotations and a scaling, then use those operations as they
+%   are handled by the driver..
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_draw_cm:nnnn #1#2#3#4
   {
@@ -2108,6 +2081,109 @@
           { 0 }
           { \fp_eval:n { round ( -#4 , 5 ) } }
       }
+  }
+%</dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_draw_cm_decompose:nnnnN}
+% \begin{macro}
+%   {
+%     \@@_draw_cm_decompose_auxi:nnnnN,
+%     \@@_draw_cm_decompose_auxii:nnnnN,
+%     \@@_draw_cm_decompose_auxiii:nnnnN,
+%   }
+%   Internally, transformations for drawing are tracked as a matrix. Not all
+%   engines provide a way of dealing with this: if we use a raw matrix, the
+%   engine looses track of positions (for example for hyperlinks), and this is
+%   not desirable. They do, however, allow us to track rotations and scalings.
+%   Luckily, we can decompose any (two-dimensional) matrix into two rotations
+%   and a single scaling:
+%   \[
+%     \begin{bmatrix}
+%         A & B \\ C & D
+%     \end{bmatrix}
+%     =
+%     \begin{bmatrix}
+%       \cos\beta & \sin\beta \\ -\sin\beta & \cos\beta
+%     \end{bmatrix}
+%     \begin{bmatrix}
+%       w_{1} & 0 \\ 0 & w_{2}
+%     \end{bmatrix}
+%     \begin{bmatrix}
+%       \cos\gamma & \sin\gamma \\ -\sin\gamma & \cos\gamma
+%     \end{bmatrix} 
+%   \]
+%   The parent matrix can be converted to
+%   \[
+%     \begin{bmatrix}
+%       A & B \\ C & D
+%     \end{bmatrix}
+%      =
+%     \begin{bmatrix}
+%       E & H \\-H & E
+%     \end{bmatrix}
+%     +
+%     \begin{bmatrix}
+%       F & G \\ G & -F
+%     \end{bmatrix}
+%   \]
+%   From these, we can find that
+%   \begin{align*}
+%     \frac{w_{1} + w_{2}}{2} &= \sqrt{E^{2} + H^{2}} \\
+%     \frac{w_{1} - w_{2}}{2} &= \sqrt{F^{2} + G^{2}} \\
+%     \gamma - \beta &= \tan^{-1}(G/F) \\
+%     \gamma + \beta &= \tan^{-1}(H/E)
+%   \end{align*}
+%   at which point we just have to do various pieces of re-arrangement to
+%   get all of the values. (See J.~Blinn, \emph{IEEE Comput.\ Graph.\ Appl.},
+%   1996, \textbf{16}, 82--88.) There is one wrinkle: the PostScript (and PDF)
+%   way of specifying a transformation matrix exchanges where one would
+%   normally expect $B$ and $C$ to be.
+%    \begin{macrocode}
+%<*dvipdfmx|xdvipdfmx>
+\cs_new_protected:Npn \@@_draw_cm_decompose:nnnnN #1#2#3#4#5
+  {
+    \use:x
+      {
+        \@@_draw_cm_decompose_auxi:nnnnN
+          { \fp_eval:n { (#1 + #4) / 2 } }
+          { \fp_eval:n { (#1 - #4) / 2 } }
+          { \fp_eval:n { (#3 + #2) / 2 } }
+          { \fp_eval:n { (#3 - #2) / 2 } }
+      }
+        #5
+  }
+\cs_new_protected:Npn \@@_draw_cm_decompose_auxi:nnnnN #1#2#3#4#5
+  {
+    \use:x
+      {
+        \@@_draw_cm_decompose_auxii:nnnnN
+          { \fp_eval:n { 2 * sqrt ( #1 * #1 + #4 * #4 ) } }
+          { \fp_eval:n { 2 * sqrt ( #2 * #2 + #3 * #3 ) } }
+          { \fp_eval:n { atand ( #3 , #2 ) } }
+          { \fp_eval:n { atand ( #4 , #1 ) } }
+      }
+         #5
+  }
+\cs_new_protected:Npn \@@_draw_cm_decompose_auxii:nnnnN #1#2#3#4#5
+  {
+    \use:x
+      {
+        \@@_draw_cm_decompose_auxiii:nnnnN
+          { \fp_eval:n { ( #4 - #3 ) / 2 } }
+          { \fp_eval:n { ( #1 + #2 ) / 2 } }
+          { \fp_eval:n { ( #1 - #2 ) / 2 } }
+          { \fp_eval:n { ( #4 + #3 ) / 2 } }
+      }
+        #5
+  }
+\cs_new_protected:Npn \@@_draw_cm_decompose_auxiii:nnnnN #1#2#3#4#5
+  {
+    \fp_compare:nNnTF { abs( #2 ) } > { abs ( #3 ) }
+      { #5 {#1} {#2} {#3} {#4} }
+      { #5 {#1} {#3} {#2} {#4} }
   }
 %</dvipdfmx|xdvipdfmx>
 %    \end{macrocode}
@@ -2756,113 +2832,6 @@
 %    \begin{macrocode}
 %</dvisvgm>
 %    \end{macrocode}
-%
-% \subsection{Support code for drawing}
-%
-% A small number of functions are needed by different parts of the drawing code
-% in a way that doesn't follow the general split. This material is collected up
-% here.
-%
-% \begin{macro}{\@@_draw_cm_decompose:nnnnN}
-% \begin{macro}
-%   {
-%     \@@_draw_cm_decompose_auxi:nnnnN,
-%     \@@_draw_cm_decompose_auxii:nnnnN,
-%     \@@_draw_cm_decompose_auxiii:nnnnN,
-%   }
-%   Internally, transformations for drawing are tracked as a matrix. Not all
-%   engines provide a way of dealing with this: if we use a raw matrix, the
-%   engine looses track of positions (for example for hyperlinks), and this is
-%   not desirable. They do, however, allow us to track rotations and scalings.
-%   Luckily, we can decompose any (two-dimensional) matrix into two rotations
-%   and a single scaling:
-%   \[
-%     \begin{bmatrix}
-%         A & B \\ C & D
-%     \end{bmatrix}
-%     =
-%     \begin{bmatrix}
-%       \cos\beta & \sin\beta \\ -\sin\beta & \cos\beta
-%     \end{bmatrix}
-%     \begin{bmatrix}
-%       w_{1} & 0 \\ 0 & w_{2}
-%     \end{bmatrix}
-%     \begin{bmatrix}
-%       \cos\gamma & \sin\gamma \\ -\sin\gamma & \cos\gamma
-%     \end{bmatrix} 
-%   \]
-%   The parent matrix can be converted to
-%   \[
-%     \begin{bmatrix}
-%       A & B \\ C & D
-%     \end{bmatrix}
-%      =
-%     \begin{bmatrix}
-%       E & H \\-H & E
-%     \end{bmatrix}
-%     +
-%     \begin{bmatrix}
-%       F & G \\ G & -F
-%     \end{bmatrix}
-%   \]
-%   From these, we can find that
-%   \begin{align*}
-%     \frac{w_{1} + w_{2}}{2} &= \sqrt{E^{2} + H^{2}} \\
-%     \frac{w_{1} - w_{2}}{2} &= \sqrt{F^{2} + G^{2}} \\
-%     \gamma - \beta &= \tan^{-1}(G/F) \\
-%     \gamma + \beta &= \tan^{-1}(H/E)
-%   \end{align*}
-%   at which point we just have to do various pieces of re-arrangement to
-%   get all of the values. (See J.~Blinn, \emph{IEEE Comput.\ Graph.\ Appl.},
-%   1996, \textbf{16}, 82--88.) There is one wrinkle: the PostScript (and PDF)
-%   way of specifying a transformation matrix exchanges where one would
-%   normally expect $B$ and $C$ to be.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_cm_decompose:nnnnN #1#2#3#4#5
-  {
-    \use:x
-      {
-        \@@_draw_cm_decompose_auxi:nnnnN
-          { \fp_eval:n { (#1 + #4) / 2 } }
-          { \fp_eval:n { (#1 - #4) / 2 } }
-          { \fp_eval:n { (#3 + #2) / 2 } }
-          { \fp_eval:n { (#3 - #2) / 2 } }
-      }
-        #5
-  }
-\cs_new_protected:Npn \@@_draw_cm_decompose_auxi:nnnnN #1#2#3#4#5
-  {
-    \use:x
-      {
-        \@@_draw_cm_decompose_auxii:nnnnN
-          { \fp_eval:n { 2 * sqrt ( #1 * #1 + #4 * #4 ) } }
-          { \fp_eval:n { 2 * sqrt ( #2 * #2 + #3 * #3 ) } }
-          { \fp_eval:n { atand ( #3 , #2 ) } }
-          { \fp_eval:n { atand ( #4 , #1 ) } }
-      }
-         #5
-  }
-\cs_new_protected:Npn \@@_draw_cm_decompose_auxii:nnnnN #1#2#3#4#5
-  {
-    \use:x
-      {
-        \@@_draw_cm_decompose_auxiii:nnnnN
-          { \fp_eval:n { ( #4 - #3 ) / 2 } }
-          { \fp_eval:n { ( #1 + #2 ) / 2 } }
-          { \fp_eval:n { ( #1 - #2 ) / 2 } }
-          { \fp_eval:n { ( #4 + #3 ) / 2 } }
-      }
-        #5
-  }
-\cs_new_protected:Npn \@@_draw_cm_decompose_auxiii:nnnnN #1#2#3#4#5
-  {
-    \fp_compare:nNnTF { abs( #2 ) } > { abs ( #3 ) }
-      { #5 {#1} {#2} {#3} {#4} }
-      { #5 {#1} {#3} {#2} {#4} }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
 %
 %    \begin{macrocode}
 %</initex|package>
