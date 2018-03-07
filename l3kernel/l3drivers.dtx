@@ -873,21 +873,21 @@
 %   continue on to a matching |ps::[end]|: contrast with |ps:|, which positions
 %   but where we can't split material between separate calls. The
 %   |@beginspecial|/|@endspecial| pair are from |special.pro| and correct the
-%   scale and $y$-axis direction. The reference point at the start of the box
-%   is saved (as |l3x|/|l3y|) as it is needed when inserting various items.
+%   scale and $y$-axis direction. The definition of |/l3fc| deals with fill
+%   color in paths. In contrast to \pkg{pgf}, we don't save the current point:
+%   discussion with Tom Rokici suggested a better way to handle the necessary
+%   translations (see \cs{driver_draw_box_use:Nnnnn}). (Note that
+%   |@beginspecial|/|@endspecial| forms a driver scope.)
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_draw_begin:
   {
     \@@_draw_literal:n { [begin] }
-    \@@_draw_literal:n { save }
-    \@@_draw_literal:n { /l3x~currentpoint~/l3y~exch~def~def }
     \@@_draw_literal:n { @beginspecial }
     \@@_draw_literal:n { /l3fc~{ }~def }
   }
 \cs_new_protected:Npn \driver_draw_end:
   {
     \@@_draw_literal:n { @endspecial }
-    \@@_draw_literal:n { restore }
     \@@_draw_literal:n { [end] }
   }
 %    \end{macrocode}
@@ -1176,24 +1176,36 @@
 % \begin{macro}{\driver_draw_box_use:Nnnnn}
 %   Inside a picture |@beginspecial|/|@endspecial| are active, which is
 %   normally a good thing but means that the position and scaling would be off
-%   if the box was inserted directly. Instead, we need to reverse the effect of
-%   the (normally desirable) shift/scaling within the box. That requires
-%   knowing where the reference point for the drawing is: saved as |l3x|/|l3y|
-%   at the start of the picture. Transformation here is relative to the
-%   drawing origin so has to be done purely in driver code not using \TeX{}
-%   offsets.
+%   if the box was inserted directly. To deal with that, there are a number of
+%   possible approaches. The implementation here was suggested by Tom Rokici
+%   (author of \texttt{dvips}). We end the current special placement, then
+%   set the current point with a literal |[begin]|. As for general
+%   literals, we then use the stack to store the current point and move to
+%   it. To insert the required transformation, we have to flip the $y$-axis,
+%   once before and once after it. Then we get back to the \TeX{} reference
+%   point to insert our content. The clean up has to happen in the right
+%   places, hence the |[begin]|/|[end]| pair around |restore|. Finally,
+%   we can return to \enquote{normal} drawing mode.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_draw_box_use:Nnnnn #1#2#3#4#5
   {
-    \@@_scope_begin:
+    \@@_draw_literal:n { @endspecial }
     \@@_draw_literal:n { [end] }
+    \@@_draw_literal:n { [begin] }
+    \@@_draw_literal:n { save }
+    \@@_draw_literal:n { currentpoint }
+    \@@_draw_literal:n { currentpoint~translate }
+    \driver_draw_cm:nnnn { 1 } { 0 } { 0 } { -1 }
     \driver_draw_cm:nnnn {#2} {#3} {#4} {#5}
-    \@@_draw_literal:n { 72~Resolution~div~72~VResolution~div~neg~scale }
-    \@@_draw_literal:n { magscale~{1~DVImag~div~dup~scale}~if }
-    \@@_draw_literal:n { l3x~neg~l3y~neg~translate }
+    \driver_draw_cm:nnnn { 1 } { 0 } { 0 } { -1 }
+    \@@_draw_literal:n { neg~exch~neg~exch~translate }
+    \@@_draw_literal:n { [end] }
     \hbox_overlap_right:n { \box_use:N #1 }
     \@@_draw_literal:n { [begin] }
-    \@@_scope_end:
+    \@@_draw_literal:n { restore }
+    \@@_draw_literal:n { [end] }
+    \@@_draw_literal:n { [begin] }
+    \@@_draw_literal:n { @beginspecial }
   }
 %    \end{macrocode}
 % \end{macro}
