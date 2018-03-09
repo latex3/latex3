@@ -14,5 +14,5 @@ maindir = "../.."
 dofile(maindir .. "/build-config.lua")
 
 -- Find and run the build system
-kpse.set_program_name("kpsewhich")
-dofile(kpse.lookup("l3build.lua"))
+-- kpse.set_program_name("kpsewhich")
+-- dofile(kpse.lookup("l3build.lua"))
