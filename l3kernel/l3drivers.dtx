@@ -509,6 +509,18 @@
 %     takes most of the same code.
 % \end{itemize}
 %
+% \begin{macro}{\@@_literal_x:n, \@@_literal:n, \@@_literal:x}
+%  The one shared function for all drivers is access to the basic
+%  \tn{special} primitive: it has slightly odd expansion behaviour
+%  so a wrapper is provided.
+%    \begin{macrocode}
+\cs_new_eq:NN \@@_literal_x:n \tex_special:D
+\cs_new_protected:Npn \@@_literal:n #1
+  { \@@_literal_x:n { \exp_not:n {#1} } }
+\cs_generate_variant:Nn \@@_literal:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Color support}
 %
 % Color support is split into two parts: a \enquote{general} concept and
@@ -578,14 +590,14 @@
   { \@@_color_select:n { \c_space_tl #1 } }
 \cs_new_protected:Npn \@@_color_select:n #1
   {
-    \tex_special:D { color~push~ #1 }
+    \@@_literal:n { color~push~ #1 }
 %<*dvips>
-    \tex_special:D { ps::/l3fc~{ }~def }
+    \@@_literal_postscript:n { /l3fc~{ }~def }
 %</dvips>
     \group_insert_after:N \@@_color_reset:
   }
 \cs_new_protected:Npn \@@_color_reset:
-  { \tex_special:D { color~pop } }
+  { \@@_literal:n { color~pop } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -714,76 +726,82 @@
 %
 % \subsubsection{Basics}
 %
-% \begin{macro}{\@@_literal:n}
-%   In the case of \texttt{dvips} there is no build-in saving of the current
+% \begin{macro}{\@@_literal_postscript:n, \@@_literal_postscript:x}
+%   Literal PostScript can be included using a few low-level formats. Here,
+%   we use the form with no positioning: this is overall more convenient as
+%   a wrapper. Note that this does require that where position is important,
+%   an appropriate wrapper is included.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_literal_postscript:n #1
+  { \@@_literal:n { ps:: #1 } }
+\cs_generate_variant:Nn \@@_literal_postscript:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_align_currentpoint_begin:, \@@_align_currentpoint_end:}
+%   In \texttt{dvips} there is no build-in saving of the current
 %   position, and so some additional PostScript is required to set up the
 %   transformation matrix and also to restore it afterwards. Notice the use
 %   of the stack to save the current position \enquote{up front} and to
-%   move back to it at the end of the process.
+%   move back to it at the end of the process. Notice that the |[begin]|/^^A
+%   |[end]| pair here mean that we can use a run of PostScript statements
+%   in separate lines: not \emph{required} but does make the code and
+%   output more clear.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_literal:n #1
+\cs_new_protected:Npn \@@_align_currentpoint_begin:
   {
-    \tex_special:D { ps:currentpoint }
-    \tex_special:D { ps:currentpoint~translate }
-    \tex_special:D { ps: #1 }
-    \tex_special:D { ps:neg~exch~neg~exch~translate}
+    \@@_literal:n { ps::[begin] }
+    \@@_literal_postscript:n { currentpoint }
+    \@@_literal_postscript:n { currentpoint~translate }
+  }
+\cs_new_protected:Npn \@@_align_currentpoint_end:
+  {
+    \@@_literal_postscript:n { neg~exch~neg~exch~translate }
+    \@@_literal:n { ps::[end] }
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\@@_scope_begin:, \@@_scope_end:}
-%   Scope saving/restoring is done directly with no need to worry about the
-%   transformation matrix. General scoping is only for the graphics stack so
-%   the lower-cost |gsave|/|grestore| pair are used.
+%   Saving/restoring scope for general operations needs to be done with
+%   \texttt{dvips} positioning (try without to see this!). Thus we need the
+%   |ps:| version of the special here. As only the graphics state is ever
+%   altered within this pairing, we use the lower-cost |g|-versions.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_scope_begin:
-  { \tex_special:D { ps:gsave } }
+  { \@@_literal:n { ps:gsave } }
 \cs_new_protected:Npn \@@_scope_end:
-  { \tex_special:D { ps:grestore } }
-%    \end{macrocode}
-% \end{macro}
-%
-% \subsection{Driver-specific auxiliaries}
-%
-% \begin{macro}[EXP]{\@@_absolute_lengths:n}
-%   The \texttt{dvips} driver scales all absolute dimensions based
-%   on the output resolution selected and any \TeX{} magnification. Thus
-%   for any operation involving absolute lengths there is a correction to
-%   make. This is based on \texttt{normalscale} from \texttt{special.pro}
-%   but using the stack rather than a definition to save the current matrix.
-%    \begin{macrocode}
-\cs_new:Npn \@@_absolute_lengths:n #1
-  {
-     matrix~currentmatrix~
-     Resolution~72~div~VResolution~72~div~scale~
-     DVImag~dup~scale~
-     #1 ~
-     setmatrix
-  }
+  { \@@_literal:n { ps:grestore } }
 %    \end{macrocode}
 % \end{macro}
 %
 % \subsubsection{Box operations}
 %
 % \begin{macro}{\driver_box_use_clip:N}
-%   Much the same idea as for the PDF mode version but with a slightly
-%   different syntax for creating the clip path. To avoid any scaling
-%   issues we need the absolute length auxiliary here.
+%   The \texttt{dvips} driver scales all absolute dimensions based on the
+%   output resolution selected and any \TeX{} magnification. Thus for any
+%   operation involving absolute lengths there is a correction to make. See
+%   \texttt{normalscale} from \texttt{special.pro} for the variables, noting
+%   that here everything is saved on the stack rather than as a separate
+%   variable. Once all of that is done, the actual clipping is trivial.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_box_use_clip:N #1
   {
     \@@_scope_begin:
-    \@@_literal:n
+    \@@_align_currentpoint_begin:
+    \@@_literal_postscript:n { matrix~currentmatrix }
+    \@@_literal_postscript:n { Resolution~72~div~VResolution~72~div~scale }
+    \@@_literal_postscript:n { DVImag~dup~scale }
+    \@@_literal_postscript:x
       {
-        \@@_absolute_lengths:n
-          {
-            0 ~
-            \dim_to_decimal_in_bp:n { \box_dp:N #1 } ~
-            \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
-            \dim_to_decimal_in_bp:n { -\box_ht:N #1 - \box_dp:N #1 } ~
-            rectclip
-          }
+        0 ~
+        \dim_to_decimal_in_bp:n { \box_dp:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
+        \dim_to_decimal_in_bp:n { -\box_ht:N #1 - \box_dp:N #1 } ~
+        rectclip
       }
+    \@@_literal_postscript:n { setmatrix }
+    \@@_align_currentpoint_end:
     \hbox_overlap_right:n { \box_use:N #1 }
     \@@_scope_end:
     \skip_horizontal:n { \box_wd:N #1 }
@@ -799,13 +817,15 @@
 \cs_new_protected:Npn \driver_box_use_rotate:Nn #1#2
   {
     \@@_scope_begin:
-    \@@_literal:n
+    \@@_align_currentpoint_begin:
+    \@@_literal_postscript:x
       {
         \fp_compare:nNnTF {#2} = \c_zero_fp
           { 0 }
           { \fp_eval:n { round ( -#2 , 5 ) } } ~
         rotate
       }
+   \@@_align_currentpoint_end:
    \box_use:N #1
    \@@_scope_end:
   }
@@ -819,12 +839,14 @@
 \cs_new_protected:Npn \driver_box_use_scale:Nnn #1#2#3
   {
     \@@_scope_begin:
-    \@@_literal:n
+    \@@_align_currentpoint_begin:
+    \@@_literal_postscript:x
       {
         \fp_eval:n { round ( #2 , 5 ) } ~
         \fp_eval:n { round ( #3 , 5 ) } ~
         scale
       }
+    \@@_align_currentpoint_end:
     \hbox_overlap_right:n { \box_use:N #1 }
     \@@_scope_end:
   }
@@ -845,21 +867,17 @@
 %  sizes here.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_image_include_eps:n #1
-  {
-    \tex_special:D { PSfile = #1 }
-  }
+  { \@@_literal:n { PSfile = #1 } }
 %    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Drawing}
 %
 % \begin{macro}{\@@_draw_literal:n, \@@_draw_literal:x}
-%   Literals with no positioning (using |ps:| each one is positioned but
-%   cut off from everything else, so no good for the stepwise approach needed
-%   here).
+%   The same as literal PostScript: same arguments about positioning apply
+%   her.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_draw_literal:n #1
-  { \tex_special:D { ps:: #1 } }
+\cs_new_eq:NN \@@_draw_literal:n \@@_literal_postscript:n
 \cs_generate_variant:Nn \@@_draw_literal:n { x }
 %    \end{macrocode}
 % \end{macro}
@@ -873,18 +891,21 @@
 %   color in paths. In contrast to \pkg{pgf}, we don't save the current point:
 %   discussion with Tom Rokici suggested a better way to handle the necessary
 %   translations (see \cs{driver_draw_box_use:Nnnnn}). (Note that
-%   |@beginspecial|/|@endspecial| forms a driver scope.)
+%   |@beginspecial|/|@endspecial| forms a driver scope.) The  |[begin]|/^^A
+%   |[end]| lines are handled differently from the rest as they are
+%   conceptually different: not really drawing literals but instructions to
+%   \texttt{dvips} itself.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_draw_begin:
   {
-    \@@_draw_literal:n { [begin] }
+    \@@_literal:n { ps::[begin] }
     \@@_draw_literal:n { @beginspecial }
     \@@_draw_literal:n { /l3fc~{ }~def }
   }
 \cs_new_protected:Npn \driver_draw_end:
   {
     \@@_draw_literal:n { @endspecial }
-    \@@_draw_literal:n { [end] }
+    \@@_literal:n { ps::[end] }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -980,7 +1001,7 @@
   { \@@_draw_literal:n { closepath } }
 \cs_new_protected:Npn \driver_draw_stroke:
   {
-     \@@_draw_literal:n { stroke }
+    \@@_draw_literal:n { stroke }
     \bool_if:NT \g_@@_draw_clip_bool
       {
         \@@_draw_literal:x
@@ -1111,7 +1132,6 @@
 % \end{macro}
 % \end{macro}
 %
-%
 % \begin{macro}
 %   {
 %     \driver_draw_color_fill_cmyk:nnnn   ,
@@ -1149,7 +1169,7 @@
   { \@@_draw_literal:n { /l3fc ~ { #1 } ~ def } }
 \cs_new_protected:Npn \@@_draw_color_stroke:n #1
   {
-    \tex_special:D { color~push~#1 } 
+    \@@_literal:n { color~push~#1 } 
     \group_insert_after:N \@@_color_reset:
   }
 %    \end{macrocode}
@@ -1182,7 +1202,9 @@
 %   once before and once after it. Then we get back to the \TeX{} reference
 %   point to insert our content. The clean up has to happen in the right
 %   places, hence the |[begin]|/|[end]| pair around |restore|. Finally,
-%   we can return to \enquote{normal} drawing mode.
+%   we can return to \enquote{normal} drawing mode. Notice that the set up
+%   here is very similar to that in \cs{@@_align_currentpoint_\ldots}, but
+%   the ordering of saving and restoring is different (intermixed).
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_draw_box_use:Nnnnn #1#2#3#4#5
   {
@@ -1225,20 +1247,21 @@
 %
 % \subsubsection{Basics}
 %
-% \begin{macro}{\@@_literal:n}
+% \begin{macro}{\@@_literal_pdf:n, \@@_literal_pdf:x}
 %   This is equivalent to \verb|\special{pdf:}| but the engine can
 %   track it. Without the \texttt{direct} keyword everything is kept in
 %   sync: the transformation matrix is set to the current point automatically.
 %   Note that this is still inside the text (\texttt{BT} \dots \texttt{ET}
 %   block).
 %    \begin{macrocode}
-\cs_new_protected:Npx \@@_literal:n #1
+\cs_new_protected:Npx \@@_literal_pdf:n #1
   {
     \cs_if_exist:NTF \luatex_pdfextension:D
       { \luatex_pdfextension:D literal }
       { \pdftex_pdfliteral:D }
-        {#1}
+        { \exp_not:N \exp_not:n {#1} }
   }
+\cs_generate_variant:Nn \@@_literal_pdf:n { x }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1260,7 +1283,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_matrix:n}
+% \begin{macro}{\@@_matrix:n, \@@_matrix:x}
 %   Here the appropriate function is set up to insert an affine matrix
 %   into the PDF. With \pdfTeX{} and \LuaTeX{} in direct PDF output mode there
 %   is a primitive for this, which only needs the rotation/scaling/skew part.
@@ -1270,8 +1293,9 @@
     \cs_if_exist:NTF \luatex_pdfextension:D
       { \luatex_pdfextension:D setmatrix }
       { \pdftex_pdfsetmatrix:D }
-        {#1}
+        { \exp_not:N \exp_not:n {#1} }
   }
+\cs_generate_variant:Nn \@@_matrix:n { x }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1289,7 +1313,7 @@
 \cs_new_protected:Npn \driver_box_use_clip:N #1
   {
     \@@_scope_begin:
-    \@@_literal:n
+    \@@_literal_pdf:x
       {
         0~
         \dim_to_decimal_in_bp:n { -\box_dp:N #1 } ~
@@ -1321,7 +1345,7 @@
     \fp_compare:nNnT \l_@@_cos_fp = \c_zero_fp
       { \fp_zero:N \l_@@_cos_fp }
     \fp_set:Nn \l_@@_sin_fp { round ( sind ( #2 ) , 5 ) }
-    \@@_matrix:n
+    \@@_matrix:x
       {
         \fp_use:N \l_@@_cos_fp \c_space_tl
         \fp_compare:nNnTF \l_@@_sin_fp = \c_zero_fp
@@ -1350,7 +1374,7 @@
 \cs_new_protected:Npn \driver_box_use_scale:Nnn #1#2#3
   {
     \@@_scope_begin:
-    \@@_matrix:n
+    \@@_matrix:x
       {
         \fp_eval:n { round ( #2 , 5 ) } ~
         0~0~
@@ -1491,14 +1515,13 @@
 %
 % \subsubsection{Basics}
 %
-% \begin{macro}{\@@_literal:n}
+% \begin{macro}{\@@_literal_pdf:n, \@@_literal_pdf:x}
 %   Equivalent to \texttt{pdf:content} but favored as the link to
-%   the \pdfTeX{} primitive approach is clearer. Some higher-level operations
-%   use |\tex_special:D| directly: see the later comments on where this is
-%   useful.
+%   the \pdfTeX{} primitive approach is clearer.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_literal:n #1
-  { \tex_special:D { pdf:literal~ #1 } }
+\cs_new_protected:Npn \@@_literal_pdf:n #1
+  { \@@_literal:n { pdf:literal~ #1 } }
+\cs_generate_variant:Nn \@@_literal_pdf:n { x }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1506,9 +1529,9 @@
 %   Scoping is done using the driver-specific specials.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_scope_begin:
-  { \tex_special:D { x:gsave } }
+  { \@@_literal:n { x:gsave } }
 \cs_new_protected:Npn \@@_scope_end:
-  { \tex_special:D { x:grestore } }
+  { \@@_literal:n { x:grestore } }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1521,7 +1544,7 @@
 \cs_new_protected:Npn \driver_box_use_clip:N #1
   {
     \@@_scope_begin:
-    \@@_literal:n
+    \@@_literal_pdf:x
       {
         0~
         \dim_to_decimal_in_bp:n { -\box_dp:N #1 } ~
@@ -1548,7 +1571,7 @@
 \cs_new_protected:Npn \driver_box_use_rotate:Nn #1#2
   {
     \@@_scope_begin:
-    \tex_special:D
+    \@@_literal:x
       {
         x:rotate~
         \fp_compare:nNnTF {#2} = \c_zero_fp
@@ -1568,7 +1591,7 @@
 \cs_new_protected:Npn \driver_box_use_scale:Nnn #1#2#3
   {
     \@@_scope_begin:
-    \tex_special:D
+    \@@_literal:x
       {
         x:scale~
         \fp_eval:n { round ( #2 , 5 ) } ~
@@ -1631,7 +1654,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_image_include_eps:n #1
   {
-    \tex_special:D { PSfile = #1 }
+    \@@_literal:n { PSfile = #1 }
   }
 \cs_new_protected:Npn \@@_image_include_jpg:n #1
   { \@@_image_include_auxi:nn {#1} { image } }
@@ -1665,7 +1688,7 @@
   {
     \int_if_exist:cTF { c_@@_image_ #2#1 _int }
       {
-        \tex_special:D
+        \@@_literal:x
           { pdf:usexobj~@image \int_use:c { c_@@_image_ #2#1 _int } }
       }
       { \@@_image_include_auxiii:nn {#2} {#1} {#3} }
@@ -1681,7 +1704,7 @@
   {
     \int_gincr:N \g_@@_image_int
     \int_const:cn { c_@@_image_ #1#2 _int } { \g_@@_image_int }
-    \tex_special:D
+    \@@_literal:x
       {
         pdf:#3~
         @image \int_use:c { c_@@_image_ #1#2 _int }
@@ -1836,7 +1859,7 @@
 % \begin{macro}{\@@_draw_literal:n, \@@_draw_literal:x}
 %   Pass data through using a dedicated interface.
 %    \begin{macrocode}
-\cs_new_eq:NN \@@_draw_literal:n \@@_literal:n
+\cs_new_eq:NN \@@_draw_literal:n \@@_literal_pdf:n
 \cs_generate_variant:Nn \@@_draw_literal:n { x }
 %    \end{macrocode}
 % \end{macro}
@@ -2068,20 +2091,20 @@
 %<*dvipdfmx|xdvipdfmx>
 \cs_new_protected:Npn \@@_draw_cm:nnnn #1#2#3#4
   {
-    \tex_special:D
+    \@@_literal:x
       {
         x:rotate~
         \fp_compare:nNnTF {#1} = \c_zero_fp
           { 0 }
           { \fp_eval:n { round ( -#1 , 5 ) } }
       }
-    \tex_special:D
+    \@@_literal:x
       {
         x:scale~
         \fp_eval:n { round ( #2 , 5 ) } ~
         \fp_eval:n { round ( #3 , 5 ) }
       }
-    \tex_special:D
+    \@@_literal:x
       {
         x:rotate~
         \fp_compare:nNnTF {#4} = \c_zero_fp
@@ -2212,11 +2235,11 @@
     \driver_draw_cm:nnnn {#2} {#3} {#4} {#5}
 %</pdfmode>
 %<*dvipdfmx|xdvipdfmx>
-    \tex_special:D { pdf:btrans~matrix~ #2 ~ #3 ~ #4 ~ #5 ~ 0 ~ 0 }
+    \@@_literal:n { pdf:btrans~matrix~ #2 ~ #3 ~ #4 ~ #5 ~ 0 ~ 0 }
 %</dvipdfmx|xdvipdfmx>
     \hbox_overlap_right:n { \box_use:N #1 }
 %<*dvipdfmx|xdvipdfmx>
-    \tex_special:D { pdf:etrans }
+    \@@_literal:n { pdf:etrans }
 %</dvipdfmx|xdvipdfmx>
     \@@_scope_end:
   }
@@ -2235,15 +2258,16 @@
 %
 % \subsubsection{Basics}
 %
-% \begin{macro}{\@@_literal:n}
+% \begin{macro}{\@@_literal_svg:n, \@@_literal_svg:x}
 %   Unlike the other drivers, the requirements for making SVG files mean
 %   that we can't conveniently transform all operations to the current point.
 %   That makes life a bit more tricky later as that needs to be accounted for.
 %   A new line is added after each call to help to keep the output readable
 %   for debugging.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_literal:n #1
-  { \tex_special:D { dvisvgm:raw~ #1 { ?nl } } }
+\cs_new_protected:Npn \@@_literal_svg:n #1
+  { \@@_literal:n { dvisvgm:raw~ #1 { ?nl } } }
+\cs_generate_variant:Nn \@@_literal_svg:n { x }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2252,22 +2276,23 @@
 %   operations have to be \enquote{tied} to these not simply inside them.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_scope_begin:
-  { \@@_literal:n { <g> } }
+  { \@@_literal_svg:n { <g> } }
 \cs_new_protected:Npn \@@_scope_end:
-  { \@@_literal:n { </g> } }
+  { \@@_literal_svg:n { </g> } }
 %    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Driver-specific auxiliaries}
 %
-% \begin{macro}{\@@_scope_begin:n}
+% \begin{macro}{\@@_scope_begin:n, {\@@_scope_begin:x}
 %   In SVG transformations, clips and so on are attached directly to scopes so
 %   we need a way or allowing for that. This is rather more useful than
 %   \cs{@@_scope_begin:} as a result. No assumptions are made about the nature
 %   of the scoped operation(s).
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_scope_begin:n #1
-  { \@@_literal:n { <g~ #1 > } }
+  { \@@_literal_svg:n { <g~ #1 > } }
+\cs_generate_variant:Nn \@@_scope_begin:n { x }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2287,9 +2312,9 @@
 \cs_new_protected:Npn \driver_box_use_clip:N #1
   {
     \int_gincr:N \g_@@_clip_path_int
-    \@@_literal:n
+    \@@_literal_svg:x
       { < clipPath~id = " l3cp \int_use:N \g_@@_clip_path_int " > }
-    \@@_literal:n
+    \@@_literal_svg:x
       {
         <
           path ~ d =
@@ -2306,7 +2331,7 @@
             "
         />
       }
-    \@@_literal:n
+    \@@_literal_svg:n
       { < /clipPath > }
 %    \end{macrocode}
 %   In general the SVG set up does not try to transform coordinates to the
@@ -2324,7 +2349,7 @@
             scale ( 1 , -1 )
           "
       }
-    \@@_scope_begin:n
+    \@@_scope_begin:x
       {
         clip-path = "url ( \c_hash_str l3cp \int_use:N \g_@@_clip_path_int ) "
       }
@@ -2355,7 +2380,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_box_use_rotate:Nn #1#2
   {
-    \@@_scope_begin:n
+    \@@_scope_begin:x
       {
         transform =
           "
@@ -2376,7 +2401,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_box_use_scale:Nnn #1#2#3
   {
-    \@@_scope_begin:n
+    \@@_scope_begin:x
       {
         transform =
           "
@@ -2417,7 +2442,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_image_include_png:n #1
   {
-     \tex_special:D
+     \@@_literal:x
        {
          dvisvgm:img~
          \dim_to_decimal:n { \l_image_ury_dim } ~
@@ -2436,7 +2461,7 @@
 % \begin{macro}{\@@_draw_literal:n, \@@_draw_literal:x}
 %   The same as the more general literal call.
 %    \begin{macrocode}
-\cs_new_eq:NN \@@_draw_literal:n \@@_literal:n
+\cs_new_eq:NN \@@_draw_literal:n \@@_literal_svg:n
 \cs_generate_variant:Nn \@@_draw_literal:n { x }
 %    \end{macrocode}
 % \end{macro}
@@ -2827,7 +2852,7 @@
   {
     \@@_scope_begin:
     \driver_draw_cm:nnnn {#2} {#3} {#4} {#5}
-    \@@_literal:n
+    \@@_literal_svg:n
       {
         < g~
             stroke="none"~
@@ -2838,7 +2863,7 @@
     \box_set_ht:Nn #1 { 0pt }
     \box_set_dp:Nn #1 { 0pt }
     \box_use:N #1
-    \@@_literal:n { </g> }
+    \@@_literal_svg:n { </g> }
     \@@_scope_end:
   }
 %    \end{macrocode}
