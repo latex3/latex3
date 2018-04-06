@@ -1,0 +1,228 @@
+% \iffalse meta-comment
+%
+%% File: l3unicode.dtx Copyright (C) 2018 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    https://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3kernel bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver>
+\documentclass[full,kernel]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \pkg{l3unicode} package: Unicode support functions^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2018/03/05}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% This module provides Unicode-specific functions along with loading data
+% from a range of Unicode Consortium files. At present, it provides no
+% public functions.
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3unicode} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+%<@@=char>
+%
+% Case changing both for strings and \enquote{text} requires data from
+% the Unicode Consortium. Some of this is build in to the format (as
+% \tn{lccode} and \tn{uccode} values) but this covers only the simple
+% one-to-one situations and does not fully handle for example case folding.
+%
+% As only the data needs to remain at the end of this process, everything
+% is set up inside a group.
+%    \begin{macrocode}
+\bool_lazy_or:nnTF { \sys_if_engine_luatex_p: } { \sys_if_engine_xetex_p: }
+  {
+    \group_begin:
+%    \end{macrocode}
+%   Set up a stream for reading the data files and set up a private copy of the
+%   char-generation primitive.
+%    \begin{macrocode}
+      \ior_new:N \g_@@_data_ior
+      \cs_set_eq:NN \@@_generate:w \utex_char:D
+%    \begin{macrocode}
+% Parse the main Unicode data file for title case exceptions (the one-to-one
+% lower and upper case mappings it contains are all be covered by the \TeX{}
+% data). There are no comments in the main data file so this can be done using
+% a standard mapping and no checks.
+%    \end{macrocode}
+      \ior_open:Nn \g_@@_data_ior { UnicodeData.txt }
+      \cs_set_protected:Npn \@@_data_auxi:w
+        #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 ; #9 ;
+        { \@@_data_auxii:w #1 ; }
+      \cs_set_protected:Npn \@@_data_auxii:w
+        #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 \q_stop
+        {
+          \tl_if_blank:nF {#7}
+            {
+              \str_if_eq:nnF {#5} {#7}
+                {
+                  \tl_const:cx
+                    { c_@@_mixed_case_ \@@_generate:w "#1 _tl }
+                    { \@@_generate:w "#7 }
+                }
+            }
+        }
+      \ior_map_inline:Nn \g_@@_data_ior
+        {
+          \tl_if_blank:nF {#1}
+            { \@@_data_auxi:w #1 \q_stop }
+        }
+      \ior_close:N \g_@@_data_ior
+%    \begin{macrocode}
+% The other data files all use C-style comments so we have to worry about
+% |#| tokens (and reading as strings). The set up for case folding is in two
+% parts. For the basic (core) mappings, folding is the same as lower casing in
+% most positions so only store the differences. For the more complex foldings,
+% always store the result, splitting up the two or three code points in the input
+% as required.
+%    \end{macrocode}
+      \ior_open:Nn \g_@@_data_ior { CaseFolding.txt }
+      \cs_set_protected:Npn \@@_data_auxi:w #1 ;~ #2 ;~ #3 ; #4 \q_stop
+        {
+          \str_if_eq:nnTF {#2} { C }
+            {
+              \int_compare:nNnF
+                { \char_value_lccode:n {"#1} } = {"#3}
+                {
+                  \tl_const:cx
+                    { c_@@_fold_case_ \@@_generate:w "#1 _tl }
+                    { \@@_generate:w "#3 }
+                }
+            }
+            {
+              \str_if_eq:nnT {#2} { F }
+               { \@@_data_auxii:w #1 ~ #3 ~ \q_stop }
+            }
+        }
+      \cs_set_protected:Npn \@@_data_auxii:w #1 ~ #2 ~ #3 ~ #4 \q_stop
+        {
+          \tl_const:cx { c_@@_fold_case_ \@@_generate:w "#1 _tl }
+            {
+              \@@_generate:w "#2 \exp_stop_f:
+              \@@_generate:w "#3 \exp_stop_f:
+              \tl_if_blank:nF {#4}
+                { \@@_generate:w "#4 }
+            }
+        }
+      \ior_str_map_inline:Nn \g_@@_data_ior
+        {
+          \tl_if_blank:nF {#1}
+            {
+              \str_if_eq_x:nnF { \tl_head:n {#1} } { \c_hash_str }
+                { \@@_data_auxi:w #1 \q_stop }
+            }
+        }
+      \ior_close:N \g_@@_data_ior
+% For upper and lower casing special situations, there is a bit more to
+% do as we also have title casing to consider, plus we need to stop part-way
+% through the file.
+      \ior_open:Nn \g_@@_data_ior { SpecialCasing.txt }
+      \cs_set_protected:Npn \@@_data_auxi:w #1 ;~ #2 ;~ #3 ;~ #4 ; #5 \q_stop
+        {
+          \use:n { \@@_data_auxii:w #1 ~ lower ~ #2 ~ } ~ \q_stop
+          \use:n { \@@_data_auxii:w #1 ~ upper ~ #4 ~ } ~ \q_stop
+          \str_if_eq:nnF {#3} {#4}
+            { \use:n { \@@_data_auxii:w #1 ~ mixed ~ #3 ~ } ~ \q_stop }
+        }
+      \cs_set_protected:Npn \@@_data_auxii:w #1 ~ #2 ~ #3 ~ #4 ~ #5 \q_stop
+        {
+          \tl_if_empty:nF {#4}
+            {
+              \tl_const:cx { c_@@_ #2 _case_ \@@_generate:w "#1 _tl }
+                {
+                  \@@_generate:w "#3 \exp_stop_f:
+                  \@@_generate:w "#4 \exp_stop_f:
+                  \tl_if_blank:nF {#5}
+                    { \@@_generate:w "#5 }
+                }
+            }
+        }
+      \ior_str_map_inline:Nn \g_@@_data_ior
+        {
+          \tl_if_blank:nF {#1}
+            {
+              \str_if_eq_x:nnTF { \tl_head:n {#1} } { \c_hash_str }
+                {
+                  \str_if_eq_x:nnT
+                    {#1}
+                    { \c_hash_str \c_space_tl Conditional~Mappings }
+                    { \ior_map_break: }
+                }
+                { \@@_data_auxi:w #1 \q_stop }
+            }
+        }
+      \ior_close:N \g_@@_data_ior
+   \group_end:
+  }
+%    \end{macrocode} 
+% For the $8$-bit engines, the above is skipped but there is still some
+% set up required. As case changing can only be applied to bytes, and
+% they have to be in the ASCII range, we define a series of data stores
+% to represent them, and the data are used such that only these are
+% ever case-changed.
+%    \begin{macrocode} 
+  {
+    \group_begin:
+      \cs_set_protected:Npn \@@_tmp:NN #1#2
+        {
+          \quark_if_recursion_tail_stop:N #2
+          \tl_const:cn { c_@@_upper_case_ #2 _tl } {#1}
+          \tl_const:cn { c_@@_lower_case_ #1 _tl } {#2}
+          \tl_const:cn { c_@@_fold_case_  #1 _tl } {#2}
+          \@@_tmp:NN
+        }
+      \@@_tmp:NN
+        AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
+        ? \q_recursion_tail \q_recursion_stop
+    \group_end:
+  }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex

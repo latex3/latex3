@@ -1170,6 +1170,21 @@
 %   (\enquote{active}), and character code $32$ (space).
 % \end{variable}
 %
+% \begin{function}[added = 2018-04-06, EXP]
+%   {
+%     \char_lower_case:N, \char_upper_case:N,
+%     \char_mixed_case:N, \char_fold_case:N
+%   }
+%   \begin{syntax}
+%     \cs{char_lower_case:N} \meta{char}
+%   \end{syntax}
+%   Converts the \meta{char} to the equivalent case-changed character
+%   as detailed by the function name (see \cs{str_fold_case:n}
+%   and \cs{tl_mixed_case:n} for details of these terms). The case mapping
+%   is carried out with no context-dependence (\emph{cf.}~\cs{tl_upper_case:n},
+%   \emph{etc.})
+% \end{function}
+%
 % \begin{function}[added = 2018-04-02]{\char_codepoint_to_bytes:n}
 %   \begin{syntax}
 %     \cs{char_codepoint_to_bytes:n} \Arg{codepoint}
@@ -2736,6 +2751,55 @@
 %<@@=char>
 %    \end{macrocode}
 %
+% \begin{macro}
+%   {
+%     \char_lower_case:N, \char_upper_case:N, 
+%     \char_mixed_case:N, \char_fold_case:N
+%   }
+% \begin{macro}{\@@_change_case:nNN}
+% \begin{macro}{\@@_change_case:nN}
+%   Expandable character generation is done using a two-part approach.
+%   First, see if the current character has a special mapping for the current
+%   transformation. If it does, insert that. Otherwise, use the \TeX{} data
+%   to look up the one-to-one mapping, and generate the appropriate character
+%   with the appropriate category code. Mixed case needs an extra step as it
+%   may be special-cased or might be a special upper case outcome. The internal
+%   when using non-Unicode engines has to be set up to only do anything
+%   with ASCII characters.
+%    \begin{macrocode}
+\cs_new:Npn \char_lower_case:N #1
+  { \@@_change_case:nNN { lower } \char_value_lccode:n #1 }
+\cs_new:Npn \char_upper_case:N #1
+  { \@@_change_case:nNN { upper } \char_value_uccode:n #1 }
+\cs_new:Npn \char_mixed_case:N #1
+  {
+    \tl_if_exist:cTF { c_@@_mixed_case_ \token_to_str:N #1 _tl }
+      { \tl_use:c { c_@@_mixed_case_ \token_to_str:N #1 _tl } }
+      { \char_upper_case:N #1 }
+  }
+\cs_new:Npn \char_fold_case:N #1
+  { \@@_change_case:nNN { fold } \char_value_lccode:n #1 }
+\cs_new:Npn \@@_change_case:nNN #1#2#3
+  {
+    \tl_if_exist:cTF { c_@@_ #1 _case_ \token_to_str:N #3 _tl }
+      { \tl_use:c { c_@@_ #1 _case_ \token_to_str:N #3 _tl } }
+      { \exp_args:Nf \@@_change_case:nN { #2 { `#3 } } #3 }
+  }
+\cs_new:Npn \@@_change_case:nN #1#2
+  {
+    \int_compare:nNnTF {#1} = 0
+      {#2}
+      { \char_generate:nn {#1} { \char_value_catcode:n {#1} } }
+  }
+\bool_lazy_or:nnF { \sys_if_engine_luatex_p: } { \sys_if_engine_xetex_p: }
+  {
+    \cs_set_eq:NN \@@_change_case:nN \use_ii:nn
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}[EXP]{\char_codepoint_to_bytes:n}
 % \begin{macro}[EXP]{\@@_codepoint_to_bytes_auxi:n}
 % \begin{macro}[EXP]{\@@_codepoint_to_bytes_auxii:Nnn}
@@ -2852,16 +2916,6 @@
 %     \@@_change_case_char_mixed:Nnn
 %   }
 % \begin{macro}[EXP]{\@@_change_case_char:nN}
-% \begin{macro}[EXP]
-%   {\@@_change_case_char_auxi:nN, \@@_change_case_char_auxii:nN}
-% \begin{macro}[EXP]
-%   {
-%     \@@_change_case_char_mixed:N,
-%     \@@_change_case_char_lower:N,
-%     \@@_change_case_char_upper:N
-%   }
-% \begin{macro}
-%   {\@@_lookup_mixed:N, \@@_lookup_lower:N, \@@_lookup_upper:N}
 % \begin{macro}[EXP]{\@@_change_case_char_UTFviii:nNN}
 % \begin{macro}[EXP]{\@@_change_case_char_UTFviii:nNNN}
 % \begin{macro}[EXP]{\@@_change_case_char_UTFviii:nNNNN}
@@ -3129,7 +3183,10 @@
 \cs_if_exist:NTF \utex_char:D
   {
     \cs_new:Npn \@@_change_case_char:nN #1#2
-      { \@@_change_case_char_auxi:nN {#1} #2 }
+      {
+        \@@_change_case_output:fwn 
+          { \use:c { char_ #1 _case:N } #2 }
+      }
   }
   {
     \cs_new:Npn \@@_change_case_char:nN #1#2
@@ -3144,58 +3201,18 @@
                   { \@@_change_case_char_UTFviii:nNNNNN {#1} #2 }
               }
           }
-          { \@@_change_case_char_auxi:nN {#1} #2 }
+          {
+            \@@_change_case_output:fwn 
+              { \use:c { char_ #1 _case:N } #2 }
+          }
        }
   }
 %    \end{macrocode}
 %   To allow for the special case of mixed case, we insert here a
 %   action-dependent auxiliary.
 %    \begin{macrocode}
-\cs_new:Npn \@@_change_case_char_auxi:nN #1#2
-  { \use:c { @@_change_case_char_ #1 :N  } #2 }
-\cs_new:Npn \@@_change_case_char_lower:N #1
+\cs_if_exist:NF \utex_char:D
   {
-    \@@_change_case_output:fwn
-      {
-        \cs_if_exist_use:cF { c_@@_lower_case_ \token_to_str:N #1 _tl }
-          { \@@_change_case_char_auxii:nN { lower } #1 }
-      }
-  }
-\cs_new:Npn \@@_change_case_char_upper:N #1
-  {
-    \@@_change_case_output:fwn
-      {
-        \cs_if_exist_use:cF { c_@@_upper_case_ \token_to_str:N #1 _tl }
-          { \@@_change_case_char_auxii:nN { upper } #1 }
-      }
-  }
-\cs_new:Npn \@@_change_case_char_mixed:N #1
-  {
-    \cs_if_exist:cTF { c_@@_mixed_case_ \token_to_str:N #1 _tl }
-      {
-        \@@_change_case_output:fwn
-          { \tl_use:c { c_@@_mixed_case_ \token_to_str:N #1 _tl } }
-      }
-      { \@@_change_case_char_upper:N #1 }
-  }
-\cs_if_exist:NTF \utex_char:D
-  {
-    \cs_new:Npn \@@_change_case_char_auxii:nN #1#2
-      {
-        \int_compare:nNnTF { \use:c { @@_lookup_ #1 :N } #2 } = { 0 }
-          { \exp_stop_f: #2 }
-          {
-            \char_generate:nn
-              { \use:c { @@_lookup_ #1 :N } #2 }
-              { \char_value_catcode:n { \use:c { @@_lookup_ #1 :N } #2 } }
-          }
-      }
-    \cs_new_protected:Npn \@@_lookup_lower:N #1 { \tex_lccode:D `#1 }
-    \cs_new_protected:Npn \@@_lookup_upper:N #1 { \tex_uccode:D `#1 }
-    \cs_new_eq:NN \@@_lookup_mixed:N \@@_lookup_upper:N
-  }
-  {
-    \cs_new:Npn \@@_change_case_char_auxii:nN #1#2 { \exp_stop_f: #2 }
     \cs_new:Npn \@@_change_case_char_UTFviii:nNNN #1#2#3#4
       { \@@_change_case_char_UTFviii:nnN {#1} {#2#4} #3 }
     \cs_new:Npn \@@_change_case_char_UTFviii:nNNNN #1#2#3#4#5
@@ -3379,9 +3396,6 @@
     \@@_change_case_loop:wnn #2 \q_recursion_stop { lower }
   }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
