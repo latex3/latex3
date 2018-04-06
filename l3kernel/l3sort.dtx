@@ -107,10 +107,17 @@
 %
 % \subsection{Variables}
 %
-% \begin{variable}{\g_@@_internal_seq}
-%   Used for \cs{seq_sort:Nn} to get the resulting sequence out of a group.
+% \begin{variable}{\g_@@_internal_seq, \g_@@_internal_tl}
+%   Sorting happens in a group; the result is stored in those global
+%   variables before being copied outside the group to the proper
+%   places.  For seq and tl this is more efficient than using \cs{use:x}
+%   (or some \cs{exp_args:NNNx}) to smuggle the definition outside the
+%   group since \TeX{} does not need to re-read tokens.  For clist we
+%   don't gain anything since the result is converted from seq to clist
+%   anyways.
 %    \begin{macrocode}
 \seq_new:N \g_@@_internal_seq
+\tl_new:N \g_@@_internal_tl
 %    \end{macrocode}
 % \end{variable}
 %
@@ -310,29 +317,17 @@
 %
 % \subsection{Protected user commands}
 %
-% \begin{macro}{\@@_main:NNNnNn, \@@_main:NNNn}
+% \begin{macro}{\@@_main:NNNn}
 %   Sorting happens in three steps. First store items in \tn{toks}
 %   registers ranging from \cs{l_@@_min_int} to $\cs{l_@@_top_int}-1$,
-%   while checking that the list is not too
-%   long. If we reach the maximum length, all further
-%   items are entirely ignored after raising an error.
-%   Secondly, sort the array of \tn{toks} registers,
-%   using the user-defined sorting function, |#6|.
-%   Finally, unpack the \tn{toks} registers (now sorted)
-%   into a variable of the right type, by \texttt{x}-expanding
-%   the code in |#4|, specific to each type of list.
+%   while checking that the list is not too long. If we reach the
+%   maximum length, that's an error; exit the group.  Secondly, sort the
+%   array of \tn{toks} registers, using the user-defined sorting
+%   function: \cs{@@_level:} calls \cs{@@_compare:nn} as needed.
+%   Finally, unpack the \tn{toks} registers (now sorted) into the target
+%   tl, or into \cs{g_@@_internal_seq} for seq and clist.  This is done
+%   by \cs{@@_seq:NNNNn} and \cs{@@_tl:NNn}.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_main:NNNnNn #1#2#3#4#5#6
-  {
-    \group_begin:
-      \@@_main:NNNn #2 #3 #5 {#6}
-      \use:x
-        {
-          \group_end:
-          #1 \exp_not:N #5 {#4}
-        }
-    \prg_break_point:
-  }
 \cs_new_protected:Npn \@@_main:NNNn #1#2#3#4
   {
 %<package>    \@@_disable_toksdef:
@@ -355,24 +350,76 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\seq_sort:Nn, \seq_sort:cn, \seq_gsort:Nn, \seq_gsort:cn}
-% \begin{macro}{\@@_seq:NNn}
-%   The first argument to \cs{@@_main:NNNn} is what mapping function is
-%   used when storing items to \tn{toks} registers, and the second
-%   breaks away from the loop. The third and fourth arguments are the
-%   variable to sort, and the sorting method as inline code.  At the
-%   end, extract the \tn{toks} registers as items in
-%   \cs{g_@@_internal_seq} and copy that to the target variable locally
-%   or globally.
+% \begin{macro}{\tl_sort:Nn, \tl_sort:cn, \tl_gsort:Nn, \tl_gsort:cn}
+% \begin{macro}{\@@_tl:NNn}
+% \begin{macro}[EXP]{\@@_tl_toks:w}
+%   Call the main sorting function then unpack \tn{toks} registers
+%   outside the group into the target token list.  The unpacking is done
+%   by \cs{@@_tl_toks:w}; registers are numbered from \cs{l_@@_min_int}
+%   to $\cs{l_@@_top_int}-1$.  For expansion behaviour we need a couple
+%   of primitives.  The \cs{tl_gclear:N} reduces memory usage.  The
+%   \cs{prg_break_point:} is used by \cs{@@_main:NNNn} when the list is
+%   too long.
 %    \begin{macrocode}
-\cs_new_protected:Npn \seq_sort:Nn { \@@_seq:NNn \seq_set_eq:NN }
-\cs_generate_variant:Nn \seq_sort:Nn { c }
-\cs_new_protected:Npn \seq_gsort:Nn { \@@_seq:NNn \seq_gset_eq:NN }
-\cs_generate_variant:Nn \seq_gsort:Nn { c }
-\cs_new_protected:Npn \@@_seq:NNn #1#2#3
+\cs_new_protected:Npn \tl_sort:Nn { \@@_tl:NNn \tl_set_eq:NN }
+\cs_generate_variant:Nn \tl_sort:Nn { c }
+\cs_new_protected:Npn \tl_gsort:Nn { \@@_tl:NNn \tl_gset_eq:NN }
+\cs_generate_variant:Nn \tl_gsort:Nn { c }
+\cs_new_protected:Npn \@@_tl:NNn #1#2#3
   {
     \group_begin:
-      \@@_main:NNNn \seq_map_inline:Nn \seq_map_break:n #2 {#3}
+      \@@_main:NNNn \tl_map_inline:Nn \tl_map_break:n #2 {#3}
+      \tl_gset:Nx \g_@@_internal_tl { \@@_tl_toks:w \l_@@_min_int ; }
+    \group_end:
+    #1 #2 \g_@@_internal_tl
+    \tl_gclear:N \g_@@_internal_tl
+    \prg_break_point:
+  }
+\cs_new:Npn \@@_tl_toks:w #1 ;
+  {
+    \if_int_compare:w #1 < \l_@@_top_int
+      { \tex_the:D \tex_toks:D #1 }
+      \exp_after:wN \@@_tl_toks:w
+      \int_value:w \int_eval:n { #1 + 1 } \exp_after:wN ;
+    \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\seq_sort:Nn, \seq_sort:cn, \seq_gsort:Nn, \seq_gsort:cn}
+% \begin{macro}{\clist_sort:Nn, \clist_sort:cn, \clist_gsort:Nn, \clist_gsort:cn}
+% \begin{macro}{\@@_seq:NNNNn}
+%   Use the same general framework for seq and clist.  Apply the general
+%   sorting code, then unpack \tn{toks} into \cs{g_@@_internal_seq}.
+%   Outside the group copy or convert (for clist) the data to the target
+%   variable.  The \cs{seq_gclear:N} reduces memory usage.  The
+%   \cs{prg_break_point:} is used by \cs{@@_main:NNNn} when the list is
+%   too long.
+%    \begin{macrocode}
+\cs_new_protected:Npn \seq_sort:Nn
+  { \@@_seq:NNNNn \seq_map_inline:Nn \seq_map_break:n \seq_set_eq:NN }
+\cs_generate_variant:Nn \seq_sort:Nn { c }
+\cs_new_protected:Npn \seq_gsort:Nn
+  { \@@_seq:NNNNn \seq_map_inline:Nn \seq_map_break:n \seq_gset_eq:NN }
+\cs_generate_variant:Nn \seq_gsort:Nn { c }
+\cs_new_protected:Npn \clist_sort:Nn
+  {
+    \@@_seq:NNNNn \clist_map_inline:Nn \clist_map_break:n
+      \clist_set_from_seq:NN
+  }
+\cs_generate_variant:Nn \clist_sort:Nn { c }
+\cs_new_protected:Npn \clist_gsort:Nn
+  {
+    \@@_seq:NNNNn \clist_map_inline:Nn \clist_map_break:n
+      \clist_gset_from_seq:NN
+  }
+\cs_generate_variant:Nn \clist_gsort:Nn { c }
+\cs_new_protected:Npn \@@_seq:NNNNn #1#2#3#4#5
+  {
+    \group_begin:
+      \@@_main:NNNn #1 #2 #4 {#5}
       \seq_gset_from_inline_x:Nnn \g_@@_internal_seq
         {
           \int_step_function:nnnN
@@ -380,108 +427,13 @@
         }
         { \tex_the:D \tex_toks:D ##1 }
     \group_end:
-    #1 #2 \g_@@_internal_seq
+    #3 #4 \g_@@_internal_seq
     \seq_gclear:N \g_@@_internal_seq
     \prg_break_point:
   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
-%
-% \begin{macro}{\tl_sort:Nn, \tl_sort:cn, \tl_gsort:Nn, \tl_gsort:cn}
-%   Again, use \cs{tl_set:Nn} or \cs{tl_gset:Nn} to control
-%   the scope of the assignment. Mapping through the token
-%   list is done with \cs{tl_map_inline:Nn}, and producing
-%   the token list is done by \cs{@@_toks:NN}.
-%    \begin{macrocode}
-\cs_new_protected:Npn \tl_sort:Nn
-  {
-    \@@_main:NNNnNn \tl_set:Nn
-      \tl_map_inline:Nn \tl_map_break:n
-      { \@@_toks:NN \prg_do_nothing: \prg_do_nothing: }
-  }
-\cs_generate_variant:Nn \tl_sort:Nn { c }
-\cs_new_protected:Npn \tl_gsort:Nn
-  {
-    \@@_main:NNNnNn \tl_gset:Nn
-      \tl_map_inline:Nn \tl_map_break:n
-      { \@@_toks:NN \prg_do_nothing: \prg_do_nothing: }
-  }
-\cs_generate_variant:Nn \tl_gsort:Nn { c }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}
-%   {\clist_sort:Nn, \clist_sort:cn, \clist_gsort:Nn, \clist_gsort:cn}
-% \begin{macro}{\@@_clist:NNn}
-% \begin{macro}[EXP]{\@@_clist_wrap_item:n, \@@_clist_wrap_item:w}
-%   The case of empty comma-lists is a little bit special as usual,
-%   and filtered out: there is nothing to sort in that case.
-%   Otherwise, the input is done with \cs{clist_map_inline:Nn},
-%   and the output requires some more elaborate processing than
-%   for sequences and token lists. The first comma must be removed.
-%   An item must be wrapped in an extra set of braces if it contains
-%   either the space or the comma characters. This is taken care of
-%   by \cs{@@_clist_wrap_item:n}, but \cs{@@_toks:NN} would simply
-%   feed \cs{tex_the:D} \cs{tex_toks:D} \meta{number} as an
-%   argument to that function; hence we need to expand this argument
-%   once to unpack the register.
-%    \begin{macrocode}
-\cs_new_protected:Npn \clist_sort:Nn
-  { \@@_clist:NNn \tl_set:Nn }
-\cs_new_protected:Npn \clist_gsort:Nn
-  { \@@_clist:NNn \tl_gset:Nn }
-\cs_generate_variant:Nn \clist_sort:Nn  { c }
-\cs_generate_variant:Nn \clist_gsort:Nn { c }
-\cs_new_protected:Npn \@@_clist:NNn #1#2#3
-  {
-    \clist_if_empty:NF #2
-      {
-        \@@_main:NNNnNn #1
-          \clist_map_inline:Nn \clist_map_break:n
-          {
-            \exp_last_unbraced:Nf \use_none:n
-              { \@@_toks:NN \exp_args:No \@@_clist_wrap_item:n }
-          }
-          #2 {#3}
-      }
-  }
-\cs_new:Npn \@@_clist_wrap_item:n #1
-  {
-    ,
-    \tl_if_empty:oTF { \@@_clist_wrap_item:w #1 ~ , #1 ~ }
-      { \exp_not:n   {#1}   }
-      { \exp_not:n { {#1} } }
-  }
-\cs_new:Npn \@@_clist_wrap_item:w #1 , #2 ~ { }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\@@_toks:NN, \@@_toks:NNw}
-%   Unpack the various \tn{toks} registers, from \cs{l_@@_min_int} to
-%   $\cs{l_@@_top_int}-1$. The functions |#1| and |#2| allow us to treat
-%   |tl| and |clist| in a unified way:
-%   \begin{itemize}
-%   \item for token lists, they expand to nothing;
-%   \item for comma lists, they expand to \cs{exp_args:No}
-%     \cs{@@_clist_wrap_item:n}, taking care of unpacking the register
-%     before putting a comma and possibly braces.
-%   \end{itemize}
-%   For expansion behaviour we need a couple of primitives.
-%    \begin{macrocode}
-\cs_new:Npn \@@_toks:NN #1#2
-  { \@@_toks:NNw #1 #2 \l_@@_min_int ; }
-\cs_new:Npn \@@_toks:NNw #1#2#3 ;
-  {
-    \if_int_compare:w #3 < \l_@@_top_int
-      #1 #2 { \tex_the:D \tex_toks:D #3 }
-      \exp_after:wN \@@_toks:NNw \exp_after:wN #1 \exp_after:wN #2
-      \int_value:w \int_eval:n { #3 + 1 } \exp_after:wN ;
-    \fi:
-  }
-%    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Merge sort}
