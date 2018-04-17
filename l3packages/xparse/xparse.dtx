@@ -263,20 +263,31 @@
 % \end{verbatim}
 % the user input |\foo{arg1}[arg2]{arg3}| and
 % \verb*|\foo{arg1}  [arg2]   {arg3}| will both be parsed in the same
-% way. However, spaces are \emph{not} ignored when parsing optional
-% arguments after the last mandatory argument. Thus with
+% way.
+% 
+% The behavior of optional arguments \emph{after} any mandatory arguments is
+% selectable. The standard settings will allow spaces here, and thus
+% with
 % \begin{verbatim}
 %   \NewDocumentCommand \foobar { m o } { ... }
 % \end{verbatim}
-% |\foobar{arg1}[arg2]| will find an optional argument but
-% \verb*|\foobar{arg1} [arg2]| will not. This is so that trailing optional
-% arguments are not picked up \enquote{by accident} in input.
+% both |\foobar{arg1}[arg2]| and \verb*|\foobar{arg1} [arg2]| will find an
+% optional argument. This can be changed by giving the modified |!| in
+% the argument specification:
+% \begin{verbatim}
+%   \NewDocumentCommand \foobar { m !o } { ... }
+% \end{verbatim}
+% where \verb*|\foobar{arg1} [arg2]| will not find an optional argument.
 %
-% There is one major exception to the rules listed above: when
-% \pkg{xparse} is used to define what \TeX\ defines as \enquote{control
-% symbols} in which the function name is made up of a single character,
-% such as \enquote{\cmd{\\}}, spaces are \emph{not} ignored directly
-% after them even for mandatory arguments.
+% There is one subtly here due to the difference in handling by \TeX{}
+% of \enquote{control symbols}, where the command name is made up of a single
+% character, such as \enquote{\cmd{\\}}. Spaces are not ignored by \TeX{}
+% here, and thus it is possible to require an optional argument directly
+% follow such a command. The most common example is the use of \cmd{\\} in
+% \pkg{amsmath} environments. In \pkg{xparse} terms it has signature
+% \begin{verbatim}
+%   \DeclareDocumentCommad \\ { !s !o } { ... }
+% \end{verbatim}
 %
 % \subsection{Required delimited arguments}
 %
@@ -949,6 +960,13 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_ignore_spaces_bool}
+%   For trailing optionals.
+%    \begin{macrocode}
+\bool_new:N \l_@@_ignore_spaces_bool
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_@@_m_args_int}
 %   The number of \texttt{m} arguments: if this is the same as the total
 %   number of arguments, then a short-cut can be taken in the creation of
@@ -1547,6 +1565,7 @@
     \bool_set_false:N \l_@@_long_bool
     \bool_set_false:N \l_@@_some_long_bool
     \bool_set_false:N \l_@@_some_short_bool
+    \bool_set_false:N \l_@@_ignore_spaces_bool
     \@@_normalize_arg_spec_loop:n #1
       \q_recursion_tail \q_recursion_tail \q_recursion_tail \q_recursion_stop
     \int_compare:nNnT \l_@@_current_arg_int > 9
@@ -1635,6 +1654,7 @@
 %   {
 %     \@@_normalize_type_>:w,
 %     \@@_normalize_type_+:w,
+%     \@@_normalize_type_!:w,
 %   }
 %   Check that these prefixes have arguments, namely that the next token
 %   is not \cs{q_recursion_tail}, and remember to leave it after the
@@ -1662,6 +1682,13 @@
     \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
     \tl_put_right:Nn \l_@@_arg_spec_tl { + }
     \bool_set_true:N \l_@@_long_bool
+    \int_decr:N \l_@@_current_arg_int
+    \@@_normalize_arg_spec_loop:n {#1}
+  }
+\cs_new_protected:cpn { @@_normalize_type_!:w } #1
+  {
+    \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
+    \tl_put_right:Nn \l_@@_arg_spec_tl { ! }
     \int_decr:N \l_@@_current_arg_int
     \@@_normalize_arg_spec_loop:n {#1}
   }
@@ -1943,6 +1970,7 @@
   {
     \int_zero:N \l_@@_current_arg_int
     \bool_set_false:N \l_@@_long_bool
+    \bool_set_false:N \l_@@_ignore_spaces_bool
     \int_zero:N \l_@@_m_args_int
     \bool_set_false:N \l_@@_defaults_bool
     \tl_clear:N \l_@@_defaults_tl
@@ -2005,6 +2033,19 @@
   {
     \@@_flush_m_args:
     \bool_set_true:N \l_@@_long_bool
+    \bool_set_true:N \l_@@_prefixed_bool
+    \@@_prepare_signature_bypass:N
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_add_type_!:w}
+%   Much the same for controlling trailing optional arguments.
+%    \begin{macrocode}
+\cs_new_protected:cpn { @@_add_type_!:w }
+  {
+    \@@_flush_m_args:
+    \bool_set_true:N \l_@@_ignore_spaces_bool
     \bool_set_true:N \l_@@_prefixed_bool
     \@@_prepare_signature_bypass:N
   }
@@ -2215,12 +2256,15 @@
           {
             @@_grab_ #1
             \bool_if:NT \l_@@_long_bool { _long }
-            \int_compare:nNnF \l_@@_mandatory_args_int > 0
-              { _trailing }
+            \bool_lazy_and:nnT
+              { \l_@@_ignore_spaces_bool }
+              { \int_compare_p:nNn \l_@@_mandatory_args_int = 0 }
+              { _ignore_spaces }
             :w
           }
       }
     \bool_set_false:N \l_@@_long_bool
+    \bool_set_false:N \l_@@_ignore_spaces_bool
     \tl_put_right:Nx \l_@@_process_all_tl
       { { \exp_not:o \l_@@_process_one_tl } }
     \tl_clear:N \l_@@_process_one_tl
@@ -2518,8 +2562,8 @@
 %
 % \begin{macro}{\@@_grab_D:w}
 % \begin{macro}{\@@_grab_D_long:w}
-% \begin{macro}{\@@_grab_D_trailing:w}
-% \begin{macro}{\@@_grab_D_long_trailing:w}
+% \begin{macro}{\@@_grab_D_ignore_spaces:w}
+% \begin{macro}{\@@_grab_D_long_ignore_spaces:w}
 %   The generic delimited argument grabber. The auxiliary function does
 %   a peek test before calling \cs{@@_grab_D_call:Nw}, so that the
 %   optional nature of the argument works as expected.
@@ -2534,9 +2578,9 @@
     \@@_grab_D_aux:NNnNn #1 #2 {#3} \cs_set_protected:Npn
       { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_D_trailing:w #1#2#3 \@@_run_code:
+\cs_new_protected:Npn \@@_grab_D_ignore_spaces:w #1#2#3 \@@_run_code:
   { \@@_grab_D_aux:NNnNn #1 #2 {#3} \cs_set_protected_nopar:Npn { } }
-\cs_new_protected:Npn \@@_grab_D_long_trailing:w #1#2#3 \@@_run_code:
+\cs_new_protected:Npn \@@_grab_D_long_ignore_spaces:w #1#2#3 \@@_run_code:
   { \@@_grab_D_aux:NNnNn #1 #2 {#3} \cs_set_protected:Npn { } }
 %    \end{macrocode}
 % \begin{macro}{\@@_grab_D_aux:NNnNn}
@@ -2688,7 +2732,7 @@
 % \begin{macro}
 %   {
 %     \@@_grab_E:w, \@@_grab_E_long:w,
-%     \@@_grab_E_trailing:w, \@@_grab_E_long_trailing:w
+%     \@@_grab_E_ignore_spaces:w, \@@_grab_E_long_ignore_spaces:w
 %   }
 % \begin{macro}{\@@_grab_E:nnNn}
 % \begin{macro}{\@@_grab_E_loop:nnN}
@@ -2707,13 +2751,13 @@
       \cs_set_protected:Npn
       { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_E_trailing:w #1#2 \@@_run_code:
+\cs_new_protected:Npn \@@_grab_E_ignore_spaces:w #1#2 \@@_run_code:
   {
     \@@_grab_E:nnNn {#1} {#2}
       \cs_set_protected_nopar:Npn
       { }
   }
-\cs_new_protected:Npn \@@_grab_E_long_trailing:w #1#2 \@@_run_code:
+\cs_new_protected:Npn \@@_grab_E_long_ignore_spaces:w #1#2 \@@_run_code:
   {
     \@@_grab_E:nnNn {#1} {#2}
       \cs_set_protected:Npn
@@ -2766,8 +2810,8 @@
 %
 % \begin{macro}{\@@_grab_G:w}
 % \begin{macro}{\@@_grab_G_long:w}
-% \begin{macro}{\@@_grab_G_trailing:w}
-% \begin{macro}{\@@_grab_G_long_trailing:w}
+% \begin{macro}{\@@_grab_G_ignore_spaces:w}
+% \begin{macro}{\@@_grab_G_long_ignore_spaces:w}
 % \begin{macro}{\@@_grab_G_aux:nNn}
 %   Optional groups are checked by meaning, so that the same code will
 %   work with, for example, \ConTeXt{}-like input.
@@ -2781,9 +2825,9 @@
   {
     \@@_grab_G_aux:nNn {#1} \cs_set_protected:Npn { _ignore_spaces }
   }
-\cs_new_protected:Npn \@@_grab_G_trailing:w #1 \@@_run_code:
+\cs_new_protected:Npn \@@_grab_G_ignore_spaces:w #1 \@@_run_code:
   { \@@_grab_G_aux:nNn {#1} \cs_set_protected_nopar:Npn { } }
-\cs_new_protected:Npn \@@_grab_G_long_trailing:w #1 \@@_run_code:
+\cs_new_protected:Npn \@@_grab_G_long_ignore_spaces:w #1 \@@_run_code:
   { \@@_grab_G_aux:nNn {#1} \cs_set_protected:Npn { } }
 \cs_new_protected:Npn \@@_grab_G_aux:nNn #1#2#3
   {
@@ -2958,8 +3002,8 @@
 %
 % \begin{macro}{\@@_grab_t:w}
 % \begin{macro}{\@@_grab_t_long:w}
-% \begin{macro}{\@@_grab_t_trailing:w}
-% \begin{macro}{\@@_grab_t_long_trailing:w}
+% \begin{macro}{\@@_grab_t_ignore_spaces:w}
+% \begin{macro}{\@@_grab_t_long_ignore_spaces:w}
 % \begin{macro}{\@@_grab_t_aux:NNw}
 %   Dealing with a token is quite easy. Check the match, remove the
 %   token if needed and add a flag to the output.
@@ -2967,9 +3011,9 @@
 \cs_new_protected:Npn \@@_grab_t:w
   { \@@_grab_t_aux:NNw \peek_meaning_remove_ignore_spaces:NTF }
 \cs_new_eq:NN \@@_grab_t_long:w \@@_grab_t:w
-\cs_new_protected:Npn \@@_grab_t_trailing:w
+\cs_new_protected:Npn \@@_grab_t_ignore_spaces:w
   { \@@_grab_t_aux:NNw \peek_meaning_remove:NTF }
-\cs_new_eq:NN \@@_grab_t_long_trailing:w \@@_grab_t_trailing:w
+\cs_new_eq:NN \@@_grab_t_long_ignore_spaces:w \@@_grab_t_ignore_spaces:w
 \cs_new_protected:Npn \@@_grab_t_aux:NNw #1#2#3 \@@_run_code:
   {
     \tl_set:Nn \l_@@_signature_tl {#3}
