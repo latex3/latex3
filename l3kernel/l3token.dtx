@@ -121,7 +121,8 @@
 %   be an active character.
 % \end{function}
 %
-% \begin{function}[EXP, added = 2015-09-09]{\char_generate:nn}
+% \begin{function}[EXP, added = 2015-09-09, updated = 2018-04-19]
+%   {\char_generate:nn}
 %   \begin{syntax}
 %      \cs{char_generate:nn} \Arg{charcode} \Arg{catcode}
 %   \end{syntax}
@@ -138,12 +139,14 @@
 %     \item $8$ (math subscript)
 %     \item $11$ (letter)
 %     \item $12$ (other)
+%     \item $13$ (active) (not \XeTeX{})
 %   \end{itemize}
 %   and other values raise an error.
 %
 %   The \meta{charcode} may be any one valid for the engine in use. Note
 %   however that for \XeTeX{} releases prior to 0.99992 only the 8-bit
-%   range ($0$ to $255$) is accepted due to engine limitations.
+%   range ($0$ to $255$) is accepted due to engine limitations. Note also
+%   that \XeTeX{} cannot currently generate active character tokens.
 % \end{function}
 %
 % \begin{variable}[added = 2011-09-05]{\c_catcode_other_space_tl}
@@ -1350,9 +1353,8 @@
 % \end{macro}
 %
 % \begin{macro}[EXP]{\char_generate:nn}
-% \begin{macro}[EXP]{\__kernel_char_generate:nn}
 % \begin{macro}[EXP]{\@@_generate_aux:nn}
-% \begin{macro}[EXP]{\@@_generate_aux:nnw}
+% \begin{macro}[EXP]{\@@_generate_aux:nnw, \@@_generate_auxii:nnw}
 % \begin{variable}{\l_@@_tmp_tl}
 % \begin{variable}{\c_@@_max_int}
 % \begin{macro}[EXP]{\@@_generate_invalid_catcode:}
@@ -1368,50 +1370,37 @@
       \int_value:w \int_eval:n {#1} \exp_after:wN ;
       \int_value:w \int_eval:n {#2} ;
   }
-\cs_new:Npn \__kernel_char_generate:nn #1#2
-  {
-    \exp:w \exp_after:wN
-      \@@_generate_aux:nnw \exp_after:wN
-        { \int_value:w \int_eval:n {#1} } {#2} \exp_end:
-  }
 %    \end{macrocode}
 %   Before doing any actual conversion, first some special case filtering.
-%   The \tn{Ucharcat} primitive cannot make active chars, so that is turned
-%   off here: if the primitive gets altered then the code is already in
-%   place for 8-bit engines and will kick in for \LuaTeX{} too. Spaces
-%   are also banned here as \LuaTeX{} emulation only makes normal (charcode
-%   $32$ spaces. However, |^^@| is filtered out separately as that can't be
+%   Spaces are out here as \LuaTeX{} emulation only makes normal (charcode
+%   $32$ spaces). However, |^^@| is filtered out separately as that can't be
 %   done with macro emulation either, so is flagged up separately. That
 %   done, hand off to the engine-dependent part.
 %    \begin{macrocode}
 \cs_new:Npn \@@_generate_aux:w #1 ; #2 ;
   {
-    \if_int_compare:w #2 = 13 \exp_stop_f:
-      \__kernel_msg_expandable_error:nn { kernel } { char-active }
+    \if_int_compare:w #2 = 10 \exp_stop_f:
+      \if_int_compare:w #1 =  0 \exp_stop_f:
+        \__kernel_msg_expandable_error:nn { kernel } { char-null-space }
+      \else:
+        \__kernel_msg_expandable_error:nn { kernel } { char-space }
+      \fi:
     \else:
-      \if_int_compare:w #2 = 10 \exp_stop_f:
-        \if_int_compare:w #1 =  0 \exp_stop_f:
-          \__kernel_msg_expandable_error:nn { kernel } { char-null-space }
-        \else:
-          \__kernel_msg_expandable_error:nn { kernel } { char-space }
-        \fi:
+      \if_int_odd:w 0
+          \if_int_compare:w #2 < 1  \exp_stop_f: 1 \fi:
+          \if_int_compare:w #2 = 5  \exp_stop_f: 1 \fi:
+          \if_int_compare:w #2 = 9  \exp_stop_f: 1 \fi:
+          \if_int_compare:w #2 > 13 \exp_stop_f: 1 \fi: \exp_stop_f:
+        \__kernel_msg_expandable_error:nn { kernel }
+          { char-invalid-catcode }
       \else:
         \if_int_odd:w 0
-            \if_int_compare:w #2 < 1  \exp_stop_f: 1 \fi:
-            \if_int_compare:w #2 = 5  \exp_stop_f: 1 \fi:
-            \if_int_compare:w #2 = 9  \exp_stop_f: 1 \fi:
-            \if_int_compare:w #2 > 13 \exp_stop_f: 1 \fi: \exp_stop_f:
+          \if_int_compare:w #1 < 0 \exp_stop_f: 1 \fi:
+          \if_int_compare:w #1 > \c_@@_max_int 1 \fi: \exp_stop_f:
           \__kernel_msg_expandable_error:nn { kernel }
-            { char-invalid-catcode }
+            { char-out-of-range }
         \else:
-          \if_int_odd:w 0
-            \if_int_compare:w #1 < 0 \exp_stop_f: 1 \fi:
-            \if_int_compare:w #1 > \c_@@_max_int 1 \fi: \exp_stop_f:
-            \__kernel_msg_expandable_error:nn { kernel }
-              { char-out-of-range }
-          \else:
-            \@@_generate_aux:nnw {#1} {#2}
-          \fi:
+          \@@_generate_aux:nnw {#1} {#2}
         \fi:
       \fi:
     \fi:
@@ -1425,6 +1414,9 @@
 %   out here using a primitive-based boolean expression for speed.
 %   The final level is the basic definition at the engine level: the arguments
 %   here are integers so there is no need to worry about them too much.
+%   At present \XeTeX{} cannot generate active characters so we filter that:
+%   at some future stage that may change: the slightly odd ordering of
+%   auxiliaries reflects that.
 %    \begin{macrocode}
 \group_begin:
 %<*package>
@@ -1433,16 +1425,16 @@
 %</package>
   \char_set_catcode_other:n { 0 }
   \if_int_odd:w 0
-      \cs_if_exist:NT \luatex_directlua:D { 1 }
-      \cs_if_exist:NT \utex_charcat:D     { 1 } \exp_stop_f:
+      \cs_if_exist:NT \lua_now_x:n    { 1 }
+      \cs_if_exist:NT \utex_charcat:D { 1 } \exp_stop_f:
     \int_const:Nn \c_@@_max_int { 1114111 }
-    \cs_if_exist:NTF \luatex_directlua:D
+    \cs_if_exist:NTF \lua_now_x:n
       {
         \cs_new:Npn \@@_generate_aux:nnw #1#2#3 \exp_end:
           {
             #3
             \exp_after:wN \exp_end:
-            \luatex_directlua:D { l3kernel.charcat(#1, #2) }
+            \lua_now_x:n { l3kernel.charcat(#1, #2) }
           }
       }
       {
@@ -1450,7 +1442,18 @@
           {
             #3
             \exp_after:wN \exp_end:
-            \utex_charcat:D  #1 ~ #2 ~
+            \utex_charcat:D #1 \exp_stop_f: #2 \exp_stop_f:
+          }
+        \cs_new_eq:NN \@@_generate_auxii:nnw \@@_generate_aux:nnw
+        \cs_gset:Npn \@@_generate_aux:nnw #1#2#3 \exp_end:
+          {
+            #3
+            \if_int_compare:w #2 = 13 \exp_stop_f:
+              \__kernel_msg_expandable_error:nn { kernel } { char-active }
+            \else:
+              \@@_generate_auxii:nnw {#1} {#2}
+            \fi:
+            \exp_end:
           }
       }
   \else:
@@ -1558,7 +1561,6 @@
 % \end{macro}
 % \end{variable}
 % \end{variable}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
