@@ -2413,6 +2413,174 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\seq_shuffle:N, \seq_gshuffle:N, \@@_shuffle:NN,
+%   \@@_shuffle:w, \@@_shuffle_one:w, \@@_shuffle_two:w,
+%   \@@_shuffle_cycle:w, \@@_shuffle_end:, \@@_shuffle_few:,
+%   \@@_shuffle_item_few:n, \@@_shuffle_item_a_few:n,
+%   \@@_shuffle_item_b_few:n, \@@_shuffle_end_few:, \@@_shuffle_aux:w,
+%   \@@_shuffle_many:, \@@_shuffle_item_many:n,
+%   \@@_shuffle_item_a_many:n, \@@_shuffle_item_b_many:n,
+%   \@@_shuffle_end_many:}
+% \begin{variable}{\c_@@_shuffle_int, \g_@@_internal_tl, \l_@@_a_tl,
+%   \l_@@_b_tl, \l_@@_len_int, \l_@@_b_int, \l_@@_goal_a_int,
+%   \l_@@_goal_b_int}
+%   The auxiliary \cs{@@_shuffle:w} expects a number of items and a
+%   sequence with that number of items (the \cs{s_@@} start marker
+%   serves as a delimiter between the two arguments).  It shuffles the
+%   sequence and appends the resulting items to \cs{g_@@_internal_tl} as
+%   they are determined.
+%
+%   We use the primitive \cs{pdftex_uniformdeviate:D} for speed reasons.
+%   Its non-uniformity is not too important for small arguments, and in
+%   any case we cannot shuffle huge lists.
+%
+%   The idea is to randomly split the input into two equal-sized parts
+%   \cs{l_@@_a_tl} and \cs{l_@@_b_tl} then apply \cs{@@_shuffle:w} to
+%   each part.  To preserve uniformity, the probability for each item to
+%   go on one side or the other is proportional to the remaining number
+%   of slots on that side, which we keep track of as \cs{l_@@_len_int}
+%   minus \cs{l_@@_b_int} and as \cs{l_@@_b_int}.  When there are many
+%   items to split (controlled by \cs{c_@@_shuffle_int}, whose value was
+%   chosen somewhat arbitrarily and could easily be fine-tuned), the
+%   token lists \cs{l_@@_a_tl} and \cs{l_@@_b_tl} are filled using the
+%   \cs[no-index]{tl_build_\ldots{}} machinery.
+%    \begin{macrocode}
+\cs_if_exist:NTF \pdftex_uniformdeviate:D
+  {
+    \int_const:Nn \c_@@_shuffle_int { 12 }
+    \tl_new:N \g_@@_internal_tl
+    \tl_new:N \l_@@_a_tl
+    \tl_new:N \l_@@_b_tl
+    \int_new:N \l_@@_len_int
+    \int_new:N \l_@@_b_int
+    \int_new:N \l_@@_goal_a_int
+    \int_new:N \l_@@_goal_b_int
+    \cs_new_protected:Npn \seq_shuffle:N { \@@_shuffle:NN \seq_set_eq:NN }
+    \cs_new_protected:Npn \seq_gshuffle:N { \@@_shuffle:NN \seq_gset_eq:NN }
+    \cs_new_protected:Npn \@@_shuffle:NN #1#2
+      {
+        \group_begin:
+          \tl_build_gbegin:N \g_@@_internal_tl
+          \tl_build_gput_right:Nn \g_@@_internal_tl { \s_@@ }
+          \cs_set_eq:NN \@@_item:n \@@_shuffle_item_few:n
+          \exp_after:wN \@@_shuffle:w
+          \int_value:w \seq_count:N #2 #2 \@@_shuffle_end:
+          \tl_build_gend:N \g_@@_internal_tl
+        \group_end:
+        #1 #2 \g_@@_internal_tl
+      }
+    \cs_new_protected:Npn \@@_shuffle:w #1 \s_@@
+      {
+        \if_case:w #1 \exp_stop_f:
+          \exp_after:wN \use_none:n
+        \or: \exp_after:wN \@@_shuffle_one:w
+        \or: \exp_after:wN \@@_shuffle_two:w
+        \else:
+          \int_set:Nn \l_@@_len_int {#1}
+          \if_int_compare:w \l_@@_len_int < \c_@@_shuffle_int
+            \@@_shuffle_few:
+          \else:
+            \@@_shuffle_many:
+          \fi:
+        \fi:
+      }
+    \cs_new_protected:Npn \@@_shuffle_one:w #1 \@@_shuffle_end:
+      { \tl_build_gput_right:Nn \g_@@_internal_tl {#1} }
+    \cs_new_protected:Npn \@@_shuffle_two:w
+      {
+        \if_int_odd:w \pdftex_uniformdeviate:D 2 \exp_stop_f:
+            \exp_stop_f:
+          \exp_after:wN \@@_shuffle_one:w
+        \else:
+          \exp_after:wN \@@_shuffle_cycle:w
+        \fi:
+      }
+    \cs_new_protected:Npn \@@_shuffle_cycle:w #1#2#3 \@@_shuffle_end:
+      { \tl_build_gput_right:Nn \g_@@_internal_tl { #3 #1 {#2} } }
+    \cs_new_protected:Npn \@@_shuffle_few:
+      {
+        \int_set:Nn \l_@@_goal_a_int { \l_@@_len_int / 2 }
+        \int_set:Nn \l_@@_goal_b_int { \l_@@_len_int - \l_@@_goal_a_int }
+        \int_set_eq:NN \l_@@_b_int \l_@@_goal_b_int
+        \tl_clear:N \l_@@_a_tl
+        \tl_clear:N \l_@@_b_tl
+      }
+    \cs_new_protected:Npn \@@_shuffle_item_few:n
+      {
+        \int_decr:N \l_@@_len_int
+        \if_int_compare:w
+          \pdftex_uniformdeviate:D \l_@@_len_int < \l_@@_b_int
+          \int_decr:N \l_@@_b_int
+          \exp_after:wN \@@_shuffle_item_b_few:n
+        \else:
+          \exp_after:wN \@@_shuffle_item_a_few:n
+        \fi:
+      }
+    \cs_new_protected:Npn \@@_shuffle_item_a_few:n #1
+      { \tl_put_right:Nn \l_@@_a_tl { \@@_item:n {#1} } }
+    \cs_new_protected:Npn \@@_shuffle_item_b_few:n #1
+      { \tl_put_right:Nn \l_@@_b_tl { \@@_item:n {#1} } }
+    \cs_new_protected:Npn \@@_shuffle_end_few:
+      {
+        \exp_after:wN \@@_shuffle_aux:w
+        \int_value:w \int_use:N \l_@@_goal_b_int
+        \exp_after:wN \s_@@ \l_@@_b_tl \@@_shuffle_end:
+      }
+    \cs_new_protected:Npn \@@_shuffle_aux:w
+      {
+        \exp_after:wN \@@_shuffle:w
+        \int_value:w \int_use:N \l_@@_goal_a_int
+        \exp_after:wN \s_@@ \l_@@_a_tl \@@_shuffle_end:
+        \@@_shuffle:w
+      }
+    \cs_new_protected:Npn \@@_shuffle_many:
+      {
+        \int_set:Nn \l_@@_goal_a_int { \l_@@_len_int / 2 }
+        \int_set:Nn \l_@@_goal_b_int
+          { \l_@@_len_int - \l_@@_goal_a_int }
+        \int_set_eq:NN \l_@@_b_int \l_@@_goal_b_int
+        \tl_build_begin:N \l_@@_a_tl
+        \tl_build_begin:N \l_@@_b_tl
+        \cs_set_eq:NN \@@_item:n \@@_shuffle_item_many:n
+        \cs_set_eq:NN \@@_shuffle_end: \@@_shuffle_end_many:
+      }
+    \cs_new_protected:Npn \@@_shuffle_item_many:n
+      {
+        \if_int_compare:w
+            \pdftex_uniformdeviate:D \l_@@_len_int < \l_@@_b_int
+          \int_decr:N \l_@@_len_int
+          \int_decr:N \l_@@_b_int
+          \exp_after:wN \@@_shuffle_item_b_many:n
+        \else:
+          \int_decr:N \l_@@_len_int
+          \exp_after:wN \@@_shuffle_item_a_many:n
+        \fi:
+      }
+    \cs_new_protected:Npn \@@_shuffle_item_a_many:n #1
+      { \tl_build_put_right:Nn \l_@@_a_tl { \@@_item:n {#1} } }
+    \cs_new_protected:Npn \@@_shuffle_item_b_many:n #1
+      { \tl_build_put_right:Nn \l_@@_b_tl { \@@_item:n {#1} } }
+    \cs_new_protected:Npn \@@_shuffle_end_many:
+      {
+        \cs_set_eq:NN \@@_shuffle_end: \@@_shuffle_end_few:
+        \cs_set_eq:NN \@@_item:n \@@_shuffle_item_few:n
+        \tl_build_end:N \l_@@_b_tl
+        \tl_build_end:N \l_@@_a_tl
+        \exp_after:wN \@@_shuffle_aux:w
+        \int_value:w \int_use:N \l_@@_goal_b_int
+        \exp_after:wN \s_@@ \l_@@_b_tl \@@_shuffle_end:
+      }
+    \cs_new_eq:NN \@@_shuffle_end: \@@_shuffle_end_few:
+  }
+  {
+    \cs_new_protected:Npn \seq_shuffle:N #1
+      { \__kernel_msg_error:nn { kernel } { fp-no-random } }
+    \cs_new_eq:NN \seq_gshuffle:N \seq_shuffle:N
+  }
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
 % \subsection{Additions to \pkg{l3skip}}
 %
 %    \begin{macrocode}
