@@ -17,8 +17,9 @@ checksuppfiles  = checksuppfiles  or
     "SpecialCasing.txt",
     "UnicodeData.txt",
   }
+tagfiles = tagfiles or {"*.dtx", "README.md"}
 unpacksuppfiles = unpacksuppfiles or {"docstrip.tex"}
-versionfiles    = versionfiles    or {"*.dtx", "README.md"}
+
 
 packtdszip  = true
 
@@ -32,31 +33,19 @@ if unpacksearch == nil then
 end
 
 -- Detail how to set the version automatically
-setversion_update_line =
-  setversion_update_line or function(line, date, version)
-  local date = string.gsub(date, "%-", "/")
-  -- Replace the identifiers
-  if string.match(line, "^\\def\\ExplFileDate{%d%d%d%d/%d%d/%d%d}%%?$") or
-     string.match(line, "^%%? ?\\date{Released %d%d%d%d/%d%d/%d%d}$") then
-    line = string.gsub(line, "%d%d%d%d/%d%d/%d%d", date)
+function update_tag(file,content,tagname,tagdate)
+  local iso = "%d%d%d%d%-%d%d%-%d%d"
+  if string.match(file,"%.dtx$") then
+    content = string.gsub(content,
+      "\n\\ProvidesExpl" .. "(%w+ *{[^}]+} *){" .. iso .. "}",
+      "\n\\ProvidesExpl%1{" .. tagname .. "}")
+    return string.gsub(content,
+      "\n%% \\date{Released " .. iso .. "}\n",
+      "\n%% \\date{Released " .. tagname .. "}\n")
+  elseif string.match(file,"%.md$") then
+    return string.gsub(content,
+      "\nRelease " .. iso .. "\n",
+      "\nRelease " .. tagname .. "\n")
   end
-  -- No real regex so do it one type at a time
-  for _,i in pairs({"Class", "File", "Package"}) do
-    if string.match(
-      line,
-      "^\\ProvidesExpl" .. i .. " *{[a-zA-Z0-9%-%.]+}"
-    ) then
-      line = string.gsub(
-        line,
-        "{%d%d%d%d/%d%d/%d%d}",
-        "{" .. string.gsub(date, "%-", "/") .. "}"
-      )
-   end
-  end
-  if string.match(
-    line, "^Release %d%d%d%d/%d%d/%d%d$"
-  ) then
-    line = "Release " .. date
-  end
-  return line
+  return content
 end

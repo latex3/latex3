@@ -21,23 +21,51 @@ installfiles =
     "*.cls", "*.sty", "*.tex"
   }
 sourcefiles  = {"*.dtx", "*.ins"}
+tagfiles     =
+  {
+    "*.dtx", "README.md",
+    "interface3.tex", "l3styleguide.tex",
+    "l3syntax-changes.tex", "source3.tex"
+  }
 typesetfiles =
   {
-    "expl3.dtx", "l3docstrip.dtx", "interface3.tex", "l3syntax-changes.tex",
+    "expl3.dtx", "l3docstrip.dtx","interface3.tex", "l3syntax-changes.tex",
     "l3styleguide.tex", "source3.tex"
   }
 typesetskipfiles = {"source3-body.tex"}
 typesetruns      = 3
 unpackfiles      = {"l3.ins"}
-versionfiles     =
-  {
-    "*.dtx", "README.md", "interface3.tex", "l3styleguide.tex",
-    "l3syntax-changes.tex", "source3.tex"
-  }
 
 -- No deps other than the test system
 typesetdeps = {maindir .. "/l3packages/xparse"}
 unpackdeps  = { }
+
+-- Load the common build code
+dofile(maindir .. "/build-config.lua")
+
+-- Detail how to set the version automatically
+function update_tag(file,content,tagname,tagdate)
+  local iso = "%d%d%d%d%-%d%d%-%d%d"
+  if string.match(file,"expl3%.dtx$") then
+    content = string.gsub(content,
+      "\n\\def\\ExplFileDate{" .. iso .. "}\n",
+      "\n\\def\\ExplFileDate{" .. tagname .. "}\n")
+  elseif string.match(file,"l3drivers%.dtx$") then
+    content = string.gsub(content,
+      "\n  ({l3%w+%.def}){" .. iso .. "}",
+      "\n  %1{" .. tagname .. "}")
+  end
+  if string.match(file,"%.dtx$") or string.match(file,"%.tex$") then
+    return string.gsub(content,
+      "\n%% \\date{Released " .. iso .. "}\n",
+      "\n%% \\date{Released " .. tagname .. "}\n")
+  elseif string.match(file, "%.md$") then
+    return string.gsub(content,
+      "\nRelease " .. iso .. "\n",
+      "\nRelease " .. tagname .. "\n")
+  end
+  return contents
+end
 
 function cmdcheck()
   mkdir(localdir)
@@ -141,8 +169,14 @@ function main(target, files)
     else
       help()
     end
-  elseif target == "setversion" then
-    errorlevel = setversion()
+  elseif target == "tag" then
+    if options["names"] and #options["names"] == 1 then
+      tag(options["names"][1])
+    else
+      print("Tag name required")
+      help()
+      exit(1)
+    end
   elseif target == "unpack" then
     errorlevel = unpack()
   elseif target == "version" then
@@ -153,8 +187,6 @@ function main(target, files)
   os.exit(errorlevel)
 end
 
--- Load the common build code
-dofile(maindir .. "/build-config.lua")
 
 -- Find and run the build system
 kpse.set_program_name("kpsewhich")

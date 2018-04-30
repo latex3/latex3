@@ -22,7 +22,7 @@ ctanbundles  = {"l3kernel", "l3packages", "l3experimental"}
 maindir = "."
 
 -- A custom main function
-function main (target)
+function main(target)
   local errorlevel
   if target == "check" then
     errorlevel = call(checkbundles, "check")
@@ -45,8 +45,14 @@ function main (target)
     errorlevel = call(bundles, "setversion")
   elseif target == "unpack" then
     errorlevel = call (bundles, "unpack")
-  elseif target == "version" then
-      version ()
+  elseif target == "tag" then
+    if options["names"] and #options["names"] == 1 then
+        call(ctanbundles,"tag")
+      else
+        print("Tag name required")
+        help()
+        exit(1)
+      end
   else
     help ()
   end
