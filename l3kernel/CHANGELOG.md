@@ -11,6 +11,8 @@ this project uses date-based 'snapshot' version identifiers.
 - `\peek_analysis_map_inline:n`
 - `\peek_regex:nTF`, `\peek_regex_remove_once:nTF`, and
   `\peek_regex_replace_once:nnTF`
+- `\token_case_catcode:NnTF`, `\token_case_charcode:NnTF`, and
+  `\token_case_meaning:NnTF`
 
 ### Changed
 - Extend `\text_expand:n` to cover `\@protected@testopt`
