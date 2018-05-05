@@ -96,6 +96,132 @@
   {
 %    \end{macrocode}
 %
+% Obviously, every word \enquote{random} below means
+% \enquote{pseudo-random}, as we have no access to entropy (except a
+% very unreliable source of entropy: the time it takes to run some
+% code).
+%
+% The primitive random number generator (RNG) is provided as
+% \cs{tex_uniformdeviate:D}.  Under the hood, it maintains an array of
+% $55$ $28$-bit numbers, updated with a linear recursion relation
+% (similar to Fibonacci numbers) modulo $2^{28}$.  When
+% \cs{tex_uniformdeviate:D} \meta{integer} is called (for brevity denote
+% by~$N$ the \meta{integer}), the next $28$-bit number is read from the
+% array, scaled by $N/2^{28}$, and rounded.  To prevent $0$ and $N$ from
+% appearing half as often as other numbers, they are both mapped to the
+% result~$0$.
+%
+% This process means that \cs{tex_uniformdeviate:D} only gives a uniform
+% distribution from $0$ to $N-1$ if $N$ is a divisor of $2^{28}$, so we
+% will mostly call the RNG with such power of~$2$ arguments.  If $N$
+% does not divide $2^{28}$, then the relative non-uniformity (difference
+% between probabilities of getting different numbers) is about
+% $N/2^{28}$ and could be detected after generating roughly $2^{56}/N^2$
+% random numbers.  For instance for $N=98304=3\times 2^{15}$, the bias
+% modulo~$3$ would be detectable after roughly $2^{23}$ calls to the RNG
+% (experimentally this takes roughly a second on a 1 giga-hertz
+% processor).  While this bias is not quite problematic, it is
+% uncomfortably close to being so, and it becomes worse as $N$ is
+% increased.  In our code, we shall thus combine several results from
+% the RNG\@.
+%
+% The RNG has two types of unexpected correlations.  First, everything
+% is linear modulo~$2^{28}$, hence the lowest $k$ bits of the random
+% numbers only depend on the lowest $k$ bits of the seed (and of course
+% the number of times the RNG was called since setting the seed).  The
+% recommended way to get a number from $0$ to $N-1$ is thus to scale the
+% raw $28$-bit integer, as the engine's RNG does.  We will go further
+% and in fact typically we discard some of the lowest bits.
+%
+% Second, suppose that we call the RNG with the same argument~$N$ to get
+% a set of $K$ integers in $[0,N-1]$ (throwing away repeats), and
+% suppose that $N>K^3$ and $K>55$.  The recursion used to construct more
+% $28$-bit numbers from previous ones is linear:
+% $x_n = x_{n-55} - x_{n-24}$ or $x_n = x_{n-55}-x_{n-24}+2^{28}$.
+% After rescaling and rounding we find that the result $N_n\in[0,N-1]$
+% is among $N_{n-55} - N_{n-24} + \{-1,0,1\}$ modulo~$N$ (a more
+% detailed analysis shows that $0$ appears with frequency close
+% to~$3/4$).  The resulting set thus has more triplets $(a,b,c)$ than
+% expected obeying $a=b+c$ modulo~$N$.  Namely it will have of order
+% $(K-55)\times 3/4$ such triplets, when one would expect $K^3/(6N)$.
+% This starts to be detectable around $N=2^{18}>55^3$ (earlier if one
+% keeps track of positions too, but this is more subtle than it looks
+% because the array of $28$-bit integers is read backwards by the
+% engine).  Hopefully the correlation is subtle enough to not affect
+% realistic documents so we do not specifically mitigate against this.
+% Since we typically use two calls to the RNG per \cs{int_rand:nn} we
+% would need to investigate linear relations between the $x_{2n}$ on the
+% one hand and between the $x_{2n+1}$ on the other hand.  Such relations
+% will have more complicated coefficients than $\pm 1$, which alleviates
+% the issue.
+%
+% Ideally, our algorithm should be:
+% \begin{itemize}
+% \item Uniform.  The result should be as uniform as possible assuming
+%   that the RNG's underlying $28$-bit integers are uniform.
+% \item Uncorrelated.  The result should not have detectable
+%   correlations between different seeds, similar to the lowest-bit ones
+%   mentioned earlier.
+% \item Quick.  The algorithm should be fast in \TeX{}, so no
+%   \enquote{bit twiddling}, but \enquote{digit twiddling} is ok.
+% \item Simple.  The behaviour must be documentable precisely.
+% \item Predictable.  The number of calls to the RNG should be the same
+%   for any \cs{int_rand:nn}, because then the algorithm can be modified
+%   later without changing the result of other uses of the RNG\@.
+% \item Robust.  It should work even for \cs{int_rand:nn} |{| |-|
+%   \cs{c_max_int} |}| |{| \cs{c_max_int} |}| where the range is not
+%   representable as an integer.  In fact, we also provide later a
+%   floating-point |randint| whose range can go all the way up to
+%   $2\times 10^{16}-1$ possible values.
+% \end{itemize}
+% Some of these requirements conflict.  For instance, uniformity cannot
+% be achieved with a fixed number of calls to the RNG\@.
+%
+% Denote by $\operatorname{random}(N)$ one call to
+% \cs{tex_uniformdeviate:D} with argument~$N$, and by
+% $\operatorname{ediv}(p,q)$ the \eTeX{} rounding division giving
+% $\lfloor p/q+1/2\rfloor$.  Denote by $\meta{min}$, $\meta{max}$ and
+% $R=\meta{max}-\meta{min}+1$ the arguments of \cs{int_min:nn} and the
+% number of possible outcomes.  Note that $R\in [0,2^{32}-1]$ cannot
+% necessarily be represented as an integer.  Our strategy is to get two
+% $28$-bit integers $X$ and $Y$ from the RNG, split each into $14$-bit
+% integers, as $X=X_1\times 2^{14}+X_0$ and $Y=Y_1\times 2^{14}+Y_0$
+% then return essentially
+% $\meta{min} + \lfloor R (X_1\times 2^{-14} + Y_1\times 2^{-28} +
+% Y_0\times 2^{-42} + X_0\times 2^{-56})\rfloor$.  For small~$R$ the
+% $X_0$ term has a tiny effect so we ignore it and we can compute
+% $R\times Y/2^{28}$ much more directly by $\operatorname{random}(R)$.
+% \begin{itemize}
+% \item If $R \leq 2^{17}$ then return
+%   $\meta{min} + \operatorname{ediv}(R\operatorname{random}(2^{14}) +
+%   \operatorname{random}(R) - 2^{13}, 2^{14})$.  The shift by $2^{13}$
+%   converts \eTeX{} division to truncated division.  The bound on $R$
+%   ensures that the number obtained before the shift and division is at
+%   most $2^{17}(2^{14}-1)+(2^{17}-1)=\cs{c_max_int}$.  The
+%   non-uniformity is at most of order $2^{17}/2^{42} = 2^{-25}$.
+% \item Otherwise, split $R=R_2\times 2^{28}+R_1\times 2^{14}+R_0$,
+%   precompute $R_{21}=R_2\times 2^{14}+R_1$ and
+%   $R_{10}=R_1\times 2^{14}+R_0$ and $Z = X_1\times 2^{14}+Y_1$.  Then
+%   compute on the one hand
+%   $\meta{min}+8\times Z+(R_2-8)\times Z+R_1\times X_1$ (where the
+%   weird split of $R_2\times Z$ avoids a possible overflow) and
+%   $\operatorname{ediv}(R_2\times Y_0 + R_0\times X_1 +
+%   \operatorname{ediv}(R_{21}\times X_0,2^{28}) +
+%   \operatorname{ediv}(R_{10}\times Y,2^{28}),2^{14})$ then sum them
+%   (this may give $2^{31}$, an overflow).  If the result is greater
+%   than $\meta{max}$ (in particular if it overflows) then replace it by
+%   $\meta{min}$.
+% \item To get a floating point number in $[0,1)$ just call the
+%   $R=10000\leq 2^{17}$ procedure above to produce four blocks of four
+%   digits.
+% \item To get an integer floating point number in a small range
+%   $R\leq 2^{17}$ use the above simplified algorithm.  If the range is
+%   bigger (it can be up to $2\times 10^{16}-1$), work with fixed-point
+%   numbers: get six times four digits to build a fixed point number,
+%   multiply by $R$ and add $\meta{min}$.
+% \end{itemize}
+% This is strategy is not yet implemented at all.
+%
 % \begin{macro}[EXP]{\@@_rand_uniform:}
 % \begin{variable}
 %   {
