@@ -1,0 +1,332 @@
+% \iffalse meta-comment
+%
+%% File: l3fparray.dtx Copyright (C) 2018 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    https://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3kernel bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver>
+\documentclass[full,kernel]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+%
+% \title{^^A
+%   The \textsf{l3fparray} package: fast global floating point arrays^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2018-04-30}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \section{\pkg{l3fparray} documentation}
+%
+% For applications requiring heavy use of floating points, this module
+% provides arrays which can be accessed in constant time (contrast
+% \pkg{l3seq}, where access time is linear).  The interface is very
+% close to that of \pkg{l3intarray}.  The size of the array is fixed and
+% must be given at point of initialisation
+%
+% Currently \emph{all} functions in this module are candidates.  Their
+% documentation can be found in \pkg{l3candidates}.
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3fparray} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=fp>
+%    \end{macrocode}
+%
+% In analogy to \pkg{l3intarray} it would make sense to have
+% |<@@=fparray>|, but we need direct access to \cs{@@_parse:n} from
+% \pkg{l3fp-parse}, and a few other (less crucial) internals of the
+% \pkg{l3fp} family.
+%
+% \subsection{Allocating arrays}
+%
+% There are somewhat more than $(2^{31}-1)^2$ floating point numbers so
+% we store each floating point number as three entries in integer
+% arrays.  To avoid having to multiply indices by three or to add 1 etc,
+% a floating point array is just a token list consisting of three
+% tokens: integer arrays of the same size.
+%
+% \begin{variable}{\g_@@_array_int}
+%   Used to generate unique names for the three integer arrays.
+%    \begin{macrocode}
+\int_new:N \g_@@_array_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_array_loop_int}
+%   Used to loop in \cs{@@_array_gzero:N}.
+%    \begin{macrocode}
+\int_new:N \l_@@_array_loop_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\fparray_new:Nn, \@@_array_new:nNNN}
+%   Build a three token token list, then define all three tokens to be
+%   integer arrays of the same size.
+%    \begin{macrocode}
+\cs_new_protected:Npn \fparray_new:Nn #1#2
+  {
+    \tl_new:N #1
+    \prg_replicate:nn { 3 }
+      {
+        \int_gincr:N \g_@@_array_int
+        \exp_args:NNc \tl_gput_right:Nn #1
+          { g_@@_array_ \@@_int_to_roman:w \g_@@_array_int _intarray }
+      }
+    \exp_last_unbraced:Nfo \@@_array_new:nNNNN
+      { \int_eval:n {#2} } #1 #1
+  }
+\cs_new_protected:Npn \@@_array_new:nNNNN #1#2#3#4#5
+  {
+    \int_compare:nNnTF {#1} < 0
+      {
+        \__kernel_msg_error:nnn { kernel } { negative-array-size } {#1}
+        \cs_undefine:N #1
+        \int_gsub:Nn \g_@@_array_int { 3 }
+      }
+      {
+        \intarray_new:Nn #2 {#1}
+        \intarray_new:Nn #3 {#1}
+        \intarray_new:Nn #4 {#1}
+        \fparray_gzero:N #5
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\fparray_count:N}
+%   Size of one of the intarrays.  It's simplest to use the third.
+%    \begin{macrocode}
+\cs_new:Npn \fparray_count:N #1
+  {
+    \exp_after:wN \use_i:nnn
+    \exp_after:wN \intarray_count:N #1
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Array items}
+%
+% \begin{macro}[EXP]{\@@_array_bounds:NNnTF, \@@_array_bounds_error:NNn}
+%   See the \pkg{l3intarray} analogue: only names change.
+%   The functions \cs{fparray_gset:Nnn} and \cs{fparray_item:Nn} share
+%   bounds checking.  The |T| branch is used if |#3| is within bounds of
+%   the array |#2|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_array_bounds:NNnTF #1#2#3#4#5
+  {
+    \if_int_compare:w 1 > #3 \exp_stop_f:
+      \@@_array_bounds_error:NNn #1 #2 {#3}
+      #5
+    \else:
+      \if_int_compare:w #3 > \fparray_count:N #2 \exp_stop_f:
+        \@@_array_bounds_error:NNn #1 #2 {#3}
+        #5
+      \else:
+        #4
+      \fi:
+    \fi:
+  }
+\cs_new:Npn \@@_array_bounds_error:NNn #1#2#3
+  {
+    #1 { kernel } { out-of-bounds }
+      { \token_to_str:N #2 } {#3} { \fparray_count:N #2 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\fparray_gset:Nnn, \@@_array_gset:Nww}
+%   Evaluate, then store exponent in one intarray, sign and $8$ digits
+%   of mantissa in the next, and $8$ trailing digits in the last.
+%    \begin{macrocode}
+\cs_new_protected:Npn \fparray_gset:Nnn #1#2#3
+  {
+    \exp_after:wN \exp_after:wN
+    \exp_after:wN \@@_array_gset:NNNNww
+    \exp_after:wN #1
+    \exp_after:wN #1
+    \int_value:w \int_eval:n {#2} \exp_after:wN ;
+    \exp:w \exp_end_continue_f:w \@@_parse:n {#3}
+  }
+\cs_new_protected:Npn \@@_array_gset:NNNNww #1#2#3#4#5 ; #6 ;
+  {
+    \@@_array_bounds:NNnTF \__kernel_msg_error:nnxxx #4 {#5}
+      {
+        \exp_after:wN \@@_change_func_type:NNN
+          \@@_use_i_until_s:nw #6 ;
+          \@@_array_gset:w
+          \@@_array_gset_recover:Nw
+        #6 ; {#5} #1 #2 #3
+      }
+      { }
+  }
+\cs_new_protected:Npn \@@_array_gset_recover:Nw #1#2 ;
+  {
+    \@@_error:nffn { fp-unknown-type } { \tl_to_str:n { #2 ; } } { } { }
+    \exp_after:wN #1 \c_nan_fp
+  }
+\cs_new_protected:Npn \@@_array_gset:w \s_@@ \@@_chk:w #1#2
+  {
+    \if_case:w #1 \exp_stop_f:
+         \@@_case_return:nw { \@@_array_gset_zero:NnNNN #2 }
+    \or: \exp_after:wN \@@_array_gset_normal:w
+    \or: \@@_case_return:nw { \@@_array_gset_inf:NnNNN #2 }
+    \or: \@@_case_return:nw { \@@_array_gset_nan:nNNN }
+    \fi:
+    \s_@@ \@@_chk:w #1 #2
+  }
+\cs_new_protected:Npn \@@_array_gset_normal:w
+  \s_@@ \@@_chk:w 1 #1 #2 #3#4#5 ; #6#7#8#9
+  {
+    \__kernel_intarray_gset:Nnn #7 {#6} {#2}
+    \__kernel_intarray_gset:Nnn #8 {#6}
+      { \if_meaning:w 2 #1 3 \else: 1 \fi: #3#4 }
+    \__kernel_intarray_gset:Nnn #9 {#6} { 1 \use:nn #5 }
+  }
+\cs_new_protected:Npn \@@_array_gset_zero:NnNNN #1#2#3#4#5
+  {
+    \__kernel_intarray_gset:Nnn #3 {#2} {#1}
+    \__kernel_intarray_gset:Nnn #4 {#2} {20000}
+    \__kernel_intarray_gset:Nnn #5 {#2} {1}
+  }
+\cs_new_protected:Npn \@@_array_gset_inf:NnNNN #1#2#3#4#5
+  {
+    \__kernel_intarray_gset:Nnn #3 {#2} { #1 3 }
+    \__kernel_intarray_gset:Nnn #4 {#2} {20000}
+    \__kernel_intarray_gset:Nnn #5 {#2} {1}
+  }
+\cs_new_protected:Npn \@@_array_gset_nan:nNNN #1#2#3#4
+  {
+    \__kernel_intarray_gset:Nnn #2 {#1} {1}
+    \__kernel_intarray_gset:Nnn #3 {#1} {20000}
+    \__kernel_intarray_gset:Nnn #4 {#1} {1}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\fparray_gzero:N}
+%    \begin{macrocode}
+\cs_new_protected:Npn \fparray_gzero:N #1
+  {
+    \int_zero:N \l_@@_array_loop_int
+    \prg_replicate:nn { \fparray_count:N #1 }
+      {
+        \int_incr:N \l_@@_array_loop_int
+        \exp_after:wN \@@_array_gset_zero:NnNNN
+        \exp_after:wN 0
+        \exp_after:wN \l_@@_array_loop_int
+        #1
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]
+%   {
+%     \fparray_item:Nn,
+%     \fparray_item_to_tl:Nn,
+%     \@@_array_item:NwN,
+%     \@@_array_item:NNNnN,
+%     \@@_array_item:w,
+%     \@@_array_item_special:w,
+%     \@@_array_item_normal:w
+%   }
+%    \begin{macrocode}
+\cs_new:Npn \fparray_item:Nn #1#2
+  {
+    \exp_after:wN \@@_array_item:NwN
+    \exp_after:wN #1
+    \int_value:w \int_eval:n {#2} ;
+    \@@_to_decimal:w
+  }
+\cs_new:Npn \fparray_item_to_tl:Nn #1#2
+  {
+    \exp_after:wN \@@_array_item:NwN
+    \exp_after:wN #1
+    \int_value:w \int_eval:n {#2} ;
+    \@@_to_tl:w
+  }
+\cs_new:Npn \@@_array_item:NwN #1#2 ; #3
+  {
+    \@@_array_bounds:NNnTF \__kernel_msg_expandable_error:nnfff #1 {#2}
+      { \exp_after:wN \@@_array_item:NNNnN #1 {#2} #3 }
+      { \exp_after:wN #3 \c_nan_fp }
+  }
+\cs_new:Npn \@@_array_item:NNNnN #1#2#3#4
+  {
+    \exp_after:wN \@@_array_item:w
+    \int_value:w \__kernel_intarray_item:Nn #2 {#4} \exp_after:wN ;
+    \int_value:w \__kernel_intarray_item:Nn #3 {#4} \exp_after:wN ;
+    \int_value:w \__kernel_intarray_item:Nn #1 {#4} ;
+  }
+\cs_new:Npn \@@_array_item:w #1 #2#3#4#5 #6 ; 1 #7 ;
+  {
+    \if_meaning:w #1 2 \exp_after:wN \@@_array_item_special:w \fi:
+    \exp_after:wN \@@_array_item_normal:w
+    \int_value:w \if_meaning:w #1 1 0 \else: 2 \fi: \exp_stop_f:
+    #7 ; {#2#3#4#5} {#6} ;
+  }
+\cs_new:Npn \@@_array_item_special:w #1 ; #2 ; #3 ; #4
+  {
+    \exp_after:wN #4
+    \exp:w \exp_end_continue_f:w
+    \if_case:w #3 \exp_stop_f:
+         \exp_after:wN \c_zero_fp
+    \or: \exp_after:wN \c_nan_fp
+    \or: \exp_after:wN \c_minus_zero_fp
+    \or: \exp_after:wN \c_inf_fp
+    \else: \exp_after:wN \c_minus_inf_fp
+    \fi:
+  }
+\cs_new:Npn \@@_array_item_normal:w #1 #2#3#4#5 #6 ; #7 ; #8 ; #9
+  { #9 \s_@@ \@@_chk:w 1 #1 {#8} #7 {#2#3#4#5} {#6} ; }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex
