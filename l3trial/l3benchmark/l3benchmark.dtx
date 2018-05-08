@@ -318,12 +318,9 @@ end
         --shell-escape~option.
       }
     \cs_new_protected:Npn \benchmark:n #1
-      {
-        \msg_error:nn { benchmark } { no-time }
-        \benchmark_display:n { 0 }
-      }
-    \cs_new_protected:Npn \benchmark_display:n #1
-      { \iow_term:x { \tl_to_str:n {#1} ~ seconds } }
+      { \msg_error:nn { benchmark } { no-time } }
+    \cs_new_protected:Npn \benchmark_once:n #1
+      { \msg_error:nn { benchmark } { no-time } }
     \msg_critical:nn { benchmark } { no-time }
   }
 %    \end{macrocode}
@@ -338,11 +335,16 @@ end
 %    \end{macrocode}
 % \end{variable}
 % 
-% \begin{variable}{\l_@@_time_int}
-%   This variable holds the time before and after running a piece of
-%   code, as an integer in scaled seconds.
+% \begin{variable}{\l_@@_time_int, \l_@@_time_a_int, \l_@@_time_b_int, \l_@@_time_c_int, \l_@@_time_d_int, \l_@@_time_median_int}
+%   These variables hold the time for running a piece of code, as an
+%   integer in scaled seconds.
 %    \begin{macrocode}
 \int_new:N \l_@@_time_int
+\int_new:N \l_@@_time_a_int
+\int_new:N \l_@@_time_b_int
+\int_new:N \l_@@_time_c_int
+\int_new:N \l_@@_time_d_int
+\int_new:N \l_@@_time_median_int
 %    \end{macrocode}
 % \end{variable}
 %
@@ -355,31 +357,31 @@ end
 % \end{variable}
 %
 % \begin{variable}{\g_@@_nesting_int}
-% \begin{macro}{\@@_raw:n, \@@_raw_aux:N, \@@_raw_end:n}
-%   Store in \cs{l_@@_time_int} the time it took to perform a given
+% \begin{macro}{\@@_raw:nN, \@@_raw_aux:N, \@@_raw_end:nN}
+%   Store in the given integer variable the time it took to perform a given
 %   piece of code, in scaled seconds.  We call \cs{sys_timer_apply:N} as
 %   close before and after the code as possible.  We store the
-%   intermediate result in a new integer when \cs{@@_raw:n} is
+%   intermediate result in a new integer when \cs{@@_raw:nN} is
 %   nested.
 %    \begin{macrocode}
 \int_new:N \g_@@_nesting_int
-\cs_new_protected:Npn \@@_raw:n #1
+\cs_new_protected:Npn \@@_raw:nN #1
   {
     \int_gincr:N \g_@@_nesting_int
     \exp_args:Nc \@@_raw_aux:N
       { g_@@_ \int_use:N \g_@@_nesting_int _int }
     \sys_timer_apply:N \@@_raw_aux:n
     #1
-    \sys_timer_apply:N \@@_raw_end:n
+    \sys_timer_apply:N \@@_raw_end:nN
   }
 \cs_new_protected:Npn \@@_raw_aux:N #1
   {
     \int_gzero_new:N #1
     \cs_gset_protected:Npn \@@_raw_aux:n { \int_gset:Nn #1 }
   }
-\cs_new_protected:Npn \@@_raw_end:n #1
+\cs_new_protected:Npn \@@_raw_end:nN #1#2
   {
-    \int_set:Nn \l_@@_time_int
+    \int_set:Nn #2
       {
         #1 -
         \int_use:c { g_@@_ \int_use:N \g_@@_nesting_int _int }
@@ -388,15 +390,23 @@ end
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{variable}
 %
-% \begin{macro}{\@@_raw_replicate:nn, \@@_tmp:w, \@@_raw_replicate_aux:n}
-%   Here, we wish to measure the time it takes for the piece of code |#2|
-%   to be run |#1| times. The \cs{prg_replicate:nn} is expanded before
-%   being fed to \cs{@@_raw:n} to avoid timing its expansion as well.
+% \begin{macro}{\benchmark_once:n}
+%   Convert from scaled seconds to seconds.
+%    \begin{macrocode}
+\cs_new_protected:Npn \benchmark_once:n #1
+  {
+    \@@_raw:nN {#1} \l_@@_time_int
+    \benchmark_display:f { \fp_to_tl:n { \l_@@_time_int / 65536 } }
+  }
+%    \end{macrocode}
+% \end{macro}
 %
-%   We subtract the time for another call to \cs{@@_tmp:w}, with the
-%   same arguments (to capture the time it takes to read the argument)
-%   but empty expansion.
+% \begin{macro}{\@@_raw_replicate:nnN, \@@_tmp:w}
+%   Here, we wish to measure the time it takes for the piece of code
+%   |#2| to be run |#1| times, and store the result in the
+%   integer~|#3|.
 %
 %   If the number of copies required is large (here ${}>1024$), it may
 %   exhaust \TeX{}'s main memory. In that case, we replicate $1024$
@@ -404,87 +414,109 @@ end
 %   division by $1024$ rounds to an integer, so that step introduces a
 %   relative error of order $1/1000$, much less than many other sources
 %   of variability.
+%
+%   We subtract the time for another call to \cs{@@_tmp:w}, with the
+%   same arguments (to capture the time it takes to read the argument)
+%   but empty expansion.
 %    \begin{macrocode}
 \cs_new_eq:NN \@@_tmp:w ?
-\cs_new_protected:Npn \@@_raw_replicate:nn #1
+\cs_new_protected:Npn \@@_raw_replicate:nnN #1
   {
     \int_compare:nNnTF {#1} > { 1024 }
-      { \@@_raw_replicate_large:nn {#1} }
-      { \@@_raw_replicate_small:nn {#1} }
+      { \@@_raw_replicate_large:nnN {#1} }
+      { \@@_raw_replicate_small:nnN {#1} }
   }
-\cs_new_protected:Npn \@@_raw_replicate_large:nn #1#2
+\cs_new_protected:Npn \@@_raw_replicate_large:nnN #1#2
   {
-    \exp_args:Nno \@@_raw_replicate:nn { #1 / 1024 }
+    \exp_args:Nno \@@_raw_replicate:nnN { #1 / 1024 }
       { \@@_replicate_kibi_fold:n {#2} }
   }
-\cs_new_protected:Npn \@@_raw_replicate_small:nn #1#2
+\cs_new_protected:Npn \@@_raw_replicate_small:nnN #1#2
   {
     \cs_set:Npx \@@_tmp:w ##1##2 { \prg_replicate:nn {#1} {##1} }
-    \@@_raw:n { \@@_tmp:w {#2} { } }
-    \exp_args:No \@@_raw_replicate_aux:nn
+    \@@_raw:nN { \@@_tmp:w {#2} { } } \l_@@_time_int
+    \exp_args:No \@@_raw_replicate_aux:nnN
       { \int_use:N \l_@@_time_int } {#2}
   }
-\cs_new_protected:Npn \@@_raw_replicate_aux:nn #1#2
+\cs_new_protected:Npn \@@_raw_replicate_aux:nnN #1#2#3
   {
-    \@@_raw:n { \@@_tmp:w { } {#2} }
-    \int_set:Nn \l_@@_time_int { #1 - \l_@@_time_int }
+    \@@_raw:nN { \@@_tmp:w { } {#2} } \l_@@_time_int
+    \int_set:Nn #3 { #1 - \l_@@_time_int }
   }
 \cs_new:Npx \@@_replicate_kibi_fold:n #1
   { \prg_replicate:nn {1024} {#1} }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\benchmark_once:n}
-%   Convert from scaled seconds to seconds.
+% \begin{macro}{\@@_set_median:, \@@_set_median:NNNN}
 %    \begin{macrocode}
-\cs_new_protected:Npn \benchmark_once:n #1
+\cs_new_protected:Npn \@@_set_median:
   {
-    \@@_raw:n {#1}
-    \benchmark_display:f { \fp_to_tl:n { \l_@@_time_int / 65536 } }
+    \@@_set_median:NNNN \l_@@_time_a_int \l_@@_time_b_int
+      \l_@@_time_c_int \l_@@_time_d_int
+  }
+\cs_new_protected:Npn \@@_set_median:NNNN #1#2#3#4
+  {
+    \int_set:Nn \l_@@_time_median_int
+      {
+        ( #1 + #2 + #3 + #4
+        - \int_min:nn { \int_min:nn #1 #2 } { \int_min:nn #3 #4 }
+        - \int_max:nn { \int_max:nn #1 #2 } { \int_max:nn #3 #4 } ) / 2
+      }
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\benchmark:n}
 %   The main timing function. First time the user code once.  If that
-%   took more than half a second we're done.  If that took much less
-%   than a second, quadruple the number of copies until it takes a
-%   reasonable amount of time (this is to avoid division by
-%   \cs{l_@@_time_int} when that is zero or too small).  Finally if it
-%   took between one hundredth of a second and half a second compute a
-%   number of times that can fit in one second (minus the time we
-%   already spent) and measure that.  Once a large enough time was
-%   measured, divide that by $65536$ and by the number of repetitions.
+%   took more than a third of a second we're done.  If that took much
+%   less than a second, quadruple the number of copies until it takes a
+%   reasonable amount of time (this is to avoid division by a possibly
+%   zero time).  Once we reach a reasonable time, compute a number of
+%   times that can fit in one quarter of a second and measure that four
+%   times.  To save time we reuse the result of the first pass if
+%   \cs{l_@@_repeat_int} is one.  Once we have four results, take their
+%   median and display that, divided by $65536$ and by the number of
+%   repetitions.
 %    \begin{macrocode}
+\tl_new:N \g_@@_code_tl
+\fp_new:N \l_@@_time_fp
 \cs_new_protected:Npn \benchmark:n #1
   {
     \int_set:Nn \l_@@_repeat_int { 1 }
-    \@@_raw:n {#1}
-    \int_compare:nNnT { \l_@@_time_int } > { \l_@@_duration_int / 2 }
+    \tl_gset:Nn \g_@@_code_tl {#1}
+    \@@_raw:nN { \g_@@_code_tl } \l_@@_time_int
+    \int_compare:nNnF \l_@@_time_int < { \l_@@_duration_int / 2 }
       { \prg_break: }
-    \int_while_do:nNnn
-      { \l_@@_time_int } < { \l_@@_duration_int / 100 }
+    \int_while_do:nNnn \l_@@_time_int < { \l_@@_duration_int / 100 }
       {
         \int_compare:nNnT \l_@@_repeat_int > { \c_max_int / 4 }
           {
-            \int_set:Nn \l_@@_time_int { 0 }
+            \int_set:Nn \l_@@_time_median_int { 0 }
             \prg_break:
           }
         \int_set:Nn \l_@@_repeat_int { 4 * \l_@@_repeat_int }
-        \@@_raw_replicate:nn { \l_@@_repeat_int } {#1}
+        \@@_run:N \l_@@_time_int
       }
     \int_set:Nn \l_@@_repeat_int
       {
-        \l_@@_duration_int * \l_@@_repeat_int / \l_@@_time_int
-        - \l_@@_repeat_int * 5 / 4 - 1
+        \int_max:nn { 1 }
+          { \l_@@_duration_int * \l_@@_repeat_int / ( \l_@@_time_int * 4 ) }
       }
-    \@@_raw_replicate:nn { \l_@@_repeat_int } {#1}
+    \int_compare:nNnTF \l_@@_repeat_int = 1
+      { \int_set_eq:NN \l_@@_time_a_int \l_@@_time_int }
+      { \@@_run:N \l_@@_time_a_int }
+    \@@_run:N \l_@@_time_b_int
+    \@@_run:N \l_@@_time_c_int
+    \@@_run:N \l_@@_time_d_int
+    \@@_set_median:
     \prg_break_point:
     \fp_set:Nn \l_@@_time_fp
-      { \l_@@_time_int / \l_@@_repeat_int / 65536 }
+      { \l_@@_time_median_int / \l_@@_repeat_int / 65536 }
     \benchmark_display:f { \fp_to_tl:N \l_@@_time_fp }
   }
-\fp_new:N \l_@@_time_fp
+\cs_new_protected:Npn \@@_run:N
+  { \exp_args:NNo \@@_raw_replicate:nnN \l_@@_repeat_int { \g_@@_code_tl } }
 %    \end{macrocode}
 % \end{macro}
 %
