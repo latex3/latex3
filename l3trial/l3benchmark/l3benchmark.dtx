@@ -1,6 +1,6 @@
 % \iffalse
 %
-%% File l3benchmark.dtx Copyright (C) 2011,2012,2014-2017 The LaTeX3 Project
+%% File l3benchmark.dtx Copyright (C) 2011,2012,2014-2018 The LaTeX3 Project
 %%
 %% It may be distributed and/or modified under the conditions of the
 %% LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -66,20 +66,20 @@
 %
 % \section{Benchmark}
 %
-% \begin{function}{\clock_get:N}
+% \begin{function}{\sys_timer_apply:N}
 %   \begin{syntax}
-%     \cs{clock_get:N} \meta{tl~var}
+%     \cs{sys_timer_apply:N} \meta{function}
 %   \end{syntax}
-%   Stores the current time in seconds in the \meta{tl~var}.  The output
-%   is the same as \cs{fp_to_decimal:n}.  The time is measured from the
-%   last occurrence of \cs{clock_zero:}, which is called when loading
-%   the package.  This function may fail for large values (about $9$
-%   hours) in some engines.
+%   Calls \meta{function} \Arg{time} where \meta{time} is the time
+%   elapsed since the last \cs{sys_timer_gzero:}, which is also called
+%   while loading the package.  The \meta{time} is an integer, measured
+%   in scaled seconds, namely $2^{-16}$ seconds.  The integer may
+%   overflow after about $9$ hours in some engines.
 % \end{function}
 %
-% \begin{function}{\clock_zero:}
+% \begin{function}{\sys_timer_gzero:}
 %   \begin{syntax}
-%     \cs{clock_zero:}
+%     \cs{sys_timer_gzero:}
 %   \end{syntax}
 %   Resets the timer to zero.
 % \end{function}
@@ -97,10 +97,10 @@
 %   side-effects.
 % \end{function}
 %
-% \begin{variable}{\l_benchmark_duration_fp}
-%   This variable controls the duration of the benchmark. Namely,
-%   the benchmark will take a time between half and twice
-%   \cs{l_benchmark_duration_fp} seconds.
+% \begin{variable}{\l_benchmark_duration_int}
+%   This variable controls the duration of the benchmark in scaled
+%   seconds. Namely, the benchmark will take a time roughly between half
+%   and twice \cs{l_benchmark_duration_int} scaled seconds.
 % \end{variable}
 %
 % \begin{function}{\benchmark_tic:,\benchmark_toc:}
@@ -123,6 +123,26 @@
 %
 % \section{\pkg{l3benchmark} implementation}
 %
+% Our working unit is the scaled second, namely $2^{-16}$ seconds.
+%
+% There are four cases: the elapsed time is available as the primitive
+% \tn{pdfelapsedtime}, or through Heiko Oberdiek's \pkg{pdftexcmds} as
+% \tn{pdf@elapsedtime}, or by accessing system time through
+% \texttt{texlua} using unrestricted shell escape, or the elapsed time
+% is not available.  The first two cases behave in the same way, while
+% the third requires using floating point numbers.  The third way uses
+% the following Lua code to print a large floating point number: the
+% system time in scaled seconds; it is around $10^{14}$.
+%    \begin{macrocode}
+%<*lua>
+if os.gettimeofday then
+  io.write(65536 * os.gettimeofday())
+else
+  io.write(65536 * os.date("%s"))
+end
+%</lua>
+%    \end{macrocode}
+%
 %    \begin{macrocode}
 %<*initex|package>
 %    \end{macrocode}
@@ -134,62 +154,168 @@
 %</package>
 %    \end{macrocode}
 %
+% \subsection{Additions to \pkg{l3sys}: elapsed time}
+%
 %    \begin{macrocode}
-%<@@=clock>
+%<@@=sys>
 %    \end{macrocode}
 %
-% \subsection{Case where the clock is unavailable}
-%
-% The \pkg{benchmark} package needs to access the time in a way or
-% other.  The \pdfTeX{} engine provides \tn{pdfelapsedtime}.  Heiko
-% Oberdiek's \pkg{pdftexcmds} provides \tn{pdf@elapsedtime} for the
-% \LuaTeX{} engine.  For \XeTeX{}, we need to access the system time.
-% This can only be done with an external call with full |\write18|
-% enabled.
-%
-% Load Heiko's \pkg{pdftexcmds} to get \tn{pdf@elapsedtime} and
-% \tn{pdf@resettimer}.
+% \begin{macro}{\@@_timer:}
+% \begin{macro}[pTF]{\sys_if_timer_exist:}
+%   In \LuaTeX{}, load Heiko's \pkg{pdftexcmds} to get
+%   \tn{pdf@elapsedtime}, otherwise try to locate the primitive.  The
+%   elapsed time will be available if this succeeds or if unrestricted
+%   shell escape is available.
 %    \begin{macrocode}
-\sys_if_engine_luatex:T { \RequirePackage{pdftexcmds} \scan_stop: }
-%    \end{macrocode}
-%
-% \begin{variable}{\l_benchmark_time_fail_bool}
-%   This boolean is true if \pkg{l3benchmark} is unable to access the
-%   time, \emph{i.e.,} if the engine is \XeTeX{} and full shell-escape
-%   is disabled.  In that case, define the user commands to raise an
-%   error, and raise a critical error.  The current file stops being
-%   read.
-%    \begin{macrocode}
-\bool_new:N \l_benchmark_time_fail_bool
-\bool_lazy_or:nnF
-  { \sys_if_engine_pdftex_p: }
-  { \sys_if_engine_luatex_p: }
+\sys_if_engine_luatex:TF
   {
-    \cs_if_exist:NTF \shellescape
-      {
-        \int_compare:nNnF \shellescape = 1
-          { \bool_set_true:N \l_benchmark_time_fail_bool }
-      }
-      { \bool_set_true:N \l_benchmark_time_fail_bool }
+    \RequirePackage{pdftexcmds} \scan_stop:
+    \cs_new_eq:NN \@@_timer: \pdf@elapsedtime
   }
-\bool_if:NT \l_benchmark_time_fail_bool
+  {
+    \cs_if_exist:NTF \tex_elapsedtime:D
+      { \cs_new_eq:NN \@@_timer: \tex_elapsedtime:D }
+      {
+        \cs_if_exist:NT \pdfelapsedtime
+          { \cs_new_eq:NN \@@_timer: \pdfelapsedtime }
+      }
+  }
+\@@_const:nn { sys_if_timer_exist }
+  { \cs_if_exist_p:N \@@_timer: || \sys_if_shell_unrestricted_p: }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\sys_timer_gzero:, \sys_timer_apply:N, \@@_timer:, \@@_timer_fp:}
+% \begin{variable}{\g_@@_timer_base_int, \g_@@_timer_base_fp}
+%   Three case, and in each case we define \cs{sys_timer_gzero:} then
+%   \cs{sys_timer_apply:N}.  If \cs{@@_timer:} exists then it is safe to
+%   use the corresponding \enquote{resettimer} code for
+%   \cs{sys_timer_gzero:}, or as a fall-back use
+%   \cs{g_@@_timer_base_int} as an offset.
+%    \begin{macrocode}
+\cs_if_exist:NTF \@@_timer:
+  {
+    \cs_if_exist:NTF \pdf@resettimer
+      { \cs_new_eq:NN \sys_timer_gzero: \pdf@resettimer }
+      {
+        \cs_if_exist:NTF \tex_resettimer:D
+          { \cs_new_eq:NN \sys_timer_gzero: \tex_resettimer:D }
+          {
+            \cs_if_exist:NTF \pdfresettimer
+              { \cs_new_eq:NN \sys_timer_gzero: \pdfresettimer }
+              {
+                \int_new:N \g_@@_timer_base_int
+                \cs_new_protected:Npn \sys_timer_gzero:
+                  { \int_gset:Nn \g_@@_timer_base_int { \@@_timer: } }
+              }
+          }
+      }
+    \int_if_exist:NTF \g_@@_timer_base_int
+      {
+        \cs_new_protected:Npn \sys_timer_apply:N #1
+          {
+            \exp_args:Nf #1
+              { \int_eval:n { \@@_timer: - \g_@@_timer_base_int } }
+          }
+      }
+      {
+        \cs_new_protected:Npn \sys_timer_apply:N #1
+          { \exp_args:No #1 { \int_value:w \@@_timer: } }
+      }
+  }
+%    \end{macrocode}
+%   Otherwise we use unrestricted shell escape to define
+%   \cs{@@_timer_fp:} (an analogue of \cs{@@_timer:} that produces a
+%   floating point number), and we store the offset in
+%   \cs{g_@@_timer_base_fp}.  We neutralize the end of file marker using
+%   \cs{exp_not:N}.
+%    \begin{macrocode}
+  {
+    \sys_if_shell_unrestricted:TF
+      {
+        \cs_new_protected:Npn \@@_timer_fp:
+          {
+            \int_eval:n
+              { \tex_input:D " | texlua ~ l3sys-time.lua " ~ }
+            \exp_stop_f:
+          }
+        \fp_new:N \g_@@_timer_base_fp
+        \cs_new_protected:Npn \sys_timer_gzero:
+          { \fp_gset:Nn \g_@@_timer_base_fp { \@@_timer_fp: } }
+        \cs_new_protected:Npn \sys_timer_apply:N #1
+          {
+            \group_begin:
+            \tex_everyeof:D { \exp_not:N }
+            \exp_args:NNf \group_end:
+              #1
+              { \fp_to_int:n { \@@_timer_fp: - \g_@@_timer_base_fp } }
+          }
+      }
+%    \end{macrocode}
+%   Finally if the elapsed time cannot be accessed then we define user
+%   commands to produce errors.
+%    \begin{macrocode}
+      {
+        \__kernel_msg_new:nnnn { kernel } { no-elapsed-time }
+          { No~clock~detected~for~#1. }
+          {
+            The~current~engine~provides~no~way~to~access~the~system~time,~
+            hence~no~way~to~know~the~time~elapsed~without~shell-escape.~
+            Please~use~pdfTeX,~LuaTeX,~or~call~other~engines~with~the~
+            --shell-escape~option.
+          }
+        \cs_new_protected:Npn \sys_timer_gzero:
+          {
+            \__kernel_msg_error:nnn { kernel } { no-elapsed-time }
+              { \sys_timer_gzero: }
+          }
+        \cs_new_protected:Npn \sys_timer_apply:N #1
+          {
+            \__kernel_msg_error:nnn { kernel } { no-elapsed-time }
+              { \sys_timer_apply:N #1 }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+% The following line is needed in engines where elapsed time comes from
+% system time, because the starting value of the clock is otherwise very
+% large (time is counted from epoch).  For consistency, we call
+% \cs{sys_timer_gzero:} in all engines.
+%    \begin{macrocode}
+\sys_if_timer_exist:T { \sys_timer_gzero: }
+%    \end{macrocode}
+%
+% \subsection{Benchmarking code}
+%
+%    \begin{macrocode}
+%<@@=benchmark>
+%    \end{macrocode}
+%
+% \begin{variable}{\l_benchmark_duration_int}
+%   The benchmark is constrained to take roughly
+%   (from half to twice) \cs{l_benchmark_duration_int} scaled
+%   seconds, unless one iteration of the code takes longer.
+%    \begin{macrocode}
+\int_new:N \l_benchmark_duration_int
+\int_set:Nn \l_benchmark_duration_int { 65536 }
+%    \end{macrocode}
+% \end{variable}
+%
+%    \begin{macrocode}
+\sys_if_timer_exist:F
   {
     \msg_new:nnnn { benchmark } { no-time }
       { The~l3benchmark~package~failed~to~access~a~clock. }
       {
-        The~XeTeX,~pTeX,~and~upTeX~engines~provide~
-        no~way~to~access~the~system~time,~
+        The~current~engine~provides~no~way~to~access~the~system~time,~
         hence~making~benchmarking~impossible~without~shell-escape.~
         Please~use~pdfTeX,~LuaTeX,~or~call~other~engines~with~the~
         --shell-escape~option.
       }
-    \cs_new_protected:Npn \clock_get:N #1
-      {
-        \msg_error:nn { benchmark } { no-time }
-        \int_zero:N #1
-      }
-    \cs_new_protected:Npn \clock_zero:
-      { \msg_error:nn { benchmark } { no-time } }
     \cs_new_protected:Npn \benchmark:n #1
       {
         \msg_error:nn { benchmark } { no-time }
@@ -197,171 +323,8 @@
       }
     \cs_new_protected:Npn \benchmark_display:n #1
       { \iow_term:x { \tl_to_str:n {#1} ~ seconds } }
-    \fp_new:N \l_benchmark_duration_fp
-    \fp_set:Nn \l_benchmark_duration_fp { 1 }
     \msg_critical:nn { benchmark } { no-time }
   }
-%    \end{macrocode}
-% \end{variable}
-%
-% \subsection{Clock}
-%
-% This section defines two functions.
-% \begin{itemize}
-% \item \cs{clock_get:N}, which stores the current time as a token list
-%   variable in its argument.  This function is based on
-%   \tn{pdfelapsedtime} in \pdfTeX{}, on \tn{pdf@elapsedtime} in
-%   \LuaTeX{}, and on a call to \texttt{texlua} in \XeTeX{}.
-% \item \cs{clock_zero:}, which resets the clock.  This function is
-%   based on \tn{pdfresettimer} in \pdfTeX{}, \tn{pdf@resettimer} in
-%   \LuaTeX{}, and on a call to \texttt{texlua} in \XeTeX{}.
-% \end{itemize}
-% Each of those functions has a complicated definition in \XeTeX{}, and
-% neither is defined in \XeTeX{} without full shell-escape.
-%
-% \begin{macro}{\clock_get:N}
-%   We postpone the definition for \XeTeX{}.  For \pdfTeX{} and
-%   \LuaTeX{}, rescale the value of \tn{pdfelapsedtime} or
-%   \tn{pdf@elapsedtime}.
-%    \begin{macrocode}
-\sys_if_engine_xetex:F
-  {
-    \sys_if_engine_pdftex:TF
-      {
-        \cs_new_protected:Npn \clock_get:N #1
-          { \tl_set:Nx #1 { \fp_to_decimal:n { \pdfelapsedtime / 65536 } } }
-      }
-      {
-        \cs_new_protected:Npn \clock_get:N #1
-          {
-            \tl_set:Nx #1
-              { \fp_to_decimal:n { \the \pdf@elapsedtime / 65536 } }
-          }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\clock_zero:}
-%   We postpone the definition for \XeTeX{}.  For \pdfTeX{} and
-%   \LuaTeX{}, call \tn{pdfresettimer} or \tn{pdf@resettimer}.
-%    \begin{macrocode}
-\sys_if_engine_xetex:F
-  {
-    \sys_if_engine_pdftex:TF
-      { \cs_new_protected:Npn \clock_zero: { \pdfresettimer } }
-      { \cs_new_protected:Npn \clock_zero: { \pdf@resettimer } }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% What follows is exclusively run for \XeTeX{}.
-%
-% \begin{variable}{\c_@@_lua_file_tl, \c_@@_time_file_tl}
-%   File names.
-%    \begin{macrocode}
-\sys_if_engine_xetex:T
-  {
-    \tl_const:Nx \c_@@_lua_file_tl { \c_sys_jobname_str . lua }
-    \tl_const:Nx \c_@@_time_file_tl { \c_sys_jobname_str . timestamp }
-  }
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{variable}{\l_@@_iow}
-%   Write the \Lua{} file.
-%    \begin{macrocode}
-\sys_if_engine_xetex:T
-  {
-    \iow_new:N \l_@@_iow
-    \iow_open:Nn \l_@@_iow { \c_@@_lua_file_tl }
-    \iow_now:Nx \l_@@_iow
-      {
-                      os.remove("\c_@@_time_file_tl")
-        \iow_newline: io.output("\c_@@_time_file_tl")
-        \iow_newline: if ~ os.gettimeofday ~ then
-        \iow_newline:   io.write(os.gettimeofday())
-        \iow_newline: else
-        \iow_newline:   io.write(os.date("\iow_char:N\%s"))
-        \iow_newline: end
-      }
-    \iow_close:N \l_@@_iow
-  }
-%    \end{macrocode}
-% \end{variable}
-%
-% \begin{macro}[int]{\@@_gget:N}
-% \begin{variable}{\l_@@_ior}
-% \begin{variable}{\l_@@_tl}
-%   Call \texttt{texlua} to write the system time to
-%   \cs{c_@@_time_file_tl} and read the information back as
-%   \cs{l_@@_tl}.  Then assign it globally to the floating point
-%   |#1|.
-%    \begin{macrocode}
-\sys_if_engine_xetex:T
-  {
-    \ior_new:N \l_@@_ior
-    \tl_new:N \l_@@_tl
-    \cs_new_protected:Npn \@@_gget:N #1
-      {
-        \tex_immediate:D \tex_write:D 18
-          { texlua ~ \c_@@_lua_file_tl }
-        \ior_open:Nn \l_@@_ior { \c_@@_time_file_tl }
-        \ior_str_get:NN \l_@@_ior \l_@@_tl
-        \ior_close:N \l_@@_ior
-        \fp_gset:Nn #1 { \l_@@_tl }
-      }
-  }
-%    \end{macrocode}
-% \end{variable}
-% \end{variable}
-% \end{macro}
-%
-% \begin{macro}{\clock_zero:}
-% \begin{variable}{\g_@@_base_fp}
-%   Resetting the timer amounts to changing the \enquote{base time},
-%   used as an offset when reporting the time in \cs{_@@_get:N}.
-%    \begin{macrocode}
-\sys_if_engine_xetex:T
-  {
-    \fp_new:N \g_@@_base_fp
-    \cs_new_protected:Npn \clock_zero:
-      { \@@_gget:N \g_@@_base_fp }
-  }
-%    \end{macrocode}
-% \end{variable}
-% \end{macro}
-%
-% \begin{macro}{\clock_get:N}
-% \begin{variable}{\g_@@_fp}
-%   Get the current clock time, then compute the difference with the
-%   base time.
-%    \begin{macrocode}
-\sys_if_engine_xetex:T
-  {
-    \fp_new:N \g_@@_fp
-    \cs_new_protected:Npn \clock_get:N #1
-      {
-        \@@_gget:N \g_@@_fp
-        \tl_set:Nx #1
-          { \fp_to_decimal:n { \g_@@_fp - \g_@@_base_fp } }
-      }
-  }
-%    \end{macrocode}
-% \end{variable}
-% \end{macro}
-%
-% The following line is needed in \XeTeX{}, because the starting value
-% of the clock is otherwise very large (time is counted from epoch).
-% For consistency, we call \cs{clock_zero:} in all engines.
-%    \begin{macrocode}
-\clock_zero:
-%    \end{macrocode}
-%
-% \subsection{Benchmarking code}
-%
-%    \begin{macrocode}
-%<@@=benchmark>
 %    \end{macrocode}
 %
 % \begin{variable}{\l_@@_time_a_tl, \l_@@_time_b_tl}
@@ -381,16 +344,6 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_benchmark_duration_fp}
-%   The benchmark is constrained to take roughly
-%   (from half to twice) \cs{l_benchmark_duration_fp}
-%   seconds, unless one iteration of the code takes longer.
-%    \begin{macrocode}
-\fp_new:N \l_benchmark_duration_fp
-\fp_set:Nn \l_benchmark_duration_fp { 1 }
-%    \end{macrocode}
-% \end{variable}
-%
 % \begin{macro}[int]{\@@_raw:n}
 % \begin{macro}[int]{\@@_outer_do_nothing:}
 %   The time it took to perform a given piece of code is the difference
@@ -399,12 +352,18 @@
 %   function \cs{@@_outer_do_nothing:} prevents the arbitrary
 %   user code from tampering with the rest of the time module.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_raw:n #1
+\cs_new_protected:Npn \@@_raw:n
+  { \sys_timer_apply:N \@@_raw_aux:nn }
+\cs_new_protected:Npn \@@_raw_aux:nn #1#2
   {
-    \clock_get:N \l_@@_time_a_tl
-    #1
+    #2
     \@@_outer_do_nothing:
-    \clock_get:N \l_@@_time_b_tl
+    \sys_timer_apply:N \@@_raw_auxii:nn {#1}
+  }
+\cs_new_protected:Npn \@@_raw_auxii:nn #1#2
+  {
+    \tl_set:Nn \l_@@_time_a_tl {#2}
+    \tl_set:Nn \l_@@_time_b_tl {#1}
   }
 \tex_outer:D \cs_set:Npn \@@_outer_do_nothing: { }
 %    \end{macrocode}
@@ -455,12 +414,12 @@
     \@@_raw:n {#1}
     \bool_while_do:nn
       {
-        \fp_compare_p:nNn
+        \int_compare_p:nNn
           { \l_@@_time_b_tl - \l_@@_time_a_tl }
-          < { .5 \l_benchmark_duration_fp }
+          < { \l_benchmark_duration_int / 2 }
       }
       {
-        \int_set:Nn \l_@@_repeat_int { 4*\l_@@_repeat_int }
+        \int_set:Nn \l_@@_repeat_int { 4 * \l_@@_repeat_int }
         \int_compare:nNnTF \l_@@_repeat_int > { 1024 }
           {
             \int_compare:nNnTF \l_@@_repeat_int > { 1048576 }
@@ -484,7 +443,7 @@
         \fp_to_tl:n
           {
             ( \l_@@_time_b_tl - \l_@@_time_a_tl )
-            / \l_@@_repeat_int
+            / \l_@@_repeat_int / 65536
           }
       }
   }
@@ -501,27 +460,30 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\benchmark_tic:}
+% \subsection{Benchmark tic toc}
+%
+% \begin{variable}{\g_@@_tictoc_int, \g_@@_tictoc_seq}
 %    \begin{macrocode}
 \int_new:N \g_@@_tictoc_int
 \seq_new:N \g_@@_tictoc_seq
 %    \end{macrocode}
+% \end{variable}
 %
+% \begin{macro}{\benchmark_tic:, \@@_tic:n}
 %    \begin{macrocode}
 \cs_new_protected:Npn \benchmark_tic:
   {
     \int_compare:nTF { \g_@@_tictoc_int == 0 }
       {
-        \clock_zero:
-        \tl_set:Nn \l_@@_tictoc_pop_tl {0}
+        \sys_timer_gzero:
+        \@@_tic:n { 0 }
       }
-      {
-        \clock_get:N \l_@@_tictoc_pop_tl
-      }
-
-    \seq_put_right:NV \g_@@_tictoc_seq \l_@@_tictoc_pop_tl
+      { \sys_timer_apply:N \@@_tic:n }
+  }
+\cs_new_protected:Npn \@@_tic:n #1
+  {
+    \seq_put_right:Nn \g_@@_tictoc_seq {#1}
     \int_gincr:N \g_@@_tictoc_int
-
     \iow_term:x
       {
         \prg_replicate:nn {\g_@@_tictoc_int} {---+} \space
@@ -531,36 +493,27 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\benchmark_toc:}
+% \begin{macro}{\benchmark_toc:, \@@_toc:n}
 %    \begin{macrocode}
-\cs_set:Npn \benchmark_toc:
+\cs_new:Npn \benchmark_toc:
   {
     \int_compare:nT { \g_@@_tictoc_int == 0 }
-      {
-        \msg_error:nn {benchmark} {toc-first}
-      }
-
+      { \msg_error:nn {benchmark} {toc-first} }
     \seq_pop_right:NN \g_@@_tictoc_seq \l_@@_tictoc_pop_tl
-    \clock_get:N \l_@@_tictoc_curr_tl
-
+    \sys_timer_apply:N \@@_toc:n
+  }
+\cs_new_protected:Npn \@@_toc:n #1
+  {
     \tl_set:Nx \l_@@_tictoc_tl
-      {
-        \fp_to_decimal:n
-          { round( \l_@@_tictoc_curr_tl - \l_@@_tictoc_pop_tl , 3 )}
-      }
-
+      { \fp_to_decimal:n { round( (#1 - \l_@@_tictoc_pop_tl) / 65536 , 3 )} }
     \iow_term:x
       {
-        \prg_replicate:nn {\g_@@_tictoc_int} {---+} \space
-        TOC: \space
-        \l_@@_tictoc_tl \space s
+        \prg_replicate:nn {\g_@@_tictoc_int} {---+} \c_space_tl
+        TOC: \c_space_tl
+        \l_@@_tictoc_tl \c_space_tl s
       }
-
     \int_gdecr:N \g_@@_tictoc_int
   }
-%    \end{macrocode}
-%
-%    \begin{macrocode}
 \msg_new:nnn {benchmark} {toc-first}
   {
     \token_to_str:N \benchmark_toc: \space without~
