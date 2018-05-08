@@ -64,7 +64,14 @@
 %
 % \begin{documentation}
 %
-% \section{Benchmark}
+% \section{Additions to \pkg{l3sys}: elapsed time}
+%
+% \begin{function}{\sys_timer_gzero:}
+%   \begin{syntax}
+%     \cs{sys_timer_gzero:}
+%   \end{syntax}
+%   Resets the timer to zero.
+% \end{function}
 %
 % \begin{function}{\sys_timer_apply:N}
 %   \begin{syntax}
@@ -77,11 +84,24 @@
 %   overflow after about $9$ hours in some engines.
 % \end{function}
 %
-% \begin{function}{\sys_timer_gzero:}
+% \section{Benchmark}
+%
+% \begin{function}{\benchmark_display:n}
 %   \begin{syntax}
-%     \cs{sys_timer_gzero:}
+%     \cs{benchmark_display:n} \Arg{time}
 %   \end{syntax}
-%   Resets the timer to zero.
+%   Prints the \meta{time} (in seconds) to the terminal.  This function
+%   can be redefined.
+% \end{function}
+%
+% \begin{function}{\benchmark_once:n}
+%   \begin{syntax}
+%     \cs{benchmark_once:n} \Arg{code}
+%   \end{syntax}
+%   Measures the time taken by \TeX{} to run the \meta{code} once, and
+%   calls \cs{benchmark_display:n} \Arg{time} with the \meta{time} in
+%   seconds.  The code is run only once so the time may be quite
+%   inaccurate for fast code.
 % \end{function}
 %
 % \begin{function}{\benchmark:n}
@@ -89,32 +109,23 @@
 %     \cs{benchmark:n} \Arg{code}
 %   \end{syntax}
 %   Measures the time taken by \TeX{} to run the \meta{code}, and calls
-%   \cs{benchmark_display:n} with the time in seconds as its argument.
-%   By default, that display function prints the time to the terminal.
-%   The behaviour can be changed by redefining \cs{benchmark_display:n}.
-%   This function cannot be nested.  The \meta{code} is run many times
-%   in a row, and not within a group, thus it should not have
+%   \cs{benchmark_display:n} \Arg{time} with the \meta{time} in seconds.
+%   This function cannot be nested.  The \meta{code} may be run many
+%   times in a row, and not within a group, thus it should not have
 %   side-effects.
 % \end{function}
 %
-% \begin{variable}{\l_benchmark_duration_int}
-%   This variable controls the duration of the benchmark in scaled
-%   seconds. Namely, the benchmark will take a time roughly between half
-%   and twice \cs{l_benchmark_duration_int} scaled seconds.
-% \end{variable}
-%
 % \begin{function}{\benchmark_tic:,\benchmark_toc:}
 %   \begin{syntax}
-%     |\benchmark_tic:| \meta{slow code} |\benchmark_toc:|
+%     \cs{benchmark_tic:} \meta{slow code} \cs{benchmark_toc:}
 %   \end{syntax}
-%   When it is not possible to run \cs{benchmark:n} (e.g., the code
-%   is part of the execution of a package which cannot be looped)
-%   the tic/toc commands can be used instead to time between two points
-%   in the code.
-%   When executed, |\benchmark_tic:| will print a line to the terminal,
-%   and |\benchmark_toc:| will print a matching line with a time to indicate
-%   the duration between them in seconds.
-%   Note that these commands can be nested.
+%   When it is not possible to run \cs{benchmark:n} (e.g., the code is
+%   part of the execution of a package which cannot be looped) the
+%   tic/toc commands can be used instead to time between two points in
+%   the code.  When executed, \cs{benchmark_tic:} will print a line to the
+%   terminal, and \cs{benchmark_toc:} will print a matching line with a
+%   time to indicate the duration between them in seconds.  Note that
+%   these commands can be nested.
 % \end{function}
 %
 % \end{documentation}
@@ -295,16 +306,6 @@ end
 %<@@=benchmark>
 %    \end{macrocode}
 %
-% \begin{variable}{\l_benchmark_duration_int}
-%   The benchmark is constrained to take roughly
-%   (from half to twice) \cs{l_benchmark_duration_int} scaled
-%   seconds, unless one iteration of the code takes longer.
-%    \begin{macrocode}
-\int_new:N \l_benchmark_duration_int
-\int_set:Nn \l_benchmark_duration_int { 65536 }
-%    \end{macrocode}
-% \end{variable}
-%
 %    \begin{macrocode}
 \sys_if_timer_exist:F
   {
@@ -327,12 +328,21 @@ end
   }
 %    \end{macrocode}
 %
-% \begin{variable}{\l_@@_time_a_tl, \l_@@_time_b_tl}
-%   These two variables hold the time before and after running a piece
-%   of code, as a decimal number in seconds.
+% \begin{variable}{\l_@@_duration_int}
+%   The benchmark is constrained to take roughly (from half to twice)
+%   \cs{l_@@_duration_int} scaled seconds, unless one iteration of the
+%   code takes longer.
 %    \begin{macrocode}
-\tl_new:N \l_@@_time_a_tl
-\tl_new:N \l_@@_time_b_tl
+\int_new:N \l_@@_duration_int
+\int_set:Nn \l_@@_duration_int { 65536 }
+%    \end{macrocode}
+% \end{variable}
+% 
+% \begin{variable}{\l_@@_time_int}
+%   This variable holds the time before and after running a piece of
+%   code, as an integer in scaled seconds.
+%    \begin{macrocode}
+\int_new:N \l_@@_time_int
 %    \end{macrocode}
 % \end{variable}
 %
@@ -344,109 +354,137 @@ end
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}[int]{\@@_raw:n}
-% \begin{macro}[int]{\@@_outer_do_nothing:}
-%   The time it took to perform a given piece of code is the difference
-%   between the decimal numbers stored in the token lists
-%   \cs{l_@@_time_a_tl} and \cs{l_@@_time_b_tl}.  The
-%   function \cs{@@_outer_do_nothing:} prevents the arbitrary
-%   user code from tampering with the rest of the time module.
+% \begin{variable}{\g_@@_nesting_int}
+% \begin{macro}{\@@_raw:n, \@@_raw_aux:N, \@@_raw_end:n}
+%   Store in \cs{l_@@_time_int} the time it took to perform a given
+%   piece of code, in scaled seconds.  We call \cs{sys_timer_apply:N} as
+%   close before and after the code as possible.  We store the
+%   intermediate result in a new integer when \cs{@@_raw:n} is
+%   nested.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_raw:n
-  { \sys_timer_apply:N \@@_raw_aux:nn }
-\cs_new_protected:Npn \@@_raw_aux:nn #1#2
+\int_new:N \g_@@_nesting_int
+\cs_new_protected:Npn \@@_raw:n #1
   {
-    #2
-    \@@_outer_do_nothing:
-    \sys_timer_apply:N \@@_raw_auxii:nn {#1}
+    \int_gincr:N \g_@@_nesting_int
+    \exp_args:Nc \@@_raw_aux:N
+      { g_@@_ \int_use:N \g_@@_nesting_int _int }
+    \sys_timer_apply:N \@@_raw_aux:n
+    #1
+    \sys_timer_apply:N \@@_raw_end:n
   }
-\cs_new_protected:Npn \@@_raw_auxii:nn #1#2
+\cs_new_protected:Npn \@@_raw_aux:N #1
   {
-    \tl_set:Nn \l_@@_time_a_tl {#2}
-    \tl_set:Nn \l_@@_time_b_tl {#1}
+    \int_gzero_new:N #1
+    \cs_gset_protected:Npn \@@_raw_aux:n { \int_gset:Nn #1 }
   }
-\tex_outer:D \cs_set:Npn \@@_outer_do_nothing: { }
+\cs_new_protected:Npn \@@_raw_end:n #1
+  {
+    \int_set:Nn \l_@@_time_int
+      {
+        #1 -
+        \int_use:c { g_@@_ \int_use:N \g_@@_nesting_int _int }
+      }
+    \int_gdecr:N \g_@@_nesting_int
+  }
 %    \end{macrocode}
 % \end{macro}
-% \end{macro}
 %
-% \begin{macro}[int]{\@@_raw_replicate:nn}
+% \begin{macro}{\@@_raw_replicate:nn, \@@_tmp:w, \@@_raw_replicate_aux:n}
 %   Here, we wish to measure the time it takes for the piece of code |#2|
 %   to be run |#1| times. The \cs{prg_replicate:nn} is expanded before
 %   being fed to \cs{@@_raw:n} to avoid timing its expansion as well.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_raw_replicate:nn #1#2
-  {
-    \exp_args:Nx \@@_raw:n
-      { \prg_replicate:nn {#1} { \exp_not:n {#2} } }
-  }
-%    \end{macrocode}
-% \end{macro}
 %
-% \begin{macro}[EXP,int]{\@@_replicate_kibi_fold:n}
-%   As its name indicates, expanding this function once yields
-%   $1024$ copies of its argument. This is used to avoid reaching
-%   the limits of \TeX{}'s memory in case the user input is a very
-%   simple piece of code.
+%   We subtract the time for another call to \cs{@@_tmp:w}, with the
+%   same arguments (to capture the time it takes to read the argument)
+%   but empty expansion.
+%
+%   If the number of copies required is large (here ${}>1024$), it may
+%   exhaust \TeX{}'s main memory. In that case, we replicate $1024$
+%   times less the code |\@@_replicate_kibi_fold:n {#1}|.  Of course the
+%   division by $1024$ rounds to an integer, so that step introduces a
+%   relative error of order $1/1000$, much less than many other sources
+%   of variability.
 %    \begin{macrocode}
+\cs_new_eq:NN \@@_tmp:w ?
+\cs_new_protected:Npn \@@_raw_replicate:nn #1
+  {
+    \int_compare:nNnTF {#1} > { 1024 }
+      { \@@_raw_replicate_large:nn {#1} }
+      { \@@_raw_replicate_small:nn {#1} }
+  }
+\cs_new_protected:Npn \@@_raw_replicate_large:nn #1#2
+  {
+    \exp_args:Nno \@@_raw_replicate:nn { #1 / 1024 }
+      { \@@_replicate_kibi_fold:n {#2} }
+  }
+\cs_new_protected:Npn \@@_raw_replicate_small:nn #1#2
+  {
+    \cs_set:Npx \@@_tmp:w ##1##2 { \prg_replicate:nn {#1} {##1} }
+    \@@_raw:n { \@@_tmp:w {#2} { } }
+    \exp_args:No \@@_raw_replicate_aux:nn
+      { \int_use:N \l_@@_time_int } {#2}
+  }
+\cs_new_protected:Npn \@@_raw_replicate_aux:nn #1#2
+  {
+    \@@_raw:n { \@@_tmp:w { } {#2} }
+    \int_set:Nn \l_@@_time_int { #1 - \l_@@_time_int }
+  }
 \cs_new:Npx \@@_replicate_kibi_fold:n #1
   { \prg_replicate:nn {1024} {#1} }
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\benchmark_once:n}
+%   Convert from scaled seconds to seconds.
+%    \begin{macrocode}
+\cs_new_protected:Npn \benchmark_once:n #1
+  {
+    \@@_raw:n {#1}
+    \benchmark_display:f { \fp_to_tl:n { \l_@@_time_int / 65536 } }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\benchmark:n}
-%   The main timing function. First time the user code once.
-%   If that took less than half a second, repeat the measurement
-%   with $4$ copies of the code. Continue quadrupling the number
-%   of copies until reaching a time greater than half a second.
-%   If the number of copies required is large (here ${}>1024$),
-%   it may exhaust \TeX{}'s main memory. In that case, we
-%   replicate $1024$ times less the code
-%   |\@@_replicate_kibi_fold:n {#1}|.
-%   Once a large enough time was measured, divide that by $65536$
-%   and by the number of repetitions.
-%   The function \cs{benchmark_display:n} can be redefined by the user
-%   if the output should be done differently than to the terminal.
+%   The main timing function. First time the user code once.  If that
+%   took more than half a second we're done.  If that took much less
+%   than a second, quadruple the number of copies until it takes a
+%   reasonable amount of time (this is to avoid division by
+%   \cs{l_@@_time_int} when that is zero or too small).  Finally if it
+%   took between one hundredth of a second and half a second compute a
+%   number of times that can fit in one second (minus the time we
+%   already spent) and measure that.  Once a large enough time was
+%   measured, divide that by $65536$ and by the number of repetitions.
 %    \begin{macrocode}
 \cs_new_protected:Npn \benchmark:n #1
   {
     \int_set:Nn \l_@@_repeat_int { 1 }
     \@@_raw:n {#1}
-    \bool_while_do:nn
+    \int_compare:nNnT { \l_@@_time_int } > { \l_@@_duration_int / 2 }
+      { \prg_break: }
+    \int_while_do:nNnn
+      { \l_@@_time_int } < { \l_@@_duration_int / 100 }
       {
-        \int_compare_p:nNn
-          { \l_@@_time_b_tl - \l_@@_time_a_tl }
-          < { \l_benchmark_duration_int / 2 }
-      }
-      {
+        \int_compare:nNnT \l_@@_repeat_int > { \c_max_int / 4 }
+          {
+            \int_set:Nn \l_@@_time_int { 0 }
+            \prg_break:
+          }
         \int_set:Nn \l_@@_repeat_int { 4 * \l_@@_repeat_int }
-        \int_compare:nNnTF \l_@@_repeat_int > { 1024 }
-          {
-            \int_compare:nNnTF \l_@@_repeat_int > { 1048576 }
-              {
-                \@@_raw_replicate:nn
-                  { \l_@@_repeat_int / 1048576 }
-                  {
-                    \@@_replicate_kibi_fold:n
-                      { \@@_replicate_kibi_fold:n {#1} }
-                  }
-              }
-              {
-                \@@_raw_replicate:nn { \l_@@_repeat_int / 1024 }
-                  { \@@_replicate_kibi_fold:n {#1} }
-              }
-          }
-          { \@@_raw_replicate:nn { \l_@@_repeat_int } {#1} }
+        \@@_raw_replicate:nn { \l_@@_repeat_int } {#1}
       }
-    \benchmark_display:f
+    \int_set:Nn \l_@@_repeat_int
       {
-        \fp_to_tl:n
-          {
-            ( \l_@@_time_b_tl - \l_@@_time_a_tl )
-            / \l_@@_repeat_int / 65536
-          }
+        \l_@@_duration_int * \l_@@_repeat_int / \l_@@_time_int
+        - \l_@@_repeat_int * 5 / 4 - 1
       }
+    \@@_raw_replicate:nn { \l_@@_repeat_int } {#1}
+    \prg_break_point:
+    \fp_set:Nn \l_@@_time_fp
+      { \l_@@_time_int / \l_@@_repeat_int / 65536 }
+    \benchmark_display:f { \fp_to_tl:N \l_@@_time_fp }
   }
+\fp_new:N \l_@@_time_fp
 %    \end{macrocode}
 % \end{macro}
 %
