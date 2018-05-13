@@ -48,8 +48,8 @@ function update_tag(file,content,tagname,tagdate)
   local iso = "%d%d%d%d%-%d%d%-%d%d"
   if string.match(file,"expl3%.dtx$") then
     content = string.gsub(content,
-      "\n\\def\\ExplFileDate{" .. iso .. "}\n",
-      "\n\\def\\ExplFileDate{" .. tagname .. "}\n")
+      "\n\\def\\ExplFileDate{" .. iso .. "}%%\n",
+      "\n\\def\\ExplFileDate{" .. tagname .. "}%%\n")
   elseif string.match(file,"l3drivers%.dtx$") then
     content = string.gsub(content,
       "\n  ({l3%w+%.def}){" .. iso .. "}",
@@ -57,14 +57,14 @@ function update_tag(file,content,tagname,tagdate)
   end
   if string.match(file,"%.dtx$") or string.match(file,"%.tex$") then
     return string.gsub(content,
-      "\n%% \\date{Released " .. iso .. "}\n",
-      "\n%% \\date{Released " .. tagname .. "}\n")
+      "\n(%%*%s*)\\date{Released " .. iso .. "}\n",
+      "\n%1\\date{Released " .. tagname .. "}\n")
   elseif string.match(file, "%.md$") then
     return string.gsub(content,
       "\nRelease " .. iso .. "\n",
       "\nRelease " .. tagname .. "\n")
   end
-  return contents
+  return content
 end
 
 function cmdcheck()
