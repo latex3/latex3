@@ -49,7 +49,7 @@ Discussion
 
 Discussion concerning the approach, suggestions for improvements,
 changes, additions, _etc._ should be addressed to the list
-[LaTeX-L](http://news.gmane.org/group/gmane.comp.tex.latex.latex3).
+[LaTeX-L](https://listserv.uni-heidelberg.de/cgi-bin/wa?A0=LATEX-L).
 
 You can subscribe to this list by sending mail to
 
