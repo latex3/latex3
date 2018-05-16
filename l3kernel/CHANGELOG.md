@@ -10,6 +10,10 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `CHANGELOG.md` (fixes #460)
 
+### Fixed
+- Loading `expl3` with LuaTeX/XeTeX and certain letter tokens set
+  to be active (see #462)
+
 ## [2018-05-13]
 
 ### Fixed
