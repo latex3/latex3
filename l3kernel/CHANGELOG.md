@@ -82,6 +82,12 @@ this project uses date-based 'snapshot' version identifiers.
 - Deprecated functions expiring at end of 2017
 - Old module `.sty` files
 
+## [2018-03-05]
+
+### Changes
+- Adjustments to `l3drivers` to support `l3draw` development in
+  `l3experimental` bundle
+
 ## [2018-02-21]
 
 ### Added
@@ -92,5 +98,6 @@ this project uses date-based 'snapshot' version identifiers.
 [Unreleased]: https://github.com/latex3/latex3/compare/2018-05-13...HEAD
 [2018-05-13]: https://github.com/latex3/latex3/compare/2018-05-12...2018-05-13
 [2018-05-12]: https://github.com/latex3/latex3/compare/2018-04-30...2018-05-12
-[2018-04-30]: https://github.com/latex3/latex3/compare/2018-02-21...2018-04-30
+[2018-04-30]: https://github.com/latex3/latex3/compare/2018-03-05...2018-04-30
+[2018-03-05]: https://github.com/latex3/latex3/compare/2018-02-21...2018-03-05
 [2018-02-21]: https://github.com/latex3/latex3/compare/2017-12-16...2018-02-21
