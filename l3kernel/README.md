@@ -32,8 +32,8 @@ to support string comparisons, expandable character generation with arbitrary
 category codes (for Unicode engines) and PDF support primitives (where direct
 PDF generation is used). The bundle only works with the following engines:
 * pdfTeX v1.40 or later
-* XeTeX v0.9994 or later
-* LuaTeX v0.70 or later
+* XeTeX v0.99992 or later
+* LuaTeX v0.76 or later
 * e-(u)pTeX from mid-2012 onward
 
 pdfTeX v1.40 was released in 2007, and so any recent TeX distribution
