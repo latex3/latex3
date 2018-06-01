@@ -106,7 +106,7 @@ this project uses date-based 'snapshot' version identifiers.
   e.g. `\dim_step_in­line:nnnn`
 
 [Unreleased]: https://github.com/latex3/latex3/compare/2018-05-13...HEAD
-[2018-06-0`]: https://github.com/latex3/latex3/compare/2018-05-13...2018-06-01
+[2018-06-01]: https://github.com/latex3/latex3/compare/2018-05-13...2018-06-01
 [2018-05-13]: https://github.com/latex3/latex3/compare/2018-05-12...2018-05-13
 [2018-05-12]: https://github.com/latex3/latex3/compare/2018-04-30...2018-05-12
 [2018-04-30]: https://github.com/latex3/latex3/compare/2018-03-05...2018-04-30
