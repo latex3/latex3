@@ -14,6 +14,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Loading `expl3` with LuaTeX/XeTeX and certain letter tokens set
   to be active (see #462)
 
+### Changed
+- Alter `\char_codepoint_from_bytes:n` to produce four groups in all
+  cases; make `f`-type expandable
+
 ## [2018-05-13]
 
 ### Fixed
