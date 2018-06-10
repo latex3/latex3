@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for `e`-type argument using `\expanded` or macro emulation
+
 ## [2018-06-01]
 
 ### Added
