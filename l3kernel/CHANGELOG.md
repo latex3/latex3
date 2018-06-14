@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2018-06-14]
+
 ### Added
 - Support for `e`-type argument using `\expanded` or macro emulation
 
@@ -108,7 +110,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2018-05-13...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2018-06-14...HEAD
+[2018-06-01]: https://github.com/latex3/latex3/compare/2018-06-01...2018-06-14
 [2018-06-01]: https://github.com/latex3/latex3/compare/2018-05-13...2018-06-01
 [2018-05-13]: https://github.com/latex3/latex3/compare/2018-05-12...2018-05-13
 [2018-05-12]: https://github.com/latex3/latex3/compare/2018-04-30...2018-05-12
