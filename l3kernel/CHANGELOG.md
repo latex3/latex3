@@ -7,6 +7,12 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## Added
+- `\lua_now:e` and `\lua_escape:e`
+
+## Deprecated
+- `\lua_now_x:n` and `\lua_escape_x:n`
+
 ## [2018-06-14]
 
 ### Added
