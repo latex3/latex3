@@ -10,7 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## Added
 - `\lua_escape:e`, `\lua_now:e` and `\lua_shipout_e:n`
 - `\str_case_e:nn(TF)` and `\str_if_eq:ee(TF)`
-- `\tl_(g)}set_from_shell:Nnn`
+- `\tl_(g)set_from_shell:Nnn`
 
 ## Deprecated
 - `\lua_escape_x:n`, `\lua_now_x:n` and `\lua_shipout_x:n`
