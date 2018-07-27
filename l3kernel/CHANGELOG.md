@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\lua_escape:e`, `\lua_now:e` and `\lua_shipout_e:n`
 - `\str_case_e:nn(TF)` and `\str_if_eq:ee(TF)`
 - `\sys_if_platform_unix:(TF)` and `\sys_if_platform_windows:(TF)`
+- System shell functions, _e.g._ \sys_shell_mkdir:n`
 - `\tl_(g)set_from_shell:Nnn`
 
 ## Deprecated
