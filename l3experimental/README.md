@@ -24,6 +24,7 @@ bundles:
 * `l3color`
 * `l3draw`
 * `l3str`
+* `l3sys-shell`
 * `xcoffins`
 * `xgalley`
 
@@ -50,6 +51,12 @@ category code 12 ('other'), with the exception of spaces which have the
 category code 10 ('space'). The `l3str` bundle consists of two parts. The
 first is `l3str` itself. This is a collection of functions to act on strings,
 including for manipulations such as UTF8 mappings in pdfTeX.
+
+`l3sys-shell`
+-------------
+
+This module provides abstractions for common shell functions, e.g. file
+deletion and copying.
 
 `xcoffins`
 ----------

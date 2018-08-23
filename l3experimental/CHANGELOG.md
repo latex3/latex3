@@ -1,5 +1,5 @@
 # Changelog
-All notable changes to the `l3kernel` bundle since the start of 2018
+All notable changes to the `l3experimental` bundle since the start of 2018
 will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `CHANGELOG.md` (fixes #460)
+- `l3sys-shell` for experimental shell functions
 
 ## [2018-05-12]
 
