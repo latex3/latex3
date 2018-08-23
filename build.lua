@@ -34,7 +34,7 @@ function main(target)
     errorlevel = call (ctanbundles, "ctan")
     if errorlevel == 0 then
       for _,i in ipairs (ctanbundles) do
-        cp (i .. ".zip", i, ".")
+        cp ("*.zip", i, ".")
       end
     end
   elseif target == "doc" then
