@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ## [2018-08-23]
+
 ### Added
 - `\lua_escape:e`, `\lua_now:e` and `\lua_shipout_e:n`
 - `\str_case_e:nn(TF)` and `\str_if_eq:ee(TF)`
@@ -121,7 +122,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2018-06-14...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2018-08-23...HEAD
+[2018-08-23]: https://github.com/latex3/latex3/compare/2018-06-14...2018-08-23
 [2018-06-14]: https://github.com/latex3/latex3/compare/2018-06-01...2018-06-14
 [2018-06-01]: https://github.com/latex3/latex3/compare/2018-05-13...2018-06-01
 [2018-05-13]: https://github.com/latex3/latex3/compare/2018-05-12...2018-05-13
