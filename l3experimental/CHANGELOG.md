@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2018-08-24]
+
 ### Fixed
 - Actually distribute `l3sys-shell`
 
@@ -38,7 +40,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2018-08-23...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2018-08-24...HEAD
+[2018-08-24]: https://github.com/latex3/latex3/compare/2018-08-23...2018-08-24
 [2018-08-23]: https://github.com/latex3/latex3/compare/2018-05-12...2018-08-23
 [2018-05-12]: https://github.com/latex3/latex3/compare/2018-04-30...2018-05-12
 [2018-04-30]: https://github.com/latex3/latex3/compare/2018-03-05...2018-04-30
