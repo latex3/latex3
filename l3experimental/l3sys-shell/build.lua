@@ -10,6 +10,9 @@ module = "l3sys-shell"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
+-- We need shell-escape
+checkopts = "-interaction=nonstopmode --shell-escape"
+
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
