@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Actually distribute `l3sys-shell`
+
 ## [2018-08-23]
 
 ### Added
