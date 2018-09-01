@@ -468,6 +468,30 @@
 % As such, the functions provided here are all defined to do nothing with the
 % latter drivers.
 %
+% \subsection{PDF Objects}
+%
+% Objects are used to provide a range of data structures in a PDF. At the
+% driver level, different PDF object types are declared separately. Objects
+% are only \emph{written} to the PDF when referenced.
+%
+% \begin{function}{\driver_pdf_dictionary_declare:n}
+%   \begin{syntax}
+%     \cs{driver_pdf_dictionary_declare:n} \Arg{name}
+%   \end{syntax}
+%   Declares \meta{name} as a PDF dictionary object. This dictionary
+%   subsequently be used by \cs{driver_pdf_dictionary_gput:nnn}.
+% \end{function}
+%
+% \begin{function}{\driver_pdf_dictionary_gput:nnn}
+%   \begin{syntax}
+%     \cs{driver_pdf_dictionary_gput:nnn} \Arg{name} \Arg{key} \Arg{value}
+%   \end{syntax}
+%   Places the \meta{key}/\meta{value} pair into the PDF dictionary object
+%   \meta{name}. The \meta{key} should \emph{not} include the leading
+%   |/|. The \meta{value} is not assumed to be of any specific type:
+%   string values should thus be surrounded by |(|/|)|.
+% \end{function}
+%
 % \subsection{PDF structure}
 %
 % \begin{function}{\driver_pdf_compresslevel:n}
@@ -1358,16 +1382,22 @@
 %
 % \subsubsection{PDF Features}
 %
+% \begin{macro}{\driver_pdf_dictionary_declare:n}
+% \begin{macro}{\driver_pdf_dictionary_gput:nnn}
 % \begin{macro}{\driver_pdf_compresslevel:n}
 % \begin{macro}{\driver_pdf_objects_enable:, \driver_pdf_objects_disable:}
 %   These are all no-ops.
 %    \begin{macrocode}
-\cs_new_protected:Npx \driver_pdf_compresslevel:n #1 { }
+\cs_new_protected:Npn \driver_pdf_dictionary_declare:n #1 { }
+\cs_new_protected:Npn \driver_pdf_dictionary_gput:nnn #1#2#3 { }
+\cs_new_protected:Npn \driver_pdf_compresslevel:n #1 { }
 \cs_new_protected:Npn \driver_pdf_objects_enable: { }
 \cs_new_protected:Npn \driver_pdf_objects_disable: { }
 %    \end{macrocode}
-% \end{macrocode}
-% \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 %
 %    \begin{macrocode}
 %</dvips>
@@ -1639,6 +1669,91 @@
 \cs_new_eq:NN \@@_image_include_pdf:n \@@_image_include_jpg:n
 \cs_new_eq:NN \@@_image_include_png:n \@@_image_include_jpg:n
 %    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{PDF Objects}
+%
+% \begin{variable}{\g_@@_pdf_object_seq}
+%   For tracking dictionaries to allow finalisation.
+%    \begin{macrocode}
+\seq_new:N \g_@@_pdf_dictionary_seq
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\driver_pdf_dictionary_declare:n}
+% \begin{macro}{\@@_pdf_dictionary_declare:n}
+%   Creating a dictionary requires an object: the latter can have no
+%   assumptions about structure, so the task is split into two.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_dictionary_declare:n #1
+  {
+    \prop_if_exist:cF { g_@@_pdf_dictionary_ #1 _prop }
+      {
+        \@@_pdf_object_declare:n {#1}
+        \seq_gput_right:Nn \g_@@_pdf_dictionary_seq {#1}
+        \prop_new:c { g_@@_pdf_dictionary_ #1 _prop }
+      }
+  }
+\cs_new_protected:Npx \@@_pdf_object_declare:n #1
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      {
+        \tex_pdfextension:D obj ~ reserveobjnum ~
+        \int_const:cn { g_@@_pdf_object_ #1 _int }
+          { \tex_pdffeedback:D lastobj ~ }
+      }
+      {
+        \tex_pdfobj:D reserveobjnum ~
+        \int_const:cn { g_@@_pdf_object_ #1 _int } { \tex_pdflastobj:D }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_dictionary_gput:nnn}
+%   Storing data for a dictionary is a pure \TeX{} operation.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_dictionary_gput:nnn #1#2#3
+  {
+    \prop_if_exist:cF { g_@@_pdf_dictionary_ #1 _prop }
+      { \driver_pdf_dictionary_declare:n {#1} }
+    \prop_gput:cnn { g_@@_pdf_dictionary_ #1 _prop } {#2} {#3}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_pdf_dictionary_finalise:}
+% \begin{macro}{\@@_pdf_dictionary_finalise:nn}
+%   At the end of a run, object data needs to be finalised. At present, we
+%   do not have a hook for this \dots
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_pdf_dictionary_finalise:
+  {
+    \seq_map_inline:Nn \exp_not:N \g_@@_pdf_dictionary_seq
+      {
+        \cs_if_exist:NTF \tex_pdfextension:D
+          { \tex_immediate:D \tex_pdfextension:D obj ~ }
+          { \tex_immediate:D \tex_pdfobj:D }
+          useobjnum ~ \exp_not:N \int_use:c { g_@@_pdf_object_ ##1 _int }
+            {
+              <<
+              \c_space_tl
+              \exp_not:N \prop_if_empty:cF
+                { g_@@_pdf_dictionary_ ##1 _prop }
+                {
+                  \exp_not:N \prop_map_function:cN 
+                    { g_@@_pdf_dictionary_ ##1 _prop }
+                    \exp_not:N \@@_pdf_dictionary_finalise:nn
+                  \c_space_tl
+                }
+              >>
+            }
+      }
+  }
+\cs_new:Npn \@@_pdf_dictionary_finalise:nn #1#2 { / #1 ~ #2 }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \subsubsection{PDF Structure}
@@ -1914,6 +2029,43 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+%
+% \subsubsection{PDF Objects}
+%
+% \begin{variable}{\g_@@_pdf_dictionary_seq}
+%   We need to track objects at the macro level
+%    \begin{macrocode}
+\seq_new:N \g_@@_pdf_dictionary_seq
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\driver_pdf_dictionary_declare:n}
+%   Everything is handled by the driver, but we track at the macro level
+%   so we can make sure there is always an object to accept data.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_dictionary_declare:n #1
+  {
+    \seq_if_in:NnF \g_@@_pdf_dictionary_seq {#1}
+      {
+        \@@_literal:n { pdf:obj ~ @ #1 ~ << >> }
+        \seq_gpush:Nn \g_@@_pdf_dictionary_seq {#1}
+      }
+  } 
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_dictionary_gput:nnn}
+%   For \texttt{(x)dvipdfmx}, dictionary objects are handled by the driver.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_dictionary_gput:nnn #1#2#3
+  {
+    \seq_if_in:NnF \g_@@_pdf_dictionary_seq {#1}
+      { \driver_pdf_dictionary_declare:n {#1} }
+    \@@_literal:n { pdf:put ~ @ #1 ~ << ~ /#2 ~ #3 ~ >> }
+  }
+%    \end{macrocode}
 % \end{macro}
 %
 % \subsubsection{PDF Structure}
@@ -2684,16 +2836,22 @@
 %
 % \subsubsection{PDF Features}
 %
+% \begin{macro}{\driver_pdf_dictionary_declare:n}
+% \begin{macro}{\driver_pdf_dictionary_gput:nnn}
 % \begin{macro}{\driver_pdf_compresslevel:n}
 % \begin{macro}{\driver_pdf_objects_enable:, \driver_pdf_objects_disable:}
 %   These are all no-ops.
 %    \begin{macrocode}
-\cs_new_protected:Npx \driver_pdf_compresslevel:n #1 { }
+\cs_new_protected:Npn \driver_pdf_dictionary_declare:n #1 { }
+\cs_new_protected:Npn \driver_pdf_dictionary_gput:nnn #1#2#3 { }
+\cs_new_protected:Npn \driver_pdf_compresslevel:n #1 { }
 \cs_new_protected:Npn \driver_pdf_objects_enable: { }
 \cs_new_protected:Npn \driver_pdf_objects_disable: { }
 %    \end{macrocode}
-% \end{macrocode}
-% \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 %
 % \subsubsection{Drawing}
 %
