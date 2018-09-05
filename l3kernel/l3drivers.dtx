@@ -478,8 +478,7 @@
 %     \cs{driver_pdf_object_new:n} \Arg{name} \Arg{type}
 %   \end{syntax}
 %   Declares \meta{name} as a PDF object. The \type{type} should be one of
-%   |array| or |dict|. (Note that streams are objects but are handled
-%   separately.)
+%   |array| or |dict|, |fstream| or |stream|.
 % \end{function}
 %
 % \begin{function}[EXP]{\driver_pdf_object_ref:n}
@@ -501,6 +500,10 @@
 %     \item[\texttt{array}] A space-separated list of values
 %     \item[\texttt{dict}] Key--value pairs in the form
 %       \texttt{/\meta{key} \meta{value}}
+%     \item[\texttt{fstream}] Two brace groups: \meta{content} and
+%       \meta{additional attributes}
+%     \item[\texttt{stream}] Two brace groups: \meta{content} and
+%       \meta{additional attributes}
 %   \end{itemize}
 % \end{function}
 %
@@ -1421,37 +1424,71 @@
 % \end{macro}
 %
 % \begin{macro}{\driver_pdf_object_write:nn}
+% \begin{macro}
+%   {
+%     \@@_pdf_object_write_array:nn ,
+%     \@@_pdf_object_write_dict:nn  ,
+%     \@@_pdf_object_write_stream:nn
+%   }
+% \begin{macro}{\@@_pdf_object_write_stream:nnn}
 %   This is where we choose the actual type: some work to get things
 %   right.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_pdf_object_write:nn #1#2
   {
-    \@@_literal:x
+    \@@_literal_postscript:x
       {
-        ps:mark ~ /_objdef ~ \driver_pdf_object_ref:n {#1} ~
-        /type / \prop_item:Nn \g_@@_pdf_object_prop {#1}
+        mark ~ /_objdef ~ \driver_pdf_object_ref:n {#1} ~
+        /type
+        \str_case_e:nn
+          { \prop_item:Nn \g_@@_pdf_object_prop {#1} }
+          {
+            { array }   { /array }
+            { dict }    { /dict }
+            { fstream } { /stream }
+            { stream }  { /stream }
+          }
         /OBJ ~ pdfmark
       }
-    \@@_literal:x
+    \use:c
+      { @@_pdf_object_write_ \prop_item:Nn \g_@@_pdf_object_prop {#1} :nn }
+      {#1} {#2}
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_array:nn #1#2
+  {
+    \@@_literal_postscript:x
       {
-        ps:mark ~ \driver_pdf_object_ref:n {#1} ~
-          \str_case_e:nn
-            { \prop_item:Nn \g_@@_pdf_object_prop {#1} }
-            {
-              { array }
-                {
-                  [ ~ \exp_not:n {#2} ~ ]
-                  /PUTINTERVAL ~ pdfmark
-                }
-              { dict }
-                {
-                  << ~ \exp_not:n {#2} ~ >>
-                  /PUT ~ pdfmark
-                }
-            }
+        mark ~ \driver_pdf_object_ref:n {#1} ~
+          [ ~ \exp_not:n {#2} ~ ] ~ /PUTINTERVAL ~ pdfmark
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_dict:nn #1#2
+  {
+    \@@_literal_postscript:x
+      {
+        mark ~ \driver_pdf_object_ref:n {#1} ~
+          << ~ \exp_not:n {#2} ~ >> ~ /PUT ~ pdfmark
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_stream:nn #1#2
+  {
+    \exp_args:Nx
+      \@@_pdf_object_write_stream:nnn
+        { \driver_pdf_object_ref:n {#1} }
+        #2
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_stream:nnn #1#2#3
+  {
+    \@@_literal_postscript:n
+      {
+        [nobreak] ~
+        mark ~ #1 ~ ( #3 ) ~ /PUT ~ pdfmark ~
+        mark ~ #1 ~ << #2 >> ~ /PUT ~ pdfmark
       }
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\driver_pdf_compresslevel:n}
@@ -1756,9 +1793,9 @@
     {
       \cs_new_protected:Npx \driver_pdf_object_new:nn ##1##2
         {
-          #1 reserveobjnum
+          #1 reserveobjnum ~
           \int_const:cn
-            { g_@@_pdf_object_ \exp_not:N \tl_to_str:n {#1} _int }
+            { g_@@_pdf_object_ \exp_not:N \tl_to_str:n {##1} _int }
             {#2}
           \prop_gput:Nnn \exp_not:N \g_@@_pdf_object_prop {##1} {##2}
         }
@@ -1778,6 +1815,7 @@
 % \end{macro}
 %
 % \begin{macro}{\driver_pdf_object_write:nn}
+% \begin{macro}[EXP]{\@@_exp_not_i:nn, \@@_exp_not_ii:nn}
 %   Writing the data needs a little information about the structure of the
 %   object.
 %    \begin{macrocode}
@@ -1788,12 +1826,22 @@
         {
           \tex_immediate:D #1 useobjnum ~
           \int_use:c
-            { g_@@_pdf_object_ \tl_to_str:n {#1} _int }
+            { g_@@_pdf_object_ \tl_to_str:n {##1} _int }
             \str_case_e:nn
               { \prop_item:Nn \g_@@_pdf_object_prop {##1} }
               {
-                { array } { { [ ~ ##2 ~ ] } }
-                { dict }  { { << ~ ##2 ~ >> } }
+                { array } { { [ ~ \exp_not:n {##2} ~ ] } }
+                { dict }  { { << ~ \exp_not:n {##2} ~ >> } }
+                { fstream }
+                  {
+                    stream ~ attr ~ { \@@_exp_not_i:nn ##2 } ~
+                      file ~ { \@@_exp_not_ii:nn ##2 }
+                  }
+                { stream }
+                  {
+                    stream ~ attr ~ { \@@_exp_not_i:nn ##2 } ~ 
+                      { \@@_exp_not_ii:nn ##2 }
+                  }
               }
         }
     }
@@ -1801,7 +1849,10 @@
     { \@@_tmp:w { \tex_pdfextension:D obj ~ } }
     { \@@_tmp:w { \tex_pdfobj:D } }
 \group_end:
+\cs_new:Npn \@@_exp_not_i:nn #1#2 { \exp_not:n {#1} }
+\cs_new:Npn \@@_exp_not_ii:nn #1#2 { \exp_not:n {#2} }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \subsubsection{PDF Structure}
@@ -2109,22 +2160,56 @@
 % \end{macro}
 %
 % \begin{macro}{\driver_pdf_object_write:nn}
-%   This is where we choose the actual type
+% \begin{macro}{\@@_pdf_object_write:nnn}
+% \begin{macro}
+%   {
+%     \@@_pdf_object_write_array:nn   ,
+%     \@@_pdf_object_write_dict:nn    ,
+%     \@@_pdf_object_write_fstream:nn ,
+%     \@@_pdf_object_write_stream:nn
+%   }
+% \begin{macro}{\@@_pdf_object_write_stream:nnnn}
+%   This is where we choose the actual type.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_pdf_object_write:nn #1#2
+  {
+    \exp_args:Nx \@@_pdf_object_write:nnn
+      { \prop_item:Nn \g_@@_pdf_object_prop {#1} } {#1} {#2}
+  }
+\cs_new_protected:Npn \@@_pdf_object_write:nnn #1#2#3
+  { \use:c { @@_pdf_object_write_ #1 :nn } {#2} {#3} }
+\cs_new_protected:Npn \@@_pdf_object_write_array:nn #1#2
   {
     \@@_literal:x
       {
         pdf:obj ~ \driver_pdf_object_ref:n {#1} ~
-        \str_case_e:nn
-          { \prop_item:Nn \g_@@_pdf_object_prop {#1} }
-          {
-            { array } { { [ ~ \exp_not:n {#2} ~ ] } }
-            { dict }  { { << ~ \exp_not:n {#2} ~ >> } }
-          }
+          [ ~ \exp_not:n {#2} ~ ]
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_dict:nn #1#2
+  {
+    \@@_literal:x
+      {
+        pdf:obj ~ \driver_pdf_object_ref:n {#1} ~
+          << ~ \exp_not:n {#2} ~ >>
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_fstream:nn #1#2
+  { \@@_pdf_object_write_stream:nnnn { f } {#1} #2 }
+\cs_new_protected:Npn \@@_pdf_object_write_stream:nn #1#2
+  { \@@_pdf_object_write_stream:nnnn { } {#1} #2 }
+\cs_new_protected:Npn \@@_pdf_object_write_stream:nnnn #1#2#3#4
+  {
+    \@@_literal:x
+      {
+        pdf: #1 stream ~ \driver_pdf_object_ref:n {#2} ~
+          ( \exp_not:n {#4} ) ~ << \exp_not:n {#3} >>
+        
       }
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 % \subsubsection{PDF Structure}
