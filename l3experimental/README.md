@@ -80,16 +80,6 @@ there are ways to control or change its behaviour. The xgalley module
 provides a mechanism for filling galleys and controlling the spacing,
 hyphenation and justification within them.
 
-`xmarks`
---------
-
-Marks are used to communicate information about the content of a page to the
-output routine. Perhaps the clearest form of mark is that needed for sections.
-In order to construct running headers, the output routine needs information
-about which section names are present on a page, and this information is passed
-by the mark system. However, marks may also be used for other purposes. This
-module provides a generalised mechanism for marks of independent types.
-
 Discussion
 ----------
 
