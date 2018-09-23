@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\peek_catcode_collect_inline:Nn`, `\peek_charcode_collect_inline:Nn`,
+  `\peek_meaning_collect_inline:Nn`
+
 ## [2018-08-23]
 
 ### Added
