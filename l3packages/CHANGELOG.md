@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- `xparse`: put spaces back when a trailing optional arg is absent (fixes #466)
+
 ## [2018-08-23]
 
 ### Added
