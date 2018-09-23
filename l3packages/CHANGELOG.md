@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2018-09-24]
+
 ### Changed
 - `xparse`: put spaces back when a trailing optional arg is absent (fixes #466)
 
@@ -28,7 +30,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2018-08-23...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2018-09-24...HEAD
+[2018-09-24]: https://github.com/latex3/latex3/compare/2018-08-23...2018-09-24
 [2018-08-23]: https://github.com/latex3/latex3/compare/2018-05-12...2018-08-23
 [2018-05-12]: https://github.com/latex3/latex3/compare/2018-04-30...2018-05-12
 [2018-04-30]: https://github.com/latex3/latex3/compare/2017-12-16...2018-04-30
