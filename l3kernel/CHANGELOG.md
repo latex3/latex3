@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2018-09-24]
+
 ### Added
 - `\peek_catcode_collect_inline:Nn`, `\peek_charcode_collect_inline:Nn`,
   `\peek_meaning_collect_inline:Nn`
@@ -126,7 +128,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2018-08-23...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2018-09-24...HEAD
+[2018-09-24]: https://github.com/latex3/latex3/compare/2018-08-23...2018-09-24
 [2018-08-23]: https://github.com/latex3/latex3/compare/2018-06-14...2018-08-23
 [2018-06-14]: https://github.com/latex3/latex3/compare/2018-06-01...2018-06-14
 [2018-06-01]: https://github.com/latex3/latex3/compare/2018-05-13...2018-06-01
