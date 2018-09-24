@@ -10,8 +10,12 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2018-09-24]
 
 ### Added
+- Some driver-level support for PDF features
 - `\peek_catcode_collect_inline:Nn`, `\peek_charcode_collect_inline:Nn`,
   `\peek_meaning_collect_inline:Nn`
+
+### Fixed
+- Handling of unknown keys when inheritance is active (fixes #481)
 
 ## [2018-08-23]
 
