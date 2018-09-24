@@ -23,7 +23,7 @@ installfiles =
 sourcefiles  = {"*.dtx", "*.ins"}
 tagfiles     =
   {
-    "*.dtx", "README.md",
+    "*.dtx", "CHANGELOG.md", "README.md",
     "interface3.tex", "l3styleguide.tex",
     "l3syntax-changes.tex", "source3.tex"
   }
@@ -46,6 +46,7 @@ dofile(maindir .. "/build-config.lua")
 -- Detail how to set the version automatically
 function update_tag(file,content,tagname,tagdate)
   local iso = "%d%d%d%d%-%d%d%-%d%d"
+  local url = "https://github.com/latex3/latex3/compare/"
   if string.match(file,"expl3%.dtx$") then
     content = string.gsub(content,
       "\n\\def\\ExplFileDate{" .. iso .. "}%%\n",
@@ -60,6 +61,17 @@ function update_tag(file,content,tagname,tagdate)
       "\n(%%*%s*)\\date{Released " .. iso .. "}\n",
       "\n%1\\date{Released " .. tagname .. "}\n")
   elseif string.match(file, "%.md$") then
+    if string.match(file,"CHANGELOG.md") then
+      local previous = string.match(content,"compare/(" .. iso .. ")%.%.%.HEAD")
+      if tagname == previous then return content end
+      content = string.gsub(content,
+        "## %[Unreleased%]",
+        "## [Unreleased]\n\n## [" .. tagname .."]")
+      return string.gsub(content,
+        iso .. "%.%.%.HEAD",
+        tagname .. "...HEAD\n[" .. tagname .. "]: " .. url .. previous
+          .. "..." .. tagname)
+    end
     return string.gsub(content,
       "\nRelease " .. iso .. "\n",
       "\nRelease " .. tagname .. "\n")
