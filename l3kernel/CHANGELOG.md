@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Handling of inheritance for choice keys (fixes #483)
+
 ## [2018-09-24]
 
 ### Added
