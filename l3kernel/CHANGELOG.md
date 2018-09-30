@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\g_msg_module_documentation_prop` (see #471)
+
 ### Fixed
 
 - Handling of inheritance for choice keys (fixes #483)
