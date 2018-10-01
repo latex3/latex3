@@ -25,12 +25,14 @@ tagfiles     =
   {
     "*.dtx", "CHANGELOG.md", "README.md",
     "interface3.tex", "l3styleguide.tex",
-    "l3syntax-changes.tex", "source3.tex"
+    "l3syntax-changes.tex",
+    "l3term-glossary.tex",
+    "source3.tex"
   }
 typesetfiles =
   {
     "expl3.dtx", "l3docstrip.dtx","interface3.tex", "l3syntax-changes.tex",
-    "l3styleguide.tex", "source3.tex"
+    "l3styleguide.tex", "l3term-glossary.tex", "source3.tex"
   }
 typesetskipfiles = {"source3-body.tex"}
 typesetruns      = 3
