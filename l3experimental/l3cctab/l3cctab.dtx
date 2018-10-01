@@ -1,0 +1,352 @@
+% \iffalse meta-comment
+%
+%% File: l3cctab.dtx Copyright (C) 2018 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    http://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3experimental bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver|package>
+\RequirePackage{expl3}
+%</driver|package>
+%<*driver>
+\documentclass[full]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \pkg{l3cctab} package\\ Experimental category code tables^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2018-09-24}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \section{\pkg{l3cctab} documentation}
+%
+% \begin{function}{\cctab_new:N}
+%   \begin{syntax}
+%     \cs{cctab_new:N} \meta{category code table}
+%   \end{syntax}
+%   Creates a new category code table, initially with the codes as
+%   used by \IniTeX{}.
+% \end{function}
+%
+% \begin{function}{\cctab_gset:Nn}
+%   \begin{syntax}
+%     \cs{cctab_gset:Nn} \meta{category code table} \Arg{category code set up}
+%   \end{syntax}
+%   Sets the \meta{category code table} to apply the category codes
+%   which apply when the prevailing régime is modified by the
+%   \meta{category code set up}. Thus within a standard code block
+%   the starting point will be the code applied by \cs{c_code_cctab}.
+%   The assignment of the table is global: the underlying primitive does
+%   not respect grouping.
+% \end{function}
+%
+% \begin{function}{\cctab_begin:N}
+%   \begin{syntax}
+%     \cs{cctab_begin:N} \meta{category code table}
+%   \end{syntax}
+%   Switches the category codes in force to those stored in the
+%   \meta{category code table}.  The prevailing codes before the
+%   function is called are added to a stack, for use with
+%   \cs{cctab_end:}.
+% \end{function}
+%
+% \begin{function}{\cctab_end:}
+%   \begin{syntax}
+%     \cs{cctab_end:}
+%   \end{syntax}
+%   Ends the scope of a \meta{category code table} started using
+%   \cs{cctab_begin:N}, retuning the codes to those in force before the
+%   matching \cs{cctab_begin:N} was used.
+% \end{function}
+%
+% \begin{variable}{\c_code_cctab}
+%   Category code table for the code environment. This does not include
+%   setting the behaviour of the line-end character, which is only
+%   altered by \cs{ExplSyntaxOn}.
+% \end{variable}
+%
+% \begin{variable}{\c_document_cctab}
+%   Category code table for a standard \LaTeX{} document. This does not
+%   include setting the behaviour of the line-end character, which is
+%   only altered by \cs{ExplSyntaxOff}.
+% \end{variable}
+%
+% \begin{variable}{\c_initex_cctab}
+%   Category code table as set up by \IniTeX{}.
+% \end{variable}
+%
+% \begin{variable}{\c_other_cctab}
+%   Category code table where all characters have category code $12$
+%   (other).
+% \end{variable}
+%
+% \begin{variable}{\c_str_cctab}
+%   Category code table where all characters have category code $12$
+%   (other) with the exception of spaces, which have category code
+%   $10$ (space).
+% \end{variable}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3cctab} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=cctab>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*package>
+\ProvidesExplPackage{l3cctab}{2018-09-24}{}
+  {L3 Experimental category code tables}
+%</package>
+%    \end{macrocode}
+%
+% \begin{variable}{\g_@@_allocate_int}
+% \begin{variable}{\g_@@_stack_int}
+% \begin{variable}{\g_@@_stack_seq}
+%   To allocate category code tables, both the read-only and stack
+%   tables need to be followed. There is also a sequence stack for the
+%   dynamic tables themselves.
+%    \begin{macrocode}
+\int_new:N  \g_@@_allocate_int
+\int_gset:Nn \g_@@_allocate_int { -1 }
+\int_new:N \g_@@_stack_int
+\seq_new:N \g_@@_stack_seq
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+%
+% \begin{macro}{\cctab_new:N}
+%   Creating a new category code table is done slightly differently
+%   from other registers. Low-numbered tables are more efficiently-stored
+%   than high-numbered ones. There is also a need to have a stack of
+%   flexible tables as well as the set of read-only ones. To satisfy both
+%   of these requirements, odd numbered tables are used for read-only
+%   tables, and even ones for the stack. Here, therefore, the odd numbers
+%   are allocated.
+%    \begin{macrocode}
+\cs_new_protected:Npn \cctab_new:N #1
+  {
+    \__kernel_chk_if_free_cs:N #1
+    \int_gadd:Nn \g_@@_allocate_int { 2 }
+    \int_compare:nNnTF
+      \g_@@_allocate_int <  { \c_max_register_int + 1 }
+       {
+         \tex_global:D \tex_chardef:D #1 \g_@@_allocate_int
+         \tex_initcatcodetable:D #1
+       }
+       { \__kernel_msg_fatal:nnx { kernel } { out-of-registers } { cctab } }
+  }
+\sys_if_engine_luatex:F
+  {
+    \cs_set_protected:Npn \cctab_new:N #1
+      {
+        \__kernel_msg_error:nnx { kernel } { bad-engine }
+          { \exp_not:N \cctab_new:N }
+      }
+  }
+%<*package>
+\sys_if_engine_luatex:T
+  {
+    \cs_set_protected:Npn \cctab_new:N #1
+      {
+        \__kernel_chk_if_free_cs:N #1
+        \newcatcodetable #1
+        \tex_initcatcodetable:D #1
+      }
+  }
+%</package>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\cctab_begin:N}
+% \begin{macro}{\cctab_end:}
+% \begin{variable}{\l_@@_tmp_tl}
+%   The aim here is to ensure that the saved tables are read-only. This is
+%   done by using a stack of tables which are not read only, and actually
+%   having them as \enquote{in use} copies.
+%    \begin{macrocode}
+\cs_new_protected:Npn \cctab_begin:N #1
+  {
+    \seq_gpush:Nx \g_@@_stack_seq { \tex_the:D \tex_catcodetable:D }
+    \tex_catcodetable:D #1
+    \int_gadd:Nn \g_@@_stack_int { 2 }
+    \int_compare:nNnT \g_@@_stack_int > \c_max_register_int
+      { \__kernel_msg_fatal:nn { kernel } { cctab-stack-full } }
+    \tex_savecatcodetable:D \g_@@_stack_int
+    \tex_catcodetable:D \g_@@_stack_int
+  }
+\cs_new_protected_nopar:Npn \cctab_end:
+  {
+    \int_gsub:Nn \g_@@_stack_int { 2 }
+    \seq_if_empty:NTF \g_@@_stack_seq
+      { \tl_set:Nn \l_@@_tmp_tl { 0 } }
+      { \seq_gpop:NN \g_@@_stack_seq \l_@@_tmp_tl }
+    \tex_catcodetable:D \l_@@_tmp_tl \scan_stop:
+  }
+\sys_if_engine_luatex:F
+  {
+    \cs_set_protected:Npn \cctab_begin:N #1
+      {
+        \__kernel_msg_error:nnxx { kernel } { bad-engine }
+          { \exp_not:N \cctab_begin:N } {#1}
+      }
+    \cs_set_protected_nopar:Npn \cctab_end:
+      {
+        \__kernel_msg_error:nnx { kernel } { bad-engine }
+          { \exp_not:N \cctab_end: }
+      }
+  }
+%<*package>
+\sys_if_engine_luatex:T
+  {
+    \cs_set_protected:Npn \cctab_begin:N #1 { \BeginCatcodeRegime #1 }
+    \cs_set_protected_nopar:Npn \cctab_end: { \EndCatcodeRegime }
+  }
+%</package>
+\tl_new:N \l_@@_tmp_tl
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\cctab_gset:Nn}
+%   Category code tables are always global, so only one version is needed.
+%   The set up here is simple, and means that at the point of use there is
+%   no need to worry about escaping category codes.
+%    \begin{macrocode}
+\cs_new_protected:Npn \cctab_gset:Nn #1#2
+  {
+    \group_begin:
+      #2
+      \tex_savecatcodetable:D #1
+    \group_end:
+  }
+\sys_if_engine_luatex:F
+  {
+    \cs_set_protected:Npn \cctab_gset:Nn #1#2
+      {
+        \__kernel_msg_error:nnxx { kernel } { bad-engine }
+          { \exp_not:N \cctab_gset:Nn } { #1 {#2} }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\c_code_cctab}
+% \begin{variable}{\c_document_cctab}
+% \begin{variable}{\c_initex_cctab}
+% \begin{variable}{\c_other_cctab}
+% \begin{variable}{\c_str_cctab}
+%   Creating category code tables is easy using the function above.
+%   The \texttt{other} and \texttt{string} ones are done by completely
+%   ignoring the existing codes as this makes life a lot less complex. The
+%   table for \pkg{expl3} category codes is always needed, whereas when in
+%   package mode the rest can be copied from the existing \LaTeXe{} package
+%   \pkg{luatex}.
+%    \begin{macrocode}
+\sys_if_engine_luatex:T
+  {
+    \cctab_new:N \c_code_cctab
+    \cctab_gset:Nn \c_code_cctab { }
+  }
+%<*package>
+\sys_if_engine_luatex:T
+  {
+    \cs_new_eq:NN \c_document_cctab \CatcodeTableLaTeX
+    \cs_new_eq:NN \c_initex_cctab   \CatcodeTableIniTeX
+    \cs_new_eq:NN \c_other_cctab    \CatcodeTableOther
+    \cs_new_eq:NN \c_str_cctab      \CatcodeTableString
+  }
+%</package>
+%<*initex>
+\sys_if_engine_luatex:T
+  {
+    \cctab_new:N \c_document_cctab
+    \cctab_new:N \c_other_cctab
+    \cctab_new:N \c_str_cctab
+    \cctab_gset:Nn \c_document_cctab
+      {
+        \char_set_catcode_space:n          { 9 }
+        \char_set_catcode_space:n          { 32 }
+        \char_set_catcode_other:n          { 58 }
+        \char_set_catcode_math_subscript:n { 95 }
+        \char_set_catcode_active:n         { 126 }
+      }
+    \cctab_gset:Nn \c_other_cctab
+      {
+        \int_step_inline:nnn { 0 } { 127 }
+          { \char_set_catcode_other:n {#1} }
+      }
+    \cctab_gset:Nn \c_str_cctab
+      {
+        \int_step_inline:nnn { 0 } { 127 }
+          { \char_set_catcode_other:n {#1} }
+        \char_set_catcode_space:n { 32 }
+      }
+  }
+%</initex>
+%    \end{macrocode}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+% \end{variable}
+%
+% \subsection{Messages}
+%
+%    \begin{macrocode}
+\__kernel_msg_new:nnnn { kernel } { cctab-stack-full }
+  { The~category~code~table~stack~is~exhausted. }
+  {
+    LaTeX~has~been~asked~to~switch~to~a~new~category~code~table,~
+    but~there~is~no~more~space~to~do~this!
+  }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+%\end{implementation}
+%
+%\PrintIndex
