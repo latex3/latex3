@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - `\g_msg_module_documentation_prop` (see #471)
+- `\peek_spaces_remove:n`
 
 ### Fixed
 
