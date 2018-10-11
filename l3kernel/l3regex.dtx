@@ -1317,7 +1317,7 @@
           \@@_build_for_cs:n {#1}
           \bool_set_eq:NN \l_@@_saved_success_bool
             \g_@@_success_bool
-          \exp_args:NV \@@_match:n \l_@@_cs_name_tl
+          \exp_args:NV \@@_match_cs:n \l_@@_cs_name_tl
           \if_meaning:w \c_true_bool \g_@@_success_bool
             \group_insert_after:N \@@_break_true:w
           \fi:
@@ -3683,10 +3683,11 @@
 % \subsubsection{Variables used while building}
 %
 % \begin{variable}{\l_@@_min_state_int, \l_@@_max_state_int}
-%   The last state that was allocated is $\cs{l_@@_max_state_int}-1$,
-%   so that \cs{l_@@_max_state_int} always points to a free state.
-%   The \texttt{min_state} variable is $1$, but is included to
-%   avoid hard-coding this value everywhere.
+%   The last state that was allocated is
+%   $\cs{l_@@_max_state_int}-1$, so that \cs{l_@@_max_state_int} always
+%   points to a free state.  The \texttt{min_state} variable is
+%   $1$ to begin with, but gets shifted in nested calls to the matching
+%   code, namely in |\c{...}| constructions.
 %    \begin{macrocode}
 \int_new:N  \l_@@_min_state_int
 \int_set:Nn \l_@@_min_state_int { 1 }
@@ -3799,6 +3800,23 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_build_for_cs:n}
+%   The matching code relies on some global intarray variables, but only
+%   uses a range of their entries.  Specifically,
+%   \begin{itemize}
+%     \item \cs{g_@@_state_active_intarray} from \cs{l_@@_min_state_int}
+%       to $\cs{l_@@_max_state_int}-1$;
+%     \item \cs{g_@@_thread_state_intarray} from \cs{l_@@_min_active_int}
+%       to $\cs{l_@@_max_active_int}-1$.
+%   \end{itemize}
+%   In fact, some data is stored in \tn{toks} registers (local) in the
+%   same ranges so these ranges mustn't overlap.  This is done by
+%   setting \cs{l_@@_min_active_int} to \cs{l_@@_max_state_int} after
+%   building the \textsc{nfa}.  Here, in this nested call to the
+%   matching code, we need the new versions of these ranges to involve
+%   completely new entries of the intarray variables, so we begin by
+%   setting (the new) \cs{l_@@_min_state_int} to (the old)
+%   \cs{l_@@_max_active_int} to use higher entries.
+%
 %   When using a regex to match a cs, we don't insert a wildcard, we
 %   anchor at the end, and since we ignore submatches, there is no need
 %   to surround the expression with a group. However, for branches to
@@ -3813,6 +3831,7 @@
   }
 \cs_new_protected:Npn \@@_build_for_cs:n #1
   {
+    \int_set_eq:NN \l_@@_min_state_int \l_@@_max_active_int
     \int_set_eq:NN \l_@@_max_state_int \l_@@_min_state_int
     \@@_build_new_state:
     \@@_build_new_state:
@@ -4615,7 +4634,7 @@
 %
 % \subsubsection{Matching: framework}
 %
-% \begin{macro}{\@@_match:n}
+% \begin{macro}{\@@_match:n, \@@_match_cs:n}
 % \begin{macro}{\@@_match_init:}
 %   First store the query into \tn{toks} registers and arrays (see
 %   \cs{@@_query_set:nnn}). Then initialize the variables that should
@@ -4641,6 +4660,34 @@
     \int_set_eq:NN \l_@@_min_pos_int \l_@@_curr_pos_int
     \tl_analysis_map_inline:nn {#1}
       { \@@_query_set:nnn {##1} {"##3} {##2} }
+    \int_set_eq:NN \l_@@_max_pos_int \l_@@_curr_pos_int
+    \@@_query_set:nnn { } { -1 } { -2 }
+    \@@_match_init:
+    \@@_match_once:
+  }
+\__kernel_patch:nnNNpn
+  {
+    \@@_trace_push:nnN { regex } { 1 } \@@_match_cs:n
+    \@@_trace:nnx { regex } { 1 } { analyzing~query~token~list }
+  }
+  { \@@_trace_pop:nnN { regex } { 1 } \@@_match_cs:n }
+\cs_new_protected:Npn \@@_match_cs:n #1
+  {
+    \int_zero:N \l_@@_balance_int
+    \int_set:Nn \l_@@_curr_pos_int
+      {
+        \int_max:nn { 2 * \l_@@_max_state_int - \l_@@_min_state_int }
+        { \l_@@_max_pos_int }
+        + 1
+      }
+    \@@_query_set:nnn { } { -1 } { -2 }
+    \int_set_eq:NN \l_@@_min_pos_int \l_@@_curr_pos_int
+    \str_map_inline:nn {#1}
+      {
+        \@@_query_set:nnn { \exp_not:n {##1} }
+          { \tl_if_blank:nTF {##1} { 10 } { 12 } }
+          { `##1 }
+      }
     \int_set_eq:NN \l_@@_max_pos_int \l_@@_curr_pos_int
     \@@_query_set:nnn { } { -1 } { -2 }
     \@@_match_init:
