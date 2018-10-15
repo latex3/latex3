@@ -14,7 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Deprecated
 
-- `\msg_log:n` and `\msg_term:n`
+- `\mg_interrupt:nn`, `\msg_log:n` and `\msg_term:n`
 
 ### Fixed
 
