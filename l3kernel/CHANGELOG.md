@@ -12,6 +12,10 @@ this project uses date-based 'snapshot' version identifiers.
 - `\g_msg_module_documentation_prop` (see #471)
 - `\peek_remove_spaces:n`
 
+### Deprecated
+
+- `\msg_log:n` and `\msg_term:n`
+
 ### Fixed
 
 - Handling of inheritance for choice keys (fixes #483)
