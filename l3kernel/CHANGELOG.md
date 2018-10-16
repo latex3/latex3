@@ -12,6 +12,10 @@ this project uses date-based 'snapshot' version identifiers.
 - `\g_msg_module_documentation_prop` (see #471)
 - `\peek_remove_spaces:n`
 
+### Changed
+
+- Formatting of messages: now follows LaTeX2e closely
+
 ### Deprecated
 
 - `\mg_interrupt:nn`, `\msg_log:n` and `\msg_term:n`
