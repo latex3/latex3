@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2018-10-19]
+
 ### Fixed
 
 - Wrapping of text in messages, etc., for some line lengths (fixes #491)
@@ -155,7 +157,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2018-10-17...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2018-10-19...HEAD
+[2018-10-19]: https://github.com/latex3/latex3/compare/2018-10-17...2018-10-19
 [2018-10-17]: https://github.com/latex3/latex3/compare/2018-09-24...2018-10-17
 [2018-09-24]: https://github.com/latex3/latex3/compare/2018-08-23...2018-09-24
 [2018-08-23]: https://github.com/latex3/latex3/compare/2018-06-14...2018-08-23
