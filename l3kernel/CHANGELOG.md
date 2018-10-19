@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Wrapping of text in messages, etc., for some line lengths (fixes #491)
+
 ## [2018-10-17]
 
 ### Added
