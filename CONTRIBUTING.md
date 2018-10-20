@@ -5,7 +5,7 @@ collected together a few pointers to help things along.
 ## Bugs
 
 Please log bugs using the [issues](https://github.com/latex3/latex3/issues)
-system on GitHub, and choose the 'bug' label. Handy information that you might
+system on GitHub. Handy information that you _might_
 include, depending on the nature of the issue, includes
 
 - Your version of `expl3` (from your `.log`)
@@ -16,8 +16,8 @@ include, depending on the nature of the issue, includes
 
 ## Feature requests
 
-Feature requests are welcome: log them in the same way as bugs and pick
-the 'Enhancement' label.
+Feature requests are welcome: log them in the same way as bugs, explaining
+the motivation for the change.
 
 ## Code contributions
 
