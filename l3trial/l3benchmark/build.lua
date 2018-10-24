@@ -10,9 +10,6 @@ module = "l3benchmark"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
--- Non-standard settings
-checkengines = {"pdftex", "xetex", "ptex", "uptex"}
-
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
