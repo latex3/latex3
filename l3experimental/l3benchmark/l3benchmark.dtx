@@ -52,22 +52,20 @@
 %
 % \section{Additions to \pkg{l3sys}: elapsed time}
 %
-% \begin{function}{\sys_timer_gzero:}
+% \begin{function}{\sys_gzero_timer:}
 %   \begin{syntax}
-%     \cs{sys_timer_gzero:}
+%     \cs{sys_gzero_timer:}
 %   \end{syntax}
 %   Resets the timer to zero.
 % \end{function}
 %
-% \begin{function}{\sys_timer_apply:N}
+% \begin{function}[EXP]{\sys_timer:}
 %   \begin{syntax}
-%     \cs{sys_timer_apply:N} \meta{function}
+%     \cs{sys_timer:}
 %   \end{syntax}
-%   Calls \meta{function} \Arg{time} where \meta{time} is the time
-%   elapsed since the last \cs{sys_timer_gzero:}, which is also called
-%   while loading the package.  The \meta{time} is an integer, measured
-%   in scaled seconds, namely $2^{-16}$ seconds.  The integer may
-%   overflow after about $9$ hours in some engines.
+%   Expands to the current value of the engine's timer clock, a
+%   non-negative integer.  In engines without clock support this
+%   expands to $0$.
 % \end{function}
 %
 % \section{Benchmark}
@@ -144,23 +142,6 @@
 %
 % Our working unit is the scaled second, namely $2^{-16}$ seconds.
 %
-% There are four cases: the elapsed time is available as the primitive
-% \tn{pdfelapsedtime}, or by accessing system time through
-% \texttt{texlua} using unrestricted shell escape, or the elapsed time
-% is not available.  The first two cases behave in the same way, while
-% the third requires using floating point numbers.  The third way uses
-% the following Lua code to print a large floating point number: the
-% system time in scaled seconds; it is around $10^{14}$.
-%    \begin{macrocode}
-%<*lua>
-if os.gettimeofday then
-  io.write(65536 * os.gettimeofday())
-else
-  io.write(65536 * os.date("%s"))
-end
-%</lua>
-%    \end{macrocode}
-%
 %    \begin{macrocode}
 %<*initex|package>
 %    \end{macrocode}
@@ -178,8 +159,8 @@ end
 %<@@=sys>
 %    \end{macrocode}
 %
-% \begin{macro}{\@@_timer:}
-% \begin{macro}[pTF]{\sys_if_timer_exist:}
+% \begin{macro}[EXP]{\sys_timer:}
+% \begin{macro}[EXP,pTF]{\sys_if_timer_exist:}
 %   In \LuaTeX{}, use emulation (see \pkg{l3luatex}),
 %   otherwise try to locate the primitive.  The
 %   elapsed time will be available if this succeeds or if unrestricted
@@ -187,103 +168,59 @@ end
 %    \begin{macrocode}
 \sys_if_engine_luatex:TF
   {
-    \cs_new_protected:Npn \@@_timer:
-      { \lua_now:n { l3kernel.elapsedtime() } }
+    \cs_new:Npn \sys_timer:
+      { \int_eval:w \lua_now:n { l3kernel.elapsedtime() } \scan_stop: }
   }
   {
     \cs_if_exist:NT \tex_elapsedtime:D
-      { \cs_new_protected:Npn \@@_timer: { \tex_elapsedtime:D } }
+      {
+        \cs_new:Npn \sys_timer:
+          { \int_eval:w \tex_elapsedtime:D }
+      }
   }
 \@@_const:nn { sys_if_timer_exist }
-  { \cs_if_exist_p:N \@@_timer:|| \sys_if_shell_unrestricted_p: }
+  { \cs_if_exist_p:N \sys_timer: }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\sys_timer_gzero:, \sys_timer_apply:N, \@@_timer:, \@@_timer_fp:}
+% \begin{macro}{\sys_gzero_timer:, \@@_timer_fp:}
 % \begin{variable}{\g_@@_timer_base_fp}
-%   Three case, and in each case we define \cs{sys_timer_gzero:} then
-%   \cs{sys_timer_apply:N}.  If \cs{@@_timer:} exists then it is safe to
-%   use the corresponding \enquote{resettimer} code for
-%   \cs{sys_timer_gzero:}.
+%   Three case, and in each case we define \cs{sys_gzero_timer:}.
 %    \begin{macrocode}
-\bool_lazy_or:nnTF
-  { \cs_if_exist_p:N \tex_elapsedtime:D: }
-  { \cs_if_exist_p:N \lua_now:n }
+\cs_if_exist:NTF \sys_timer:
   {
     \sys_if_engine_luatex:TF
       {
-        \cs_new_protected:Npn \sys_timer_gzero:
+        \cs_new_protected:Npn \sys_gzero_timer:
           { \lua_now:n { l3kernel.resettimer() } }
       }
-      { \cs_new_protected:Npn \sys_timer_gzero: { \tex_resettimer:D } }
-    \cs_new_protected:Npn \sys_timer_apply:N #1
-      { \exp_args:No #1 { \int_value:w \@@_timer: } }
+      { \cs_new_protected:Npn \sys_gzero_timer: { \tex_resettimer:D } }
   }
 %    \end{macrocode}
-%   Otherwise we use unrestricted shell escape to define
-%   \cs{@@_timer_fp:} (an analogue of \cs{@@_timer:} that produces a
-%   floating point number), and we store the offset in
-%   \cs{g_@@_timer_base_fp}.  We neutralize the end of file marker using
-%   \cs{exp_not:N}.
-%    \begin{macrocode}
-  {
-    \sys_if_shell_unrestricted:TF
-      {
-        \cs_new_protected:Npn \@@_timer_fp:
-          {
-            \int_eval:n
-              { \tex_input:D " | texlua ~ l3sys-time.lua " ~ }
-            \exp_stop_f:
-          }
-        \fp_new:N \g_@@_timer_base_fp
-        \cs_new_protected:Npn \sys_timer_gzero:
-          { \fp_gset:Nn \g_@@_timer_base_fp { \@@_timer_fp: } }
-        \cs_new_protected:Npn \sys_timer_apply:N #1
-          {
-            \group_begin:
-            \tex_everyeof:D { \exp_not:N }
-            \exp_args:NNf \group_end:
-              #1
-              { \fp_to_int:n { \@@_timer_fp: - \g_@@_timer_base_fp } }
-          }
-      }
-%    \end{macrocode}
-%   Finally if the elapsed time cannot be accessed then we define user
+%   If the elapsed time cannot be accessed then we define user
 %   commands to produce errors.
 %    \begin{macrocode}
+  {
+    \__kernel_msg_new:nnnn { kernel } { no-elapsed-time }
+      { No~clock~detected~for~#1. }
+      { The~current~engine~provides~no~way~to~access~the~system~time. }
+    \cs_new_protected:Npn \sys_gzero_timer:
       {
-        \__kernel_msg_new:nnnn { kernel } { no-elapsed-time }
-          { No~clock~detected~for~#1. }
-          {
-            The~current~engine~provides~no~way~to~access~the~system~time,~
-            hence~no~way~to~know~the~time~elapsed~without~shell-escape.~
-            Please~use~pdfTeX,~LuaTeX,~or~call~other~engines~with~the~
-            --shell-escape~option.
-          }
-        \cs_new_protected:Npn \sys_timer_gzero:
-          {
-            \__kernel_msg_error:nnn { kernel } { no-elapsed-time }
-              { \sys_timer_gzero: }
-          }
-        \cs_new_protected:Npn \sys_timer_apply:N #1
-          {
-            \__kernel_msg_error:nnn { kernel } { no-elapsed-time }
-              { \sys_timer_apply:N #1 }
-          }
+        \__kernel_msg_error:nnn { kernel } { no-elapsed-time }
+          { \sys_gzero_timer: }
+      }
+    \cs_new:Npn \sys_timer:
+      {
+        \int_value:w
+        \__kernel_msg_expandable_error:nnn { kernel } { no-elapsed-time }
+          { \sys_timer: }
+        \c_zero_int
       }
   }
 %    \end{macrocode}
 % \end{variable}
 % \end{macro}
-%
-% The following line is needed in engines where elapsed time comes from
-% system time, because the starting value of the clock is otherwise very
-% large (time is counted from epoch).  For consistency, we call
-% \cs{sys_timer_gzero:} in all engines.
-%    \begin{macrocode}
-\sys_if_timer_exist:T { \sys_timer_gzero: }
-%    \end{macrocode}
 %
 % \subsection{Benchmarking code}
 %
@@ -389,9 +326,9 @@ end
 % \end{variable}
 %
 % \begin{variable}{\g_@@_nesting_int}
-% \begin{macro}{\@@_raw:nN, \@@_raw_aux:N, \@@_raw_end:nN}
+% \begin{macro}{\@@_raw:nN, \@@_raw_aux:N, \@@_raw_end:N}
 %   Store in the given integer variable the time it took to perform a given
-%   piece of code, in scaled seconds.  We call \cs{sys_timer_apply:N} as
+%   piece of code, in scaled seconds.  We call \cs{sys_timer:} as
 %   close before and after the code as possible.  We store the
 %   intermediate result in a new integer when \cs{@@_raw:nN} is
 %   nested.
@@ -402,20 +339,20 @@ end
     \int_gincr:N \g_@@_nesting_int
     \exp_args:Nc \@@_raw_aux:N
       { g_@@_ \int_use:N \g_@@_nesting_int _int }
-    \sys_timer_apply:N \@@_raw_aux:n
+    \@@_raw_aux:
     #1
-    \sys_timer_apply:N \@@_raw_end:nN
+    \@@_raw_end:N
   }
 \cs_new_protected:Npn \@@_raw_aux:N #1
   {
     \int_gzero_new:N #1
-    \cs_gset_protected:Npn \@@_raw_aux:n { \int_gset:Nn #1 }
+    \cs_gset_protected:Npn \@@_raw_aux: { \int_gset:Nn #1 { \sys_timer: } }
   }
-\cs_new_protected:Npn \@@_raw_end:nN #1#2
+\cs_new_protected:Npn \@@_raw_end:N #1
   {
-    \int_gset:Nn #2
+    \int_gset:Nn #1
       {
-        #1 -
+        \sys_timer: -
         \int_use:c { g_@@_ \int_use:N \g_@@_nesting_int _int }
       }
     \int_gdecr:N \g_@@_nesting_int
@@ -584,20 +521,20 @@ end
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\benchmark_tic:, \@@_tic:n}
+% \begin{macro}{\benchmark_tic:, \@@_tic:}
 %    \begin{macrocode}
 \cs_new_protected:Npn \benchmark_tic:
   {
     \int_compare:nTF { \g_@@_tictoc_int == 0 }
       {
-        \sys_timer_gzero:
+        \sys_gzero_timer:
         \@@_tic:n { 0 }
       }
-      { \sys_timer_apply:N \@@_tic:n }
+      { \@@_tic: }
   }
-\cs_new_protected:Npn \@@_tic:n #1
+\cs_new_protected:Npn \@@_tic:
   {
-    \seq_put_right:Nn \g_@@_tictoc_seq {#1}
+    \exp_args:NNf \seq_put_right:Nn \g_@@_tictoc_seq { \sys_timer: }
     \int_gincr:N \g_@@_tictoc_int
     \iow_term:x
       {
@@ -608,19 +545,22 @@ end
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\benchmark_toc:, \@@_toc:n}
+% \begin{macro}{\benchmark_toc:, \@@_toc:}
 %    \begin{macrocode}
 \cs_new:Npn \benchmark_toc:
   {
     \int_compare:nT { \g_@@_tictoc_int == 0 }
       { \msg_error:nn {benchmark} {toc-first} }
     \seq_pop_right:NN \g_@@_tictoc_seq \l_@@_tictoc_pop_tl
-    \sys_timer_apply:N \@@_toc:n
+    \@@_toc:
   }
-\cs_new_protected:Npn \@@_toc:n #1
+\cs_new_protected:Npn \@@_toc:
   {
     \tl_set:Nx \l_@@_tictoc_tl
-      { \fp_to_decimal:n { round( (#1 - \l_@@_tictoc_pop_tl) / 65536 , 3 )} }
+      {
+        \fp_to_decimal:n
+          { round( ( \sys_timer: - \l_@@_tictoc_pop_tl) / 65536 , 3 ) }
+      }
     \iow_term:x
       {
         \prg_replicate:nn {\g_@@_tictoc_int} {---+} \c_space_tl
