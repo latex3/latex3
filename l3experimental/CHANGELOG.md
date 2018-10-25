@@ -7,8 +7,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-## [2018-10-17]
-
 ## [2018-08-24]
 
 ### Fixed
