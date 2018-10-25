@@ -21,6 +21,7 @@ updated at the same time.
 
 Currently included in the CTAN release of l3experimental are the following
 bundles:
+* `l3benchmark`
 * `l3color`
 * `l3draw`
 * `l3str`
@@ -28,6 +29,11 @@ bundles:
 * `xcoffins`
 * `xgalley`
 * `xmarks`
+
+`l3benchmark`
+-------------
+
+This module provides support for benchmarking the performance of code.
 
 `l3color`
 ---------
