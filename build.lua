@@ -41,8 +41,6 @@ function main(target)
     errorlevel = call(bundles, "doc")
   elseif target == "install" then
     errorlevel = call (bundles, "install")
-  elseif target == "setversion" then
-    errorlevel = call(bundles, "setversion")
   elseif target == "uninstall" then
     errorlevel = call(bundles,"uninstall")
   elseif target == "unpack" then
