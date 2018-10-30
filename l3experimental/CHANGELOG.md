@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- New module `l3cctab`
+
 ## [2018-10-26]
 
 ### Added

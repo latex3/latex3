@@ -22,6 +22,7 @@ updated at the same time.
 Currently included in the CTAN release of l3experimental are the following
 bundles:
 * `l3benchmark`
+* `l3cctab`
 * `l3color`
 * `l3draw`
 * `l3str`
@@ -34,6 +35,13 @@ bundles:
 -------------
 
 This module provides support for benchmarking the performance of code.
+
+`l3cctab`
+---------
+
+This module provides support for saving and restoring category codes
+_en masse_ in a table. This is supported for the 8-bit range for all engines,
+and for the entire Unicode range with LuaTeX.
 
 `l3color`
 ---------
