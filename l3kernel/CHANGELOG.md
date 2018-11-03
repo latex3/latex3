@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\int_sign:n`, `\dim_sign:n` and `\fp_sign:n`
+
 ## [2018-10-31]
 
 ## [2018-10-26]
