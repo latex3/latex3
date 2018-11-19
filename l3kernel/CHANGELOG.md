@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
+- Support for cross-compatibility primitives in XeTeX
 - `\int_sign:n`, `\dim_sign:n` and `\fp_sign:n`
 
 ## [2018-10-19]
