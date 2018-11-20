@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2018-11-19]
+
 ### Added
 
 - Support for cross-compatibility primitives in XeTeX
@@ -162,7 +164,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2018-10-31...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2018-11-19...HEAD
+[2018-11-19]: https://github.com/latex3/latex3/compare/2018-10-31...2018-11-19
 [2018-10-31]: https://github.com/latex3/latex3/compare/2018-10-26...2018-10-31
 [2018-10-26]: https://github.com/latex3/latex3/compare/2018-10-19...2018-10-26
 [2018-10-19]: https://github.com/latex3/latex3/compare/2018-10-17...2018-10-19
