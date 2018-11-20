@@ -13,6 +13,33 @@ maindir = "../.."
 -- Non-standard settings
 checkdeps = {maindir .. "/l3packages/xparse"}
 
+
+-- sourcefiles = {"*.dtx", "*.ins", "*-????-??-??.sty", "l3doc-TUB.cls"}
+
+typesetfiles  = {"*.tex"}
+
+-- typesetsourcefiles = {"l3doc-TUB.cls"}
+
+checkruns     = 2
+
+
+
+checksuppfiles  = 
+  {
+    "CaseFolding.txt",
+    "SpecialCasing.txt",
+    "UnicodeData.txt",
+    "article.cls",
+    "etoolbox.sty",
+    "fontenc.sty",
+    "minimal.cls",
+    "ot1enc.def",
+    "regression-test.cfg",
+    "regression-test.tex",
+    "size10.clo",
+  }
+
+
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
