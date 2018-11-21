@@ -13,6 +13,11 @@ maindir = "../.."
 -- Non-standard settings
 checkdeps = {maindir .. "/l3packages/xparse"}
 
+-- not doing uptex as it generates spurious font warnings ...
+
+checkengines    = checkengines
+  or {"pdftex", "xetex", "luatex", "ptex"}
+
 
 -- sourcefiles = {"*.dtx", "*.ins", "*-????-??-??.sty", "l3doc-TUB.cls"}
 
