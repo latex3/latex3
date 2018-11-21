@@ -130,7 +130,7 @@
 %     \cs{marks_put:nn} \Arg{type} \Arg{entry}
 %   \end{syntax}
 %   Adds a mark to the current page for the \meta{type}, containing the
-%   \meta{entry} text.
+%   \meta{entry} text. The \meta{entry} is expanded at the time of use.
 % \end{function}
 %
 %
@@ -144,10 +144,62 @@
 %     \cs{marks_use_last:nn}     \Arg{region} \Arg{type}
 %   \end{syntax}
 %   These functions expand to the appropriate mark \meta{entry} for
-%   the given \meta{type} in the specified region. The \enquote{first} and
+%   the given \meta{type} in the specified \meta{region}. The \enquote{first} and
 %   \enquote{last} marks are those seen first and last in the region,
 %   respectively. The \enquote{previous} mark is the last mark of the
-%   \meta{type} seen on earlier regions.
+%   \meta{type} seen on earlier regions. These functions should be used only in
+%   output routines after \cs{marks_update_structure:nnn} has acted, otherwise their
+%   values will be wrong.
+% \end{function}
+%
+% \subsection{Output routine functions}
+%
+% These functions are tied to the output routine. 
+%
+% \begin{function}{\marks_update_structure:nnn}
+%   \begin{syntax}
+%     \cs{marks_update_structure:nnN} \Arg{last} \Arg{current} \Arg{material with marks}
+%   \end{syntax}
+%   \meta{last} is the region from which to take the last marks to
+%   make them new top marks. \meta{current} is the region to update
+%   and \meta{material} holds material that contain new marks.  Thus if this
+%   material consists of boxes we need to do the unpacking with the
+%   argument so that the marks can be seen.
+% \end{function}
+%
+%
+%
+% \begin{function}{\marks_update_structure_alias:nn}
+%   \begin{syntax}
+%     \cs{marks_update_structure_alias:nn} \Arg{alias} \Arg{source}
+%   \end{syntax}
+%   Assigns all marks for the \meta{source} region also to
+%   \meta{alias}, e.g., if we finished a a \texttt{verso} page we
+%   could make the generic \texttt{page} region hold the same
+%   marks. In most cases this is automatically done already by
+%   \cs{marks_update_structure:nnN} so this is only needed in a few
+%   cases.
+% \end{function}
+%
+%
+% \begin{function}{\marks_update_singlecol_structure:n}
+%   \begin{syntax}
+%     \cs{marks_update_singlecol_structure:n} \Arg{material with marks}
+%   \end{syntax}
+%   \LaTeXe{} integration function receiving the content of box 255 for
+%   mark processing when we are doing single column documents.
+% \end{function}
+%
+%
+% \begin{function}{\marks_update_dblcol_structure:nn}
+%   \begin{syntax}
+%     \cs{marks_update_singlecol_structure:n} \Arg{current column material}
+%                                             \Arg{whole page material}
+%   \end{syntax}
+%   \LaTeXe{} integration function mark processing when we are doing
+%   double column documents. The first argument handles the column marks
+%   and the second the marks for the complete page and is only
+%   relevant if we are doing the second column.
 % \end{function}
 %
 %
@@ -250,6 +302,69 @@
 %
 % \section{\pkg{xmarks2} Implementation}
 %
+% \subsection{Notes on the mechanism}
+%
+% \eTeX{} extends the \TeX{} mark system to allow multiple independent
+% marks. However, it does not solve a problem which means that \LaTeX{} needs
+% to manage marks almost independently of \TeX{}. The reason for this is that
+% the complex output routine used by \LaTeX{} to handle floats (and related
+% structures) means that \tn{topmark(s)} are not reliable. Each time the
+% output routine is fired up, \TeX{} moves \tn{botmark} to \tn{topmark}, and
+% while \eTeX{} extends this the fundamental concept remains the same. That
+% means that instead the state of marks needs to be tracked by
+%   \LaTeX{} itself. An early implementation of this package used
+%   \TeX{}'s \tn{botmark} only to ensure the correct interaction with
+% the output routine (this was before the \eTeX{} mechanism was even
+%   available. However, other than in a prototype implementation for
+%   \LaTeX3 this package was never made public.
+%
+% The new implementation now does use \eTeX{}'s marks as they have
+%   some advantages as with them we can leave the mark text within the
+%   galley and only extract the marks during the output routine when
+%   we are finally shipping out a page or storing away a column for
+%   use in the next page. That means we do not have to maintain a
+%   global data structure that we have to keep in sync with
+%   informational marks in the galley but can rely on everything being
+%   in one place and thus manipulations (e.g. reordering of material)
+%   will take the marks with them without a need for updating a
+%   fragile linkage.
+
+% To allow for completely independent marks we use the following
+% procedure:
+% \begin{itemize}
+%   \item
+%     For every mark of type \meta{type} we allocate a mark class so
+%   that in the output routine \TeX{} can calculate for each type top,
+%   first and bottom mark independently.
+%
+%   \item As already mentioned firing up an output routine without
+%   shipping out a page means that \TeX's top marks get wrong so it is
+%   impossible to rely on \TeX's approach directly. What we do instead
+%   is to keep  track of the real marks (from last page or
+%   more generally last region) in some global variables.
+%
+%   \item These variables are updated in the ouput routine at defined
+%   places, i.e., when we do real output processing but not if we use
+%   special output routines to do internal housekeeping.
+%
+%   \item The trick we use to get correctly updated variables is the
+%   following: the material that contains new marks (for example the
+%   page to be shipped out) is stored in a box. We then use \TeX{}
+%   primitive box splitting functions by splitting off the largest
+%   amount possible (which should be the whole box if nothing goes
+%   really wrong). While that seems a rather pointless thing to do, it
+%   has one important side effect: \TeX{} sets up first and bottom
+%   marks for each mark class from the material it has split off. This
+%   way we get the first and last marks (if there have been any) from
+%   the material in the box.
+%
+%   \item The top marks are simply the last marks from the previous
+%   page or region. And if there hasn't been a first or bottom mark in
+%   the box then the new top mark also becomes new first and last mark
+%   for that class.
+%  \end{itemize}
+%  That's about it in a nutshell. Of course, there are some details to
+%   be taken care off and those are discussed further below.
 %
 %
 %
@@ -350,65 +465,6 @@
 %
 %
 %
-%    
-%    \begin{macrocode}
-\cs_new:Npn \@@_update_singlecol_structure:
-   {
-    \if@twoside
-      \ifodd \c@page
-        \marks_update_structure:nnn {page}{recto}\@outputbox
-      \else
-        \marks_update_structure:nnn {page}{verso}\@outputbox
-      \fi
-    \else
-      \marks_update_structure:nnn {page}{recto}\@outputbox
-      \marks_update_structure_alias:nn {verso}{page}
-    \fi
-    \marks_update_structure_alias:nn {col}{page}  
-    \marks_update_structure_alias:nn {1col}{page}  
-    \marks_update_structure_alias:nn {2col}{page}
-%<*trace>
-    \marks_status:n {OR:~(\if@twoside twoside- \ifodd \c@page odd\else
-      even\fi\else oneside\fi)}
-%</trace>
-   }
-%    \end{macrocode}
-%    
-%    \begin{macrocode}
-\cs_new:Npn \@@_update_dblcol_structure:
-   {
-    \if@firstcolumn
-      \marks_update_structure:nnn {col}{1col}\@outputbox
-    \else
-      \marks_update_structure:nnn {col}{2col}\@outputbox
-      \if@twoside
-        \ifodd \c@page
-          \marks_update_complex_structure:nnn {page}{recto}
-            { \unvcopy\@leftcolumn\unskip
-              \unvcopy\@outputbox\unskip }
-        \else
-          \marks_update_complex_structure:nnn {page}{verso}
-            { \unvcopy\@leftcolumn\unskip
-              \unvcopy\@outputbox\unskip }
-        \fi
-      \else
-        \marks_update_complex_structure:nnn {page}{recto}
-            { \unvcopy\@leftcolumn\unskip
-              \unvcopy\@outputbox\unskip }
-      \fi
-    \fi
-%<*trace>
-    \marks_status:n {OR:~(
-      \if@twoside twoside- \ifodd \c@page odd\else
-      even\fi\else oneside\fi
-      \space
-      \if@firstcolumn first~ \else second~ \fi
-       column)}
-%</trace>
-   }
-  
-%    \end{macrocode}
-%
 %
 %    
 %    \begin{macrocode}
@@ -418,15 +474,10 @@
   \tl_new:N \g_@@_tmp_tl
   \tl_new:N \g_@@_new_top_tl
   
-\cs_new:Npn \marks_update_structure:nnn #1#2#3
-   { \marks_update_complex_structure:nnn
-     {#1}{#2}{ \unvcopy #3 \unskip }
-   }
-  
 %    \end{macrocode}
 %    
 
-%  \begin{macro}{\marks_update_complex_structure:nnn}
+%  \begin{macro}{\marks_update_structure:nnn}
 
 %    This function updates the mark structure. The first argument is
 %    the region from which we pick up the last mark to make it the new
@@ -443,7 +494,7 @@
 %    need for \cs{marks_update_structure_alias:nn}) which save a bit of
 %    processing time as we don't have to construct csnames unnecessarily.
 %    \begin{macrocode}
-\cs_new:Npn \marks_update_complex_structure:nnn #1#2#3
+\cs_new:Npn \marks_update_structure:nnn #1#2#3
 {
   \group_begin:
 %    \end{macrocode}
@@ -457,7 +508,6 @@
     \dim_set:Nn \tex_splitmaxdepth:D \c_max_dim
     \int_set:Nn \tex_vbadness:D      \c_max_int
     \vbox_set:Nn \@@_box {#3}
-%    \showoutput\showbox \@@_box
     \vbox_set_split_to_ht:NNn \@@_box \@@_box \c_max_dim
 %    \end{macrocode}
 %    After this action we can get first and last marks of the various
@@ -582,6 +632,12 @@
 %
 %
 %    
+% \begin{macro}[EXP]
+%   {\marks_get_first:nn, \marks_get_last:nn, \marks_get_previous:nn}
+%   To retrieve the first, last or previous region mark, we grab the appropriate
+%   value stored in some tl var. These functions should be used only in
+%   output routines after \cs{marks_update_structure:nnn} has acted, otherwise their
+%   value will be wrong.
 %    \begin{macrocode}
 \cs_new:Npn \marks_use_first:nn #1#2
    { \use:c { g_@@_ #1 _first_ #2 _tl } }
@@ -590,10 +646,12 @@
 \cs_new:Npn \marks_use_previous:nn #1#2
   {  \use:c { g_@@_ #1 _top_ #2 _tl }  }
 %    \end{macrocode}
+% \end{macro}
 %
 %
 %
-%    
+%  \begin{macro}{\marks_status:nn}
+%    Some simple tracing, should be changed \ldots
 %    \begin{macrocode}
   \cs_new:Npn \marks_status:n #1
      {
@@ -633,6 +691,8 @@
        }
 }       
 %    \end{macrocode}
+%  \end{macro}
+%    
 %
 %
 %
@@ -726,6 +786,18 @@
 %
 %  \section{\LaTeXe{} integration} 
 %
+%  \begin{macro}[TF, int]{\legacy_switch_if:n}
+%    To evaluate \LaTeXe{} boolean switches in a nice way, we need a
+%    conditional. Eventually this will probably make it into the \pkg{expl3}
+%    code in this or a similar form, but right now it is missing.
+%    \begin{macrocode}
+\prg_new_conditional:Npnn \legacy_switch_if:n #1 {p, T , F , TF }
+  { \exp_args:Nc\if_meaning:w { if#1 } \iftrue \prg_return_true:
+                                        \else: \prg_return_false: \fi: }
+%    \end{macrocode}
+%  \end{macro}
+%
+%
 %    \begin{macrocode}
 \RequirePackage{etoolbox}
 %    \end{macrocode}
@@ -781,7 +853,8 @@
 \patchcmd\@opcol
   {\@outputpage}
   {
-    \@@_update_singlecol_structure:
+    \marks_update_singlecol_structure:n 
+       { \unvcopy\@outputbox\unskip }
     \@outputpage
   }
   {\typeout{\noexpand\@opcol patch~ 1~ successful}}
@@ -792,13 +865,88 @@
 \patchcmd\@opcol
   {\@outputdblcol}
   {
-    \@@_update_dblcol_structure:
+    \marks_update_dblcol_structure:nn
+       { \unvcopy\@outputbox\unskip }
+       { \unvcopy\@leftcolumn\unskip
+         \unvcopy\@outputbox\unskip }
     \@outputdblcol
   }
   {\typeout{\noexpand\@opcol patch~ 2~ successful}}
   {\typeout{\noexpand\@opcol patch~ 2~ failed}}
 %    \end{macrocode}
 %  \end{macro}
+%
+%    
+%  \begin{macro}{\marks_update_singlecol_structure:n}
+%    
+%    \begin{macrocode}
+\cs_new:Npn \marks_update_singlecol_structure:n #1
+   {
+     \legacy_switch_if:nTF {@twoside}
+     {
+      \int_if_odd:nTF \c@page
+        { \marks_update_structure:nnn {page}{recto}{#1} }
+        { \marks_update_structure:nnn {page}{verso}{#1} }
+     }
+     {
+       \marks_update_structure:nnn {page}{recto}{#1}
+       \marks_update_structure_alias:nn {verso}{page}
+     }
+    \marks_update_structure_alias:nn {col}{page}  
+    \marks_update_structure_alias:nn {1col}{page}  
+    \marks_update_structure_alias:nn {2col}{page}
+%<*trace>
+    \marks_status:n
+     { OR:~(
+       \legacy_switch_if:nTF {@twoside}
+              { twoside-
+                \int_if_odd:nTF \c@page
+                    { odd }{ even }
+              }
+              { oneside }
+       )
+     }
+%</trace>
+   }
+%    \end{macrocode}
+%  \end{macro}
+%    
+%  \begin{macro}{\marks_update_dblcol_structure:nn}
+%    
+%    \begin{macrocode}
+\cs_new:Npn \marks_update_dblcol_structure:nn #1#2
+   {
+    \legacy_switch_if:nTF {@firstcolumn}
+      { \marks_update_structure:nnn {col}{1col}{#1} }
+      {
+        \marks_update_structure:nnn {col}{2col}{#1}
+        \legacy_switch_if:nTF {@twoside}
+               {
+                 \int_if_odd:nTF \c@page
+                     { \marks_update_structure:nnn {page}{recto}{#2} }
+                     { \marks_update_structure:nnn {page}{verso}{#2} }
+               }
+               { \marks_update_structure:nnn {page}{recto}{#2} }
+      }
+%<*trace>
+   \marks_status:n
+     { OR:~(
+       \legacy_switch_if:nTF {@twoside}
+              { twoside-
+                \int_if_odd:nTF \c@page
+                    { odd }{ even }
+              }
+              { oneside }
+      \space
+      \legacy_switch_if:nTF {@firstcolumn}
+             { first~ }{ second~ }
+      column )
+     }
+%</trace>
+   }
+%    \end{macrocode}
+%  \end{macro}
+%    
 %
 %
 %    \begin{macrocode}
@@ -858,13 +1006,11 @@
 %    reality that gets even more complex for two columns as we have
 %    more float areas then.
 %    \begin{macrocode}
-\cs_new:Npn \marks_update_structure:nnn #1#2#3
-   { \marks_update_complex_structure:nnn
+     \marks_update_structure:nnn
      {#1}{#2}
      { \unvcopy\@@_tfloats_box
        \unvcopy #3 \unskip
        \unvcopy\@@_bfloats_box }
-   }
 %    \end{macrocode}
 %    
 %    \begin{macrocode}
