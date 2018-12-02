@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Apply `\par` only at the end of vertical boxes
 - Move `\int_rand:n` to stable
 - Move `\<var>_rand_item:N` to stable
+- Move `\tl_set_from_file:Nnn` and related functions to stable
 
 ## [2018-11-19]
 
