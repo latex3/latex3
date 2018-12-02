@@ -85,6 +85,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Apply `\par` only at the end of vertical boxes
 - Move `\int_rand:n` to stable
+- Move `\prg_generate_conditional_variant:Nnn` to stable
 - Move `\<var>_rand_item:N` to stable
 
 ### Fixed
