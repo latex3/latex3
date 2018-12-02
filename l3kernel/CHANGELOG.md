@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Apply `\par` only at the end of vertical boxes
+
 ## [2018-11-19]
 
 ### Added
