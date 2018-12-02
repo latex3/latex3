@@ -10,6 +10,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 
 - Apply `\par` only at the end of vertical boxes
+- Move `\int_rand:n` to stable
+- Move `\<var>_rand_item:N` to stable
 
 ## [2018-11-19]
 
