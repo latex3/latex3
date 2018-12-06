@@ -13,6 +13,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Move `\int_rand:n` to stable
 - Move `\<var>_rand_item:N` to stable
 
+### Fixed
+
+- Bu in `\lua_shipout_e:n` (see #503)
+
 ## [2018-11-19]
 
 ### Added
