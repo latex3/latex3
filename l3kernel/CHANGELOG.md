@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+- Enable `\char_generate:nn` to create active tokens with XeTeX
+
 ## [2018-12-06]
 
 ### Changed
