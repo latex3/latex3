@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## Fixed
+
+- Loading in ConTeXt MkIV
+
 ## [2018-12-11]
 
 - Enable `\char_generate:nn` to create active tokens with XeTeX
