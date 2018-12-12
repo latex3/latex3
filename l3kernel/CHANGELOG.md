@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## Changed
+
+- Move `\tl_range:nnn` to stable
+
 ## Fixed
 
 - Loading in ConTeXt MkIV
