@@ -9,15 +9,17 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2018-12-12]
 
-## Changed
+### Changed
 
 - Move `\tl_range:nnn` to stable
 
-## Fixed
+### Fixed
 
 - Loading in ConTeXt MkIV
 
 ## [2018-12-11]
+
+### Changed
 
 - Enable `\char_generate:nn` to create active tokens with XeTeX
 
