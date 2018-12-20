@@ -33,7 +33,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 
-- Bu in `\lua_shipout_e:n` (see #503)
+- Typo in `\lua_shipout_e:n` (see #503)
 
 ## [2018-11-19]
 
