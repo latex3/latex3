@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Correct fp randint with zero argument (see #507)
+
 ### Removed
 
 - Functions scheduled end 2018
