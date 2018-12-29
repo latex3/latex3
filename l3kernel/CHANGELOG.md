@@ -13,7 +13,16 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Removed
 
-- Functions scheduled end 2018
+- `\box_resize:Nnn`
+- `\box_use_clear:N`
+- `\c_minus_one`
+- `\file_add_path:nN`
+- `\file_list:`
+- `\file_path_include:n` and `\file_path_remove:n`
+- `\io(r|w)_list_streams:` and `\io(r|w)_log_streams:`
+- `\sort_ordered:` and `\sort_reversed:`
+- `\token_new:Nn`
+- Generation of invalid variants from `n`/`N` base types
 
 ## [2018-12-12]
 
