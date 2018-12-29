@@ -447,6 +447,8 @@
 %       (for example after a control sequence),
 %     \item |\#|, |\%|, |\{|, |\}|, |\~| may be used to represent
 %       the corresponding character,
+%     \item \cs{iow_allow_break:} may be used to allow a line-break
+%       without inserting a space (this is experimental),
 %     \item \cs{iow_indent:n} may be used to indent a part of the
 %       \meta{text} (not the \meta{run-on text}).
 %   \end{itemize}
@@ -1400,6 +1402,7 @@
 %   {
 %     \c_@@_wrap_end_marker_tl,
 %     \c_@@_wrap_newline_marker_tl,
+%     \c_@@_wrap_allow_break_marker_tl,
 %     \c_@@_wrap_indent_marker_tl,
 %     \c_@@_wrap_unindent_marker_tl
 %   }
@@ -1417,7 +1420,7 @@
     { \tl_to_str:n { \^^I \^^O \^^W \^^_ \^^W \^^R \^^A \^^P } }
 \group_end:
 \tl_map_inline:nn
-  { { end } { newline } { indent } { unindent } }
+  { { end } { newline } { allow_break } { indent } { unindent } }
   {
     \tl_const:cx { c_@@_wrap_ #1 _marker_tl }
       {
@@ -1429,6 +1432,30 @@
 %    \end{macrocode}
 % \end{variable}
 % \end{variable}
+%
+% \begin{macro}{\iow_allow_break:}
+% \begin{macro}[EXP]{\@@_allow_break:}
+% \begin{macro}[EXP]{\@@_allow_break_error:}
+%   We set \cs{iow_allow_break:n} to produce an error when outside
+%   messages. Within wrapped message, it is set to \cs{@@_allow_break:}
+%   when valid and otherwise to \cs{@@_allow_break_error:}.  The second
+%   produces an error expandably.
+%    \begin{macrocode}
+\cs_new_protected:Npn \iow_allow_break:
+  {
+    \__kernel_msg_error:nnnn { kernel } { iow-allow-break }
+      { \iow_wrap:nnnN } { \iow_allow_break: }
+  }
+\cs_new:Npx \@@_allow_break: { \c_@@_wrap_allow_break_marker_tl }
+\cs_new:Npn \@@_allow_break_error:
+  {
+    \__kernel_msg_expandable_error:nnnn { kernel } { iow-allow-break }
+      { \iow_wrap:nnnN } { \iow_allow_break:n }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 %
 % \begin{macro}{\iow_indent:n}
 % \begin{macro}[EXP]{\@@_indent:n}
@@ -1488,6 +1515,7 @@
       \int_set:Nn \tex_escapechar:D { 92 }
       \cs_set_eq:NN \\ \iow_newline:
       \cs_set_eq:NN \  \c_catcode_other_space_tl
+      \cs_set_eq:NN \iow_allow_break: \@@_allow_break:
       \cs_set_eq:NN \iow_indent:n \@@_indent:n
       #3
 %    \end{macrocode}
@@ -1500,6 +1528,7 @@
 %    \begin{macrocode}
 %<package>      \cs_set_eq:NN \protect \token_to_str:N
       \tl_set:Nx \l_@@_wrap_tl {#1}
+      \cs_set_eq:NN \iow_allow_break: \@@_allow_break_error:
       \cs_set_eq:NN \iow_indent:n \@@_indent_error:n
 %    \end{macrocode}
 %   Afterwards, set the newline marker (two assignments to fully expand,
@@ -1806,7 +1835,27 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_wrap_indent:, \@@_wrap_unindent:}
+% \begin{macro}{\@@_wrap_allow_break:n}
+%   This is called after a chunk has been wrapped.  The
+%   \cs{l_@@_line_part_tl} typically ends with a space (except at the
+%   beginning of a line?), which we remove since the
+%   \texttt{allow\_break} marker should not insert a space.  Then move
+%   on with the next chunk, making sure to adjust the target number of
+%   characters for the line in case we did remove a space.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_wrap_allow_break:n #1
+  {
+    \tl_set:Nx \l_@@_line_tl
+      { \l_@@_line_tl \@@_wrap_trim:N \l_@@_line_part_tl }
+    \bool_set_false:N \l_@@_line_break_bool
+    \tl_if_empty:NTF \l_@@_line_part_tl
+      { \@@_wrap_chunk:nw {#1} }
+      { \exp_args:Nf \@@_wrap_chunk:nw { \int_eval:n { #1 + 1 } } }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_wrap_indent:n, \@@_wrap_unindent:n}
 %   These functions are called after a chunk has been wrapped, when
 %   encountering \texttt{indent}/\texttt{unindent} markers.  Add the
 %   line part (last line part of the previous chunk) to the line so far
@@ -1834,7 +1883,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_wrap_newline:, \@@_wrap_end:}
+% \begin{macro}{\@@_wrap_newline:n, \@@_wrap_end:n}
 %   These functions are called after a chunk has been line-wrapped, when
 %   encountering a \texttt{newline}/\texttt{end} marker.  Unless we just
 %   took a line-break, store the line part and the line so far into the
@@ -1879,13 +1928,18 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_wrap_trim:N, \@@_wrap_trim:w}
-%   Remove one trailing \enquote{other} space from the argument.
+% \begin{macro}[EXP]{\@@_wrap_trim:N, \@@_wrap_trim:w, \@@_wrap_trim_aux:w}
+%   Remove one trailing \enquote{other} space from the argument if present.
 %    \begin{macrocode}
-\cs_new:Npn \@@_wrap_trim:N #1
-  { \tl_if_empty:NF #1 { \exp_after:wN \@@_wrap_trim:w #1 \q_stop } }
-\exp_last_unbraced:NNNNo
-  \cs_new:Npn \@@_wrap_trim:w #1 \c_catcode_other_space_tl \q_stop {#1}
+\cs_set_protected:Npn \@@_tmp:w #1
+  {
+    \cs_new:Npn \@@_wrap_trim:N ##1
+      { \exp_after:wN \@@_wrap_trim:w ##1 \q_mark #1 \q_mark \q_stop }
+    \cs_new:Npn \@@_wrap_trim:w ##1 #1 \q_mark
+      { \@@_wrap_trim_aux:w ##1 \q_mark }
+    \cs_new:Npn \@@_wrap_trim_aux:w ##1 \q_mark ##2 \q_stop {##1}
+  }
+\exp_args:NV \@@_tmp:w \c_catcode_other_space_tl
 %    \end{macrocode}
 % \end{macro}
 %
