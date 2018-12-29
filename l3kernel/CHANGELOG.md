@@ -13,6 +13,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Removed
 
+- Support for stand-alone `l3regex`, `l3sort`, `l3srt`, `l3tl-analysis`,
+  `l3tl-build`
 - `\box_resize:Nnn`
 - `\box_use_clear:N`
 - `\c_minus_one`
