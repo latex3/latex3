@@ -14,6 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 
 - Correct fp randint with zero argument (see #507)
+- Handling of `\current@color` with (x)dvipdfmx` (see #510)
 
 ### Removed
 
