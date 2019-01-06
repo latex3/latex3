@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Handling of accented characters under mixed case changing in 8-bit engines
+  (see #514)
+
 ## [2019-01-01]
 
 ### Added
