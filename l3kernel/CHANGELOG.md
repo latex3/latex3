@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Improved performance of `\ior_map_inline:Nn` and related functions
+
 ### Fixed
 
 - Handling of accented characters under mixed case changing in 8-bit engines
