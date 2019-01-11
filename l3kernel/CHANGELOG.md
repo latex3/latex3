@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
+- Improved `expl3` loading time with LuaTeX and XeTeX
 - Improved performance of `\ior_map_inline:Nn` and related functions
 
 ### Fixed
