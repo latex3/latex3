@@ -1,7 +1,7 @@
 LaTeX3 Programming Conventions
 ==============================
 
-Release 2019-01-01
+Release 2019-01-12
 
 Overview
 --------
@@ -100,6 +100,6 @@ the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
-<p>Copyright (C) 1998-2012,2015-2018 The LaTeX3 Project <br />
+<p>Copyright (C) 1998-2012,2015-2019 The LaTeX3 Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>

@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-01-12]
+
 ### Changed
 
 - Improved `expl3` loading time with LuaTeX and XeTeX
@@ -228,7 +230,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-01-01...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-01-12...HEAD
+[2019-01-12]: https://github.com/latex3/latex3/compare/2019-01-01...2019-01-12
 [2019-01-01]: https://github.com/latex3/latex3/compare/2018-12-12...2019-01-01
 [2018-12-12]: https://github.com/latex3/latex3/compare/2018-12-11...2018-12-12
 [2018-12-11]: https://github.com/latex3/latex3/compare/2018-12-06...2018-12-11
