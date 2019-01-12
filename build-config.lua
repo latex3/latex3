@@ -36,6 +36,19 @@ end
 function update_tag(file,content,tagname,tagdate)
   local iso = "%d%d%d%d%-%d%d%-%d%d"
   local url = "https://github.com/latex3/latex3/compare/"
+  if string.match(content,"Copyright%s*%(C%)%s*[%d%-,]+") then
+    local year = os.date("%Y")
+    content = string.gsub(content,
+      "Copyright%s*%(C%)%s*([%d%-,]+)",
+      "Copyright (C) %1," .. year)
+   content = string.gsub(content,year .. "," .. year,year)
+   content = string.gsub(content,
+     "%-" .. year - 1 .. "," .. year,
+     "-" .. year)
+   content = string.gsub(content,
+     year - 2 .. "," .. year - 1 .. "," .. year,
+     year - 2 .. "-" .. year)
+  end
   if string.match(file,"%.dtx$") then
     content = string.gsub(content,
       "\n\\ProvidesExpl" .. "(%w+ *{[^}]+} *){" .. iso .. "}",
