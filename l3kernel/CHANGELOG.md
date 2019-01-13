@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Unclosed conditional with Unicode engines
+
 ## [2019-01-12]
 
 ### Changed
