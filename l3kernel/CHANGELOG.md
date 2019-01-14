@@ -7,10 +7,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-### Changed
-
-- Support for absolute key paths
-
 ## [2019-01-13]
 
 ### Added
