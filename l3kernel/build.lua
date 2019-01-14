@@ -173,47 +173,12 @@ function format()
   return 0
 end
 
--- l3kernel does all of the targets itself
-function main(target, files)
-  local errorlevel = 0
-  if target == "check" then
-    errorlevel = check(files)
-  elseif target == "clean" then
-    clean()
-  elseif target == "cmdcheck" then
-    errorlevel = cmdcheck()
-  elseif target == "ctan" then
-    errorlevel = ctan(true)
-  elseif target == "doc" then
-    errorlevel = doc(files)
-  elseif target == "format" then
-    errorlevel = format()
-  elseif target == "install" then
-    install()
-  elseif target == "save" then
-    if next(files) then
-      errorlevel = save(files)
-    else
-      help()
-    end
-  elseif target == "tag" then
-    if options["names"] and #options["names"] == 1 then
-      tag(options["names"][1])
-    else
-      print("Tag name required")
-      help()
-      exit(1)
-    end
-  elseif target == "unpack" then
-    errorlevel = unpack()
-  elseif target == "version" then
-    version()
-  else
-    help()
-  end
-  os.exit(errorlevel)
-end
-
+target_list = target_list or { }
+target_list.format =
+  {
+    func = format,
+    desc = "Creat l3formats"
+  }
 
 -- Find and run the build system
 kpse.set_program_name("kpsewhich")
