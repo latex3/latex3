@@ -7,11 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-01-13]
+
 ### Added
 
 - `\ior_map_variable:NNn` and `\ior_str_map_variable:NNn`
-
-## [2019-01-13]
 
 ### Fixed
 
