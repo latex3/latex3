@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- `\char_generate:nn` now always takes exactly two expansions
+
 ### Fixed
 
 - In (u)platex: detection of spaces in `\tl_rescan:nn` and related functions
