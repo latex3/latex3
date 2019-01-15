@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- In (u)platex: detection of spaces in `\tl_rescan:nn` and related functions
+
 ## [2019-01-13]
 
 ### Added
