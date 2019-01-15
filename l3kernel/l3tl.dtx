@@ -285,7 +285,7 @@
 % supported, it is often preferable to find alternative approaches
 % to achieving outcomes rather than rescanning tokens (for example
 % construction of token lists token-by-token with intervening category
-% code changes).
+% code changes or using \cs{char_generate:nn}).
 %
 % \begin{function}[updated = 2015-08-11]
 %   {
@@ -1616,9 +1616,9 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\@@_set_rescan:n, \@@_set_rescan:NnTF}
+% \begin{macro}{\@@_set_rescan:n}
 % \begin{macro}{\@@_set_rescan_single:nn, \@@_set_rescan_single_aux:nn}
-%   This function calls \cs{@@_set_rescan_multiple:n} or
+%   This function calls \cs{@@_set_rescan_multi:n} or
 %   \cs{@@_set_rescan_single:nn} |{ ' }| depending on whether its
 %   argument is a single-line fragment of code/data or is made of
 %   multiple lines by testing for the presence of a \tn{newlinechar}
@@ -1641,12 +1641,11 @@
 %
 %   For a single line, no \tn{endlinechar} should be added, so it is
 %   set to $-1$, and spaces should not be removed.
-%
 %   Trailing spaces and tabs are a difficult matter, as \TeX{} removes
 %   these at a very low level.  The only way to preserve them is to
 %   rescan not the argument but the argument followed by a character
-%   with a reasonable category code.  Here, $11$ (letter), $12$ (other)
-%   and $13$ (active) are accepted, as these are suitable for
+%   with a reasonable category code.  Here, $11$ (letter) and $12$ (other)
+%   are accepted, as these are convenient, suitable for
 %   delimiting an argument, and it is very unlikely that none of the
 %   ASCII characters are in one of these categories.  To avoid
 %   selecting one particular character to put at the end, whose
@@ -1656,86 +1655,57 @@
 %   range of characters whose standard category is letter or other,
 %   thus minimizing the number of steps needed by the loop (most often
 %   just a single one).  Once a valid character is found, run some code
-%   very similar to \cs{@@_set_rescan_multi:n}, except that
-%   \cs{@@_rescan:w} must be redefined to also remove the additional
-%   character (with the appropriate catcode).  Getting the delimiter
-%   with the right catcode requires using \tn{scantokens} inside an
-%   \texttt{x}-expansion, hence using the previous definition of
-%   \cs{@@_rescan:w} as well.  The odd \cs{exp_not:N} \cs{use:n}
-%   ensures that the trailing \cs{exp_not:N} in \tn{everyeof} does
-%   not prevent the expansion of \cs{c_@@_rescan_marker_tl}, but
-%   rather of a closing brace (this does nothing).
-%   If no valid character is found, similar code is ran,
-%   and the only difference is that trailing spaces are not preserved
-%   (bear in mind that this only happens if no character between $39$
-%   and $127$ has catcode letter, other or active).
-%
-%   There is also some work to preserve leading spaces: test whether
-%   the first character (given by \cs{str_head:n}, with an extra space
-%   to circumvent a limitation of \texttt{f}-expansion) has catcode
-%   $10$ and add what \TeX{} would add in the middle of a line for any
-%   sequence of such characters: a single space with catcode $10$ and
-%   character code $32$.
+%   very similar to \cs{@@_set_rescan_multi:n} but with that character
+%   put at the start and end.  The auxiliary \cs{@@_rescan:w} must be
+%   redefined to also remove the additional character (with the
+%   appropriate catcode thanks to \cs{char_generate:nn}).  If no valid
+%   character is found (very rare), fall-back on
+%   \cs{@@_set_rescan_multi:n}.
 %    \begin{macrocode}
-\group_begin:
-  \tex_catcode:D `\^^@ = 12 \scan_stop:
-  \cs_new_protected:Npn \@@_set_rescan:n #1
-    {
-      \int_compare:nNnTF \tex_newlinechar:D < 0
-        { \use_ii:nn }
+\cs_new_protected:Npn \@@_set_rescan:n #1
+  {
+    \int_compare:nNnTF \tex_newlinechar:D < 0
+      { \use_ii:nn }
+      {
+        \exp_args:Nnf \tl_if_in:nnTF {#1}
+          { \char_generate:nn { \tex_newlinechar:D } { 12 } }
+      }
+        { \@@_set_rescan_multi:n }
         {
-          \char_set_lccode:nn { 0 } { \tex_newlinechar:D }
-          \tex_lowercase:D { \@@_set_rescan:NnTF ^^@ } {#1}
+          \int_set:Nn \tex_endlinechar:D { -1 }
+          \@@_set_rescan_single:nn { `' }
         }
+    {#1}
+  }
+\cs_new_protected:Npn \@@_set_rescan_single:nn #1
+  {
+    \int_compare:nNnTF
+      { \char_value_catcode:n {#1} / 2 } = 6
+      {
+        \exp_args:Nf \@@_set_rescan_single_aux:nn
+          { \char_generate:nn {#1} { \char_value_catcode:n {#1} } }
+      }
+      {
+        \int_compare:nNnTF {#1} < { `\~ }
+          {
+            \exp_args:Nf \@@_set_rescan_single:nn
+              { \int_eval:n { #1 + 1 } }
+          }
           { \@@_set_rescan_multi:n }
-          { \@@_set_rescan_single:nn { ' } }
-      {#1}
-    }
-  \cs_new_protected:Npn \@@_set_rescan:NnTF #1#2
-    { \tl_if_in:nnTF {#2} {#1} }
-  \cs_new_protected:Npn \@@_set_rescan_single:nn #1
-    {
-      \int_compare:nNnTF
-        { \char_value_catcode:n { `#1 } / 3 } = 4
-        { \@@_set_rescan_single_aux:nn {#1} }
-        {
-          \int_compare:nNnTF { `#1 } < { `\~ }
-            {
-              \char_set_lccode:nn { 0 } { `#1 + 1 }
-              \tex_lowercase:D { \@@_set_rescan_single:nn { ^^@ } }
-            }
-            { \@@_set_rescan_single_aux:nn { } }
-        }
-    }
-  \cs_new_protected:Npn \@@_set_rescan_single_aux:nn #1#2
-    {
-      \int_set:Nn \tex_endlinechar:D { -1 }
-      \use:x
-        {
-          \exp_not:N \use:n
-            {
-              \exp_not:n { \cs_set:Npn \@@_rescan:w ##1 }
-              \exp_after:wN \@@_rescan:w
-              \exp_after:wN \prg_do_nothing:
-              \tex_scantokens:D {#1}
-            }
-          \c_@@_rescan_marker_tl
-        }
-        { \exp_not:o {##1} }
-      \tl_set:Nx \l_@@_internal_a_tl
-        {
-          \int_compare:nNnT
-            {
-              \char_value_catcode:n
-                { \exp_last_unbraced:Nf ` { \str_head:n {#2} } ~ }
-            }
-            = { 10 } { ~ }
-          \exp_after:wN \@@_rescan:w
-          \exp_after:wN \prg_do_nothing:
-          \tex_scantokens:D { #2 #1 }
-        }
-    }
-\group_end:
+      }
+  }
+\cs_new_protected:Npn \@@_set_rescan_single_aux:nn #1#2
+  {
+    \exp_args:Nno \use:nn
+      { \cs_set:Npn \@@_rescan:w ##1 #1 }
+      \c_@@_rescan_marker_tl
+      { \exp_not:o { \use_none:n ##1 } }
+    \tl_set:Nx \l_@@_internal_a_tl
+      {
+        \exp_after:wN \@@_rescan:w
+        \tex_scantokens:D { #1 #2 #1 }
+      }
+  }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
