@@ -39,8 +39,8 @@ function update_tag(file,content,tagname,tagdate)
   if string.match(content,"%(C%)%s*[%d%-,]+ The LaTeX3 Project") then
     local year = os.date("%Y")
     content = string.gsub(content,
-      "%(C%)%s*([%d%-,]+)",
-      "(C) %1," .. year)
+      "%(C%)%s*([%d%-,]+) The LaTeX3 Project",
+      "(C) %1," .. year .. " The LaTeX3 Project")
    content = string.gsub(content,year .. "," .. year,year)
    content = string.gsub(content,
      "%-" .. year - 1 .. "," .. year,
