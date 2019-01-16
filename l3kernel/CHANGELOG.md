@@ -10,11 +10,11 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - `\file_get:nnN`
+- Experimental function `\sys_shell_get:nnN`
 
 ### Changed
 
 - `\char_generate:nn` now always takes exactly two expansions
-- Move `\prg_generate_conditional_variant:Nnn` to stable
 
 ### Deprecated
 
@@ -23,6 +23,11 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 
 - In (u)platex: detection of spaces in `\tl_rescan:nn` and related functions
+
+### Removed
+
+- Experimental function family `\tl_(g)set_from_shell:(N|c)nn`
+  (replaced by `\sys_shell_get:nnN`)
 
 ## [2019-01-13]
 
@@ -94,6 +99,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Apply `\par` only at the end of vertical boxes
 - Move `\int_rand:n` to stable
+- Move `\prg_generate_conditional_variant:Nnn` to stable
 - Move `\<var>_rand_item:N` to stable
 
 ### Fixed
