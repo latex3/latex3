@@ -7,9 +7,17 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\file_get:nnN`
+
 ### Changed
 
 - `\char_generate:nn` now always takes exactly two expansions
+
+### Deprecated
+
+- `\tl_(g)set_from_file(_x):Nnn`, replaced by `\file_get:nnN`
 
 ### Fixed
 
