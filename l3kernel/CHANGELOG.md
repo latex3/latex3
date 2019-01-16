@@ -9,7 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- `\file_get:nnN`
+- `\file_get:nnN` and `\file_get:nnNTF`
 - Experimental function `\sys_shell_get:nnN`
 
 ### Changed

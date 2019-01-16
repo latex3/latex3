@@ -593,12 +593,18 @@
 % \end{function}
 %
 % \begin{function}[added = 2019-01-16]{\file_get:nnN}
+% \begin{function}[TF, added = 2019-01-16]{\file_get:nnN}
 %   \begin{syntax}
 %     \cs{file_get:nnN} \Arg{filename} \Arg{setup} \meta{tl}
+%     \cs{file_get:nnNTF} \Arg{filename} \Arg{setup} \meta{tl} \Arg{true code} \Arg{false code}
 %   \end{syntax}
 %   Defines \meta{tl} to the contents of \meta{filename}.
 %   Category codes may need to be set appropriately via the \meta{setup}
 %   argument.
+%   While \cs{file_get:nnN} produces an error if the file is not found,
+%   \cs{file_get:nnNTF} runs the \meta{true code} (after the assignment
+%   to \meta{tl}) if the file is found and \meta{false code} otherwise.
+% \end{function}
 % \end{function}
 %
 % \begin{function}[updated = 2017-06-26]
@@ -2164,50 +2170,62 @@
 % \end{macro}
 %
 % \begin{variable}{\c_@@_marker_tl}
-%   The same idea as the marker for rescanning token lists.
+%   The same idea as the marker for rescanning token lists: this pair of
+%   tokens cannot appear in a file that is being input.
 %    \begin{macrocode}
 \tl_const:Nx \c_@@_marker_tl { : \token_to_str:N : }
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\file_get:nnN}
-% \begin{macro}{\@@_get_do:w}
-% \begin{macro}{\@@_set_from:nNNn}
-%   The approach here is similar to that for doing a rescan, and so the same
-%   internals can be reused. Thus the plan is to insert a pair of tokens of
-%   the same charcode but different catcodes after the file has been read.
-%   This plus \cs{exp_not:N} allows the primitive to be used to carry out
-%   a set operation.
+% \begin{macro}[TF]{\file_get:nnN}
+% \begin{macro}{\file_get:nnN,\@@_get_aux:nnN,\@@_get_do:Nw}
+%   The approach here is similar to that for \cs{tl_set_rescan:Nnn}.
+%   The file contents are grabbed as an argument delimited by
+%   \cs{c_@@_marker_tl}.  A few subtleties: braces in \cs{if_false:}
+%   \ldots{} \cs{fi:} to deal with possible alignment tabs,
+%   \tn{tracingnesting} to avoid a warning about a group being closed
+%   inside the \tn{scantokens}, and \cs{prg_return_true:} is placed
+%   after the end-of-file marker.
 %    \begin{macrocode}
 \cs_new_protected:Npn \file_get:nnN #1#2#3
   {
+    \file_get:nnNTF {#1} {#2} #3
+      { }
+      { \__kernel_file_missing:n {#1} }
+  }
+\prg_new_protected_conditional:Npnn \file_get:nnN #1#2#3 { T , F , TF }
+  {
     \file_get_full_name:nN {#1} \l_@@_full_name_str
     \str_if_empty:NTF \l_@@_full_name_str
-      { \__kernel_file_missing:n {#1} }
+      { \prg_return_false: }
       {
-        \exp_args:NV \@@_set_from:nNn
+        \exp_args:NV \@@_get_aux:nnN
           \l_@@_full_name_str
-          #3 {#2}
+          {#2} #3
+        \prg_return_true:
       }
   }
-\exp_args:Nno \use:nn
-  { \cs_new_protected:Npn \@@_get_do:w #1 }
-  { \c_@@_marker_tl }
-  { \tl_set:No \l_@@_internal_tl {#1} }
-\cs_new_protected:Npn \@@_set_from:nNn #1#2#3
+\cs_new_protected:Npn \@@_get_aux:nnN #1#2#3
   {
+    \if_false: { \fi:
     \group_begin:
-      \exp_args:No \tex_everyeof:D
-        { \c_@@_marker_tl \exp_not:N }
-      #3 \scan_stop:
-      \exp_after:wN \@@_get_do:w
+      \int_set_eq:NN \tex_tracingnesting:D \c_zero_int
+      \exp_args:No \tex_everyeof:D { \c_@@_marker_tl }
+      #2 \scan_stop:
+      \exp_after:wN \@@_get_do:Nw
+      \exp_after:wN #3
       \exp_after:wN \prg_do_nothing:
         \tex_input:D #1 \scan_stop:
-    \exp_args:NNNo \group_end:
-    \tl_set:Nn #2 \l_@@_internal_tl
+    \if_false: } \fi:
+  }
+\exp_args:Nno \use:nn
+  { \cs_new_protected:Npn \@@_get_do:Nw #1#2 }
+  { \c_@@_marker_tl }
+  {
+    \group_end:
+    \tl_set:No #1 {#2}
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
