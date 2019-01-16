@@ -1534,16 +1534,16 @@
 %     \tl_gset_rescan:cnn, \tl_gset_rescan:cno, \tl_gset_rescan:cnx
 %   }
 % \begin{macro}{\tl_rescan:nn}
-% \begin{macro}{\@@_set_rescan:NNnn, \@@_set_rescan_multi:n}
-% \begin{macro}[EXP]{\@@_rescan:w}
-%   These functions use a common auxiliary.  After some initial setup
-%   explained below, and the user setup |#3| (followed by
-%   \cs{scan_stop:} to be safe), the tokens are rescanned by
-%   \cs{@@_set_rescan:n} and stored into \cs{l_@@_internal_a_tl}, then
-%   passed to |#1#2| outside the group after expansion.  The auxiliary
-%   \cs{@@_set_rescan:n} is defined later: in the simplest case, this
-%   auxiliary calls \cs{@@_set_rescan_multi:n}, whose code is included
-%   here to help understand the approach.
+% \begin{macro}{\@@_set_rescan:NNnn, \@@_set_rescan_multi:nNN}
+% \begin{macro}[EXP]{\@@_rescan:NNw}
+%   In a group, after some initial setup explained below and the user
+%   setup~|#3| (followed by \cs{scan_stop:} to be safe), there is a call
+%   to \cs{@@_set_rescan:nNN}.  This shared auxiliary distinguishes
+%   single-line and multi-line files as explained below.  In the
+%   simplest case of multi-line files it calls (with the same arguments)
+%   \cs{@@_set_rescan_multi:nNN}, whose code is included here to help
+%   understand the approach: it rescans its argument |#1|, closes the
+%   group, and performs the assignment.
 %
 %   One difficulty when rescanning is that \tn{scantokens} treats the
 %   argument as a file, and without the correct settings a \TeX{} error
@@ -1551,60 +1551,64 @@
 %   \begin{verbatim}
 %    ! File ended while scanning definition of ...
 %   \end{verbatim}
-%   The standard solution is to use an \texttt{x}-expanding assignment
-%   and set \tn{everyeof} to \cs{exp_not:N} to suppress the error at
-%   the end of the file.  Since the rescanned tokens should not be
-%   expanded, they are taken as a delimited argument of an
-%   auxiliary which wraps them in \cs{exp_not:n} (in fact
-%   \cs{exp_not:o}, as there is a \cs{prg_do_nothing:} to avoid losing
-%   braces).  The delimiter cannot appear within the rescanned token
-%   list because it contains twice the same character, with different
-%   catcodes.
+%   A related minor issue is a warning due to opening a group before the
+%   \tn{scantokens} and closing it inside that temporary file; we avoid
+%   that by setting \tn{tracingnesting}.  The standard solution to the
+%   ``File ended'' error is to grab the rescanned tokens as a delimited
+%   argument of an auxiliary, here \cs{@@_set_rescan:NNw}, that performs
+%   the assignment, then let \TeX{} ``execute'' the end of file marker.
+%   As usual in delimited arguments we use \cs{prg_do_nothing:} to avoid
+%   stripping an outer set braces: this is removed by using
+%   \texttt{o}-expanding assignments.  The delimiter cannot appear
+%   within the rescanned token list because it contains twice the same
+%   character, with different catcodes.
 %
-%   The difference between single-line and multiple-line files
-%   complicates the story, as explained below.
+%   For \cs{tl_rescan:nn} we cannot simply call \cs{@@_set_rescan:NNnn}
+%   \cs{prg_do_nothing:} \cs{use:n} because that would leave the
+%   end-of-file marker \emph{after} the result of rescanning.  If that
+%   rescanned result is code that looks further in the input stream for
+%   arguments, it would break.
+%
+%   The two \cs{if_false:} \ldots{} \cs{fi:} are there to prevent
+%   alignment tabs to cause a change of tabular cell while rescanning.
 %    \begin{macrocode}
 \cs_new_protected:Npn \tl_set_rescan:Nnn
-  { \@@_set_rescan:NNnn \tl_set:Nn }
+  { \@@_set_rescan:NNnn \tl_set:No }
 \cs_new_protected:Npn \tl_gset_rescan:Nnn
-  { \@@_set_rescan:NNnn \tl_gset:Nn }
-\cs_new_protected:Npn \tl_rescan:nn
-  { \@@_set_rescan:NNnn \prg_do_nothing: \use:n }
+  { \@@_set_rescan:NNnn \tl_gset:No }
+\cs_new_protected:Npn \tl_rescan:nn #1#2
+  {
+    \tl_set_rescan:Nnn \l_@@_internal_a_tl {#1} {#2}
+    \exp_after:wN \tl_clear:N \exp_after:wN \l_@@_internal_a_tl
+    \l_@@_internal_a_tl
+  }
 \cs_new_protected:Npn \@@_set_rescan:NNnn #1#2#3#4
   {
-    \tl_if_empty:nTF {#4}
-      {
-        \group_begin:
-          #3
-        \group_end:
-        #1 #2 { }
-      }
-      {
-        \group_begin:
-          \exp_args:No \tex_everyeof:D
-            { \c_@@_rescan_marker_tl \exp_not:N }
-          \int_compare:nNnT \tex_endlinechar:D = { 32 }
-            { \int_set:Nn \tex_endlinechar:D { -1 } }
-          \tex_newlinechar:D \tex_endlinechar:D
-          #3 \scan_stop:
-          \exp_args:No \@@_set_rescan:n { \tl_to_str:n {#4} }
-          \exp_args:NNNo
-        \group_end:
-        #1 #2 \l_@@_internal_a_tl
-    }
+    \if_false: { \fi:
+    \group_begin:
+      \int_set_eq:NN \tex_tracingnesting:D \c_zero_int
+      \exp_args:No \tex_everyeof:D { \c_@@_rescan_marker_tl }
+      \int_compare:nNnT \tex_endlinechar:D = { 32 }
+        { \int_set:Nn \tex_endlinechar:D { -1 } }
+      \int_set_eq:NN \tex_newlinechar:D \tex_endlinechar:D
+      #3 \scan_stop:
+      \exp_args:No \@@_set_rescan:nNN { \tl_to_str:n {#4} } #1 #2
+    \if_false: } \fi:
   }
-\cs_new_protected:Npn \@@_set_rescan_multi:n #1
+\cs_new_protected:Npn \@@_set_rescan_multi:nNN #1#2#3
   {
-    \tl_set:Nx \l_@@_internal_a_tl
-      {
-        \exp_after:wN \@@_rescan:w
-        \exp_after:wN \prg_do_nothing:
-        \tex_scantokens:D {#1}
-      }
+    \exp_after:wN \@@_rescan:NNw
+    \exp_after:wN #2
+    \exp_after:wN #3
+    \exp_after:wN \prg_do_nothing:
+    \tex_scantokens:D {#1}
   }
 \exp_args:Nno \use:nn
-  { \cs_new:Npn \@@_rescan:w #1 } \c_@@_rescan_marker_tl
-  { \exp_not:o {#1} }
+  { \cs_new:Npn \@@_rescan:NNw #1#2#3 } \c_@@_rescan_marker_tl
+  {
+    \group_end:
+    #1 #2 {#3}
+  }
 \cs_generate_variant:Nn \tl_set_rescan:Nnn  {     Nno , Nnx }
 \cs_generate_variant:Nn \tl_set_rescan:Nnn  { c , cno , cnx }
 \cs_generate_variant:Nn \tl_gset_rescan:Nnn {     Nno , Nnx }
@@ -1616,10 +1620,10 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\@@_set_rescan:n}
-% \begin{macro}{\@@_set_rescan_single:nn, \@@_set_rescan_single_aux:nn}
-%   This function calls \cs{@@_set_rescan_multi:n} or
-%   \cs{@@_set_rescan_single:nn} |{ ' }| depending on whether its
+% \begin{macro}{\@@_set_rescan:nNN}
+% \begin{macro}{\@@_set_rescan_single:nnNN, \@@_set_rescan_single_aux:nnNN}
+%   This function calls \cs{@@_set_rescan_multi:nNN} or
+%   \cs{@@_set_rescan_single:nnNN} |{ ' }| depending on whether its
 %   argument is a single-line fragment of code/data or is made of
 %   multiple lines by testing for the presence of a \tn{newlinechar}
 %   character.  If \tn{newlinechar} is out of range, the argument is
@@ -1655,14 +1659,14 @@
 %   range of characters whose standard category is letter or other,
 %   thus minimizing the number of steps needed by the loop (most often
 %   just a single one).  Once a valid character is found, run some code
-%   very similar to \cs{@@_set_rescan_multi:n} but with that character
-%   put at the start and end.  The auxiliary \cs{@@_rescan:w} must be
+%   very similar to \cs{@@_set_rescan_multi:nNN} but with that character
+%   put at the start and end.  The auxiliary \cs{@@_rescan:NNw} must be
 %   redefined to also remove the additional character (with the
 %   appropriate catcode thanks to \cs{char_generate:nn}).  If no valid
 %   character is found (very rare), fall-back on
-%   \cs{@@_set_rescan_multi:n}.
+%   \cs{@@_set_rescan_multi:nNN}.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_set_rescan:n #1
+\cs_new_protected:Npn \@@_set_rescan:nNN #1
   {
     \int_compare:nNnTF \tex_newlinechar:D < 0
       { \use_ii:nn }
@@ -1670,41 +1674,43 @@
         \exp_args:Nnf \tl_if_in:nnTF {#1}
           { \char_generate:nn { \tex_newlinechar:D } { 12 } }
       }
-        { \@@_set_rescan_multi:n }
+        { \@@_set_rescan_multi:nNN }
         {
           \int_set:Nn \tex_endlinechar:D { -1 }
-          \@@_set_rescan_single:nn { `' }
+          \@@_set_rescan_single:nnNN { `' }
         }
     {#1}
   }
-\cs_new_protected:Npn \@@_set_rescan_single:nn #1
+\cs_new_protected:Npn \@@_set_rescan_single:nnNN #1
   {
     \int_compare:nNnTF
       { \char_value_catcode:n {#1} / 2 } = 6
       {
-        \exp_args:Nf \@@_set_rescan_single_aux:nn
+        \exp_args:Nf \@@_set_rescan_single_aux:nnNN
           { \char_generate:nn {#1} { \char_value_catcode:n {#1} } }
       }
       {
         \int_compare:nNnTF {#1} < { `\~ }
           {
-            \exp_args:Nf \@@_set_rescan_single:nn
+            \exp_args:Nf \@@_set_rescan_single:nnNN
               { \int_eval:n { #1 + 1 } }
           }
-          { \@@_set_rescan_multi:n }
+          { \@@_set_rescan_multi:nNN }
       }
   }
-\cs_new_protected:Npn \@@_set_rescan_single_aux:nn #1#2
+\cs_new_protected:Npn \@@_set_rescan_single_aux:nnNN #1#2#3#4
   {
     \exp_args:Nno \use:nn
-      { \cs_set:Npn \@@_rescan:w ##1 #1 }
+      { \cs_set:Npn \@@_rescan:NNw ##1##2##3 #1 }
       \c_@@_rescan_marker_tl
-      { \exp_not:o { \use_none:n ##1 } }
-    \tl_set:Nx \l_@@_internal_a_tl
       {
-        \exp_after:wN \@@_rescan:w
-        \tex_scantokens:D { #1 #2 #1 }
+        \group_end:
+        ##1 ##2 { \use_none:n ##3 }
       }
+    \exp_after:wN \@@_rescan:NNw
+    \exp_after:wN #3
+    \exp_after:wN #4
+    \tex_scantokens:D { #1 #2 #1 }
   }
 %    \end{macrocode}
 % \end{macro}
