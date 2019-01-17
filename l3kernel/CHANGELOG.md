@@ -9,7 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- `\box_(g)set_eq_drop:NN`
+- `\box_(g)set_eq_drop:NN`, `\hbox_unpack_drop:N`
 - `\file_get:nnN` and `\file_get:nnNTF`
 - Experimental functions `\sys_shell_get:nnN` and `\sys_shell_get:nnNTF`
 
@@ -21,6 +21,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Deprecated
 
 - `\box_(g)set_eq_clear:NN`, replaced by `\box_(g)set_eq_drop:NN`
+- `\hbox_unpack_clear:N`, replaced by `\hbox_unpack_drop:N`
 - `\tl_(g)set_from_file(_x):Nnn`, replaced by `\file_get:nnN`
 
 ### Fixed
