@@ -19,6 +19,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 - `\char_generate:nn` now always takes exactly two expansions
 - Move `\prg_generate_conditional_variant:Nnn` to stable
+- Renamed experimental `\box_trim:Nnnnn` and `\box_viewport:Nnnnn` as
+  `\box_set_trim:Nnnnn` and `\box_set_viewport:Nnnnn`, respectively
 
 ### Deprecated
 
