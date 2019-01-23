@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - Global versions of box affine functions, e.g. `\box_grotate:Nn`
+- Global versions of box size adjustment functions
 - `\box_(g)set_eq_drop:NN`, `\(h|v)box_unpack_drop:N`
 - `\file_get:nnN` and `\file_get:nnNTF`
 - Experimental functions `\sys_shell_get:nnN` and `\sys_shell_get:nnNTF`
@@ -27,6 +28,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 
+- Scope treatment of `\box_set_dp:N`, _etc._
 - In (u)platex: detection of spaces in `\tl_rescan:nn` and related functions
 
 ### Removed
