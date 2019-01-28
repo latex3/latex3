@@ -1,7 +1,7 @@
 Experimental LaTeX3 Concepts
 ============================
 
-Release 2018-11-19
+Release 2019-01-28
 
 Overview
 --------
@@ -150,6 +150,6 @@ the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
-<p>Copyright (C) 1998-2011,2015-2018 The LaTeX3 Project <br />
+<p>Copyright (C) 1998-2011,2015-2019 The LaTeX3 Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>
