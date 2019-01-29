@@ -15,6 +15,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 
 - Handling of nested key setting when filtering, _etc._ (see #526)
+- Inheritance of default values (see #504)
 
 ## [2019-01-28]
 
