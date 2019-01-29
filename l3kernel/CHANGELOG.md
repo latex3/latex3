@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- Support for return of whole path by \cs{keys_set_known:nnN}-like
+  function \cs{keys_set_known:nnnN} (see #508)
+
 ### Fixed
 
 - Handling of nested key setting when filtering, _etc._ (see #526)
