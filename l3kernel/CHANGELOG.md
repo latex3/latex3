@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Support for return of whole path by \cs{keys_set_known:nnN}-like
   function \cs{keys_set_known:nnnN} (see #508)
+- `.prop_(g)put:N` key property (see #444)
 
 ### Fixed
 
