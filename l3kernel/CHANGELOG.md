@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Defensive code for redefinition of `\time`, `\day`, `\month` and `\year`
+
 ## [2019-02-03]
 
 ### Added
