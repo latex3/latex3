@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\draw_point:nn` to allow 'fast' processing of co-ordinates
+
 ### Changed
 
 - Update `l3draw` transformation names
