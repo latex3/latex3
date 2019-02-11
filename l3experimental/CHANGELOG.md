@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Update `l3draw` transformation names
+
 ## [2019-01-28]
 
 ### Changed
