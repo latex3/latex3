@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
+- Support for drawing layers
 - `\draw_point:nn` to allow 'fast' processing of co-ordinates
 
 ### Changed
