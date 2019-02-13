@@ -22,6 +22,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 
 - Defensive code for redefinition of `\time`, `\day`, `\month` and `\year`
+- Move coffin affine transformations to stable
 
 ### Fixed
 
