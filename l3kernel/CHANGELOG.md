@@ -15,6 +15,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Resetting of key inheritance (see #535)
 - Issue in deprecated command `\tl_set_from_file:Nnn`
+  (see https://tex.stackexchange.com/q/474813/)
 
 ## [2019-02-03]
 
