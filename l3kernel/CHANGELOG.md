@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 
+- Resetting of key inheritance (see #535)
 - Issue in deprecated command `\tl_set_from_file:Nnn`
 
 ## [2019-02-03]
