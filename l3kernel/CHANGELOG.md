@@ -11,6 +11,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Defensive code for redefinition of `\time`, `\day`, `\month` and `\year`
 
+### Fixed
+
+- Issue in deprecated command `\tl_set_from_file:Nnn`
+
 ## [2019-02-03]
 
 ### Added
