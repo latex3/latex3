@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\str_log:n`, `\str_log:N`
+
 ## [2019-02-15]
 
 ### Changed
