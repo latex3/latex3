@@ -13,7 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
-- Return values from `\sys_shell_get:nnN`
+- Return values from `\file_get:nnN`, `\sys_shell_get:nnN`
 
 ## [2019-02-15]
 
