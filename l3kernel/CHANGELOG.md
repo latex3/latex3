@@ -10,10 +10,11 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - `\str_log:n`, `\str_log:N`
+- `TF` versions for `\file_get_...:nN` functions
 
 ### Changed
 
-- Return values from `\file_get:nnN`, `\sys_shell_get:nnN`
+- Return values from `\file_get:nnN`, `\file_get_...:nN`, `\sys_shell_get:nnN`
 
 ## [2019-02-15]
 
