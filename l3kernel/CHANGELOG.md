@@ -11,6 +11,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - `\str_log:n`, `\str_log:N`
 
+### Changed
+
+- Return values from `\sys_shell_get:nnN`
+
 ## [2019-02-15]
 
 ### Changed
