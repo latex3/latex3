@@ -16,6 +16,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Return values from `\file_get:nnN`, `\file_get_...:nN`, \ior_get:NN\,
   `\sys_shell_get:nnN`
+- Moved coffin affine transformations to stable
 
 ## [2019-02-15]
 
