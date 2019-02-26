@@ -18,6 +18,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Return values from `\file_get:nnN`, `\file_get_...:nN`, `\ior_get:NN`,
   `\sys_shell_get:nnN`
 - Moved coffin affine transformations to stable
+- Moved `\prop_count:N` to stable
 - Moved `\tl_count_tokens:n` to stable
 - Completed emulation of e-type argument when `\expanded` is unavailable
 - Renamed `\token_get_prefix_spec:N`, `\token_get_arg_spec:N`,
