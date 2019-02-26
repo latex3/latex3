@@ -148,6 +148,12 @@
 %     A command with a verbatim
 %     argument will produce an error when it appears within an argument of
 %     another function.
+%   \item[b] Only suitable in the argument specification of an
+%     environment, \texttt{b}\marg{code} denotes the body of the
+%     environment, between |\begin|\marg{environment} and
+%       |\end|\marg{environment}.  The \meta{code} is run before
+%     \pkg{xparse} reads the environment's body.  See
+%     Section~\ref{sec:body} for details.
 % \end{itemize}
 % The types which define optional arguments are:
 % \begin{itemize}[font=\ttfamily]
@@ -381,6 +387,47 @@
 % has default \texttt{UP} for the |^| test character, but will return the
 % |-NoValue-| marker as a default for |_|. This allows mixing of explicit
 % defaults with testing for missing values.
+%
+% \subsection{Body of an environment}
+% \label{sec:body}
+%
+% While environments |\begin|\marg{environment} \dots{}
+%   |\end|\marg{environment} are typically used in cases where the code
+% implementing the \meta{environment} does not need to access the
+% contents of the environment (its \enquote{body}), it is sometimes
+% useful to have the body as a standard argument.
+%
+% This is achieved in \pkg{xparse} by ending the argument specification
+% with \texttt{b}\marg{code}.  For instance
+% \begin{verbatim}
+%   \NewDocumentEnvironment { twice }
+%     { O{\ttfamily} +b{} }
+%     {#2#1#2} {}
+%   \begin{twice}[\itshape]
+%     Hello world!
+%   \end{twice}
+% \end{verbatim}
+% typesets \enquote{Hello world!{\itshape Hello world!}}.
+%
+% The prefix |+| is used to allow multiple paragraphs in the
+% environment's body.  Argument processors can also be applied to
+% \texttt{b}-type arguments.
+%
+% By default, spaces are trimmed at both ends of the body: in the
+% example there would otherwise be spaces coming from the ends the lines
+% after |[\itshape]| and |world!|.  Putting the prefix |!| before
+% \texttt{b} suppresses space-trimming.
+%
+% In \texttt{b}\marg{code} the \meta{code} is some set-up, run before
+% \pkg{xparse} grabs the body of the environment.  This can be used to
+% preserve spaces or lines when grabbing environments.
+%
+% When \texttt{b}\marg{code} is used in the argument specification,
+% the last argument of \cs{NewDocumentEnvironment}, which consists of
+% an \meta{end code} to insert at |\end|\marg{environment}, is
+% redundant since one can simply put that code at the end of the
+% \meta{start code}.  Nevertheless this (empty) \meta{end code} must be
+% provided.
 %
 % \subsection{Backwards Compatibility}
 % \label{sec:backwards}
@@ -1860,6 +1907,33 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\@@_normalize_type_b:w}
+%   This argument type is not allowed for commands.  This takes one
+%   argument and is only allowed at the end of the argument
+%   specification, hence we check both |#1| and |#2| for being the end.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_normalize_type_b:w #1#2
+  {
+    \bool_if:NF \l_@@_environment_bool
+      {
+        \__kernel_msg_error:nnxx
+          { xparse } { invalid-command-arg }
+          { \iow_char:N \\ \l_@@_function_tl } { b }
+        \@@_bad_def:wn
+      }
+    \quark_if_recursion_tail_stop_do:nn {#1} { \@@_bad_arg_spec:wn }
+    \int_incr:N \l_@@_mandatory_args_int
+    \tl_clear:N \l_@@_last_delimiters_tl
+    \@@_add_arg_spec:n { b {#1} }
+    \quark_if_recursion_tail_stop:n {#2}
+    \__kernel_msg_error:nnxx
+      { xparse } { arg-after-body }
+      { \l_@@_function_tl } { \tl_to_str:n {#2} }
+    \@@_bad_def:wn
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\@@_single_char_check:n}
 %   Checks that what should be single characters really are single
 %   characters (possibly surrounded by spaces).
@@ -2036,8 +2110,7 @@
 %
 %  For each known argument type there is an appropriate function to actually
 %  do the addition to the signature. These are separate for expandable and
-%  standard functions, as the approaches are different. Of course, if the type
-%  is not known at all then a fall-back is needed.
+%  standard functions, as the approaches are different.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_prepare_signature:N
   {
@@ -2101,7 +2174,7 @@
 %
 % \begin{macro}{\@@_add_type_>:w}
 %   When a processor is found, the processor code is stored.  It will be
-%   used by \cs{@@_args_process:} once arguments are all found. Here,
+%   used by \cs{@@_args_process:} once arguments are all found. Here too
 %   the loop calls \cs{@@_prepare_signature_bypass:N} rather than
 %   \cs{@@_prepare_signature:N} so that the flag is not reset.
 %    \begin{macrocode}
@@ -2112,6 +2185,19 @@
     \bool_set_true:N \l_@@_process_some_bool
     \tl_put_left:Nn \l_@@_process_one_tl { {#1} }
     \@@_prepare_signature_bypass:N
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_add_type_b:w}
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_add_type_b:w #1
+  {
+    \@@_flush_m_args:
+    \@@_add_default:
+    \@@_add_grabber_mandatory:N b
+    \tl_put_right:Nn \l_@@_signature_tl { {#1} }
+    \@@_prepare_signature:N
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2595,6 +2681,63 @@
 % whether to skip spaces. Once the argument is found, \cs{l_@@_fn_tl}
 % calls \cs{@@_add_arg:n}, responsible for calling processors and
 % grabbing further arguments.
+%
+% \begin{macro}
+%   {
+%     \@@_grab_b:w,
+%     \@@_grab_b_long:w,
+%     \@@_grab_b_obey_spaces:w,
+%     \@@_grab_b_long_obey_spaces:w,
+%     \@@_grab_b_aux:NNnw,
+%     \@@_grab_b_end:Nw
+%   }
+%   This uses the well-tested code of \texttt{D}-type arguments,
+%   skipping the peeking step because the \texttt{b}-type argument is
+%   always present, and adding a cleanup stage at the end by hijacking
+%   the signature.  The user-provided set-up code |#3| is run in a group
+%   and the clean-up consists of closing that group while properly
+%   dealing with \cs{l_@@_args_tl} and also putting back the \cs{end}
+%   that served as an end-delimiter: this \cs{end} receives the
+%   environment name as its argument and is run normally.  The
+%   \texttt{D}-type code stores the argument found (body of the
+%   environment) as a brace group in \cs{l_@@_args_tl} and depending on
+%   the presence of a prefix~|!| we trim spaces or not before adding
+%   this braced argument into \cs{l_@@_args_tl} outside the group.
+%   The strange \verb*|\begin | control sequence is there for display
+%     purposes only: it has to look like |\begin| in the terminal but
+%       not to delimited arguments.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_grab_b:w
+  { \@@_grab_b_aux:NNnw \cs_set_protected_nopar:Npn \tl_trim_spaces:n }
+\cs_new_protected:Npn \@@_grab_b_long:w
+  { \@@_grab_b_aux:NNnw \cs_set_protected:Npn \tl_trim_spaces:n }
+\cs_new_protected:Npn \@@_grab_b_obey_spaces:w
+  { \@@_grab_b_aux:NNnw \cs_set_protected_nopar:Npn \exp_not:n }
+\cs_new_protected:Npn \@@_grab_b_long_obey_spaces:w
+  { \@@_grab_b_aux:NNnw \cs_set_protected:Npn \exp_not:n }
+\cs_new_protected:Npn \@@_grab_b_aux:NNnw #1#2#3#4 \@@_run_code:
+  {
+    \@@_grab_D_aux:NNnN \begin \end {#4} #1
+    \tl_put_left:Nn \l_@@_signature_tl { \@@_grab_b_end:Nw #2 }
+    \group_begin:
+      \tl_clear:N \l_@@_args_tl
+      #3
+      \exp_args:Nc \l_@@_fn_tl { begin ~ }
+  }
+\cs_new_protected:Npn \@@_grab_b_end:Nw #1#2 \@@_run_code:
+  {
+    \use:x
+      {
+        \group_end:
+        \tl_put_right:Nn \exp_not:N \l_@@_args_tl
+          { { \exp_after:wN #1 \l_@@_args_tl } }
+      }
+    #2
+    \@@_run_code:
+    \end
+  }
+%    \end{macrocode}
+% \end{macro}
 %
 % \begin{macro}{\@@_grab_D:w}
 % \begin{macro}{\@@_grab_D_long:w}
@@ -4122,6 +4265,12 @@
 %
 % Some messages intended as errors.
 %    \begin{macrocode}
+\__kernel_msg_new:nnnn { xparse } { arg-after-body }
+  { In~the~definition~of~'#1',~b~(body)~argument~must~be~last. }
+  {
+    The~'body'~argument~type~is~followed~by~'#2'~in~the~argument~
+    specification~of~'#1'.~This~is~not~allowed.
+  }
 \__kernel_msg_new:nnnn { xparse } { bad-arg-spec }
   { Bad~argument~specification~'#2'~for~command~'#1'. }
   {
@@ -4178,6 +4327,14 @@
   {
     The~arguments~for~an~expandable~command~must~not~involve~short~
     arguments~after~long~arguments.~You~have~tried~to~mix~the~two~types.
+  }
+\__kernel_msg_new:nnnn { xparse } { invalid-command-arg }
+  { Argument~type~'#2'~not~available~for~command~'#1'. }
+  {
+    The~letter~'#2'~can~only~be~used~in~environment~argument~
+    specifications,~not~for~commands.
+    \\ \\
+    LaTeX~will~ignore~this~entire~definition.
   }
 \__kernel_msg_new:nnnn { xparse } { invalid-expandable-argument-type }
   { Argument~type~'#2'~not~available~for~expandable~command~'#1'. }
