@@ -34,6 +34,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Removed
 
+- Experimental `\skip_split_finite_else_action:nnNN`
 - Experimental `\tl_reverse_tokens:n`
 
 ## [2019-02-15]
