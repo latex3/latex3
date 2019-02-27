@@ -14,11 +14,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
-- Return values from `\file_get:nnN`, `\file_get_...:nN`, \ior_get:NN\,
+- Return values from `\file_get:nnN`, `\file_get_...:nN`, `\ior_get:NN`,
   `\sys_shell_get:nnN`
 - Moved coffin affine transformations to stable
 - Moved `\tl_count_tokens:n` to stable
-- Completed emulation of e-type argument when \expanded is unavailable
+- Completed emulation of e-type argument when `\expanded` is unavailable
 - Renamed `\token_get_prefix_spec:N`, `\token_get_arg_spec:N`,
   `\token_get_replacement_spec:N` as `\cs_prefix_spec:N`,
   `\cs_argument_spec:N`, `\cs_replacement_spec:N`, respectively
@@ -43,8 +43,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- Support for return of whole path by \cs{keys_set_known:nnN}-like
-  function \cs{keys_set_known:nnnN} (see #508)
+- Support for return of whole path by `\keys_set_known:nnN`-like
+  function `\keys_set_known:nnnN` (see #508)
 - `.prop_(g)put:N` key property (see #444)
 
 ### Fixed
