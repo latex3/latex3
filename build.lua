@@ -38,7 +38,7 @@ function main(target)
       end
     end
   elseif target == "doc" then
-    errorlevel = call(bundles, "doc")
+    errorlevel = call(ctanbundles, "doc")
   elseif target == "install" then
     errorlevel = call (bundles, "install")
   elseif target == "uninstall" then
