@@ -1783,7 +1783,7 @@
   {
 %    \end{macrocode}
 %
-% \begin{macro}[EXP]{\@@_e:nn}
+% \begin{macro}[EXP]{\@@_e:nn, \@@_e_end:nn}
 %   Repeatedly expand tokens, keeping track of fully-expanded tokens in
 %   the second argument to \cs{@@_e:nn}; this function eventually
 %   calls \cs{@@_e_end:nn} to leave \cs{exp_end:} in the input
@@ -1844,7 +1844,8 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_e:N}
+% \begin{macro}[EXP]
+%   {\@@_e:N, \@@_e:Nnn, \@@_e_protected:Nnn, \@@_e_expandable:Nnn}
 %   For an \texttt{N}-type token, call \cs{@@_e:Nnn} with arguments the
 %   \meta{first token}, the remaining tokens to expand and what's
 %   already been expanded.  If the \meta{first token} is non-expandable,
@@ -1887,14 +1888,74 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_e_primitive:Nnn}
-%   Quite rare.  Will be implemented later.
+% \begin{macro}[EXP]
+%   {
+%     \@@_e_primitive:Nnn,
+%     \@@_e_primitive_aux:NNw,
+%     \@@_e_primitive_aux:NNnn,
+%     \@@_e_primitive_other:NNnn,
+%     \@@_e_primitive_other_aux:nNNnn
+%   }
+%   We don't try hard to make sensible error recovery since the error
+%   recovery of \cs{tex_primitive:D} when followed by something else
+%   than a primitive depends on the engine.  The only valid case is when
+%   what follows is \texttt{N}-type.  Then distinguish special
+%   primitives \tn{unexpanded}, \tn{noexpand}, \tn{the}, \tn{primitive}
+%   from other primitives.  In the \enquote{other} case, the only
+%   reasonable way to check if the primitive that follows
+%   \cs{tex_primitive:D} is expandable is to expand and compare the
+%   before-expansion and after-expansion results.  If they coincide then
+%   probably the primitive is non-expandable and should be put in the
+%   output together with \cs{tex_primitive:D} (one can cook up contrived
+%   counter-examples where the true \tn{expanded} would have an infinite
+%   loop), and otherwise one should continue expanding.
 %    \begin{macrocode}
-    \cs_new:Npn \@@_e_primitive:Nnn #1
+    \cs_new:Npn \@@_e_primitive:Nnn #1#2
       {
-        \__kernel_msg_expandable_error:nnn { kernel } { e-type }
-          { \primitive not~implemented }
-        \@@_e:nn
+        \if_false: { \fi:
+          \tl_if_head_is_N_type:nTF {#2}
+            { \@@_e_primitive_aux:NNw #1 }
+            {
+              \__kernel_msg_expandable_error:nnn { kernel } { e-type }
+                { Missing~primitive~name }
+              \@@_e_primitive_aux:NNw #1 \c_empty_tl
+            }
+          #2
+        }
+      }
+    \cs_new:Npn \@@_e_primitive_aux:NNw #1#2
+      {
+        \exp_after:wN \@@_e_primitive_aux:NNnn
+        \exp_after:wN #1
+        \exp_after:wN #2
+        \exp_after:wN { \if_false: } \fi:
+      }
+    \cs_new:Npn \@@_e_primitive_aux:NNnn #1#2
+      {
+        \exp_args:Nf \str_case_e:nnTF { \cs_to_str:N #2 }
+          {
+            { unexpanded } { \@@_e_unexpanded:Nnn \exp_not:n }
+            { noexpand } { \@@_e_noexpand:Nnn \exp_not:N }
+            { the } { \@@_e_the:Nnn \tex_the:D }
+            {
+              \sys_if_engine_xetex:T { pdf }
+              \sys_if_engine_luatex:T { pdf }
+              primitive
+            } { \@@_e_primitive:Nnn #1 }
+          }
+          { \@@_e_primitive_other:NNnn #1 #2 }
+      }
+    \cs_new:Npn \@@_e_primitive_other:NNnn #1#2#3
+      {
+        \exp_args:No \@@_e_primitive_other_aux:nNNnn
+          { #1 #2 #3 }
+          #1 #2 {#3}
+      }
+    \cs_new:Npn \@@_e_primitive_other_aux:nNNnn #1#2#3#4#5
+      {
+        \str_if_eq:nnTF {#1} { #2 #3 #4 }
+          { \@@_e:nn {#4} { #5 #2 #3 } }
+          { \@@_e:nn {#1} {#5} }
       }
 %    \end{macrocode}
 % \end{macro}
@@ -1937,10 +1998,10 @@
 %   braces), unless that \meta{token} is \cs{scan_stop:} or a space
 %   (recall that we don't implement the case of an implicit begin-group
 %   token).  An expandable \meta{token} is instead expanded, unless it
-%   is \tn{noexpand}.  That primitive can be followed by an expandable
-%   \texttt{N}-type token, to be removed, by a non-expandable one, kept
-%   (and later causing an error), by a space, removed by
-%   \texttt{f}-expansion, or by a brace group or nothing (later causing
+%   is \tn{noexpand}.  The latter primitive can be followed by an expandable
+%   \texttt{N}-type token (removed), by a non-expandable one (kept
+%   and later causing an error), by a space (removed by
+%   \texttt{f}-expansion), or by a brace group or nothing (later causing
 %   an error).
 %    \begin{macrocode}
     \cs_new:Npn \@@_e_unexpanded:Nnn #1 { \@@_e_unexpanded:nn }
@@ -2098,20 +2159,41 @@
         {
           #1
           \exp_after:wN \@@_e_the_toks:n
+          \exp_after:wN { \if_false: } \fi:
         }
-        { \exp_after:wN ; }
-        \exp_after:wN { \if_false: } \fi:
+        {
+          \exp_after:wN ;
+          \exp_after:wN { \if_false: } \fi: #1
+        }
       }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[EXP]{\@@_e_if_toks_register:NTF}
-%   We need to detect both \tn{toks} registers like \tn{toks@} (in
-%   \LaTeXe{}) and parameters such as \tn{everypar}, as the result of
-%   unpacking the register should not expand further.  The list of
-%   parameters is finite so we just use a \cs{cs_if_exist:cTF} test to
-%   look up in a table.  Registers are found by
-%   \cs{token_if_toks_register:NTF} by inspecting the meaning.  We abuse
+% \begin{macro}[EXP]
+%   {
+%     \@@_e_the_XeTeXinterchartoks:,
+%     \@@_e_the_errhelp:,
+%     \@@_e_the_everycr:,
+%     \@@_e_the_everydisplay:,
+%     \@@_e_the_everyeof:,
+%     \@@_e_the_everyhbox:,
+%     \@@_e_the_everyjob:,
+%     \@@_e_the_everymath:,
+%     \@@_e_the_everypar:,
+%     \@@_e_the_everyvbox:,
+%     \@@_e_the_output:,
+%     \@@_e_the_pdfpageattr:,
+%     \@@_e_the_pdfpageresources:,
+%     \@@_e_the_pdfpagesattr:,
+%     \@@_e_the_pdfpkmode:
+%   }
+%   We need to detect both \tn{toks} registers like \tn{toks@} in
+%   \LaTeXe{} and parameters such as \tn{everypar}, as the result of
+%   unpacking the register should not expand further.  Registers are
+%   found by \cs{token_if_toks_register:NTF} by inspecting the meaning.
+%   The list of parameters is finite so we just use a
+%   \cs{cs_if_exist:cTF} test to look up in a table.  We abuse
 %   \cs{cs_to_str:N}'s ability to remove a leading escape character
 %   whatever it is.
 %    \begin{macrocode}
@@ -2144,6 +2226,7 @@
     \cs_new_eq:NN \@@_e_the_pdfpagesattr: ?
     \cs_new_eq:NN \@@_e_the_pdfpkmode: ?
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % We are done emulating \texttt{e}-type argument expansion when

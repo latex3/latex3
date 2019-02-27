@@ -18,6 +18,7 @@ this project uses date-based 'snapshot' version identifiers.
   `\sys_shell_get:nnN`
 - Moved coffin affine transformations to stable
 - Moved `\tl_count_tokens:n` to stable
+- Completed emulation of e-type argument when \expanded is unavailable
 
 ### Removed
 
