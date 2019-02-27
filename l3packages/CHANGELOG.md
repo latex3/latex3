@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - `xparse`: make \IfBooleanTF safer
 - `xparse`: clearer error messages, especially for environments
+- `xparse`: when defining an environment, trim spaces at ends of its name
 
 ## [2018-09-24]
 
