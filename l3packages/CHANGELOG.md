@@ -12,7 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - `xparse`: make \IfBooleanTF safer
-- `xparse`: clearer error messages
+- `xparse`: clearer error messages, especially for environments
 
 ## [2018-09-24]
 
