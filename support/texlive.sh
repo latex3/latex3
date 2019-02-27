@@ -99,12 +99,16 @@ tlmgr install \
   booktabs    \
   colortbl    \
   csquotes    \
+  dvips       \
   enumitem    \
   fancyvrb    \
   hyperref    \
   makeindex   \
+  mathpazo    \
+  palatino    \
   psnfss      \
   symbol      \
+  times       \
   underscore  \
   url         \
   zapfding
