@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\bool_case_true:n(TF)` and `\bool_case_false:n(TF)`
+
 ## [2019-02-03]
 
 ### Added
