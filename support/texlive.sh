@@ -94,6 +94,21 @@ tlmgr install   \
   zhmetrics     \
   zhnumber
 
+# For the doc target
+tlmgr install \
+  booktabs    \
+  colortbl    \
+  csquotes    \
+  enumitem    \
+  fancyvrb    \
+  hyperref    \
+  makeindex   \
+  psnfss      \
+  symbol      \
+  underscore  \
+  url         \
+  zapfding
+
 # Keep no backups (not required, simply makes cache bigger)
 tlmgr option -- autobackup 0
 
