@@ -19,6 +19,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Moved coffin affine transformations to stable
 - Moved `\tl_count_tokens:n` to stable
 - Completed emulation of e-type argument when \expanded is unavailable
+- Renamed `\token_get_prefix_spec:N`, `\token_get_arg_spec:N`,
+  `\token_get_replacement_spec:N` as `\cs_prefix_spec:N`,
+  `\cs_argument_spec:N`, `\cs_replacement_spec:N`, respectively
 
 ### Removed
 
