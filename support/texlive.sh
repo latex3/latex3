@@ -103,6 +103,7 @@ tlmgr install \
   enumitem    \
   fancyvrb    \
   hyperref    \
+  listings    \
   makeindex   \
   mathpazo    \
   palatino    \
