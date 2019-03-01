@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - `\str_log:n`, `\str_log:N`
 - `TF` versions for `\file_get_...:nN` and `\ior_(str_)get:NN` functions
+- `undo-recent-deprecations` option
 
 ### Changed
 
@@ -23,6 +24,7 @@ this project uses date-based 'snapshot' version identifiers.
   `\token_get_replacement_spec:N` as `\cs_prefix_spec:N`,
   `\cs_argument_spec:N`, `\cs_replacement_spec:N`, respectively
 - Made expandable messages expand their result, like usual messages
+- Made deprecation errors less intrusive by default
 
 ### Removed
 
