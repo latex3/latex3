@@ -25,6 +25,7 @@ this project uses date-based 'snapshot' version identifiers.
   `\cs_argument_spec:N`, `\cs_replacement_spec:N`, respectively
 - Made expandable messages expand their result, like usual messages
 - Made deprecation errors less intrusive by default
+- Stopped providing do-nothing \color macro when undefined
 
 ### Removed
 
