@@ -64,6 +64,7 @@
 %   {
 %     \@@_parse_word_exp:N   ,
 %     \@@_parse_word_ln:N    ,
+%     \@@_parse_word_fact:N,
 %   }
 %   Unary functions.
 %    \begin{macrocode}
@@ -71,6 +72,8 @@
   { \@@_parse_unary_function:NNN \@@_exp_o:w ? }
 \cs_new:Npn \@@_parse_word_ln:N
   { \@@_parse_unary_function:NNN \@@_ln_o:w ? }
+\cs_new:Npn \@@_parse_word_fact:N
+  { \@@_parse_unary_function:NNN \@@_fact_o:w ? }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1243,6 +1246,124 @@
     \else:
       1
     \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Factorial}
+%
+% \begin{variable}{\c_@@_fact_max_arg_int}
+%   The maximum integer whose factorial fits in the exponent range is
+%   $3248$, as $3249!\sim 10^{10000.8}$
+%    \begin{macrocode}
+\int_const:Nn \c_@@_fact_max_arg_int { 3248 }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}[EXP]{\@@_fact_o:w}
+%   First detect $\pm 0$ and $+\infty$ and \texttt{nan}.  Then note that
+%   factorial of anything with a negative sign (except $-0$) is
+%   undefined.  Then call \cs{@@_small_int:wTF} to get an integer as the
+%   argument, and start a loop.  This is not the most efficient way of
+%   computing the factorial, but it works all right.  Of course we work
+%   with $24$ digits instead of~$16$.  It is easy to check that
+%   computing factorials with this precision is enough.
+%    \begin{macrocode}
+\cs_new:Npn \@@_fact_o:w #1 \s_@@ \@@_chk:w #2#3#4; @
+  {
+    \if_case:w #2 \exp_stop_f:
+      \@@_case_return_o:Nw \c_one_fp
+    \or:
+    \or:
+      \if_meaning:w 0 #3
+        \exp_after:wN \@@_case_return_same_o:w
+      \fi:
+    \or:
+      \@@_case_return_same_o:w
+    \fi:
+    \if_meaning:w 2 #3
+      \@@_case_use:nw { \@@_invalid_operation_o:fw { fact } }
+    \fi:
+    \@@_fact_pos_o:w
+    \s_@@ \@@_chk:w #2 #3 #4 ;
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_fact_pos_o:w, \@@_fact_int_o:w}
+%   Then check the input is an integer, and call
+%   \cs{@@_facorial_int_o:n} with that \texttt{int} as an argument.  If
+%   it's too big the factorial overflows.  Otherwise call
+%   \cs{@@_sanitize:Nw} with a positive sign marker~|0| and an integer
+%   expression that will mop up any exponent in the calculation.
+%    \begin{macrocode}
+\cs_new:Npn \@@_fact_pos_o:w #1;
+  {
+    \@@_small_int:wTF #1;
+      { \@@_fact_int_o:n }
+      { \@@_invalid_operation_o:fw { fact } #1; }
+  }
+\cs_new:Npn \@@_fact_int_o:n #1
+  {
+    \if_int_compare:w #1 > \c_@@_fact_max_arg_int
+      \@@_case_return:nw
+        {
+          \exp_after:wN \exp_after:wN \exp_after:wN \@@_overflow:w
+          \exp_after:wN \c_inf_fp
+        }
+    \fi:
+    \exp_after:wN \@@_sanitize:Nw
+    \exp_after:wN 0
+    \int_value:w \@@_int_eval:w
+    \@@_fact_loop_o:w #1 . 4 , { 1 } { } { } { } { } { } ;
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_fact_loop_o:w}
+%   The loop receives an integer |#1| whose factorial we want to
+%   compute, which we progressively decrement, and the result so far as
+%   an extended-precision number |#2| in the form
+%   \meta{exponent}|,|\meta{mantissa}|;|.  The loop goes in steps of two
+%   because we compute |#1*#1-1| as an integer expression (it must fit
+%   since |#1| is at most $3248$), then multiply with the result so far.
+%   We don't need to fill in most of the mantissa with zeros because
+%   \cs{@@_ep_mul:wwwwn} first normalizes the extended precision number
+%   to avoid loss of precision.  When reaching a small enough number
+%   simply use a table of factorials less than $10^8$.  This limit is
+%   chosen because the normalization step cannot deal with larger
+%   integers.
+%    \begin{macrocode}
+\cs_new:Npn \@@_fact_loop_o:w #1 . #2 ;
+  {
+    \if_int_compare:w #1 < 12 \exp_stop_f:
+      \@@_fact_small_o:w #1
+    \fi:
+    \exp_after:wN \@@_ep_mul:wwwwn
+    \exp_after:wN 4 \exp_after:wN ,
+    \exp_after:wN { \int_value:w \@@_int_eval:w #1 * (#1 - 1) }
+    { } { } { } { } { } ;
+    #2 ;
+    {
+      \exp_after:wN \@@_fact_loop_o:w
+      \int_value:w \@@_int_eval:w #1 - 2 .
+    }
+  }
+\cs_new:Npn \@@_fact_small_o:w #1 \fi: #2 ; #3 ; #4
+  {
+    \fi:
+    \exp_after:wN \@@_ep_mul:wwwwn
+    \exp_after:wN 4 \exp_after:wN ,
+    \exp_after:wN
+      {
+        \int_value:w
+        \if_case:w #1 \exp_stop_f:
+        1 \or: 1 \or: 2 \or: 6 \or: 24 \or: 120 \or: 720 \or: 5040
+        \or: 40320 \or: 362880 \or: 3628800 \or: 39916800
+        \fi:
+      } { } { } { } { } { } ;
+    #3 ;
+    \@@_ep_to_float_o:wwN 0
   }
 %    \end{macrocode}
 % \end{macro}

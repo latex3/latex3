@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\str_log:n`, `\str_log:N`
 - `TF` versions for `\file_get_...:nN` and `\ior_(str_)get:NN` functions
 - `undo-recent-deprecations` option
+- `factorial` function in `l3fp`
 
 ### Changed
 
