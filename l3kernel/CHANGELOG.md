@@ -27,6 +27,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Made deprecation errors less intrusive by default
 - Stopped providing do-nothing \color macro when undefined
 
+### Fixed
+
+- Treatment of inherited keys when setting only known keys (see #548)
+
 ### Removed
 
 - Experimental `\tl_reverse_tokens:n`
