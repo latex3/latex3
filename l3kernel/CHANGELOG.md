@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-03-05]
+
 ### Added
 
 - `\str_log:n`, `\str_log:N`
@@ -329,7 +331,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-02-15...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-03-05...HEAD
+[2019-03-05]: https://github.com/latex3/latex3/compare/2019-02-15...2019-03-05
 [2019-02-15]: https://github.com/latex3/latex3/compare/2019-02-03...2019-02-15
 [2019-02-03]: https://github.com/latex3/latex3/compare/2019-01-28...2019-02-03
 [2019-01-28]: https://github.com/latex3/latex3/compare/2019-01-13...2019-01-28
