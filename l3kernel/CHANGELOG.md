@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Loading when pre-TL'18 XeTeX is in use (see #555)
+
 ## [2019-03-05]
 
 ### Added
