@@ -9,6 +9,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
+- Moved `\file_get_mdfive_hash:nN(TF)`, `\file_get_size:nN(TF)`
+   and `\file_get_timestamp:nN(TF)` to stable
+- Moved `\file_if_exist_input:n` and `\file_if_exist_input:nF` to stable
+- Moved `\file_input_stop:` to stable
 - Moved `\tl_if_single_token:n(TF)` to stable
 
 ## [2019-03-26]
