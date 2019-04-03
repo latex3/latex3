@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
+- Moved box 'view' functions to stable
 - Moved `\tl_if_single_token:n(TF)` to stable
 
 ## [2019-03-26]
