@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-04-06]
+
 ### Changed
 
 - Moved `\tl_if_single_token:n(TF)` to stable
@@ -348,7 +350,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-03-26...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-04-06...HEAD
+[2019-04-06]: https://github.com/latex3/latex3/compare/2019-03-26...2019-04-06
 [2019-03-26]: https://github.com/latex3/latex3/compare/2019-03-05...2019-03-26
 [2019-03-05]: https://github.com/latex3/latex3/compare/2019-02-15...2019-03-05
 [2019-02-15]: https://github.com/latex3/latex3/compare/2019-02-03...2019-02-15
