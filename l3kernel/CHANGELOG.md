@@ -11,6 +11,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Moved `\tl_if_single_token:n(TF)` to stable
 
+###
+
+- Support for ConTeXt from mid-December 2018
+
 ## [2019-03-26]
 
 ### Fixed
