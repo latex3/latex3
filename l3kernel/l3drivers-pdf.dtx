@@ -66,8 +66,6 @@
 %<*dvips>
 %    \end{macrocode}
 %
-% \subsubsection{Annotations}
-%
 % \subsubsection{Objects}
 %
 % \begin{variable}{\g_@@_pdf_object_int, \g_@@_pdf_object_prop}
@@ -164,6 +162,123 @@
 % \end{macro}
 % \end{macro}
 %
+% \subsubsection{Annotations}
+%
+% In \texttt{dvips}, annotations have to be constructed manually. As such,
+% we need the object code above for some definitions.
+%
+% \begin{variable}{\l_@@_tmp_box}
+%   A box for creating annotations.
+%    \begin{macrocode}
+\box_new:N \l_@@_tmp_box
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_pdf_annotation_int}
+%   Needed as objects which are not annotations could be created.
+%    \begin{macrocode}
+\int_new:N \g_@@_pdf_annotation_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\driver_pdf_annotation:nnnn}
+%   Annotations are objects, but we track them separately. Notably, they are
+%   not in the object data lists. Here, to get the co-ordinates of the
+%   annotation, we need to have the data collected at the PostScript level.
+%   That requires a bit of box trickery (effectively a \LaTeXe{} |picture|
+%   of zero size). Once the data is collected, use it to set up the annotation
+%   border.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_annotation:nnnn #1#2#3#4
+  {
+    \int_gincr:N \g_@@_pdf_object_int
+    \int_gset_eq:NN \g_@@_pdf_annotation_int \g_@@_pdf_object_int
+    \group_begin:
+      \hbox_set_to_wd:Nnn \l_@@_tmp_box { 0pt }
+        {
+          \box_move_down:nn {#3}
+            {
+              \hbox_overlap_right:n
+                {
+                  \@@_literal:n
+                    {
+                      ps: currentpoint ~
+                      /l3lly ~ exch ~ def ~
+                      /l3llx ~ exch ~ def
+                    }
+                }
+            }
+          \box_move_up:nn {#2}
+            {
+              \hbox_overlap_right:n
+                {
+                  \tex_kern:D \dim_eval:n {#1} \scan_stop:
+                  \@@_literal:n
+                    {
+                      ps: currentpoint ~
+                      /l3ury ~ exch ~ def ~
+                      /l3urx ~ exch ~ def
+                    }
+                }
+            }
+        }
+      \box_resize_to_ht:Nn \l_@@_tmp_box { 0pt }
+      \box_use_drop:N \l_@@_tmp_box
+    \group_end:
+    \@@_literal_postscript:x
+      {
+        mark ~ /_objdef ~ \int_use:N \g_@@_pdf_object_int \c_space_tl
+        /Rect ~ [ l3llx ~ l3lly ~ l3urx ~ l3ury ]
+        #4
+        /ANN ~ pdfmark
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\driver_pdf_annotation_last:}
+%   Provide the last annotation we created: could get tricky of course if
+%   other packages are loaded.
+%    \begin{macrocode}
+\cs_new:Npn \driver_pdf_annotation_last:
+  { \int_use:N \g_@@_pdf_annotation_int }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_link_goto:nnn, \driver_pdf_link_user:nnn}
+% \begin{macro}{\@@_pdf_link:nnnn}
+%   The approach here is based on \pkg{pdfbase}. It is likely to be revised
+%   using code or ideas from \pkg{breakurl} or \pkg{hypdvips}, as it does not
+%   allow breaking of links.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_link_goto:nnn #1#2#3
+  { \@@_pdf_link_begin:nnnn {#1} { /GoTo } {#2} {#3} }
+\cs_new_protected:Npn \driver_pdf_link_user:nnn #1#2#3
+  { \@@_pdf_link_begin:nnnn {#1} { } {#2} {#3} }
+\cs_new_protected:Npn \@@_pdf_link_begin:nnnn #1#2#3#4
+  {
+    \group_begin:
+      \hbox_set:Nn \l_@@_tmp_box {#4}
+      \driver_annotation:nnnn
+        { \box_wd:N \l_@@_tmp_box }
+        { \box_ht:N \l_@@_tmp_box }
+        { \box_dp:N \l_@@_tmp_box }
+        { /Subtype /Link #1 #2 #3 }
+      \box_use_drop:N \l_@@_tmp_box
+    \group_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_link_last:}
+%    \begin{macrocode}
+\cs_new:Npn \driver_pdf_link_last:
+  {
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Structure}
 %
 % \begin{macro}{\driver_pdf_compresslevel:n}
@@ -196,13 +311,43 @@
 %
 % \subsubsection{Annotations}
 %
+% \begin{macro}{\driver_pdf_annotation:nnnn}
+%   Simply pass the raw data through, just dealing with evaluation of dimensions.
+%    \begin{macrocode}
+\cs_new_protected:Npx \driver_annotation:nnnn #1#2#3#4
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D annot ~ }
+      { \tex_pdfannot:D }
+      width  ~ \exp_not:N \dim_eval:n {#1} ~
+      height ~ \exp_not:N \dim_eval:n {#2} ~
+      depth  ~ \exp_not:N \dim_eval:n {#3} ~
+      {#4}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\driver_pdf_annotation_last:}
+%   A tiny amount of extra data gets added here.
+%    \begin{macrocode}
+\cs_new:Npx \driver_pdf_annotation_last:
+  {
+    \exp_not:N \tex_the:D 
+    \cs_if_exist:NTF \tex_pdffeedback:D
+      { \exp_not:N \tex_pdffeedback:D annot ~ }
+      { \exp_not:N \tex_pdflastannot:D }
+      0 ~ R
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\driver_pdf_link_goto:nnn, \driver_pdf_link_user:nnn}
 % \begin{macro}{\@@_pdf_link:nnnn}
 %   Links are all created using the same internals.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_pdf_link_goto:nnn #1#2#3
   { \@@_pdf_link_begin:nnnn {#1} { goto~name } {#2} {#3} }
-\cs_new_protected:Npn \driver_pdf_link_user:nn #1#2#3
+\cs_new_protected:Npn \driver_pdf_link_user:nnn #1#2#3
   { \@@_pdf_link_begin:nnnn {#1} { user } {#2} {#3} }
 \cs_new_protected:Npx \@@_pdf_link_begin:nnnn #1#2#3#4
   {
@@ -376,40 +521,6 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsubsection{Annotations}
-%
-% \begin{macro}{\driver_pdf_link_goto:nnn, \driver_pdf_link_user:nnn}
-% \begin{macro}{\@@_pdf_link_begin:nnnn}
-%    \begin{macrocode}
-\cs_new_protected:Npn \driver_pdf_link_goto:nnn #1#2#3
-  { \@@_pdf_startlink:nnn {#1} { /GoTo } {#2} {#3} }
-\cs_new_protected:Npn \driver_pdf_link_user:nnn #1#2#3
-  { \@@_pdf_startlink:nnn {#1} { } {#2} {#3} }
-\cs_new_protected:Npn \@@_pdf_link_begin:nnnn #1#2#3#4
-  {
-    \@@_pdf:n
-      {
-         bann
-         <<
-           /Type /Annot
-           /Subtype /Link
-           #1 ~ #2 ~ #3
-         >>
-      }
-    #4
-    \@@_pdf:n { eann }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\driver_pdf_link_last:}
-%   Data not available.
-%    \begin{macrocode}
-\cs_new:Npn \driver_pdf_link_last: { }
-%    \end{macrocode}
-% \end{macro}
-%
 % \subsubsection{Objects}
 %
 % \begin{variable}{\g_@@_pdf_object_int, \g_@@_pdf_object_prop}
@@ -491,6 +602,67 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+%
+% \subsubsection{Annotations}
+%
+% \begin{variable}{\g_@@_pdf_annotation_int}
+%   Needed as objects which are not annotations could be created.
+%    \begin{macrocode}
+\int_new:N \g_@@_pdf_annotation_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\driver_pdf_annotation:nnnn}
+%   Annotations are objects, but we track them separately. Notably, they are
+%   not in the object data lists.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_annotation:nnnn #1#2#3#4
+  {
+    \int_gincr:N \g_@@_pdf_object_int
+    \int_gset_eq:NN \g_@@_pdf_annotation_int \g_@@_pdf_object_int
+    \@@_pdf:x
+      {
+        ann ~ @l3obj \int_use:N \g_@@_pdf_object_int \c_space_tl
+        width  ~ \dim_eval:n {#1} ~
+        height ~ \dim_eval:n {#2} ~
+        depth  ~ \dim_eval:n {#3} ~
+        << #4 >>
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_link_goto:nnn, \driver_pdf_link_user:nnn}
+% \begin{macro}{\@@_pdf_link_begin:nnnn}
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_link_goto:nnn #1#2#3
+  { \@@_pdf_startlink:nnn {#1} { /GoTo } {#2} {#3} }
+\cs_new_protected:Npn \driver_pdf_link_user:nnn #1#2#3
+  { \@@_pdf_startlink:nnn {#1} { } {#2} {#3} }
+\cs_new_protected:Npn \@@_pdf_link_begin:nnnn #1#2#3#4
+  {
+    \@@_pdf:n
+      {
+         bann
+         <<
+           /Type /Annot
+           /Subtype /Link
+           #1 ~ #2 ~ #3
+         >>
+      }
+    #4
+    \@@_pdf:n { eann }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_link_last:}
+%   Data not available.
+%    \begin{macrocode}
+\cs_new:Npn \driver_pdf_link_last: { }
+%    \end{macrocode}
 % \end{macro}
 %
 % \subsubsection{Structure}
