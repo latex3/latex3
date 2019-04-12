@@ -167,24 +167,28 @@
 % In \texttt{dvips}, annotations have to be constructed manually. As such,
 % we need the object code above for some definitions.
 %
-% \begin{macro}{driver.pt.dvi, driver.linkmargin}
+% \begin{macro}
+%   {driver.pt.dvi, driver.linkmargin, driver.linkdp.min, driver.linkht.min}
 %   The link margin size has to be defined at the off: default as for
 %   \pdfTeX{}. The size conversions have to be done in PostScript as
 %   there can be a magnification active.
 %    \begin{macrocode}
-\@@_literal:x
+\@@_literal:n
   {
     !
     /driver.pt.dvi ~ { 72.27 ~ div ~ Resolution ~ mul } ~ def ~
-    /driver.linkmargin ~ { 1 ~ driver.pt.dvi } ~ def
+    /driver.linkmargin ~ { 1 ~ driver.pt.dvi } ~ def ~
+    /driver.linkdp.min ~ 0 ~ def ~
+    /driver.linkht.min ~ 0 ~ def
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{variable}{\l_@@_tmp_box}
+% \begin{variable}{\l_@@_tmpa_box, \l_@@_tmpb_box}
 %   A box for creating annotations.
 %    \begin{macrocode}
-\box_new:N \l_@@_tmp_box
+\box_new:N \l_@@_tmpa_box
+\box_new:N \l_@@_tmpb_box
 %    \end{macrocode}
 % \end{variable}
 %
@@ -195,7 +199,7 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\driver_pdf_annotation:nnnn}
+% \begin{macro}{\driver_pdf_annotation:nnnn, \@@_pdf_annotation:nnnn}
 % \begin{macro}{driver.llx, driver.lly, driver.urx, driver.ury}
 %   Annotations are objects, but we track them separately. Notably, they are
 %   not in the object data lists. Here, to get the co-ordinates of the
@@ -203,13 +207,28 @@
 %   That requires a bit of box trickery (effectively a \LaTeXe{} |picture|
 %   of zero size). Once the data is collected, use it to set up the annotation
 %   border.
+%
+%   To support minimum size and margin for links but not other annotations, 
+%   we split the function here into two, allowing a reset where needed.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_pdf_annotation:nnnn #1#2#3#4
+  {
+    \@@_postscript:n { gsave }
+    \@@_postscript:n
+      {
+        /driver.linkmargin ~ 0 ~ def ~
+        /driver.linkdp.min ~ 0 ~ def ~
+        /driver.linkht.min ~ 0 ~ def
+      }
+    \@@_pdf_annotation:nnnn {#1} {#2} {#3} {#4}
+    \@@_postscript:n { gresetore }
+  }
+\cs_new_protected:Npn \@@_pdf_annotation:nnnn #1#2#3#4
   {
     \int_gincr:N \g_@@_pdf_object_int
     \int_gset_eq:NN \g_@@_pdf_annotation_int \g_@@_pdf_object_int
     \group_begin:
-      \hbox_set_to_wd:Nnn \l_@@_tmp_box { 0pt }
+      \hbox_set_to_wd:Nnn \l_@@_tmpa_box { 0pt }
         {
           \box_move_down:nn {#3}
             {
@@ -219,6 +238,7 @@
                     {
                       currentpoint ~
                       driver.linkmargin ~ add ~
+                      driver.linkdp.min ~ add ~
                       /driver.lly ~ exch ~ def ~
                       driver.linkmargin ~ sub ~
                       /driver.llx ~ exch ~ def
@@ -234,6 +254,7 @@
                     {
                       currentpoint ~
                       driver.linkmargin ~ sub ~
+                      driver.linkht.min ~ sub ~
                       /driver.ury ~ exch ~ def ~
                       driver.linkmargin ~ add ~
                       /driver.urx ~ exch ~ def
@@ -241,8 +262,8 @@
                 }
             }
         }
-      \box_set_ht:Nn \l_@@_tmp_box { 0pt }
-      \box_use_drop:N \l_@@_tmp_box
+      \box_set_ht:Nn \l_@@_tmpa_box { 0pt }
+      \box_use_drop:N \l_@@_tmpa_box
     \group_end:
     \@@_postscript:x
       {
@@ -274,9 +295,17 @@
 %
 % \begin{macro}{\driver_pdf_link_goto:nnn, \driver_pdf_link_user:nnn}
 % \begin{macro}{\@@_pdf_link:nnnn}
+% \begin{macro}{driver.linkdp.min}
 %   The approach here is based on \pkg{pdfbase}. It is likely to be revised
 %   using code or ideas from \pkg{breakurl} or \pkg{hypdvips}, as it does not
 %   allow breaking of links.
+%
+%  Taking the idea of |evenboxes| from \pkg{hypdvips}, we implement a minimum
+%  box height and depth for link placement. This means that \enquote{underlining}
+%  with a hyperlink will generally give an even appearance. However, to ensure
+%  that the full content is always above the link border, we do not allow
+%  this to be negative (contrast \pkg{hypdvips} approach). The result should
+%  be similar to \pdfTeX{} in the vast majority of foreseeable cases.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_pdf_link_goto:nnn #1#2#3
   { \@@_pdf_link_begin:nnnn {#1} { /GoTo } {#2} {#3} }
@@ -285,17 +314,38 @@
 \cs_new_protected:Npn \@@_pdf_link_begin:nnnn #1#2#3#4
   {
     \group_begin:
-      \hbox_set:Nn \l_@@_tmp_box {#4}
-      \driver_pdf_annotation:nnnn
-        { \box_wd:N \l_@@_tmp_box }
-        { \box_ht:N \l_@@_tmp_box }
-        { \box_dp:N \l_@@_tmp_box }
+      \hbox_set:Nn \l_@@_tmpa_box {#4}
+      \hbox_set:Nn \l_@@_tmpb_box { Gg }
+      \@@_postscript:x
+        {
+          /driver.linkdp.min ~
+            \dim_to_decimal:n
+              {
+                \dim_max:nn
+                  { \box_dp:N \l_@@_tmpb_box - \box_dp:N \l_@@_tmpa_box }
+                  { 0pt }
+              } ~
+                driver.pt.dvi ~ def
+          /driver.linkht.min ~
+            \dim_to_decimal:n
+              {
+                \dim_max:nn
+                  { \box_ht:N \l_@@_tmpb_box - \box_ht:N \l_@@_tmpa_box }
+                  { 0pt }
+              } ~
+                driver.pt.dvi ~ def
+        }
+      \@@_pdf_annotation:nnnn
+        { \box_wd:N \l_@@_tmpa_box }
+        { \box_ht:N \l_@@_tmpa_box }
+        { \box_dp:N \l_@@_tmpa_box }
         { /Subtype /Link #1 #2 #3 }
-      \box_use_drop:N \l_@@_tmp_box
+      \box_use_drop:N \l_@@_tmpa_box
       \int_gset_eq:NN \g_@@_pdf_link_int \g_@@_pdf_annotation_int
     \group_end:
   }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
