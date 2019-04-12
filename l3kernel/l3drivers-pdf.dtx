@@ -167,8 +167,7 @@
 % In \texttt{dvips}, annotations have to be constructed manually. As such,
 % we need the object code above for some definitions.
 %
-% \begin{macro}
-%   {driver.pt.dvi, driver.linkmargin, driver.linkdp.min, driver.linkht.min}
+% \begin{macro}{driver.pt.dvi, driver.linkmargin}
 %   The link margin size has to be defined at the off: default as for
 %   \pdfTeX{}. The size conversions have to be done in PostScript as
 %   there can be a magnification active.
@@ -177,9 +176,7 @@
   {
     !
     /driver.pt.dvi ~ { 72.27 ~ div ~ Resolution ~ mul } ~ def ~
-    /driver.linkmargin ~ { 1 ~ driver.pt.dvi } ~ def ~
-    /driver.linkdp.min ~ 0 ~ def ~
-    /driver.linkht.min ~ 0 ~ def
+    /driver.linkmargin ~ { 1 ~ driver.pt.dvi } ~ def
   }
 %    \end{macrocode}
 % \end{macro}
@@ -199,7 +196,8 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\driver_pdf_annotation:nnnn, \@@_pdf_annotation:nnnn}
+% \begin{macro}{\driver_pdf_annotation:nnnn}
+% \begin{macro}{\@@_pdf_annotation_corners:nn}
 % \begin{macro}{driver.llx, driver.lly, driver.urx, driver.ury}
 %   Annotations are objects, but we track them separately. Notably, they are
 %   not in the object data lists. Here, to get the co-ordinates of the
@@ -207,64 +205,23 @@
 %   That requires a bit of box trickery (effectively a \LaTeXe{} |picture|
 %   of zero size). Once the data is collected, use it to set up the annotation
 %   border.
-%
-%   To support minimum size and margin for links but not other annotations, 
-%   we split the function here into two, allowing a reset where needed.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_pdf_annotation:nnnn #1#2#3#4
   {
-    \@@_postscript:n { gsave }
-    \@@_postscript:n
-      {
-        /driver.linkmargin ~ 0 ~ def ~
-        /driver.linkdp.min ~ 0 ~ def ~
-        /driver.linkht.min ~ 0 ~ def
-      }
-    \@@_pdf_annotation:nnnn {#1} {#2} {#3} {#4}
-    \@@_postscript:n { gresetore }
-  }
-\cs_new_protected:Npn \@@_pdf_annotation:nnnn #1#2#3#4
-  {
     \int_gincr:N \g_@@_pdf_object_int
     \int_gset_eq:NN \g_@@_pdf_annotation_int \g_@@_pdf_object_int
-    \group_begin:
-      \hbox_set_to_wd:Nnn \l_@@_tmpa_box { 0pt }
-        {
-          \box_move_down:nn {#3}
-            {
-              \hbox_overlap_right:n
-                {
-                  \@@_postscript:n
-                    {
-                      currentpoint ~
-                      driver.linkmargin ~ add ~
-                      driver.linkdp.min ~ add ~
-                      /driver.lly ~ exch ~ def ~
-                      driver.linkmargin ~ sub ~
-                      /driver.llx ~ exch ~ def
-                    }
-                }
-            }
-          \box_move_up:nn {#2}
-            {
-              \hbox_overlap_right:n
-                {
-                  \tex_kern:D \dim_eval:n {#1} \scan_stop:
-                  \@@_postscript:n
-                    {
-                      currentpoint ~
-                      driver.linkmargin ~ sub ~
-                      driver.linkht.min ~ sub ~
-                      /driver.ury ~ exch ~ def ~
-                      driver.linkmargin ~ add ~
-                      /driver.urx ~ exch ~ def
-                    }
-                }
-            }
-        }
-      \box_set_ht:Nn \l_@@_tmpa_box { 0pt }
-      \box_use_drop:N \l_@@_tmpa_box
-    \group_end:
+    \@@_pdf_annotation_corners:nnnnn
+      {#1} {#2} {#3}
+      {
+        currentpoint ~
+        /driver.lly ~ exch ~ def ~
+        /driver.llx ~ exch ~ def
+      }
+      {
+        currentpoint ~
+        /driver.ury ~ exch ~ def ~
+        /driver.urx ~ exch ~ def
+      }
     \@@_postscript:x
       {
           mark ~ /_objdef ~ { driver.obj \int_use:N \g_@@_pdf_object_int } ~
@@ -272,6 +229,29 @@
           #4 ~
           /ANN ~ pdfmark
       }
+  }
+\cs_new_protected:Npn \@@_pdf_annotation_corners:nnnnn #1#2#3#4#5
+  {
+    \group_begin:
+      \hbox_set_to_wd:Nnn \l_@@_tmpa_box { 0pt }
+        {
+          \box_move_down:nn {#3}
+            {
+              \hbox_overlap_right:n
+                { \@@_postscript:n {#4} }
+            }
+          \box_move_up:nn {#2}
+            {
+              \hbox_overlap_right:n
+                {
+                  \tex_kern:D \dim_eval:n {#1} \scan_stop:
+                  \@@_postscript:n {#5}
+                }
+            }
+        }
+      \box_set_ht:Nn \l_@@_tmpa_box { 0pt }
+      \box_use_drop:N \l_@@_tmpa_box
+    \group_end:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -294,11 +274,15 @@
 % \end{variable}
 %
 % \begin{macro}{\driver_pdf_link_goto:nnn, \driver_pdf_link_user:nnn}
-% \begin{macro}{\@@_pdf_link:nnnn}
-% \begin{macro}{driver.linkdp.min}
-%   The approach here is based on \pkg{pdfbase}. It is likely to be revised
-%   using code or ideas from \pkg{breakurl} or \pkg{hypdvips}, as it does not
-%   allow breaking of links.
+% \begin{macro}{\@@_pdf_link:nnnn, \@@_pdf_link_auxi:nnnn}
+% \begin{macro}
+%   {
+%     driver.linkdp.min, driver.linkht.min,
+%     driver.llx, driver.lly,
+%     driver.ury, driver.ury
+%   }
+%   Links are crated like annotations but with dedicated code to allow for
+%   adjusting the size of the rectangle.
 %
 %  Taking the idea of |evenboxes| from \pkg{hypdvips}, we implement a minimum
 %  box height and depth for link placement. This means that \enquote{underlining}
@@ -308,10 +292,10 @@
 %  be similar to \pdfTeX{} in the vast majority of foreseeable cases.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_pdf_link_goto:nnn #1#2#3
-  { \@@_pdf_link_begin:nnnn {#1} { /GoTo } {#2} {#3} }
+  { \@@_pdf_link:nnnn {#1} { /GoTo } {#2} {#3} }
 \cs_new_protected:Npn \driver_pdf_link_user:nnn #1#2#3
-  { \@@_pdf_link_begin:nnnn {#1} { } {#2} {#3} }
-\cs_new_protected:Npn \@@_pdf_link_begin:nnnn #1#2#3#4
+  { \@@_pdf_link:nnnn {#1} { } {#2} {#3} }
+\cs_new_protected:Npn \@@_pdf_link:nnnn #1#2#3#4
   {
     \group_begin:
       \hbox_set:Nn \l_@@_tmpa_box {#4}
@@ -335,7 +319,7 @@
               } ~
                 driver.pt.dvi ~ def
         }
-      \@@_pdf_annotation:nnnn
+      \@@_pdf_link_auxi:nnnn
         { \box_wd:N \l_@@_tmpa_box }
         { \box_ht:N \l_@@_tmpa_box }
         { \box_dp:N \l_@@_tmpa_box }
@@ -343,6 +327,36 @@
       \box_use_drop:N \l_@@_tmpa_box
       \int_gset_eq:NN \g_@@_pdf_link_int \g_@@_pdf_annotation_int
     \group_end:
+  }
+\cs_new_protected:Npn \@@_pdf_link_auxi:nnnn #1#2#3#4
+  {
+    \int_gincr:N \g_@@_pdf_object_int
+    \int_gset_eq:NN \g_@@_pdf_annotation_int \g_@@_pdf_object_int
+    \@@_pdf_annotation_corners:nnnnn
+      {#1} {#2} {#3}
+      {
+        currentpoint ~
+        driver.linkmargin ~ add ~
+        driver.linkdp.min ~ add ~
+        /driver.lly ~ exch ~ def ~
+        driver.linkmargin ~ sub ~
+        /driver.llx ~ exch ~ def
+      }
+      {
+         currentpoint ~
+         driver.linkmargin ~ sub ~
+         driver.linkht.min ~ sub ~
+         /driver.ury ~ exch ~ def ~
+         driver.linkmargin ~ add ~
+         /driver.urx ~ exch ~ def
+       }
+    \@@_postscript:x
+      {
+          mark ~ /_objdef ~ { driver.obj \int_use:N \g_@@_pdf_object_int } ~
+          /Rect ~ [ driver.llx ~ driver.lly ~ driver.urx ~ driver.ury ] ~
+          #4 ~
+          /ANN ~ pdfmark
+      }
   }
 %    \end{macrocode}
 % \end{macro}
