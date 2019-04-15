@@ -167,23 +167,61 @@
 % In \texttt{dvips}, annotations have to be constructed manually. As such,
 % we need the object code above for some definitions.
 %
+% \begin{macro}{driver.globaldic}
+%   A small global dictionary for driver use.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    true ~ setglobal ~
+    /driver.globaldict ~ 4 ~ dict ~ def ~
+    false ~ setglobal
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     driver.rect.ht ,
+%     driver.pt.dvi
+%   }
+%   Small utilities for PostScript manipulations. Conversion to DVI dimensions
+%   is done here to allow for |Resolution|. The total height of a rectangle
+%   (an array) needs a little maths, in contrast to simply extracting a value.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.pt.dvi { 72.27 ~ div ~ Resolution ~ mul } def
+    /driver.rect.ht { dup ~ 1 ~ get ~ neg ~ exch ~ 3 ~ get ~ add } def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{driver.linkmargin, driver.linkdp.pad, driver.linkht.pad}
+%   Settings which are defined up-front in |SDict|.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.linkmargin { 1 ~ driver.pt.dvi } def
+    /driver.linkdp.pad { 0 } def 
+    /driver.linkht.pad { 0 } def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}
 %   {
 %     driver.annotation.border ,
 %     driver.annotation.ll     ,
-%     drive.annotation.ur      ,
+%     driver.annotation.ur     ,
 %     driver.link.ll           ,
-%     drive.link.ur            ,
-%     driver.linkmargin        ,
-%     driver.pt.dvi
+%     driver.link.ur           ,
 %   }
-%   The link margin size has to be defined at the off: default as for
-%   \pdfTeX{}. The size conversions have to be done in PostScript as
-%   there can be a magnification active.
+%   Functions for marking the limits of an annotation/link, plus drawing the
+%   border. We separate links for generic annotations to support adding a
+%   margin and setting a minimal size.
 %    \begin{macrocode}
-\@@_literal:n
+\@@_postscript_header:n
   {
-    !
     /driver.annotation.border
       { /Rect [ driver.llx ~ driver.lly ~ driver.urx ~ driver.ury ] } def
     /driver.annotation.ll
@@ -204,7 +242,7 @@
       {
         currentpoint ~
         driver.linkmargin ~ add ~
-        driver.linkdp.min ~ add
+        driver.linkdp.pad ~ add
         /driver.lly ~ exch ~ def ~
         driver.linkmargin ~ sub
         /driver.llx ~ exch ~ def
@@ -214,14 +252,363 @@
       {
         currentpoint ~
         driver.linkmargin ~ sub ~
-        driver.linkht.min ~ sub
+        driver.linkht.pad ~ sub
         /driver.ury ~ exch ~ def ~
         driver.linkmargin ~ add
         /driver.urx ~ exch ~ def
       }
         def
-    /driver.linkmargin { 1 ~ driver.pt.dvi } def
-    /driver.pt.dvi { 72.27 ~ div ~ Resolution ~ mul } def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     driver.bordertracking          ,
+%     driver.bordertracking.begin    ,
+%     driver.bordertracking.end      ,
+%     driver.leftboundary            ,
+%     driver.rightboundary           ,
+%     driver.brokenlink.rect         ,
+%     driver.brokenlink.skip         ,
+%     driver.brokenlink.dict         ,
+%     driver.bordertracking.endpage  ,
+%     driver.bordertracking.continue ,
+%     driver.originx                 ,
+%     driver.originy
+%   }
+%    To know where a breakable link can go, we need to track the boundary
+%    rectangle. That can be done by hooking into |a| and |x| operations:
+%    those names have to be retained. The boundary is stored at the end of
+%    the operation. Special effort is needed at the start and end of pages
+%    (or rather galleys), such that everything works properly.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.bordertracking ~ false ~ def
+    /driver.bordertracking.begin
+      {
+        SDict ~ /driver.bordertracking ~ true ~ put ~
+        SDict ~ /driver.leftboundary ~ undef ~
+        SDict ~ /driver.rightboundary ~ undef ~
+        /a ~ where
+          {
+            /a
+              {
+                currentpoint ~ pop ~
+                SDict /driver.rightboundary ~ known ~ dup
+                  {
+                    SDict /driver.rightboundary ~ get ~ 2 ~ index ~ lt
+                      { not }
+                    if
+                  }
+                if
+                  { pop }
+                  { SDict ~ exch /driver.rightboundary ~ exch ~ put }
+                ifelse ~
+                moveto ~
+                currentpoint ~ pop ~
+                SDict /driver.leftboundary ~ known ~ dup
+                  {
+                    SDict /driver.leftboundary ~ get ~ 2 ~ index ~ gt
+                      { not }
+                    if
+                  }
+                if
+                  { pop }
+                  { SDict ~ exch /driver.leftboundary ~ exch ~ put }
+                ifelse
+              }
+            put
+          }
+        if
+      }
+        def
+    /driver.bordertracking.end
+      {
+        /a ~ where { /a { moveto } put } if
+        /x ~ where { /x { 0 ~ exch ~ rmoveto } put } if ~
+        SDict /driver.leftboundary ~ known
+          { driver.outerbox ~ 0 ~ driver.leftboundary ~ put }
+        if ~
+        SDict /driver.rightboundary ~ known
+          { driver.outerbox ~ 2 ~ driver.rightboundary ~ put }
+        if ~
+        SDict /driver.bordertracking ~ false ~ put
+      }
+        def
+  /driver.bordertracking.endpage
+    {
+      driver.bordertracking
+        {
+          driver.bordertracking.end ~
+          true ~ setglobal ~
+          driver.globaldict
+            /driver.brokenlink.rect [ driver.outerbox ~ aload ~ pop] put ~
+          driver.globaldict
+            /driver.brokenlink.skip ~ driver.baselineskip ~ put ~
+          driver.globaldict
+            /driver.brokenlink.dict ~
+              driver.link.dict ~ 65534 ~ string ~ cvs ~ put ~
+          false ~ setglobal ~
+          mark ~ driver.link.dict ~ cvx ~ exec ~ /Rect
+            [
+              driver.llx ~
+              driver.lly ~
+              driver.outerbox ~ 2 ~ get ~ driver.linkmargin ~ add ~
+              currentpoint ~ exch ~ pop ~
+              driver.outerbox ~ driver.rect.ht ~ sub ~ driver.linkmargin ~ sub
+            ]
+          /ANN ~ driver.pdfmark
+        }
+      if
+    }
+      def
+    /driver.bordertracking.continue
+      {
+        /driver.link.dict ~ driver.globaldict
+          /driver.brokenlink.dict ~ get ~ def
+        /driver.outerbox ~ driver.globaldict
+          /driver.brokenlink.rect ~ get ~ def
+        /driver.baselineskip ~ driver.globaldict
+          /driver.brokenlink.skip ~ get ~ def ~
+        driver.globaldict ~ dup ~ dup
+        /driver.brokenlink.dict ~ undef
+        /driver.brokenlink.skip ~ undef
+        /driver.brokenlink.rect ~ undef ~
+        currentpoint
+        /driver.originy ~ exch ~ def
+        /driver.originx ~ exch ~ def
+        /a ~ where
+          {
+            /a
+              {
+                moveto ~
+                SDict ~
+                begin ~
+                currentpoint ~ driver.originy ~ ne ~ exch ~
+                  driver.originx ~ ne ~ or
+                  {
+                    driver.link.ll
+                    /driver.lly ~
+                      driver.lly ~ driver.outerbox ~ 1 ~ get ~ sub ~ def ~
+                    driver.bordertracking.begin
+                  }
+                if ~
+                end
+              }
+            put
+          }
+        if
+        /x ~ where
+          {
+            /x
+              {
+                0 ~ exch ~ rmoveto ~
+                SDict~
+                begin ~
+                currentpoint ~
+                driver.originy ~ ne ~ exch ~ driver.originx ~ ne ~ or
+                  {
+                    driver.link.ll
+                    /driver.lly ~
+                      driver.lly ~ driver.outerbox ~ 1 ~ get ~ sub ~ def ~
+                    driver.bordertracking.begin
+                  }
+                if ~
+                end
+              }
+            put
+          }
+        if
+      }
+        def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     driver.breaklink       ,
+%     driver.breaklink.write ,
+%     driver.count           ,
+%     driver.currentrect
+%   }
+%   Dealing with link breaking itself has multple stage. The first step is to
+%   find the |Rect| entry in the dictionary, looping over key--value pairs.
+%   The first line is handled first, adjusting the rectangle to stay inside the
+%   text area. The second phase is a loop over the height of the bulk of the
+%   link area, done on the basis of a number of baselines. Finally, the end of
+%   the link area is tidied up, again from the boundary of the text area.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.breaklink
+      {
+        pop ~
+        counttomark ~ 2 ~ mod ~ 0 ~ eq
+          {
+            counttomark /driver.count ~ exch ~ def
+              {
+               driver.count ~ 0 ~ eq { exit } if ~
+               counttomark ~ 2 ~ roll ~
+               1 ~ index ~ /Rect ~ eq
+                 {
+                   dup ~ 4 ~ array ~ copy ~
+                   dup ~ dup ~
+                     1 ~ get ~
+                     driver.outerbox ~ driver.rect.ht ~
+                     driver.linkmargin ~ 2 ~ mul ~ add ~ sub ~
+                     3 ~ exch ~ put ~
+                   dup ~
+                     driver.outerbox ~ 2 ~ get ~
+                     driver.linkmargin ~ add ~ 
+                     2 ~ exch ~ put ~
+                   dup ~ dup ~
+                     3 ~ get ~
+                     driver.outerbox ~ driver.rect.ht ~
+                     driver.linkmargin ~ 2 ~ mul ~ add ~ add ~
+                     1 ~ exch ~ put
+                   /driver.currentrect ~ exch ~  def ~
+                   driver.breaklink.write
+                     {
+                       driver.currentrect ~
+                       dup ~
+                         driver.outerbox ~ 0 ~ get ~
+                         driver.linkmargin ~ sub ~
+                         0 ~ exch ~ put ~
+                       dup ~
+                         driver.outerbox ~ 2 ~ get ~
+                         driver.linkmargin ~ add ~
+                         2 ~ exch ~ put ~
+                       dup ~ dup ~
+                         1 ~ get ~
+                         driver.baselineskip ~ add ~
+                         1 ~ exch ~ put ~
+                       dup ~ dup ~
+                         3 ~ get ~
+                         driver.baselineskip ~ add ~
+                         3 ~ exch ~ put ~
+                       /driver.currentrect ~ exch ~ def ~
+                       driver.breaklink.write
+                      }
+                    1 ~ index ~ 3 ~ get ~
+                    driver.linkmargin ~ 2 ~ mul ~ add ~
+                    driver.outerbox ~ driver.rect.ht ~ add ~
+                    2 ~ index ~ 1 ~ get ~ sub ~
+                    driver.baselineskip ~ div ~ round ~ cvi ~ 1 ~ sub ~
+                    exch ~
+                  repeat ~
+                  driver.currentrect ~
+                  dup ~
+                    driver.outerbox ~ 0 ~ get ~
+                    driver.linkmargin ~ sub ~
+                    0 ~ exch ~ put ~
+                  dup ~ dup ~
+                    1 ~ get ~
+                    driver.baselineskip ~ add ~
+                    1 ~ exch ~ put ~
+                  dup ~ dup ~
+                    3 ~ get ~
+                    driver.baselineskip ~ add ~
+                    3 ~ exch ~ put ~
+                  dup ~ 2 ~ index ~ 2 ~ get ~  2 ~ exch ~ put
+                  /driver.currentrect ~ exch ~ def ~
+                  driver.breaklink.write ~
+                  SDict /driver.pdfmark.good ~ false ~ put ~
+                  exit
+                }
+                { driver.count ~ 2 ~ sub /driver.count ~ exch ~ def }
+              ifelse
+            }
+          loop
+        }
+      if
+      /ANN
+    }
+      def
+    /driver.breaklink.write
+      {
+        counttomark ~ 1 ~ add ~ copy ~
+        pop ~ driver.currentrect
+        /ANN ~ pdfmark
+      }
+        def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     driver.pdfmark      ,
+%     driver.pdfmark.good ,
+%     driver.outerbox     ,
+%     driver.baselineskip ,
+%     driver.pdfmark.dict
+%   }
+%   The business end of breaking links starts by hooking into |pdfmarks|.
+%   Unlike \pkg{hypdvips}, we avoid altering any links we have not created
+%   by using a copy of the core |pdfmarks| function. Only mark types which
+%   are known are altered. At present, this is purely |ANN| marks, which are
+%   measured relative to the size of the baseline skip. If they are
+%   more than one apparent line high, breaking is applied.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.pdfmark
+      {
+        SDict /driver.pdfmark.good ~ true ~ put ~
+        dup /ANN ~ eq
+          {
+            driver.pdfmark.store ~
+            driver.pdfmark.dict ~
+            begin ~
+              Subtype /Link ~ eq ~
+              currentdict /Rect ~ known ~ and ~
+              SDict /driver.outerbox ~ known ~ and ~
+              SDict /driver.baselineskip ~ known ~ and ~
+                {
+                  Rect ~ 3 ~ get ~
+                  driver.linkmargin ~ 2 ~ mul ~ add ~
+                  driver.outerbox ~ driver.rect.ht ~ add ~
+                  Rect ~ 1 ~ get ~ sub ~
+                  driver.baselineskip ~ div ~ round ~ cvi ~ 0 ~ gt
+                    { driver.breaklink }
+                  if
+                }
+              if ~
+            end ~
+            SDict /driver.outerbox ~ undef ~
+            SDict /driver.baselineskip ~ undef ~
+            currentdict /driver.pdfmark.dict ~ undef ~
+          }
+        if ~
+        driver.pdfmark.good
+          { pdfmark }
+          { cleartomark }
+        ifelse
+      }
+        def
+    /driver.pdfmark.store
+      {
+        /driver.pdfmark.dict ~ 65534 ~ dict ~ def ~
+        counttomark ~ 1 ~ add ~ copy ~
+        pop
+          {
+            dup ~ mark ~ eq
+              {
+                pop ~
+                exit
+              }
+              {
+                driver.pdfmark.dict ~
+                begin ~ def ~ end
+              }
+            ifelse
+          }
+        loop
+    }
+      def
   }
 %    \end{macrocode}
 % \end{macro}
@@ -302,10 +689,10 @@
 % \begin{macro}{\@@_pdf_link_outerbox:n}
 % \begin{macro}
 %   {
-%     driver.linkdp.min, driver.linkht.min,
+%     driver.linkdp.pad, driver.linkht.pad,
 %     driver.llx, driver.lly,
 %     driver.ury, driver.ury,
-%     driver.linkdict,
+%     driver.link.dict,
 %     driver.outerbox,
 %     driver.baselineskip
 %   }
@@ -333,17 +720,10 @@
 \cs_new_protected:Npn \@@_pdf_link:nnnn #1#2#3#4
   {
     \@@_postscript:n
-      { /driver.linkdict ( #4 ) def }
+      { /driver.link.dict ( #1 ~ #2 ~ #3 ~ /Subtype /Link ) def }
     \hbox_set:Nn \l_@@_pdf_content_box {#4}
     \@@_pdf_link_minima:
-    \box_move_down:nn { \box_dp:N \l_@@_pdf_content_box }
-      { \hbox:n { \@@_postscript:n { driver.link.ll } } }
-    \box_use:N \l_@@_pdf_content_box
-    \box_move_up:nn { \box_ht:N \l_@@_pdf_content_box }
-      {
-        \hbox:n
-          { \@@_postscript:n { driver.link.ur } }
-      }
+    \hbox_set:Nn \l_@@_pdf_model_box { Gg }
     \exp_args:Nx \@@_driver_link_outerbox:n
       {
 %<*initex>
@@ -355,14 +735,25 @@
            { \evensidemargin }
 %</package>
       }
-    \int_gincr:N \g_@@_pdf_object_int
-    \int_gset_eq:NN \g_@@_pdf_link_int \g_@@_pdf_object_int
+    \box_move_down:nn { \box_dp:N \l_@@_pdf_content_box }
+      { \hbox:n { \@@_postscript:n { driver.link.ll } } }
+    \@@_postscript:n { driver.bordertracking.begin }
+    \hbox_unpack:N \l_@@_pdf_content_box
+    \@@_postscript:n { driver.bordertracking.end }
+    \box_move_up:nn { \box_ht:N \l_@@_pdf_content_box }
+      {
+        \hbox:n
+          { \@@_postscript:n { driver.link.ur } }
+      }
+%%    \int_gincr:N \g_@@_pdf_object_int
+%%    \int_gset_eq:NN \g_@@_pdf_link_int \g_@@_pdf_object_int
     \@@_postscript:x
       {
-        mark /_objdef ~ { driver.obj \int_use:N \g_@@_pdf_link_int }
+        mark
+%%        /_objdef ~ { driver.obj \int_use:N \g_@@_pdf_link_int }
+        #1 #2 #3 /Subtype /Link ~
         driver.annotation.border
-        /Subtype /Link #1 #2 #3
-        /ANN ~ pdfmark
+        /ANN ~ driver.pdfmark
       }
   }
 \cs_new_protected:Npn \@@_pdf_link_minima:
@@ -370,7 +761,7 @@
     \hbox_set:Nn \l_@@_pdf_model_box { Gg }
     \@@_postscript:x
       {
-        /driver.linkdp.min ~
+        /driver.linkdp.pad ~
           \dim_to_decimal:n
             {
               \dim_max:nn
@@ -381,7 +772,7 @@
                 { 0pt }
             } ~
               driver.pt.dvi ~ def
-        /driver.linkht.min ~
+        /driver.linkht.pad ~
           \dim_to_decimal:n
             {
               \dim_max:nn
@@ -406,15 +797,16 @@
             \dim_to_decimal:n { #1 + \l_galley_text_width_dim } ~
 %</initex>
 %<*package>
-            \dim_to_decimal:n { #1 + \linewidth } ~
+            \dim_to_decimal:n { #1 + \textwidth } ~
 %</package>
-            \dim_to_decimal:n { -\box_dp:N \l_@@_pdf_model_box }
+            \dim_to_decimal:n { \box_ht:N \l_@@_pdf_model_box }
           ]
           [ exch { driver.pt.dvi } forall ] def
         /driver.baselineskip ~
-          \dim_to_decimal:n
-            { \dim_max:nn { 0pt } { \tex_baselineskip:D } } ~
-              driver.pt.dvi ~ def
+          \dim_to_decimal:n { \tex_baselineskip:D } ~ dup ~ 0 ~ gt
+            { driver.pt.dvi ~ def }
+            { pop ~ pop }
+          ifelse 
       }
   }
 %    \end{macrocode}
@@ -422,6 +814,33 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@startcolumn, \@makecol}
+%   Hooks to allow link breaking: something will be needed in format mode
+%   at some stage.
+%    \begin{macrocode}
+%<*package>
+\tl_gput_left:Nn \@startcolumn
+  {
+    \@@_postscript:n
+      {
+        driver.globaldict /driver.brokenlink.rect ~ known
+          { driver.bordertracking.continue }
+        if
+      }
+  }
+\tl_gput_left:Nn \@makecol
+  {
+    \vbox_set:Nn \@cclv
+      {
+        \vbox_unpack_drop:N \@cclv
+        \@@_postscript:n
+          { driver.bordertracking.endpage }
+      }
+  }
+%</package>
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\driver_pdf_link_last:}
