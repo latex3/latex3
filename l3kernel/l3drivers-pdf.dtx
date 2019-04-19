@@ -60,6 +60,22 @@
 %<@@=driver>
 %    \end{macrocode}
 %
+% \subsection{Shared code}
+%
+% A very small number of items that belong at the driver level but which
+% are common to all drivers.
+%
+% \begin{variable}{\c_@@_pdf_AR_fix_tl}
+%   Part of a fix for a bug in Adobe Reader: see
+%   \url{https://forums.adobe.com/message/5787612#5787612}. The workaround
+%   is taken from \pkg{pdfbase}: this \enquote{magic} dictionary entry has to
+%   be passed correctly to each driver.
+%    \begin{macrocode}
+\tl_const:Nn \c_@@_pdf_AR_fix_tl
+  { /Ff ~ 65537 /FT /Btn /Subtype /Widget }
+%    \end{macrocode}
+% \end{variable}
+%
 % \subsection{\texttt{dvips} driver}
 %
 %    \begin{macrocode}
@@ -641,16 +657,31 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\driver_pdf_annotation:nnnn}
+% \begin{macro}{\driver_pdf_annotation:nnnn, \@@_pdf_annotation:nnnn}
 % \begin{macro}{driver.llx, driver.lly, driver.urx, driver.ury}
 %   Annotations are objects, but we track them separately. Notably, they are
 %   not in the object data lists. Here, to get the co-ordinates of the
 %   annotation, we need to have the data collected at the PostScript level.
 %   That requires a bit of box trickery (effectively a \LaTeXe{} |picture|
 %   of zero size). Once the data is collected, use it to set up the annotation
-%   border.
+%   border. There is a split into two parts here to allow an easy way of
+%   applying the Adobe Reader fix.
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_pdf_annotation:nnnn #1#2#3#4
+  {
+    \@@_pdf_annotation:nnnn {#1} {#2} {#3} {#4}
+    \int_gincr:N \g_@@_pdf_object_int
+    \int_gset_eq:NN \g_@@_pdf_annotation_int \g_@@_pdf_object_int
+    \@@_postscript:x
+      {
+          mark
+            /_objdef { driver.obj \int_use:N \g_@@_pdf_object_int }
+            driver.annotation.border ~
+            #4 ~
+            /ANN ~ pdfmark
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_annotation:nnnn #1#2#3#4
   {
     \box_move_down:nn {#3}
       { \hbox:n { \@@_postscript:n { driver.annotation.ll } } }
@@ -667,9 +698,10 @@
     \int_gset_eq:NN \g_@@_pdf_annotation_int \g_@@_pdf_object_int
     \@@_postscript:x
       {
-          mark /_objdef { driver.obj \int_use:N \g_@@_pdf_object_int }
-          driver.annotation.border ~
-          #4 ~
+        mark
+          /_objdef { driver.obj \int_use:N \g_@@_pdf_object_int }
+         driver.annotation.border ~
+          \c_@@_pdf_AR_fix_tl
           /ANN ~ pdfmark
       }
   }
@@ -758,6 +790,7 @@
   { \@@_pdf_link_begin:nnnw {#1} { } {#2} }
 \cs_new_protected:Npn \@@_pdf_link_begin:nnnw #1#2#3
   {
+    \@@_pdf_annotation:nnnn { 3pt } { 3pt } { 0pt } { }
     \@@_postscript:n
       { /driver.link.dict ( #1 ~ #2 ~ #3 ~ /Subtype /Link ) def }
     \int_gincr:N \g_@@_pdf_object_int
@@ -986,11 +1019,26 @@
 %
 % \subsubsection{Annotations}
 %
+% \begin{macro}{\@@_pdf_AR_fix:}
+%   The fix for the Adobe Reader bug: needed for generic annotations and links.
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_pdf_AR_fix:
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D annot ~ }
+      { \tex_pdfannot:D }
+      width  ~ 3pt ~ height ~ 3pt ~ depth ~ 0pt
+      { \c_@@_pdf_AR_fix_tl }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\driver_pdf_annotation:nnnn}
 %   Simply pass the raw data through, just dealing with evaluation of dimensions.
 %    \begin{macrocode}
 \cs_new_protected:Npx \driver_annotation:nnnn #1#2#3#4
   {
+    \@@_pdf_AR_fix:
     \cs_if_exist:NTF \tex_pdfextension:D
       { \tex_pdfextension:D annot ~ }
       { \tex_pdfannot:D }
@@ -1028,6 +1076,7 @@
   { \@@_pdf_link_begin:nnnw {#1} { user } {#2} }
 \cs_new_protected:Npx \@@_pdf_link_begin:nnnw #1#2#3
   {
+    \@@_pdf_AR_fix:
     \cs_if_exist:NTF \tex_pdfextension:D
       { \tex_pdfextension:D startlink ~ }
       { \tex_pdfstartlink:D }
@@ -1348,6 +1397,20 @@
 %
 % \subsubsection{Annotations}
 %
+% \begin{macro}{\@@_pdf_AR_fix:}
+%   The fix for the Adobe Reader bug: needed for generic annotations and links.
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_pdf_AR_fix:
+  {
+    \@@_pdf:n
+      {
+        ann ~ width ~ 3pt ~ height ~ 3pt ~ depth ~ 0pt
+        << \c_@@_pdf_AR_fix_tl >>
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{variable}{\g_@@_pdf_annotation_int}
 %   Needed as objects which are not annotations could be created.
 %    \begin{macrocode}
@@ -1361,6 +1424,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \driver_pdf_annotation:nnnn #1#2#3#4
   {
+    \@@_pdf_AR_fix:
     \int_gincr:N \g_@@_pdf_object_int
     \int_gset_eq:NN \g_@@_pdf_annotation_int \g_@@_pdf_object_int
     \@@_pdf:x
@@ -1387,6 +1451,7 @@
   { \@@_pdf_link_begin:nnnw {#1} { } {#2} }
 \cs_new_protected:Npn \@@_pdf_link_begin:nnnw #1#2#3
   {
+    \@@_pdf_AR_fix:
     \@@_pdf:n
       {
          bann
