@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- Experimental support for a range of PDF concepts at the lowest
+  (driver abstraction) level
+
 ## [2019-04-06]
 
 ### Changed
