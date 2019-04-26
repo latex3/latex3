@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `xparse`: Support for `trace` package
+
 ## [2019-03-05]
 
 ### Added
