@@ -12,6 +12,14 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3legacy` module containing
   - `\legacy_if:n(TF)`
 
+### Changed
+
+- Moved `\file_get_mdfive_hash:nN(TF)`, `\file_get_size:nN(TF)`
+   and `\file_get_timestamp:nN(TF)` to stable
+- Moved `\file_if_exist_input:n` and `\file_if_exist_input:nF` to stable
+- Moved `\file_input_stop:` to stable
+- Moved `\peek_N_type:TF` to stable
+
 ## [2019-04-21]
 
 ### Added
@@ -22,13 +30,6 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-04-06]
 
 ### Changed
-
-
-- Moved `\file_get_mdfive_hash:nN(TF)`, `\file_get_size:nN(TF)`
-   and `\file_get_timestamp:nN(TF)` to stable
-- Moved `\file_if_exist_input:n` and `\file_if_exist_input:nF` to stable
-- Moved `\file_input_stop:` to stable
-- Moved `\peek_N_type:TF` to stable
 
 - Moved `\tl_if_single_token:n(TF)` to stable
 
