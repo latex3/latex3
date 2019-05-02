@@ -1,0 +1,354 @@
+% \iffalse meta-comment
+%
+%% File: l3drivers-basics.dtx
+%
+% Copyright (C) 2011-2019 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    https://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3kernel bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver>
+\documentclass[full,kernel]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \textsf{l3drivers-basics} package\\ Driver basics^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2019-04-21}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3drivers-basics} Implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%<@@=driver>
+%    \end{macrocode}
+%
+% Whilst there is a reasonable amount of code overlap between drivers,
+% it is much clearer to have the blocks more-or-less separated than run
+% in together and DocStripped out in parts. As such, most of the following
+% is set up on a per-driver basis, though there is some common code (again
+% given in blocks not interspersed with other material).
+%
+% All the file identifiers are up-front so that they come out in the right
+% place in the files.
+%    \begin{macrocode}
+%<*package>
+\ProvidesExplFile
+%<*dvipdfmx>
+  {l3dvipdfmx.def}{2019-04-06}{}
+  {L3 Experimental driver: dvipdfmx}
+%</dvipdfmx>
+%<*dvips>
+  {l3dvips.def}{2019-04-06}{}
+  {L3 Experimental driver: dvips}
+%</dvips>
+%<*dvisvgm>
+  {l3dvisvgm.def}{2019-04-06}{}
+  {L3 Experimental driver: dvisvgm}
+%</dvisvgm>
+%<*pdfmode>
+  {l3pdfmode.def}{2019-04-06}{}
+  {L3 Experimental driver: PDF mode}
+%</pdfmode>
+%<*xdvipdfmx>
+  {l3xdvipdfmx.def}{2019-04-06}{}
+  {L3 Experimental driver: xdvipdfmx}
+%</xdvipdfmx>
+%</package>
+%    \end{macrocode}
+%
+% The order of the driver code here is such that we get somewhat logical
+% outcomes in terms of code sharing whilst keeping things readable. (Trying to
+% mix all of the code by concept is almost unmanageable.) The key parts which
+% are shared are
+% \begin{itemize}
+%   \item Color support is either \texttt{dvips}-like or \texttt{pdfmode}-like.
+%   \item \texttt{pdfmode} and \texttt{(x)dvipdfmx} share drawing routines.
+%   \item \texttt{xdvipdfmx} is largely the same as \texttt{dvipdfmx} so
+%     takes most of the same code.
+% \end{itemize}
+%
+% \begin{macro}{\@@_literal:e, \@@_literal:n, \@@_literal:x}
+%  The one shared function for all drivers is access to the basic
+%  \tn{special} primitive: it has slightly odd expansion behaviour
+%  so a wrapper is provided.
+%    \begin{macrocode}
+\cs_new_eq:NN \@@_literal:e \tex_special:D
+\cs_new_protected:Npn \@@_literal:n #1
+  { \@@_literal:e { \exp_not:n {#1} } }
+\cs_generate_variant:Nn \@@_literal:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{\texttt{dvips} driver}
+%
+%    \begin{macrocode}
+%<*dvips>
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_literal_postscript:n, \@@_literal_postscript:x}
+%   Literal PostScript can be included using a few low-level formats. Here,
+%   we use the form with no positioning: this is overall more convenient as
+%   a wrapper. Note that this does require that where position is important,
+%   an appropriate wrapper is included.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_literal_postscript:n #1
+  { \@@_literal:n { ps:: #1 } }
+\cs_generate_variant:Nn \@@_literal_postscript:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_postscript:n, \@@_postscript:x}
+%   PostScript data that does have positioning, and also applying
+%   a shift to |SDict| (which is not done automatically by
+%   |ps:| or |ps::|, in contrast to |!| or |"|).
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_postscript:n #1
+  { \@@_literal:n { ps: SDict ~ begin ~ #1 ~ end } }
+\cs_generate_variant:Nn \@@_postscript:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_postscript_header:n}
+%   PostScript for the header: a small saving but makes the code clearer.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_postscript_header:n #1
+  { \@@_literal:n { ! #1 } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_align_currentpoint_begin:, \@@_align_currentpoint_end:}
+%   In \texttt{dvips} there is no build-in saving of the current
+%   position, and so some additional PostScript is required to set up the
+%   transformation matrix and also to restore it afterwards. Notice the use
+%   of the stack to save the current position \enquote{up front} and to
+%   move back to it at the end of the process. Notice that the |[begin]|/^^A
+%   |[end]| pair here mean that we can use a run of PostScript statements
+%   in separate lines: not \emph{required} but does make the code and
+%   output more clear.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_align_currentpoint_begin:
+  {
+    \@@_literal:n { ps::[begin] }
+    \@@_literal_postscript:n { currentpoint }
+    \@@_literal_postscript:n { currentpoint~translate }
+  }
+\cs_new_protected:Npn \@@_align_currentpoint_end:
+  {
+    \@@_literal_postscript:n { neg~exch~neg~exch~translate }
+    \@@_literal:n { ps::[end] }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_scope_begin:, \@@_scope_end:}
+%   Saving/restoring scope for general operations needs to be done with
+%   \texttt{dvips} positioning (try without to see this!). Thus we need the
+%   |ps:| version of the special here. As only the graphics state is ever
+%   altered within this pairing, we use the lower-cost |g|-versions.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_scope_begin:
+  { \@@_literal:n { ps:gsave } }
+\cs_new_protected:Npn \@@_scope_end:
+  { \@@_literal:n { ps:grestore } }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvips>
+%    \end{macrocode}
+%
+% \subsection{\texttt{pdfmode} driver}
+%
+%    \begin{macrocode}
+%<*pdfmode>
+%    \end{macrocode}
+%
+% The direct PDF driver covers both \pdfTeX{} and \LuaTeX{}. The latter
+% renames and restructures the driver primitives but this can be handled
+% at one level of abstraction. As such, we avoid using two separate drivers
+% for this material at the cost of some \texttt{x}-type definitions to get
+% everything expanded up-front.
+%
+% \begin{macro}{\@@_literal_pdf:n, \@@_literal_pdf:x}
+%   This is equivalent to \verb|\special{pdf:}| but the engine can
+%   track it. Without the \texttt{direct} keyword everything is kept in
+%   sync: the transformation matrix is set to the current point automatically.
+%   Note that this is still inside the text (\texttt{BT} \dots \texttt{ET}
+%   block).
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_literal_pdf:n #1
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D literal }
+      { \tex_pdfliteral:D }
+        { \exp_not:N \exp_not:n {#1} }
+  }
+\cs_generate_variant:Nn \@@_literal_pdf:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_scope_begin:, \@@_scope_end:}
+%  Higher-level interfaces for saving and restoring the graphic state.
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_scope_begin:
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D save \scan_stop: }
+      { \tex_pdfsave:D }
+  }
+\cs_new_protected:Npx \@@_scope_end:
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D restore \scan_stop: }
+      { \tex_pdfrestore:D }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_matrix:n, \@@_matrix:x}
+%   Here the appropriate function is set up to insert an affine matrix
+%   into the PDF. With \pdfTeX{} and \LuaTeX{} in direct PDF output mode there
+%   is a primitive for this, which only needs the rotation/scaling/skew part.
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_matrix:n #1
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D setmatrix }
+      { \tex_pdfsetmatrix:D }
+        { \exp_not:N \exp_not:n {#1} }
+  }
+\cs_generate_variant:Nn \@@_matrix:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</pdfmode>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvipdfmx} driver}
+%
+%    \begin{macrocode}
+%<*dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% The \texttt{dvipdfmx} shares code with the PDF mode one (using the common
+% section to this file) but also with \texttt{xdvipdfmx}. The latter is close
+% to identical to \texttt{dvipdfmx} and so all of the code here is extracted
+% for both drivers, with some \texttt{clean up} for \texttt{xdvipdfmx} as
+% required.
+%
+% \begin{macro}{\@@_literal_pdf:n, \@@_literal_pdf:x}
+%   Equivalent to \texttt{pdf:content} but favored as the link to
+%   the \pdfTeX{} primitive approach is clearer.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_literal_pdf:n #1
+  { \@@_literal:n { pdf:literal~ #1 } }
+\cs_generate_variant:Nn \@@_literal_pdf:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_scope_begin:, \@@_scope_end:}
+%   Scoping is done using the driver-specific specials.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_scope_begin:
+  { \@@_literal:n { x:gsave } }
+\cs_new_protected:Npn \@@_scope_end:
+  { \@@_literal:n { x:grestore } }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvisvgm} driver}
+%
+%    \begin{macrocode}
+%<*dvisvgm>
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_literal_svg:n, \@@_literal_svg:x}
+%   Unlike the other drivers, the requirements for making SVG files mean
+%   that we can't conveniently transform all operations to the current point.
+%   That makes life a bit more tricky later as that needs to be accounted for.
+%   A new line is added after each call to help to keep the output readable
+%   for debugging.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_literal_svg:n #1
+  { \@@_literal:n { dvisvgm:raw~ #1 { ?nl } } }
+\cs_generate_variant:Nn \@@_literal_svg:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_scope_begin:, \@@_scope_end:}
+%   A scope in SVG terms is slightly different to the other drivers as
+%   operations have to be \enquote{tied} to these not simply inside them.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_scope_begin:
+  { \@@_literal_svg:n { <g> } }
+\cs_new_protected:Npn \@@_scope_end:
+  { \@@_literal_svg:n { </g> } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_scope_begin:n, \@@_scope_begin:x}
+%   In SVG transformations, clips and so on are attached directly to scopes so
+%   we need a way or allowing for that. This is rather more useful than
+%   \cs{@@_scope_begin:} as a result. No assumptions are made about the nature
+%   of the scoped operation(s).
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_scope_begin:n #1
+  { \@@_literal_svg:n { <g~ #1 > } }
+\cs_generate_variant:Nn \@@_scope_begin:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvisvgm>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex

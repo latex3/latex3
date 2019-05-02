@@ -1,0 +1,473 @@
+% \iffalse meta-comment
+%
+%% File: l3drivers-box.dtx
+%
+% Copyright (C) 2011-2019 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    https://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3kernel bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver>
+\documentclass[full,kernel]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \textsf{l3drivers-box} package\\ Driver box support^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2019-04-21}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3drivers-box} Implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%<@@=driver>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvips} driver}
+%
+%    \begin{macrocode}
+%<*dvips>
+%    \end{macrocode}
+%
+% \begin{macro}{\driver_box_use_clip:N}
+%   The \texttt{dvips} driver scales all absolute dimensions based on the
+%   output resolution selected and any \TeX{} magnification. Thus for any
+%   operation involving absolute lengths there is a correction to make. See
+%   \texttt{normalscale} from \texttt{special.pro} for the variables, noting
+%   that here everything is saved on the stack rather than as a separate
+%   variable. Once all of that is done, the actual clipping is trivial.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_clip:N #1
+  {
+    \@@_scope_begin:
+    \@@_align_currentpoint_begin:
+    \@@_literal_postscript:n { matrix~currentmatrix }
+    \@@_literal_postscript:n
+      { Resolution~72~div~VResolution~72~div~scale }
+    \@@_literal_postscript:n { DVImag~dup~scale }
+    \@@_literal_postscript:x
+      {
+        0 ~
+        \dim_to_decimal_in_bp:n { \box_dp:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
+        \dim_to_decimal_in_bp:n { -\box_ht:N #1 - \box_dp:N #1 } ~
+        rectclip
+      }
+    \@@_literal_postscript:n { setmatrix }
+    \@@_align_currentpoint_end:
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+    \skip_horizontal:n { \box_wd:N #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_box_use_rotate:Nn}
+% \begin{macro}{\@@_box_use_rotate:Nn}
+%   Rotating using \texttt{dvips} does not require that the box dimensions
+%   are altered and has a very convenient built-in operation. Zero rotation
+%   must be written as |0| not |-0| so there is a quick test.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_rotate:Nn #1#2
+  { \exp_args:NNf \@@_box_use_rotate:Nn #1 { \fp_eval:n {#2} } }
+\cs_new_protected:Npn \@@_box_use_rotate:Nn #1#2
+  {
+    \@@_scope_begin:
+    \@@_align_currentpoint_begin:
+    \@@_literal_postscript:x
+      {
+        \fp_compare:nNnTF {#2} = \c_zero_fp
+          { 0 }
+          { \fp_eval:n { round ( -(#2) , 5 ) } } ~
+        rotate
+      }
+   \@@_align_currentpoint_end:
+   \box_use:N #1
+   \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_box_use_scale:Nnn}
+%   The \texttt{dvips} driver once again has a dedicated operation we can
+%   use here.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_scale:Nnn #1#2#3
+  {
+    \@@_scope_begin:
+    \@@_align_currentpoint_begin:
+    \@@_literal_postscript:x
+      {
+        \fp_eval:n { round ( #2 , 5 ) } ~
+        \fp_eval:n { round ( #3 , 5 ) } ~
+        scale
+      }
+    \@@_align_currentpoint_end:
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvips>
+%    \end{macrocode}
+%
+% \subsection{\texttt{pdfmode} driver}
+%
+%    \begin{macrocode}
+%<*pdfmode>
+%    \end{macrocode}
+%
+% \begin{macro}{\driver_box_use_clip:N}
+%   The general method is to save the current location, define a clipping path
+%   equivalent to the bounding box, then insert the content at the current
+%   position and in a zero width box. The \enquote{real} width is then made up
+%   using a horizontal skip before tidying up. There are other approaches that
+%   can be taken (for example using XForm objects), but the logic here shares
+%   as much code as possible and uses the same conversions (and so same
+%   rounding errors) in all cases.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_clip:N #1
+  {
+    \@@_scope_begin:
+    \@@_literal_pdf:x
+      {
+        0~
+        \dim_to_decimal_in_bp:n { -\box_dp:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
+        re~W~n
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+    \skip_horizontal:n { \box_wd:N #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_box_use_rotate:Nn}
+% \begin{macro}{\@@_box_use_rotate:Nn}
+% \begin{variable}{\l_@@_cos_fp, \l_@@_sin_fp}
+%   Rotations are set using an affine transformation matrix which therefore
+%   requires sine/cosine values not the angle itself. We store the rounded
+%   values to avoid rounding twice. There are also a couple of comparisons to
+%   ensure that |-0| is not written to the output, as this avoids any issues
+%   with problematic display programs.  Note that numbers are compared to~$0$
+%   after rounding.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_rotate:Nn #1#2
+  { \exp_args:NNf \@@_box_use_rotate:Nn #1 { \fp_eval:n {#2} } }
+\cs_new_protected:Npn \@@_box_use_rotate:Nn #1#2
+  {
+    \@@_scope_begin:
+    \box_set_wd:Nn #1 { 0pt }
+    \fp_set:Nn \l_@@_cos_fp { round ( cosd ( #2 ) , 5 ) }
+    \fp_compare:nNnT \l_@@_cos_fp = \c_zero_fp
+      { \fp_zero:N \l_@@_cos_fp }
+    \fp_set:Nn \l_@@_sin_fp { round ( sind ( #2 ) , 5 ) }
+    \@@_matrix:x
+      {
+        \fp_use:N \l_@@_cos_fp \c_space_tl
+        \fp_compare:nNnTF \l_@@_sin_fp = \c_zero_fp
+          { 0~0 }
+          {
+            \fp_use:N \l_@@_sin_fp
+            \c_space_tl
+            \fp_eval:n { -\l_@@_sin_fp }
+          }
+        \c_space_tl
+        \fp_use:N \l_@@_cos_fp
+      }
+   \box_use:N #1
+   \@@_scope_end:
+  }
+\fp_new:N \l_@@_cos_fp
+\fp_new:N \l_@@_sin_fp
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_box_use_scale:Nnn}
+%   The same idea as for rotation but without the complexity of signs and
+%   cosines.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_scale:Nnn #1#2#3
+  {
+    \@@_scope_begin:
+    \@@_matrix:x
+      {
+        \fp_eval:n { round ( #2 , 5 ) } ~
+        0~0~
+        \fp_eval:n { round ( #3 , 5 ) }
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</pdfmode>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvipdfmx} driver}
+%
+%    \begin{macrocode}
+%<*dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% \begin{macro}{\driver_box_use_clip:N}
+%   The code here is identical to that for \texttt{pdfmode}: unlike rotation and
+%   scaling, there is no higher-level support in the driver for clipping.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_clip:N #1
+  {
+    \@@_scope_begin:
+    \@@_literal_pdf:x
+      {
+        0~
+        \dim_to_decimal_in_bp:n { -\box_dp:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_wd:N #1 } ~
+        \dim_to_decimal_in_bp:n { \box_ht:N #1 + \box_dp:N #1 } ~
+        re~W~n
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+    \skip_horizontal:n { \box_wd:N #1 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_box_use_rotate:Nn}
+% \begin{macro}{\@@_box_use_rotate:Nn}
+%   Rotating in \texttt{(x)}dvipdmfx can be implemented using either PDF or
+%   driver-specific code. The former approach however is not \enquote{aware}
+%   of the content of boxes: this means that any embedded links would not be
+%   adjusted by the rotation. As such, the driver-native approach is preferred:
+%   the code therefore is similar (though not identical) to the \texttt{dvips}
+%   version (notice the rotation angle here is positive). As for
+%   \texttt{dvips}, zero rotation is written as |0| not |-0|.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_rotate:Nn #1#2
+  { \exp_args:NNf \@@_box_use_rotate:Nn #1 { \fp_eval:n {#2} } }
+\cs_new_protected:Npn \@@_box_use_rotate:Nn #1#2
+  {
+    \@@_scope_begin:
+    \@@_literal:x
+      {
+        x:rotate~
+        \fp_compare:nNnTF {#2} = \c_zero_fp
+          { 0 }
+          { \fp_eval:n { round ( #2 , 5 ) } }
+      }
+    \box_use:N #1
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_box_use_scale:Nnn}
+%   Much the same idea for scaling: use the higher-level driver operation to allow
+%   for box content.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_scale:Nnn #1#2#3
+  {
+    \@@_scope_begin:
+    \@@_literal:x
+      {
+        x:scale~
+        \fp_eval:n { round ( #2 , 5 ) } ~
+        \fp_eval:n { round ( #3 , 5 ) }
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvisvgm} driver}
+%
+%    \begin{macrocode}
+%<*dvisvgm>
+%    \end{macrocode}
+%
+% \begin{macro}{\driver_box_use_clip:N}
+% \begin{variable}{\g_@@_clip_path_int}
+%   Clipping in SVG is more involved than with other drivers. The first issue
+%   is that the clipping path must be defined separately from where it is used,
+%   so we need to track how many paths have applied. The naming here uses
+%   \texttt{l3cp} as the namespace with a number following. Rather than use
+%   a rectangular operation, we define the path manually as this allows it to
+%   have a depth: easier than the alternative approach of shifting content
+%   up and down using scopes to allow for the depth of the \TeX{} box and
+%   keep the reference point the same!
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_clip:N #1
+  {
+    \int_gincr:N \g_@@_clip_path_int
+    \@@_literal_svg:x
+      { < clipPath~id = " l3cp \int_use:N \g_@@_clip_path_int " > }
+    \@@_literal_svg:x
+      {
+        <
+          path ~ d =
+            "
+              M ~ 0 ~
+                  \dim_to_decimal:n { -\box_dp:N #1 } ~
+              L ~ \dim_to_decimal:n { \box_wd:N #1 } ~
+                  \dim_to_decimal:n { -\box_dp:N #1 } ~
+              L ~ \dim_to_decimal:n { \box_wd:N #1 }  ~
+                  \dim_to_decimal:n { \box_ht:N #1 + \box_dp:N #1 } ~
+              L ~ 0 ~
+                  \dim_to_decimal:n { \box_ht:N #1 + \box_dp:N #1 } ~
+              Z
+            "
+        />
+      }
+    \@@_literal_svg:n
+      { < /clipPath > }
+%    \end{macrocode}
+%   In general the SVG set up does not try to transform coordinates to the
+%   current point. For clipping we need to do that, so have a transformation
+%   here to get us to the right place, and a matching one just before the
+%   \TeX{} box is inserted to get things back on track. The clip path needs to
+%   come between those two such that if lines up with the current point, as
+%   does the \TeX{} box.
+%    \begin{macrocode}
+    \@@_scope_begin:n
+      {
+        transform =
+          "
+            translate ( { ?x } , { ?y } ) ~
+            scale ( 1 , -1 )
+          "
+      }
+    \@@_scope_begin:x
+      {
+        clip-path =
+          "url ( \c_hash_str l3cp \int_use:N \g_@@_clip_path_int ) "
+      }
+    \@@_scope_begin:n
+      {
+        transform =
+          "
+            scale ( -1 , 1 ) ~
+            translate ( { ?x } , { ?y } ) ~
+            scale ( -1 , -1 )
+          "
+      }
+    \box_use:N #1
+    \@@_scope_end:
+    \@@_scope_end:
+    \@@_scope_end:
+%    \skip_horizontal:n { \box_wd:N #1 }
+  }
+\int_new:N \g_@@_clip_path_int
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+%
+% \begin{macro}{\driver_box_use_rotate:Nn}
+%   Rotation has a dedicated operation which includes a centre-of-rotation
+%   optional pair. That can be picked up from the driver syntax, so there is
+%   no need to worry about the transformation matrix.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_rotate:Nn #1#2
+  {
+    \@@_scope_begin:x
+      {
+        transform =
+          "
+            rotate
+            ( \fp_eval:n { round ( -(#2) , 5 ) } , ~ { ?x } , ~ { ?y } )
+          "
+      }
+    \box_use:N #1
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_box_use_scale:Nnn}
+%   In contrast to rotation, we have to account for the current position in this
+%   case. That is done using a couple of translations in addition to the scaling
+%   (which is therefore done backward with a flip).
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_box_use_scale:Nnn #1#2#3
+  {
+    \@@_scope_begin:x
+      {
+        transform =
+          "
+            translate ( { ?x } , { ?y } ) ~
+            scale
+              (
+                \fp_eval:n { round ( -#2 , 5 ) } ,
+                \fp_eval:n { round ( -#3 , 5 ) }
+              ) ~
+            translate ( { ?x } , { ?y } ) ~
+            scale ( -1 )
+          "
+      }
+    \hbox_overlap_right:n { \box_use:N #1 }
+    \@@_scope_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvisvgm>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex

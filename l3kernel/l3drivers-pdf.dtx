@@ -1,0 +1,1919 @@
+% \iffalse meta-comment
+%
+%% File: l3drivers-pdf.dtx
+%
+% Copyright (C) 2011-2019 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    https://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3kernel bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver>
+\documentclass[full,kernel]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \textsf{l3drivers-pdf} package\\ Driver PDF features^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2019-04-21}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3drivers-pdf} Implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%<@@=driver>
+%    \end{macrocode}
+%
+% \subsection{Shared code}
+%
+% A very small number of items that belong at the driver level but which
+% are common to all drivers.
+%
+% \begin{variable}{\c_@@_pdf_AR_fix_tl}
+%   Part of a fix for a bug in Adobe Reader: see
+%   \url{https://forums.adobe.com/message/5787612#5787612}. The workaround
+%   is taken from \pkg{pdfbase}: this \enquote{magic} dictionary entry has to
+%   be passed correctly to each driver.
+%    \begin{macrocode}
+\tl_const:Nn \c_@@_pdf_AR_fix_tl
+  { /Ff ~ 65537 /FT /Btn /Subtype /Widget }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_pdf_tmp_box}
+%   For fitting destinations.
+%    \begin{macrocode}
+\box_new:N \l_@@_pdf_tmp_box
+%    \end{macrocode}
+% \end{variable}
+%
+% \subsection{\texttt{dvips} driver}
+%
+%    \begin{macrocode}
+%<*dvips>
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_pdfmark:n, \@@_pdfmark:x}
+%   Used often enough it should be a separate function.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_pdfmark:n #1
+  { \@@_postscript:n { mark #1 ~ pdfmark } }
+\cs_generate_variant:Nn \@@_pdfmark:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Catalogue entries}
+%
+% \begin{macro}{\driver_pdf_catalog_gput:nn, \driver_pdf_info_gput:nn}
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_catalog_gput:nn #1#2
+  { \@@_pdfmark:n { { Catalog } << /#1 ~ #2 >> /PUT } }
+\cs_new_protected:Npn \driver_pdf_info_gput:nn #1#2
+  { \@@_pdfmark:n { /#1 ~ #2 /DOCINFO } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Objects}
+%
+% \begin{variable}{\g_@@_pdf_object_int, \g_@@_pdf_object_prop}
+%   For tracking objects to allow finalisation.
+%    \begin{macrocode}
+\int_new:N \g_@@_pdf_object_int
+\prop_new:N \g_@@_pdf_object_prop
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\driver_pdf_object_new:nn}
+% \begin{macro}[EXP]{\driver_pdf_object_ref:n}
+%   Tracking objects is similar to \texttt{dvipdfmx}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_object_new:nn #1#2
+  {
+    \int_gincr:N \g_@@_pdf_object_int
+    \int_const:cn
+      { c_@@_pdf_object_ \tl_to_str:n {#1} _int }
+      { \g_@@_pdf_object_int }
+    \prop_gput:Nnn \g_@@_pdf_object_prop {#1} {#2}
+  }
+\cs_new:Npn \driver_pdf_object_ref:n #1
+  { { driver.obj \int_use:c { c_@@_pdf_object_ \tl_to_str:n {#1} _int } } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_object_write:nn}
+% \begin{macro}
+%   {
+%     \@@_pdf_object_write_array:nn ,
+%     \@@_pdf_object_write_dict:nn  ,
+%     \@@_pdf_object_write_stream:nn
+%   }
+% \begin{macro}{\@@_pdf_object_write_stream:nnn}
+%   This is where we choose the actual type: some work to get things
+%   right.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_object_write:nn #1#2
+  {
+    \@@_pdfmark:x
+      {
+        /_objdef ~ \driver_pdf_object_ref:n {#1}
+        /type
+        \str_case_e:nn
+          { \prop_item:Nn \g_@@_pdf_object_prop {#1} }
+          {
+            { array }   { /array }
+            { dict }    { /dict }
+            { fstream } { /stream }
+            { stream }  { /stream }
+          }
+        /OBJ
+      }
+    \use:c
+      { @@_pdf_object_write_ \prop_item:Nn \g_@@_pdf_object_prop {#1} :nn }
+      {#1} {#2}
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_array:nn #1#2
+  {
+    \@@_pdfmark:x
+      {
+        \driver_pdf_object_ref:n {#1}
+          [ ~ \exp_not:n {#2} ~ ] ~ /PUTINTERVAL
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_dict:nn #1#2
+  {
+    \@@_pdfmark:x
+      {
+        \driver_pdf_object_ref:n {#1}
+          << \exp_not:n {#2} >> /PUT
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_stream:nn #1#2
+  {
+    \exp_args:Nx
+      \@@_pdf_object_write_stream:nnn
+        { \driver_pdf_object_ref:n {#1} }
+        #2
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_stream:nnn #1#2#3
+  {
+    \@@_postscript:n
+      {
+        [nobreak]
+        mark ~ #1 ~ ( #3 ) /PUT ~ pdfmark ~
+        mark ~ #1 ~ << #2 >> /PUT ~ pdfmark
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsubsection{Annotations}
+%
+% In \texttt{dvips}, annotations have to be constructed manually. As such,
+% we need the object code above for some definitions.
+%
+% \begin{macro}{driver.globaldict}
+%   A small global dictionary for driver use.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    true ~ setglobal ~
+    /driver.globaldict ~ 4 ~ dict ~ def ~
+    false ~ setglobal
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     driver.cvs     ,
+%     driver.dvi.pt  ,
+%     driver.pt.dvi  ,
+%     driver.rect.ht
+%   }
+%   Small utilities for PostScript manipulations. Conversion to DVI dimensions
+%   is done here to allow for |Resolution|. The total height of a rectangle
+%   (an array) needs a little maths, in contrast to simply extracting a value.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.cvs { 65534 ~ string ~ cvs } def
+    /driver.dvi.pt { 72.27 ~ mul ~ Resolution ~ div } def
+    /driver.pt.dvi { 72.27 ~ div ~ Resolution ~ mul } def
+    /driver.rect.ht { dup ~ 1 ~ get ~ neg ~ exch ~ 3 ~ get ~ add } def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{driver.linkmargin, driver.linkdp.pad, driver.linkht.pad}
+%   Settings which are defined up-front in |SDict|.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.linkmargin { 1 ~ driver.pt.dvi } def
+    /driver.linkdp.pad { 0 } def 
+    /driver.linkht.pad { 0 } def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     driver.rect        ,
+%     driver.save.ll     ,
+%     driver.save.ur     ,
+%     driver.save.linkll ,
+%     driver.save.linkur ,
+%     driver.llx         ,
+%     driver.lly         ,
+%     driver.urx         ,
+%     driver.ury
+%   }
+%   Functions for marking the limits of an annotation/link, plus drawing the
+%   border. We separate links for generic annotations to support adding a
+%   margin and setting a minimal size.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.rect
+      { /Rect [ driver.llx ~ driver.lly ~ driver.urx ~ driver.ury ] } def
+    /driver.save.ll
+      {
+        currentpoint
+        /driver.lly ~ exch ~ def
+        /driver.llx ~ exch ~ def
+      }
+        def
+    /driver.save.ur
+      {
+        currentpoint
+        /driver.ury ~ exch ~ def
+        /driver.urx ~ exch ~ def
+      }
+        def
+    /driver.save.linkll
+      {
+        currentpoint ~
+        driver.linkmargin ~ add ~
+        driver.linkdp.pad ~ add
+        /driver.lly ~ exch ~ def ~
+        driver.linkmargin ~ sub
+        /driver.llx ~ exch ~ def
+      }
+        def
+    /driver.save.linkur
+      {
+        currentpoint ~
+        driver.linkmargin ~ sub ~
+        driver.linkht.pad ~ sub
+        /driver.ury ~ exch ~ def ~
+        driver.linkmargin ~ add
+        /driver.urx ~ exch ~ def
+      }
+        def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     driver.dest.anchor ,
+%     driver.dest.x      ,
+%     driver.dest.y      ,
+%     driver.dest.point  ,
+%     driver.dest2device ,
+%     driver.dev.x       ,
+%     driver.dev.y       ,
+%     driver.tmpa        ,
+%     driver.tmpb        ,
+%     driver.tmpc        ,
+%     driver.tmpd
+%   }
+%   For finding the anchor point of a destination link. We make the use case
+%   a separate function as it comes up a lot, and as this makes it easier to
+%   adjust if we need additional effects. We also need a more complex approach
+%   to convert a co-ordinate pair correctly when defining a rectangle: this
+%   can otherwise be out when using a landscape page. (Thanks to Alexander
+%   Grahn for the approach here.)
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.dest.anchor
+      {
+        currentpoint ~ exch ~
+        driver.dvi.pt ~ 72 ~ add ~
+        /driver.dest.x ~ exch ~ def ~
+        driver.dvi.pt ~
+        vsize ~ 72 ~ sub ~ exch ~ sub ~
+        /driver.dest.y ~ exch ~ def
+      }
+        def
+    /driver.dest.point
+      { driver.dest.x ~ driver.dest.y } def
+   /driver.dest2device
+     {
+       /driver.dest.y ~ exch ~ def
+       /driver.dest.x ~ exch ~ def ~
+       matrix ~ currentmatrix ~
+       matrix ~ defaultmatrix ~
+       matrix ~ invertmatrix ~
+       matrix ~ concatmatrix ~
+       cvx ~ exec
+       /driver.dev.y ~ exch ~ def
+       /driver.dev.x ~ exch ~ def
+       /driver.tmpd ~ exch ~ def
+       /driver.tmpc ~ exch ~ def
+       /driver.tmpb ~ exch ~ def
+       /driver.tmpa ~ exch ~ def ~
+       driver.dest.x ~ driver.tmpa ~ mul ~
+         driver.dest.y ~ driver.tmpc ~ mul ~ add ~
+         driver.dev.x ~ add ~
+       driver.dest.x ~ driver.tmpb ~ mul ~
+         driver.dest.y ~ driver.tmpd ~ mul ~ add ~
+         driver.dev.y ~ add
+     }
+       def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     driver.bordertracking          ,
+%     driver.bordertracking.begin    ,
+%     driver.bordertracking.end      ,
+%     driver.leftboundary            ,
+%     driver.rightboundary           ,
+%     driver.brokenlink.rect         ,
+%     driver.brokenlink.skip         ,
+%     driver.brokenlink.dict         ,
+%     driver.bordertracking.endpage  ,
+%     driver.bordertracking.continue ,
+%     driver.originx                 ,
+%     driver.originy
+%   }
+%    To know where a breakable link can go, we need to track the boundary
+%    rectangle. That can be done by hooking into |a| and |x| operations:
+%    those names have to be retained. The boundary is stored at the end of
+%    the operation. Special effort is needed at the start and end of pages
+%    (or rather galleys), such that everything works properly.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.bordertracking ~ false ~ def
+    /driver.bordertracking.begin
+      {
+        SDict ~ /driver.bordertracking ~ true ~ put ~
+        SDict ~ /driver.leftboundary ~ undef ~
+        SDict ~ /driver.rightboundary ~ undef ~
+        /a ~ where
+          {
+            /a
+              {
+                currentpoint ~ pop ~
+                SDict /driver.rightboundary ~ known ~ dup
+                  {
+                    SDict /driver.rightboundary ~ get ~ 2 ~ index ~ lt
+                      { not }
+                    if
+                  }
+                if
+                  { pop }
+                  { SDict ~ exch /driver.rightboundary ~ exch ~ put }
+                ifelse ~
+                moveto ~
+                currentpoint ~ pop ~
+                SDict /driver.leftboundary ~ known ~ dup
+                  {
+                    SDict /driver.leftboundary ~ get ~ 2 ~ index ~ gt
+                      { not }
+                    if
+                  }
+                if
+                  { pop }
+                  { SDict ~ exch /driver.leftboundary ~ exch ~ put }
+                ifelse
+              }
+            put
+          }
+        if
+      }
+        def
+    /driver.bordertracking.end
+      {
+        /a ~ where { /a { moveto } put } if
+        /x ~ where { /x { 0 ~ exch ~ rmoveto } put } if ~
+        SDict /driver.leftboundary ~ known
+          { driver.outerbox ~ 0 ~ driver.leftboundary ~ put }
+        if ~
+        SDict /driver.rightboundary ~ known
+          { driver.outerbox ~ 2 ~ driver.rightboundary ~ put }
+        if ~
+        SDict /driver.bordertracking ~ false ~ put
+      }
+        def
+  /driver.bordertracking.endpage
+    {
+      driver.bordertracking
+        {
+          driver.bordertracking.end ~
+          true ~ setglobal ~
+          driver.globaldict
+            /driver.brokenlink.rect [ driver.outerbox ~ aload ~ pop ] put ~
+          driver.globaldict
+            /driver.brokenlink.skip ~ driver.baselineskip ~ put ~
+          driver.globaldict
+            /driver.brokenlink.dict ~
+              driver.link.dict ~ driver.cvs ~ put ~
+          false ~ setglobal ~
+          mark ~ driver.link.dict ~ cvx ~ exec ~ /Rect
+            [
+              driver.llx ~
+              driver.lly ~
+              driver.outerbox ~ 2 ~ get ~ driver.linkmargin ~ add ~
+              currentpoint ~ exch ~ pop ~
+              driver.outerbox ~ driver.rect.ht ~ sub ~ driver.linkmargin ~ sub
+            ]
+          /ANN ~ driver.pdfmark
+        }
+      if
+    }
+      def
+    /driver.bordertracking.continue
+      {
+        /driver.link.dict ~ driver.globaldict
+          /driver.brokenlink.dict ~ get ~ def
+        /driver.outerbox ~ driver.globaldict
+          /driver.brokenlink.rect ~ get ~ def
+        /driver.baselineskip ~ driver.globaldict
+          /driver.brokenlink.skip ~ get ~ def ~
+        driver.globaldict ~ dup ~ dup
+        /driver.brokenlink.dict ~ undef
+        /driver.brokenlink.skip ~ undef
+        /driver.brokenlink.rect ~ undef ~
+        currentpoint
+        /driver.originy ~ exch ~ def
+        /driver.originx ~ exch ~ def
+        /a ~ where
+          {
+            /a
+              {
+                moveto ~
+                SDict ~
+                begin ~
+                currentpoint ~ driver.originy ~ ne ~ exch ~
+                  driver.originx ~ ne ~ or
+                  {
+                    driver.save.linkll
+                    /driver.lly ~
+                      driver.lly ~ driver.outerbox ~ 1 ~ get ~ sub ~ def ~
+                    driver.bordertracking.begin
+                  }
+                if ~
+                end
+              }
+            put
+          }
+        if
+        /x ~ where
+          {
+            /x
+              {
+                0 ~ exch ~ rmoveto ~
+                SDict~
+                begin ~
+                currentpoint ~
+                driver.originy ~ ne ~ exch ~ driver.originx ~ ne ~ or
+                  {
+                    driver.save.linkll
+                    /driver.lly ~
+                      driver.lly ~ driver.outerbox ~ 1 ~ get ~ sub ~ def ~
+                    driver.bordertracking.begin
+                  }
+                if ~
+                end
+              }
+            put
+          }
+        if
+      }
+        def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     driver.breaklink       ,
+%     driver.breaklink.write ,
+%     driver.count           ,
+%     driver.currentrect
+%   }
+%   Dealing with link breaking itself has multiple stage. The first step is to
+%   find the |Rect| entry in the dictionary, looping over key--value pairs.
+%   The first line is handled first, adjusting the rectangle to stay inside the
+%   text area. The second phase is a loop over the height of the bulk of the
+%   link area, done on the basis of a number of baselines. Finally, the end of
+%   the link area is tidied up, again from the boundary of the text area.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.breaklink
+      {
+        pop ~
+        counttomark ~ 2 ~ mod ~ 0 ~ eq
+          {
+            counttomark /driver.count ~ exch ~ def
+              {
+               driver.count ~ 0 ~ eq { exit } if ~
+               counttomark ~ 2 ~ roll ~
+               1 ~ index ~ /Rect ~ eq
+                 {
+                   dup ~ 4 ~ array ~ copy ~
+                   dup ~ dup ~
+                     1 ~ get ~
+                     driver.outerbox ~ driver.rect.ht ~
+                     driver.linkmargin ~ 2 ~ mul ~ add ~ sub ~
+                     3 ~ exch ~ put ~
+                   dup ~
+                     driver.outerbox ~ 2 ~ get ~
+                     driver.linkmargin ~ add ~ 
+                     2 ~ exch ~ put ~
+                   dup ~ dup ~
+                     3 ~ get ~
+                     driver.outerbox ~ driver.rect.ht ~
+                     driver.linkmargin ~ 2 ~ mul ~ add ~ add ~
+                     1 ~ exch ~ put
+                   /driver.currentrect ~ exch ~  def ~
+                   driver.breaklink.write
+                     {
+                       driver.currentrect ~
+                       dup ~
+                         driver.outerbox ~ 0 ~ get ~
+                         driver.linkmargin ~ sub ~
+                         0 ~ exch ~ put ~
+                       dup ~
+                         driver.outerbox ~ 2 ~ get ~
+                         driver.linkmargin ~ add ~
+                         2 ~ exch ~ put ~
+                       dup ~ dup ~
+                         1 ~ get ~
+                         driver.baselineskip ~ add ~
+                         1 ~ exch ~ put ~
+                       dup ~ dup ~
+                         3 ~ get ~
+                         driver.baselineskip ~ add ~
+                         3 ~ exch ~ put ~
+                       /driver.currentrect ~ exch ~ def ~
+                       driver.breaklink.write
+                      }
+                    1 ~ index ~ 3 ~ get ~
+                    driver.linkmargin ~ 2 ~ mul ~ add ~
+                    driver.outerbox ~ driver.rect.ht ~ add ~
+                    2 ~ index ~ 1 ~ get ~ sub ~
+                    driver.baselineskip ~ div ~ round ~ cvi ~ 1 ~ sub ~
+                    exch ~
+                  repeat ~
+                  driver.currentrect ~
+                  dup ~
+                    driver.outerbox ~ 0 ~ get ~
+                    driver.linkmargin ~ sub ~
+                    0 ~ exch ~ put ~
+                  dup ~ dup ~
+                    1 ~ get ~
+                    driver.baselineskip ~ add ~
+                    1 ~ exch ~ put ~
+                  dup ~ dup ~
+                    3 ~ get ~
+                    driver.baselineskip ~ add ~
+                    3 ~ exch ~ put ~
+                  dup ~ 2 ~ index ~ 2 ~ get ~  2 ~ exch ~ put
+                  /driver.currentrect ~ exch ~ def ~
+                  driver.breaklink.write ~
+                  SDict /driver.pdfmark.good ~ false ~ put ~
+                  exit
+                }
+                { driver.count ~ 2 ~ sub /driver.count ~ exch ~ def }
+              ifelse
+            }
+          loop
+        }
+      if
+      /ANN
+    }
+      def
+    /driver.breaklink.write
+      {
+        counttomark ~ 1 ~ add ~ copy ~
+        pop ~ driver.currentrect
+        /ANN ~ pdfmark
+      }
+        def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     driver.pdfmark      ,
+%     driver.pdfmark.good ,
+%     driver.outerbox     ,
+%     driver.baselineskip ,
+%     driver.pdfmark.dict ,
+%     driver.pdfmark.obj
+%   }
+%   The business end of breaking links starts by hooking into |pdfmarks|.
+%   Unlike \pkg{hypdvips}, we avoid altering any links we have not created
+%   by using a copy of the core |pdfmarks| function. Only mark types which
+%   are known are altered. At present, this is purely |ANN| marks, which are
+%   measured relative to the size of the baseline skip. If they are
+%   more than one apparent line high, breaking is applied.
+%    \begin{macrocode}
+\@@_postscript_header:n
+  {
+    /driver.pdfmark
+      {
+        SDict /driver.pdfmark.good ~ true ~ put ~
+        dup /ANN ~ eq
+          {
+            driver.pdfmark.store ~
+            driver.pdfmark.dict ~
+              begin ~
+                Subtype /Link ~ eq ~
+                currentdict /Rect ~ known ~ and ~
+                SDict /driver.outerbox ~ known ~ and ~
+                SDict /driver.baselineskip ~ known ~ and ~
+                  {
+                    Rect ~ 3 ~ get ~
+                    driver.linkmargin ~ 2 ~ mul ~ add ~
+                    driver.outerbox ~ driver.rect.ht ~ add ~
+                    Rect ~ 1 ~ get ~ sub ~
+                    driver.baselineskip ~ div ~ round ~ cvi ~ 0 ~ gt
+                      { driver.breaklink }
+                      { driver.pdfmark.obj }
+                    ifelse
+                  }
+                  { driver.pdfmark.obj }
+                ifelse ~
+              end ~
+            SDict /driver.outerbox ~ undef ~
+            SDict /driver.baselineskip ~ undef ~
+            currentdict /driver.pdfmark.dict ~ undef ~
+          }
+        if ~
+        driver.pdfmark.good
+          { pdfmark }
+          { cleartomark }
+        ifelse
+      }
+        def
+    /driver.pdfmark.store
+      {
+        /driver.pdfmark.dict ~ 65534 ~ dict ~ def ~
+        counttomark ~ 1 ~ add ~ copy ~
+        pop
+          {
+            dup ~ mark ~ eq
+              {
+                pop ~
+                exit
+              }
+              {
+                driver.pdfmark.dict ~
+                begin ~ def ~ end
+              }
+            ifelse
+          }
+        loop
+    }
+      def
+  /driver.pdfmark.obj
+    { /_objdef ~ exch ~ driver.link.obj ~ exch } def
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\l_@@_pdf_content_box}
+%   The content of an annotation.
+%    \begin{macrocode}
+\box_new:N \l_@@_pdf_content_box
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_pdf_model_box}
+%   For creating model sizing for links.
+%    \begin{macrocode}
+\box_new:N \l_@@_pdf_model_box
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_pdf_annotation_int}
+%   Needed as objects which are not annotations could be created.
+%    \begin{macrocode}
+\int_new:N \g_@@_pdf_annotation_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\driver_pdf_annotation:nnnn, \@@_pdf_annotation:nnnn}
+% \begin{macro}{driver.llx, driver.lly, driver.urx, driver.ury}
+%   Annotations are objects, but we track them separately. Notably, they are
+%   not in the object data lists. Here, to get the co-ordinates of the
+%   annotation, we need to have the data collected at the PostScript level.
+%   That requires a bit of box trickery (effectively a \LaTeXe{} |picture|
+%   of zero size). Once the data is collected, use it to set up the annotation
+%   border. There is a split into two parts here to allow an easy way of
+%   applying the Adobe Reader fix.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_annotation:nnnn #1#2#3#4
+  {
+    \@@_pdf_annotation:nnnn {#1} {#2} {#3} {#4}
+    \int_gincr:N \g_@@_pdf_object_int
+    \int_gset_eq:NN \g_@@_pdf_annotation_int \g_@@_pdf_object_int
+    \@@_pdfmark:x
+      {
+      
+        /_objdef { driver.obj \int_use:N \g_@@_pdf_object_int }
+        driver.rect ~
+        #4 ~
+        /ANN
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_annotation:nnnn #1#2#3#4
+  {
+    \box_move_down:nn {#3}
+      { \hbox:n { \@@_postscript:n { driver.save.ll } } }
+    \hbox:n {#4}
+    \box_move_up:nn {#2}
+      {
+        \hbox:n
+          {
+            \tex_kern:D \dim_eval:n {#1} \scan_stop:
+            \@@_postscript:n { driver.save.ur }
+          }
+      }
+    \int_gincr:N \g_@@_pdf_object_int
+    \int_gset_eq:NN \g_@@_pdf_annotation_int \g_@@_pdf_object_int
+    \@@_pdfmark:x
+      {
+        /_objdef { driver.obj \int_use:N \g_@@_pdf_object_int }
+        driver.rect ~
+        \c_@@_pdf_AR_fix_tl
+        /ANN
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\driver_pdf_annotation_last:}
+%   Provide the last annotation we created: could get tricky of course if
+%   other packages are loaded.
+%    \begin{macrocode}
+\cs_new:Npn \driver_pdf_annotation_last:
+  { { driver.obj \int_use:N \g_@@_pdf_annotation_int } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\g_@@_pdf_link_int}
+%   To track annotations which are links.
+%    \begin{macrocode}
+\int_new:N \g_@@_pdf_link_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_pdf_link_dict_tl}
+%   To pass information to the end-of-link function.
+%    \begin{macrocode}
+\tl_new:N \g_@@_pdf_link_dict_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_pdf_link_sf_int}
+%   Needed to save/restore space factor, which is needed to deal with the face
+%   we need a box.
+%    \begin{macrocode}
+\int_new:N \g_@@_pdf_link_sf_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_pdf_link_math_bool}
+%   Needed to save/restore math mode.
+%    \begin{macrocode}
+\bool_new:N \g_@@_pdf_link_math_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_pdf_link_bool}
+%   Track link formation: we cannot nest at all.
+%    \begin{macrocode}
+\bool_new:N \g_@@_pdf_link_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\driver_pdf_link_begin_goto:nnw, \driver_pdf_link_begin_user:nnw}
+% \begin{macro}{\@@_pdf_link:nw, \@@_pdf_link_aux:nw}
+% \begin{macro}{\driver_pdf_link_end:, \@@_pdf_link_end:}
+% \begin{macro}{\@@_pdf_link_minima:}
+% \begin{macro}{\@@_pdf_link_outerbox:n}
+% \begin{macro}{\@@_pdf_link_sf_save:, \@@_pdf_link_sf_restore:}
+% \begin{macro}
+%   {
+%     driver.linkdp.pad      ,
+%     driver.linkht.pad      ,
+%     driver.llx, driver.lly ,
+%     driver.ury, driver.ury ,
+%     driver.link.dict       ,
+%     driver.link.obj        ,
+%     driver.outerbox        ,
+%     driver.baselineskip
+%   }
+%   Links are crated like annotations but with dedicated code to allow for
+%   adjusting the size of the rectangle. In contrast to \pkg{hyperref}, we
+%   grab the link content as a box which can then unbox: this allows the same
+%   interface as for \pdfTeX{}.
+%
+%   Taking the idea of |evenboxes| from \pkg{hypdvips}, we implement a minimum
+%   box height and depth for link placement. This means that \enquote{underlining}
+%   with a hyperlink will generally give an even appearance. However, to ensure
+%   that the full content is always above the link border, we do not allow
+%   this to be negative (contrast \pkg{hypdvips} approach). The result should
+%   be similar to \pdfTeX{} in the vast majority of foreseeable cases.
+%
+%   The object number for a link is saved separately from the rest of the
+%   dictionary as this allows us to insert it just once, at either an
+%   unbroken link or only in the first line of a broken one. That makes the
+%   code clearer but also avoids a low-level PostScript error with the code
+%   as taken from \pkg{hypdvips}.
+%
+%   Getting the outer dimensions of the text area may be better using a two-pass
+%   approach and |\tex_savepos:D|. That plus format mode are still to re-examine.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_link_begin_goto:nnw #1#2
+  { \@@_pdf_link_begin:nw { #1 /A << /S /GoTo /D ( #2 ) >> } }
+\cs_new_protected:Npn \driver_pdf_link_begin_user:nnw #1#2
+  { \@@_pdf_link_begin:nw {#1#2} }
+\cs_new_protected:Npn \@@_pdf_link_begin:nw #1
+  {
+    \bool_if:NF \g_@@_pdf_link_bool
+      { \@@_pdf_link_begin_aux:nw {#1} }
+  }
+\cs_new_protected:Npn \@@_pdf_link_begin_aux:nw #1
+  {
+    \bool_gset_true:N \g_@@_pdf_link_bool
+    \@@_pdf_annotation:nnnn { 3pt } { 3pt } { 0pt } { }
+    \@@_postscript:n
+      { /driver.link.dict ( /Subtype /Link #1 ) def }
+    \int_gincr:N \g_@@_pdf_object_int
+    \int_gset_eq:NN \g_@@_pdf_link_int \g_@@_pdf_object_int
+    \@@_postscript:x
+      {
+        /driver.link.obj
+          {
+            { driver.obj \int_use:N \g_@@_pdf_link_int \c_space_tl driver.cvs }
+          }
+            def
+      }
+    \tl_gset:Nn \g_@@_pdf_link_dict_tl {#1}
+    \@@_pdf_link_sf_save:
+    \mode_if_math:TF
+      { \bool_gset_true:N \g_@@_pdf_link_math_bool }
+      { \bool_gset_false:N \g_@@_pdf_link_math_bool }
+    \hbox_set:Nw \l_@@_pdf_content_box
+      \@@_pdf_link_sf_restore:
+      \bool_if:NT \g_@@_pdf_link_math_bool
+        { \c_math_toggle_token }
+  }
+\cs_new_protected:Npn \driver_pdf_link_end:
+  {
+    \bool_if:NT \g_@@_pdf_link_bool
+      { \@@_pdf_link_end: }
+  }
+\cs_new_protected:Npn \@@_pdf_link_end:
+  {
+      \bool_if:NT \g_@@_pdf_link_math_bool
+        { \c_math_toggle_token }
+      \@@_pdf_link_sf_save:
+    \hbox_set_end:
+    \@@_pdf_link_minima:
+    \hbox_set:Nn \l_@@_pdf_model_box { Gg }
+    \exp_args:Nx \@@_driver_link_outerbox:n
+      {
+%<*initex>
+         \l_galley_total_left_margin_dim
+%</initex>
+%<*package>
+         \int_if_odd:nTF { \value { page } }
+           { \oddsidemargin }
+           { \evensidemargin }
+%</package>
+      }
+    \box_move_down:nn { \box_dp:N \l_@@_pdf_content_box }
+      { \hbox:n { \@@_postscript:n { driver.save.linkll } } }
+    \@@_postscript:n { driver.bordertracking.begin }
+    \hbox_unpack:N \l_@@_pdf_content_box
+    \@@_postscript:n { driver.bordertracking.end }
+    \box_move_up:nn { \box_ht:N \l_@@_pdf_content_box }
+      {
+        \hbox:n
+          { \@@_postscript:n { driver.save.linkur } }
+      }
+    \@@_postscript:x
+      {
+        mark
+        \g_@@_pdf_link_dict_tl /Subtype /Link ~
+        driver.rect
+        /ANN ~ driver.pdfmark
+      }
+    \@@_pdf_link_sf_restore:
+    \bool_gset_false:N \g_@@_pdf_link_bool
+  }
+\cs_new_protected:Npn \@@_pdf_link_minima:
+  {
+    \hbox_set:Nn \l_@@_pdf_model_box { Gg }
+    \@@_postscript:x
+      {
+        /driver.linkdp.pad ~
+          \dim_to_decimal:n
+            {
+              \dim_max:nn
+                {
+                    \box_dp:N \l_@@_pdf_model_box
+                  - \box_dp:N \l_@@_pdf_content_box
+                }
+                { 0pt }
+            } ~
+              driver.pt.dvi ~ def
+        /driver.linkht.pad ~
+          \dim_to_decimal:n
+            {
+              \dim_max:nn
+                {
+                    \box_ht:N \l_@@_pdf_model_box
+                  - \box_ht:N \l_@@_pdf_content_box
+                }
+                { 0pt }
+            } ~
+              driver.pt.dvi ~ def
+      }
+  }
+\cs_new_protected:Npn \@@_driver_link_outerbox:n #1
+  {
+    \@@_postscript:x
+      {
+        /driver.outerbox
+          [
+            \dim_to_decimal:n {#1} ~
+            \dim_to_decimal:n { -\box_dp:N \l_@@_pdf_model_box } ~
+%<*initex>
+            \dim_to_decimal:n { #1 + \l_galley_text_width_dim } ~
+%</initex>
+%<*package>
+            \dim_to_decimal:n { #1 + \textwidth } ~
+%</package>
+            \dim_to_decimal:n { \box_ht:N \l_@@_pdf_model_box }
+          ]
+          [ exch { driver.pt.dvi } forall ] def
+        /driver.baselineskip ~
+          \dim_to_decimal:n { \tex_baselineskip:D } ~ dup ~ 0 ~ gt
+            { driver.pt.dvi ~ def }
+            { pop ~ pop }
+          ifelse 
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_link_sf_save:
+  {
+    \int_gset:Nn \g_@@_pdf_link_sf_int
+      {
+        \mode_if_horizontal:TF
+          { \tex_spacefactor:D }
+          { 0 }
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_link_sf_restore:
+  {
+    \mode_if_horizontal:T
+      {
+        \int_compare:nNnT \g_@@_pdf_link_sf_int > { 0 }
+          { \int_set_eq:NN \tex_spacefactor:D \g_@@_pdf_link_sf_int }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@startcolumn, \@makecol}
+%   Hooks to allow link breaking: something will be needed in format mode
+%   at some stage.
+%    \begin{macrocode}
+%<*package>
+\tl_gput_left:Nn \@startcolumn
+  {
+    \@@_postscript:n
+      {
+        driver.globaldict /driver.brokenlink.rect ~ known
+          { driver.bordertracking.continue }
+        if
+      }
+  }
+\tl_gput_left:Nn \@makecol
+  {
+    \vbox_set:Nn \@cclv
+      {
+        \vbox_unpack_drop:N \@cclv
+        \@@_postscript:n
+          { driver.bordertracking.endpage }
+      }
+  }
+%</package>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_link_last:}
+%   The same as annotations, but with a custom integer.
+%    \begin{macrocode}
+\cs_new:Npn \driver_pdf_link_last:
+  { { driver.obj \int_use:N \g_@@_pdf_link_int } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_link_margin:n}
+%   Convert to big points and pass to PostScript.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_link_margin:n #1
+  {
+    \@@_postscript:x
+      {
+        /driver.linkmargin { \dim_to_decimal:n {#1} ~ driver.pt.dvi } def
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_destination:nn, \driver_pdf_destination_rectangle:nn}
+%   Here, we need to turn the zoom into a scale. We also need to know where
+%   the current anchor point actually is: worked out in PostScript. For the
+%   rectangle version, we have a bit more PostScript: we need two points.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_destination:nn #1#2
+  {
+    \@@_postscript:n { driver.dest.anchor }
+    \@@_pdfmark:x
+      {
+        /View
+        [
+          \str_case:nnF {#2}
+            {
+              { xyz }   { /XYZ ~ driver.dest.point ~ null }
+              { fit }   { /Fit }
+              { fitb }  { /FitB }
+              { fitbh } { /FitBH ~ driver.dest.y }
+              { fitbv } { /FitBV ~ driver.dest.x }
+              { fith }  { /FitH ~ driver.dest.y }
+              { fitv }  { /FitV ~ driver.dest.x }
+            }
+            {
+              /XYZ ~ driver.dest.point ~ \fp_eval:n { (#2) / 100 }
+            }
+        ]
+        /Dest ( \exp_not:n {#1} ) cvn
+        /DEST
+      }
+  }
+\cs_new_protected:Npn \driver_pdf_destination_rectangle:nn #1#2
+  {
+    \group_begin:
+      \hbox_set:Nn \l_@@_pdf_tmp_box {#2}
+      \box_move_down:nn
+        { \box_dp:N \l_@@_pdf_tmp_box }
+        { \hbox:n { \@@_postscript:n { driver.save.ll } } }
+      \box_use:N \l_@@_pdf_tmp_box
+      \box_move_up:nn
+        { \box_ht:N \l_@@_pdf_tmp_box }
+        { \hbox:n { \@@_postscript:n { driver.save.ur } } }
+      \@@_pdfmark:n
+        {
+          /View
+          [
+            /FitR ~
+              driver.llx ~ driver.lly ~ driver.dest2device ~
+              driver.urx ~ driver.ury ~ driver.dest2device
+          ]
+          /Dest ( #1 ) cvn
+          /DEST
+        }
+    \group_end:    
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Structure}
+%
+% \begin{macro}{\driver_pdf_compresslevel:n}
+% \begin{macro}{\driver_pdf_objects_enable:, \driver_pdf_objects_disable:}
+%   These are all no-ops.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_compresslevel:n #1 { }
+\cs_new_protected:Npn \driver_pdf_objects_enable: { }
+\cs_new_protected:Npn \driver_pdf_objects_disable: { }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}
+%   {\driver_pdf_version_major_gset:n, \driver_pdf_version_minor_gset:n}
+%   Data not available!
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_version_major_gset:n #1 { }
+\cs_new_protected:Npn \driver_pdf_version_minor_gset:n #1 { }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\driver_pdf_version_major:, \driver_pdf_version_minor:}
+%   Data not available!
+%    \begin{macrocode}
+\cs_new:Npn \driver_pdf_version_major: { -1 }
+\cs_new:Npn \driver_pdf_version_minor: { -1 }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvips>
+%    \end{macrocode}
+%
+% \subsection{\texttt{pdfmode} driver}
+%
+%    \begin{macrocode}
+%<*pdfmode>
+%    \end{macrocode}
+%
+% \subsubsection{Annotations}
+%
+% \begin{macro}{\@@_pdf_AR_fix:}
+%   The fix for the Adobe Reader bug: needed for generic annotations and links.
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_pdf_AR_fix:
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D annot ~ }
+      { \tex_pdfannot:D }
+      width  ~ 3pt ~ height ~ 3pt ~ depth ~ 0pt
+      { \c_@@_pdf_AR_fix_tl }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_annotation:nnnn}
+%   Simply pass the raw data through, just dealing with evaluation of dimensions.
+%    \begin{macrocode}
+\cs_new_protected:Npx \driver_pdf_annotation:nnnn #1#2#3#4
+  {
+    \@@_pdf_AR_fix:
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D annot ~ }
+      { \tex_pdfannot:D }
+      width  ~ \exp_not:N \dim_eval:n {#1} ~
+      height ~ \exp_not:N \dim_eval:n {#2} ~
+      depth  ~ \exp_not:N \dim_eval:n {#3} ~
+      {#4}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\driver_pdf_annotation_last:}
+%   A tiny amount of extra data gets added here.
+%    \begin{macrocode}
+\cs_new:Npx \driver_pdf_annotation_last:
+  {
+    \exp_not:N \tex_the:D 
+    \cs_if_exist:NTF \tex_pdffeedback:D
+      { \exp_not:N \tex_pdffeedback:D annot ~ }
+      { \exp_not:N \tex_pdflastannot:D }
+      0 ~ R
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {\driver_pdf_link_begin_goto:nnw, \driver_pdf_link_begin_user:nnw}
+% \begin{macro}{\@@_pdf_link_begin:nnnw}
+% \begin{macro}{\driver_pdf_link_end:}
+%   Links are all created using the same internals.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_link_begin_goto:nnw #1#2
+  { \@@_pdf_link_begin:nnnw {#1} { goto~name } {#2} }
+\cs_new_protected:Npn \driver_pdf_link_begin_user:nnw #1#2
+  { \@@_pdf_link_begin:nnnw {#1} { user } { /Subtype /Link #2 } }
+\cs_new_protected:Npx \@@_pdf_link_begin:nnnw #1#2#3
+  {
+    \@@_pdf_AR_fix:
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D startlink ~ }
+      { \tex_pdfstartlink:D }
+        attr {#1}
+        #2 {#3}
+  }
+\cs_new_protected:Npx \driver_pdf_link_end:
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D endlink \scan_stop: }
+      { \tex_pdfendlink:D }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_link_last:}
+%   Formatted for direct use.
+%    \begin{macrocode}
+\cs_new:Npx \driver_pdf_link_last:
+  {
+    \exp_not:N \tex_the:D
+    \cs_if_exist:NTF \tex_pdffeedback:D
+      { \exp_not:N \tex_pdffeedback:D lastlink \scan_stop: }
+      { \exp_not:N \tex_pdflastlink:D }
+      ~ 0 ~ R
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_link_margin:n}
+%   A simple task: pass the data to the primitive.
+%    \begin{macrocode}
+\cs_new_protected:Npx \driver_pdf_link_margin:n #1
+  {
+    \cs_if_exist:NTF \tex_pdfvariable:D
+      { \exp_not:N \tex_pdfvariable:D linkmargin }
+      { \exp_not:N \tex_pdflinkmargin:D }
+        \exp_not:N \dim_eval:n {#1} \scan_stop:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_destination:nn, \driver_pdf_destination_rectangle:nn}
+%   A simple task: pass the data to the primitive. The |\scan_stop:| deals
+%   with the danger of an unterminated keyword. The zoom given here is a
+%   percentage, but we need to pass it as \emph{per mille}. The rectangle
+%   version is also easy as everything is build in.
+%    \begin{macrocode}
+\cs_new_protected:Npx \driver_pdf_destination:nn #1#2
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \exp_not:N \tex_pdfextension:D dest ~ }
+      { \exp_not:N \tex_pdfdest:D }
+        name {#1}
+        \exp_not:N \str_case:nnF {#2}
+          {
+            { xyz }   { xyz }
+            { fit }   { fit }
+            { fitb }  { fitb }
+            { fitbh } { fitbh }
+            { fitbv } { fitbv }
+            { fith }  { fith }
+            { fitv }  { fitv }
+          }
+          { xyz ~ zoom \exp_not:N \fp_eval:n { #2 * 10 } }
+        \scan_stop:
+  }
+\cs_new_protected:Npx \driver_pdf_destination_rectangle:nn #1#2
+  {
+    \group_begin:
+      \hbox_set:Nn \l_@@_pdf_tmp_box {#2}
+     \cs_if_exist:NTF \tex_pdfextension:D
+      { \exp_not:N \tex_pdfextension:D dest ~ }
+      { \exp_not:N \tex_pdfdest:D }  
+      name {#1}
+      fitr ~
+        width  \exp_not:N \box_wd:N \l_@@_pdf_tmp_box
+        height \exp_not:N \box_ht:N \l_@@_pdf_tmp_box
+        depth  \exp_not:N \box_dp:N \l_@@_pdf_tmp_box 
+      \box_use:N \l_@@_pdf_tmp_box
+    \group_end:    
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Catalogue entries}
+%
+% \begin{macro}{\driver_pdf_catalog_gput:nn, \driver_pdf_info_gput:nn}
+%    \begin{macrocode}
+\cs_new_protected:Npx \driver_pdf_catalog_gput:nn #1#2
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D catalog }
+      { \tex_pdfcatalog:D }
+        { / #1 ~ #2 }
+  }
+\cs_new_protected:Npx \driver_pdf_info_gput:nn #1#2
+  {
+    \cs_if_exist:NTF \tex_pdfextension:D
+      { \tex_pdfextension:D info }
+      { \tex_pdfinfo:D }
+        { / #1 ~ #2 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Objects}
+%
+% \begin{variable}{\g_@@_pdf_object_prop}
+%   For tracking objects to allow finalisation.
+%    \begin{macrocode}
+\prop_new:N \g_@@_pdf_object_prop
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\driver_pdf_object_new:nn}
+% \begin{macro}[EXP]{\driver_pdf_object_ref:n}
+%   Declaring objects means reserving at the PDF level plus starting
+%   tracking.
+%    \begin{macrocode}
+\group_begin:
+  \cs_set_protected:Npn \@@_tmp:w #1#2
+    {
+      \cs_new_protected:Npx \driver_pdf_object_new:nn ##1##2
+        {
+          #1 reserveobjnum ~
+          \int_const:cn
+            { c_@@_pdf_object_ \exp_not:N \tl_to_str:n {##1} _int }
+            {#2}
+          \prop_gput:Nnn \exp_not:N \g_@@_pdf_object_prop {##1} {##2}
+        }
+    }
+  \cs_if_exist:NTF \tex_pdfextension:D
+    {
+      \@@_tmp:w
+        { \tex_pdfextension:D obj ~ }
+        { \exp_not:N \tex_pdffeedback:D lastobj \scan_stop: }
+    }
+    { \@@_tmp:w { \tex_pdfobj:D } { \tex_pdflastobj:D } }
+\group_end:
+\cs_new:Npn \driver_pdf_object_ref:n #1
+  { \int_use:c { c_@@_pdf_object_ \tl_to_str:n {#1} _int } ~ 0 ~ R }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_object_write:nn}
+% \begin{macro}[EXP]{\@@_exp_not_i:nn, \@@_exp_not_ii:nn}
+%   Writing the data needs a little information about the structure of the
+%   object.
+%    \begin{macrocode}
+\group_begin:
+  \cs_set_protected:Npn \@@_tmp:w #1
+    {
+      \cs_new_protected:Npn \driver_pdf_object_write:nn ##1##2
+        {
+          \tex_immediate:D #1 useobjnum ~
+          \int_use:c
+            { c_@@_pdf_object_ \tl_to_str:n {##1} _int }
+            \str_case_e:nn
+              { \prop_item:Nn \g_@@_pdf_object_prop {##1} }
+              {
+                { array } { { [ ~ \exp_not:n {##2} ~ ] } }
+                { dict }  { { << ~ \exp_not:n {##2} ~ >> } }
+                { fstream }
+                  {
+                    stream ~ attr ~ { \@@_exp_not_i:nn ##2 } ~
+                      file ~ { \@@_exp_not_ii:nn ##2 }
+                  }
+                { stream }
+                  {
+                    stream ~ attr ~ { \@@_exp_not_i:nn ##2 } ~ 
+                      { \@@_exp_not_ii:nn ##2 }
+                  }
+              }
+        }
+    }
+  \cs_if_exist:NTF \tex_pdfextension:D
+    { \@@_tmp:w { \tex_pdfextension:D obj ~ } }
+    { \@@_tmp:w { \tex_pdfobj:D } }
+\group_end:
+\cs_new:Npn \@@_exp_not_i:nn #1#2 { \exp_not:n {#1} }
+\cs_new:Npn \@@_exp_not_ii:nn #1#2 { \exp_not:n {#2} }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsubsection{Structure}
+%
+% \begin{macro}{\driver_pdf_compresslevel:n}
+% \begin{macro}{\driver_pdf_objects_enable:, \driver_pdf_objects_disable:}
+% \begin{macro}{\@@_pdf_objectlevel:n}
+%   Simply pass data to the engine.
+%    \begin{macrocode}
+\cs_new_protected:Npx \driver_pdf_compresslevel:n #1
+  {
+    \cs_if_exist:NTF \tex_pdfcompresslevel:D
+      { \tex_pdfcompresslevel:D }
+      { \tex_pdfvariable:D compresslevel }
+      \exp_not:N \int_value:w \exp_not:N \int_eval:n {#1} \scan_stop:
+  }
+\cs_new_protected:Npn \driver_pdf_objects_enable:
+  { \@@_pdf_objectlevel:n { 2 } }
+\cs_new_protected:Npn \driver_pdf_objects_disable:
+  { \@@_pdf_objectlevel:n { 0 } }
+\cs_new_protected:Npx \@@_pdf_objectlevel:n #1
+  {
+    \cs_if_exist:NTF \tex_pdfobjcompresslevel:D
+      { \tex_pdfobjcompresslevel:D }
+      { \tex_pdfvariable:D objcompresslevel }
+      #1 \scan_stop:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}
+%   {\driver_pdf_version_major_gset:n, \driver_pdf_version_minor_gset:n}
+%   At present, we don't have a primitive for the major version in \pdfTeX{},
+%   but we anticipate one \ldots
+%    \begin{macrocode}
+\cs_new_protected:Npx \driver_pdf_version_major_gset:n #1
+  {
+    \cs_if_exist:NTF \tex_pdfvariable:D
+      {
+        \int_compare:nNnT \tex_luatexversion:D > { 106 }
+          {
+            \exp_not:N \tex_global:D \tex_pdfvariable:D majorversion
+              \exp_not:N \int_eval:n {#1} \scan_stop:
+          }
+      }
+      {
+        \cs_if_exist:NT \tex_pdfmajorversion:D
+          {
+            \exp_not:N \tex_global:D \tex_pdfmajorversion:D
+              \exp_not:N \int_eval:n {#1} \scan_stop:
+          }
+      }
+  }
+\cs_new_protected:Npx \driver_pdf_version_minor_gset:n #1
+  {
+    \exp_not:N \tex_global:D
+    \cs_if_exist:NTF \tex_pdfminorversion:D
+      { \exp_not:N \tex_pdfminorversion:D }
+      { \tex_pdfvariable:D minorversion }
+        \exp_not:N \int_eval:n {#1} \scan_stop:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\driver_pdf_version_major:, \driver_pdf_version_minor:}
+%   At present, we don't have a primitive for the major version!
+%    \begin{macrocode}
+\cs_new:Npx \driver_pdf_version_major:
+  {
+    \cs_if_exist:NTF \tex_pdfvariable:D
+      {
+        \int_compare:nNnTF \tex_luatexversion:D > { 106 }
+          { \exp_not:N \tex_the:D \tex_pdfvariable:D majorversion }
+          { 1 }
+      }
+      {
+        \cs_if_exist:NTF \tex_pdfmajorversion:D
+          { \exp_not:N \tex_the:D \tex_pdfmajorversion:D }
+          { 1 }
+      }
+  }
+\cs_new:Npx \driver_pdf_version_minor:
+  {
+    \exp_not:N \tex_the:D
+    \cs_if_exist:NTF \tex_pdfminorversion:D
+      { \exp_not:N \tex_pdfminorversion:D }
+      { \tex_pdfvariable:D minorversion }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</pdfmode>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvipdfmx} driver}
+%
+%    \begin{macrocode}
+%<*dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_pdf:n, \@@_pdf:x}
+%   A generic function for the driver PDF specials: used where we can.
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_pdf:n #1
+  { \@@_literal:n { pdf: #1 } }
+\cs_generate_variant:Nn \@@_pdf:n { x }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Catalogue entries}
+%
+% \begin{macro}{\driver_pdf_catalog_gput:nn, \driver_pdf_info_gput:nn}
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_catalog_gput:nn #1#2
+  { \@@_pdf:n { put ~ @catalog << /#1 ~ #2 >> } }
+\cs_new_protected:Npn \driver_pdf_info_gput:nn #1#2
+  { \@@_pdf:n { docinfo << /#1 ~ #2 >> } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Objects}
+%
+% \begin{variable}{\g_@@_pdf_object_int, \g_@@_pdf_object_prop}
+%   For tracking objects to allow finalisation.
+%    \begin{macrocode}
+\int_new:N \g_@@_pdf_object_int
+\prop_new:N \g_@@_pdf_object_prop
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\driver_pdf_object_new:nn}
+% \begin{macro}[EXP]{\driver_pdf_object_ref:n}
+%   Objects are tracked at the macro level, but we don't have to do anything
+%   at this stage.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_object_new:nn #1#2
+  {
+    \int_gincr:N \g_@@_pdf_object_int
+    \int_const:cn
+      { g_@@_pdf_object_ \tl_to_str:n {#1} _int }
+      { \g_@@_pdf_object_int }
+    \prop_gput:Nnn \g_@@_pdf_object_prop {#1} {#2}
+  }
+\cs_new:Npn \driver_pdf_object_ref:n #1
+  { @driver.obj \int_use:c { g_@@_pdf_object_ \tl_to_str:n {#1} _int } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_object_write:nn}
+% \begin{macro}{\@@_pdf_object_write:nnn}
+% \begin{macro}
+%   {
+%     \@@_pdf_object_write_array:nn   ,
+%     \@@_pdf_object_write_dict:nn    ,
+%     \@@_pdf_object_write_fstream:nn ,
+%     \@@_pdf_object_write_stream:nn
+%   }
+% \begin{macro}{\@@_pdf_object_write_stream:nnnn}
+%   This is where we choose the actual type.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_object_write:nn #1#2
+  {
+    \exp_args:Nx \@@_pdf_object_write:nnn
+      { \prop_item:Nn \g_@@_pdf_object_prop {#1} } {#1} {#2}
+  }
+\cs_new_protected:Npn \@@_pdf_object_write:nnn #1#2#3
+  { \use:c { @@_pdf_object_write_ #1 :nn } {#2} {#3} }
+\cs_new_protected:Npn \@@_pdf_object_write_array:nn #1#2
+  {
+    \@@_pdf:x
+      {
+        obj ~ \driver_pdf_object_ref:n {#1} ~
+          [ ~ \exp_not:n {#2} ~ ]
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_dict:nn #1#2
+  {
+    \@@_pdf:x
+      {
+        obj ~ \driver_pdf_object_ref:n {#1} ~
+          << ~ \exp_not:n {#2} ~ >>
+      }
+  }
+\cs_new_protected:Npn \@@_pdf_object_write_fstream:nn #1#2
+  { \@@_pdf_object_write_stream:nnnn { f } {#1} #2 }
+\cs_new_protected:Npn \@@_pdf_object_write_stream:nn #1#2
+  { \@@_pdf_object_write_stream:nnnn { } {#1} #2 }
+\cs_new_protected:Npn \@@_pdf_object_write_stream:nnnn #1#2#3#4
+  {
+    \@@_pdf:x
+      {
+        #1 stream ~ \driver_pdf_object_ref:n {#2} ~
+          ( \exp_not:n {#4} ) ~ << \exp_not:n {#3} >>
+        
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsubsection{Annotations}
+%
+% \begin{variable}{\g_@@_landscape_bool}
+%   There is a bug in \texttt{(x)dvipdfmx} which means annotations do
+%   not rotate. As such, we need to know if landscape is active.
+%    \begin{macrocode}
+\bool_new:N \g_@@_landscape_bool
+%<*package>
+\AtBeginDocument
+  {
+    \cs_if_exist:NT \landscape
+      {
+        \tl_put_right:Nn \landscape
+          { \bool_gset_true:N \g_@@_landscape_bool }
+        \tl_put_left:Nn \endlandscape
+          { \bool_gset_false:N \g_@@_landscape_bool }
+      }
+  }
+%</package>
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\@@_pdf_AR_fix:}
+%   The fix for the Adobe Reader bug: needed for generic annotations and links.
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_pdf_AR_fix:
+  {
+    \@@_pdf:n
+      {
+        ann ~ width ~ 3pt ~ height ~ 3pt ~ depth ~ 0pt
+        << \c_@@_pdf_AR_fix_tl >>
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\g_@@_pdf_annotation_int}
+%   Needed as objects which are not annotations could be created.
+%    \begin{macrocode}
+\int_new:N \g_@@_pdf_annotation_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\driver_pdf_annotation:nnnn, \@@_pdf_annotation:nnnn}
+%   Simply pass the raw data through, just dealing with evaluation of dimensions.
+%   The only wrinkle is landscape: we have to adjust by hand.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_annotation:nnnn #1#2#3#4
+  {
+    \bool_if:NTF \g_@@_landscape_bool
+      {
+         \box_move_up:nn {#2}
+           {
+             \vbox:n
+               {
+                 \@@_pdf_annotation:nnnn
+                   { #2 + #3 } {#1} { 0pt } {#4}
+               }
+           }
+      }
+      { \@@_pdf_annotation:nnnn {#1} {#2} {#3} {#4} }
+  }
+\cs_new_protected:Npn \@@_pdf_annotation:nnnn #1#2#3#4
+  {
+    \@@_pdf_AR_fix:
+    \int_gincr:N \g_@@_pdf_object_int
+    \int_gset_eq:NN \g_@@_pdf_annotation_int \g_@@_pdf_object_int
+    \@@_pdf:x
+      {
+        ann ~ @driver.obj \int_use:N \g_@@_pdf_object_int \c_space_tl
+        width  ~ \dim_eval:n {#1} ~
+        height ~ \dim_eval:n {#2} ~
+        depth  ~ \dim_eval:n {#3} ~
+        << #4 >>
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {\driver_pdf_link_begin_goto:nnw, \driver_pdf_link_begin_user:nnw}
+% \begin{macro}{\@@_pdf_link_begin:n}
+% \begin{macro}{\driver_pdf_link_end:}
+%   All created using the same internals.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_link_begin_goto:nnw #1#2
+  { \@@_pdf_link_begin:n { #1 /A << /S /GoTo /D ( #2 ) >> } }
+\cs_new_protected:Npn \driver_pdf_link_begin_user:nnw #1#2
+  { \@@_pdf_link_begin:n {#1#2} }
+\cs_new_protected:Npn \@@_pdf_link_begin:n #1
+  {
+    \@@_pdf_AR_fix:
+    \@@_pdf:n
+      {
+         bann
+         <<
+           /Type /Annot
+           /Subtype /Link
+           #1
+         >>
+      }
+  }
+\cs_new_protected:Npn \driver_pdf_link_end:
+  { \@@_pdf:n { eann } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_link_last:}
+%   Data not available.
+%    \begin{macrocode}
+\cs_new:Npn \driver_pdf_link_last: { }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_link_margin:n}
+%   Pass to \texttt{dvipdfmx}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_link_margin:n #1
+  { \@@_literal:x { dvipdfmx:config~g~ \dim_eval:n {#1} } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\driver_pdf_destination:nn, \driver_pdf_destination_rectangle:nn}
+%   Here, we need to turn the zoom into a scale.
+%   A little translation
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_destination:nn #1#2
+  {
+    \@@_pdf:x
+      {
+        dest ~ ( \exp_not:n {#1} )
+        [
+          @thispage
+          \str_case:nnF {#2}
+            {
+              { xyz }   { /XYZ ~ @xpos ~ @ypos ~ null }
+              { fit }   { /Fit }
+              { fitb }  { /FitB }
+              { fitbh } { /FitBH }
+              { fitbv } { /FitBV ~ @xpos }
+              { fith }  { /FitH ~ @ypos }
+              { fitv }  { /FitV ~ @xpos }
+            }
+            { /XYZ ~ @xpos ~ @ypos ~ \fp_eval:n { (#2) / 100 } }
+        ]
+      }
+  }
+\cs_new_protected:Npn \driver_pdf_destination_rectangle:nn #1#2
+  {
+    \group_begin:
+      \hbox_set:Nn \l_@@_pdf_tmp_box {#2}
+      \box_use:N \l_@@_pdf_tmp_box
+    \group_end:    
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Structure}
+%
+% \begin{macro}{\driver_pdf_compresslevel:n}
+% \begin{macro}{\driver_pdf_objects_enable:, \driver_pdf_objects_disable:}
+%   Pass data to the driver: these are a one-shot.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_compresslevel:n #1
+  { \@@_literal:x { dvipdfmx:config~z~ \int_eval:n {#1} } }
+\cs_new_protected:Npn \driver_pdf_objects_enable: { }
+\cs_new_protected:Npn \driver_pdf_objects_disable:
+  { \@@_literal:n { dvipdfmx:config~C~0x40 } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}
+%   {\driver_pdf_version_major_gset:n, \driver_pdf_version_minor_gset:n}
+%   We start with the assumption that the default is active.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_version_major:n #1
+  {
+    \cs_gset:Npx \driver_pdf_version_major: { \int_eval:n {#1} }
+    \@@_literal:x { pdf:majorversion \driver_pdf_version_major: }
+  }
+\cs_new_protected:Npn \driver_pdf_version_minor:n #1
+  {
+    \cs_gset:Npx \driver_pdf_version_minor: { \int_eval:n {#1} }
+    \@@_literal:x { pdf:minorversion \driver_pdf_version_minor: }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\driver_pdf_version_major:, \driver_pdf_version_minor:}
+%   We start with the assumption that the default is active.
+%    \begin{macrocode}
+\cs_new:Npn \driver_pdf_version_major: { 1 }
+\cs_new:Npn \driver_pdf_version_minor: { 5 }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvisvgm} driver}
+%
+%    \begin{macrocode}
+%<*dvisvgm>
+%    \end{macrocode}
+%
+% \subsubsection{Catalogue entries}
+%
+% \begin{macro}{\driver_pdf_catalog_gput:nn, \driver_pdf_info_gput:nn}
+%   No-op.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_catalog_gput:nn #1#2 { }
+\cs_new_protected:Npn \driver_pdf_info_gput:nn #1#2 { }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Objects}
+%
+% \begin{macro}{\driver_pdf_object_new:nn}
+% \begin{macro}[EXP]{\driver_pdf_object_ref:n}
+% \begin{macro}{\driver_pdf_object_write:nn}
+%   All no-ops here.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_object_new:nn #1#2 { }
+\cs_new:Npn \driver_pdf_object_ref:n #1 { }
+\cs_new_protected:Npn \driver_pdf_object_write:nn #1#2 { }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsubsection{Structure}
+%
+% \begin{macro}{\driver_pdf_compresslevel:n}
+% \begin{macro}{\driver_pdf_objects_enable:, \driver_pdf_objects_disable:}
+%   These are all no-ops.
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_compresslevel:n #1 { }
+\cs_new_protected:Npn \driver_pdf_objects_enable: { }
+\cs_new_protected:Npn \driver_pdf_objects_disable: { }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}
+%   {\driver_pdf_version_major_gset:n, \driver_pdf_version_minor_gset:n}
+%   Data not available!
+%    \begin{macrocode}
+\cs_new_protected:Npn \driver_pdf_version_major_gset:n #1 { }
+\cs_new_protected:Npn \driver_pdf_version_minor_gset:n #1 { }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\driver_pdf_version_major:, \driver_pdf_version_minor:}
+%   Data not available!
+%    \begin{macrocode}
+\cs_new:Npn \driver_pdf_version_major: { -1 }
+\cs_new:Npn \driver_pdf_version_minor: { -1 }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvisvgm>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex
