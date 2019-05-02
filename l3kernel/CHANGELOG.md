@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- New `l3legacy` module containing
+  - `\legacy_if:n(TF)`
+
 ## [2019-04-21]
 
 ### Added
