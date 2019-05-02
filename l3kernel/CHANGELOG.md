@@ -18,6 +18,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
+- Moved `\peek_N_type:TF` to stable
 - Moved `\tl_if_single_token:n(TF)` to stable
 
 ### Fixed
