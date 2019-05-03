@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-05-03]
+
 ### Added
 
 - New `l3legacy` module containing
@@ -370,7 +372,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-04-21...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-05-03...HEAD
+[2019-05-03]: https://github.com/latex3/latex3/compare/2019-04-21...2019-05-03
 [2019-04-21]: https://github.com/latex3/latex3/compare/2019-04-06...2019-04-21
 [2019-04-06]: https://github.com/latex3/latex3/compare/2019-03-26...2019-04-06
 [2019-03-26]: https://github.com/latex3/latex3/compare/2019-03-05...2019-03-26
