@@ -7,6 +7,15 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\char_str_<target>_case:N`
+
+### Fixed
+
+- Category code of output from `\char_<target>_case:N`, and
+  same issue in `\str_<target>_case:n`
+
 ## [2019-05-03]
 
 ### Added
