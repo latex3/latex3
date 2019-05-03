@@ -11,7 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## Fixed
 
-- Cliiping of paths by `l3draw`
+- Cliping of paths by `l3draw`
 
 ## [2019-03-05]
 
