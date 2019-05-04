@@ -13,6 +13,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 
+- Infinite loop in some cases in DVI mode due to link-breaking code
+  (see #570)
 - Category code of output from `\char_<target>_case:N`, and
   same issue in `\str_<target>_case:n`
 
