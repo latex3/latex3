@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `.muskip:N` property
+
 ## [2019-05-05]
 
 ### Added
