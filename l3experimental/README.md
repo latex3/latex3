@@ -29,7 +29,6 @@ bundles:
 * `l3sys-shell`
 * `xcoffins`
 * `xgalley`
-* `xmarks`
 
 `l3benchmark`
 -------------
