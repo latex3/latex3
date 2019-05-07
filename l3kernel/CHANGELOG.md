@@ -11,6 +11,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 - `.muskip:N` property
 
+### Changed
+
+- Experimental `\driver_pdf_compress_objects:n` replaces
+  `\driver_pdf_objects_(en|dis)able:`
+
 ## [2019-05-05]
 
 ### Added
