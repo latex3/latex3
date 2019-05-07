@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- Experimental driver-level interfaces for image inclusion
+
 ## [2019-05-07]
 
 ### Added
