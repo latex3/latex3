@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- New `l3image` module
+
 ## [2019-05-03]
 
 ## Fixed

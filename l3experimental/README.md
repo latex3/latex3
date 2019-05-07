@@ -25,6 +25,7 @@ bundles:
 * `l3cctab`
 * `l3color`
 * `l3draw`
+* `l3image`
 * `l3str`
 * `l3sys-shell`
 * `xcoffins`
@@ -56,6 +57,12 @@ the latter is highly experimental.
 This module provides a code-level interface for constructing drawings. The
 interfaces are heavily inspired by the `pgf` layer of the widely-used
 TikZ system.
+
+`l3image`
+-------------
+
+This module provides interfaces for the inclusion of image (graphics) files
+in documents, similar to the `graphics` package.
 
 `l3str`
 -------
