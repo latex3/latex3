@@ -1,11 +1,11 @@
 #!/usr/bin/env texlua
 
--- Build script for LaTeX3 "l3image" files
+-- Build script for LaTeX3 "l3graphics" files
 
 -- Identify the bundle and module: the module may be empty in the case where
 -- there is no subdivision
 bundle = "l3experimental"
-module = "l3image"
+module = "l3graphics"
 
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
