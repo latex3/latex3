@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - Experimental driver-level interfaces for image inclusion
+- Experimental `\ior_shell_open:Nn`
 
 ## [2019-05-07]
 
