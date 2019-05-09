@@ -12,6 +12,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Experimental driver-level interfaces for image inclusion
 - Experimental `\ior_shell_open:Nn`
 
+### Fixed
+
+- Some issues in `dvisvgm` driver
+
 ## [2019-05-07]
 
 ### Added
