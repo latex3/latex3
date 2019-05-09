@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-05-09]
+
 ### Added
 
 - Experimental driver-level interfaces for image inclusion
@@ -405,7 +407,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-05-07...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-05-09...HEAD
+[2019-05-09]: https://github.com/latex3/latex3/compare/2019-05-07...2019-05-09
 [2019-05-07]: https://github.com/latex3/latex3/compare/2019-05-05...2019-05-07
 [2019-05-05]: https://github.com/latex3/latex3/compare/2019-05-03...2019-05-05
 [2019-05-03]: https://github.com/latex3/latex3/compare/2019-04-21...2019-05-03
