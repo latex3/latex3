@@ -7,10 +7,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-### Added
-
-- Experimental `\file_timestamp_compare:nNn(TF)`
-
 ## [2019-05-09]
 
 ### Added
