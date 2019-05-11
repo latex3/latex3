@@ -22,7 +22,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- `.muskip:N` property
+- `.muskip_set:N` property
 
 ### Changed
 
