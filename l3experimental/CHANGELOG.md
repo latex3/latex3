@@ -11,6 +11,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - New `l3graphics` module
 
+### Fixed
+
+- Missing `\scan_stop:` in benchmark code (fixes #577)
+
 ## [2019-05-03]
 
 ## Fixed
