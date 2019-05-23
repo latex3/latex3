@@ -9,7 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- Experimental `\file_timestamp_compare:nNn(TF)`
+- Experimental `\file_compare_timestamp:nNn(TF)`
 
 ### Fixed
 
