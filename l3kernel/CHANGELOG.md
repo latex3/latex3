@@ -11,9 +11,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Experimental `\file_compare_timestamp:nNn(TF)`
 
-### Fixed
+### Changed
 
 - Precedence of juxtaposition (implicit multiplication) in l3fp
+  now different for keywords/variables and factors in parentheses
 
 ## [2019-05-09]
 
