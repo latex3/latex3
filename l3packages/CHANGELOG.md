@@ -9,6 +9,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2019-05-28]
 
+- Remove stray spaces in processor information
+
 ## [2019-05-03]
 
 ### Added
