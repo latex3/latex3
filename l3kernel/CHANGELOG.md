@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- Driver support for anonymous objects
+
 ## [2019-05-28]
 
 ### Added
