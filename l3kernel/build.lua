@@ -39,7 +39,8 @@ typesetruns      = 3
 unpackfiles      = {"l3.ins"}
 
 -- No deps other than the test system
-typesetdeps = {maindir .. "/l3packages/xparse"}
+typesetdeps = {maindir .. "/l3drivers", maindir .. "/l3packages/xparse"}
+checkdeps   = {maindir .. "/l3drivers"}
 unpackdeps  = { }
 
 -- Load the common build code
