@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Removed
+
+- `l3str-convert` module: moved to `l3kernel` (`expl3` core)
+
 ## [2019-05-28]
 
 ### Added

@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - Driver support for anonymous objects
+- Moved `lstr-convert` module to `l3kernel`
 
 ### Changed
 
