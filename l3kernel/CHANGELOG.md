@@ -11,6 +11,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Driver support for anonymous objects
 
+### Changed
+
+- Moved driver code to internal for each 'parent' module
+
 ## [2019-05-28]
 
 ### Added
