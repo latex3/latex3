@@ -12,9 +12,8 @@ maindir = "../.."
 
 typesetfiles = {"l3pdf.dtx", "l3pdf-code.tex"}
 
--- Need color support
-checkdeps = {maindir .. "/l3kernel"}
-typesetdeps = checkdeps
+-- Non-standard settings
+checksearch  = true
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
