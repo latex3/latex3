@@ -1,16 +1,16 @@
 #!/usr/bin/env texlua
 
--- Build script for LaTeX3 "l3pdf" files
+-- Build script for LaTeX3 "l3hooks" files
 
 -- Identify the bundle and module: the module may be empty in the case where
 -- there is no subdivision
 bundle = "l3trial"
-module = "l3pdf"
+module = "l3hooks"
 
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
-typesetfiles = {"l3pdf.dtx", "l3pdf-code.tex"}
+typesetfiles = {"l3hooks.dtx", "l3hooks-code.tex"}
 
 -- Non-standard settings
 checksearch  = true
