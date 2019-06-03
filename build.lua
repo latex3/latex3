@@ -7,7 +7,7 @@ bundle  = "LaTeX3"
 module  = ""
 
 -- A couple of custom variables: the order here is set up for 'importance'
-bundles      = {"l3kernel", "l3packages", "l3experimental", "l3trial"}
+bundles      = {"l3backend", "l3kernel", "l3packages", "l3experimental", "l3trial"}
 checkbundles =
   {
     "l3kernel",
@@ -16,7 +16,7 @@ checkbundles =
     "l3trial",
     "contrib"
   }
-ctanbundles  = {"l3kernel", "l3packages", "l3experimental"}
+ctanbundles  = {"l3backend", "l3kernel", "l3packages", "l3experimental"}
 
 -- Location of main directory: use Unix-style path separators
 maindir = "."

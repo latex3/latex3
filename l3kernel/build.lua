@@ -39,8 +39,8 @@ typesetskipfiles = {"source3-body.tex"}
 typesetruns      = 3
 unpackfiles      = {"l3.ins"}
 
--- No deps other than the test system
-typesetdeps = {maindir .. "/l3packages/xparse"}
+checkdeps   = {maindir .. "/l3backend"}
+typesetdeps = {maindir .. "/l3backend", maindir .. "/l3packages/xparse"}
 unpackdeps  = { }
 
 -- Load the common build code
@@ -67,10 +67,6 @@ function update_tag(file,content,tagname,tagdate)
     content = string.gsub(content,
       "\n\\def\\ExplFileDate{" .. iso .. "}%%\n",
       "\n\\def\\ExplFileDate{" .. tagname .. "}%%\n")
-  elseif string.match(file,"l3drivers%.dtx$") then
-    content = string.gsub(content,
-      "\n  ({l3%w+%.def}){" .. iso .. "}",
-      "\n  %1{" .. tagname .. "}")
   end
   if string.match(file,"%.dtx$") or string.match(file,"%.tex$") then
     return string.gsub(content,

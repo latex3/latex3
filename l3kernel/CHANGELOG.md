@@ -9,14 +9,13 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- Driver support for anonymous objects
 - Moved `lstr-convert` module to `l3kernel`
 
 ### Changed
 
 - Ensure `\msg_fatal:nn` ends the TeX run if used inside an
   hbox (see #587)
-- Moved driver code to internal for each 'parent' module
+- Moved backend code to a separate release schedule
 
 ## [2019-05-28]
 
