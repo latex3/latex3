@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 
 - Moved backend code to separate release module `l3backend`
+- Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
 [Unreleased]: https://github.com/latex3/latex3/compare/2019-05-28...HEAD
