@@ -14,6 +14,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
+- Ensure `\msg_fatal:nn` ends the TeX run if used inside an
+  hbox (see #587)
 - Moved driver code to internal for each 'parent' module
 
 ## [2019-05-28]
