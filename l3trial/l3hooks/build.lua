@@ -12,9 +12,6 @@ maindir = "../.."
 
 typesetfiles = {"l3hooks.dtx", "l3hooks-code.tex"}
 
--- Non-standard settings
-checksearch  = true
-
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
