@@ -140,6 +140,10 @@
 %<@@=sys>
 %    \end{macrocode}
 %
+%    \begin{macrocode}
+%<*!options>
+%    \end{macrocode}
+%
 % \subsection{The name of the job}
 %
 % \begin{variable}{\c_sys_jobname_str}
@@ -317,6 +321,171 @@
   { \cs_if_exist_p:N \tex_uniformdeviate:D }
 %    \end{macrocode}
 % \end{macro}
+%
+%    \begin{macrocode}
+%</!options>
+%    \end{macrocode}
+%
+% \subsection{Loadable options}
+%
+%    \begin{macrocode}
+%<*options>
+%    \end{macrocode}
+%
+% Loadable options for the backend and for debugging are essentially run-time
+% dependent. In particular, the backend is dependent on the engine in use.
+% Due to the load order requirements, this part is DocStripped out separately
+% from the rest of the code (it requires \pkg{l3keys} and \pkg{l3msg}).
+%
+% \begin{variable}{\g_@@_config_set_bool}
+%   Configuration can only be applied once: check with a simple bool
+%    \begin{macrocode}
+\bool_new:N \g_@@_config_set_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_backend_tl}
+%   As the backend has to be checked and possibly adjusted, the approach here
+%   is to create a variable and use that in a one-shot to set a constant.
+%    \begin{macrocode}
+\tl_new:N \g_@@_backend_tl
+\tl_gset:Nx \g_@@_backend_tl
+  {
+    \sys_if_engine_xetex:TF
+      { xdvipdfmx }
+      {
+         \sys_if_output_pdf:TF
+          { pdfmode }
+          {
+            \bool_lazy_or:nnTF
+              { \sys_if_engine_ptex_p: }
+              { \sys_if_engine_uptex_p: }
+              { dvipdfmx }
+              { dvips }
+           }
+       }
+  }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}
+%   {
+%     \l__kernel_sys_check_declarations_bool      ,
+%     \l__kernel_sys_log_functions_bool           ,
+%     \g__kernel_sys_undo_recent_deprecations_bool
+%   }
+%   Pretty standard setting creation.
+%    \begin{macrocode}
+\keys_define:nn { sys }
+  {
+    backend .choices:nn =
+      { dvipdfmx , dvips , dvisvgm , pdfmode , xdvipdfmx }
+      { \tl_gset_eq:NN \g_@@_backend_tl \l_keys_choice_tl } ,
+    check-declarations .bool_set:N =
+      \l__kernel_sys_check_declarations_bool ,
+    driver .meta:n = { backend = #1 } ,
+    enable-debug .bool_gset:N =
+      \g__kernel_debug_bool ,
+    log-functions .bool_set:N =
+      \l__kernel_sys_log_functions_bool ,
+    undo-recent-deprecations .bool_gset:N =
+      \g__kernel_sys_undo_recent_deprecations_bool
+  }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\sys_configuration_gset:n}
+% \begin{macro}{\@@_configuration_backend_check:N}
+% \begin{variable}{\c_sys_backend_str}
+%   Setting the configuration can only happen once as there are
+%   file loading implications.
+%    \begin{macrocode}
+\cs_new_protected:Npn \sys_configuration_gset:n #1
+  {
+    \bool_if:NTF \g_@@_config_set_bool
+      { \__kernel_msg_error:nnxx { sys } { config-set } }
+      {
+        \bool_gset_true:N \g_@@_config_set_bool
+        \keys_set:nn { sys } {#1}
+        \@@_configuration_backend_check:N \g_@@_backend_tl
+        \str_const:Nx \c_sys_backend_str { \g_@@_backend_tl }
+        \__kernel_sys_configuration_load:n
+          { l3backend- \c_sys_backend_str }
+        \bool_lazy_or:nnT
+          { \l__kernel_sys_check_declarations_bool }
+          { \l__kernel_sys_log_functions_bool }
+          { \bool_gset_true:N \g__kernel_debug_bool }
+        \bool_if:NT \g__kernel_debug_bool
+          { \__kernel_sys_configuration_load:n { l3debug } }
+        \bool_lazy_or:nnT
+          { \g__kernel_debug_bool }
+          { \g__kernel_sys_undo_recent_deprecations_bool }
+          { \__kernel_sys_configuration_load:n { l3deprecation } }
+        \bool_if:NT \l__kernel_sys_check_declarations_bool
+          { \debug_on:n { check-declarations } }
+        \bool_if:NT \l__kernel_sys_log_functions_bool
+          { \debug_on:n { log-functions } }
+      }
+  }
+\cs_new_protected:Npn \@@_configuration_backend_check:N #1
+  {
+    \sys_if_engine_xetex:TF
+      {
+        \str_if_eq:VnF #1 { xdvipdfmx }
+          {
+            \__kernel_msg_error:nnxx { sys } { wrong-backend }
+              #1 { xdvipdfmx }
+            \tl_gset:Nn #1 { xdvipdfmx }
+          }
+      }
+      {
+        \sys_if_output_pdf:TF
+          {
+            \str_if_eq:VnF #1 { pdfmode }
+              {
+                \__kernel_msg_error:nnxx { sys } { wrong-backend }
+                  #1 { pdfmode }
+                \tl_gset:Nn #1 { pdfmode }
+              }
+          }
+          {
+            \str_case:VnF #1
+              {
+                { dvipdfmx } { }
+                { dvips }    { }
+                { dvisvgm }  { }
+              }
+              {
+                \__kernel_msg_error:nnxx { sys } { wrong-backend }
+                  #1 { dvips }
+                \tl_gset:Nn #1 { dvips }
+              }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+\__kernel_msg_new:nnnn { sys } { config-set }
+  { System-dependent~configuration~already~set. }
+  {
+    Run-time~configuration~settings~may~only~be~set~once~during~a~run.~
+    This~second~attempt~to~set~them~will~be~ignored.
+  }
+\__kernel_msg_new:nnnn { sys } { wrong-backend }
+  { Backend~request~inconsistent~with~engine:~using~'#2'~backend. }
+  {
+    You~have~requested~backend~'#1',~but~this~is~not~suitable~for~use~with~the~
+    active~engine.~LaTeX3~will~use~the~'#2'~backend~instead.
+  }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</options>
+%    \end{macrocode}
 %
 %    \begin{macrocode}
 %</initex|package>

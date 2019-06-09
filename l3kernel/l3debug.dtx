@@ -1,0 +1,1226 @@
+% \iffalse meta-comment
+%
+%% File: l3debug.dtx
+%
+% Copyright (C) 2019 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    https://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3kernel bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver>
+\documentclass[full,kernel]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \textsf{l3debug} package\\ Debugging support^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2019-05-28}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \begin{function}{\__kernel_chk_var_local:N, \__kernel_chk_var_global:N}
+%   \begin{syntax}
+%     \cs{__kernel_chk_var_local:N} \meta{var}
+%     \cs{__kernel_chk_var_global:N} \meta{var}
+%   \end{syntax}
+%   Applies \cs{__kernel_chk_var_exist:N} \meta{var}, and assuming that is
+%   true applies
+%   \cs{__kernel_chk_var_scope:NN} \meta{scope} \meta{var}, where
+%   \meta{scope} is |l| or~|g|.
+% \end{function}
+%
+% \begin{function}{\__kernel_chk_var_scope:NN}
+%   \begin{syntax}
+%     \cs{__kernel_chk_var_scope:NN} \meta{scope} \meta{var}
+%   \end{syntax}
+%   Checks the \meta{var} has the correct \meta{scope}, and if not
+%   raises a kernel-level error.  This function is only created if
+%   debugging is enabled.  The \meta{scope} is a single letter |l|, |g|,
+%   |c| denoting local variables, global variables, or constants.  More
+%   precisely, if the variable name starts with a letter and an
+%   underscore (normal \pkg{expl3} convention) the function checks that
+%   this single letter matches the \meta{scope}.  Otherwise the function
+%   cannot know the scope \meta{var} the first time: instead, it defines
+%   |\__debug_chk_/|\meta{var name} to store that information for the
+%   next call.  Thus, if a given \meta{var} is subject to assignments of
+%   different scopes a kernel error will result.
+% \end{function}
+%
+% \begin{function}{\__kernel_chk_var_exist:N}
+%   \begin{syntax}
+%     \cs{__kernel_chk_var_exist:N} \meta{var}
+%   \end{syntax}
+%   This function is only created if debugging is enabled.  It checks
+%   that \meta{var} is defined according to the criteria for
+%   \cs{cs_if_exist_p:N}, and if not raises a kernel-level error.
+% \end{function}
+%
+% \begin{function}{\__kernel_debug_log:x}
+%   \begin{syntax}
+%     \cs{__kernel_debug_log:x} \Arg{message text}
+%   \end{syntax}
+%   If the \texttt{log-functions} option is active, this function writes
+%   the \meta{message text} to the log file using \cs{iow_log:x}.
+%   Otherwise, the \meta{message text} is ignored using \cs{use_none:n}.
+%   This function is only created if debugging is enabled.
+% \end{function}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3debug} Implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=debug>
+%    \end{macrocode}
+%
+% Standard file identification.
+%    \begin{macrocode}
+\ProvidesExplFile{l3debug.def}{2019-04-06}{}{L3 Debugging support}
+%    \end{macrocode}
+%
+% \begin{macro}{\debug_on:n, \debug_off:n, \@@_all_on:, \@@_all_off:}
+%    \begin{macrocode}
+\cs_set_protected:Npn \debug_on:n #1
+   {
+    \exp_args:No \clist_map_inline:nn { \tl_to_str:n {#1} }
+       {
+        \cs_if_exist_use:cF { @@_ ##1 _on: }
+          { \__kernel_msg_error:nnn { kernel } { debug } {##1} }
+       }
+  }
+\cs_set_protected:Npn \debug_off:n #1
+  {
+    \exp_args:No \clist_map_inline:nn { \tl_to_str:n {#1} }
+  {
+        \cs_if_exist_use:cF { @@_ ##1 _off: }
+          { \__kernel_msg_error:nnn { kernel } { debug } {##1} }
+      }
+  }
+\cs_new_protected:Npn \@@_all_on:
+  {
+    \debug_on:n
+      {
+        check-declarations ,
+        check-expressions ,
+        deprecation ,
+        log-functions ,
+      }
+  }
+\cs_new_protected:Npn \@@_all_off:
+  {
+    \debug_off:n
+      {
+        check-declarations ,
+        check-expressions ,
+        deprecation ,
+        log-functions ,
+      }
+  }
+%    \end{macrocode}
+%
+% \begin{macro}{\debug_suspend:, \debug_resume:}
+% \begin{macro}{\@@_suspended:T}
+% \begin{macro}{\l_@@_suspended_tl}
+%   Suspend and resume locally all debug-related errors and logging
+%   except deprecation errors.  The \cs{debug_suspend:} and \cs{debug_resume:}
+%   pairs can be nested.  We keep track of nesting in a token list
+%   containing a number of periods.  At first begin with the
+%   \enquote{non-suspended} version of \cs{@@_suspended:T}.
+%    \begin{macrocode}
+\tl_new:N \l_@@_suspended_tl { }
+\cs_set_protected:Npn \debug_suspend:
+  {
+    \tl_put_right:Nn \l_@@_suspended_tl { . }
+    \cs_set_eq:NN \@@_suspended:T \use:n
+  }
+\cs_set_protected:Npn \debug_resume:
+  {
+    \tl_set:Nx \l_@@_suspended_tl
+      { \tl_tail:N \l_@@_suspended_tl }
+    \tl_if_empty:NT \l_@@_suspended_tl
+      {
+        \cs_set_eq:NN \@@_suspended:T \use_none:n
+      }
+  }
+\cs_new:Npn \@@_suspended:T #1 { }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}
+%   {\@@_check-declarations_on:, \@@_check-declarations_off:}
+% \begin{macro}
+%   {
+%     \__kernel_chk_var_exist:N,
+%     \__kernel_chk_cs_exist:N, 
+%     \__kernel_chk_cs_exist:c
+%   }
+% \begin{macro}[EXP]{\__kernel_chk_flag_exist:n}
+% \begin{macro}{\__kernel_chk_var_local:N, \__kernel_chk_var_global:N}
+% \begin{macro}{\__kernel_chk_var_scope:NN}
+%   When debugging is enabled these two functions set up functions that
+%   test their argument (when \texttt{check-declarations} is active)
+%   \begin{itemize}
+%     \item \cs{__kernel_chk_var_exist:N} and \cs{__kernel_chk_cs_exist:N}, two
+%       functions that test that their argument is defined;
+%     \item \cs{__kernel_chk_var_scope:NN} that checks that its argument |#2|
+%       has scope |#1|.
+%     \item \cs{__kernel_chk_var_local:N} and \cs{__kernel_chk_var_global:N} that
+%       perform both checks.
+%   \end{itemize}
+%    \begin{macrocode}
+\cs_new_protected:Npn \__kernel_chk_var_exist:N #1 { }
+\cs_new_protected:Npn \__kernel_chk_cs_exist:N #1 { }
+\cs_generate_variant:Nn \__kernel_chk_cs_exist:N { c }
+\cs_new_protected:Npn \__kernel_chk_flag_exist:n #1 { }
+\cs_new_protected:Npn \__kernel_chk_var_local:N #1 { }
+\cs_new_protected:Npn \__kernel_chk_var_global:N #1 { }
+\cs_new_protected:Npn \__kernel_chk_var_scope:NN #1#2 { }
+\cs_new_protected:cpn { @@_check-declarations_on: }
+  {
+    \cs_set_protected:Npn \__kernel_chk_var_exist:N ##1
+      {
+        \@@_suspended:T \use_none:nnn
+        \cs_if_exist:NF ##1
+          {
+            \__kernel_msg_error:nnx { kernel } { non-declared-variable }
+              { \token_to_str:N ##1 }
+          }
+      }
+    \cs_set_protected:Npn \__kernel_chk_cs_exist:N ##1
+      {
+        \@@_suspended:T \use_none:nnn
+        \cs_if_exist:NF ##1
+          {
+            \__kernel_msg_error:nnx { kernel } { command-not-defined }
+              { \token_to_str:N ##1 }
+          }
+      }
+    \cs_set:Npn \__kernel_chk_flag_exist:n ##1
+      {
+        \flag_if_exist:nF {##1}
+          {
+            \__kernel_msg_expandable_error:nnn
+              { kernel } { bad-variable } { flag~##1~ }
+          }
+      }
+    \cs_set_protected:Npn \__kernel_chk_var_scope:NN
+      {
+        \@@_suspended:T \use_none:nnn
+        \@@_chk_var_scope_aux:NN
+      }
+    \cs_set_protected:Npn \__kernel_chk_var_local:N ##1
+      {
+        \@@_suspended:T \use_none:nnnnn
+        \__kernel_chk_var_exist:N ##1
+        \@@_chk_var_scope_aux:NN l ##1
+      }
+    \cs_set_protected:Npn \__kernel_chk_var_global:N ##1
+      {
+        \@@_suspended:T \use_none:nnnnn
+        \__kernel_chk_var_exist:N ##1
+        \@@_chk_var_scope_aux:NN g ##1
+      }
+  }
+\cs_new_protected:cpn { @@_check-declarations_off: }
+  {
+    \cs_set_protected:Npn \__kernel_chk_var_exist:N ##1 { }
+    \cs_set_protected:Npn \__kernel_chk_cs_exist:N ##1 { }
+    \cs_set:Npn \__kernel_chk_flag_exist:N ##1 { }
+    \cs_set_protected:Npn \__kernel_chk_var_local:N ##1 { }
+    \cs_set_protected:Npn \__kernel_chk_var_global:N ##1 { }
+    \cs_set_protected:Npn \__kernel_chk_var_scope:NN ##1##2 { }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_chk_var_scope_aux:NN}
+% \begin{macro}{\@@_chk_var_scope_aux:Nn}
+% \begin{macro}{\@@_chk_var_scope_aux:NNn}
+%   First check whether the name of the variable |#2| starts with
+%   \meta{letter}|_|.  If it does then pass that letter, the
+%   \meta{scope}, and the variable name to
+%   \cs{@@_chk_var_scope_aux:NNn}.  That function compares the two
+%   letters and triggers an error if they differ (the \cs{scan_stop:}
+%   case is not reachable here).  If the second character was not |_|
+%   then pass the same data to the same auxiliary, except for its first
+%   argument which is now a control sequence.  That control sequence is
+%   actually a token list (but to avoid triggering the checking code we
+%   manipulate it using \cs{cs_set_nopar:Npn}) containing a single
+%   letter \meta{scope} according to what the first assignment to the
+%   given variable was.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_chk_var_scope_aux:NN #1#2
+  { \exp_args:NNf \@@_chk_var_scope_aux:Nn #1 { \cs_to_str:N #2 } }
+\cs_new_protected:Npn \@@_chk_var_scope_aux:Nn #1#2
+  {
+    \if:w _ \use_i:nn \use_i_delimit_by_q_stop:nw #2 ? ? \q_stop
+      \exp_after:wN \@@_chk_var_scope_aux:NNn
+        \use_i_delimit_by_q_stop:nw #2 ? \q_stop
+        #1 {#2}
+    \else:
+      \exp_args:Nc \@@_chk_var_scope_aux:NNn
+        { @@_chk_/ #2 }
+        #1 {#2}
+    \fi:
+  }
+\cs_new_protected:Npn \@@_chk_var_scope_aux:NNn #1#2#3
+  {
+    \if:w #1 #2
+    \else:
+      \if:w #1 \scan_stop:
+        \cs_gset_nopar:Npn #1 {#2}
+      \else:
+        \__kernel_msg_error:nnxxx { kernel } { local-global }
+          {#1} {#2} { \iow_char:N \\ #3 }
+      \fi:
+    \fi:
+  }
+\use:c { @@_check-declarations_off: }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_log-functions_on:, \@@_log-functions_off:}
+% \begin{macro}{\__kernel_debug_log:x}
+%   These two functions (corresponding to the \pkg{expl3} option
+%   \texttt{log-functions}) control whether \cs{__kernel_debug_log:x} writes to the
+%   log file or not.  Since \cs{iow_log:x} does not yet have its final
+%   definition we do not use \cs{cs_set_eq:NN} (not defined yet anyway).
+%   Once everything is defined, turn logging on or off depending on what
+%   option was given.  When debugging is not enabled, simply produce an
+%   error.
+%    \begin{macrocode}
+\cs_new_protected:cpn { @@_log-functions_on: }
+  {
+    \cs_set_protected:Npn \__kernel_debug_log:x
+      { \@@_suspended:T \use_none:nn \iow_log:x }
+  }
+\cs_new_protected:cpn { @@_log-functions_off: }
+  { \cs_set_protected:Npn \__kernel_debug_log:x { \use_none:n } }
+\use:c { @@_log-functions_off: }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}
+%   {\@@_check-expressions_on:, \@@_check-expressions_off:}
+% \begin{macro}{\__kernel_chk_expr:nNnN}
+% \begin{macro}{\@@_chk_expr_aux:nNnN}
+%   When debugging is enabled these two functions set
+%   \cs{__kernel_chk_expr:nNnN} to test or not whether the given
+%   expression is valid.  The idea is to evaluate the expression within
+%   a brace group (to catch trailing \cs{use_none:nn} or similar), then
+%   test that the result is what we expect.  This is done by turning it
+%   to an integer and hitting that with \cs{tex_romannumeral:D} after
+%   replacing the first character by |-0|.  If all goes well, that
+%   primitive finds a non-positive integer and gives an empty output.
+%   If the original expression evaluation stopped early it leaves a
+%   trailing \cs{tex_relax:D}, which stops the second evaluation (used
+%   to convert to integer) before it encounters the final
+%   \cs{tex_relax:D}.  Since \cs{tex_romannumeral:D} does not absorb
+%   \cs{tex_relax:D} the output will be nonempty.  Note that |#3| is
+%   empty except for mu expressions for which it is \cs{tex_mutoglue:D}
+%   to avoid an \enquote{incompatible glue units} error.  Note also that
+%   if we had omitted the first \cs{tex_relax:D} then for instance
+%   |1+2\relax+3| would incorrectly be accepted as a valid integer
+%   expression.
+%    \begin{macrocode}
+\cs_new_protected:cpn { @@_check-expressions_on: }
+  {
+    \cs_set:Npn \__kernel_chk_expr:nNnN ##1##2
+      {
+        \@@_suspended:T { ##1 \use_none:nnnnnnn }
+        \exp_after:wN \@@_chk_expr_aux:nNnN
+        \exp_after:wN { \tex_the:D ##2 ##1 \scan_stop: }
+        ##2
+      }
+  }
+\cs_new_protected:cpn { @@_check-expressions_off: }
+  { \cs_set:Npn \__kernel_chk_expr:nNnN ##1##2##3##4 {##1} }
+\use:c { @@_check-expressions_off: }
+\cs_new:Npn \@@_chk_expr_aux:nNnN #1#2#3#4
+  {
+    \tl_if_empty:oF
+      {
+        \tex_romannumeral:D - 0
+        \exp_after:wN \use_none:n
+        \int_value:w #3 #2 #1 \scan_stop:
+      }
+      {
+        \__kernel_msg_expandable_error:nnnn
+          { kernel } { expr } {#4} {#1}
+      }
+    #1
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_deprecation_on:, \@@_deprecation_off:}
+%   Some commands were more recently deprecated and not yet removed;
+%   only make these into errors if the user requests it.  This relies on
+%   two token lists, filled up in \pkg{l3deprecation}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_deprecation_on:
+  { \g_@@_deprecation_on_tl }
+\cs_new_protected:Npn \@@_deprecation_off:
+  { \g_@@_deprecation_off_tl }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\l_@@_internal_tl}
+%   For patching.
+%    \begin{macrocode}
+\tl_new:N \l_@@_internal_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\@@_patch:Nnn}
+%   Simple patching by adding material at the start and end of functions
+%   is straight-forward as we know the catcode set up. The approach is
+%   essentially that in \pkg{etoolbox}. Notice the need to worry about spaces:
+%   those are otherwise lost as normally in \pkg{expl3} code they would be
+%   |~|.
+%    \begin{macrocode}
+\group_begin:
+  \cs_set_protected:Npn \__kernel_patch:nnn
+    {
+      \group_begin:
+        \char_set_catcode_other:N \#
+        \__kernel_patch_aux:nnn
+    }
+  \cs_set_protected:Npn \__kernel_patch_aux:nnn #1#2#3
+    {
+      \char_set_catcode_parameter:N \#
+      \char_set_catcode_space:N \ %
+      \tl_map_inline:nn {#3}
+        {
+          \use:x
+            {
+              \tex_endlinechar:D -1 \scan_stop:
+              \exp_not:N \tex_scantokens:D
+                {
+                  \tex_global:D \cs_prefix_spec:N ##1 \tex_def:D \exp_not:N ##1
+                  \cs_argument_spec:N ##1
+                    {
+                      \tl_to_str:n {#1}
+                      \cs_replacement_spec:N ##1
+                      \tl_to_str:n {#2}
+                    }
+                }
+            }
+        }
+      \group_end:
+    }
+%    \end{macrocode}
+% \end{macro}
+%
+% Patching the second argument to ensure it exists. This happens before
+% we alter |#1| so the ordering is correct.
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    { \__kernel_chk_var_exist:N #2 }
+    { }
+    {  
+      \bool_set_eq:NN
+      \bool_gset_eq:NN
+      \clist_set_eq:NN
+      \clist_gset_eq:NN
+      \fp_set_eq:NN
+      \fp_gset_eq:NN
+      \seq_set_eq:NN
+      \seq_gset_eq:NN
+      \tl_set_eq:NN
+      \tl_gset_eq:NN
+    }
+%    \end{macrocode}
+%
+% Patching both second and third arguments.
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    {
+      \__kernel_chk_var_exist:N #2
+      \__kernel_chk_var_exist:N #3
+    }
+    { }
+    {
+      \tl_concat:NNN
+      \tl_gconcat:NNN
+    }
+%    \end{macrocode}
+%
+%  Patching where the first argument to a function needs scope-checking:
+%  either local or global (so two lists).
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    { \__kernel_chk_var_local:N #1 }
+    { }
+    {
+      \bool_set_eq:NN
+      \bool_set_true:N
+      \bool_set_false:N
+      \box_set_eq:NN
+      \box_set_eq_drop:NN
+      \box_set_to_last:N
+      \bool_set:Nn
+      \clist_set_eq:NN
+      \dim_zero:N
+      \dim_set:Nn
+      \dim_set_eq:NN
+      \dim_add:Nn
+      \dim_sub:Nn
+      \fp_set_eq:NN
+      \int_zero:N
+      \int_set_eq:NN
+      \int_add:Nn
+      \int_sub:Nn
+      \int_incr:N
+      \int_decr:N
+      \int_set:Nn
+      \hbox_set:Nn
+      \hbox_set_to_wd:Nnn
+      \hbox_set:Nw
+      \hbox_set_to_wd:Nnw
+      \muskip_zero:N
+      \muskip_set:Nn
+      \muskip_add:Nn
+      \muskip_sub:Nn
+      \muskip_set_eq:NN
+      \seq_set_eq:NN
+      \skip_zero:N
+      \skip_set:Nn
+      \skip_set_eq:NN
+      \skip_add:Nn
+      \skip_sub:Nn
+      \tl_set:Nn
+      \tl_set:No
+      \tl_set:Nx
+      \tl_set_eq:NN
+      \tl_put_left:Nn
+      \tl_put_left:NV
+      \tl_put_left:No
+      \tl_put_left:Nx
+      \tl_put_right:Nn
+      \tl_put_right:NV
+      \tl_put_right:No
+      \tl_put_right:Nx
+      \tl_build_begin:N
+      \tl_build_put_right:Nn
+      \tl_build_put_right:Nx
+      \tl_build_put_left:Nn
+      \vbox_set:Nn
+      \vbox_set_top:Nn
+      \vbox_set_to_ht:Nnn
+      \vbox_set:Nw
+      \vbox_set_to_ht:Nnw
+      \vbox_set_split_to_ht:NNn
+    }
+  \__kernel_patch:nnn
+    { \__kernel_chk_var_global:N #1 }
+    { }
+    {
+      \bool_gset_eq:NN
+      \bool_gset_true:N
+      \bool_gset_false:N
+      \box_gset_eq:NN
+      \box_gset_eq_drop:NN
+      \box_gset_to_last:N
+      \bool_gset:Nn
+      \clist_gset_eq:NN
+      \dim_gset_eq:NN
+      \dim_gzero:N
+      \dim_gset:Nn
+      \dim_gadd:Nn
+      \dim_gsub:Nn
+      \fp_gset_eq:NN
+      \int_gzero:N
+      \int_gset_eq:NN
+      \int_gadd:Nn
+      \int_gsub:Nn
+      \int_gincr:N
+      \int_gdecr:N
+      \int_gset:Nn
+      \hbox_gset:Nn
+      \hbox_gset_to_wd:Nnn
+      \hbox_gset:Nw
+      \hbox_gset_to_wd:Nnw
+      \muskip_gzero:N
+      \muskip_gset:Nn
+      \muskip_gadd:Nn
+      \muskip_gsub:Nn
+      \muskip_gset_eq:NN
+      \seq_gset_eq:NN
+      \skip_gzero:N
+      \skip_gset:Nn
+      \skip_gset_eq:NN
+      \skip_gadd:Nn
+      \skip_gsub:Nn
+      \tl_gset:Nn
+      \tl_gset:No
+      \tl_gset:Nx
+      \tl_gset_eq:NN
+      \tl_gput_left:Nn
+      \tl_gput_left:NV
+      \tl_gput_left:No
+      \tl_gput_left:Nx
+      \tl_gput_right:Nn
+      \tl_gput_right:NV
+      \tl_gput_right:No
+      \tl_gput_right:Nx
+      \tl_build_gbegin:N
+      \tl_build_gput_right:Nn
+      \tl_build_gput_right:Nx
+      \tl_build_gput_left:Nn
+      \vbox_gset:Nn
+      \vbox_gset_top:Nn
+      \vbox_gset_to_ht:Nnn
+      \vbox_gset:Nw
+      \vbox_gset_to_ht:Nnw
+      \vbox_gset_split_to_ht:NNn
+    }
+%    \end{macrocode} 
+%
+% Scoping for constants.
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    { \__kernel_chk_var_scope:NN c #1 }
+    { }
+    {
+      \bool_const:Nn
+      \dim_const:Nn
+      \int_const:Nn
+      \intarray_const_from_clist:Nn
+      \muskip_const:Nn
+      \skip_const:Nn
+      \tl_const:Nn
+      \tl_const:Nx
+    }
+%    \end{macrocode}
+%
+%  Flag functions.
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    { \__kernel_chk_flag_exist:n {#1} }
+    { }
+    {
+      \flag_if_raised:nT
+      \flag_if_raised:nF
+      \flag_if_raised:nTF
+      \flag_if_raised_p:n
+      \flag_height:n
+      \flag_raise_if_clear:n
+    }
+%    \end{macrocode}
+%
+% Various one-offs.
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    { \__kernel_chk_cs_exist:N #1 }
+    { }
+    { \cs_generate_variant:Nn }
+  \__kernel_patch:nnn
+    { \exp_args:Nc \__kernel_chk_var_exist:N { flag~#1 } }
+    { }
+    { \flag_clear:n }
+  \__kernel_patch:nnn
+    { \__kernel_chk_var_scope:NN g #1 }
+    { }
+    { \intarray_new:Nn }
+  \__kernel_patch:nnn
+    { \__kernel_chk_var_scope:NN q #1 }
+    { }
+    { \quark_new:N }
+  \__kernel_patch:nnn
+    { \__kernel_chk_var_scope:NN s #1 }
+    { }
+    { \scan_new:N }
+
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=cs>
+%    \end{macrocode}
+% Internal functions from \pkg{cs} module.
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    {
+      \cs_if_free:NF #4
+        {
+          \__kernel_debug_log:x
+            {
+              Variant~\token_to_str:N #4~%
+              already~defined;~ not~ changing~ it~ \msg_line_context:
+            }
+        }
+    }
+    { }
+    { \@@_generate_variant:wwNN  }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=keys>
+%    \end{macrocode}
+% Internal functions from \pkg{keys} module.
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    {
+      \cs_if_exist:cF { \c_@@_code_root_tl #1 }
+        { \__kernel_debug_log:x { Defining~key~#1~\msg_line_context: } }
+    }
+    { }
+    { \@@_cmd_set:nn }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=msg>
+%    \end{macrocode}
+% Internal functions from \pkg{msg} module.
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    { }
+    {
+      \__kernel_debug_log:x
+        { Defining~message~ #1 / #2 ~\msg_line_context: }
+    }
+    { \@@_chk_free:nn }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=prg>
+%    \end{macrocode}
+% Internal functions from \pkg{prg} module.
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    { \__kernel_chk_cs_exist:c { #5 _p : #6 } }
+    { }
+    { \@@_set_eq_conditional_p_form:wNnnnn }
+  \__kernel_patch:nnn
+    { \__kernel_chk_cs_exist:c { #5    : #6 TF } }
+    { }
+    { \@@_set_eq_conditional_TF_form:wNnnnn }
+  \__kernel_patch:nnn
+    { \__kernel_chk_cs_exist:c { #5    : #6 T } }
+    { }
+    { \@@_set_eq_conditional_T_form:wNnnnn }
+  \__kernel_patch:nnn
+    { \__kernel_chk_cs_exist:c { #5    : #6 F } }
+    { }
+    { \@@_set_eq_conditional_F_form:wNnnnn }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=regex>
+%    \end{macrocode}
+% Internal functions from \pkg{regex} module.
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    {
+      \@@_trace_push:nnN { regex } { 1 } \@@_escape_use:nnnn
+      \group_begin:
+        \tl_set:Nx \l_@@_internal_a_tl
+          { \@@_trace_pop:nnN { regex } { 1 } \@@_escape_use:nnnn }
+        \use_none:nnn
+    }
+    { }
+    { \@@_escape_use:nnn }
+  \__kernel_patch:nnn
+    { \@@_trace_push:nnN { regex } { 1 } \@@_build:N }
+    {
+      \@@_trace_states:n { 2 }
+      \@@_trace_pop:nnN { regex } { 1 } \@@_build:N
+    }
+    { \@@_build:N }
+  \__kernel_patch:nnn
+    { \@@_trace_push:nnN { regex } { 1 } \@@_build_for_cs:n }
+    {
+      \@@_trace_states:n { 2 }
+      \@@_trace_pop:nnN { regex } { 1 } \@@_build_for_cs:n
+    }
+    { \@@_build_for_cs:n }
+  \__kernel_patch:nnn
+    {
+      \@@_trace:nnx { regex } { 2 }
+        {
+          regex~new~state~
+          L=\int_use:N \l_@@_left_state_int ~ -> ~
+          R=\int_use:N \l_@@_right_state_int ~ -> ~
+          M=\int_use:N \l_@@_max_state_int ~ -> ~
+          \int_eval:n { \l_@@_max_state_int + 1 }
+        }
+    }
+    { }
+    { \@@_build_new_state: }
+  \__kernel_patch:nnn
+    { \@@_trace_push:nnN { regex } { 1 } \@@_group_aux:nnnnN }
+    { \@@_trace_pop:nnN { regex } { 1 } \@@_group_aux:nnnnN }
+    { \@@_group_aux:nnnnN }
+  \__kernel_patch:nnn
+    { \@@_trace_push:nnN { regex } { 1 } \@@_branch:n }
+    { \@@_trace_pop:nnN { regex } { 1 } \@@_branch:n }
+    { \@@_branch:n }
+  \__kernel_patch:nnn
+    {
+      \@@_trace_push:nnN { regex } { 1 } \@@_match:n
+      \@@_trace:nnx { regex } { 1 } { analyzing~query~token~list }
+    }
+    { \@@_trace_pop:nnN { regex } { 1 } \@@_match:n }
+    { \@@_match:n }
+  \__kernel_patch:nnn
+    {
+      \@@_trace_push:nnN { regex } { 1 } \@@_match_cs:n
+      \@@_trace:nnx { regex } { 1 } { analyzing~query~token~list }
+    }
+    { \@@_trace_pop:nnN { regex } { 1 } \@@_match_cs:n }
+    { \@@_match_cs:n }
+  \__kernel_patch:nnn
+    { \@@_trace:nnx { regex } { 1 } { initializing } }
+    { }
+    { \@@_match_init: }
+  \__kernel_patch:nnn
+    {
+      \@@_trace:nnx { regex } { 2 }
+        { state~\int_use:N \l_@@_curr_state_int }
+    }
+    { }
+    { \@@_use_state: }
+  \__kernel_patch:nnn
+    { \@@_trace_push:nnN { regex } { 1 } \@@_replacement:n }
+    { \@@_trace_pop:nnN { regex } { 1 } \@@_replacement:n }
+    { \@@_replacement:n }
+%    \end{macrocode}
+%
+% Internal to the kernel itself.
+%
+%    \begin{macrocode}
+  \__kernel_patch:nnn
+    { }
+    {
+      \__kernel_debug_log:x
+        { Defining~\token_to_str:N #1~ \msg_line_context: }
+    }
+    { \__kernel_chk_if_free_cs:N }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\group_end:
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=debug>
+%    \end{macrocode}
+%
+%  Patching arguments is a bit more involved: we do these one-at-a-time
+%  basis. Basic idea is the same, using a |#| token that is a string.
+%    \begin{macrocode}
+\group_begin:
+  \cs_set_protected:Npn \__kernel_patch:Nn #1
+    {
+      \group_begin:
+        \char_set_catcode_other:N \#
+        \__kernel_patch_aux:Nn #1
+    }
+  \cs_set_protected:Npn \__kernel_patch_aux:Nn #1#2
+    {
+      \exp_after:wN \__kernel_patch_aux:nN \exp_after:wN
+        { #1 #2 } #1
+    }
+  \cs_set_protected:Npn \__kernel_patch_aux:nN #1#2
+    {
+      \use:x
+        {
+          \group_end:
+          \exp_not:N \tex_scantokens:D
+            {
+              \tex_endlinechar:D -1 \scan_stop:
+              \tex_global:D \cs_prefix_spec:N #2 \tex_def:D \exp_not:N #2
+                \cs_argument_spec:N #2
+                { \tl_to_str:n {#1} }
+            }
+        }
+    }
+%    \end{macrocode}
+%
+% The functions here can get a bit repetitive, so we define a helper
+% which can re-use the same patch code repeatedly. The main part of the
+% patch is the same, so we just have to deal with the part which varies
+% depending on the type of expression.
+%    \begin{macrocode}
+  \cs_set_protected:Npn \__kernel_patch_eval:nn #1#2
+    {
+     \tl_map_inline:nn {#1}
+       {
+          \use:x
+            {
+              \__kernel_patch:Nn \exp_not:N ##1
+                {
+                  { \c_hash_str 1 }
+                  {
+                    \exp_not:N \__kernel_chk_expr:nNnN { \c_hash_str 2 }
+                    \exp_not:n {#2}
+                    \exp_not:N ##1
+                  }
+                }
+            }
+         }
+    }
+%<@@=dim>
+  \__kernel_patch_eval:nn
+    {
+      \dim_set:Nn
+      \dim_gset:Nn
+      \dim_add:Nn
+      \dim_gadd:Nn
+      \dim_sub:Nn
+      \dim_gsub:Nn
+      \dim_const:Nn
+    }
+    { \@@_eval:w { } }
+%<@@=int>
+  \__kernel_patch_eval:nn
+    {
+      \int_set:Nn
+      \int_gset:Nn
+      \int_add:Nn
+      \int_gadd:Nn
+      \int_sub:Nn
+      \int_gsub:Nn
+      \int_const:Nn
+    }
+    { \@@_eval:w { } }
+  \__kernel_patch_eval:nn
+    {
+      \muskip_set:Nn
+      \muskip_gset:Nn
+      \muskip_add:Nn
+      \muskip_gadd:Nn
+      \muskip_sub:Nn
+      \muskip_gsub:Nn
+      \muskip_const:Nn
+    }
+    { \tex_muexpr:D { \tex_mutoglue:D } }
+  \__kernel_patch_eval:nn
+    {
+      \skip_set:Nn
+      \skip_gset:Nn
+      \skip_add:Nn
+      \skip_gadd:Nn
+      \skip_sub:Nn
+      \skip_gsub:Nn
+      \skip_const:Nn
+    }
+    { \tex_glueexpr:D { } }
+%    \end{macrocode}
+%
+% Patching expandable expressions, first the one-argument versions,
+% then the two-argument ones.
+%    \begin{macrocode}
+  \cs_set_protected:Npn \__kernel_patch_eval:nn #1#2
+    {
+     \tl_map_inline:nn {#1}
+       {
+          \use:x
+            {
+              \__kernel_patch:Nn \exp_not:N ##1
+                {
+                  {
+                    \exp_not:N \__kernel_chk_expr:nNnN { \c_hash_str 1 }
+                    \exp_not:n {#2}
+                    \exp_not:N ##1
+                  }
+                }
+            }
+         }
+    }
+%<@@=box>
+  \__kernel_patch_eval:nn
+    { \@@_dim_eval:n }
+    { \@@_eval:w { } }
+%<@@=dim>
+  \__kernel_patch_eval:nn
+    {
+      \dim_eval:n
+      \dim_to_decimal:n
+      \dim_to_decimal_in_sp:n
+      \dim_abs:n
+      \dim_sign:n
+    }
+    { \@@_eval:w { } }
+%<@@=int>
+  \__kernel_patch_eval:nn
+    {
+      \int_eval:n
+      \int_abs:n
+      \int_sign:n
+    }
+    { \@@_eval:w { } }
+  \__kernel_patch_eval:nn
+    {
+      \skip_eval:n
+      \skip_horizontal:n
+      \skip_vertical:n
+    }
+    { \tex_glueexpr:D { } }
+  \__kernel_patch_eval:nn
+    {
+      \muskip_eval:n
+    }
+    { \tex_muexpr:D { \tex_mutoglue:D } }
+  \cs_set_protected:Npn \__kernel_patch_eval:nn #1#2
+    {
+     \tl_map_inline:nn {#1}
+       {
+          \use:x
+            {
+              \__kernel_patch:Nn \exp_not:N ##1
+                {
+                  {
+                    \exp_not:N \__kernel_chk_expr:nNnN { \c_hash_str 1 }
+                    \exp_not:n {#2}
+                    \exp_not:N ##1
+                  }
+                  {
+                    \exp_not:N \__kernel_chk_expr:nNnN { \c_hash_str 2 }
+                    \exp_not:n {#2}
+                    \exp_not:N ##1
+                  }
+                }
+            }
+         }
+    }
+%<@@=dim>
+  \__kernel_patch_eval:nn
+    {
+      \dim_max:nn
+      \dim_min:nn
+    }
+    { \@@_eval:w { } }
+%<@@=int>
+  \__kernel_patch_eval:nn
+    {
+      \int_max:nn
+      \int_min:nn
+      \int_div_truncate:nn
+      \int_mod:nn
+    }
+    { \@@_eval:w { } }
+%    \end{macrocode}
+%
+%  Conditionals: three argument ones then one argument ones
+%    \begin{macrocode}
+  \cs_set_protected:Npn \__kernel_patch_cond:nn #1#2
+    {
+     \clist_map_inline:nn { :nNnT , :nNnF , :nNnTF , _p:nNn }
+       {
+          \use:x
+            {
+              \__kernel_patch:Nn \exp_not:c { #1 ##1 }
+                {
+                  {
+                    \exp_not:N \__kernel_chk_expr:nNnN { \c_hash_str 1 }
+                    \exp_not:n {#2}
+                    \exp_not:c { #1 ##1 }
+                  }
+                  { \c_hash_str 2 }
+                  {
+                    \exp_not:N \__kernel_chk_expr:nNnN { \c_hash_str 3 }
+                    \exp_not:n {#2}
+                    \exp_not:c { #1 ##1 }
+                  }
+                }
+            }
+         }
+    }
+%<@@=dim>
+  \__kernel_patch_cond:nn { dim_compare } { \@@_eval:w { } }
+%<@@=int>
+  \__kernel_patch_cond:nn { int_compare } { \@@_eval:w { } }
+  \cs_set_protected:Npn \__kernel_patch_cond:nn #1#2
+    {
+     \clist_map_inline:nn { :nT , :nF , :nTF , _p:n }
+       {
+          \use:x
+            {
+              \__kernel_patch:Nn \exp_not:c { #1 ##1 }
+                {
+                  {
+                    \exp_not:N \__kernel_chk_expr:nNnN { \c_hash_str 1 }
+                    \exp_not:n {#2}
+                    \exp_not:c { #1 ##1 }
+                  }
+                }
+            }
+         }
+    }
+%<@@=int>
+  \__kernel_patch_cond:nn { int_if_even } { \@@_eval:w { } }
+  \__kernel_patch_cond:nn { int_if_odd } { \@@_eval:w { } }
+%    \end{macrocode}
+%
+% Step functions.
+%    \begin{macrocode}
+%<@@=dim>
+  \__kernel_patch:Nn \dim_step_function:nnnN
+    {
+      {
+        \__kernel_chk_expr:nNnN {#1} \@@_eval:w { }
+          \dim_step_function:nnnN
+      }
+      {
+        \__kernel_chk_expr:nNnN {#2} \@@_eval:w { }
+          \dim_step_function:nnnN
+      }
+      {
+        \__kernel_chk_expr:nNnN {#3} \@@_eval:w { }
+          \dim_step_function:nnnN
+      }
+    }
+%<@@=int>
+  \__kernel_patch:Nn \int_step_function:nnnN
+    {
+      {
+        \__kernel_chk_expr:nNnN {#1} \@@_eval:w { }
+          \int_step_function:nnnN
+      }
+      {
+        \__kernel_chk_expr:nNnN {#2} \@@_eval:w { }
+          \int_step_function:nnnN
+      }
+      {
+        \__kernel_chk_expr:nNnN {#3} \@@_eval:w { }
+          \int_step_function:nnnN
+      }
+    }
+%    \end{macrocode}
+%
+%  Odds and ends
+%    \begin{macrocode}
+  \__kernel_patch:Nn \dim_to_fp:n { { (#1) } }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\group_end:
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=skip>
+%    \end{macrocode}
+% This one has catcode changes so must be done by hand.
+%    \begin{macrocode}
+\cs_set_protected:Npn \@@_tmp:w #1
+  {
+    \prg_set_conditional:Npnn \skip_if_finite:n ##1 { p , T , F , TF }
+      {
+        \exp_after:wN \@@_if_finite:wwNw
+        \skip_use:N \tex_glueexpr:D
+          \__kernel_chk_expr:nNnN
+            {##1} \tex_glueexpr:D { } \skip_if_finite:n
+        ; \prg_return_false:
+        #1 ; \prg_return_true: \q_stop
+      }
+  }
+\exp_args:No \@@_tmp:w { \tl_to_str:n { fil } }
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=msg>
+%    \end{macrocode}
+%
+% Messages.
+% \begin{macrocode}
+\__kernel_msg_new:nnnn { kernel } { debug }
+  { The~debugging~option~'#1'~does~not~exist~\msg_line_context:. }
+  {
+    The~functions~'\iow_char:N\\debug_on:n'~and~
+    '\iow_char:N\\debug_off:n'~only~accept~the~arguments~
+    'check-declarations',~'deprecation',~'log-functions',~not~'#1'.
+  }
+\__kernel_msg_new:nnn { kernel } { expr } { '#2'~in~#1 }
+\__kernel_msg_new:nnnn { kernel } { local-global }
+  { Inconsistent~local/global~assignment }
+  {
+    \c_@@_coding_error_text_tl
+    \if:w l #2 Local
+    \else:
+      \if:w g #2 Global \else: Constant \fi:
+    \fi:
+    \ %
+    assignment~to~a~
+    \if:w l #1 local
+    \else:
+      \if:w g #1 global \else: constant \fi:
+    \fi:
+    \ %
+    variable~'#3'.
+  }
+\__kernel_msg_new:nnnn { kernel } { non-declared-variable }
+  { The~variable~#1~has~not~been~declared~\msg_line_context:. }
+  {
+    \c_@@_coding_error_text_tl
+    Checking~is~active,~and~you~have~tried~do~so~something~like: \\
+    \ \ \tl_set:Nn ~ #1 ~ \{ ~ ... ~ \} \\
+    without~first~having: \\
+    \ \ \tl_new:N ~ #1  \\
+    \\
+    LaTeX~will~create~the~variable~and~continue.
+  }
+% \end{macrocode}
+%
+% \begin{macro}{\__kernel_if_debug:TF}
+%   Flip the switch for deprecated code.
+%    \begin{macrocode}
+\cs_set_protected:Npn \__kernel_if_debug:TF #1#2 {#1}
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex
