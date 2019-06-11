@@ -12,7 +12,7 @@ maindir = ".."
 -- Non-standard settings
 checkfiles   = {"l3names.def"}
 cleanfiles   = {"*.fmt", "*.log", "*.pdf", "*.zip"}
-docfiles     = {"source3body.tex"}
+docfiles     = {"source3body.tex", "l3prefixes.csv"}
 installfiles =
   {
     "l3dvipdfmx.def", "l3dvips.def", "l3dvisvgm.def", "l3pdfmode.def",
@@ -33,7 +33,8 @@ tagfiles     =
 typesetfiles =
   {
     "expl3.dtx", "l3docstrip.dtx","interface3.tex", "l3syntax-changes.tex",
-    "l3styleguide.tex", "l3term-glossary.tex", "source3.tex"
+    "l3styleguide.tex", "l3term-glossary.tex", "source3.tex",
+    "l3prefixes.tex"
   }
 typesetskipfiles = {"source3-body.tex"}
 typesetruns      = 3

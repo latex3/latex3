@@ -23,7 +23,7 @@ unpacksuppfiles = unpacksuppfiles or {"docstrip.tex"}
 
 packtdszip  = true
 
-typesetcmds = typesetcmds or "\\AtBeginDocument{\\DisableImplementation}"
+typesetcmds = typesetcmds or "\\AtBeginDocument{\\csname DisableImplementation\\endcsname}"
 
 if checksearch == nil then
   checksearch = false
