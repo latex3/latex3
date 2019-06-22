@@ -17,6 +17,10 @@ this project uses date-based 'snapshot' version identifiers.
   hbox (see #587)
 - Moved backend code to a separate release schedule
 
+### Fixed
+
+- Handling of control sequences in key names (see #594)
+
 ## [2019-05-28]
 
 ### Added
