@@ -1,0 +1,309 @@
+\documentclass{article}
+
+
+\title{Thoughts on Hooks in code}
+\author{Frank Mittelbach \and
+%                        \and  
+%                        \and  
+  \LaTeX{} Project Team}
+
+%\date{2018-11-29}
+\date{2019-06-21}
+
+\newcounter{hook}
+\newcounter{config}
+
+\newenvironment{hook}[3][new]  % new/exists, area, name 
+   {\refstepcounter{hook}%
+    \begin{itemize}%
+    \item[\textbf{Hook (\thehook):}]\textbf{#3} (#2/\textit{#1})}
+   {\end{itemize}}
+
+\newenvironment{config}[3][new]  % new/exists, area, name 
+   {\refstepcounter{config}%
+    \begin{itemize}%
+    \item[\textbf{Config (\theconfig):}]\textbf{#3} (#2/\textit{#1})}
+   {\end{itemize}}
+
+\newcommand\cs[1]{\texttt{\textbackslash #1}}               
+\newcommand\pkg[1]{\texttt{#1}}
+
+\renewcommand\arg[1]{\textit{#1}}      % don't need the math Op in this document I hope :-)
+
+\usepackage[T1]{fontenc}
+
+\begin{document}
+
+\maketitle
+
+\tableofcontents
+
+\section{Introduction}
+
+
+This document collects some thoughts on places for hooks (i.e., code
+interfaces where other code can add material for execution).
+
+I distinguish this from what I call  ``configuration points'', which I think of as
+being commands that have a single definition that can be replaced by a
+different one but not ``added to'' by different packages. For example,
+``add begin document'' is a typical hook, as it is a place where
+different packages my want to execute some code. On the other hand
+``prepare footins'' is a configuration interface whose sole purpose is
+to do something specific to the \cs{footins} box. This may differ
+based on the intended outcome, but there can only one definition active at any
+time.\footnote{Technically this is of course not quite true, there is
+  a certain gray area, but only if some packages very closely
+  interrelated. The main point is that ``hooks'' are more about places
+  where code gets added without (much) concern about what other
+  package want to execute.}
+
+
+\subsection{Hooks and their interface}
+
+At the moment most existing hooks in \LaTeXe{} are actually named
+\cs{@...hook} (with one or two exception). We should keep that
+approach for backward compatibility and only change the exceptions.
+
+Currently we do have declarations such as \cs{AtBeginDocument} to add
+data to a hook.  The order in which the code gets executed then only
+depends on the order of the declarations, i.e., on the order of
+package loading.
+
+What is not possible right now is define known dependencies between
+different code executed in a certain place, result in the famous ``try
+changing the order of package X and Y to resolve the
+problem''. Sometimes this works, but sometime a different order would
+be needed for different hooks and then of course that advice doesn't
+really any longer work.
+
+As an alternative/extension we envision that material added to a hook
+will be named (using the package name by default) and that it will be
+possible for packages to declare rules that its code for a certain
+hook should be placed in relation to code from some other package (if
+that package is loaded). This way known dependencies could be
+automatically resolved (if declared as a rule by either side---or even
+both if they don't conflict) and impossible requirements could be
+detected as being incompatible.
+
+Outline of interface:
+\begin{verbatim}
+ \AddToHook{<hook>}{<name>}{<code>}
+ \ClearHook{<hook>}{<name>}              % maybe
+ \SetupHook{<hook>}{<name>}{<code>}      % \ClearHook followed by \AddToHook
+
+ \SetupHookRule{<hook>}{<name1>}{<name2>}{<rule>}
+\end{verbatim}
+
+\cs{AddToHook} would add additional \arg{code} labeled by \arg{name}
+to the \arg{hook}. If there exists already code under that \arg{name}
+then it is appended.  \cs{ClearHook} removes all code labeled by
+\arg{name}.  \cs{SetupHookRule} defines some relationship between
+\arg{name1} and \arg{name2}, for the exact syntax a lot different ways
+are possible (should be determined later).
+
+One could also think of \arg{name} to be optional defaulting to the
+current package/class name to encourage people to use that as the name
+normally.
+
+
+Existing hook interface commands such as \cs{AtBeginDocument} would
+still be supported as follows:
+\begin{itemize}
+\item
+  They add their code under the name ``\texttt{legacy}'' to the hook.
+\item
+  Other packages could then decide that they should come before or
+  after the code labeled \texttt{legacy}.
+\end{itemize}
+In other words:
+\begin{verbatim}
+ \def\AtBeginDocument#1{\AddToHook{begindocument}{legacy}{#1}}
+ \def\AtEnddocument#1{\AddToHook{enddocument}{legacy}{#1}}
+\end{verbatim}
+
+However, there use would be discouraged in favor of explicitly
+labeling the hook code with the package name.
+
+There also exist \cs{AtEndOfPackage} and \cs{AtEndOfClass} which uses
+\begin{verbatim}
+ \@currname.\@currext-h@@k
+\end{verbatim}
+as the hook name, but I don't think
+this needs to be incorporated into the more general mechanism as I
+don't think this being usable anywhere outside the actual package
+code---that one package writes into that hook of another package is in
+theory be possible (as in overwrite some code of that package if it
+gets loaded later than me, but I doubt that this makes a
+useful/explainable interface).  On the other hand it is surprisingly
+often used (in 379 package/classes in TL 2019) so perhaps that
+assumption needs some checking.
+
+
+\subsection{Configuration points and their interface}
+
+As configuration points allow for only a single definition at any one
+time they can be simply defined as commands without providing an
+explicit interface.
+
+My current suggestion is to all call them \cs{@...config} in the
+\LaTeXe{} code and provide them with a default definition. We could
+think of offering a configuration interface such as
+\begin{verbatim}
+ \SetupConfigPoint{@makecol}{preparefootins}{<code>}
+\end{verbatim}
+but that wouldn't do much other than (globally) replacing the config
+command definition with the new one.
+
+I also think that such config point commands should not take arguments
+even if they technically have inputs (like the current page box or the
+\cs{footins} box etc.).
+
+
+\section{Hooks and config points in various places}
+
+Collected
+are existing \LaTeXe{} hooks (both by the kernel and/or by package) as
+well a hooks that do not exist but would be beneficial to have for one
+or the other reason. As of now it mainly discusses the \LaTeXe{}
+situation.
+
+For each hook/config point we document
+\begin{itemize}
+\item a ``name'';
+\item the area where it applies;
+\item whether it is ``new'' or does already exist (if so where);
+\item and the major reason why it would be beneficial.
+\end{itemize}
+If there are several distinct use cases each could be added using
+\cs{item}. You can cross reference hooks using
+\cs{label}/\cs{ref}.
+
+
+
+\subsection{Document structure}
+
+
+
+\begin{hook}[kernel]{doc-structure}{documentclass}
+\item
+  This is really more or less internal (used for handling 2.09
+  compatibility) but it shows up in one or two other places in TL.
+\end{hook}
+
+\begin{hook}[kernel]{doc-structure}{begindocument}
+\item
+\end{hook}
+
+\begin{hook}[kernel]{doc-structure}{enddocument}
+\item
+\end{hook}
+
+
+
+\subsection{Output routine}
+
+\subsubsection{Making columns}
+
+\begin{hook}{\cs{@makecol}}{pre}
+\item
+  \pkg{manyfoot} and similar packages like to take control at the very
+  beginning of column generation.
+\end{hook}
+
+\begin{hook}{\cs{@makecol}}{post}
+\item
+  And we may have some post-processing going on after the column is
+  made up.
+\end{hook}
+
+\begin{config}{\cs{@makecol}}{footins}
+\item
+  To support manipulation of footnote text (like footnotes as paras,
+  in 2 columns etc).
+
+  At this point the assembled footnotes are inside box \cs{footins} and any
+  manipulation needs to globally write them back in there.
+\end{config}
+
+\begin{config}{\cs{@makecol}}{blocks}
+\item
+  A column supports the following block elements:
+  \begin{itemize}
+  \item
+    galley text (already inside \cs{@outputbox})
+  \item
+    footnotes (initially inside \cs{footins})
+  \item
+    top and bottom floats (initially inside the \LaTeXe{} float lists
+    for top and bottom)
+  \end{itemize}
+  These can appear in different order within the column and in this
+  config point the ordering and any special spacing between them is
+  specified. The final result is stored in \cs{@outputbox}.
+
+  For specification only the following commands should be used:
+  \begin{itemize}
+  \item \cs{@makecolappendfootnotes}\arg{separation} The separation
+    has to be \cs{vfill} or \cs{@makecol@moveskip} (which is not
+    quite the right interface).
+  \item \cs{@makecolattachfloats}
+  \item \cs{@makecolappendstuff}\arg{vertical material}
+  \end{itemize}
+  For example to get the footnotes above the bottom floats one would specify:
+\begin{verbatim}
+ \SetupConfigPoint{@makecol}{blocks}
+                  {\@makecol@appendfootnotes {\vfill}%
+                   \@makecol@appendfloats}
+\end{verbatim}
+
+
+  Discussion notes:
+  \begin{itemize}
+  \item
+    Maybe \@outputbox{} should start out empty there should be an
+    explicit \cs{makecolappendtext}
+  \item
+    Technically attaching top and bottom floats in one go should be
+    enough but perhaps it would be clearer if there are two commands
+    \cs{@makecolappendtopfloats} and \cs{@makecolappendbottomfloats}
+    even though their order should always be top above bottom.
+  \item
+    There have to be some clear rules on how \cs{@makecolappendstuff}
+    can be used.
+  \item
+    Should spaces be automatically suppressed in configuration point setups?
+  \end{itemize}
+\end{config}
+
+\begin{config}{\cs{@makecol}}{splitfootnotemessage}
+\item
+  Executes if a footnote gets split. By default empty but could be
+  used to set up a warning message or similar in that case.
+\end{config}
+
+
+\subsection{Heading commands}
+
+\begin{hook}{heading}{before-break}
+\item
+  For heading commands it is helpful if one can issue \cs{mark}
+  commands, e.g. \cs{PutMark} from \pkg{xmarks} to support running
+  header or footer setup. This has to be possible directly after
+  heading title (where it is currently supported through commands like
+  \cs{sectionmark}) but also directly before the break to determine
+  the placement of the heading (e.g., at the very top of a page/column
+  or elsewhere). The mark needs to come after the heading has done its
+  magic with any preceding space, it can't hide such space from the
+  command. In other words it need to happen basically in the middle of
+  \cs{addpenalty}.
+\item
+  For L3 the galley concept might be able to handle this properly, but
+  most likely also need more than one point of code injection.
+\end{hook}
+
+
+
+%\subsection{}
+
+\end{document}
