@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-07-01]
+
 ### Added
 
 - Driver support for anonymous objects
@@ -16,4 +18,5 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-05-28...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-07-01...HEAD
+[2019-07-01]: https://github.com/latex3/latex3/compare/2019-05-28...2019-07-01

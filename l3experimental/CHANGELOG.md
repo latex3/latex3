@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-07-01]
+
 ### Added
 
 - New module `l3pdf`
@@ -93,7 +95,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-05-28...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-07-01...HEAD
+[2019-07-01]: https://github.com/latex3/latex3/compare/2019-05-28...2019-07-01
 [2019-05-28]: https://github.com/latex3/latex3/compare/2019-05-03...2019-05-28
 [2019-05-03]: https://github.com/latex3/latex3/compare/2019-03-05...2019-05-03
 [2019-03-05]: https://github.com/latex3/latex3/compare/2019-01-28...2019-03-05
