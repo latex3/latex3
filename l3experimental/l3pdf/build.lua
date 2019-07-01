@@ -4,7 +4,7 @@
 
 -- Identify the bundle and module: the module may be empty in the case where
 -- there is no subdivision
-bundle = "l3trial"
+bundle = "l3experimental"
 module = "l3pdf"
 
 -- Location of main directory: use Unix-style path separators
