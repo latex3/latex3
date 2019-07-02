@@ -428,19 +428,179 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{variable}{\l_@@_internal_tl}
+% \begin{variable}{
+%     \l_@@_internal_tl,
+%     \l_@@_tmpa_tl,
+%     \l_@@_tmpb_tl,
+%   }
 %   For patching.
 %    \begin{macrocode}
 \tl_new:N \l_@@_internal_tl
+\tl_new:N \l_@@_tmpa_tl
+\tl_new:N \l_@@_tmpb_tl
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\__kernel_patch:nnn}
+% \begin{macro}{
+%     \@@_generate_parameter_list:NNN,
+%     \@@_build_parm_text:n,
+%     \@@_build_arg_list:n,
+%     \@@_arg_list_from_signature:nNN,
+%     \@@_arg_check_invalid:N,
+%     \@@_parm_terminate:w,
+%     \@@_arg_if_braced:n,
+%     \@@_get_base_form:N,
+%     \@@_arg_return:N,
+%   }
+% \begin{macro}[TF]{\@@_arg_if_braced:N}
+%   Some functions don't take the arguments their signature indicates.
+%   For instance, \cs{clist_concat:NNN} doesn't take (directly) any
+%   argument, so patching it with something that uses |#1|, |#2|, or
+%   |#3| results in ``Illegal parameter number in definition of
+%   \cs{clist_concat:NNN}''.
+%
+%   Instead of changing \emph{the} definition of the macros, we'll
+%   create a copy of such macros, say, |__debug_clist_concat:NNN| which
+%   will be defined as
+%   |<debug code with #1, #2 and #3>\clist_concat:NNN#1#2#3|. For that
+%   we need to identify the signature of every function and build the
+%   appropriate parameter list.
+%
+%   \cs{@@_generate_parameter_list:NNN} takes a function in |#1| and
+%   returns teo parameter lists: |#2| contains the simple |#1#2#3| as
+%   would be used in the \meta{parameter~text} of the definition and
+%   |#3| contains the same parameters but with braces where necessary.
+%
+%   With the current implementation the resulting |#3| is, for example
+%   for |\some_function:NnNn|, |#1{#2}#3{#4}|. While this is correct,
+%   it might be unnecessary. Bracing everything will usually have the
+%   same outcome (unless the function was misused in the first place).
+%   What should be done?
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_generate_parameter_list:NNN #1#2#3
+  {
+    \tl_set:Nx \l_@@_internal_tl
+      { \exp_last_unbraced:Nf \use_ii:nnn \cs_split_function:N #1 }
+    \tl_set:Nx #2
+      { \exp_args:NV \@@_build_parm_text:n \l_@@_internal_tl }
+    \tl_set:Nx #3
+      { \exp_args:NV \@@_build_arg_list:n \l_@@_internal_tl }
+  }
+\cs_new:Npn \@@_build_parm_text:n #1
+  {
+    \@@_arg_list_from_signature:nNN { 1 } \c_false_bool #1
+    \q_recursion_tail \q_recursion_stop
+  }
+\cs_new:Npn \@@_build_arg_list:n #1
+  {
+    \@@_arg_list_from_signature:nNN { 1 } \c_true_bool #1
+    \q_recursion_tail \q_recursion_stop
+  }
+\cs_new:Npn \@@_arg_list_from_signature:nNN #1 #2 #3
+  {
+    \quark_if_recursion_tail_stop:N #3
+    \@@_arg_check_invalid:N #3
+    \bool_if:NT #2 { \@@_arg_if_braced:NT #3 { \use_none:n } }
+    \use:n { \c_hash_str \int_eval:n {#1} }
+    \exp_args:Nf \@@_arg_list_from_signature:nNN
+      { \int_eval:n {#1+1} } #2
+  }
+%    \end{macrocode}
+%   Argument types |w|, |p|, |T|, and |F| shouldn't be included in the
+%   parameter lists, so we abort the loop if either is found.
+%    \begin{macrocode}
+\cs_new:Npn \@@_arg_check_invalid:N #1
+  {
+    \if:w w #1 \@@_parm_terminate:w \else:
+      \if:w p #1 \@@_parm_terminate:w \else:
+        \if:w T #1 \@@_parm_terminate:w \else:
+          \if:w F #1 \@@_parm_terminate:w \else:
+            \exp:w
+          \fi:
+        \fi:
+      \fi:
+    \fi:
+    \exp_end:
+  }
+\cs_new:Npn \@@_parm_terminate:w
+  { \exp_after:wN \use_none_delimit_by_q_recursion_stop:w \exp:w }
+\prg_new_conditional:Npnn \@@_arg_if_braced:N #1 { T }
+  { \exp_args:Nf \@@_arg_if_braced:n { \@@_get_base_form:N #1 } }
+\cs_new:Npn \@@_arg_if_braced:n #1
+  {
+    \if:w n #1 \prg_return_true: \else:
+      \if:w N #1 \prg_return_false: \else:
+        \__kernel_msg_expandable_error:nnn
+          { kernel } { bad-arg-type } {#1}
+      \fi:
+    \fi:
+  }
+\__kernel_msg_new:nnn { kernel } { bad-arg-type }
+  { Wrong~argument~type~#1. }
+%    \end{macrocode}
+%   The macro below is a modifiec copy of
+%   |\__cs_generate_variant_loop_base:N| to get the base form of an
+%   argument type given a variant. It serves only to differentiate
+%   arguments which should be braced from ones which shouldn't. If all
+%   were to be braced this would be unnecessary. I moved the |n| and |N|
+%   variants to the beginning of the test as the are much more common
+%   here.
+%    \begin{macrocode}
+\cs_new:Npn \@@_get_base_form:N #1
+  {
+    \if:w n #1 \@@_arg_return:N n \else:
+      \if:w N #1 \@@_arg_return:N N \else:
+        \if:w c #1 \@@_arg_return:N N \else:
+          \if:w o #1 \@@_arg_return:N n \else:
+            \if:w V #1 \@@_arg_return:N n \else:
+              \if:w v #1 \@@_arg_return:N n \else:
+                \if:w f #1 \@@_arg_return:N n \else:
+                  \if:w e #1 \@@_arg_return:N n \else:
+                    \if:w x #1 \@@_arg_return:N n \else:
+                      \@@_arg_return:N \scan_stop:
+                    \fi:
+                  \fi:
+                \fi:
+              \fi:
+            \fi:
+          \fi:
+        \fi:
+      \fi:
+    \fi:
+    \exp_stop_f:
+  }
+\cs_new:Npn \@@_arg_return:N #1
+  { \exp_after:wN #1 \exp:w \exp_end_continue_f:w }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{
+%     \__kernel_patch:nnn,
+%     \__kernel_patch_aux:nnn,
+%     \@@_setup_debug_code:Nnn,
+%     \@@_add_to_debug_code:Nnn,
+%     \@@_insert_debug_code:Nnn,
+%     \__kernel_patch_weird:nnn,
+%     \__kernel_patch_weird_aux:nnn,
+%     \@@_patch_weird:Nnn,
+%   }
 %   Simple patching by adding material at the start and end of (a
 %   collection of) functions is straight-forward as we know the catcode
 %   set up. The approach is essentially that in \pkg{etoolbox}. Notice
 %   the need to worry about spaces: those are otherwise lost as normally
 %   in \pkg{expl3} code they would be~|~|.
+%
+%   As discussed above, some functions don't take arguments, so we can't
+%   patch something that uses an argument in them. For these functions
+%   \cs{__kernel_patch:nnn} is used. It starts by creating a copy of the
+%   function (say, \cs{clist_concat:NNN}) with a |__debug_| prefix in
+%   the name. This copy won't be changed. The code redefines the
+%   original function to take the exact same arguments as advertised in
+%   its signature (see \cs{@@_generate_parameter_list:NNN} above).
+%   The redefined function also contains the debug code in the proper
+%   position. If a function with the same name and the |__debug_| prefix
+%   was already defined, then the macro patches that definition by
+%   adding more debug code to it.
 %    \begin{macrocode}
 \group_begin:
   \cs_set_protected:Npn \__kernel_patch:nnn
@@ -451,23 +611,100 @@
     }
   \cs_set_protected:Npn \__kernel_patch_aux:nnn #1#2#3
     {
-      \char_set_catcode_parameter:N \#
-      \char_set_catcode_space:N \ %
-      \tex_endlinechar:D -1 \scan_stop:
-      \tl_map_inline:nn {#3}
+        \char_set_catcode_parameter:N \#
+        \char_set_catcode_space:N \ %
+        \tex_endlinechar:D -1 \scan_stop:
+        \tl_map_inline:nn {#3}
+          {
+            \cs_if_exist:cTF { __debug_ \cs_to_str:N ##1 }
+              { \@@_add_to_debug_code:Nnn }
+              { \@@_setup_debug_code:Nnn }
+                ##1 {#1} {#2}
+          }
+      \group_end:
+    }
+  \cs_set_protected:Npn \@@_setup_debug_code:Nnn #1#2#3
+    {
+      \cs_gset_eq:cN { __debug_ \cs_to_str:N #1 } #1
+      \@@_generate_parameter_list:NNN #1 \l_@@_tmpa_tl \l_@@_tmpb_tl
+      \exp_args:Nx \tex_scantokens:D
         {
-          \exp_args:Nx \tex_scantokens:D
+          \tex_global:D \cs_prefix_spec:N #1
+          \tex_def:D \exp_not:N #1
+          \tl_use:N \l_@@_tmpa_tl
             {
-              \tex_global:D \cs_prefix_spec:N ##1 \tex_def:D \exp_not:N ##1
-              \cs_argument_spec:N ##1
+              \tl_to_str:n {#2}
+              \exp_not:c { __debug_ \cs_to_str:N #1 }
+              \tl_use:N \l_@@_tmpb_tl
+              \tl_to_str:n {#3}
+            }
+        }
+    }
+  \cs_set_protected:Npn \@@_add_to_debug_code:Nnn #1#2#3
+    {
+      \use:x
+        {
+          \cs_set:Npn \exp_not:N \@@_tmp:w
+            ####1 \tl_to_str:n { macro: }
+            ####2 \tl_to_str:n { -> }
+            ####3 \c_backslash_str \tl_to_str:n { __debug_ }
+                    \cs_to_str:N #1
+            ####4 \exp_not:N \q_mark
+            {
+              \exp_not:N \exp_args:Nx \exp_not:N \tex_scantokens:D
                 {
-                  \tl_to_str:n {#1}
-                  \cs_replacement_spec:N ##1
-                  \tl_to_str:n {#2}
+                  \tex_global:D ####1
+                  \tex_def:D \exp_not:N #1 ####2
+                    {
+                      ####3 \tl_to_str:n {#2}
+                      \c_backslash_str __debug_ \cs_to_str:N #1
+                      ####4 \tl_to_str:n {#3}
+                    }
                 }
             }
         }
+      \exp_after:wN \@@_tmp:w \cs_meaning:N #1 \q_mark
+    }
+%    \end{macrocode}
+%   Some functions, however, won't work with the signature reading setup
+%   above because their signature contains |w|eird arguments. These
+%   functions need to be patched using \cs{__kernel_patch_weird:nnn},
+%   which won't make a copy of the function, rather it will patch the
+%   debug code directly into it. This means that whatever argument the
+%   debug code uses must be actually used by the patched function.
+%    \begin{macrocode}
+  \cs_set_protected:Npn \__kernel_patch_weird:nnn
+    {
+      \group_begin:
+        \char_set_catcode_other:N \#
+        \__kernel_patch_weird_aux:nnn
+    }
+  \cs_set_protected:Npn \__kernel_patch_weird_aux:nnn #1#2#3
+    {
+        \char_set_catcode_parameter:N \#
+        \char_set_catcode_space:N \ %
+        \tex_endlinechar:D -1 \scan_stop:
+        \tl_map_inline:nn {#3}
+          { \@@_patch_weird:Nnn ##1 {#1} {#2} }
       \group_end:
+    }
+  \cs_set_protected:Npn \@@_patch_weird:Nnn #1#2#3
+    {
+      \use:x
+        {
+          \tex_endlinechar:D -1 \scan_stop:
+          \exp_not:N \tex_scantokens:D
+            {
+              \tex_global:D \cs_prefix_spec:N #1
+              \tex_def:D \exp_not:N #1
+              \cs_argument_spec:N #1
+                {
+                  \tl_to_str:n {#2}
+                  \cs_replacement_spec:N #1
+                  \tl_to_str:n {#3}
+                }
+            }
+        }
     }
 %    \end{macrocode}
 % \end{macro}
@@ -500,6 +737,7 @@
 %
 % Patching both second and third arguments.
 %    \begin{macrocode}
+% \tracingall
   \__kernel_patch:nnn
     {
       \__kernel_chk_var_exist:N #2
@@ -516,6 +754,7 @@
       \tl_concat:NNN
       \tl_gconcat:NNN
     }
+% \tracingnone
 %    \end{macrocode}
 %
 % Patching where the first argument to a function needs scope-checking:
@@ -714,7 +953,7 @@
     }
     { \__kernel_chk_if_free_cs:N }
 %<@@=cs>
-  \__kernel_patch:nnn
+  \__kernel_patch_weird:nnn
     {
       \cs_if_free:NF #4
         {
@@ -750,19 +989,19 @@
 %    \end{macrocode}
 % Internal functions from \pkg{prg} module.
 %    \begin{macrocode}
-  \__kernel_patch:nnn
+  \__kernel_patch_weird:nnn
     { \__kernel_chk_cs_exist:c { #5 _p : #6 } }
     { }
     { \@@_set_eq_conditional_p_form:wNnnnn }
-  \__kernel_patch:nnn
+  \__kernel_patch_weird:nnn
     { \__kernel_chk_cs_exist:c { #5    : #6 TF } }
     { }
     { \@@_set_eq_conditional_TF_form:wNnnnn }
-  \__kernel_patch:nnn
+  \__kernel_patch_weird:nnn
     { \__kernel_chk_cs_exist:c { #5    : #6 T } }
     { }
     { \@@_set_eq_conditional_T_form:wNnnnn }
-  \__kernel_patch:nnn
+  \__kernel_patch_weird:nnn
     { \__kernel_chk_cs_exist:c { #5    : #6 F } }
     { }
     { \@@_set_eq_conditional_F_form:wNnnnn }
@@ -869,6 +1108,7 @@
     }
   \cs_set_protected:Npn \__kernel_patch_aux:Nn #1#2
     {
+        \char_set_catcode_parameter:N \#
         \tex_endlinechar:D -1 \scan_stop:
         \exp_args:Nx \tex_scantokens:D
           {
