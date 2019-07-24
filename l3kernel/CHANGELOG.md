@@ -7,10 +7,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-### Fixed
-
-- Support for PDF objects with XeTeX
-
 ## [2019-07-01]
 
 ### Added
