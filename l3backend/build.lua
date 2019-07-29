@@ -71,6 +71,27 @@ function update_tag(file,content,tagname,tagdate)
   return content
 end
 
+uploadconfig = {
+  author      = "The LaTeX Team",
+  license     = "lppl1.3c",
+  summary     = "LaTeX3 backend drivers"
+  topic       = {"macro-supp","latex3","expl3"},
+  ctanPath    = "/macros/latex/contrib/l3backend",
+  repository  = "https://github.com/latex3/latex3/",
+  bugtracker  = "https://github.com/latex3/latex3/issues",
+  update      = true,
+  description = [[
+This package forms parts of [expl3](https://ctan.org/pkg/expl3), and contains
+the code used to interface with backends (drivers) across the
+[expl3](https://ctan.org/pkg/expl3) codebase.
+
+The functions here are defined differently depending on the engine in use. As
+such, these are distributed separately from
+[l3kernel](https://ctan.org/pkg/l3kernel) to allow this code to be updated on
+an independent schedule.
+  ]]
+}
+
 -- Find and run the build system
 kpse.set_program_name("kpsewhich")
 if not release_date then
