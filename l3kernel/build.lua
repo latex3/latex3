@@ -95,7 +95,7 @@ end
 uploadconfig = {
   author      = "The LaTeX Team",
   license     = "lppl1.3c",
-  summary     = "LaTeX3 programming conventions"
+  summary     = "LaTeX3 programming conventions",
   topic       = {"macro-supp","latex3","expl3"},
   ctanPath    = "/macros/latex/contrib/l3kernel",
   repository  = "https://github.com/latex3/latex3/",

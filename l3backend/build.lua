@@ -74,7 +74,7 @@ end
 uploadconfig = {
   author      = "The LaTeX Team",
   license     = "lppl1.3c",
-  summary     = "LaTeX3 backend drivers"
+  summary     = "LaTeX3 backend drivers",
   topic       = {"macro-supp","latex3","expl3"},
   ctanPath    = "/macros/latex/contrib/l3backend",
   repository  = "https://github.com/latex3/latex3/",
