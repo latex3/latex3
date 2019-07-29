@@ -45,7 +45,7 @@ function main(target)
     errorlevel = call(bundles,"uninstall")
   elseif target == "unpack" then
     errorlevel = call (bundles, "unpack")
-  elseif target = "upload" then
+  elseif target == "upload" then
     errorlevel = call(ctanbundles,"upload")
   elseif target == "tag" then
     if options["names"] and #options["names"] == 1 then
