@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Deprecated
+
+- `\c_term_ior`
+
 ## [2019-07-25]
 
 ### Fixed
