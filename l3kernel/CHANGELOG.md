@@ -9,6 +9,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2019-07-25]
 
+### Fixed
+
+- Loading for `expl3` with plain TeX
+
 ## [2019-07-01]
 
 ### Added
