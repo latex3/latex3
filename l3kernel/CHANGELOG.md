@@ -11,6 +11,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - `\c_term_ior`
 
+### Fixed
+
+- Coffin pole intersection in some cases (see #605)
+
 ## [2019-07-25]
 
 ### Fixed
