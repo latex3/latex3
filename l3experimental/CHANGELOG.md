@@ -13,6 +13,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - New module `l3pdf`
 
+### Changed
+
+- Re-order arguments for polar points (`l3draw`)
+
 ### Removed
 
 - `l3str-convert` module: moved to `l3kernel` (`expl3` core)
