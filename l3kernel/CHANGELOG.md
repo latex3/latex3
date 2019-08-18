@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- `\tl_rescan:nn` and `\tl_(g)set_rescan:Nnn` when single-line input
+  contains a comment character (see #607)
+
 ## [2019-08-14]
 
 ### Deprecated

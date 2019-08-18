@@ -1558,12 +1558,12 @@
 % \begin{macro}[EXP]{\@@_rescan:NNw}
 %   In a group, after some initial setup explained below and the user
 %   setup~|#3| (followed by \cs{scan_stop:} to be safe), there is a call
-%   to \cs{@@_set_rescan:nNN}.  This shared auxiliary distinguishes
-%   single-line and multi-line files as explained below.  In the
-%   simplest case of multi-line files it calls (with the same arguments)
+%   to \cs{@@_set_rescan:nNN}.  This shared auxiliary defined later
+%   distinguishes single-line and multi-line ``files''.  In the simplest
+%   case of multi-line files, it calls (with the same arguments)
 %   \cs{@@_set_rescan_multi:nNN}, whose code is included here to help
-%   understand the approach: it rescans its argument |#1|, closes the
-%   group, and performs the assignment.
+%   understand the approach.  This function rescans its argument |#1|,
+%   closes the group, and performs the assignment.
 %
 %   One difficulty when rescanning is that \tn{scantokens} treats the
 %   argument as a file, and without the correct settings a \TeX{} error
@@ -1575,9 +1575,9 @@
 %   \tn{scantokens} and closing it inside that temporary file; we avoid
 %   that by setting \tn{tracingnesting}.  The standard solution to the
 %   ``File ended'' error is to grab the rescanned tokens as a delimited
-%   argument of an auxiliary, here \cs{@@_set_rescan:NNw}, that performs
-%   the assignment, then let \TeX{} ``execute'' the end of file marker.
-%   As usual in delimited arguments we use \cs{prg_do_nothing:} to avoid
+%   argument of an auxiliary, here \cs{@@_rescan:NNw}, that performs the
+%   assignment, then let \TeX{} ``execute'' the end of file marker.  As
+%   usual in delimited arguments we use \cs{prg_do_nothing:} to avoid
 %   stripping an outer set braces: this is removed by using
 %   \texttt{o}-expanding assignments.  The delimiter cannot appear
 %   within the rescanned token list because it contains twice the same
@@ -1589,6 +1589,19 @@
 %   rescanned result is code that looks further in the input stream for
 %   arguments, it would break.
 %
+%   For multi-line files the only subtlety is that \tn{newlinechar}
+%   should be equal to \tn{endlinechar} because \tn{newlinechar}
+%   characters become new lines and then become \tn{endlinechar}
+%   characters when writing to an abstract file and reading back.  This
+%   equality is ensured by setting \tn{newlinechar} equal to
+%   \tn{endlinechar}.  Prior to this, \tn{endlinechar} is set to $-1$ if
+%   it was $32$ (in particular true after \cs{ExplSyntaxOn}) to avoid
+%   unreasonable line-breaks at every space for instance in error
+%   messages triggered by the user setup.  Another side effect of
+%   reading back from the file is that spaces (catcode $10$) are ignored
+%   at the beginning of lines, and spaces and tabs (character code $32$
+%   and $9$) are ignored at the end of lines.
+%
 %   The two \cs{if_false:} \ldots{} \cs{fi:} are there to prevent
 %   alignment tabs to cause a change of tabular cell while rescanning.
 %   We put the \enquote{opening} one after \cs{group_begin:} so that if
@@ -1596,22 +1609,21 @@
 %   remain balanced.  This is essential in \texttt{e}-type arguments
 %   when \tn{expanded} is not available.
 %    \begin{macrocode}
-\cs_new_protected:Npn \tl_set_rescan:Nnn
-  { \@@_set_rescan:NNnn \tl_set:No }
-\cs_new_protected:Npn \tl_gset_rescan:Nnn
-  { \@@_set_rescan:NNnn \tl_gset:No }
 \cs_new_protected:Npn \tl_rescan:nn #1#2
   {
     \tl_set_rescan:Nnn \l_@@_internal_a_tl {#1} {#2}
     \exp_after:wN \tl_clear:N \exp_after:wN \l_@@_internal_a_tl
     \l_@@_internal_a_tl
   }
+\cs_new_protected:Npn \tl_set_rescan:Nnn
+  { \@@_set_rescan:NNnn \tl_set:No }
+\cs_new_protected:Npn \tl_gset_rescan:Nnn
+  { \@@_set_rescan:NNnn \tl_gset:No }
 \cs_new_protected:Npn \@@_set_rescan:NNnn #1#2#3#4
   {
     \group_begin:
       \if_false: { \fi:
       \int_set_eq:NN \tex_tracingnesting:D \c_zero_int
-      \exp_args:No \tex_everyeof:D { \c_@@_rescan_marker_tl }
       \int_compare:nNnT \tex_endlinechar:D = { 32 }
         { \int_set:Nn \tex_endlinechar:D { -1 } }
       \int_set_eq:NN \tex_newlinechar:D \tex_endlinechar:D
@@ -1621,6 +1633,7 @@
   }
 \cs_new_protected:Npn \@@_set_rescan_multi:nNN #1#2#3
   {
+    \exp_args:No \tex_everyeof:D { \c_@@_rescan_marker_tl }
     \exp_after:wN \@@_rescan:NNw
     \exp_after:wN #2
     \exp_after:wN #3
@@ -1645,27 +1658,14 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_set_rescan:nNN}
-% \begin{macro}{\@@_set_rescan_single:nnNN, \@@_set_rescan_single_aux:nnNN}
-%   This function calls \cs{@@_set_rescan_multi:nNN} or
-%   \cs{@@_set_rescan_single:nnNN} |{ ' }| depending on whether its
-%   argument is a single-line fragment of code/data or is made of
-%   multiple lines by testing for the presence of a \tn{newlinechar}
-%   character.  If \tn{newlinechar} is out of range, the argument is
-%   assumed to be a single line.
-%
-%   The case of multiple lines is a straightforward application of
-%   \tn{scantokens} as described above.  The only subtlety is that
-%   \tn{newlinechar} should be equal to \tn{endlinechar} because
-%   \tn{newlinechar} characters become new lines and then become
-%   \tn{endlinechar} characters when writing to an abstract file and
-%   reading back.  This equality is ensured by setting \tn{newlinechar}
-%   equal to \tn{endlinechar}.  Prior to this, \tn{endlinechar} is set
-%   to $-1$ if it was $32$ (in particular true after \cs{ExplSyntaxOn})
-%   to avoid unreasonable line-breaks at every space for instance in
-%   error messages triggered by the user setup.  Another side effect of
-%   reading back from the file is that spaces (catcode $10$) are
-%   ignored at the beginning of lines, and spaces and tabs (character
-%   code $32$ and $9$) are ignored at the end of lines.
+% \begin{macro}{\@@_set_rescan_single:nnNN, \@@_set_rescan_single_aux:nnnNN}
+% \begin{macro}[rEXP]{\@@_set_rescan_single_aux:w}
+%   The function \cs{@@_set_rescan:nNN} calls \cs{@@_set_rescan_multi:nNN} or
+%   \cs{@@_set_rescan_single:nnNN} |{ ' }| depending on whether its argument
+%   is a single-line fragment of code/data or is made of multiple lines
+%   by testing for the presence of a \tn{newlinechar} character.  If
+%   \tn{newlinechar} is out of range, the argument is assumed to be a
+%   single line.
 %
 %   For a single line, no \tn{endlinechar} should be added, so it is
 %   set to $-1$, and spaces should not be removed.
@@ -1682,13 +1682,27 @@
 %   of starting point was made because this is the start of a very long
 %   range of characters whose standard category is letter or other,
 %   thus minimizing the number of steps needed by the loop (most often
-%   just a single one).  Once a valid character is found, run some code
-%   very similar to \cs{@@_set_rescan_multi:nNN} but with that character
-%   put at the start and end.  The auxiliary \cs{@@_rescan:NNw} must be
-%   redefined to also remove the additional character (with the
-%   appropriate catcode thanks to \cs{char_generate:nn}).  If no valid
-%   character is found (very rare), fall-back on
-%   \cs{@@_set_rescan_multi:nNN}.
+%   just a single one).  If no valid character is found (very rare),
+%   fall-back on \cs{@@_set_rescan_multi:nNN}.
+%
+%   Otherwise, once a valid character is found (let us use |'| in this
+%   explanation) run some code very similar to \cs{@@_set_rescan_multi:nNN}
+%   but with |'| added at both ends of the input.  Of course, we need to
+%   define the auxiliary \cs{@@_set_rescan_single:NNww} on the fly to remove
+%   the additional~|'| that is just before |::| (by which we mean
+%   \cs{c_@@_rescan_marker_tl}).  Note that the argument must be
+%   delimited by |'| with the current catcode; this is done thanks to
+%   \cs{char_generate:nn}.  Yet another issue is that the rescanned
+%   token list may contain a comment character, in which case the |'| we
+%   expected is not there.  We fix this as follows: rather than just
+%   |::| we set \tn{everyeof} to |::|\Arg{code1} |'::|\Arg{code2}
+%   \cs{q_stop}.  The auxiliary \cs{@@_set_rescan_single:NNww} runs the
+%   \texttt{o}-expanding assignment, expanding either \meta{code1} or
+%   \meta{code2} before its the main argument~|#3|.  In the typical case
+%   without comment character, \meta{code1} is expanded, removing the
+%   leading~|'|.  In the rarer case with comment character, \meta{code2}
+%   is expanded, calling \cs{@@_set_rescan_single_aux:w}, which removes the
+%   trailing |::|\Arg{code1} and the leading~|'|.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_set_rescan:nNN #1
   {
@@ -1710,7 +1724,8 @@
     \int_compare:nNnTF
       { \char_value_catcode:n {#1} / 2 } = 6
       {
-        \exp_args:Nf \@@_set_rescan_single_aux:nnNN
+        \exp_args:Nof \@@_set_rescan_single_aux:nnnNN
+          \c_@@_rescan_marker_tl
           { \char_generate:nn {#1} { \char_value_catcode:n {#1} } }
       }
       {
@@ -1722,21 +1737,30 @@
           { \@@_set_rescan_multi:nNN }
       }
   }
-\cs_new_protected:Npn \@@_set_rescan_single_aux:nnNN #1#2#3#4
+\cs_new_protected:Npn \@@_set_rescan_single_aux:nnnNN #1#2#3#4#5
   {
-    \exp_args:Nno \use:nn
-      { \cs_set:Npn \@@_rescan:NNw ##1##2##3 #1 }
-      \c_@@_rescan_marker_tl
+    \tex_everyeof:D
+      {
+        #1 \use_none:n
+        #2 #1 { \exp:w \@@_set_rescan_single_aux:w }
+        \q_stop
+      }
+    \cs_set:Npn \@@_rescan:NNw ##1##2##3 #2 #1 ##4 ##5 \q_stop
       {
         \group_end:
-        ##1 ##2 { \use_none:n ##3 }
+        ##1 ##2 { ##4 ##3 }
       }
     \exp_after:wN \@@_rescan:NNw
-    \exp_after:wN #3
     \exp_after:wN #4
-    \tex_scantokens:D { #1 #2 #1 }
+    \exp_after:wN #5
+    \tex_scantokens:D { #2 #3 #2 }
   }
+\exp_args:Nno \use:nn
+  { \cs_new:Npn \@@_set_rescan_single_aux:w #1 }
+  \c_@@_rescan_marker_tl #2
+  { \use_i:nn \exp_end: #1 }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
