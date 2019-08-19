@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Corrected behaviour of catcode tables (see #610)
+
 ## [2019-07-01]
 
 ### Added
