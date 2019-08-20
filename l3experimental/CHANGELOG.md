@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- `\draw_unit_vector:n` returns a vertical vector when the length is
+  zero (see #609)
+
 ### Fixed
 
 - Corrected behaviour of catcode tables (see #610)
