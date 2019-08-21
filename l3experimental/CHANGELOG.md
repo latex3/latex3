@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - `\draw_unit_vector:n` returns a vertical vector when the length is
   zero (see #609)
+- Collect `pwd` data with no `\endlinechar` (see #613)
 
 ### Fixed
 
