@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Make round(.,nan)=nan with no "Invalid operation" error
+
 ### Fixed
 
 - `\tl_rescan:nn` and `\tl_(g)set_rescan:Nnn` when single-line input
