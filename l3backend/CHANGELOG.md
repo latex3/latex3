@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 
+- Setting for PDF version in `dvipdfmx` route
 - Support for PDF objects with XeTeX
 
 ## [2019-07-01]
