@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-08-25]
+
 ### Fixed
 
 - Setting for PDF version in `dvipdfmx` route
@@ -23,5 +25,6 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-07-01...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-08-25...HEAD
+[2019-08-25]: https://github.com/latex3/latex3/compare/2019-07-01...2019-08-25
 [2019-07-01]: https://github.com/latex3/latex3/compare/2019-05-28...2019-07-01
