@@ -19,9 +19,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 - `\tl_rescan:nn` and `\tl_(g)set_rescan:Nnn` when single-line input
   contains a comment character (see #607)
-
 - Final value of the variable in `\tl_map_variable:NNn` and
   `\clist_map_variable:NNn`.
+- Remove duplicate keys in `\prop_set_from_keyval:Nn` (see #572)
 
 ## [2019-08-14]
 
