@@ -695,11 +695,13 @@
 % \subsection{Formatting floating points}
 %
 % \begin{macro}[EXP]{\fp_format:nn}
-%   Evaluate the first argument to an internal floating point number, and
-%   feed it to \cs{@@_format_fp:nn}.
+%   Evaluate the first argument to a floating point number, and feed it
+%   to \cs{@@_format_fp:nn}.  It would be more efficient to use internal
+%   floating point numbers but efficiency is not essential and the code
+%   is cleaner this way.
 %    \begin{macrocode}
 \cs_new:Npn \fp_format:nn #1
-  { \exp_args:Nf \@@_format_fp:nn { \__fp_parse:n {#1} } }
+  { \exp_args:Nf \@@_format_fp:nn { \fp_to_tl:n {#1} } }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -711,20 +713,19 @@
   {
     \tl_to_str:f
       {
-        \exp_last_unbraced:Nf \@@_format_fp:NNNnnNw
+        \exp_last_unbraced:Nf \@@_format_fp:NNNnnNn
           { \@@_format_parse:n {#2} }
-          #1
+          {#1}
       }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_format_fp:NNNnnNw}
+% \begin{macro}[EXP]{\@@_format_fp:NNNnnNn}
 %   \begin{quote}
-%     \cs{@@_format_fp:NNNnnNw} \meta{fill} \meta{alignment}
+%     \cs{@@_format_fp:NNNnnNn} \meta{fill} \meta{alignment}
 %     \meta{format sign} \Arg{width} \Arg{precision} \meta{style}
-%     \cs{s__fp} \cs{__fp_chk:w} \meta{fp type} \meta{fp sign} \meta{fp
-%       body} |;|
+%     \Arg{floating point}
 %   \end{quote}
 %   First set the default alignment |?| to |>|.  Place the modified
 %   information after a trailing \cs{s_stop} for later retrieval.  Then
@@ -739,13 +740,13 @@
 %   we want to use whatever precision is needed to fully describe the
 %   number.  Finally, dispatch depending on the \meta{style}.
 %    \begin{macrocode}
-\cs_new:Npn \@@_format_fp:NNNnnNw
-    #1#2#3#4#5#6 \s__fp \__fp_chk:w #7 #8
+\cs_new:Npn \@@_format_fp:NNNnnNn
+    #1#2#3#4#5#6#7
   {
     \token_if_eq_charcode:NNTF #2 ?
       { \@@_format_put:nw { #1 > } }
       { \@@_format_put:nw { #1 #2 } }
-    \token_if_eq_meaning:NNTF 2 #8
+    \tl_if_head_eq_charcode:nNTF {#7} -
       { \@@_format_put:nw { - } }
       {
         \str_case:nnF {#3}
@@ -765,178 +766,192 @@
       { \@@_format_put:nw { {#5} } }
     \str_case:nnF {#6}
       {
-        { e } { \@@_format_fp:wnnnNNw \@@_format_fp_e:wn }
-        { f } { \@@_format_fp:wnnnNNw \@@_format_fp_f:wn }
-        { g } { \@@_format_fp:wnnnNNw \@@_format_fp_g:wn }
-        { ? } { \@@_format_fp:wnnnNNw \@@_format_fp_g:wn }
+        { e } { \@@_format_fp:wnnnNNn \@@_format_fp_e:nn }
+        { f } { \@@_format_fp:wnnnNNn \@@_format_fp_f:nn }
+        { g } { \@@_format_fp:wnnnNNn \@@_format_fp_g:nn }
+        { ? } { \@@_format_fp:wnnnNNn \@@_format_fp_g:nn }
       }
       {
         \__kernel_msg_expandable_error:nnnn
           { str } { invalid-style-format } {#6} { fp }
-        \@@_format_fp:wnnnNNw \@@_format_fp_g:wn
+        \@@_format_fp:wnnnNNn \@@_format_fp_g:nn
       }
-    \s_stop
-    \s__fp \__fp_chk:w #7 #8
+    \s_stop {#7}
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_format_fp:wnnnNNw}
+% \begin{macro}[EXP]{\@@_format_fp:wnnnNNn}
 %   \begin{quote}
-%     \cs{@@_format_fp:wnnnNNw} \meta{formatting function} \cs{s_stop}
+%     \cs{@@_format_fp:wnnnNNn} \meta{formatting function} \cs{s_stop}
 %     \Arg{precision} \Arg{width} \Arg{sign} \meta{fill}
-%     \meta{alignment} \cs{s__fp} \cs{__fp_chk:w} \meta{fp type}
-%     \meta{fp sign} \meta{fp body} |;|
+%     \meta{alignment} \Arg{floating point}
 %   \end{quote}
 %    \begin{macrocode}
-\cs_new:Npn \@@_format_fp:wnnnNNw
-    #1 \s_stop #2 #3 #4 #5#6 #7 ;
+\cs_new:Npn \@@_format_fp:wnnnNNn
+    #1 \s_stop #2 #3 #4 #5#6 #7
   {
     \exp_args:Nc \exp_args:Nf
       { @@_format_align_#6:nnnN }
-      { #1 #7 ; {#2} }
+      { #1 {#7} {#2} }
       {#4}
       {#3} #5
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_format_fp_round:wn}
-%   Round the given floating point (not its absolute value, to play
-%   nicely with unusual rounding modes).
+% \begin{macro}[EXP]{\@@_format_fp_round:nn}
+%   Round the given floating point and take the absolute value (in this
+%   order, to play nicely with unusual rounding modes if we ever
+%   implement these).
 %    \begin{macrocode}
-\cs_new:Npn \@@_format_fp_round:wn #1 ; #2
-  { \__fp_parse:n { round ( #1; , #2 - \__fp_exponent:w #1; ) } }
+\cs_new:Npn \@@_format_fp_round:nn #1 #2
+  { \fp_to_tl:n { abs ( round ( #1 , #2 - logb(#1) - 1 ) ) } }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_format_fp_e:wn}
-% \begin{macro}[EXP]{\@@_format_fp_e_aux:wn}
-%   With the |e| type, first filter out special cases.  In the normal
-%   case, round to |#4+1| significant figures (one before the decimal
-%   separator, |#4| after).
+% \begin{macro}[EXP]{\@@_format_fp_e:nn}
+% \begin{macro}[EXP]{\@@_format_fp_e_aux:nn, \@@_format_fp_e_aux:wwn}
+%   With the |e| type, first round to |#4+1| significant figures (one
+%   before the decimal separator, |#4| after), then filter out special
+%   cases, then convert to scientific notations.  This order is
+%   important because rounding can produce infinities or zeros and
+%   because \cs{fp_to_scientific:n} does not accept |nan| nor |inf|.
 %    \begin{macrocode}
-\cs_new:Npn \@@_format_fp_e:wn \s__fp \__fp_chk:w #1#2#3 ; #4
+\cs_new:Npn \@@_format_fp_e:nn #1#2
   {
-    \int_case:nnF {#1}
+    \exp_args:Nf \@@_format_fp_e_aux:nn
+      { \@@_format_fp_round:nn {#1} { #2 + 1 } }
+      {#2}
+  }
+\cs_new:Npn \@@_format_fp_e_aux:nn #1#2
+  {
+    \str_case:nnF {#1}
       {
-        { 0 } { \use:nf { 0 . } { \prg_replicate:nn {#4} { 0 } } e 0 }
-        { 2 } { inf }
-        { 3 } { nan }
+        {  inf } { inf }
+        {  nan } { nan }
       }
       {
-        \exp_last_unbraced:Nf \@@_format_fp_e_aux:wn
-          { \@@_format_fp_round:wn \s__fp \__fp_chk:w #1#2#3 ; { #4 + 1 } }
-          {#4}
+        \exp_last_unbraced:Nf \@@_format_fp_e_aux:wwn
+          { \fp_to_scientific:n {#1} } ;
+          {#2}
       }
   }
-\cs_new:Npn \@@_format_fp_e_aux:wn
-    \s__fp \__fp_chk:w #1#2 #3 #4#5#6#7 ; #8
+\cs_new:Npn \@@_format_fp_e_aux:wwn #1 . #2 e #3 ; #4
   {
-    \@@_format_put:fw { \int_eval:n { #3 - 1 } }
-    \@@_format_put:nw { e }
-    \int_compare:nNnTF {#8} > \c__fp_prec_int
+    \@@_format_put:nw { e #3 }
+    \int_compare:nNnTF {#4} < \c__fp_prec_int
       {
-        \@@_format_put:fw { \prg_replicate:nn { #8 - \c__fp_prec_int + 1 } {0} }
-        \@@_format_put:fw { \use_none:n #4#5#6#7 }
+        \@@_format_put:fw { \str_range:nnn { #2 } { 1 } { #4 } }
+        \@@_format_put:nw { #1 . }
       }
       {
         \@@_format_put:fw
-          { \str_range:nnn { #4#5#6#7 0 } { 2 } { #8 + 1 } }
+          { \prg_replicate:nn { #4 - \c__fp_prec_int + 1 } { 0 } }
+        \@@_format_put:nw { #1 . #2 }
       }
-    \@@_format_put:fw { \use_i:nnnn #4 . }
     \use_none:n \s_stop
   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_format_fp_f:wn}
+% \begin{macro}[EXP]{\@@_format_fp_f:nn}
 % \begin{macro}[EXP]{\@@_format_fp_f_aux:wwwn}
-%   With the |f| type, first filter out special cases.  In the normal
-%   case, round to |#4| (absolute) decimal places.
+%   With the |f| type, first round to |#4| (absolute) decimal places
+%   then filter out special cases, then in normal cases pad with zeros.
 %    \begin{macrocode}
-\cs_new:Npn \@@_format_fp_f:wn \s__fp \__fp_chk:w #1#2#3 ; #4
+\cs_new:Npn \@@_format_fp_f:nn #1#2
   {
-    \int_case:nnF {#1}
+    \exp_args:Nf \@@_format_fp_f_aux:nn
+      { \fp_to_tl:n { abs ( round ( #1 , #2 ) ) } }
+      {#2}
+  }
+\cs_new:Npn \@@_format_fp_f_aux:nn #1#2
+  {
+    \str_case:nnF {#1}
       {
-        {0} { \use:nf { 0 . } { \prg_replicate:nn {#4} { 0 } } }
-        {2} { inf }
-        {3} { nan }
+        { inf } { inf }
+        { nan } { nan }
       }
       {
         \exp_last_unbraced:Nf \@@_format_fp_f_aux:wwwn
-          {
-            \fp_to_decimal:n
-              { abs ( round ( \s__fp \__fp_chk:w #1#2#3 ; , #4 ) ) }
-          }
-          . . ;
-          {#4}
+          { \fp_to_decimal:n {#1} } . . ; {#2}
       }
   }
 \cs_new:Npn \@@_format_fp_f_aux:wwwn #1 . #2 . #3 ; #4
   {
-    \use:nf
-      { #1 . #2 }
+    \use:nf { #1 . #2 }
       { \prg_replicate:nn { #4 - \@@_count:n {#2} } {0} }
   }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_format_fp_g:wn}
+% \begin{macro}[EXP]{\@@_format_fp_g:nn}
 % \begin{macro}[EXP]{\@@_format_fp_g_aux:wn}
 % \begin{macro}[EXP]{\@@_format_fp_to_scientific:n, \@@_format_fp_trim:w}
-%   With the |g| type, first filter out special cases and the case where
-%   neither style nor precision were given (then one should not round).
-%   In the normal
-%   case, round to |#4| significant figures, then test the exponent: if
-%   $-4\leq \meta{exponent} < \meta{precision}$, use the presentation
-%   type |f|, otherwise use the presentation type |e|.  Also, a
-%   \meta{precision} of $0$ is treated like a precision of $1$.
-%   Actually, we don't reuse the |e| and |f| auxiliaries, because we
-%   want to trim trailing zeros.  Thankfully, this is done by
-%   \cs{fp_to_decimal:n} and \cs{fp_to_scientific:n}, acting on the
-%   (absolute value of the) rounded value.
+%   With the |g| type, a special case is when |#2| is empty (no style
+%   nor precision in the original specification): then we output the
+%   number without rounding (and without its sign).  Otherwise round to
+%   |#2| significant figures before filtering out special cases.  (A
+%   \meta{precision} of $0$ is treated like a precision of $1$.)
+%   Distinguish exponents $-4\leq \meta{exponent} < \meta{precision}$
+%   from others and use essentially the |f| or |e| presentations in
+%   these two cases, but trimming trailing zeros.  Because we don't need
+%   to keep a fixed number of digits after the decimal point we can
+%   simply use \cs{fp_to_decimal:n} and \cs{fp_to_scientific:n}, and in
+%   the second case post-process the result by trimming zeros and a
+%   period.
 %    \begin{macrocode}
-\cs_new:Npn \@@_format_fp_g:wn \s__fp \__fp_chk:w #1#2 ; #3
+\cs_new:Npn \@@_format_fp_g:nn #1#2
   {
-    \int_case:nnF {#1}
+    \tl_if_empty:nTF {#2} { \fp_to_tl:n { abs(#1) } }
       {
-        {0} { 0 }
-        {2} { inf }
-        {3} { nan }
+        \exp_args:Nf \@@_format_fp_g_aux:nn
+          { \@@_format_fp_round:nn {#1} { \int_max:nn {1} {#2} } }
+          { \int_max:nn {1} {#2} }
+      }
+  }
+\cs_new:Npn \@@_format_fp_g_aux:nn #1#2
+  {
+    \str_case:nnF {#1}
+      {
+        { 0 } { 0 }
+        { inf } { inf }
+        { nan } { nan }
       }
       {
-        \tl_if_empty:nTF {#3}
-          { \fp_to_tl:n { abs ( \s__fp \__fp_chk:w #1#2 ; ) } }
+        \fp_compare:nTF { 1e-4 <= #1 < 1e#2 }
+          { \fp_to_decimal:n {#1} }
           {
-            \exp_last_unbraced:Nf \@@_format_fp_g_aux:wn
-              {
-                \@@_format_fp_round:wn \s__fp \__fp_chk:w #1#2 ;
-                  { \int_max:nn {1} {#3} }
-              }
-              { \int_max:nn {1} {#3} }
+            \exp_last_unbraced:Nf \@@_format_fp_trim:w
+              { \fp_to_scientific:n {#1} }
           }
       }
   }
-\cs_new:Npn \@@_format_fp_g_aux:wn #1; #2
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_format_fp_trim:w}
+% \begin{macro}[EXP]
+%   {\@@_format_fp_trim_loop:w, \@@_format_fp_trim_dot:w, \@@_format_fp_trim_end:w}
+%   If |#1| ends with a $0$, the \texttt{loop} auxiliary takes that zero
+%   as an end-delimiter for its first argument, and the second argument
+%   is the same \texttt{loop} auxiliary.  Once the last trailing zero is
+%   reached, the second argument is the \texttt{dot} auxiliary,
+%   which removes a trailing dot if any.  We then clean-up with the
+%   \texttt{end} auxiliary, keeping only the number.
+%    \begin{macrocode}
+\cs_new:Npn \@@_format_fp_trim:w #1 e
   {
-    \int_compare:nNnTF { \__fp_exponent:w #1; } < { -3 }
-      { \@@_format_to_scientific:n }
-      {
-        \int_compare:nNnTF { \__fp_exponent:w #1; } > {#2}
-          { \@@_format_to_scientific:n }
-          { \fp_to_decimal:n }
-      }
-    { \__fp_set_sign_o:w 0 #1; @ \prg_do_nothing: }
+    \@@_format_fp_trim_loop:w #1
+      ; \@@_format_fp_trim_loop:w 0; \@@_format_fp_trim_dot:w .; \s_stop e
   }
-\cs_new:Npn \@@_format_to_scientific:n
-  {
-    \exp_after:wN \@@_format_fp_trim:w
-    \exp:w \exp_end_continue_f:w \fp_to_scientific:n
-  }
-\cs_new:Npn \@@_format_fp_trim:w #1 e { \__fp_trim_zeros:w #1 ; e }
+\cs_new:Npn \@@_format_fp_trim_loop:w #1 0; #2 { #2 #1 ; #2 }
+\cs_new:Npn \@@_format_fp_trim_dot:w #1 .; { \@@_format_fp_trim_end:w #1 ; }
+\cs_new:Npn \@@_format_fp_trim_end:w #1 ; #2 \s_stop { #1 }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -957,14 +972,6 @@
 \__kernel_msg_new:nnn { str } { invalid-style-format }
   { Invalid~style~'#1'~for~type~'#2'. }
 %    \end{macrocode}
-%
-% \subsection{Todos}
-%
-% \begin{itemize}
-%   \item Check what happens during floating point formatting when a
-%     number is rounded to $0$ or $\infty$.  I think the |e| and |f|
-%     types break horribly.
-% \end{itemize}
 %
 %    \begin{macrocode}
 %</initex|package>
