@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\draw_unit_vector:n` returns a vertical vector when the length is
   zero (see #609)
 - Collect `pwd` data with no `\endlinechar` (see #613)
+- Default precision in `\fp_format:nn` when no style is specified
 
 ### Fixed
 
