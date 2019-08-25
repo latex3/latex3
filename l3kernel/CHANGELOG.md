@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\fp_if_nan:nTF`
+
 ### Changed
 
 - Make round(.,nan)=nan with no "Invalid operation" error
