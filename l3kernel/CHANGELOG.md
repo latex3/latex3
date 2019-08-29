@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\seq_map_tokens:Nn`
+
 ### Changed
 
 - Moved `\prop_map_tokens:Nn` to stable
