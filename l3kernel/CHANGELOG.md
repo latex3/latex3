@@ -14,6 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 
 - Moved `\prop_map_tokens:Nn` to stable
+- Generate chars with catcode as-supplied when case changing
 
 ## [2019-08-25]
 
