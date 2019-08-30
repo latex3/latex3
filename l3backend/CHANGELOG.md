@@ -6,6 +6,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Some primitive use in the `dvips` backend
+
 ## [2019-08-25]
 
 ### Fixed
