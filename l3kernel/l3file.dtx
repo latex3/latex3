@@ -1327,7 +1327,11 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \iow_open:Nn #1#2
   {
-    \__kernel_file_name_sanitize:nN {#2} \l_@@_file_name_tl
+    \tl_set:Nx \l_@@_file_name_tl
+      {
+        \exp_args:Ne \__kernel_file_name_quote:n
+          { \__kernel_file_name_sanitize:n {#2} }
+      }
     \iow_close:N #1
     \seq_gpop:NNTF \g_@@_streams_seq \l_@@_stream_tl
       { \@@_open_stream:NV #1 \l_@@_file_name_tl }
@@ -2266,43 +2270,110 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\__kernel_file_name_sanitize:nN}
-% \begin{macro}{\@@_name_quote:nN}
-% \begin{macro}{\@@_name_sanitize_aux:n}
-%   For converting a token list to a string where active characters are treated
-%   as strings from the start. The logic to the quoting normalisation is the
-%   same as used by \texttt{lualatexquotejobname}: check for balanced |"|, and
-%   assuming they balance strip all of them out before quoting the entire name
-%   if it contains spaces.
+% \begin{macro}[rEXP]{\__kernel_file_name_sanitize:n}
+% \begin{macro}[rEXP]{\__kernel_file_name_expand_loop:w}
+% \begin{macro}[rEXP]{\__kernel_file_name_expand_N_type:Nw}
+% \begin{macro}[rEXP]{\__kernel_file_name_expand_group:nw}
+% \begin{macro}[rEXP]{\__kernel_file_name_expand_space:w}
+%   Expanding the file name without expanding active characters is done
+%   using the same token-by-token approach as for example case changing.
+%   The finale outcome only need be \texttt{e}-type expandable, so there
+%   is no need for the shuffling that is seen in other locations.
 %    \begin{macrocode}
-\cs_new_protected:Npn \__kernel_file_name_sanitize:nN #1#2
+\cs_new:Npn \__kernel_file_name_sanitize:n #1
   {
-    \group_begin:
-      \seq_map_inline:Nn \l_char_active_seq
-        {
-          \tl_set:Nx \l_@@_internal_tl { \iow_char:N ##1 }
-          \char_set_active_eq:NN ##1 \l_@@_internal_tl
-        }
-      \tl_set:Nx \l_@@_internal_tl {#1}
-    \exp_args:NNNV \group_end:
-    \str_set:Nn #2 \l_@@_internal_tl
+    \__kernel_file_name_expand_loop:w #1
+      \q_recursion_tail \q_recursion_stop
   }
-\cs_new_protected:Npn \@@_name_quote:nN #1#2
+\cs_new:Npn \__kernel_file_name_expand_loop:w #1 \q_recursion_stop
   {
-    \str_set:Nx #2 {#1}
-    \int_if_even:nF
-      { 0 \tl_map_function:NN #2 \@@_name_quote_aux:n }
+    \tl_if_head_is_N_type:nTF {#1}
+      { \__kernel_file_name_expand_N_type:Nw }
       {
-        \__kernel_msg_error:nnx
-          { kernel } { unbalanced-quote-in-filename } {#2}
+        \tl_if_head_is_group:nTF {#1}
+          { \__kernel_file_name_expand_group:nw }
+          { \__kernel_file_name_expand_space:w }
       }
-    \tl_remove_all:Nn #2 { " }
-    \tl_if_in:NnT #2 { ~ }
-      { \str_set:Nx #2 { " \exp_not:V #2 " } }
+    #1 \q_recursion_stop
   }
-\cs_new:Npn \@@_name_quote_aux:n #1
-  { \token_if_eq_charcode:NNT #1 " { + 1 } }
+\cs_new:Npn \__kernel_file_name_expand_N_type:Nw #1
+  {
+    \quark_if_recursion_tail_stop:N #1
+    \bool_lazy_and:nnTF
+      { \token_if_expandable_p:N #1 }
+      {
+        \bool_not_p:n
+          {
+            \bool_lazy_any_p:n
+              {
+                { \token_if_protected_macro_p:N #1 }
+                { \token_if_protected_long_macro_p:N #1 }
+                { \token_if_active_p:N #1 }
+              }
+          }
+      }
+      { \exp_after:wN \__kernel_file_name_expand_loop:w #1 }
+      {
+        \token_to_str:N #1
+        \__kernel_file_name_expand_loop:w
+      }
+  }
+\cs_new:Npx \__kernel_file_name_expand_group:nw #1
+  {
+    \c_left_brace_str 
+    \exp_not:N \__kernel_file_name_expand_loop:w
+     #1
+     \c_right_brace_str 
+  }
+\exp_last_unbraced:NNo
+  \cs_new:Npx \__kernel_file_name_expand_space:w \c_space_tl
+    {
+      \c_space_tl
+      \exp_not:N \__kernel_file_name_expand_loop:w
+    }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[rEXP]{\__kernel_file_name_quote:n}
+% \begin{macro}[rEXP]{\__kernel_file_name_quote_auxi:nnnw}
+% \begin{macro}[rEXP]{\__kernel_file_name_quote_auxii:nnn}
+% \begin{macro}[rEXP]{\__kernel_file_name_quote_auxiii:nw}
+%   Quoting file name uses basically the same approach as for
+%   \texttt{luaquotejobname}: count the |"| tokens, remove them then
+%   re-add at the extremities.
+%    \begin{macrocode}
+\cs_new:Npn \__kernel_file_name_quote:n #1
+  {
+    \__kernel_file_name_quote_auxi:nnnw {#1} { 0 } { }
+      #1 " \q_recursion_tail " \q_recursion_stop
+  }
+\cs_new:Npn \__kernel_file_name_quote_auxi:nnnw #1#2#3#4 "
+  {
+    \quark_if_recursion_tail_stop_do:nn {#4}
+      { \__kernel_file_name_quote_auxii:nnn {#1} {#2} {#3} }
+    \__kernel_file_name_quote_auxi:nnnw {#1} { #2 + 1 } { #3#4 }
+  }
+\cs_new:Npn \__kernel_file_name_quote_auxii:nnn #1#2#3
+  {
+    \int_if_even:nT {#2}
+      {
+        \__kernel_msg_expandable_error:nnn
+          { kernel } { unbalanced-quote-in-filename } {#1}
+      }
+    \__kernel_file_name_quote_auxiii:nw {#3} #3 ~ \q_nil \q_stop
+  }
+\cs_new:Npn \__kernel_file_name_quote_auxiii:nw #1 #2 ~ #3 \q_stop
+  {
+    \quark_if_nil:nTF {#3}
+      { #2 }
+      { "#2"}
+  }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -2386,7 +2457,8 @@
 \cs_generate_variant:Nn \file_get_full_name:nN { V }
 \prg_new_protected_conditional:Npnn \file_get_full_name:nN #1#2 { T , F , TF }
   {
-    \__kernel_file_name_sanitize:nN {#1} \l_@@_base_name_tl
+    \tl_set:Nx \l_@@_base_name_tl
+      { \__kernel_file_name_sanitize:n {#1} }
     \@@_get_full_name_search:nN { } \use:n
     \seq_map_inline:Nn \l_file_search_path_seq
       { \@@_get_full_name_search:nN { ##1 / } \seq_map_break:n }
@@ -2424,9 +2496,11 @@
 \cs_generate_variant:Nn \file_get_full_name:nNTF { V }
 \cs_new_protected:Npn \@@_get_full_name_search:nN #1#2
   {
-    \@@_name_quote:nN
-      { \tl_to_str:n {#1} \l_@@_base_name_tl }
-      \l_@@_full_name_tl
+    \tl_set:Nx \l_@@_full_name_tl
+      {
+        \exp_args:Ne \__kernel_file_name_quote:n
+          { \tl_to_str:n {#1} \l_@@_base_name_tl }
+      }  
     \__kernel_ior_open:No \g_@@_internal_ior \l_@@_full_name_tl
     \ior_if_eof:NF \g_@@_internal_ior { #2 { \prg_break: } }
   }
@@ -2573,9 +2647,8 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \__kernel_file_missing:n #1
   {
-    \__kernel_file_name_sanitize:nN {#1} \l_@@_base_name_tl
     \__kernel_msg_error:nnx { kernel } { file-not-found }
-      { \l_@@_base_name_tl }
+      { \__kernel_file_name_sanitize:n {#1} }
   }
 %    \end{macrocode}
 % \end{macro}
