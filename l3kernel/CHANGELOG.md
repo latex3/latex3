@@ -9,7 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- `\seq_map_tokens:Nn`
+- `\seq_map_tokens:Nn`, `\tl_map_tokens:nn`, \tl_map_tokens:Nn`
 
 ### Changed
 
