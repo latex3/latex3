@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- Support for EPS files with `dvisvgm` backend
+- Support for EPS and PDF files with `dvisvgm` backend
 
 ### Fixed
 
