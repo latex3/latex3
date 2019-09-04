@@ -6,6 +6,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- Support for EPS files with `dvisvgm` backend
+
 ### Fixed
 
 - Some primitive use in the `dvips` backend
