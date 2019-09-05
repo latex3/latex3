@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-09-05]
+
 ### Added
 
 - Support for EPS and PDF files with `dvisvgm` backend
@@ -33,6 +35,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-08-25...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-09-05...HEAD
+[2019-09-05]: https://github.com/latex3/latex3/compare/2019-08-25...2019-09-05
 [2019-08-25]: https://github.com/latex3/latex3/compare/2019-07-01...2019-08-25
 [2019-07-01]: https://github.com/latex3/latex3/compare/2019-05-28...2019-07-01

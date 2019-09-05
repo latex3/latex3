@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-09-05]
+
 ### Added
 
 - `\file_full_name:n`, \file_mdfive_hash:n`, `\file_size:n`,
@@ -479,7 +481,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-08-25...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-09-05...HEAD
+[2019-09-05]: https://github.com/latex3/latex3/compare/2019-08-25...2019-09-05
 [2019-08-25]: https://github.com/latex3/latex3/compare/2019-08-14...2019-08-25
 [2019-08-14]: https://github.com/latex3/latex3/compare/2019-07-25...2019-08-14
 [2019-07-25]: https://github.com/latex3/latex3/compare/2019-07-01...2019-07-25
