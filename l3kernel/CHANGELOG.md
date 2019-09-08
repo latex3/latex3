@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Missing internal variant (fixes #624)
+
 ## [2019-09-05]
 
 ### Added
