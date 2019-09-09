@@ -7,6 +7,12 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-09-08]
+
+### Fixed
+
+- Missing internal variant (fixes #624)
+
 ## [2019-09-05]
 
 ### Added
@@ -481,7 +487,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-09-05...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-09-08...HEAD
+[2019-09-08]: https://github.com/latex3/latex3/compare/2019-09-05...2019-09-08
 [2019-09-05]: https://github.com/latex3/latex3/compare/2019-08-25...2019-09-05
 [2019-08-25]: https://github.com/latex3/latex3/compare/2019-08-14...2019-08-25
 [2019-08-14]: https://github.com/latex3/latex3/compare/2019-07-25...2019-08-14
