@@ -122,6 +122,8 @@
 %     \cs{cctab_if_exist:NTF} \meta{category code table} \Arg{true code} \Arg{false code}
 %   \end{syntax}
 %   Tests whether the \meta{category code table} is currently defined.
+%   This does not check that the \meta{category code table} really is a
+%   category code table.
 % \end{function}
 %
 % \subsection{Constant category code tables}
@@ -198,8 +200,8 @@
 % \end{variable}
 %
 % \begin{macro}{\cctab_new:N,\cctab_new:c}
-% \begin{macro}{\cctab_begin:N,\cctab_begin:c}
-% \begin{macro}{\cctab_end:}
+% \begin{macro}{\@@_begin:N,\@@_begin:c}
+% \begin{macro}{\@@_end:}
 % \begin{macro}{\cctab_gset:Nn,\cctab_gset:cn}
 %   As \LuaTeX{} offers engine support for category code tables, and this is
 %   entirely lacking from the other engines, we need two complementary
@@ -255,7 +257,7 @@
         \tex_savecatcodetable:D \g_@@_stack_int
         \tex_catcodetable:D \g_@@_stack_int
       }
-    \cs_new_protected:Npn \cctab_end:
+    \cs_new_protected:Npn \@@_end:
       {
         \int_gsub:Nn \g_@@_stack_int { 2 }
         \seq_if_empty:NTF \g_@@_stack_seq
@@ -271,7 +273,7 @@
     \cs_new_protected:Npn \cctab_gset:Nn #1#2
       {
         \group_begin:
-          #2
+          #2 \scan_stop:
           \tex_savecatcodetable:D #1
         \group_end:
       }
@@ -343,7 +345,7 @@
       }
     \cs_generate_variant:Nn \intarray_new:Nn { c }
     \cs_generate_variant:Nn \intarray_gset:Nnn { c }
-    \cs_new_protected:Npn \cctab_end:
+    \cs_new_protected:Npn \@@_end:
       {
         \int_step_inline:nn { 256 }
           {
@@ -360,7 +362,7 @@
     \cs_new_protected:Npn \cctab_gset:Nn #1#2
       {
         \group_begin:
-          #2
+          #2 \scan_stop:
           \int_step_inline:nn { 256 }
             {
               \intarray_gset:cnn { g_@@_ \int_use:N #1 _cctab } {##1}
@@ -377,63 +379,89 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\cctab_begin:N}
-%   Check if a \meta{cctab~var} exists before trying to use it.
-%   Otherwise the code would throw an ``undefined control sequence''.
+% \begin{macro}{\cctab_begin:N,\cctab_end:}
+%   These functions perform a few sanity checks before calling the
+%   functions which will do the heavy-lifting.
+%   \cs{cctab_begin:N} checks if a \meta{cctab~var} exists before trying
+%   to use it. \cs{cctab_end:} checks if a \cs{cctab_begin:N} was used
+%   some time earlier.
+%   
+%   Skipping these checks would result in an ``Undefined control
+%   sequence'' error for \cs{cctab_begin:N} with an undefined
+%   \meta{cctab~var}, and a ``Missing font identifier'' for an extra
+%   \cs{cctab_end:}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \cctab_begin:N #1
-  {
-    \cctab_if_exist:NTF #1
-      { \__cctab_begin:N #1 }
-      {
-        \__kernel_msg_error:nnx { kernel } { variable-not-defined }
-          { \token_to_str:N #1 }
-      }
-  }
+  { \@@_chk_if_valid:NT #1 { \__cctab_begin:N #1 } }
 \cs_generate_variant:Nn \cctab_begin:N { c }
+\cs_new_protected:Npn \cctab_end:
+  {
+    \int_compare:nNnTF { \g_@@_stack_int } = { \c_zero_int }
+      { \__kernel_msg_error:nn { kernel } { cctab-extra-end } }
+      { \@@_end: }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\cctab_if_exist:N,\cctab_if_exist:c}
 %   Checks whether a \meta{cctab~var} is defined.
-%   The \LuaTeX{} code simply does \cs{cs_if_exist:N} on the argument,
-%   as the engine saves the category code table in a single control
-%   sequence. The code for other engines does that, but also check if
-%   the internal \meta{intarray~var} exists.
+%    \begin{macrocode}
+\prg_new_eq_conditional:NNn \cctab_if_exist:N \cs_if_exist:N
+  { TF , T , F , p }
+\prg_new_eq_conditional:NNn \cctab_if_exist:c \cs_if_exist:c
+  { TF , T , F , p }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_chk_if_valid:N}
+%   Checks whether the argument is defined and whether it is a valid
+%   \meta{cctab~var}. In \LuaTeX{} the validity of the \meta{cctab~var}
+%   is checked by the engine, which complains if the argument is not
+%   a \cs{chardef}'ed constant. In other engines, check if the
+%   underlying \cs[no-index]{g_@@_\meta{integer}_cctab}
+%   \meta{intarray~var} exists.
 %    \begin{macrocode}
 \sys_if_engine_luatex:TF
   {
-    \prg_new_eq_conditional:NNn \cctab_if_exist:N \cs_if_exist:N
-      { TF , T , F , p }
-    \prg_new_eq_conditional:NNn \cctab_if_exist:c \cs_if_exist:c
-      { TF , T , F , p }
+    \prg_new_protected_conditional:Npnn \@@_chk_if_valid:N #1
+      { TF , T , F }
+      {
+        \cctab_if_exist:NTF #1
+          { \prg_return_true: }
+          {
+            \__kernel_msg_error:nnx { kernel } { command-not-defined }
+              { \token_to_str:N #1 }
+            \prg_return_false:
+          }
+      }
   }
   {
-    \prg_new_conditional:Npnn \cctab_if_exist:N #1 { TF , T , F , p }
+    \prg_new_protected_conditional:Npnn \@@_chk_if_valid:N #1
+      { TF , T , F }
       {
-        \cs_if_exist:NTF #1
+        \cctab_if_exist:NTF #1
           {
             \cs_if_exist:cTF { g_@@_ \int_use:N #1 _cctab }
               { \prg_return_true: }
-              { \prg_return_false: }
+              {
+                \__kernel_msg_error:nnx { kernel } { invalid-cctab }
+                  { \token_to_str:N #1 }
+                \prg_return_false:
+              }
           }
-          { \prg_return_false: }
-      }
-    \prg_new_conditional:Npnn \cctab_if_exist:c #1 { TF , T , F , p }
-      {
-        \cs_if_exist:cTF {#1}
           {
-            \cs_if_exist:cTF { g_@@_ \int_use:c {#1} _cctab }
-              { \prg_return_true: }
-              { \prg_return_false: }
+            \__kernel_msg_error:nnx { kernel } { command-not-defined }
+              { \token_to_str:N #1 }
+            \prg_return_false:
           }
-          { \prg_return_false: }
       }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\cctab_const:Nn}
+% \begin{macro}{\cctab_const:Nn,\cctab_const:cn}
+%  Creates a new \meta{cctab~var} then sets it with the current and
+%  user-supplied codes.
 %    \begin{macrocode}
 \cs_new_protected:Npn \cctab_const:Nn #1#2
   {
@@ -488,6 +516,19 @@
   {
     LaTeX~has~been~asked~to~switch~to~a~new~category~code~table,~
     but~there~is~no~more~space~to~do~this!
+  }
+\__kernel_msg_new:nnnn { kernel } { cctab-extra-end }
+  { Extra~\iow_char:N\\cctab_end:~ignored~\msg_line_context:. }
+  {
+    LaTeX~came~across~a~\iow_char:N\\cctab_end:~without~a~matching~
+    \iow_char:N\\cctab_begin:N.~This~command~will~be~ignored.
+  }
+\__kernel_msg_new:nnnn { kernel } { invalid-cctab }
+  { Invalid~\iow_char:N\\catcode:~table. }
+  {
+    You~can~only~switch~to~a~\iow_char:N\\catcode~table~that~is~
+    initialized~using~\iow_char:N\\cctab_new:N~or~
+    \iow_char:N\\cctab_const:Nn.
   }
 %    \end{macrocode}
 %
