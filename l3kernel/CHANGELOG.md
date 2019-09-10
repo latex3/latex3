@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Loading Unicode data when some chars may be active (see #627)
+
 ## [2019-09-08]
 
 ### Fixed
