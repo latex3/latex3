@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-09-19]
+
 ### Fixed
 
 - Loading Unicode data when some chars may be active (see #627)
@@ -491,7 +493,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-09-08...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-09-19...HEAD
+[2019-09-19]: https://github.com/latex3/latex3/compare/2019-09-08...2019-09-19
 [2019-09-08]: https://github.com/latex3/latex3/compare/2019-09-05...2019-09-08
 [2019-09-05]: https://github.com/latex3/latex3/compare/2019-08-25...2019-09-05
 [2019-08-25]: https://github.com/latex3/latex3/compare/2019-08-14...2019-08-25
