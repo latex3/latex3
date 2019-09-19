@@ -68,7 +68,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- Moved `lstr-convert` module to `l3kernel`
+- Moved `l3str-convert` module to `l3kernel`
 
 ### Changed
 
