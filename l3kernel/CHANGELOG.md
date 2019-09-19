@@ -9,6 +9,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
+- Moved `\prop_(g)set_from_clist:Nn` and `\prop_const_from_clist:Nn` to
+  stable
 - Moved `\seq_(g)shuffle:N` to stable
 
 ## [2019-09-19]
