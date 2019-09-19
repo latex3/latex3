@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Moved `\seq_(g)shuffle:N` to stable
+
 ## [2019-09-19]
 
 ### Fixed
