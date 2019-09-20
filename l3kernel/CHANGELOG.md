@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\dim_sign:n`
   - `\fp_sign:n`
   - `\int_sign:n`
+  - `\intarray_show:N`
   - `\prop_(g)set_from_clist:Nn`
   - `\prop_const_from_clist:Nn`
   - `\seq_const_from_clist:Nn`
