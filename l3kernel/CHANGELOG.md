@@ -25,6 +25,8 @@ this project uses date-based 'snapshot' version identifiers.
   - `\seq_(g)shuffle:N`
   - `\sys_if_platform_unix:(TF)`
   - `\sys_if_platform_windows:(TF)`
+  - `\sys_gset_rand_seed:`
+  - `\sys_rand_seed:`
 
 ## [2019-09-19]
 
