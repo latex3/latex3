@@ -16,6 +16,8 @@ this project uses date-based 'snapshot' version identifiers.
   - `\fp_sign:n`
   - `\int_sign:n`
   - `\intarray_show:N`
+  - `\ior_map_variable:NNn`
+  - `\ior_str_map_variable:NNn`
   - `\prop_(g)set_from_clist:Nn`
   - `\prop_const_from_clist:Nn`
   - `\seq_const_from_clist:Nn`
