@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 
 - Moved to stable:
+  - `\bool_const:Nn`
   - `\dim_sign:n`
   - `\fp_sign:n`
   - `\int_sign:n`
