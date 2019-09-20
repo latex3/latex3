@@ -9,12 +9,15 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
-- Moved `\<var>_sign:n` to stable
-- Moved `\prop_(g)set_from_clist:Nn` and `\prop_const_from_clist:Nn` to
-  stable
-- Moved `\seq_(g)shuffle:N` to stable
-- Moved `\sys_if_platform_unix:(TF)` and `\sys_if_platform_windows:(TF)`
-  to stable
+- Moved to stable:
+  - `\dim_sign:n`
+  - `\fp_sign:n`
+  - `\int_sign:n`
+  - `\prop_(g)set_from_clist:Nn`
+  - `\prop_const_from_clist:Nn`
+  - `\seq_(g)shuffle:N`
+  - `\sys_if_platform_unix:(TF)`
+  - `\sys_if_platform_windows:(TF)`
 
 ## [2019-09-19]
 
