@@ -9,9 +9,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
+- `\file_compare_timestamp:nNn(TF)` now usable in expansion contexts
 - Moved to stable:
   - `\bool_const:Nn`
   - `\dim_sign:n`
+  - `\file_compare_timestamp:nNn(TF)`
   - FP `logb` operator
   - `\fp_sign:n`
   - `\int_sign:n`
