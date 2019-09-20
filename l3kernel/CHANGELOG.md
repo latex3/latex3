@@ -27,6 +27,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\sys_if_platform_windows:(TF)`
   - `\sys_gset_rand_seed:`
   - `\sys_rand_seed:`
+  - Shell access functions
 
 ## [2019-09-19]
 
