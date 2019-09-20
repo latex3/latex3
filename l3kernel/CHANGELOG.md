@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Moved to stable:
   - `\bool_const:Nn`
   - `\dim_sign:n`
+  - FP `logb` operator
   - `\fp_sign:n`
   - `\int_sign:n`
   - `\intarray_show:N`
