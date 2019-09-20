@@ -15,6 +15,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\int_sign:n`
   - `\prop_(g)set_from_clist:Nn`
   - `\prop_const_from_clist:Nn`
+  - `\seq_const_from_clist:Nn`
   - `\seq_(g)shuffle:N`
   - `\sys_if_platform_unix:(TF)`
   - `\sys_if_platform_windows:(TF)`
