@@ -9,7 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
-- Track `expl3` changes
+- `\sys_shell_get_pwd:N` renamed as `\sys_get_shell_pwd:N`
 
 ## [2019-09-19]
 
