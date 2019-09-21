@@ -16,6 +16,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\file_compare_timestamp:nNn(TF)`
   - FP `logb` operator
   - `\fp_sign:n`
+  - `fparray` module
   - `\int_sign:n`
   - `\intarray_const_from_clist:Nn`
   - `\intarray_show:N`
