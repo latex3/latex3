@@ -18,6 +18,7 @@ installfiles =
     "l3dvipdfmx.def", "l3dvips.def", "l3dvisvgm.def", "l3pdfmode.def",
     "l3xdvipdfmx.def",
     "l3str-enc-*.def",
+    "l3debug.def", "l3deprecation.def",
     "expl3.lua",
     "*.cls", "*.sty", "*.tex"
   }

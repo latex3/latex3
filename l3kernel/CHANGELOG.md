@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
+- Debug and deprecation code are now loaded independently of expl3 core
 - `\file_compare_timestamp:nNn(TF)` now usable in expansion contexts
 - Moved to stable:
   - `\bool_const:Nn`
