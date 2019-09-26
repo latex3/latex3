@@ -35,6 +35,10 @@ this project uses date-based 'snapshot' version identifiers.
   - `\sys_rand_seed:`
   - Shell access functions
 
+### Fixed
+
+- Key `.initial:n` property when combined with inherited keys (see #631)
+
 ## [2019-09-19]
 
 ### Fixed
