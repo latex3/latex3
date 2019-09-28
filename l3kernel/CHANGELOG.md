@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-09-28]
+
 ### Changed
 
 - Speed up variants and reduce their \tracingall output
@@ -525,7 +527,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-09-19...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-09-28...HEAD
+[2019-09-28]: https://github.com/latex3/latex3/compare/2019-09-19...2019-09-28
 [2019-09-19]: https://github.com/latex3/latex3/compare/2019-09-08...2019-09-19
 [2019-09-08]: https://github.com/latex3/latex3/compare/2019-09-05...2019-09-08
 [2019-09-05]: https://github.com/latex3/latex3/compare/2019-08-25...2019-09-05
