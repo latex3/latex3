@@ -155,9 +155,13 @@ function format()
     return errorlevel
   end
   local localdir = abspath(localdir)
+  local localtexmf = ""
+  if texmfdir and texmfdir ~= "" then
+    localtexmf = os_pathsep .. abspath(texmfdir) .. "//"
+  end
   errorlevel = run(
     unpackdir,
-    os_setenv .. " TEXINPUTS=." .. os_pathsep
+    os_setenv .. " TEXINPUTS=." .. localtexmf .. os_pathsep
       .. localdir .. (unpacksearch and os_pathsep or "") ..
     os_concat ..
     unpackexe .. " " .. unpackopts .. " l3format.ins"

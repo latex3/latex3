@@ -8,18 +8,29 @@ checkengines    = checkengines
   or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
 checksuppfiles  = checksuppfiles  or
   {
-    "CaseFolding.txt",
     "fontenc.sty",
+    "ltluatex.lua",
     "minimal.cls",
     "ot1enc.def",
     "regression-test.cfg",
-    "regression-test.tex",
-    "SpecialCasing.txt",
-    "UnicodeData.txt",
+    "regression-test.tex"
   }
 tagfiles = tagfiles or {"*.dtx", "README.md", "CHANGELOG.md"}
-unpacksuppfiles = unpacksuppfiles or {"docstrip.tex"}
-
+unpacksuppfiles = unpacksuppfiles or
+  {
+    "*.def",
+    "*.fd",
+    "*.ini",
+    "*.ltx",
+    "docstrip.tex",
+    "fontenc.sty",
+    "hyphen.cfg",
+    "lualatexquotejobname.lua",
+    "luatexconfig.tex",
+    "pdftexconfig.tex",
+    "texsys.cfg",
+    "UShyphen.tex"
+  }
 
 packtdszip  = true
 
@@ -74,3 +85,44 @@ function update_tag(file,content,tagname,tagdate)
   end
   return content
 end
+
+-- Need to build format files
+local function fmt()
+  local function mkfmt(engine)
+    -- Standard (u)pTeX engines don't have e-TeX
+    local cmd = engine
+    if string.match(engine,"uptex") then
+      cmd = "euptex"
+    elseif string.match(engine,"ptex") then
+      cmd = "eptex"
+    end
+    -- Use .ini files if available
+    local src = "latex.ltx"
+    local ini = string.gsub(engine,"tex","") .. "latex.ini"
+    if fileexists(supportdir .. "/" .. ini) then
+      src = ini
+    end
+    print("Building format for " .. engine)
+    local errorlevel = os.execute(
+      os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir
+      .. os_pathsep .. texmfdir .. "//"
+      .. os_concat .. cmd .. " -etex -ini -output-directory=" .. unpackdir
+      .. " " .. src .. " > " .. os_null)
+    if errorlevel ~= 0 then return errorlevel end
+    local fmtname = string.gsub(engine,"tex$","") .. "latex.fmt"
+    if fileexists (unpackdir,"latex.fmt") then
+      ren(unpackdir,"latex.fmt",fmtname)
+    end
+    cp(fmtname,unpackdir,testdir)
+    return 0
+  end
+  local checkengines = options["engine"] or checkengines
+  local errorlevel
+  for _,engine in pairs(checkengines) do
+    errorlevel = mkfmt(engine)
+    if errorlevel ~= 0 then return errorlevel end
+  end
+  return 0
+end
+
+function checkinit_hook() return fmt() end
