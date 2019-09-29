@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+- `xparse`: Allow processors to depend on other arguments (fixes #629)
+
 ## [2019-05-28]
 
 - `xparse`: Remove stray spaces in processor information
