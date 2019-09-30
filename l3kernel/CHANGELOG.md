@@ -9,6 +9,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2019-09-30]
 
+### Fixed
+
+- File searching using `\file_full_name:n` (see #634)
+
 ## [2019-09-28]
 
 ### Changed
