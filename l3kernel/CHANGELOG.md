@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Variants using \exp_args functions with more than 9 arguments (see #636)
+
 ## [2019-09-30]
 
 ### Fixed
