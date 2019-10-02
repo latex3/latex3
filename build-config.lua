@@ -87,7 +87,7 @@ function update_tag(file,content,tagname,tagdate)
 end
 
 -- Need to build format files
-local function fmt()
+local function fmt(engines,dest)
   local function mkfmt(engine)
     -- Standard (u)pTeX engines don't have e-TeX
     local cmd = engine
@@ -113,16 +113,18 @@ local function fmt()
     if fileexists (unpackdir,"latex.fmt") then
       ren(unpackdir,"latex.fmt",fmtname)
     end
-    cp(fmtname,unpackdir,testdir)
+    cp(fmtname,unpackdir,dest)
     return 0
   end
-  local checkengines = options["engine"] or checkengines
+
   local errorlevel
-  for _,engine in pairs(checkengines) do
+  for _,engine in pairs(engines) do
     errorlevel = mkfmt(engine)
     if errorlevel ~= 0 then return errorlevel end
   end
   return 0
 end
 
-function checkinit_hook() return fmt() end
+function checkinit_hook()
+  return fmt(options["engine"] or checkengines,testdir)
+end
