@@ -109,9 +109,12 @@ local function fmt(engines,dest)
       .. os_concat .. cmd .. " -etex -ini -output-directory=" .. unpackdir
       .. " " .. src .. " > " .. os_null)
     if errorlevel ~= 0 then return errorlevel end
-    local fmtname = string.gsub(engine,"tex$","") .. "latex.fmt"
-    if fileexists (unpackdir,"latex.fmt") then
-      ren(unpackdir,"latex.fmt",fmtname)
+
+    local fmtname = string.match(src,"^[^.]*") .. ".fmt"
+    if not fileexists(unpackdir,fmtname) then
+      local fmt = string.match(src,"^[^.]*")
+      fmtname = string.gsub(engine,"tex$","") .. fmt .. ".fmt"
+      ren(unpackdir,fmt .. ".fmt",fmtname)
     end
     cp(fmtname,unpackdir,dest)
     return 0
