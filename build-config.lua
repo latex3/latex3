@@ -110,13 +110,14 @@ local function fmt(engines,dest)
       .. " " .. src .. " > " .. os_null)
     if errorlevel ~= 0 then return errorlevel end
 
-    local fmtname = string.match(src,"^[^.]*") .. ".fmt"
-    if not fileexists(unpackdir,fmtname) then
-      local fmt = string.match(src,"^[^.]*")
-      fmtname = string.gsub(engine,"tex$","") .. fmt .. ".fmt"
-      ren(unpackdir,fmt .. ".fmt",fmtname)
+    local engname = string.match(src,"^[^.]*") .. ".fmt"
+    local fmtname = string.gsub(engine,"tex$","") .. "latex.fmt"
+    print(fmt,fmtname)
+    if engname ~= fmtname then
+      ren(unpackdir,engname,fmtname)
     end
     cp(fmtname,unpackdir,dest)
+
     return 0
   end
 
