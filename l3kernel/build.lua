@@ -19,7 +19,7 @@ installfiles =
     "l3xdvipdfmx.def",
     "l3str-enc-*.def",
     "l3debug.def", "l3deprecation.def",
-    "expl3.lua",
+    "expl3.lua",, "expl3.ltx",
     "*.cls", "*.sty", "*.tex"
   }
 sourcefiles  = {"*.dtx", "*.ins"}
