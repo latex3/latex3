@@ -112,7 +112,6 @@ local function fmt(engines,dest)
 
     local engname = string.match(src,"^[^.]*") .. ".fmt"
     local fmtname = string.gsub(engine,"tex$","") .. "latex.fmt"
-    print(fmt,fmtname)
     if engname ~= fmtname then
       ren(unpackdir,engname,fmtname)
     end
