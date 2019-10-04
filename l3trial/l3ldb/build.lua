@@ -18,12 +18,8 @@ checkdeps   =
   }
 checksuppfiles  =
   {
-    "article.cls",
-    "fontenc.sty",
-    "ot1enc.def",
     "regression-test.cfg",
     "regression-test.tex",
-    "size10.clo",
   }
 
 -- Load the common build code

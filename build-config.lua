@@ -8,22 +8,13 @@ checkengines    = checkengines
   or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
 checksuppfiles  = checksuppfiles  or
   {
-    "fontenc.sty",
-    "ltluatex.lua",
-    "minimal.cls",
-    "ot1enc.def",
     "regression-test.cfg",
     "regression-test.tex"
   }
 tagfiles = tagfiles or {"*.dtx", "README.md", "CHANGELOG.md"}
 unpacksuppfiles = unpacksuppfiles or
   {
-    "*.def",
-    "*.fd",
     "*.ini",
-    "*.ltx",
-    "docstrip.tex",
-    "fontenc.sty",
     "hyphen.cfg",
     "lualatexquotejobname.lua",
     "luatexconfig.tex",

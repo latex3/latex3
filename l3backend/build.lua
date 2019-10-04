@@ -17,7 +17,7 @@ unpackfiles  = {"l3backend.ins"}
 
 -- As we need l3docstrip, a bit of 'fun'
 supportdir = maindir
-unpacksuppfiles = {"/support/docstrip.tex", "/l3kernel/l3docstrip.dtx"}
+unpacksuppfiles = {"/l3kernel/l3docstrip.dtx"}
 
 -- No deps other than the test system
 unpackdeps  = { }
