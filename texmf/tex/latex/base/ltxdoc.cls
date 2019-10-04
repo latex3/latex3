@@ -13,7 +13,7 @@
 %% (but please observe conditions on bug reports sent to that address!)
 %% 
 %% 
-%% Copyright 1993-2017
+%% Copyright (C) 1993-2019
 %% The LaTeX3 Project and any individual authors listed elsewhere
 %% in this file.
 %% 
@@ -26,7 +26,7 @@
 %% The latest version of this license is in
 %%    https://www.latex-project.org/lppl.txt
 %% and version 1.3c or later is part of all distributions of LaTeX
-%% version 2005/12/01 or later.
+%% version 2008 or later.
 %% 
 %% This file has the LPPL maintenance status "maintained".
 %% 
@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{ltxdoc}
-         [2018/03/15 v2.0x Standard LaTeX documentation class]
+         [2019/09/16 v2.0y Standard LaTeX documentation class]
 \DeclareOption{a5paper}{\@latexerr{Option not supported}%
    {}}
 \DeclareOption*{%
@@ -123,6 +123,7 @@
     /parindent/z@
     /ttfamily/expandafter/let/expandafter/oc@ttf/the/font
     /rmfamily
+    /textit{Historical /LaTeX/,2.09 comments (not necessarily accurate any more):}
     /hfuzz/maxdimen
     }
 /endgroup
@@ -133,6 +134,7 @@
     \ifvmode%
     \def\commentline{#1}%
     \ifx\commentline\oldc%
+    \textit{End of historical \LaTeX\,2.09 comments.}
     \end{oldcomments}%
     \else%
     \ifx\commentline\begmac%
