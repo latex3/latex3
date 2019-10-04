@@ -13,7 +13,7 @@ installfiles = {"*.def"}
 sourcefiles  = {"*.dtx", "*.ins"}
 tagfiles     = {"*.dtx", "CHANGELOG.md", "README.md"}
 typesetfiles = {"l3backend-code.tex"}
-unpackfiles  = {"l3backend.ins"}
+unpackfiles  = {"/support/docstrip.tex","l3backend.ins"}
 
 -- As we need l3docstrip, a bit of 'fun'
 supportdir = maindir
