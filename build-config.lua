@@ -15,6 +15,7 @@ tagfiles = tagfiles or {"*.dtx", "README.md", "CHANGELOG.md"}
 unpacksuppfiles = unpacksuppfiles or
   {
     "*.ini",
+    "docstrip.tex",
     "hyphen.cfg",
     "lualatexquotejobname.lua",
     "luatexconfig.tex",
