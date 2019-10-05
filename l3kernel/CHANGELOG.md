@@ -7,6 +7,18 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-10-02]
+
+### Fixed
+
+- Variants using `\exp_args` functions with more than 9 arguments (see #636)
+
+## [2019-09-30]
+
+### Fixed
+
+- File searching using `\file_full_name:n` (see #634)
+
 ## [2019-09-28]
 
 ### Changed
@@ -527,7 +539,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-09-28...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-10-02...HEAD
+[2019-10-02]: https://github.com/latex3/latex3/compare/2019-09-30...2019-10-02
+[2019-09-30]: https://github.com/latex3/latex3/compare/2019-09-28...2019-09-30
 [2019-09-28]: https://github.com/latex3/latex3/compare/2019-09-19...2019-09-28
 [2019-09-19]: https://github.com/latex3/latex3/compare/2019-09-08...2019-09-19
 [2019-09-08]: https://github.com/latex3/latex3/compare/2019-09-05...2019-09-08
