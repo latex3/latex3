@@ -191,6 +191,11 @@ function format()
 end
 
 target_list = target_list or { }
+target_list.cmdcheck =
+  {
+    func = cmdcheck,
+    desc = "Run cmd cover test"
+  }
 target_list.format =
   {
     func = format,
