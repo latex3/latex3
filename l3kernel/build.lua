@@ -194,7 +194,7 @@ target_list = target_list or { }
 target_list.format =
   {
     func = format,
-    desc = "Creat l3formats"
+    desc = "Create l3formats"
   }
 
 -- Find and run the build system
