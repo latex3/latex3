@@ -98,6 +98,9 @@ local function fmt(engines,dest)
     local errorlevel = os.execute(
       os_setenv .. " TEXINPUTS=" .. unpackdir .. os_pathsep .. localdir
       .. os_pathsep .. texmfdir .. "//"
+      .. os_concat ..
+      os_setenv .. " LUAINPUTS=" .. unpackdir .. os_pathsep .. localdir
+      .. os_pathsep .. texmfdir .. "//"
       .. os_concat .. cmd .. " -etex -ini -output-directory=" .. unpackdir
       .. " " .. src .. " > " .. os_null)
     if errorlevel ~= 0 then return errorlevel end
