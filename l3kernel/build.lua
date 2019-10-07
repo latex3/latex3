@@ -18,6 +18,7 @@ installfiles =
     "l3dvipdfmx.def", "l3dvips.def", "l3dvisvgm.def", "l3pdfmode.def",
     "l3xdvipdfmx.def",
     "l3str-enc-*.def",
+    "l3debug.def", "l3deprecation.def",
     "expl3.lua",
     "*.cls", "*.sty", "*.tex"
   }
@@ -190,10 +191,15 @@ function format()
 end
 
 target_list = target_list or { }
+target_list.cmdcheck =
+  {
+    func = cmdcheck,
+    desc = "Run cmd cover test"
+  }
 target_list.format =
   {
     func = format,
-    desc = "Creat l3formats"
+    desc = "Create l3formats"
   }
 
 -- Find and run the build system

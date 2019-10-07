@@ -7,6 +7,58 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-10-02]
+
+### Fixed
+
+- Variants using `\exp_args` functions with more than 9 arguments (see #636)
+
+## [2019-09-30]
+
+### Fixed
+
+- File searching using `\file_full_name:n` (see #634)
+
+## [2019-09-28]
+
+### Changed
+
+- Speed up variants and reduce their \tracingall output
+- Debug and deprecation code are now loaded independently of expl3 core
+- `\file_compare_timestamp:nNn(TF)` now usable in expansion contexts
+- Moved to stable:
+  - `\bool_const:Nn`
+  - `\dim_sign:n`
+  - `\file_compare_timestamp:nNn(TF)`
+  - FP `logb` operator
+  - `\fp_sign:n`
+  - `fparray` module
+  - `\int_sign:n`
+  - `\intarray_const_from_clist:Nn`
+  - `\intarray_show:N`
+  - `\ior_map_variable:NNn`
+  - `\ior_str_map_variable:NNn`
+  - `\mode_leave_vertical:`
+  - `\prop_(g)set_from_clist:Nn`
+  - `\prop_const_from_clist:Nn`
+  - `\seq_const_from_clist:Nn`
+  - `\seq_(g)shuffle:N`
+  - `\sys_if_platform_unix:(TF)`
+  - `\sys_if_platform_windows:(TF)`
+  - `\sys_gset_rand_seed:`
+  - `\sys_rand_seed:`
+  - Shell access functions
+
+### Fixed
+
+- Key `.initial:n` property when combined with inherited keys (see #631)
+
+## [2019-09-19]
+
+### Fixed
+
+- Loading Unicode data when some chars may be active (see #627)
+
 ## [2019-09-08]
 
 ### Fixed
@@ -17,7 +69,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- `\file_full_name:n`, \file_mdfive_hash:n`, `\file_size:n`,
+- `\file_full_name:n`, `\file_mdfive_hash:n`, `\file_size:n`,
   `\file_timestamp:n`
 - `\seq_map_tokens:Nn`, `\tl_map_tokens:nn`, `\tl_map_tokens:Nn`
 
@@ -64,7 +116,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- Moved `lstr-convert` module to `l3kernel`
+- Moved `l3str-convert` module to `l3kernel`
 
 ### Changed
 
@@ -487,7 +539,11 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-09-08...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-10-02...HEAD
+[2019-10-02]: https://github.com/latex3/latex3/compare/2019-09-30...2019-10-02
+[2019-09-30]: https://github.com/latex3/latex3/compare/2019-09-28...2019-09-30
+[2019-09-28]: https://github.com/latex3/latex3/compare/2019-09-19...2019-09-28
+[2019-09-19]: https://github.com/latex3/latex3/compare/2019-09-08...2019-09-19
 [2019-09-08]: https://github.com/latex3/latex3/compare/2019-09-05...2019-09-08
 [2019-09-05]: https://github.com/latex3/latex3/compare/2019-08-25...2019-09-05
 [2019-08-25]: https://github.com/latex3/latex3/compare/2019-08-14...2019-08-25
