@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Moved `\debug_on:`, `\debug_off:`, `\debug_suspend:` and `\debug_resume:`
+  to stable
+
 ## [2019-10-02]
 
 ### Fixed
