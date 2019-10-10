@@ -16,6 +16,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 
 - Handling of files with no extension
+- Loading under ConTeXt
 
 ## [2019-10-02]
 
