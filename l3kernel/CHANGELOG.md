@@ -13,6 +13,10 @@ this project uses date-based 'snapshot' version identifiers.
   to stable
 - Accept 'traditional' class options for backend (`dvipdfmx`, `dvips`, etc.)
 
+### Fixed
+
+- Handling of files with no extension
+
 ## [2019-10-02]
 
 ### Fixed
