@@ -17,6 +17,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 
 - Handling of files with no extension
+- Behaviour of Lua function `l3kernel.charcat` in some circumstances
 - Loading under ConTeXt
 
 ## [2019-10-02]
