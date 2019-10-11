@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
+- Minimum LuaTeX version now v0.95
 - Moved `\debug_on:`, `\debug_off:`, `\debug_suspend:` and `\debug_resume:`
   to stable
 - Accept 'traditional' class options for backend (`dvipdfmx`, `dvips`, etc.)
