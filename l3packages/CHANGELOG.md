@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-10-11]
+
 - `xparse`: Allow processors to depend on other arguments (fixes #629)
 
 ## [2019-05-28]
@@ -52,7 +54,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-05-28...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-10-11...HEAD
+[2019-10-11]: https://github.com/latex3/latex3/compare/2019-05-28...2019-10-11
 [2019-05-28]: https://github.com/latex3/latex3/compare/2019-05-03...2019-05-28
 [2019-05-03]: https://github.com/latex3/latex3/compare/2019-03-05...2019-05-03
 [2019-03-05]: https://github.com/latex3/latex3/compare/2019-09-24...2019-03-05
