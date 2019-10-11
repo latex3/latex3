@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Error message for unknown colors (see #640)
+
 ## [2019-09-28]
 
 ### Changed
