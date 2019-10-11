@@ -14,6 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Moved `\debug_on:`, `\debug_off:`, `\debug_suspend:` and `\debug_resume:`
   to stable
 - Accept 'traditional' class options for backend (`dvipdfmx`, `dvips`, etc.)
+- Performance enhancements when loading `expl3`
 
 ### Fixed
 

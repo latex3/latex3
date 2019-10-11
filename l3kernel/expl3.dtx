@@ -22,9 +22,9 @@
 %
 % for those people who are interested.
 %
-%<*driver|generic|package>
+%<*driver|generic|package|2ekernel>
+%</driver|generic|package|2ekernel>
 \def\ExplFileDate{2019-10-02}%
-%</driver|generic|package>
 %<*driver>
 \documentclass[full]{l3doc}
 \usepackage{graphicx}
@@ -1156,19 +1156,31 @@
 %</!loader>
 %    \end{macrocode}
 %
-% \subsection{\LaTeXe{} loader}
+% \subsection{\LaTeXe{} loaders}
+%
+% Loading with \LaTeXe{} may be as part of the format (pre-loading)
+% or as a package. We have to allow for both possible paths, and of
+% course the package being loaded on to of the pre-load. That means
+% the the code here must be safe against re-loading.
 %
 %    \begin{macrocode}
-%<*package&loader>
+%<*package&loader|2ekernel>
 %    \end{macrocode}
 %
-% Identify the package.
+% Identify the package or add to the format message.
 %    \begin{macrocode}
+%<*2ekernel>
+\everyjob\expandafter{\the\everyjob
+  \message{^^J\ExplFileDate\space L3 programming layer}%
+}
+%</2ekernel>
+%<*!2ekernel>
 \ProvidesPackage{expl3}
   [%
     \ExplFileDate\space
     L3 programming layer (loader)
   ]%
+%</!2ekernel>
 %    \end{macrocode}
 %
 % \begin{macro}{\ProvidesExplPackage, \ProvidesExplClass, \ProvidesExplFile}
@@ -1194,8 +1206,16 @@
 % \end{macro}
 %
 %  Load the business end: this leaves \cs{expl3} syntax on.
+%  The test ensures we only load once without needing to know if
+%  there was a preloading step.
 %    \begin{macrocode}
-\input{expl3-code.tex}%
+\begingroup\expandafter\expandafter\expandafter\endgroup
+\expandafter\ifx\csname tex\string _let:D\endcsname\relax
+  \expandafter\@firstofone
+\else
+  \expandafter\@gobble
+\fi
+  {\input{expl3-code.tex}}%
 %    \end{macrocode}
 %
 % A check that the bootstrap code did not abort loading: if it did,
@@ -1207,32 +1227,16 @@
 \fi
 %    \end{macrocode}
 %
+% If \pkg{expl3} was pre-loaded, we now have to deal with the fact that
+% the syntax will not be activated for the package mode version:
+% simply turn it on. We use \tn{@pushfilenameaux} as a marker: it's defined
+% a little later.
 %    \begin{macrocode}
-%<@@=sys>
-%    \end{macrocode}
-%
-% If there is a class option set, and recognised, we pick it up: these
-% will over-ride anything set automatically but will themsevles be
-% over-written if there is a package option.
-%    \begin{macrocode}
-\cs_if_exist:NT \@classoptionslist
-  {
-    \cs_if_eq:NNF \@classoptionslist \scan_stop:
-      {
-        \clist_map_inline:Nn \@classoptionslist
-          {
-            \str_case:nnT {#1}
-              {
-                { dvipdfmx } { \tl_gset:Nn \g_@@_backend_tl { dvipdfmx } }
-                { dvips }    { \tl_gset:Nn \g_@@_backend_tl { dvips } }
-                { dvisvgm }  { \tl_gset:Nn \g_@@_backend_tl { dvisvgm } }
-                { pdftex }   { \tl_gset:Nn \g_@@_backend_tl { pdfmode } }
-                { xetex }    { \tl_gset:Nn \g_@@_backend_tl { xdvipdfmx } }
-              }
-              { \clist_remove_all:Nn \@unusedoptionlist {#1} }
-          }
-      }
-  }
+%<*!2ekernel>
+\ifdefined\@pushfilenameaux
+  \ExplSyntaxOn
+\fi
+%</!2ekernel>
 %    \end{macrocode}
 %
 %    \begin{macrocode}
@@ -1240,29 +1244,38 @@
 %    \end{macrocode}
 %
 % \begin{variable}{\c_@@_def_ext_tl}
-%   Needed by \LaTeXe{}.
+%   Needed by \LaTeXe{}, and avoiding a re-load issue.
 %    \begin{macrocode}
-\tl_const:Nn \c_@@_def_ext_tl { def }
+\cs_if_exist:NF \c_@@_def_ext_tl
+  { \tl_const:Nn \c_@@_def_ext_tl { def } }
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\__kernel_sys_configuration_load:n}
-%   For \LaTeXe{}, option loading uses the built-in functionality: as this
-%   may be a reload we have to force the issue.
+% \begin{macro}
+%   {\__kernel_sys_configuration_load:n,\__kernel_sys_configuration_load_std:n}
+%   To load configurations, we have the following cases
+%   \begin{itemize}
+%     \item \pkg{expl3} is pre-loaded: by the time any configuration loads,
+%       we have the full file loading stack, and only need the standard
+%       version of the code here.
+%     \item The package is loaded with pre-loading: we again use the standard
+%       version, but we don't test just yet.
+%     \item The package is used without pre-loaded code: we need to manually
+%       manage \pkg{expl3} syntax.
+%   \end{itemize}
 %    \begin{macrocode}
-\cs_new_protected:Npn \__kernel_sys_configuration_load:n #1
+\cs_gset_protected:Npn \__kernel_sys_configuration_load:n #1
+%<*!2ekernel>
   {
-    \group_begin:
-    \cs_set_protected:Npn \ProvidesExplFile
-      {
-        \char_set_catcode_space:n { `\  }
-        \ProvidesExplFileAux
-      }
-    \cs_set_protected:Npn \ProvidesExplFileAux ##1##2##3##4
-      {
-        \group_end:
-        \ProvidesFile {##1} [ ##2~v##3~##4 ]
-      }
+    \ExplSyntaxOff
+    \cs_undefine:c { ver@ #1 .def }
+    \@onefilewithoptions {#1} [ ] [ ]
+      \c_@@_def_ext_tl
+    \ExplSyntaxOn
+  }
+\cs_gset_protected:Npn \__kernel_sys_configuration_load_std:n #1
+%</!2ekernel>
+  {
     \cs_undefine:c { ver@ #1 .def }
     \@onefilewithoptions {#1} [ ] [ ]
       \c_@@_def_ext_tl
@@ -1272,10 +1285,12 @@
 %
 % \begin{variable}{\l_@@_options_clist}
 %    \begin{macrocode}
+%<*!2ekernel>
 \clist_new:N \l_@@_options_clist
 \DeclareOption*
   { \clist_put_right:NV \l_@@_options_clist \CurrentOption }
 \ProcessOptions \relax
+%</!2ekernel>
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1307,10 +1322,46 @@
   }
 %    \end{macrocode}
 %
+%  A backend has to be in place by the start of the document.
 %    \begin{macrocode}
+%<*2ekernel>
+\AtBeginDocument
+  {
+    \str_if_exist:NF \c_sys_backend_str
+      { \sys_load_backend:n { } }
+  }
+%</2ekernel>
+%<*!2ekernel>
 \keys_set:nV { sys } \l_@@_options_clist
 \str_if_exist:NF \c_sys_backend_str
   { \sys_load_backend:n { } }
+%</!2ekernel>
+%    \end{macrocode}
+%
+% A test for pre-loading: does \tn{@pushfilenameaux} already exist.
+% The alrady-loaded mechanism will handle everything now.
+%    \begin{macrocode}
+%<*!2ekernel>
+\cs_if_exist:NT \@pushfilenameaux
+  {
+    \cs_gset_eq:NN \__kernel_sys_configuration_load:n
+      \__kernel_sys_configuration_load_std:n
+    \endinput
+  }
+%</!2ekernel>
+%    \end{macrocode}
+%
+% Load the dynamic part of the code, either now or during the next run.
+%    \begin{macrocode}
+\cs_if_free:cTF { ver@expl3.sty }
+  {
+    \tex_everyjob:D \exp_after:wN
+      {
+        \tex_the:D \tex_everyjob:D
+        \sys_everyjob:
+      }
+  }
+  { \sys_everyjob: }
 %    \end{macrocode}
 %
 % \begin{macro}{\@pushfilename, \@popfilename}
@@ -1379,8 +1430,23 @@
 %    \end{macrocode}
 % \end{variable}
 %
+%  Tidy up configuration loading, as promised.
 %    \begin{macrocode}
-%</package&loader>
+%<*!2ekernel>
+\cs_gset_eq:NN \__kernel_sys_configuration_load:n
+  \__kernel_sys_configuration_load_std:n
+%</!2ekernel>
+%    \end{macrocode}
+%
+% For pre-loading, we have to manually disable the syntax.
+%    \begin{macrocode}
+%<*2ekernel>
+\ExplSyntaxOff
+%</2ekernel>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</package&loader|2ekernel>
 %    \end{macrocode}
 %
 % \subsection{Generic loader}
@@ -1452,12 +1518,12 @@
 % \begin{macro}{\AtBeginDocument}
 % \begin{macro}[int]{\expl@AtBeginDocument}
 %   There are a few uses of \cs{AtBeginDocument} in the package code: the
-%   easiest way around that is to simply do nothing for these. As
+%   easiest way around that is to simply do the code \enquote{now}. As
 %   bundles such as \pkg{miniltx} may have defined \cs{AtBeginDocument}
 %   any existing definition is saved for restoration after the  payload.
 %    \begin{macrocode}
 \let\expl@AtBeginDocument\AtBeginDocument
-\def\AtBeginDocument#1{}%
+\def\AtBeginDocument#1{#1}%
 \expandafter\def\expandafter\l@expl@tidy@tl\expandafter
   {%
     \l@expl@tidy@tl
@@ -1503,8 +1569,9 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% Load the standard back-end.
+% Load the dynamic code and standard back-end.
 %    \begin{macrocode}
+\sys_everyjob:
 \sys_load_backend:n { }
 %    \end{macrocode}
 %

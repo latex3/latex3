@@ -18,8 +18,8 @@ installfiles =
     "l3dvipdfmx.def", "l3dvips.def", "l3dvisvgm.def", "l3pdfmode.def",
     "l3xdvipdfmx.def",
     "l3str-enc-*.def",
-    "l3debug.def", "l3deprecation.def",
-    "expl3.lua",
+    "l3debug.def", "l3deprecation.def", "l3sys.def",
+    "expl3.lua","expl3.ltx",
     "*.cls", "*.sty", "*.tex"
   }
 sourcefiles  = {"*.dtx", "*.ins"}
@@ -155,9 +155,13 @@ function format()
     return errorlevel
   end
   local localdir = abspath(localdir)
+  local localtexmf = ""
+  if texmfdir and texmfdir ~= "" then
+    localtexmf = os_pathsep .. abspath(texmfdir) .. "//"
+  end
   errorlevel = run(
     unpackdir,
-    os_setenv .. " TEXINPUTS=." .. os_pathsep
+    os_setenv .. " TEXINPUTS=." .. localtexmf .. os_pathsep
       .. localdir .. (unpacksearch and os_pathsep or "") ..
     os_concat ..
     unpackexe .. " " .. unpackopts .. " l3format.ins"
