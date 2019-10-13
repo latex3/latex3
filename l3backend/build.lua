@@ -43,7 +43,7 @@ function update_tag(file,content,tagname,tagdate)
      year - 2 .. "," .. year - 1 .. "," .. year,
      year - 2 .. "-" .. year)
   end
-  if string.match(file,"l3backend%.dtx$") then
+  if string.match(file,"l3backend-basics%.dtx$") then
     content = string.gsub(content,
       "\n  ({l3%w+%.def}){" .. iso .. "}",
       "\n  %1{" .. tagname .. "}")
