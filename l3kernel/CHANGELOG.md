@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Correct handling of 'traditional' class options for backend
+
 ## [2019-10-11]
 
 ### Changed
