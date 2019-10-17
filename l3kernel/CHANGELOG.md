@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- Lua function `l3kernel.shellescape()`
+
 ## [2019-10-14]
 
 ### Fixed
