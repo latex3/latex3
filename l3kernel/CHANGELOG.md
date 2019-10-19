@@ -16,6 +16,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Better coverage of (u)pTeX primitives following publication of
   pTeX manual in English
 
+### Removed
+
+- HarfTeX primitives
+
 ## [2019-10-14]
 
 ### Fixed
