@@ -11,6 +11,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Lua function `l3kernel.shellescape()`
 
+### Changed
+
+- Better coverage of (u)pTeX primitives following publication of
+  pTeX manual in English
+
 ## [2019-10-14]
 
 ### Fixed
