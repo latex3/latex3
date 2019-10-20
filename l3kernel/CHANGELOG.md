@@ -15,6 +15,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Better coverage of (u)pTeX primitives following publication of
   pTeX manual in English
+- Trim spaces surrounding file names
 
 ### Removed
 
