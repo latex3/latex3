@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- `\file_if_exist:n(TF)`, etc., when dealing with file names containing
+  spaces (see #642)
+
 ## [2019-10-21]
 
 ### Added
