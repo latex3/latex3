@@ -65,9 +65,9 @@
 % may contain both literal items and expandable content, which should on
 % full expansion be the desired file name.  Active characters (as
 % declared in \cs{l_char_active_seq}) are \emph{not} expanded,
-% allowing the direct use of these in file names. File names are quoted
-% using |"| tokens if they contain spaces: as a result, |"| tokens are
-% \emph{not} permitted in file names.
+% allowing the direct use of these in file names. Quote tokens (|"|) are
+% not permitted in file names as they are reserved for internal use by some
+% \TeX{} primitives.
 %
 % Spaces are trimmed at the beginning and end of the file name:
 % this reflects the fact that some file systems do not allow or interact
@@ -1059,7 +1059,7 @@
     \tex_openin:D #1
       \sys_if_engine_luatex:TF
         { {#2} }
-        {  #2 \scan_stop: }
+        {  \exp_not:N \__kernel_file_name_quote:n {#2} \scan_stop: }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1436,10 +1436,7 @@
 \cs_new_protected:Npn \iow_open:Nn #1#2
   {
     \tl_set:Nx \l_@@_file_name_tl
-      {
-        \__kernel_file_name_quote:e
-          { \__kernel_file_name_sanitize:n {#2} }
-      }
+      { \__kernel_file_name_sanitize:n {#2} }
     \iow_close:N #1
     \seq_gpop:NNTF \g_@@_streams_seq \l_@@_stream_tl
       { \@@_open_stream:NV #1 \l_@@_file_name_tl }
@@ -1459,7 +1456,8 @@
   {
     \tex_global:D \tex_chardef:D #1 = \l_@@_stream_tl \scan_stop:
     \prop_gput:NVn \g_@@_streams_prop #1 {#2}
-    \tex_immediate:D \tex_openout:D #1 #2 \scan_stop:
+    \tex_immediate:D \tex_openout:D
+        #1 \__kernel_file_name_quote:n {#2} \scan_stop:
   }
 \cs_generate_variant:Nn \@@_open_stream:Nn { NV }
 %    \end{macrocode}
@@ -2362,15 +2360,18 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}[rEXP]{\__kernel_file_name_sanitize:n}
-% \begin{macro}[rEXP]{\__kernel_file_name_expand_loop:w}
-% \begin{macro}[rEXP]{\__kernel_file_name_expand_N_type:Nw}
-% \begin{macro}[rEXP]{\__kernel_file_name_expand_group:nw}
-% \begin{macro}[rEXP]{\__kernel_file_name_expand_space:w}
-% \begin{macro}[rEXP]{\__kernel_file_name_trim_spaces:n}
-% \begin{macro}[rEXP]{\__kernel_file_name_trim_spaces:nw}
-% \begin{macro}[rEXP]{\__kernel_file_name_trim_spaces_aux:n}
-% \begin{macro}[rEXP]{\__kernel_file_name_trim_spaces_aux:w}
+% \begin{macro}[EXP]{\__kernel_file_name_sanitize:n}
+% \begin{macro}[EXP]{\__kernel_file_name_expand_loop:w}
+% \begin{macro}[EXP]{\__kernel_file_name_expand_N_type:Nw}
+% \begin{macro}[EXP]{\__kernel_file_name_expand_group:nw}
+% \begin{macro}[EXP]{\__kernel_file_name_expand_space:w}
+% \begin{macro}[EXP]{\__kernel_file_name_strip_quotes:n}
+% \begin{macro}[EXP]{\__kernel_file_name_strip_quotes:nnnw}
+% \begin{macro}[EXP]{\__kernel_file_name_strip_quotes:nnn}
+% \begin{macro}[EXP]{\__kernel_file_name_trim_spaces:n}
+% \begin{macro}[EXP]{\__kernel_file_name_trim_spaces:nw}
+% \begin{macro}[EXP]{\__kernel_file_name_trim_spaces_aux:n}
+% \begin{macro}[EXP]{\__kernel_file_name_trim_spaces_aux:w}
 %   Expanding the file name without expanding active characters is done
 %   using the same token-by-token approach as for example case changing.
 %   The finale outcome only need be \texttt{e}-type expandable, so there
@@ -2380,8 +2381,11 @@
   {
     \exp_args:Ne \__kernel_file_name_trim_spaces:n
       {
-        \__kernel_file_name_expand_loop:w #1
-          \q_recursion_tail \q_recursion_stop
+        \exp_args:Ne \__kernel_file_name_strip_quotes:n
+          {
+            \__kernel_file_name_expand_loop:w #1
+              \q_recursion_tail \q_recursion_stop
+          }
       }
   }
 \cs_new:Npn \__kernel_file_name_expand_loop:w #1 \q_recursion_stop
@@ -2431,6 +2435,30 @@
       \exp_not:N \__kernel_file_name_expand_loop:w
     }
 %    \end{macrocode}
+%   Quoting file name uses basically the same approach as for
+%   \texttt{luaquotejobname}: count the |"| tokens and remove them.
+%    \begin{macrocode}
+\cs_new:Npn \__kernel_file_name_strip_quotes:n #1
+  {
+    \__kernel_file_name_strip_quotes:nnnw {#1} { 0 } { }
+      #1 " \q_recursion_tail " \q_recursion_stop
+  }
+\cs_new:Npn \__kernel_file_name_strip_quotes:nnnw #1#2#3#4 "
+  {
+    \quark_if_recursion_tail_stop_do:nn {#4}
+      { \__kernel_file_name_strip_quotes:nnn {#1} {#2} {#3} }
+    \__kernel_file_name_strip_quotes:nnnw {#1} { #2 + 1 } { #3#4 }
+  }
+\cs_new:Npn \__kernel_file_name_strip_quotes:nnn #1#2#3
+  {
+    \int_if_even:nT {#2}
+      {
+        \__kernel_msg_expandable_error:nnn
+          { kernel } { unbalanced-quote-in-filename } {#1}
+      }
+    #3
+  }
+%    \end{macrocode}
 %   Spaces need to be trimmed from the start of the name and from the end of
 %   any extension. However, the name we are passed might not have an extension:
 %   that means we have to look for one. If there is no extension, we still use
@@ -2461,45 +2489,22 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 %
-% \begin{macro}[rEXP]{\__kernel_file_name_quote:n, \__kernel_file_name_quote:e}
-% \begin{macro}[rEXP]{\__kernel_file_name_quote_auxi:nnnw}
-% \begin{macro}[rEXP]{\__kernel_file_name_quote_auxii:nnn}
-% \begin{macro}[rEXP]{\__kernel_file_name_quote_auxiii:nw}
-%   Quoting file name uses basically the same approach as for
-%   \texttt{luaquotejobname}: count the |"| tokens, remove them then
-%   re-add at the extremities.
+% \begin{macro}[EXP]{\__kernel_file_name_quote:n}
+% \begin{macro}[EXP]{\__kernel_file_name_quote:nw}
 %    \begin{macrocode}
 \cs_new:Npn \__kernel_file_name_quote:n #1
-  {
-    \__kernel_file_name_quote_auxi:nnnw {#1} { 0 } { }
-      #1 " \q_recursion_tail " \q_recursion_stop
-  }
-\cs_generate_variant:Nn \__kernel_file_name_quote:n { e }
-\cs_new:Npn \__kernel_file_name_quote_auxi:nnnw #1#2#3#4 "
-  {
-    \quark_if_recursion_tail_stop_do:nn {#4}
-      { \__kernel_file_name_quote_auxii:nnn {#1} {#2} {#3} }
-    \__kernel_file_name_quote_auxi:nnnw {#1} { #2 + 1 } { #3#4 }
-  }
-\cs_new:Npn \__kernel_file_name_quote_auxii:nnn #1#2#3
-  {
-    \int_if_even:nT {#2}
-      {
-        \__kernel_msg_expandable_error:nnn
-          { kernel } { unbalanced-quote-in-filename } {#1}
-      }
-    \__kernel_file_name_quote_auxiii:nw {#3} #3 ~ \q_nil \q_stop
-  }
-\cs_new:Npn \__kernel_file_name_quote_auxiii:nw #1 #2 ~ #3 \q_stop
+  { \__kernel_file_name_quote:nw {#1} #1 ~ \q_nil \q_stop }
+\cs_new:Npn \__kernel_file_name_quote:nw #1 #2 ~ #3 \q_stop
   {
     \quark_if_nil:nTF {#3}
       { #1 }
       { "#1" }
   }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -2537,18 +2542,22 @@
       }
       { \prg_return_false: }
   }
-\cs_new_protected:Npn \@@_get_aux:nnN #1#2#3
+\cs_new_protected:Npx \@@_get_aux:nnN #1#2#3
   {
-    \if_false: { \fi:
+    \exp_not:N \if_false: { \exp_not:N \fi:
     \group_begin:
       \int_set_eq:NN \tex_tracingnesting:D \c_zero_int
-      \exp_args:No \tex_everyeof:D { \c_@@_marker_tl }
+      \exp_not:N \exp_args:No \tex_everyeof:D
+        { \exp_not:N \c_@@_marker_tl }
       #2 \scan_stop:
-      \exp_after:wN \@@_get_do:Nw
-      \exp_after:wN #3
-      \exp_after:wN \prg_do_nothing:
-        \tex_input:D #1 \scan_stop:
-    \if_false: } \fi:
+      \exp_not:N \exp_after:wN \exp_not:N \@@_get_do:Nw
+      \exp_not:N \exp_after:wN #3
+      \exp_not:N \exp_after:wN \exp_not:N \prg_do_nothing:
+      \exp_not:N \tex_input:D
+      \sys_if_engine_luatex:TF
+        { {#1} }
+        { \exp_not:N \__kernel_file_name_quote:n {#1} \scan_stop: }
+    \exp_not:N \if_false: } \exp_not:N \fi:
   }
 \exp_args:Nno \use:nn
   { \cs_new_protected:Npn \@@_get_do:Nw #1#2 }
@@ -2556,23 +2565,6 @@
   {
     \group_end:
     \tl_set:No #1 {#2}
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\@@_strip_quotes:n}
-% \begin{macro}[EXP]{\@@_strip_quotes:w}
-%   For last-minute removal of quotes for \XeTeX{} and \LuaTeX{}, which
-%   in some places require these are absent.
-%    \begin{macrocode}
-\bool_lazy_or:nnT
-  { \sys_if_engine_luatex_p: }
-  { \sys_if_engine_xetex_p: }
-  {
-    \cs_new:Npn \@@_strip_quotes:n #1
-      { \@@_strip_quotes:w #1 " #1 " \q_stop }
-    \cs_new:Npn \@@_strip_quotes:w #1 " #2 " #3 \q_stop {#2}
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2589,8 +2581,9 @@
     \cs_new:Npn \@@_size:n #1
       {
         \exp_args:Ne \tex_filesize:D
-          { \@@_strip_quotes:n {#1} }
+          { \@@_size:w #1 " #1 " \q_stop }
       }
+    \cs_new:Npn \@@_size:w #1 " #2 " #3 \q_stop {#2}
   }
   { \cs_new_eq:NN \@@_size:n \tex_filesize:D }
 \sys_if_engine_luatex:T
@@ -2600,15 +2593,15 @@
         \lua_now:e
           {
             l3kernel.filesize
-              ( " \lua_escape:e { \@@_strip_quotes:n {#1} } " )
+              ( " \lua_escape:e { \@@_size:w #1 " #1 " \q_stop } " )
           }
       }
+    \cs_new:Npn \@@_size:w #1 " #2 " #3 \q_stop {#2}
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[rEXP]{\file_full_name:n, \@@_full_name:n}
-% \begin{macro}[rEXP]{\@@_full_name:nn}
 % \begin{macro}[rEXP]{\@@_full_name_aux:nn}
 % \begin{macro}[rEXP]{\@@_full_name_aux:n}
 % \begin{macro}[rEXP]{\@@_name_cleanup:w}
@@ -2616,10 +2609,11 @@
 % \begin{macro}[rEXP]{\@@_name_ext_check:n}
 % \begin{macro}[rEXP]
 %   {
-%     \@@_name_ext_check_auxi:nw  ,
-%     \@@_name_ext_check_auxii:nw ,
+%     \@@_name_ext_check_auxi:w  ,
+%     \@@_name_ext_check_auxii:w ,
 %     \@@_name_ext_check_auxiii:nw
 %   }
+% \begin{macro}[rEXP]{\@@_name_ext_check_auxiv:nn}
 %   File searching can be carried out if the \tn{pdffilesize} primitive
 %   or an equivalent is available. That of course means we need to
 %   arrange for everything else to here to be done by expansion too.
@@ -2631,30 +2625,25 @@
     \exp_args:Ne \@@_full_name:n
       { \__kernel_file_name_sanitize:n {#1} }
   }
-\cs_new:Npn \@@_full_name:n #1
-  {
-    \exp_args:Ne \@@_full_name:nn
-      { \__kernel_file_name_quote:n {#1} } {#1}
-  }
 %    \end{macrocode}
 %   First, we check of the file is just here: no mapping so we do not
 %   need the break part of the broader auxiliary. We are using the fact
 %   that the primitive here returns nothing if the file is entirely absent.
 %   For package mode, \tn{input@path} is a token list not a sequence.
 %    \begin{macrocode}
-\cs_new:Npn \@@_full_name:nn #1#2
+\cs_new:Npn \@@_full_name:n #1
   {
     \tl_if_blank:nF {#1}
       {
         \tl_if_blank:eTF { \@@_size:n {#1} }
           {
             \seq_map_tokens:Nn \l_file_search_path_seq
-              { \@@_full_name_aux:nn {#2} }
+              { \@@_full_name_aux:nn {#1} }
 %<*package>
             \cs_if_exist:NT \input@path
               {
                 \tl_map_tokens:Nn \input@path
-                  { \@@_full_name_aux:nn {#2} }
+                  { \@@_full_name_aux:nn {#1} }
               }
 %</package>
             \@@_name_end:
@@ -2667,10 +2656,7 @@
 %   twice in the event we find the right file.
 %    \begin{macrocode}
 \cs_new:Npn \@@_full_name_aux:nn #1#2
-  {
-    \exp_args:Ne \@@_full_name_aux:n
-      { \__kernel_file_name_quote:e { \tl_to_str:n {#2} / #1 } }
-  }
+  { \exp_args:Ne \@@_full_name_aux:n { \tl_to_str:n {#2} / #1 } }
 \cs_new:Npn \@@_full_name_aux:n #1
   {
     \tl_if_blank:eF { \@@_size:n {#1} }
@@ -2687,30 +2673,23 @@
 %    \end{macrocode}
 %   As \TeX{} automatically adds |.tex| if there is no extension,
 %   there is a little clean up to do here. First, find the file
-%   extension if present, ignoring any quotes and avoiding dots in
-%   the path.(The quoted name is retained for the common case that
-%   there is no additional work to do.)
+%   extension if present.
 %    \begin{macrocode}
 \cs_new:Npn \@@_ext_check:n #1
-  { \@@_ext_check_auxi:nw {#1} #1 " #1 " \q_stop }
-\cs_new:Npn \@@_ext_check_auxi:nw #1#2 " #3 " #4 \q_stop
-  { \@@_ext_check_auxii:nw {#1} #3 / \q_nil / \q_stop }
-\cs_new:Npn \@@_ext_check_auxii:nw #1#2 / #3 / #4 \q_stop
+  { \@@_ext_check_auxii:w #1 / \q_nil / \q_stop }
+\cs_new:Npn \@@_ext_check_auxii:w #1 / #2 / #3 \q_stop
   {
-    \quark_if_nil:nTF {#3}
-      { \@@_ext_check_auxiii:nw {#1} #2 . \q_nil . \q_stop }
-      { \@@_ext_check_auxii:nw {#1} #3 / #4 \q_stop }
+    \quark_if_nil:nTF {#2}
+      { \@@_ext_check_auxiii:nw {#1} #1 . \q_nil . \q_stop }
+      { \@@_ext_check_auxii:w #2 / #3 \q_stop }
   }
 \cs_new:Npx \@@_ext_check_auxiii:nw #1#2 . #3 . #4 \q_stop
   {
     \exp_not:N \quark_if_nil:nTF {#3}
       {
-        \exp_not:N \exp_args:Nee \exp_not:N \@@_ext_check_auxiv:nn
-          { \exp_not:N \__kernel_file_name_quote:n {#1} }
-          {
-            \exp_not:N \__kernel_file_name_quote:n
-              { #1 \tl_to_str:n { .tex } }
-          }
+        \exp_not:N \@@_ext_check_auxiv:nn
+          {#1}
+          { #1 \tl_to_str:n { .tex } }
       }
       {#1}
   }
@@ -2746,6 +2725,7 @@
     the~#1~primitive.
   }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -2833,10 +2813,7 @@
 \cs_new_protected:Npn \@@_get_full_name_search:nN #1#2
   {
     \tl_set:Nx \l_@@_full_name_tl
-      {
-        \__kernel_file_name_quote:e
-          { \tl_to_str:n {#1} \l_@@_base_name_tl }
-      }  
+      { \tl_to_str:n {#1} \l_@@_base_name_tl }
     \__kernel_ior_open:No \g_@@_internal_ior \l_@@_full_name_tl
     \ior_if_eof:NF \g_@@_internal_ior { #2 { \prg_break: } }
   }
@@ -2882,10 +2859,7 @@
     \cs_gset:Npn \@@_details_aux:nn #1#2
       {
         \lua_now:e
-          {
-            l3kernel.file#2
-              ( " \lua_escape:e { \@@_strip_quotes:n {#1} } " )
-          }
+          { l3kernel.file#2 ( " \lua_escape:e { #1 } " ) }
       }
   }
   {
@@ -2893,19 +2867,6 @@
       { \exp_args:Ne \@@_mdfive_hash:n { \file_full_name:n {#1} } }
     \cs_new:Npn \@@_mdfive_hash:n #1
       { \tex_mdfivesum:D file {#1} }
-  }
-\sys_if_engine_xetex:T
-  {
-    \cs_gset:Npn \@@_details_aux:nn #1#2
-      {
-        \tl_if_blank:nF {#1}
-          {
-            \exp_args:Ne \use:c { tex_file #2 :D }
-              { \@@_strip_quotes:n {#1} }
-          }
-      }
-    \cs_gset:Npn \@@_mdfive_hash:n #1
-      { \tex_mdfivesum:D file { \@@_strip_quotes:n {#1} } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -3135,19 +3096,22 @@
       { \@@_input:V \l_@@_full_name_tl }
       { \__kernel_file_missing:n {#1} }
   }
-\cs_new_protected:Npn \@@_input:n #1
+\cs_new_protected:Npx \@@_input:n #1
   {
 %<*initex>
-    \seq_gput_right:Nn \g_@@_record_seq {#1}
+    \seq_gput_right:Nn \exp_not:N \g_@@_record_seq {#1}
 %</initex>
 %<*package>
-    \clist_if_exist:NTF \@filelist
-      { \@addtofilelist {#1} }
-      { \seq_gput_right:Nn \g_@@_record_seq {#1} }
+    \exp_not:N \clist_if_exist:NTF \exp_not:N \@filelist
+      { \exp_not:N \@addtofilelist {#1} }
+      { \seq_gput_right:Nn \exp_not:N \g_@@_record_seq {#1} }
 %</package>
-    \@@_input_push:n {#1}
-    \tex_input:D #1 \c_space_tl
-    \@@_input_pop:
+    \exp_not:N \@@_input_push:n {#1}
+    \exp_not:N \tex_input:D
+    \sys_if_engine_luatex:TF
+      { {#1} }
+      { \exp_not:N \__kernel_file_name_quote:n {#1} \scan_stop: }
+    \exp_not:N \@@_input_pop:
   }
 \cs_generate_variant:Nn \@@_input:n { V }
 %    \end{macrocode}
