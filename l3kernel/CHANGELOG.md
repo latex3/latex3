@@ -9,7 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
-- 
+- File names are now returned without quotes by `\file_full_name:n`
 
 ### Fixed
 
