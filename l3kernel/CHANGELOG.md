@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-10-24]
+
 ### Changed
 
 - File names are now returned without quotes by `\file_full_name:n`
@@ -587,7 +589,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-10-21...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-10-24...HEAD
+[2019-10-24]: https://github.com/latex3/latex3/compare/2019-10-21...2019-10-24
 [2019-10-21]: https://github.com/latex3/latex3/compare/2019-10-14...2019-10-21
 [2019-10-14]: https://github.com/latex3/latex3/compare/2019-10-11...2019-10-14
 [2019-10-11]: https://github.com/latex3/latex3/compare/2019-10-02...2019-10-11
