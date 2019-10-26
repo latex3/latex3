@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Update upTeX test to follow guidance from developers
+
 ## [2019-10-24]
 
 ### Changed
