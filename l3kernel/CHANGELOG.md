@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- File searching when `\(pdf)filesize` is not available (fixes #644)
+
 ## [2019-10-27]
 
 ### Changed
