@@ -75,7 +75,7 @@ tlmgr install   \
   etoolbox      \
   fandol        \
   filehook      \
-  ifxetex       \
+  iftex         \
   lm-math       \
   lualatex-math \
   luatexbase    \
