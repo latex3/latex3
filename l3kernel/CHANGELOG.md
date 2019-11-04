@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 
 - Handling of repeated loading of a backend (issue #646)
+- Hanlding of repeated loading of deprecated functions
 
 ## [2019-10-28]
 
