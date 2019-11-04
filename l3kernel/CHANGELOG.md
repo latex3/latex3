@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Handling of repeated loading of a backend (issue #646)
+
 ## [2019-10-28]
 
 ### Fixed
