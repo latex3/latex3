@@ -19,6 +19,9 @@ if ! command -v texlua > /dev/null; then
   cd ..
 fi
 
+# Update tlmgr itself
+tlmgr update --self
+
 # Needed for any use of texlua even if not testing LuaTeX
 tlmgr install luatex
 
