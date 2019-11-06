@@ -22,16 +22,12 @@ fi
 # Update tlmgr itself
 tlmgr update --self
 
-# Needed for any use of texlua even if not testing LuaTeX
-tlmgr install luatex
-
 # The test framework itself
-tlmgr install l3build
+tlmgr install luatex l3build
 
 # Required to build plain and LaTeX formats:
 # TeX90 plain for unpacking, pdfLaTeX, LuaLaTeX and XeTeX for tests
-tlmgr install cm etex knuth-lib latex-bin tex tex-ini-files unicode-data \
-  xetex
+tlmgr install latex-bin tex xetex
   
 # Additional requirements for (u)pLaTeX, done with no dependencies to
 # avoid large font payloads
