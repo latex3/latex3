@@ -29,19 +29,15 @@ tlmgr install luatex l3build
 # TeX90 plain for unpacking, pdfLaTeX, LuaLaTeX and XeTeX for tests
 tlmgr install latex-bin tex xetex
   
-# Additional requirements for (u)pLaTeX, done with no dependencies to
-# avoid large font payloads
-tlmgr install --no-depends babel ptex uptex ptex-base uptex-base ptex-fonts \
-  uptex-fonts platex uplatex
+# Install (u)pLaTeX
+tlmgr install platex uplatex
 
 # Assuming a 'basic' font set up, metafont is required to avoid
 # warnings with some packages and errors with others
 tlmgr install metafont mfware
 
-
-# Set up graphics: nowadays split over a few places and requiring
-# HO's bundle
-tlmgr install graphics graphics-cfg graphics-def oberdiek
+# Set up graphics
+tlmgr install graphics graphics-def
 
 # Contrib packages for testing
 #
@@ -49,8 +45,8 @@ tlmgr install graphics graphics-cfg graphics-def oberdiek
 # picking up l3kernel, etc.
 #
 # fontspec comes first as other packages tested have it as a dep
-tlmgr install --no-depends fontspec
-tlmgr install ifluatex lm lualibs luaotfload
+tlmgr install fontspec
+tlmgr install luaotfload
 
 # Other contrib packages: done as a block to avoid multiple calls to tlmgr
 # Dependencies other than the core l3build set up, metafont, fontspec and the
@@ -61,7 +57,7 @@ tlmgr install --no-depends \
   mhchem      \
   siunitx     \
   unicode-math
-tlmgr install --no-depends cjk
+tlmgr install cjk
 tlmgr install   \
   adobemapping  \
   amsfonts      \
