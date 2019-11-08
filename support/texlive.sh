@@ -23,72 +23,47 @@ fi
 tlmgr update --self
 
 # The test framework itself
-tlmgr install luatex l3build
+tlmgr install l3build
 
-# Required to build plain and LaTeX formats:
-# TeX90 plain for unpacking, pdfLaTeX, LuaLaTeX and XeTeX for tests
-tlmgr install latex-bin tex xetex
-  
-# Install (u)pLaTeX
-tlmgr install platex uplatex
+# Required to build plain and LaTeX formats including (u)pLaTeX
+tlmgr install latex-bin platex uplatex tex xetex
+
+# Then get the rest of required LaTeX
+tlmgr install amsmath graphics tools 
 
 # Assuming a 'basic' font set up, metafont is required to avoid
 # warnings with some packages and errors with others
 tlmgr install metafont mfware
 
-# Set up graphics
-tlmgr install graphics graphics-def
-
 # Contrib packages for testing
-#
-# The packages themselves are done with --no-depends to avoid
-# picking up l3kernel, etc.
-#
-# fontspec comes first as other packages tested have it as a dep
-tlmgr install fontspec
-tlmgr install luaotfload
-
-# Other contrib packages: done as a block to avoid multiple calls to tlmgr
-# Dependencies other than the core l3build set up, metafont, fontspec and the
-# 'graphics stack' (itself needed by fontspec) are listed below
-tlmgr install --no-depends \
+# The deps here will include l3... but that's not worth worrying about
+tlmgr install \
   chemformula \
   ctex        \
   mhchem      \
   siunitx     \
   unicode-math
-tlmgr install cjk
-tlmgr install   \
+# Dependencies for tests that are not auto-resolved:
+# a lot for CTeX as different engine need different stuff,
+# also fonts as they are not down as deps
+tlmgr install \
   adobemapping  \
   amsfonts      \
-  amsmath       \
-  chemgreek     \
+  cjk           \
   cjkpunct      \
   ctablestack   \
   ec            \
-  environ       \
-  etoolbox      \
   fandol        \
-  filehook      \
-  iftex         \
-  lm-math       \
   lualatex-math \
-  luatexbase    \
-  luatexja      \
-  ms            \
   pgf           \
-  tools         \
   trimspaces    \
   ucharcat      \
-  ulem          \
-  units         \
   xcolor        \
   xecjk         \
+  luatexja      \
   xkeyval       \
-  xunicode      \
-  zhmetrics     \
-  zhnumber
-
+  zhmetrics
+  
 # For the doc target
 tlmgr install \
   booktabs    \
@@ -101,13 +76,9 @@ tlmgr install \
   listings    \
   makeindex   \
   mathpazo    \
-  palatino    \
   psnfss      \
-  symbol      \
   times       \
-  underscore  \
-  url         \
-  zapfding
+  underscore
 
 # Keep no backups (not required, simply makes cache bigger)
 tlmgr option -- autobackup 0
