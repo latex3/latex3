@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Distribute LaTeX3 News
+
 ## [2019-11-07]
 
 ### Fixed
