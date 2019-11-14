@@ -76,6 +76,7 @@ tlmgr install \
   listings    \
   makeindex   \
   mathpazo    \
+  metalogo    \
   oberdiek    \
   psnfss      \
   times       \
