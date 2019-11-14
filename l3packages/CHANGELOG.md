@@ -10,19 +10,16 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-10-11]
 
 ### Fixed
-
 - `xparse`: Allow processors to depend on other arguments (fixes #629)
 
 ## [2019-05-28]
 
 ### Fixed
-
 - `xparse`: Remove stray spaces in processor information
 
 ## [2019-05-03]
 
 ### Added
-
 - `xparse`: Support for `trace` package
 
 ## [2019-03-05]

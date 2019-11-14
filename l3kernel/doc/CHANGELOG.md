@@ -8,66 +8,55 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
-
 - Distribute LaTeX3 News
 
 ## [2019-11-07]
 
 ### Fixed
-
 - Handling of repeated loading of a backend (issue #646)
 - Hanlding of repeated loading of deprecated functions
 
 ## [2019-10-28]
 
 ### Fixed
-
 - File searching when `\(pdf)filesize` is not available (fixes #644)
 
 ## [2019-10-27]
 
 ### Changed
-
 - Internal structure of `\c_sys_jobname_str` altered
 - Update upTeX test to follow guidance from developers
 
 ## [2019-10-24]
 
 ### Changed
-
 - File names are now returned without quotes by `\file_full_name:n`
 
 ### Fixed
-
 - `\file_if_exist:n(TF)`, etc., when dealing with file names containing
   spaces (see #642)
 
 ## [2019-10-21]
 
 ### Added
-
 - Lua function `l3kernel.shellescape()`
 
 ### Changed
-
 - Better coverage of (u)pTeX primitives following publication of
   pTeX manual in English
 - Trim spaces surrounding file names
 
 ### Removed
-
 - HarfTeX primitives
 
 ## [2019-10-14]
 
 ### Fixed
-
 - Correct handling of 'traditional' class options for backend
 
 ## [2019-10-11]
 
 ### Changed
-
 - Standard backend for (u)pTeX is now `dvips`
 - Minimum LuaTeX version now v0.95
 - Moved `\debug_on:`, `\debug_off:`, `\debug_suspend:` and `\debug_resume:`
@@ -76,7 +65,6 @@ this project uses date-based 'snapshot' version identifiers.
 - Performance enhancements when loading `expl3`
 
 ### Fixed
-
 - Handling of files with no extension
 - Behaviour of Lua function `l3kernel.charcat` in some circumstances
 - Loading under ConTeXt
@@ -84,19 +72,16 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-10-02]
 
 ### Fixed
-
 - Variants using `\exp_args` functions with more than 9 arguments (see #636)
 
 ## [2019-09-30]
 
 ### Fixed
-
 - File searching using `\file_full_name:n` (see #634)
 
 ## [2019-09-28]
 
 ### Changed
-
 - Speed up variants and reduce their \tracingall output
 - Debug and deprecation code are now loaded independently of expl3 core
 - `\file_compare_timestamp:nNn(TF)` now usable in expansion contexts
@@ -124,46 +109,38 @@ this project uses date-based 'snapshot' version identifiers.
   - Shell access functions
 
 ### Fixed
-
 - Key `.initial:n` property when combined with inherited keys (see #631)
 
 ## [2019-09-19]
 
 ### Fixed
-
 - Loading Unicode data when some chars may be active (see #627)
 
 ## [2019-09-08]
 
 ### Fixed
-
 - Missing internal variant (fixes #624)
 
 ## [2019-09-05]
 
 ### Added
-
 - `\file_full_name:n`, `\file_mdfive_hash:n`, `\file_size:n`,
   `\file_timestamp:n`
 - `\seq_map_tokens:Nn`, `\tl_map_tokens:nn`, `\tl_map_tokens:Nn`
 
 ### Changed
-
 - Moved `\prop_map_tokens:Nn` to stable
 - Generate chars with catcode as-supplied when case changing
 
 ## [2019-08-25]
 
 ### Added
-
 - `\fp_if_nan:nTF`
 
 ### Changed
-
 - Make round(.,nan)=nan with no "Invalid operation" error
 
 ### Fixed
-
 - `\tl_rescan:nn` and `\tl_(g)set_rescan:Nnn` when single-line input
   contains a comment character (see #607)
 - Final value of the variable in `\tl_map_variable:NNn` and
@@ -173,76 +150,62 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-08-14]
 
 ### Deprecated
-
 - `\c_term_ior`
 
 ### Fixed
-
 - Coffin pole intersection in some cases (see #605)
 
 ## [2019-07-25]
 
 ### Fixed
-
 - Loading for `expl3` with plain TeX
 
 ## [2019-07-01]
 
 ### Added
-
 - Moved `l3str-convert` module to `l3kernel`
 
 ### Changed
-
 - Ensure `\msg_fatal:nn` ends the TeX run if used inside an
   hbox (see #587)
 - Moved backend code to a separate release schedule
 
 ### Fixed
-
 - Handling of control sequences in key names (see #594)
 
 ## [2019-05-28]
 
 ### Added
-
 - Experimental `\file_compare_timestamp:nNn(TF)`
 
 ### Changed
-
 - Precedence of juxtaposition (implicit multiplication) in l3fp
   now different for keywords/variables and factors in parentheses
 
 ## [2019-05-09]
 
 ### Added
-
 - Experimental driver-level interfaces for image inclusion
 - Experimental `\ior_shell_open:Nn`
 
 ### Fixed
-
 - Some issues in `dvisvgm` driver
 
 ## [2019-05-07]
 
 ### Added
-
 - `.muskip_set:N` property
 
 ### Changed
-
 - Experimental `\driver_pdf_compress_objects:n` replaces
   `\driver_pdf_objects_(en|dis)able:`
 
 ## [2019-05-05]
 
 ### Added
-
 - `\char_str_<target>_case:N`
 
 ### Fixed
-
 - Infinite loop in some cases in DVI mode due to link-breaking code
   (see #570)
 - Category code of output from `\char_<target>_case:N`, and
@@ -251,12 +214,10 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-05-03]
 
 ### Added
-
 - New `l3legacy` module containing
   - `\legacy_if:n(TF)`
 
 ### Changed
-
 - Moved `\file_get_mdfive_hash:nN(TF)`, `\file_get_size:nN(TF)`
    and `\file_get_timestamp:nN(TF)` to stable
 - Moved `\file_if_exist_input:n` and `\file_if_exist_input:nF` to stable
@@ -266,30 +227,25 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-04-21]
 
 ### Added
-
 - Experimental support for a range of PDF concepts at the lowest
   (driver abstraction) level
 
 ## [2019-04-06]
 
 ### Changed
-
 - Moved `\tl_if_single_token:n(TF)` to stable
 
 ### Fixed
-
 - Support for ConTeXt from mid-December 2018
 
 ## [2019-03-26]
 
 ### Fixed
-
 - Loading when pre-TL'18 XeTeX is in use (see #555)
 
 ## [2019-03-05]
 
 ### Added
-
 - `\str_log:n`, `\str_log:N`
 - `TF` versions for `\file_get_...:nN` and `\ior_(str_)get:NN` functions
 - `\cs_prefix_spec:N`, `\cs_argument_spec:N`, `\cs_replacement_spec:N`
@@ -297,7 +253,6 @@ this project uses date-based 'snapshot' version identifiers.
 - `factorial` function in `l3fp`
 
 ### Changed
-
 - Return values from `\file_get:nnN`, `\file_get_...:nN`, `\ior_get:NN`,
   `\sys_shell_get:nnN`
 - Moved coffin affine transformations to stable
@@ -314,22 +269,18 @@ this project uses date-based 'snapshot' version identifiers.
   `\cs_argument_spec:N`, `\cs_replacement_spec:N`, respectively
 
 ### Fixed
-
 - Treatment of inherited keys when setting only known keys (see #548)
 
 ### Removed
-
 - Experimental `\skip_split_finite_else_action:nnNN`
 - Experimental `\tl_reverse_tokens:n`
 
 ## [2019-02-15]
 
 ### Changed
-
 - Defensive code for redefinition of `\time`, `\day`, `\month` and `\year`
 
 ### Fixed
-
 - Resetting of key inheritance (see #535)
 - Issue in deprecated command `\tl_set_from_file:Nnn`
   (see https://tex.stackexchange.com/q/474813/)
@@ -337,20 +288,17 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-02-03]
 
 ### Added
-
 - Support for return of whole path by `\keys_set_known:nnN`-like
   function `\keys_set_known:nnnN` (see #508)
 - `.prop_(g)put:N` key property (see #444)
 
 ### Fixed
-
 - Handling of nested key setting when filtering, _etc._ (see #526)
 - Inheritance of default values (see #504)
 
 ## [2019-01-28]
 
 ### Added
-
 - Global versions of box affine functions, e.g. `\box_grotate:Nn`
 - Global versions of box size adjustment functions
 - `\box_(g)set_eq_drop:NN`, `\(h|v)box_unpack_drop:N`
@@ -358,63 +306,52 @@ this project uses date-based 'snapshot' version identifiers.
 - Experimental functions `\sys_shell_get:nnN` and `\sys_shell_get:nnNTF`
 
 ### Changed
-
 - `\char_generate:nn` now always takes exactly two expansions
 - Move `\prg_generate_conditional_variant:Nnn` to stable
 - Renamed experimental `\box_trim:Nnnnn` and `\box_viewport:Nnnnn` as
   `\box_set_trim:Nnnnn` and `\box_set_viewport:Nnnnn`, respectively
 
 ### Deprecated
-
 - `\box_(g)set_eq_clear:NN`, replaced by `\box_(g)set_eq_drop:NN`
 - `\(h|v)box_unpack_clear:N`, replaced by `\(h|v)box_unpack_drop:N
 - `\tl_(g)set_from_file(_x):Nnn`, replaced by `\file_get:nnN`
 
 ### Fixed
-
 - Scope treatment of `\box_set_dp:N`, _etc._
 - In (u)platex: detection of spaces in `\tl_rescan:nn` and related functions
 
 ### Removed
-
 - Experimental function family `\tl_(g)set_from_shell:(N|c)nn`
   (replaced by `\sys_shell_get:nnN`)
 
 ## [2019-01-13]
 
 ### Added
-
 - `\ior_map_variable:NNn` and `\ior_str_map_variable:NNn`
 
 ### Fixed
-
 - Unclosed conditional with Unicode engines
 
 ## [2019-01-12]
 
 ### Changed
-
 - Improved `expl3` loading time with LuaTeX and XeTeX
 - Improved performance of `\ior_map_inline:Nn` and related functions
 
 ### Fixed
-
 - Handling of accented characters under mixed case changing in 8-bit engines
   (see #514)
 
 ## [2019-01-01]
 
 ### Added
-
 - `\iow_allow_break:`
 
 ### Fixed
-
 - Correct fp randint with zero argument (see #507)
 - Handling of `\current@color` with (x)dvipdfmx` (see #510)
 
 ### Removed
-
 - Support for stand-alone `l3regex`, `l3sort`, `l3srt`, `l3tl-analysis`,
   `l3tl-build`
 - `\box_resize:Nnn`
@@ -431,61 +368,50 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2018-12-12]
 
 ### Changed
-
 - Move `\tl_range:nnn` to stable
 
 ### Fixed
-
 - Loading in ConTeXt MkIV
 
 ## [2018-12-11]
 
 ### Changed
-
 - Enable `\char_generate:nn` to create active tokens with XeTeX
 
 ## [2018-12-06]
 
 ### Changed
-
 - Apply `\par` only at the end of vertical boxes
 - Move `\int_rand:n` to stable
 - Move `\<var>_rand_item:N` to stable
 
 ### Fixed
-
 - Typo in `\lua_shipout_e:n` (see #503)
 
 ## [2018-11-19]
 
 ### Added
-
 - Support for cross-compatibility primitives in XeTeX
 - `\int_sign:n`, `\dim_sign:n` and `\fp_sign:n`
 
 ## [2018-10-19]
 
 ### Fixed
-
 - Wrapping of text in messages, etc., for some line lengths (fixes #491)
 
 ## [2018-10-17]
 
 ### Added
-
 - `\g_msg_module_documentation_prop` (see #471)
 - `\peek_remove_spaces:n`
 
 ### Changed
-
 - Formatting of messages: now follows LaTeX2e closely
 
 ### Deprecated
-
 - `\msg_interrupt:nn`, `\msg_log:n` and `\msg_term:n`
 
 ### Fixed
-
 - Handling of inheritance for choice keys (fixes #483)
 
 ## [2018-09-24]
@@ -556,7 +482,6 @@ this project uses date-based 'snapshot' version identifiers.
 - Several internal optimisations
 
 ### Fixed
-
 - Ex­pand boolean ex­pres­sion be­fore call­ing `\chardef` (fixes #461)
 
 ### Removed

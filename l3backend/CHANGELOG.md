@@ -9,34 +9,28 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-10-11]
 
 ### Changed
-
 - Improved functionality in generic mode
 
 ## [2019-09-05]
 
 ### Added
-
 - Support for EPS and PDF files with `dvisvgm` backend
 
 ### Fixed
-
 - Some primitive use in the `dvips` backend
 
 ## [2019-08-25]
 
 ### Fixed
-
 - Setting for PDF version in `dvipdfmx` route
 - Support for PDF objects with XeTeX
 
 ## [2019-07-01]
 
 ### Added
-
 - Driver support for anonymous objects
 
 ### Changed
-
 - Moved backend code to separate release module `l3backend`
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
