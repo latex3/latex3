@@ -41,7 +41,6 @@ Documentation is found in:
 
 * `articles`: discussion of LaTeX3 concepts by team members for
   publication in [_TUGBoat_](http://www.tug.org/tugboat) or elsewhere.
-* `news`: source for _LaTeX3 News_.
 
 The repository also contains the directory `xpackages`. This
 contain code which is being moved (broadly) `l3experimental`.
