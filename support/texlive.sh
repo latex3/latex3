@@ -79,6 +79,7 @@ tlmgr install \
   metalogo    \
   oberdiek    \
   psnfss      \
+  ragged2e    \
   times       \
   underscore
 
