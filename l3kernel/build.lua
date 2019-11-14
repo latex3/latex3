@@ -8,6 +8,7 @@ bundle = ""
 
 -- Location of main directory: use Unix-style path separators
 maindir = ".."
+docfiledir = "./doc"
 
 -- Non-standard settings
 checkfiles   = {"l3names.def"}
