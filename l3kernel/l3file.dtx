@@ -702,6 +702,35 @@
 %   quote (|"|) characters or is surrounded by a pair of quotes.
 % \end{function}
 %
+% \begin{function}[rEXP, added = 2019-11-19]
+%   {\file_hex_dump:n, \file_hex_dump:nnn}
+%   \begin{syntax}
+%     \cs{file_hex_dump:n} \Arg{file name}
+%     \cs{file_hex_dump:nnn} \Arg{file name} \Arg{offset} \Arg{length}
+%   \end{syntax}
+%   Searches for \meta{file name} using the current \TeX{} search
+%   path and the additional paths controlled by \cs{l_file_search_path_seq}.
+%   It then expands to leave the hexadecimal dump of the file content in the
+%   input stream. The file is read as bytes, which means that in
+%   contrast to most \TeX{} behaviour there will be a difference in result
+%   depending on the line endings used in text files. The same file will
+%   produce the same result between different engines: the algorithm used
+%   is the same in all cases. When the file is not found, the result of
+%   expansion is empty. The \meta{offset} from the start of the file
+%   and \meta{length} are given in bytes.
+% \end{function}
+%
+% \begin{function}[noTF, added = 2019-11-19]
+%   {\file_get_hex_dump:nN, \file_get_hex_dump:nnnN}
+%   \begin{syntax}
+%     \cs{file_get_hex_dump:n} \Arg{file name} \meta{tl var}
+%     \cs{file_get_hex_dump:nnn} \Arg{file name} \Arg{offset} \Arg{length} \meta{tl var}
+%   \end{syntax}
+%   Sets the \meta{tl var} to the result of applying
+%   \cs{file_hex_dump:n}/\cs{file_hex_dump:nnn} to the \meta{file}.
+%   If the file is not found, the \meta{tl var} will be set to \cs{q_no_value}.
+% \end{function}
+%
 % \begin{function}[rEXP, added = 2019-09-03]{\file_mdfive_hash:n}
 %   \begin{syntax}
 %     \cs{file_mdfive_hash:n} \Arg{file name}
@@ -2858,18 +2887,67 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\file_hex_dump:nnn, \@@_hex_dump:nnn}
+% \begin{macro}{\file_hex_dump:n, \@@_hex_dump:n}
+%   These are separate as they need multiple arguments \emph{or} the
+%   file size. For \LuaTeX{}, the emulation does not need the file
+%   size so we save a little on expansion.
+%    \begin{macrocode}
+\cs_new:Npn \file_hex_dump:nnn #1#2#3
+  { \exp_args:Ne \@@_hex_dump:nnn { \file_full_name:n {#1} } {#2} {#3} }
+\cs_new:Npn \@@_hex_dump:nnn #1#2#3
+  {
+    \tl_if_blank:nF {#1}
+      { \tex_filedump:D offset ~ #2 ~ length #3 {#1} }
+  }
+\sys_if_engine_luatex:T
+  {
+    \cs_gset:Npn \@@_hex_dump:nnn #1#2#3
+      {
+        \lua_now:e
+          { l3kernel.filedump ( " \lua_escape:e { #1 } " , #2 , #3 ) }
+      }
+  }
+\cs_new:Npn \file_hex_dump:n #1
+  { \exp_args:Ne \@@_hex_dump:n { \file_full_name:n {#1} } }
+\cs_new:Npn \@@_hex_dump:n #1
+  {
+    \tl_if_blank:nF {#1}
+      { \tex_filedump:D length \tex_filesize:D {#1} {#1} }
+  }
+\sys_if_engine_luatex:T
+  {
+    \cs_gset:Npn \@@_hex_dump:n #1
+      {
+        \lua_now:e
+          { l3kernel.filedump ( " \lua_escape:e { #1 } " ) }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}[noTF]
-%   {\file_get_mdfive_hash:nN, \file_get_size:nN, \file_get_timestamp:nN}
+%   {
+%     \file_get_hex_dump:nN,
+%     \file_get_mdfive_hash:nN
+%      \file_get_size:nN,
+%      \file_get_timestamp:nN
+%   }
 % \begin{macro}{\@@_get_details:nnN}
 %   Non-expandable wrappers around the above in the case where appropriate
 %   primitive support exists.
 %    \begin{macrocode}
+\cs_new_protected:Npn \file_get_hex_dump:nN #1#2
+  { \file_get_hex_dump:nNF {#1} #2 { \tl_set:Nn #2 { \q_no_value } } }
 \cs_new_protected:Npn \file_get_mdfive_hash:nN #1#2
   { \file_get_mdfive_hash:nNF {#1} #2 { \tl_set:Nn #2 { \q_no_value } } }
 \cs_new_protected:Npn \file_get_size:nN #1#2
   { \file_get_size:nNF {#1} #2 { \tl_set:Nn #2 { \q_no_value } } }
 \cs_new_protected:Npn \file_get_timestamp:nN #1#2
   { \file_get_timestamp:nNF {#1} #2 { \tl_set:Nn #2 { \q_no_value } } }
+\prg_new_protected_conditional:Npnn \file_get_hex_dump:nN #1#2 { T , F , TF }
+  { \@@_get_details:nnN {#1} { hex_dump } #2 }
 \prg_new_protected_conditional:Npnn \file_get_mdfive_hash:nN #1#2 { T , F , TF }
   { \@@_get_details:nnN {#1} { mdfive_hash } #2 }
 \prg_new_protected_conditional:Npnn \file_get_size:nN #1#2 { T , F , TF }
@@ -2901,6 +2979,7 @@
             \token_to_str:N \(pdf)file
             \str_case:nn {#2}
               {
+                { hex_dump } { dump }
                 { mdfive_hash } { mdfivesum }
                 { timestamp } { moddate }
                 { size } { size }
@@ -2911,6 +2990,26 @@
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}[noTF]{\file_get_hex_dump:nnnN}
+%   Custom code due to the additional arguments.
+%    \begin{macrocode}
+\cs_new_protected:Npn \file_get_hex_dump:nnnN #1#2#3#4
+  {
+    \file_get_hex_dump:nnnNF {#1} {#2} {#3} #4
+      { \tl_set:Nn #4 { \q_no_value } } 
+  }
+\prg_new_protected_conditional:Npnn \file_get_mdfive_hash:nnnN #1#2#3#4
+  { T , F , TF }
+  {
+    \tl_set:Nx #4
+      { \file_hex_dump:nnn {#1} {#2} {#3} }
+    \tl_if_empty:NTF #4
+      { \prg_return_false: }
+      { \prg_return_true: }
+  }
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[EXP]{\@@_str_cmp:nn}
