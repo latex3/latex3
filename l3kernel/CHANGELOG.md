@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
-- `\file_hex_dump:n(nn)` and `\file_get_hex_dump:n(nn)(TF)`
+- `\file_hex_dump:n(nn)` and `\file_get_hex_dump:n(nn)N(TF)`
 
 ### Changed
 - Distribute LaTeX3 News
