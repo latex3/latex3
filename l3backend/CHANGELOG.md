@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-11-25]
+
 ### Changed
 - Move dvips header material to `.pro` file
 
@@ -38,7 +40,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-10-11...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-11-25...HEAD
+[2019-11-25]: https://github.com/latex3/latex3/compare/2019-10-11...2019-11-25
 [2019-10-11]: https://github.com/latex3/latex3/compare/2019-09-05...2019-10-11
 [2019-09-05]: https://github.com/latex3/latex3/compare/2019-08-25...2019-09-05
 [2019-08-25]: https://github.com/latex3/latex3/compare/2019-07-01...2019-08-25
