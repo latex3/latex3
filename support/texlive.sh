@@ -53,6 +53,7 @@ tlmgr install \
   cjkpunct      \
   ctablestack   \
   ec            \
+  epstopdf-pkg  \
   fandol        \
   lualatex-math \
   pgf           \
