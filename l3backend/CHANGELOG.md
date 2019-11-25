@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Move dvips header material to `.pro` file
+
 ## [2019-10-11]
 
 ### Changed

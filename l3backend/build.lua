@@ -9,7 +9,7 @@ bundle = ""
 -- Location of main directory: use Unix-style path separators
 maindir = ".."
 
-installfiles = {"*.def"}
+installfiles = {"*.def", "*.pro"}
 sourcefiles  = {"*.dtx", "*.ins"}
 tagfiles     = {"*.dtx", "CHANGELOG.md", "README.md"}
 typesetfiles = {"l3backend-code.tex"}
@@ -22,6 +22,9 @@ unpacksuppfiles = {"/support/docstrip.tex","/l3kernel/l3docstrip.dtx"}
 -- No deps other than the test system
 unpackdeps  = { }
 typesetdeps = {maindir .. "/l3packages/xparse"}
+
+-- Get the .pro files in the right place
+tdslocations = {"dvips/l3backend/*.pro"}
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
