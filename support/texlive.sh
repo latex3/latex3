@@ -56,6 +56,7 @@ tlmgr install \
   epstopdf-pkg  \
   fandol        \
   lualatex-math \
+  pdftexcmds    \
   pgf           \
   trimspaces    \
   ucharcat      \
