@@ -75,6 +75,7 @@ tlmgr install \
   enumitem    \
   fancyvrb    \
   hyperref    \
+  kvoptions   \
   listings    \
   makeindex   \
   mathpazo    \
