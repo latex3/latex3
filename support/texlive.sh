@@ -76,6 +76,7 @@ tlmgr install \
   fancyvrb    \
   hyperref    \
   kvoptions   \
+  letltxmacro \
   listings    \
   makeindex   \
   mathpazo    \
