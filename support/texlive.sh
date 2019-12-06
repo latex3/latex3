@@ -68,6 +68,7 @@ tlmgr install \
   
 # For the doc target
 tlmgr install \
+  bookmark    \
   booktabs    \
   colortbl    \
   csquotes    \
