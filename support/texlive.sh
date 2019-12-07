@@ -68,6 +68,7 @@ tlmgr install \
   
 # For the doc target
 tlmgr install \
+  atveryend   \
   bookmark    \
   booktabs    \
   colortbl    \
