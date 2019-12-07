@@ -75,6 +75,7 @@ tlmgr install \
   dvips       \
   enumitem    \
   fancyvrb    \
+  hologo      \
   hyperref    \
   kvoptions   \
   letltxmacro \
