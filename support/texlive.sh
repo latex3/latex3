@@ -88,6 +88,7 @@ tlmgr install \
   oberdiek    \
   psnfss      \
   ragged2e    \
+  rerunfilecheck \
   times       \
   underscore
 
