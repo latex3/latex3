@@ -49,6 +49,7 @@ tlmgr install \
 tlmgr install \
   adobemapping  \
   amsfonts      \
+  catchfile     \
   cjk           \
   cjkpunct      \
   ctablestack   \
