@@ -58,6 +58,7 @@ tlmgr install \
   epstopdf-pkg  \
   fandol        \
   lualatex-math \
+  pdfescape     \
   pdftexcmds    \
   pgf           \
   trimspaces    \
