@@ -48,6 +48,7 @@ tlmgr install \
 # also fonts as they are not down as deps
 tlmgr install \
   adobemapping  \
+  alphalph      \
   amsfonts      \
   catchfile     \
   cjk           \
