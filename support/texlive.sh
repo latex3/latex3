@@ -59,6 +59,7 @@ tlmgr install \
   epstopdf-pkg  \
   fandol        \
   lualatex-math \
+  ltxcmds       \
   pdfescape     \
   pdftexcmds    \
   pgf           \
@@ -83,6 +84,7 @@ tlmgr install \
   fancyvrb    \
   hologo      \
   hyperref    \
+  intcalc     \
   kvoptions   \
   letltxmacro \
   listings    \
