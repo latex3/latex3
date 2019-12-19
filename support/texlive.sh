@@ -85,6 +85,7 @@ tlmgr install \
   enumitem    \
   etexcmds    \
   fancyvrb    \
+  gettitlestring \
   hologo      \
   hycolor     \
   hyperref    \
@@ -100,6 +101,7 @@ tlmgr install \
   oberdiek    \
   psnfss      \
   ragged2e    \
+  refcount    \
   rerunfilecheck \
   times       \
   underscore  \
