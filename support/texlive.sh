@@ -75,6 +75,7 @@ tlmgr install \
 tlmgr install \
   atbegshi    \
   atveryend   \
+  auxhook     \
   bookmark    \
   booktabs    \
   colortbl    \
@@ -84,6 +85,7 @@ tlmgr install \
   etexcmds    \
   fancyvrb    \
   hologo      \
+  hycolor     \
   hyperref    \
   intcalc     \
   kvdefinekeys \
