@@ -76,6 +76,7 @@ tlmgr install \
   atbegshi    \
   atveryend   \
   auxhook     \
+  bigintcalc  \
   bookmark    \
   booktabs    \
   colortbl    \
