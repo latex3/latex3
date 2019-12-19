@@ -81,11 +81,14 @@ tlmgr install \
   csquotes    \
   dvips       \
   enumitem    \
+  etexcmds    \
   fancyvrb    \
   hologo      \
   hyperref    \
   intcalc     \
+  kvdefinekeys \
   kvoptions   \
+  kvsetkeys   \
   letltxmacro \
   listings    \
   makeindex   \
