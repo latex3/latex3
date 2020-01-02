@@ -30,7 +30,8 @@ tagfiles     =
     "interface3.tex", "l3styleguide.tex",
     "l3syntax-changes.tex",
     "l3term-glossary.tex",
-    "source3.tex"
+    "source3.tex",
+    "*.ins"
   }
 typesetfiles =
   {

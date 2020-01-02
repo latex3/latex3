@@ -11,7 +11,7 @@ maindir = ".."
 
 installfiles = {"*.def", "*.pro"}
 sourcefiles  = {"*.dtx", "*.ins"}
-tagfiles     = {"*.dtx", "CHANGELOG.md", "README.md"}
+tagfiles     = {"*.dtx", "CHANGELOG.md", "README.md", "*.ins"}
 typesetfiles = {"l3backend-code.tex"}
 unpackfiles  = {"l3backend.ins"}
 

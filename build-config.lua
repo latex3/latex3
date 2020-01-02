@@ -11,7 +11,7 @@ checksuppfiles  = checksuppfiles  or
     "regression-test.cfg",
     "regression-test.tex"
   }
-tagfiles = tagfiles or {"*.dtx", "README.md", "CHANGELOG.md"}
+tagfiles = tagfiles or {"*.dtx", "README.md", "CHANGELOG.md", "*.ins"}
 unpacksuppfiles = unpacksuppfiles or
   {
     "*.ini",
