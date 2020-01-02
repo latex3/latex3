@@ -15,6 +15,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Distribute LaTeX3 News
+- Moved `\char_<type>case:N` to stable
 - Documentation improvements
 
 ### Fixed
