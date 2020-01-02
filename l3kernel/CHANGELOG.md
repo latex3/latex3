@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `bool_case_true:n(TF)` and `\bool_case_false:n(TF)`
 - `\file_hex_dump:n(nn)` and `\file_get_hex_dump:n(nn)N(TF)`
+- `\text_expand:n` and supporting data structures
 
 ### Changed
 - Distribute LaTeX3 News
