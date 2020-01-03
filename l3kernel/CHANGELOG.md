@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `bool_case_true:n(TF)` and `\bool_case_false:n(TF)`
 - `\file_hex_dump:n(nn)` and `\file_get_hex_dump:n(nn)N(TF)`
+- `\str_<type>case:n`
 - `\text_expand:n` and supporting data structures
 
 ### Changed
@@ -19,6 +20,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Inherit key required/forbidden properties (see #653)
 - Set backend at the beginning of `\document` (see #657)
+
+### Deprecated
+- `\str_<type>_case:n`
 
 ## [2019-11-07]
 
