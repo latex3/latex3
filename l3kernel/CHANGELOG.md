@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `bool_case_true:n(TF)` and `\bool_case_false:n(TF)`
 - `\file_hex_dump:n(nn)` and `\file_get_hex_dump:n(nn)N(TF)`
 - `\str_<type>case:n`
+- `\text_<type>case:n(n)`
 - `\text_expand:n` and supporting data structures
 
 ### Changed
@@ -24,6 +25,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Deprecated
 - `\str_<type>_case:n`
+- `\tl_<type>_case:n(n)`
 
 ## [2019-11-07]
 
