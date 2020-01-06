@@ -7,7 +7,7 @@ bundle  = "LaTeX3"
 module  = ""
 
 -- A couple of custom variables: the order here is set up for 'importance'
-bundles      = {"l3kernel", "l3packages", "l3experimental", "l3trial"}
+bundles      = {"l3backend", "l3kernel", "l3packages", "l3experimental", "l3trial"}
 checkbundles =
   {
     "l3kernel",
@@ -16,7 +16,7 @@ checkbundles =
     "l3trial",
     "contrib"
   }
-ctanbundles  = {"l3kernel", "l3packages", "l3experimental"}
+ctanbundles  = {"l3backend", "l3kernel", "l3packages", "l3experimental"}
 
 -- Location of main directory: use Unix-style path separators
 maindir = "."
@@ -38,13 +38,15 @@ function main(target)
       end
     end
   elseif target == "doc" then
-    errorlevel = call(bundles, "doc")
+    errorlevel = call(ctanbundles, "doc")
   elseif target == "install" then
     errorlevel = call (bundles, "install")
   elseif target == "uninstall" then
     errorlevel = call(bundles,"uninstall")
   elseif target == "unpack" then
     errorlevel = call (bundles, "unpack")
+  elseif target == "upload" then
+    errorlevel = call(ctanbundles,"upload")
   elseif target == "tag" then
     if options["names"] and #options["names"] == 1 then
         call(ctanbundles,"tag")

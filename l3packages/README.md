@@ -1,7 +1,7 @@
 LaTeX3 High-Level Concepts
 ==========================
 
-Release 2019-01-28
+Release 2019-11-07
 
 Overview
 --------
@@ -94,27 +94,7 @@ The LaTeX3 Project
 ------------------
 
 Development of LaTeX3 is carried out by
-[The LaTeX3 Project](http://www.latex-project.org/latex3.html). Currently,
-the team members are
-
-* Johannes Braams
-* David Carlisle
-* Robin Fairbairns
-* Morten Høgholm
-* Bruno Le Floch
-* Thomas Lotze
-* Frank Mittelbach
-* Will Robertson
-* Chris Rowley
-* Rainer Schöpf
-* Joseph Wright
-
-Former members of The LaTeX3 Project team were
-
-* Michael Downes
-* Denys Duchier
-* Alan Jeffrey
-* Martin Schröder
+[The LaTeX3 Project](https://www.latex-project.org/latex3/).
 
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
@@ -122,6 +102,6 @@ the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
-<p>Copyright (C) 1998-2011,2015-2019 The LaTeX3 Project <br />
+<p>Copyright (C) 1998-2011,2015-2020 The LaTeX3 Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>

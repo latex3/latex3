@@ -13,6 +13,8 @@ The following directories contain experimental LaTeX3 code:
 * `l3kernel`: code which is intended to eventually appear in a
   stand-alone LaTeX3 format. Most of this material is also
   usable on top of LaTeX2e when loading the `expl3` package.
+* `l3backend`: code for backend (driver) level interaces across
+  the `expl3` codebase.
 * `l3packages`: code which is written to be used on top of
   LaTeX2e to experiment with LaTeX3 concepts. The interfaces to these
   higher-level packages are 'stable'.
@@ -39,7 +41,6 @@ Documentation is found in:
 
 * `articles`: discussion of LaTeX3 concepts by team members for
   publication in [_TUGBoat_](http://www.tug.org/tugboat) or elsewhere.
-* `news`: source for _LaTeX3 News_.
 
 The repository also contains the directory `xpackages`. This
 contain code which is being moved (broadly) `l3experimental`.
@@ -84,4 +85,4 @@ LaTeX3 is developed by [The LaTeX3 Project](https://latex-project.org).
 
 ## Copyright
 
-This README file is copyright 2018 The LaTeX3 Project.
+This README file is copyright 2019 The LaTeX3 Project.

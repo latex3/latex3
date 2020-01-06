@@ -2,7 +2,7 @@
 %
 %% File: l3msg.dtx
 %
-% Copyright (C) 2009-2019 The LaTeX3 Project
+% Copyright (C) 2009-2020 The LaTeX3 Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2019-02-03}
+% \date{Released 2019-11-07}
 %
 % \maketitle
 %
@@ -290,7 +290,8 @@
 %   \end{syntax}
 %   Issues \meta{module} error \meta{message}, passing \meta{arg one} to
 %   \meta{arg four} to the text-creating functions. After issuing a
-%   fatal error the \TeX{} run halts.
+%   fatal error the \TeX{} run halts. No PDF file will be produced in
+%   this case (DVI mode runs may produce a truncated DVI file).
 % \end{function}
 %
 % \begin{function}[updated = 2012-08-11]
@@ -509,10 +510,10 @@
 %<@@=msg>
 %    \end{macrocode}
 %
-% \begin{variable}{\l_@@_tmp_tl}
+% \begin{variable}{\l_@@_internal_tl}
 %   A general scratch for the module.
 %    \begin{macrocode}
-\tl_new:N \l_@@_tmp_tl
+\tl_new:N \l_@@_internal_tl
 %    \end{macrocode}
 % \end{variable}
 %
@@ -554,11 +555,6 @@
 %   This auxiliary is similar to \cs{__kernel_chk_if_free_cs:N}, and is used when
 %   defining messages with \cs{msg_new:nnnn}.
 %    \begin{macrocode}
-\__kernel_patch:nnNNpn { }
-  {
-    \__kernel_debug_log:x
-      { Defining~message~ #1 / #2 ~\msg_line_context: }
-  }
 \cs_new_protected:Npn \@@_chk_free:nn #1#2
   {
     \msg_if_exist:nnT {#1} {#2}
@@ -674,30 +670,47 @@
 % \subsection{Showing messages: low level mechanism}
 %
 % \begin{macro}{\@@_interrupt:Nnnn}
+% \begin{macro}{\@@_no_more_text:nnnn}
 %   The low-level interruption macro is rather opaque, unfortunately.
 %   Depending on the availability of more information there is a choice
 %   of how to set up the further help.  We feed the extra help text and
 %   the message itself to a wrapping auxiliary, in this order because we
 %   must first setup \TeX{}'s \tn{errhelp} register before issuing an
-%   \tn{errmessage}.
+%   \tn{errmessage}. To deal with the various cases of critical or fatal
+%   errors with and without help text, there is a bit of argument-passing
+%   to do.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_interrupt:Nnnn #1#2#3#4
+\cs_new_protected:Npn \@@_interrupt:NnnnN #1#2#3#4#5
   {
     \str_set:Nx \l_@@_text_str { #1 {#2} }
     \str_set:Nx \l_@@_name_str { \msg_module_name:n {#2} }
-    \tl_if_empty:nTF {#4}
+    \cs_if_eq:cNTF
+      { \c_@@_more_text_prefix_tl #2 / #3 }
+      \@@_no_more_text:nnnn
       {
-        \@@_interrupt_wrap:nnn {#3}
+        \@@_interrupt_wrap:nnn
+          { \use:c { \c_@@_text_prefix_tl #2 / #3 } #4 }
           { \c_@@_continue_text_tl }
-          { \c_@@_no_info_text_tl }
+          {
+             \c_@@_no_info_text_tl
+             \tl_if_empty:NF #5
+               { \\ \\ #5 }
+          }
       }
       {
-        \@@_interrupt_wrap:nnn {#3}
+        \@@_interrupt_wrap:nnn
+          { \use:c { \c_@@_text_prefix_tl #2 / #3 } #4 }
           { \c_@@_help_text_tl }
-          {#4}
+          {
+             \use:c { \c_@@_more_text_prefix_tl #2 / #3 } #4
+             \tl_if_empty:NF #5
+               { \\ \\ #5 }
+          }
       }
   }
+\cs_new:Npn \@@_no_more_text:nnnn #1#2#3#4 { }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\@@_interrupt_wrap:nnn}
@@ -730,13 +743,13 @@
             { ~ }
         }
         { } \@@_interrupt_text:n
-    \iow_wrap:nnnN { \l_@@_tmp_tl \\ \\ #2 } { } { }
+    \iow_wrap:nnnN { \l_@@_internal_tl \\ \\ #2 } { } { }
       \@@_interrupt:n
   }
 \cs_new_protected:Npn \@@_interrupt_text:n #1
   {
     \group_end:
-    \tl_set:Nn \l_@@_tmp_tl {#1}
+    \tl_set:Nn \l_@@_internal_tl {#1}
   }
 \cs_new_protected:Npn \@@_interrupt_more_text:n #1
   { \exp_args:Nx \tex_errhelp:D { #1 \iow_newline: } }
@@ -967,18 +980,26 @@
 %     \msg_fatal:nnxx   ,
 %     \msg_fatal:nnx
 %   }
-%   For fatal errors, after the error message \TeX{} bails out.
+%  \begin{macro}{\@@_fatal_exit:}
+%   For fatal errors, after the error message \TeX{} bails out. We force
+%   a bail out rather than using \tn{end} as this means it does not
+%   matter if we are in a context where normally the run cannot end.
 %    \begin{macrocode}
   \@@_class_new:nn { fatal }
     {
-      \@@_interrupt:Nnnn
-        \msg_fatal_text:n
-        {#1}
-        { \use:c { \c_@@_text_prefix_tl #1 / #2 } {#3} {#4} {#5} {#6} }
-        { \c_@@_fatal_text_tl }
-      \tex_end:D
+      \@@_interrupt:NnnnN
+        \msg_fatal_text:n {#1} {#2}
+        { {#3} {#4} {#5} {#6} }
+        \c_@@_fatal_text_tl
+      \@@_fatal_exit:
+    }
+  \cs_new_protected:Npn \@@_fatal_exit:
+    {
+      \tex_batchmode:D
+      \tex_read:D -1 to \l_@@_internal_tl
     }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}
@@ -997,11 +1018,10 @@
 %    \begin{macrocode}
   \@@_class_new:nn { critical }
     {
-      \@@_interrupt:Nnnn
-        \msg_critical_text:n
-        {#1}
-        { \use:c { \c_@@_text_prefix_tl #1 / #2 } {#3} {#4} {#5} {#6} }
-        { \c_@@_critical_text_tl }
+      \@@_interrupt:NnnnN
+        \msg_critical_text:n {#1} {#2}
+        { {#3} {#4} {#5} {#6} }
+        \c_@@_critical_text_tl
       \tex_endinput:D
     }
 %    \end{macrocode}
@@ -1019,32 +1039,18 @@
 %     \msg_error:nnxx   ,
 %     \msg_error:nnx
 %   }
-% \begin{macro}{\@@_error:cnnnnn, \@@_no_more_text:nnnn}
 %   For an error, the interrupt routine is called.  We check if there is
 %   a \enquote{more text} by comparing that control sequence with a
 %   permanently empty text.
 %    \begin{macrocode}
   \@@_class_new:nn { error }
     {
-      \@@_error:cnnnnn
-        { \c_@@_more_text_prefix_tl #1 / #2 }
-        {#3} {#4} {#5} {#6}
-        {
-          \@@_interrupt:Nnnn
-            \msg_error_text:n
-            {#1}
-            { \use:c { \c_@@_text_prefix_tl #1 / #2 } {#3} {#4} {#5} {#6} }
-       }
+      \@@_interrupt:NnnnN
+        \msg_error_text:n {#1} {#2}
+        { {#3} {#4} {#5} {#6} }
+        \c_empty_tl
     }
-  \cs_new_protected:Npn \@@_error:cnnnnn #1#2#3#4#5#6
-    {
-      \cs_if_eq:cNTF {#1} \@@_no_more_text:nnnn
-        { #6 { } }
-        { #6 { \use:c {#1} {#2} {#3} {#4} {#5} } }
-    }
-  \cs_new:Npn \@@_no_more_text:nnnn #1#2#3#4 { }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}
@@ -1215,13 +1221,13 @@
     {
       \tl_if_empty:nF {#1}
         { \exp_args:No \iow_term:n { \use_none:n #1 } }
-      \tl_set:Nn \l_@@_tmp_tl {#2}
+      \tl_set:Nn \l_@@_internal_tl {#2}
       \__kernel_iow_with:Nnn \tex_newlinechar:D { 10 }
         {
           \__kernel_iow_with:Nnn \tex_errorcontextlines:D { -1 }
             {
               \tex_showtokens:D \exp_after:wN \exp_after:wN \exp_after:wN
-                { \exp_after:wN \l_@@_tmp_tl }
+                { \exp_after:wN \l_@@_internal_tl }
             }
         }
     }
@@ -1295,7 +1301,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_use:nnnnnnn #1#2#3#4#5#6#7
   {
-%<package>    \use:c { conditionally@traceoff }
+%<package>    \cs_if_exist_use:N \conditionally@traceoff
     \msg_if_exist:nnTF {#2} {#3}
       {
         \@@_class_chk_exist:nT {#1}
@@ -1313,7 +1319,7 @@
           }
       }
       { \__kernel_msg_error:nnxx { kernel } { message-unknown } {#2} {#3} }
-%<package>    \use:c { conditionally@traceon }
+%<package>    \cs_if_exist_use:N \conditionally@traceon
   }
 \cs_new_protected:Npn \@@_use_code: { }
 %    \end{macrocode}
@@ -1699,11 +1705,6 @@
     LaTeX~has~been~asked~to~use~a~control~sequence~'#1':\\
     this~has~not~been~defined~yet.
   }
-\__kernel_msg_new:nnn { kernel } { deprecated-command }
-  {
-    The~deprecated~command~'#2'~has~been~or~will~be~removed~on~#1.
-    \tl_if_empty:nF {#3} { ~Use~instead~'#3'. }
-  }
 \__kernel_msg_new:nnnn { kernel } { empty-search-pattern }
   { Empty~search~pattern. }
   {
@@ -1757,7 +1758,7 @@
     Only~expandable~tests~can~have~a~predicate~version.
   }
 \__kernel_msg_new:nnn { kernel } { randint-backward-range }
-  { Bounds~ordered~backwards~in~\int_rand:nn {#1}~{#2}. }
+  { Bounds~ordered~backwards~in~\iow_char:N\\int_rand:nn~{#1}~{#2}. }
 \__kernel_msg_new:nnnn { kernel } { conditional-form-unknown }
   { Conditional~form~'#1'~for~function~'#2'~unknown. }
   {
@@ -1794,12 +1795,23 @@
     LaTeX~has~been~asked~to~set~the~property~'#1'~for~key~'#2':~
     this~property~is~not~defined.
   }
+\__kernel_msg_new:nnnn { kernel } { quote-in-shell }
+  { Quotes~in~shell~command~'#1'. }
+  { Shell~commands~cannot~contain~quotes~("). }
 \__kernel_msg_new:nnnn { kernel } { scanmark-already-defined }
   { Scan~mark~#1~already~defined. }
   {
     \c_@@_coding_error_text_tl
     LaTeX~has~been~asked~to~create~a~new~scan~mark~'#1'~
     but~this~name~has~already~been~used~for~a~scan~mark.
+  }
+\__kernel_msg_new:nnnn { kernel } { shuffle-too-large }
+  { The~sequence~#1~is~too~long~to~be~shuffled~by~TeX. }
+  {
+    TeX~has~ \int_eval:n { \c_max_register_int + 1 } ~
+    toks~registers:~this~only~allows~to~shuffle~up~to~
+    \int_use:N \c_max_register_int \ items.~
+    The~list~will~not~be~shuffled.
   }
 \__kernel_msg_new:nnnn { kernel } { variable-not-defined }
   { Variable~#1~undefined. }
@@ -1851,51 +1863,14 @@
 % In format mode the error is somewhat different.
 %    \begin{macrocode}
 %<*package>
-\__kernel_if_debug:TF
+\__kernel_msg_new:nnnn { kernel } { enable-debug }
+  { To~use~'#1'~load~expl3~with~the~'enable-debug'~option. }
   {
-    \__kernel_msg_new:nnnn { kernel } { debug }
-      { The~debugging~option~'#1'~does~not~exist~\msg_line_context:. }
-      {
-        The~functions~'\iow_char:N\\debug_on:n'~and~
-        '\iow_char:N\\debug_off:n'~only~accept~the~arguments~
-        'check-declarations',~'deprecation',~'log-functions',~not~'#1'.
-      }
-    \__kernel_msg_new:nnn { kernel } { expr } { '#2'~in~#1 }
-    \__kernel_msg_new:nnnn { kernel } { local-global }
-      { Inconsistent~local/global~assignment }
-      {
-        \c_@@_coding_error_text_tl
-        \if:w l #2 Local \else: Global \fi: \ %
-        assignment~to~a~
-        \if:w l #1 local
-        \else:
-          \if:w g #1 global \else: constant \fi:
-        \fi:
-        \ %
-        variable~'#3'.
-      }
-    \__kernel_msg_new:nnnn { kernel } { non-declared-variable }
-      { The~variable~#1~has~not~been~declared~\msg_line_context:. }
-      {
-        \c_@@_coding_error_text_tl
-        Checking~is~active,~and~you~have~tried~do~so~something~like: \\
-        \ \ \tl_set:Nn ~ #1 ~ \{ ~ ... ~ \} \\
-        without~first~having: \\
-        \ \ \tl_new:N ~ #1  \\
-        \\
-        LaTeX~will~create~the~variable~and~continue.
-      }
-  }
-  {
-    \__kernel_msg_new:nnnn { kernel } { enable-debug }
-      { To~use~'#1'~load~expl3~with~the~'enable-debug'~option. }
-      {
-        The~function~'#1'~will~be~ignored~because~it~can~only~work~if~
-        some~internal~functions~in~expl3~have~been~appropriately~
-        defined.~This~only~happens~if~one~of~the~options~
-        'enable-debug',~'check-declarations'~or~'log-functions'~was~
-        given~when~loading~expl3.
-      }
+     The~function~'#1'~will~be~ignored~because~it~can~only~work~if~
+    some~internal~functions~in~expl3~have~been~appropriately~
+    defined.~This~only~happens~if~one~of~the~options~
+     'enable-debug',~'check-declarations'~or~'log-functions'~was~
+    given~when~loading~expl3.
   }
 %</package>
 %<*initex>
@@ -1923,7 +1898,7 @@
 \__kernel_msg_new:nnn { kernel } { misused-prop }
   { A~property~list~was~misused. }
 \__kernel_msg_new:nnn { kernel } { negative-replication }
-  { Negative~argument~for~\prg_replicate:nn. }
+  { Negative~argument~for~\iow_char:N\\prg_replicate:nn. }
 \__kernel_msg_new:nnn { kernel } { prop-keyval }
   { Missing/extra~'='~in~'#1'~(in~'..._keyval:Nn') }
 \__kernel_msg_new:nnn { kernel } { unknown-comparison }
@@ -1972,6 +1947,22 @@
       }
     streams~are~
     \tl_if_empty:nTF {#2} { open } { in~use: #2 . }
+  }
+%    \end{macrocode}
+%
+% System layer messages
+%    \begin{macrocode}
+\__kernel_msg_new:nnnn { sys } { backend-set }
+  { Backend~configuration~already~set. }
+  {
+    Run-time~backend~selection~may~only~be~carried~out~once~during~a~run.~
+    This~second~attempt~to~set~them~will~be~ignored.
+  }
+\__kernel_msg_new:nnnn { sys } { wrong-backend }
+  { Backend~request~inconsistent~with~engine:~using~'#2'~backend. }
+  {
+    You~have~requested~backend~'#1',~but~this~is~not~suitable~for~use~with~the~
+    active~engine.~LaTeX3~will~use~the~'#2'~backend~instead.
   }
 %    \end{macrocode}
 %
@@ -2034,15 +2025,21 @@
 %   The command built from the csname
 %   \cs{c_@@_text_prefix_tl} |LaTeX / #1 / #2|
 %   takes four arguments and builds the error text, which is fed to
-%   \cs{@@_expandable_error:n}.
+%   \cs{@@_expandable_error:n} with appropriate expansion: just as for
+%   usual messages the arguments are first turned to strings, then the
+%   message is fully expanded.
 %    \begin{macrocode}
+\exp_args_generate:n { oooo }
 \cs_new:Npn \__kernel_msg_expandable_error:nnnnnn #1#2#3#4#5#6
   {
-    \exp_args:Nf \@@_expandable_error:n
+    \exp_args:Ne \@@_expandable_error:n
       {
-        \exp_args:NNc \exp_after:wN \exp_stop_f:
+        \exp_args:Nc \exp_args:Noooo
           { \c_@@_text_prefix_tl LaTeX / #1 / #2 }
-          {#3} {#4} {#5} {#6}
+          { \tl_to_str:n {#3} }
+          { \tl_to_str:n {#4} }
+          { \tl_to_str:n {#5} }
+          { \tl_to_str:n {#6} }
       }
   }
 \cs_new:Npn \__kernel_msg_expandable_error:nnnnn #1#2#3#4#5
@@ -2069,95 +2066,6 @@
 \cs_generate_variant:Nn \__kernel_msg_expandable_error:nnnnn { nnfff }
 \cs_generate_variant:Nn \__kernel_msg_expandable_error:nnnn { nnff }
 \cs_generate_variant:Nn \__kernel_msg_expandable_error:nnn { nnf }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[deprecated = 2019-12-31]{\msg_log:n, \msg_term:n}
-%    \begin{macrocode}
-\__kernel_patch_deprecation:nnNNpn { 2019-12-31 } { \iow_log:n }
-\cs_new_protected:Npn \msg_log:n #1
-  {
-    \iow_log:n { ................................................. }
-    \iow_wrap:nnnN { . ~ #1} { . ~ } { } \iow_log:n
-    \iow_log:n { ................................................. }
-  }
-\__kernel_patch_deprecation:nnNNpn { 2019-12-31 } { \iow_term:n }
-\cs_new_protected:Npn \msg_term:n #1
-  {
-    \iow_term:n { ************************************************* }
-    \iow_wrap:nnnN { * ~ #1} { * ~ } { } \iow_term:n
-    \iow_term:n { ************************************************* }
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[deprecated = 2019-12-31]{\msg_interrupt:nnn}
-%    \begin{macrocode}
-\__kernel_patch_deprecation:nnNNpn { 2019-12-31 } { [Defined~error~message] }
-\cs_new_protected:Npn \msg_interrupt:nnn #1#2#3
-  {
-    \tl_if_empty:nTF {#3}
-      {
-        \@@_old_interrupt_wrap:nn { \\ \c_@@_no_info_text_tl }
-          {#1 \\\\ #2 \\\\ \c_@@_continue_text_tl }
-      }
-      {
-        \@@_old_interrupt_wrap:nn { \\ #3 }
-          {#1 \\\\ #2 \\\\ \c_@@_help_text_tl }
-      }
-  }
-\cs_new_protected:Npn \@@_old_interrupt_wrap:nn #1#2
-  {
-    \iow_wrap:nnnN {#1} { | ~ } { } \@@_old_interrupt_more_text:n
-    \iow_wrap:nnnN {#2} { ! ~ } { } \@@_old_interrupt_text:n
-  }
-\cs_new_protected:Npn \@@_old_interrupt_more_text:n #1
-  {
-    \exp_args:Nx \tex_errhelp:D
-      {
-        |'''''''''''''''''''''''''''''''''''''''''''''''
-        #1 \iow_newline:
-        |...............................................
-      }
-  }
-\group_begin:
-  \char_set_lccode:nn {`\{} {`\ }
-  \char_set_lccode:nn {`\}} {`\ }
-  \char_set_lccode:nn {`\&} {`\!}
-  \char_set_catcode_active:N \&
-\tex_lowercase:D
-  {
-    \group_end:
-    \cs_new_protected:Npn \@@_old_interrupt_text:n #1
-      {
-        \iow_term:x
-          {
-            \iow_newline:
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            \iow_newline:
-            !
-          }
-        \__kernel_iow_with:Nnn \tex_newlinechar:D { `\^^J }
-          {
-            \__kernel_iow_with:Nnn \tex_errorcontextlines:D { -1 }
-              {
-                \group_begin:
-                  \cs_set_protected:Npn &
-                    {
-                      \tex_errmessage:D
-                        {
-                          #1
-                          \use_none:n
-                            { ............................................ }
-                        }
-                    }
-                  \exp_after:wN
-                \group_end:
-                &
-              }
-          }
-      }
-  }
 %    \end{macrocode}
 % \end{macro}
 %

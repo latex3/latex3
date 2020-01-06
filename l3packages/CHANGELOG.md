@@ -7,6 +7,33 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2019-11-07]
+
+## [2019-10-11]
+
+### Fixed
+- `xparse`: Allow processors to depend on other arguments (fixes #629)
+
+## [2019-05-28]
+
+### Fixed
+- `xparse`: Remove stray spaces in processor information
+
+## [2019-05-03]
+
+### Added
+- `xparse`: Support for `trace` package
+
+## [2019-03-05]
+
+### Added
+- `xparse`: b-type argument to grab body of environments
+
+### Changed
+- `xparse`: make \IfBooleanTF safer
+- `xparse`: clearer error messages, especially for environments
+- `xparse`: when defining an environment, trim spaces at ends of its name
+
 ## [2018-09-24]
 
 ### Changed
@@ -30,7 +57,12 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-09-24...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-11-07...HEAD
+[2019-11-07]: https://github.com/latex3/latex3/compare/2019-10-11...2019-11-07
+[2019-10-11]: https://github.com/latex3/latex3/compare/2019-05-28...2019-10-11
+[2019-05-28]: https://github.com/latex3/latex3/compare/2019-05-03...2019-05-28
+[2019-05-03]: https://github.com/latex3/latex3/compare/2019-03-05...2019-05-03
+[2019-03-05]: https://github.com/latex3/latex3/compare/2019-09-24...2019-03-05
 [2018-09-24]: https://github.com/latex3/latex3/compare/2018-08-23...2018-09-24
 [2018-08-23]: https://github.com/latex3/latex3/compare/2018-05-12...2018-08-23
 [2018-05-12]: https://github.com/latex3/latex3/compare/2018-04-30...2018-05-12

@@ -1,0 +1,658 @@
+% \iffalse meta-comment
+%
+%% File: l3backend-graphics.dtx
+%
+% Copyright (C) 2019,2020 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    https://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3backend bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver>
+\documentclass[full,kernel]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \textsf{l3backend-graphics} package\\ Backend graphics support^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2019-11-25}
+%
+% \maketitle
+%
+% \begin{documentation}
+%
+% \end{documentation}
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3backend-graphics} Implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%<@@=graphics>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvips} backend}
+%
+%    \begin{macrocode}
+%<*dvips>
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_backend_getbb_eps:n}
+%   Simply use the generic function.
+%    \begin{macrocode}
+%<*initex>
+\use:n
+%</initex>
+%<*package>
+\AtBeginDocument
+%</package>
+  { \cs_new_eq:NN \@@_backend_getbb_eps:n \graphics_read_bb:n }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_include_eps:n}
+%  The special syntax is relatively clear here: remember we need PostScript
+%  sizes here.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_include_eps:n #1
+  {
+    \__kernel_backend_literal:x
+      {
+        PSfile = #1 \c_space_tl
+        llx = \dim_to_decimal_in_bp:n \l_graphics_llx_dim \c_space_tl
+        lly = \dim_to_decimal_in_bp:n \l_graphics_lly_dim \c_space_tl
+        urx = \dim_to_decimal_in_bp:n \l_graphics_urx_dim \c_space_tl
+        ury = \dim_to_decimal_in_bp:n \l_graphics_ury_dim
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvips>
+%    \end{macrocode}
+%
+% \subsection{\texttt{pdfmode} backend}
+%
+%    \begin{macrocode}
+%<*pdfmode>
+%    \end{macrocode}
+%
+% \begin{variable}{\l_@@_graphics_attr_tl}
+%   In PDF mode, additional attributes of an graphic (such as page number) are
+%   needed both to obtain the bounding box and when inserting the graphic: this
+%   occurs as the graphic dictionary approach means they are read as part of
+%   the bounding box operation. As such, it is easier to track additional
+%   attributes using a dedicated |tl| rather than build up the same data
+%   twice.
+%    \begin{macrocode}
+\tl_new:N \l_@@_graphics_attr_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}
+%   {
+%     \@@_backend_getbb_jpg:n,
+%     \@@_backend_getbb_pdf:n,
+%     \@@_backend_getbb_png:n
+%   }
+% \begin{macro}
+%   {\@@_backend_getbb_auxi:n, \@@_backend_getbb_auxii:n}
+%   Getting the bounding box here requires us to box up the graphic and
+%   measure it. To deal with the difference in feature support in bitmap
+%   and vector graphics but keeping the common parts, there is a little work
+%   to do in terms of auxiliaries. The key here is to notice that we need
+%   two forms of the attributes: a \enquote{short} set to allow us to
+%   track for caching, and the full form to pass to the primitive.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_getbb_jpg:n #1
+  {
+    \int_zero:N \l_graphics_page_int
+    \tl_clear:N \l_graphics_pagebox_tl
+    \tl_set:Nx \l_@@_graphics_attr_tl
+      {
+        \tl_if_empty:NF \l_graphics_decodearray_tl
+          { :D \l_graphics_decodearray_tl }
+        \bool_if:NT \l_graphics_interpolate_bool
+          { :I }
+      }
+    \tl_clear:N \l_@@_graphics_attr_tl
+    \@@_backend_getbb_auxi:n {#1}
+  }
+\cs_new_eq:NN \@@_backend_getbb_png:n \@@_backend_getbb_jpg:n
+\cs_new_protected:Npn \@@_backend_getbb_pdf:n #1
+  {
+    \tl_clear:N \l_graphics_decodearray_tl
+    \bool_set_false:N \l_graphics_interpolate_bool
+    \tl_set:Nx \l_@@_graphics_attr_tl
+      {
+        : \l_graphics_pagebox_tl
+        \int_compare:nNnT \l_graphics_page_int > 1
+          { :P \int_use:N \l_graphics_page_int }
+      }
+    \@@_backend_getbb_auxi:n {#1}
+  }
+\cs_new_protected:Npn \@@_backend_getbb_auxi:n #1
+  {
+    \graphics_bb_restore:xF { #1 \l_@@_graphics_attr_tl }
+      { \@@_backend_getbb_auxii:n {#1} }
+  }
+%    \begin{macrocode}
+%   Measuring the graphic is done by boxing up: for PDF graphics we could
+%   use |\tex_pdfximagebbox:D|, but if doesn't work for other types.
+%   As the box always starts at $(0,0)$ there is no need to worry about
+%   the lower-left position.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_getbb_auxii:n #1
+  {
+    \tex_immediate:D \tex_pdfximage:D
+      \bool_lazy_or:nnT
+        { \l_graphics_interpolate_bool }
+        { ! \tl_if_empty_p:N \l_graphics_decodearray_tl }
+        {
+          attr ~
+            {
+              \tl_if_empty:NF \l_graphics_decodearray_tl
+                { /Decode~[ \l_graphics_decodearray_tl ] }
+              \bool_if:NT \l_graphics_interpolate_bool
+                { /Interpolate~true }
+            }
+        }
+      \int_compare:nNnT \l_graphics_page_int > 0
+        { page ~ \int_use:N \l_graphics_page_int }
+      \tl_if_empty:NF \l_graphics_pagebox_tl
+        { \l_graphics_pagebox_tl }
+      {#1}
+    \hbox_set:Nn \l_@@_internal_box
+      { \tex_pdfrefximage:D \tex_pdflastximage:D }
+    \dim_set:Nn \l_graphics_urx_dim { \box_wd:N \l_@@_internal_box }
+    \dim_set:Nn \l_graphics_ury_dim { \box_ht:N \l_@@_internal_box }
+    \int_const:cn { c_@@_graphics_ #1 \l_@@_graphics_attr_tl _int }
+      { \tex_the:D \tex_pdflastximage:D }
+    \graphics_bb_save:x { #1 \l_@@_graphics_attr_tl }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     \@@_backend_include_jpg:n,
+%     \@@_backend_include_pdf:n,
+%     \@@_backend_include_png:n
+%   }
+%   Images are already loaded for the measurement part of the code, so
+%   inclusion is straight-forward, with only any attributes to worry about. The
+%   latter carry through from determination of the bounding box.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_include_jpg:n #1
+  {
+    \tex_pdfrefximage:D
+      \int_use:c { c_@@_graphics_ #1 \l_@@_graphics_attr_tl _int }
+  }
+\cs_new_eq:NN \@@_backend_include_pdf:n \@@_backend_include_jpg:n
+\cs_new_eq:NN \@@_backend_include_png:n \@@_backend_include_jpg:n
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_getbb_eps:n}
+% \begin{macro}{\@@_backend_getbb_eps:nm}
+% \begin{macro}{\@@_backend_include_eps:n}
+% \begin{variable}
+%   {\l_@@_backend_dir_str, \l_@@_backend_name_str, \l_@@_backend_ext_str}
+%   EPS graphics may be included in \texttt{pdfmode} by conversion to
+%   PDF: this requires restricted shell escape. Modelled on the \pkg{epstopdf}
+%   \LaTeXe{} package, but simplified, conversion takes place here if we have
+%   shell access.
+%    \begin{macrocode}
+\sys_if_shell:T
+  {
+    \str_new:N \l_@@_backend_dir_str
+    \str_new:N \l_@@_backend_name_str
+    \str_new:N \l_@@_backend_ext_str
+    \cs_new_protected:Npn \@@_backend_getbb_eps:n #1
+      {
+        \file_parse_full_name:nNNN {#1}
+          \l_@@_backend_dir_str
+          \l_@@_backend_name_str
+          \l_@@_backend_ext_str
+        \exp_args:Nx \@@_backend_getbb_eps:nn
+          {
+            \l_@@_backend_name_str - \str_tail:N \l_@@_backend_ext_str
+            -converted-to.pdf
+          }
+          {#1}
+     }
+    \cs_new_protected:Npn \@@_backend_getbb_eps:nn #1#2
+      {
+        \file_compare_timestamp:nNnT {#2} > {#1}
+          {
+            \sys_shell_now:n
+              { repstopdf ~ #2 ~ #1 }
+          }
+        \tl_set:Nn \l_graphics_name_tl {#1}
+        \@@_backend_getbb_pdf:n {#1}
+      }
+    \cs_new_protected:Npn \@@_backend_include_eps:n #1
+      {
+        \file_parse_full_name:nNNN {#1}
+          \l_@@_backend_dir_str \l_@@_backend_name_str \l_@@_backend_ext_str
+        \exp_args:Nx \@@_backend_include_pdf:n
+          {
+            \l_@@_backend_name_str - \str_tail:N \l_@@_backend_ext_str
+            -converted-to.pdf
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</pdfmode>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvipdfmx} backend}
+%
+%    \begin{macrocode}
+%<*dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% \begin{macro}
+%   {
+%     \@@_backend_getbb_eps:n, \@@_backend_getbb_jpg:n,
+%     \@@_backend_getbb_pdf:n, \@@_backend_getbb_png:n
+%   }
+%   Simply use the generic functions: only for \texttt{dvipdfmx} in the
+%   extraction cases.
+%    \begin{macrocode}
+%<*initex>
+\use:n
+%</initex>
+%<*package>
+\AtBeginDocument
+%</package>
+  { \cs_new_eq:NN \@@_backend_getbb_eps:n \graphics_read_bb:n }
+%<*dvipdfmx>
+\cs_new_protected:Npn \@@_backend_getbb_jpg:n #1
+  {
+    \int_zero:N \l_graphics_page_int
+    \tl_clear:N \l_graphics_pagebox_tl
+    \graphics_extract_bb:n {#1}
+  }
+\cs_new_eq:NN \@@_backend_getbb_png:n \@@_backend_getbb_jpg:n
+\cs_new_protected:Npn \@@_backend_getbb_pdf:n #1
+  {
+    \tl_clear:N \l_graphics_decodearray_tl
+    \bool_set_false:N \l_graphics_interpolate_bool
+    \graphics_extract_bb:n {#1}
+  }
+%</dvipdfmx>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\g_@@_track_int}
+%   Used to track the object number associated with each graphic.
+%    \begin{macrocode}
+\int_new:N \g_@@_track_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}
+%   {
+%     \@@_backend_include_eps:n, \@@_backend_include_jpg:n,
+%     \@@_backend_include_pdf:n, \@@_backend_include_png:n
+%   }
+%  \begin{macro}{\@@_backend_include_auxi:nn}
+%  \begin{macro}{\@@_backend_include_auxii:nnn, \@@_backend_include_auxii:xnn}
+%  \begin{macro}{\@@_backend_include_auxiii:nnn}
+%   The special syntax depends on the file type. There is a difference in
+%   how PDF graphics are best handled between |dvipdfmx| and |xdvipdfmx|: for
+%   the latter it is better to use the primitive route. The relevant code for
+%   that is included later in this file.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_include_eps:n #1
+  {
+    \__kernel_backend_literal:x
+      {
+        PSfile = #1 \c_space_tl
+        llx = \dim_to_decimal_in_bp:n \l_graphics_llx_dim \c_space_tl
+        lly = \dim_to_decimal_in_bp:n \l_graphics_lly_dim \c_space_tl
+        urx = \dim_to_decimal_in_bp:n \l_graphics_urx_dim \c_space_tl
+        ury = \dim_to_decimal_in_bp:n \l_graphics_ury_dim
+      }
+  }
+\cs_new_protected:Npn \@@_backend_include_jpg:n #1
+  { \@@_backend_include_auxi:nn {#1} { image } }
+\cs_new_eq:NN \@@_backend_include_png:n \@@_backend_include_jpg:n
+%<*dvipdfmx>
+\cs_new_protected:Npn \@@_backend_include_pdf:n #1
+  { \@@_backend_include_auxi:nn {#1} { epdf } }
+%</dvipdfmx>
+%    \end{macrocode}
+%   Graphic inclusion is set up to use the fact that each image is stored in
+%   the PDF as an XObject. This means that we can include repeated images
+%   only once and refer to them. To allow that, track the nature of each
+%   image: much the same as for the direct PDF mode case.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_include_auxi:nn #1#2
+  {
+    \@@_backend_include_auxii:xnn
+      {
+        \tl_if_empty:NF \l_graphics_pagebox_tl
+          { : \l_graphics_pagebox_tl }
+        \int_compare:nNnT \l_graphics_page_int > 1
+          { :P \int_use:N \l_graphics_page_int }
+        \tl_if_empty:NF \l_graphics_decodearray_tl
+          { :D \l_graphics_decodearray_tl }
+        \bool_if:NT \l_graphics_interpolate_bool
+           { :I }
+      }
+      {#1} {#2}
+  }
+\cs_new_protected:Npn \@@_backend_include_auxii:nnn #1#2#3
+  {
+    \int_if_exist:cTF { c_@@_graphics_ #2#1 _int }
+      {
+        \__kernel_backend_literal:x
+          { pdf:usexobj~@graphic \int_use:c { c_@@_graphics_ #2#1 _int } }
+      }
+      { \@@_backend_include_auxiii:nnn {#2} {#1} {#3} }
+  }
+\cs_generate_variant:Nn \@@_backend_include_auxii:nnn { x }
+%    \end{macrocode}
+%  Inclusion using the specials is relatively straight-forward, but there
+%  is one wrinkle. To get the |pagebox| correct for PDF graphics in all cases,
+%  it is necessary to provide both that information and the |bbox| argument:
+%  odd things happen otherwise!
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_include_auxiii:nnn #1#2#3
+  {
+    \int_gincr:N \g_@@_track_int
+    \int_const:cn { c_@@_graphics_ #1#2 _int } { \g_@@_track_int }
+    \__kernel_backend_literal:x
+      {
+        pdf:#3~
+        @graphic \int_use:c { c_@@_graphics_ #1#2 _int } ~
+        \int_compare:nNnT \l_graphics_page_int > 1
+          { page ~ \int_use:N \l_graphics_page_int \c_space_tl }
+        \tl_if_empty:NF \l_graphics_pagebox_tl
+          {
+            pagebox ~ \l_graphics_pagebox_tl \c_space_tl
+            bbox ~
+              \dim_to_decimal_in_bp:n \l_graphics_llx_dim \c_space_tl
+              \dim_to_decimal_in_bp:n \l_graphics_lly_dim \c_space_tl
+              \dim_to_decimal_in_bp:n \l_graphics_urx_dim \c_space_tl
+              \dim_to_decimal_in_bp:n \l_graphics_ury_dim \c_space_tl
+          }
+        (#1)
+        \bool_lazy_or:nnT
+          { \l_graphics_interpolate_bool }
+          { ! \tl_if_empty_p:N \l_graphics_decodearray_tl }
+          {
+            <<
+              \tl_if_empty:NF \l_graphics_decodearray_tl
+                { /Decode~[ \l_graphics_decodearray_tl ] }
+              \bool_if:NT \l_graphics_interpolate_bool
+                { /Interpolate~true> }
+            >>
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{\texttt{xdvipdfmx} backend}
+%
+%    \begin{macrocode}
+%<*xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsubsection{Images}
+%
+% \begin{macro}
+%   {
+%     \@@_backend_getbb_jpg:n,
+%     \@@_backend_getbb_pdf:n,
+%     \@@_backend_getbb_png:n
+%   }
+% \begin{macro}{\@@_backend_getbb_auxi:nN}
+% \begin{macro}{\@@_backend_getbb_auxii:nnN, \@@_backend_getbb_auxii:VnN}
+% \begin{macro}{\@@_backend_getbb_auxiii:nNnn}
+% \begin{macro}{\@@_backend_getbb_auxiv:nnNnn, \@@_backend_getbb_auxiv:VnNnn}
+% \begin{macro}{\@@_backend_getbb_auxv:nNnn, \@@_backend_getbb_auxv:nNnn}
+% \begin{macro}[EXP]{\@@_backend_getbb_pagebox:w}
+%   For \texttt{xdvipdfmx}, there are two primitives that allow us to obtain
+%   the bounding box without needing \texttt{extractbb}. The only complexity
+%   is passing the various minor variations to a common core process. The
+%   \XeTeX{} primitive omits the text |box| from the page box specification,
+%   so there is also some \enquote{trimming} to do here.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_getbb_jpg:n #1
+  {
+    \int_zero:N \l_graphics_page_int
+    \tl_clear:N \l_graphics_pagebox_tl
+    \@@_backend_getbb_auxi:nN {#1} \tex_XeTeXpicfile:D
+  }
+\cs_new_eq:NN \@@_backend_getbb_png:n \@@_backend_getbb_jpg:n
+\cs_new_protected:Npn \@@_backend_getbb_pdf:n #1
+  {
+    \tl_clear:N \l_graphics_decodearray_tl
+    \bool_set_false:N \l_graphics_interpolate_bool
+    \@@_backend_getbb_auxi:nN {#1} \tex_XeTeXpdffile:D
+  }
+\cs_new_protected:Npn \@@_backend_getbb_auxi:nN #1#2
+  {
+    \int_compare:nNnTF \l_graphics_page_int > 1
+      { \@@_backend_getbb_auxii:VnN \l_graphics_page_int {#1} #2  }
+      { \@@_backend_getbb_auxiii:nNnn {#1} #2 { :P 1 } { page 1 } }
+  }
+\cs_new_protected:Npn \@@_backend_getbb_auxii:nnN #1#2#3
+  { \@@_backend_getbb_auxiii:nNnn {#2} #3 { :P #1 } { page #1 } }
+\cs_generate_variant:Nn \@@_backend_getbb_auxii:nnN { V }
+\cs_new_protected:Npn \@@_backend_getbb_auxiii:nNnn #1#2#3#4
+  {
+    \tl_if_empty:NTF \l_graphics_pagebox_tl
+      { \@@_backend_getbb_auxiv:VnNnn \l_graphics_pagebox_tl }
+      { \@@_backend_getbb_auxv:nNnn }
+      {#1} #2 {#3} {#4}
+  }
+\cs_new_protected:Npn \@@_backend_getbb_auxiv:nnNnn #1#2#3#4#5
+  {
+    \use:x
+      {
+        \@@_backend_getbb_auxv:nNnn {#2} #3 { : #1 #4 }
+          { #5 ~ \@@_backend_getbb_pagebox:w #1 }
+      }
+  }
+\cs_generate_variant:Nn \@@_backend_getbb_auxiv:nnNnn { V }
+\cs_new_protected:Npn \@@_backend_getbb_auxv:nNnn #1#2#3#4
+  {
+    \graphics_bb_restore:nF {#1#3}
+      { \@@_backend_getbb_auxvi:nNnn {#1} #2 {#3} {#4} }
+  }
+\cs_new_protected:Npn \@@_backend_getbb_auxvi:nNnn #1#2#3#4
+  {
+    \hbox_set:Nn \l_@@_internal_box { #2 #1 ~ #4 }
+    \dim_set:Nn \l_graphics_urx_dim { \box_wd:N \l_@@_internal_box }
+    \dim_set:Nn \l_graphics_ury_dim { \box_ht:N \l_@@_internal_box }
+    \graphics_bb_save:n {#1#3}
+  }
+\cs_new:Npn \@@_backend_getbb_pagebox:w #1 box {#1}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_include_pdf:n}
+% \begin{macro}{\@@_backend_include_bitmap_quote:w}
+%   For PDF graphics, properly supporting the |pagebox| concept in \XeTeX{}
+%   is best done using the |\tex_XeTeXpdffile:D| primitive. The syntax here
+%   is the same as for the graphic measurement part, although we know at this
+%   stage that there must be some valid setting for \cs{l_graphics_pagebox_tl}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_include_pdf:n #1
+  {
+    \tex_XeTeXpdffile:D
+      \@@_backend_include_pdf_quote:w #1 "#1" \q_stop \c_space_tl
+      \int_compare:nNnT \l_graphics_page_int > 0
+        { page ~ \int_use:N \l_graphics_page_int \c_space_tl }
+        \exp_after:wN \@@_backend_getbb_pagebox:w \l_graphics_pagebox_tl
+  }
+\cs_new:Npn \@@_backend_include_pdf_quote:w #1 " #2 " #3 \q_stop
+  { " #2 " }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</xdvipdfmx>
+%    \end{macrocode}
+%
+% \subsection{\texttt{dvisvgm} backend}
+%
+%    \begin{macrocode}
+%<*dvisvgm>
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_backend_getbb_eps:n}
+%   Simply use the generic function.
+%    \begin{macrocode}
+%<*initex>
+\use:n
+%</initex>
+%<*package>
+\AtBeginDocument
+%</package>
+  { \cs_new_eq:NN \@@_backend_getbb_eps:n \graphics_read_bb:n }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_getbb_png:n, \@@_backend_getbb_jpg:n}
+%   These can be included by extracting the bounding box data.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_getbb_jpg:n #1
+  {
+    \int_zero:N \l_graphics_page_int
+    \tl_clear:N \l_graphics_pagebox_tl
+    \graphics_extract_bb:n {#1}
+  }
+\cs_new_eq:NN \@@_backend_getbb_png:n \@@_backend_getbb_jpg:n
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_getbb_pdf:n}
+%   Same as for \texttt{dvipdfmx}: use the generic function
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_getbb_pdf:n #1
+  {
+    \tl_clear:N \l_graphics_decodearray_tl
+    \bool_set_false:N \l_graphics_interpolate_bool
+    \graphics_extract_bb:n {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_include_eps:n, \@@_backend_include_pdf:n}
+% \begin{macro}{\@@_backend_include:nn}
+%   The special syntax is relatively clear here: remember we need PostScript
+%   sizes here. (This is the same as the \texttt{dvips} code.)
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_include_eps:n #1
+  { @@_backend_include:nn { PSfile } {#1} } 
+\cs_new_protected:Npn \@@_backend_include_pdf:n #1
+  { @@_backend_include:nn { pdffile } {#1} } 
+\cs_new_protected:Npn \@@_backend_include:nn #1#2
+  {
+    \__kernel_backend_literal:x
+      {
+        #1 = #2 \c_space_tl
+        llx = \dim_to_decimal_in_bp:n \l_graphics_llx_dim \c_space_tl
+        lly = \dim_to_decimal_in_bp:n \l_graphics_lly_dim \c_space_tl
+        urx = \dim_to_decimal_in_bp:n \l_graphics_urx_dim \c_space_tl
+        ury = \dim_to_decimal_in_bp:n \l_graphics_ury_dim
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_include_png:n, \@@_backend_include_jpg:n}
+% \begin{macro}{\@@_backend_include_bitmap_quote:w}
+%   The backend here has built-in support for basic graphic inclusion (see
+%   \texttt{dvisvgm.def} for a more complex approach, needed if clipping,
+%   \emph{etc.}, is covered at the graphic backend level). The only issue is
+%   that |#1| must be quote-corrected. The \texttt{dvisvgm:img} operation
+%   quotes the file name, but if it is already quoted (contains spaces)
+%   then we have an issue: we simply strip off any quotes as a result.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_include_png:n #1
+  {
+     \__kernel_backend_literal:x
+       {
+         dvisvgm:img~
+         \dim_to_decimal:n { \l_graphics_ury_dim } ~
+         \dim_to_decimal:n { \l_graphics_ury_dim } ~
+         \@@_backend_include_bitmap_quote:w #1 " #1 " \q_stop
+       }
+  }
+\cs_new_eq:NN \@@_backend_include_jpg:n \@@_backend_include_png:n
+\cs_new:Npn \@@_backend_include_bitmap_quote:w #1 " #2 " #3 \q_stop
+  { " #2 " }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvisvgm>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex

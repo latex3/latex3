@@ -2,7 +2,7 @@
 %
 %% File: l3file.dtx
 %
-% Copyright (C) 1990-2019 The LaTeX3 Project
+% Copyright (C) 1990-2020 The LaTeX3 Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -44,7 +44,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2019-02-03}
+% \date{Released 2019-11-07}
 %
 % \maketitle
 %
@@ -65,9 +65,14 @@
 % may contain both literal items and expandable content, which should on
 % full expansion be the desired file name.  Active characters (as
 % declared in \cs{l_char_active_seq}) are \emph{not} expanded,
-% allowing the direct use of these in file names. File names are quoted
-% using |"| tokens if they contain spaces: as a result, |"| tokens are
-% \emph{not} permitted in file names.
+% allowing the direct use of these in file names. Quote tokens (|"|) are
+% not permitted in file names as they are reserved for internal use by some
+% \TeX{} primitives.
+%
+% Spaces are trimmed at the beginning and end of the file name:
+% this reflects the fact that some file systems do not allow or interact
+% unpredictably with spaces in these positions. When no extension is given,
+% this will trim spaces from the start of the name only.
 %
 % \section{Input--output stream management}
 %
@@ -164,14 +169,18 @@
 %
 % \subsection{Reading from files}
 %
-% \begin{function}[added = 2012-06-24]{\ior_get:NN}
+% Reading from files and reading from the terminal are separate processes in
+% \pkg{expl3}. The functions \cs{ior_get:NN} and \cs{ior_str_get:NN}, and their
+% branching equivalents, are designed to work with \emph{files}.
+%
+% \begin{function}[noTF, added = 2012-06-24, updated = 2019-03-23]{\ior_get:NN}
 %   \begin{syntax}
 %     \cs{ior_get:NN} \meta{stream} \meta{token list variable}
+%     \cs{ior_get:NNTF} \meta{stream} \meta{token list variable} \meta{true code} \meta{false code}
 %   \end{syntax}
 %   Function that reads one or more lines (until an equal number of left
-%   and right braces are found) from the input \meta{stream} and stores
-%   the result locally in the \meta{token list} variable. If the
-%   \meta{stream} is not open, input is requested from the terminal.
+%   and right braces are found) from the file input \meta{stream} and stores
+%   the result locally in the \meta{token list} variable.
 %   The material read from the \meta{stream} is tokenized by \TeX{}
 %   according to the category codes and \tn{endlinechar} in force when
 %   the function is used.  Assuming normal settings, any lines which do
@@ -191,6 +200,8 @@
 %   \end{verbatim}
 %   Also notice that if multiple lines are read to match braces
 %   then the resulting token list can contain \cs{par} tokens.
+%   In the non-branching version, where the \meta{stream} is not open
+%   the \meta{tl var} is set to \cs{q_no_value}.
 %   \begin{texnote}
 %     This protected macro is a wrapper around the \TeX{} primitive
 %     \tn{read}.  Regardless of settings, \TeX{} replaces trailing space
@@ -203,13 +214,14 @@
 %   \end{texnote}
 % \end{function}
 %
-% \begin{function}[added = 2016-12-04]{\ior_str_get:NN}
+% \begin{function}[noTF, added = 2016-12-04, updated = 2019-03-23]
+%   {\ior_str_get:NN}
 %   \begin{syntax}
 %     \cs{ior_str_get:NN} \meta{stream} \meta{token list variable}
+%     \cs{ior_str_get:NNTF} \meta{stream} \meta{token list variable} \meta{true code} \meta{false code}
 %   \end{syntax}
-%   Function that reads one line from the input \meta{stream} and stores
-%   the result locally in the \meta{token list} variable. If the
-%   \meta{stream} is not open, input is requested from the terminal.
+%   Function that reads one line from the file input \meta{stream} and stores
+%   the result locally in the \meta{token list} variable.
 %   The material is read from the \meta{stream} as a series of tokens with
 %   category code $12$ (other), with the exception of space
 %   characters which are given category code $10$ (space).
@@ -223,6 +235,8 @@
 %   \end{verbatim}
 %   results in a token list |a b  c| with the letters |a|, |b|, and |c|
 %   having category code~12.
+%   In the non-branching version, where the\meta{stream} is not open
+%   the \meta{tl var} is set to \cs{q_no_value}.
 %   \begin{texnote}
 %     This protected macro is a wrapper around the \eTeX{} primitive
 %     \tn{readline}.  Regardless of settings, \TeX{} removes trailing
@@ -231,6 +245,10 @@
 %     included in the result of \cs{ior_str_get:NN}.
 %   \end{texnote}
 % \end{function}
+%
+% All mappings are done at the current group level, \emph{i.e.}~any
+% local assignments made by the \meta{function} or \meta{code} discussed
+% below remain in effect after the loop.
 %
 % \begin{function}[added = 2012-02-11]{\ior_map_inline:Nn}
 %   \begin{syntax}
@@ -256,6 +274,40 @@
 %   Note that \TeX{} removes trailing space and tab characters
 %   (character codes 32 and 9) from every line upon input.  \TeX{} also
 %   ignores any trailing new-line marker from the file it reads.
+% \end{function}
+%
+% \begin{function}[added = 2019-01-13]{\ior_map_variable:NNn}
+%   \begin{syntax}
+%     \cs{ior_map_variable:NNn} \meta{stream} \meta{tl~var} \Arg{code}
+%   \end{syntax}
+%   For each set of \meta{lines} obtained by calling \cs{ior_get:NN}
+%   until reaching the end of the file, stores the \meta{lines} in the
+%   \meta{tl~var} then applies the \meta{code}.  The \meta{code} will
+%   usually make use of the \meta{variable}, but this is not enforced.
+%   The assignments to the \meta{variable} are local.
+%   Its value after the loop is the last set of \meta{lines}, or its
+%   original value if the \meta{stream} is empty.  \TeX{} ignores
+%   any trailing new-line marker from the file it reads.
+%   This function is typically faster than \cs{ior_map_inline:Nn}.
+% \end{function}
+%
+% \begin{function}[added = 2019-01-13]{\ior_str_map_variable:NNn}
+%   \begin{syntax}
+%     \cs{ior_str_map_variable:NNn} \meta{stream} \meta{variable} \Arg{code}
+%   \end{syntax}
+%   For each \meta{line} in the \meta{stream}, stores the \meta{line} in
+%   the \meta{variable} then applies the \meta{code}.  The material is
+%   read from the \meta{stream} as a series of tokens with category code
+%   $12$ (other), with the exception of space characters which are given
+%   category code $10$ (space).  The \meta{code} will usually make use
+%   of the \meta{variable}, but this is not enforced.  The assignments
+%   to the \meta{variable} are local.  Its value after the loop is the
+%   last \meta{line}, or its original value if the \meta{stream} is
+%   empty.  Note that \TeX{} removes trailing
+%   space and tab characters (character codes 32 and 9) from every line
+%   upon input.  \TeX{} also ignores any trailing new-line marker from
+%   the file it reads.
+%   This function is typically faster than \cs{ior_str_map_inline:Nn}.
 % \end{function}
 %
 % \begin{function}[added = 2012-06-29]{\ior_map_break:}
@@ -313,17 +365,17 @@
 %   \end{texnote}
 % \end{function}
 %
-%\begin{function}[updated = 2012-02-10, EXP, pTF]{\ior_if_eof:N}
-%  \begin{syntax}
-%    \cs{ior_if_eof_p:N} \meta{stream} \\
-%    \cs{ior_if_eof:NTF} \meta{stream} \Arg{true code} \Arg{false code}
-%  \end{syntax}
-%  Tests if the end of a \meta{stream} has been reached during a reading
-%  operation. The test also returns a \texttt{true} value if
-%  the \meta{stream} is not open.
-%\end{function}
+% \begin{function}[updated = 2012-02-10, EXP, pTF]{\ior_if_eof:N}
+%   \begin{syntax}
+%     \cs{ior_if_eof_p:N} \meta{stream} \\
+%     \cs{ior_if_eof:NTF} \meta{stream} \Arg{true code} \Arg{false code}
+%   \end{syntax}
+%   Tests if the end of a file \meta{stream} has been reached during a reading
+%   operation. The test also returns a \texttt{true} value if
+%   the \meta{stream} is not open.
+% \end{function}
 %
-% \section{Writing to files}
+% \subsection{Writing to files}
 %
 % \begin{function}[updated = 2012-06-05]{\iow_now:Nn, \iow_now:Nx, \iow_now:cn, \iow_now:cx}
 %   \begin{syntax}
@@ -430,7 +482,7 @@
 % \subsection{Wrapping lines in output}
 %
 % \begin{function}[added = 2012-06-28, updated = 2017-12-04]
-%   {\iow_wrap:nnnN \iow_wrap:nxnN}
+%   {\iow_wrap:nnnN, \iow_wrap:nxnN}
 %   \begin{syntax}
 %     \cs{iow_wrap:nnnN} \Arg{text} \Arg{run-on text} \Arg{set up} \meta{function}
 %   \end{syntax}
@@ -501,15 +553,6 @@
 % \end{variable}
 %
 % \subsection{Constant input--output streams, and variables}
-%
-% \begin{variable}{\c_term_ior}
-%   Constant input stream for reading from the terminal. Reading from this
-%   stream using \cs{ior_get:NN} or similar results in a prompt from
-%   \TeX{} of the form
-%   \begin{verbatim}
-%     <tl>=
-%   \end{verbatim}
-% \end{variable}
 %
 % \begin{variable}[added = 2017-12-11]{\g_tmpa_ior, \g_tmpb_ior}
 %   Scratch input stream for global use. These are never used by
@@ -592,8 +635,7 @@
 %   \cs{l_file_search_path_seq}.
 % \end{function}
 %
-% \begin{function}[added = 2019-01-16]{\file_get:nnN}
-% \begin{function}[TF, added = 2019-01-16]{\file_get:nnN}
+% \begin{function}[noTF, added = 2019-01-16, updated = 2019-02-16]{\file_get:nnN}
 %   \begin{syntax}
 %     \cs{file_get:nnN} \Arg{filename} \Arg{setup} \meta{tl}
 %     \cs{file_get:nnNTF} \Arg{filename} \Arg{setup} \meta{tl} \Arg{true code} \Arg{false code}
@@ -601,27 +643,42 @@
 %   Defines \meta{tl} to the contents of \meta{filename}.
 %   Category codes may need to be set appropriately via the \meta{setup}
 %   argument.
-%   While \cs{file_get:nnN} produces an error if the file is not found,
-%   \cs{file_get:nnNTF} runs the \meta{true code} (after the assignment
-%   to \meta{tl}) if the file is found and \meta{false code} otherwise.
-% \end{function}
+%   The non-branching version sets the \meta{tl} to \cs{q_no_value} if the file is
+%   not found. The branching version runs the \meta{true code} after the
+%   assignment to \meta{tl} if the file is found, and \meta{false code}
+%   otherwise.
 % \end{function}
 %
-% \begin{function}[updated = 2017-06-26]
+% \begin{function}[noTF, updated = 2019-02-16]
 %   {\file_get_full_name:nN, \file_get_full_name:VN}
 %   \begin{syntax}
-%     \cs{file_get_full_name:nN} \Arg{file name} \meta{str var}
+%     \cs{file_get_full_name:nN} \Arg{file name} \meta{tl}
+%     \cs{file_get_full_name:nNTF} \Arg{file name} \meta{tl} \Arg{true code} \Arg{false code}
 %   \end{syntax}
 %   Searches for \meta{file name} in the path as detailed for
-%   \cs{file_if_exist:nTF}, and if found sets the \meta{str var} the
+%   \cs{file_if_exist:nTF}, and if found sets the \meta{tl var} the
 %   fully-qualified name of the file, \emph{i.e.}~the path and file name.
 %   This includes an extension |.tex| when the given \meta{file name}
 %   has no extension but the file found has that extension.
-%   If the file is not found then the \meta{str var} is empty.
+%   In the non-branching version, the \meta{tl var} will be set to
+%   \cs{q_no_value} in the case that the file does not exist.
+% \end{function}
+%
+% \begin{function}[added = 2019-09-03, rEXP]{\file_full_name:n, \file_full_name:V}
+%   \begin{syntax}
+%     \cs{file_full_name:n} \Arg{file name}
+%   \end{syntax}
+%   Searches for \meta{file name} in the path as detailed for
+%   \cs{file_if_exist:nTF}, and if found leaves the
+%   fully-qualified name of the file, \emph{i.e.}~the path and file name,
+%   in the input stream.
+%   This includes an extension |.tex| when the given \meta{file name}
+%   has no extension but the file found has that extension.
+%   If the file is not found on the path, the expansion is empty.
 % \end{function}
 %
 % \begin{function}[added = 2017-06-23, updated = 2017-06-26]
-%   {\file_parse_full_name:nNNN}
+%   {\file_parse_full_name:nNNN, \file_parse_full_name:VNNN}
 %   \begin{syntax}
 %     \cs{file_parse_full_name:nNNN} \Arg{full name} \meta{dir} \meta{name} \meta{ext}
 %   \end{syntax}
@@ -645,6 +702,129 @@
 %   quote (|"|) characters or is surrounded by a pair of quotes.
 % \end{function}
 %
+% \begin{function}[rEXP, added = 2019-11-19]
+%   {\file_hex_dump:n, \file_hex_dump:nnn}
+%   \begin{syntax}
+%     \cs{file_hex_dump:n} \Arg{file name}
+%     \cs{file_hex_dump:nnn} \Arg{file name} \Arg{start index} \Arg{end index}
+%   \end{syntax}
+%   Searches for \meta{file name} using the current \TeX{} search
+%   path and the additional paths controlled by \cs{l_file_search_path_seq}.
+%   It then expands to leave the hexadecimal dump of the file content in the
+%   input stream. The file is read as bytes, which means that in
+%   contrast to most \TeX{} behaviour there will be a difference in result
+%   depending on the line endings used in text files. The same file will
+%   produce the same result between different engines: the algorithm used
+%   is the same in all cases. When the file is not found, the result of
+%   expansion is empty. The \Arg{start index} and \Arg{end index} values
+%   work as described for \cs{str_range:nnn}.
+% \end{function}
+%
+% \begin{function}[noTF, added = 2019-11-19]
+%   {\file_get_hex_dump:nN, \file_get_hex_dump:nnnN}
+%   \begin{syntax}
+%     \cs{file_get_hex_dump:nN} \Arg{file name} \meta{tl var}
+%     \cs{file_get_hex_dump:nnnN} \Arg{file name} \Arg{start index} \Arg{end index} \meta{tl var}
+%   \end{syntax}
+%   Sets the \meta{tl var} to the result of applying
+%   \cs{file_hex_dump:n}/\cs{file_hex_dump:nnn} to the \meta{file}.
+%   If the file is not found, the \meta{tl var} will be set to \cs{q_no_value}.
+% \end{function}
+%
+% \begin{function}[rEXP, added = 2019-09-03]{\file_mdfive_hash:n}
+%   \begin{syntax}
+%     \cs{file_mdfive_hash:n} \Arg{file name}
+%   \end{syntax}
+%   Searches for \meta{file name} using the current \TeX{} search
+%   path and the additional paths controlled by \cs{l_file_search_path_seq}.
+%   It then expands to leave the MD5 sum generated from the contents of
+%   the file in the input stream. The file is read as bytes, which means that in
+%   contrast to most \TeX{} behaviour there will be a difference in result
+%   depending on the line endings used in text files. The same file will
+%   produce the same result between different engines: the algorithm used
+%   is the same in all cases. When the file is not found, the result of
+%   expansion is empty.
+% \end{function}
+%
+% \begin{function}[noTF, added = 2017-07-11, updated = 2019-02-16]
+%   {\file_get_mdfive_hash:nN}
+%   \begin{syntax}
+%     \cs{file_get_mdfive_hash:nN} \Arg{file name} \meta{tl var}
+%   \end{syntax}
+%   Sets the \meta{tl var} to the result of applying
+%   \cs{file_mdfive_hash:n} to the \meta{file}. If the file is not found, 
+%   the \meta{tl var} will be set to \cs{q_no_value}.
+% \end{function}
+%
+% \begin{function}[rEXP, added = 2019-09-03]{\file_size:n}
+%   \begin{syntax}
+%     \cs{file_size:n} \Arg{file name}
+%   \end{syntax}
+%   Searches for \meta{file name} using the current \TeX{} search
+%   path and the additional paths controlled by \cs{l_file_search_path_seq}.
+%   It then expands to leave the size of the file in bytes in the input stream.
+%   When the file is not found, the result of expansion is empty.
+% \end{function}
+%
+% \begin{function}[noTF, added = 2017-07-09, updated = 2019-02-16]
+%   {\file_get_size:nN}
+%   \begin{syntax}
+%     \cs{file_get_size:nN} \Arg{file name} \meta{tl var}
+%   \end{syntax}
+%   Sets the \meta{tl var} to the result of applying
+%   \cs{file_size:n} to the \meta{file}. If the file is not found, 
+%   the \meta{tl var} will be set to \cs{q_no_value}.
+%   This is not available in older versions of \XeTeX{}.
+% \end{function}
+%
+% \begin{function}[rEXP, added = 2019-09-03]{\file_timestamp:n}
+%   \begin{syntax}
+%     \cs{file_timestamp:n} \Arg{file name}
+%   \end{syntax}
+%   Searches for \meta{file name} using the current \TeX{} search
+%   path and the additional paths controlled by \cs{l_file_search_path_seq}.
+%   It then expands to leave the modification timestamp of
+%   the file in the input stream. The timestamp is of the form
+%   |D:|\meta{year}\meta{month}\meta{day}\meta{hour}^^A
+%   \meta{minute}\meta{second}\meta{offset}, where the latter may be |Z|
+%   (UTC) or \meta{plus-minus}\meta{hours}|'|\meta{minutes}|'|.
+%   When the file is not found, the result of expansion is empty.
+%   This is not available in older versions of \XeTeX{}.
+% \end{function}
+%
+% \begin{function}[noTF, added = 2017-07-09, updated = 2019-02-16]
+%   {\file_get_timestamp:nN}
+%   \begin{syntax}
+%     \cs{file_get_timestamp:nN} \Arg{file name} \meta{tl var}
+%   \end{syntax}
+%   Sets the \meta{tl var} to the result of applying
+%   \cs{file_timestamp:n} to the \meta{file}. If the file is not found, 
+%   the \meta{tl var} will be set to \cs{q_no_value}.
+%   This is not available in older versions of \XeTeX{}.
+% \end{function}
+%
+% \begin{function}[added = 2019-05-13, updated = 2019-09-20, pTF, EXP]
+%   {\file_compare_timestamp:nNn}
+%   \begin{syntax}
+%     \cs{file_compare_timestamp:nNn} \Arg{file-1} \meta{comparator} \Arg{file-2} \Arg{true code} \Arg{false code}
+%   \end{syntax}
+%   Compares the file stamps on the two \meta{files} as indicated by
+%   the \meta{comparator}, and inserts either the \meta{true code}
+%   or \meta{false case} as required. A file which is not found
+%   is treated as older than any file which is found. This allows for
+%   example the construct
+%   \begin{verbatim}
+%     \file_compare_timestamp:nNnT { source-file } > { derived-file }
+%       {
+%         % Code to regenerate derived file
+%       }
+%   \end{verbatim}
+%   to work when the derived file is entirely absent. The timestamp
+%   of two absent files is regarded as different.
+%   This is not available in older versions of \XeTeX{}.
+% \end{function}
+%
+%
 % \begin{function}[updated = 2017-06-26]{\file_input:n}
 %   \begin{syntax}
 %     \cs{file_input:n} \Arg{file name}
@@ -654,6 +834,41 @@
 %   additional \LaTeX{} source. All files read are recorded
 %   for information and the file name stack is updated by this
 %   function. An error is raised if the file is not found.
+% \end{function}
+%
+% \begin{function}[added = 2014-07-02]{\file_if_exist_input:n, \file_if_exist_input:nF}
+%   \begin{syntax}
+%     \cs{file_if_exist_input:n} \Arg{file name}
+%     \cs{file_if_exist_input:nF} \Arg{file name} \Arg{false code}
+%   \end{syntax}
+%   Searches for \meta{file name} using the current \TeX{} search
+%   path and the additional paths controlled by
+%   \cs{file_path_include:n}. If found then
+%   reads in the file as additional \LaTeX{} source as described for
+%   \cs{file_input:n}, otherwise inserts the \meta{false code}.
+%   Note that these functions do not raise
+%   an error if the file is not found, in contrast to \cs{file_input:n}.
+% \end{function}
+%
+% \begin{function}[added = 2017-07-07]{\file_input_stop:}
+%   \begin{syntax}
+%     \cs{file_input_stop:}
+%   \end{syntax}
+%   Ends the reading of a file started by \cs{file_input:n} or similar before
+%   the end of the file is reached. Where the file reading is being terminated
+%   due to an error, \cs[index = msg_critical:nn]{msg_critical:nn(nn)}
+%   should be preferred.
+%   \begin{texnote}
+%     This function must be used on a line on its own: \TeX{} reads files
+%     line-by-line and so any additional tokens in the \enquote{current} line
+%     will still be read.
+%
+%     This is also true if the function is hidden inside another function
+%     (which will be the normal case), i.e., all tokens on the same line
+%     in the source file are still processed. Putting it on a line by itself
+%     in the definition doesn't help as it is the line where it is used that
+%     counts!
+%   \end{texnote}
 % \end{function}
 %
 % \begin{function}{\file_show_list:, \file_log_list:}
@@ -694,12 +909,12 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\c_term_ior}
+% \begin{variable}{\c_@@_term_ior}
 %   Reading from the terminal (with a prompt) is done using a positive
 %   but non-existent stream number. Unlike writing, there is no concept
 %   of reading from the log.
 %    \begin{macrocode}
-\int_const:Nn \c_term_ior { 16 }
+\int_const:Nn \c_@@_term_ior { 16 }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -760,7 +975,7 @@
 %   Reserving a new stream is done by defining the name as equal to using the
 %   terminal.
 %    \begin{macrocode}
-\cs_new_protected:Npn \ior_new:N #1 { \cs_new_eq:NN #1 \c_term_ior }
+\cs_new_protected:Npn \ior_new:N #1 { \cs_new_eq:NN #1 \c_@@_term_ior }
 \cs_generate_variant:Nn \ior_new:N { c }
 %    \end{macrocode}
 % \end{macro}
@@ -782,10 +997,10 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{variable}{\l_@@_file_name_str}
+% \begin{variable}{\l_@@_file_name_tl}
 %   Data storage.
 %    \begin{macrocode}
-\str_new:N \l_@@_file_name_str
+\tl_new:N \l_@@_file_name_tl
 %    \end{macrocode}
 % \end{variable}
 %
@@ -797,13 +1012,12 @@
 %    \begin{macrocode}
 \prg_new_protected_conditional:Npnn \ior_open:Nn #1#2 { T , F , TF }
   {
-    \file_get_full_name:nN {#2} \l_@@_file_name_str
-    \str_if_empty:NTF \l_@@_file_name_str
-      { \prg_return_false: }
+    \file_get_full_name:nNTF {#2} \l_@@_file_name_tl
       {
-        \__kernel_ior_open:No #1 \l_@@_file_name_str
+        \__kernel_ior_open:No #1 \l_@@_file_name_tl
         \prg_return_true:
       }
+      { \prg_return_false: }
   }
 \prg_generate_conditional_variant:Nnn \ior_open:Nn { c } { T , F , TF }
 %    \end{macrocode}
@@ -863,11 +1077,18 @@
 %</package>
   }
 \cs_generate_variant:Nn \__kernel_ior_open:Nn { No }
-\cs_new_protected:Npn \@@_open_stream:Nn #1#2
+%    \end{macrocode}
+%   Here, we act defensively in case \LuaTeX{} is in use with an
+%   extensionless file name.
+%    \begin{macrocode}
+\cs_new_protected:Npx \@@_open_stream:Nn #1#2
   {
-    \tex_global:D \tex_chardef:D #1 = \l_@@_stream_tl \scan_stop:
-    \prop_gput:NVn \g_@@_streams_prop #1 {#2}
-    \tex_openin:D #1 #2 \scan_stop:
+    \tex_global:D \tex_chardef:D #1 = \exp_not:N \l_@@_stream_tl \scan_stop:
+    \prop_gput:NVn \exp_not:N \g_@@_streams_prop #1 {#2}
+    \tex_openin:D #1
+      \sys_if_engine_luatex:TF
+        { {#2} }
+        {  \exp_not:N \__kernel_file_name_quote:n {#2} \scan_stop: }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -882,13 +1103,13 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \ior_close:N #1
   {
-    \int_compare:nT { -1 < #1 < \c_term_ior }
+    \int_compare:nT { -1 < #1 < \c_@@_term_ior }
       {
         \tex_closein:D #1
         \prop_gremove:NV \g_@@_streams_prop #1
         \seq_if_in:NVF \g_@@_streams_seq #1
           { \seq_gpush:NV \g_@@_streams_seq #1 }
-        \cs_gset_eq:NN #1 \c_term_ior
+        \cs_gset_eq:NN #1 \c_@@_term_ior
       }
   }
 \cs_generate_variant:Nn \ior_close:N { c }
@@ -940,7 +1161,7 @@
   {
     \cs_if_exist:NTF #1
       {
-        \int_compare:nTF { -1 < #1 < \c_term_ior }
+        \int_compare:nTF { -1 < #1 < \c_@@_term_ior }
           {
             \if_eof:w #1
               \prg_return_true:
@@ -955,19 +1176,35 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\ior_get:NN}
+% \begin{macro}{\ior_get:NN, \@@_get:NN}
+% \begin{macro}[TF]{\ior_get:NN}
 %   And here we read from files.
 %    \begin{macrocode}
 \cs_new_protected:Npn \ior_get:NN #1#2
+  { \ior_get:NNF #1 #2 { \tl_set:Nn #2 { \q_no_value } } }
+\cs_new_protected:Npn \@@_get:NN #1#2
   { \tex_read:D #1 to #2 }
+\prg_new_protected_conditional:Npnn \ior_get:NN #1#2 { T , F , TF }
+  {
+    \ior_if_eof:NTF #1
+      { \prg_return_false: }
+      {
+        \@@_get:NN #1 #2
+        \prg_return_true:
+      }
+  }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
 %
-% \begin{macro}{\ior_str_get:NN}
+% \begin{macro}{\ior_str_get:NN, \@@_str_get:NN}
+% \begin{macro}[TF]{\ior_str_get:NN}
 %   Reading as strings is a more complicated wrapper, as we wish to
 %   remove the endline character and restore it afterwards.
 %    \begin{macrocode}
 \cs_new_protected:Npn \ior_str_get:NN #1#2
+  { \ior_str_get:NNF #1 #2 { \tl_set:Nn #2 { \q_no_value } } }
+\cs_new_protected:Npn \@@_str_get:NN #1#2
   {
     \exp_args:Nno \use:n
       {
@@ -976,7 +1213,47 @@
         \int_set:Nn \tex_endlinechar:D
       }   { \int_use:N \tex_endlinechar:D }
   }
+\prg_new_protected_conditional:Npnn \ior_str_get:NN #1#2 { T , F , TF }
+  {
+    \ior_if_eof:NTF #1
+      { \prg_return_false: }
+      {
+        \@@_str_get:NN #1 #2
+        \prg_return_true:
+      }
+  }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{variable}{\c_@@_term_noprompt_ior}
+%   For reading without a prompt.
+%    \begin{macrocode}
+\int_const:Nn \c_@@_term_noprompt_ior { -1 }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\ior_get_term:nN, \ior_str_get_term:nN}
+% \begin{macro}{\@@_get_term:NnN}
+%   Getting from the terminal is better with pretty-printing.
+%    \begin{macrocode}
+\cs_new_protected:Npn \ior_get_term:nN #1#2
+  { \@@_get_term:NnN \@@_get:NN {#1} #2 }
+\cs_new_protected:Npn \ior_str_get_term:nN #1#2
+  { \@@_get_term:NnN \@@_str_get:NN {#1} #2 }
+\cs_new_protected:Npn \@@_get_term:NnN #1#2#3
+  {
+    \group_begin:
+      \tex_escapechar:D = -1 \scan_stop:
+      \tl_if_blank:nTF {#2}
+        { \exp_args:NNc #1 \c_@@_term_noprompt_ior }
+        { \exp_args:NNc #1 \c_@@_term_ior }
+          {#2}
+    \exp_args:NNNv \group_end:
+    \tl_set:Nn #3 {#2}
+  }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[EXP]{\ior_map_break:, \ior_map_break:n}
@@ -1001,9 +1278,9 @@
 %   stream has only one \enquote{current line}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \ior_map_inline:Nn
-  { \@@_map_inline:NNn \ior_get:NN }
+  { \@@_map_inline:NNn \@@_get:NN }
 \cs_new_protected:Npn \ior_str_map_inline:Nn
-  { \@@_map_inline:NNn \ior_str_get:NN }
+  { \@@_map_inline:NNn \@@_str_get:NN }
 \cs_new_protected:Npn \@@_map_inline:NNn
   {
     \int_gincr:N \g__kernel_prg_map_int
@@ -1173,10 +1450,10 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{variable}{\l_@@_file_name_str}
+% \begin{variable}{\l_@@_file_name_tl}
 %  Data storage.
 %    \begin{macrocode}
-\str_new:N \l_@@_file_name_str
+\tl_new:N \l_@@_file_name_tl
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1187,10 +1464,11 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \iow_open:Nn #1#2
   {
-    \__kernel_file_name_sanitize:nN {#2} \l_@@_file_name_str
+    \tl_set:Nx \l_@@_file_name_tl
+      { \__kernel_file_name_sanitize:n {#2} }
     \iow_close:N #1
     \seq_gpop:NNTF \g_@@_streams_seq \l_@@_stream_tl
-      { \@@_open_stream:NV #1 \l_@@_file_name_str }
+      { \@@_open_stream:NV #1 \l_@@_file_name_tl }
 %<*initex>
       { \__kernel_msg_fatal:nn { kernel } { output-streams-exhausted } }
 %</initex>
@@ -1198,7 +1476,7 @@
       {
         \@@_new:N #1
         \tl_set:Nx \l_@@_stream_tl { \int_eval:n {#1} }
-        \@@_open_stream:NV #1 \l_@@_file_name_str
+        \@@_open_stream:NV #1 \l_@@_file_name_tl
       }
 %</package>
   }
@@ -1207,7 +1485,8 @@
   {
     \tex_global:D \tex_chardef:D #1 = \l_@@_stream_tl \scan_stop:
     \prop_gput:NVn \g_@@_streams_prop #1 {#2}
-    \tex_immediate:D \tex_openout:D #1 #2 \scan_stop:
+    \tex_immediate:D \tex_openout:D
+        #1 \__kernel_file_name_quote:n {#2} \scan_stop:
   }
 \cs_generate_variant:Nn \@@_open_stream:Nn { NV }
 %    \end{macrocode}
@@ -1332,8 +1611,8 @@
 \cs_set_protected:Npn \iow_term:x { \iow_now:Nx \c_term_iow }
 \cs_new_protected:Npn \iow_term:n { \iow_now:Nn \c_term_iow }
 %    \end{macrocode}
-%\end{macro}
-%\end{macro}
+% \end{macro}
+% \end{macro}
 %
 % \subsubsection{Special characters for writing}
 %
@@ -1554,7 +1833,7 @@
 \cs_new_protected:Npn \iow_wrap:nnnN #1#2#3#4
   {
     \group_begin:
-%<package>      \use:c { conditionally@traceoff }
+%<package>      \cs_if_exist_use:N \conditionally@traceoff
       \int_set:Nn \tex_escapechar:D { -1 }
       \cs_set:Npx \{ { \token_to_str:N \{ }
       \cs_set:Npx \# { \token_to_str:N \# }
@@ -2005,38 +2284,18 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\g_@@_internal_ior}
-%   A reserved stream to test for file existence.
-%    \begin{macrocode}
-\ior_new:N \g_@@_internal_ior
-%    \end{macrocode}
-% \end{variable}
-%
 % \begin{variable}
 %   {
 %     \g_file_curr_dir_str ,
 %     \g_file_curr_ext_str ,
 %     \g_file_curr_name_str
 %   }
-%   The name of the current file should be available at all times.
-%   For the format the file name needs to be picked up at the start of the
-%   run. In \LaTeXe{} package mode the current file name is collected from
-%   \tn{@currname}.
+%   The name of the current file should be available at all times:
+%   the name itself is set dynamically.
 %    \begin{macrocode}
 \str_new:N \g_file_curr_dir_str
 \str_new:N \g_file_curr_ext_str
 \str_new:N \g_file_curr_name_str
-%<*initex>
-\tex_everyjob:D \exp_after:wN
-  {
-    \tex_the:D \tex_everyjob:D
-    \str_gset:Nx \g_file_curr_name_str { \tex_jobname:D }
-  }
-%</initex>
-%<*package>
-\cs_if_exist:NT \@currname
-  { \str_gset_eq:NN \g_file_curr_name_str \@currname }
-%</package>
 %    \end{macrocode}
 % \end{variable}
 %
@@ -2045,7 +2304,8 @@
 %   mode we can recover the information from the details held by
 %   \LaTeXe{} (we must be in the preamble and loaded using \tn{usepackage}
 %   or \tn{RequirePackage}). As \LaTeXe{} doesn't store directory and
-%   name separately, we stick to the same convention here.
+%   name separately, we stick to the same convention here. In pre-loading,
+%   \tn{@currnamestack} is empty so is skipped.
 %    \begin{macrocode}
 \seq_new:N \g_@@_stack_seq
 %<*package>
@@ -2068,7 +2328,10 @@
         }
     }
   \cs_if_exist:NT \@currnamestack
-    { \exp_after:wN \@@_tmp:w \@currnamestack }
+    {
+      \tl_if_empty:NF \@currnamestack
+        { \exp_after:wN \@@_tmp:w \@currnamestack }
+    }
 \group_end:
 %</package>
 %    \end{macrocode}
@@ -2092,11 +2355,11 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_@@_base_name_str, \l_@@_full_name_str}
+% \begin{variable}{\l_@@_base_name_tl, \l_@@_full_name_tl}
 %   For storing the basename and full path whilst passing data internally.
 %    \begin{macrocode}
-\str_new:N \l_@@_base_name_str
-\str_new:N \l_@@_full_name_str
+\tl_new:N \l_@@_base_name_tl
+\tl_new:N \l_@@_full_name_tl
 %    \end{macrocode}
 % \end{variable}
 %
@@ -2126,46 +2389,151 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\__kernel_file_name_sanitize:nN}
-% \begin{macro}{\@@_name_quote:nN}
-% \begin{macro}{\@@_name_sanitize_aux:n}
-%   For converting a token list to a string where active characters are treated
-%   as strings from the start. The logic to the quoting normalisation is the
-%   same as used by \texttt{lualatexquotejobname}: check for balanced |"|, and
-%   assuming they balance strip all of them out before quoting the entire name
-%   if it contains spaces.
+% \begin{macro}[EXP]{\__kernel_file_name_sanitize:n}
+% \begin{macro}[EXP]{\__kernel_file_name_expand_loop:w}
+% \begin{macro}[EXP]{\__kernel_file_name_expand_N_type:Nw}
+% \begin{macro}[EXP]{\__kernel_file_name_expand_group:nw}
+% \begin{macro}[EXP]{\__kernel_file_name_expand_space:w}
+% \begin{macro}[EXP]{\__kernel_file_name_strip_quotes:n}
+% \begin{macro}[EXP]{\__kernel_file_name_strip_quotes:nnnw}
+% \begin{macro}[EXP]{\__kernel_file_name_strip_quotes:nnn}
+% \begin{macro}[EXP]{\__kernel_file_name_trim_spaces:n}
+% \begin{macro}[EXP]{\__kernel_file_name_trim_spaces:nw}
+% \begin{macro}[EXP]{\__kernel_file_name_trim_spaces_aux:n}
+% \begin{macro}[EXP]{\__kernel_file_name_trim_spaces_aux:w}
+%   Expanding the file name without expanding active characters is done
+%   using the same token-by-token approach as for example case changing.
+%   The finale outcome only need be \texttt{e}-type expandable, so there
+%   is no need for the shuffling that is seen in other locations.
 %    \begin{macrocode}
-\cs_new_protected:Npn \__kernel_file_name_sanitize:nN #1#2
+\cs_new:Npn \__kernel_file_name_sanitize:n #1
   {
-    \group_begin:
-      \seq_map_inline:Nn \l_char_active_seq
-        {
-          \tl_set:Nx \l_@@_internal_tl { \iow_char:N ##1 }
-          \char_set_active_eq:NN ##1 \l_@@_internal_tl
-        }
-      \tl_set:Nx \l_@@_internal_tl {#1}
-      \tl_set:Nx \l_@@_internal_tl
-        { \tl_to_str:N \l_@@_internal_tl }
-    \exp_args:NNNV \group_end:
-    \str_set:Nn #2 \l_@@_internal_tl
-  }
-\cs_new_protected:Npn \@@_name_quote:nN #1#2
-  {
-    \str_set:Nx #2 {#1}
-    \int_if_even:nF
-      { 0 \tl_map_function:NN #2 \@@_name_quote_aux:n }
+    \exp_args:Ne \__kernel_file_name_trim_spaces:n
       {
-        \__kernel_msg_error:nnx
-          { kernel } { unbalanced-quote-in-filename } {#2}
+        \exp_args:Ne \__kernel_file_name_strip_quotes:n
+          {
+            \__kernel_file_name_expand_loop:w #1
+              \q_recursion_tail \q_recursion_stop
+          }
       }
-    \tl_remove_all:Nn #2 { " }
-    \tl_if_in:NnT #2 { ~ }
-      { \str_set:Nx #2 { " \exp_not:V #2 " } }
   }
-\cs_new:Npn \@@_name_quote_aux:n #1
-  { \token_if_eq_charcode:NNT #1 " { + 1 } }
+\cs_new:Npn \__kernel_file_name_expand_loop:w #1 \q_recursion_stop
+  {
+    \tl_if_head_is_N_type:nTF {#1}
+      { \__kernel_file_name_expand_N_type:Nw }
+      {
+        \tl_if_head_is_group:nTF {#1}
+          { \__kernel_file_name_expand_group:nw }
+          { \__kernel_file_name_expand_space:w }
+      }
+    #1 \q_recursion_stop
+  }
+\cs_new:Npn \__kernel_file_name_expand_N_type:Nw #1
+  {
+    \quark_if_recursion_tail_stop:N #1
+    \bool_lazy_and:nnTF
+      { \token_if_expandable_p:N #1 }
+      {
+        \bool_not_p:n
+          {
+            \bool_lazy_any_p:n
+              {
+                { \token_if_protected_macro_p:N #1 }
+                { \token_if_protected_long_macro_p:N #1 }
+                { \token_if_active_p:N #1 }
+              }
+          }
+      }
+      { \exp_after:wN \__kernel_file_name_expand_loop:w #1 }
+      {
+        \token_to_str:N #1
+        \__kernel_file_name_expand_loop:w
+      }
+  }
+\cs_new:Npx \__kernel_file_name_expand_group:nw #1
+  {
+    \c_left_brace_str 
+    \exp_not:N \__kernel_file_name_expand_loop:w
+     #1
+     \c_right_brace_str 
+  }
+\exp_last_unbraced:NNo
+  \cs_new:Npx \__kernel_file_name_expand_space:w \c_space_tl
+    {
+      \c_space_tl
+      \exp_not:N \__kernel_file_name_expand_loop:w
+    }
+%    \end{macrocode}
+%   Quoting file name uses basically the same approach as for
+%   \texttt{luaquotejobname}: count the |"| tokens and remove them.
+%    \begin{macrocode}
+\cs_new:Npn \__kernel_file_name_strip_quotes:n #1
+  {
+    \__kernel_file_name_strip_quotes:nnnw {#1} { 0 } { }
+      #1 " \q_recursion_tail " \q_recursion_stop
+  }
+\cs_new:Npn \__kernel_file_name_strip_quotes:nnnw #1#2#3#4 "
+  {
+    \quark_if_recursion_tail_stop_do:nn {#4}
+      { \__kernel_file_name_strip_quotes:nnn {#1} {#2} {#3} }
+    \__kernel_file_name_strip_quotes:nnnw {#1} { #2 + 1 } { #3#4 }
+  }
+\cs_new:Npn \__kernel_file_name_strip_quotes:nnn #1#2#3
+  {
+    \int_if_even:nT {#2}
+      {
+        \__kernel_msg_expandable_error:nnn
+          { kernel } { unbalanced-quote-in-filename } {#1}
+      }
+    #3
+  }
+%    \end{macrocode}
+%   Spaces need to be trimmed from the start of the name and from the end of
+%   any extension. However, the name we are passed might not have an extension:
+%   that means we have to look for one. If there is no extension, we still use
+%   the standard trimming function but deliberately prevent any spaces being 
+%   removed at the end.
+%    \begin{macrocode}
+\cs_new:Npn \__kernel_file_name_trim_spaces:n #1
+  { \__kernel_file_name_trim_spaces:nw {#1} #1 . \q_nil . \q_stop }
+\cs_new:Npn \__kernel_file_name_trim_spaces:nw #1#2 . #3 . #4 \q_stop
+  {
+    \quark_if_nil:nTF {#3}
+      {
+        \exp_args:Ne \__kernel_file_name_trim_spaces_aux:n
+          { \tl_trim_spaces:n { #1 \s_stop } }
+      }
+      { \tl_trim_spaces:n {#1} }
+  }
+\cs_new:Npn \__kernel_file_name_trim_spaces_aux:n #1
+  { \__kernel_file_name_trim_spaces_aux:w #1 }
+\cs_new:Npn \__kernel_file_name_trim_spaces_aux:w #1 \s_stop {#1}
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\__kernel_file_name_quote:n}
+% \begin{macro}[EXP]{\__kernel_file_name_quote:nw}
+%    \begin{macrocode}
+\cs_new:Npn \__kernel_file_name_quote:n #1
+  { \__kernel_file_name_quote:nw {#1} #1 ~ \q_nil \q_stop }
+\cs_new:Npn \__kernel_file_name_quote:nw #1 #2 ~ #3 \q_stop
+  {
+    \quark_if_nil:nTF {#3}
+      { #1 }
+      { "#1" }
+  }
+%    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
@@ -2190,32 +2558,35 @@
 \cs_new_protected:Npn \file_get:nnN #1#2#3
   {
     \file_get:nnNF {#1} {#2} #3
-      { \__kernel_file_missing:n {#1} }
+      { \tl_set:Nn #3 { \q_no_value } }
   }
 \prg_new_protected_conditional:Npnn \file_get:nnN #1#2#3 { T , F , TF }
   {
-    \file_get_full_name:nN {#1} \l_@@_full_name_str
-    \str_if_empty:NTF \l_@@_full_name_str
-      { \prg_return_false: }
+    \file_get_full_name:nNTF {#1} \l_@@_full_name_tl
       {
         \exp_args:NV \@@_get_aux:nnN
-          \l_@@_full_name_str
+          \l_@@_full_name_tl
           {#2} #3
         \prg_return_true:
       }
+      { \prg_return_false: }
   }
-\cs_new_protected:Npn \@@_get_aux:nnN #1#2#3
+\cs_new_protected:Npx \@@_get_aux:nnN #1#2#3
   {
-    \if_false: { \fi:
+    \exp_not:N \if_false: { \exp_not:N \fi:
     \group_begin:
       \int_set_eq:NN \tex_tracingnesting:D \c_zero_int
-      \exp_args:No \tex_everyeof:D { \c_@@_marker_tl }
+      \exp_not:N \exp_args:No \tex_everyeof:D
+        { \exp_not:N \c_@@_marker_tl }
       #2 \scan_stop:
-      \exp_after:wN \@@_get_do:Nw
-      \exp_after:wN #3
-      \exp_after:wN \prg_do_nothing:
-        \tex_input:D #1 \scan_stop:
-    \if_false: } \fi:
+      \exp_not:N \exp_after:wN \exp_not:N \@@_get_do:Nw
+      \exp_not:N \exp_after:wN #3
+      \exp_not:N \exp_after:wN \exp_not:N \prg_do_nothing:
+      \exp_not:N \tex_input:D
+      \sys_if_engine_luatex:TF
+        { {#1} }
+        { \exp_not:N \__kernel_file_name_quote:n {#1} \scan_stop: }
+    \exp_not:N \if_false: } \exp_not:N \fi:
   }
 \exp_args:Nno \use:nn
   { \cs_new_protected:Npn \@@_get_do:Nw #1#2 }
@@ -2228,9 +2599,181 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\@@_size:n}
+%   A copy of the primitive where it's available, or the \LuaTeX{}
+%   equivalent if relevant.
+%    \begin{macrocode}
+\cs_new_eq:NN \@@_size:n \tex_filesize:D
+\sys_if_engine_luatex:T
+  {
+    \cs_gset:Npn \@@_size:n #1
+      {
+        \lua_now:e
+          { l3kernel.filesize ( " \lua_escape:e {#1} " ) }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\file_full_name:n, \@@_full_name:n}
+% \begin{macro}[EXP]{\@@_full_name_aux:nn}
+% \begin{macro}[EXP]{\@@_full_name_aux:n}
+% \begin{macro}[EXP]{\@@_name_cleanup:w}
+% \begin{macro}[EXP]{\@@_name_end:}
+% \begin{macro}[EXP]{\@@_name_ext_check:n}
+% \begin{macro}[EXP]{\@@_name_ext_check:nw}
+% \begin{macro}[EXP]{\@@_name_ext_check:nnw}
+% \begin{macro}[EXP]{\@@_name_ext_check:nn}
+%   File searching can be carried out if the \tn{pdffilesize} primitive
+%   or an equivalent is available. That of course means we need to
+%   arrange for everything else to here to be done by expansion too.
+%   We start off by sanitizing the name and quoting if required: we
+%   may need to remove those quotes, so the raw name is passed too.
+%    \begin{macrocode}
+\cs_new:Npn \file_full_name:n #1
+  {
+    \exp_args:Ne \@@_full_name:n
+      { \__kernel_file_name_sanitize:n {#1} }
+  }
+%    \end{macrocode}
+%   First, we check of the file is just here: no mapping so we do not
+%   need the break part of the broader auxiliary. We are using the fact
+%   that the primitive here returns nothing if the file is entirely absent.
+%   For package mode, \tn{input@path} is a token list not a sequence.
+%    \begin{macrocode}
+\cs_new:Npn \@@_full_name:n #1
+  {
+    \tl_if_blank:nF {#1}
+      {
+        \tl_if_blank:eTF { \@@_size:n {#1} }
+          {
+            \seq_map_tokens:Nn \l_file_search_path_seq
+              { \@@_full_name_aux:nn {#1} }
+%<*package>
+            \cs_if_exist:NT \input@path
+              {
+                \tl_map_tokens:Nn \input@path
+                  { \@@_full_name_aux:nn {#1} }
+              }
+%</package>
+            \@@_name_end:
+          }
+          { \@@_ext_check:n {#1} }
+      }
+  }
+%    \end{macrocode}
+%   Two pars to the auxiliary here so we can avoid doing quoting
+%   twice in the event we find the right file.
+%    \begin{macrocode}
+\cs_new:Npn \@@_full_name_aux:nn #1#2
+  { \exp_args:Ne \@@_full_name_aux:n { \tl_to_str:n {#2} / #1 } }
+\cs_new:Npn \@@_full_name_aux:n #1
+  {
+    \tl_if_blank:eF { \@@_size:n {#1} }
+      {
+        \seq_map_break:n
+          {
+            \@@_ext_check:n {#1}
+            \@@_name_cleanup:w
+          }
+      }
+  }
+\cs_new:Npn \@@_name_cleanup:w #1 \@@_name_end: { }
+\cs_new:Npn \@@_name_end: { }
+%    \end{macrocode}
+%   As \TeX{} automatically adds |.tex| if there is no extension,
+%   there is a little clean up to do here. First, make sure we are not in the
+%   directory part, saving that. Then check for an extension.
+%    \begin{macrocode}
+\cs_new:Npn \@@_ext_check:n #1
+  { \@@_ext_check:nw { / } #1 / \q_nil / \q_stop }
+\cs_new:Npn \@@_ext_check:nw #1 #2 / #3 / #4 \q_stop
+  {
+    \quark_if_nil:nTF {#3}
+      {
+        \exp_args:No \@@_ext_check:nnw
+          { \use_none:n #1 } {#2} #2 . \q_nil . \q_stop
+      }
+      { \@@_ext_check:nw { #1 #2 / } #3 / #4 \q_stop }
+  }
+\cs_new:Npx \@@_ext_check:nnw #1#2#3 . #4 . #5 \q_stop
+  {
+    \exp_not:N \quark_if_nil:nTF {#4}
+      {
+        \exp_not:N \@@_ext_check:nn
+          { #1 #2 } { #1 #2 \tl_to_str:n { .tex } }
+      }
+      { #1 #2 }
+  }
+\cs_new:Npn \@@_ext_check:nn #1#2
+  {
+    \tl_if_blank:eTF { \@@_size:n {#2} }
+      {#1}
+      {
+        \int_compare:nNnTF
+          { \@@_size:n {#1} } = { \@@_size:n {#2} }
+          {#2}
+          {#1}
+      }
+  }
+%    \end{macrocode}
+%   Deal with the fact that the primitive might not be available.
+%    \begin{macrocode}
+\bool_lazy_or:nnF
+  { \cs_if_exist_p:N \tex_filesize:D }
+  { \sys_if_engine_luatex_p: }
+  {
+    \cs_gset:Npn \file_full_name:n #1
+      {
+        \__kernel_msg_expandable_error:nnn
+          { kernel } { primitive-not-available }
+          { \(pdf)filesize }
+      }
+  }
+\__kernel_msg_new:nnnn { kernel } { primitive-not-available }
+  { Primitive~\token_to_str:N #1 not~available }
+  {
+    The~version~of~your~TeX~engine~does~not~provide~functionality~equivalent~to~
+    the~#1~primitive.
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}{\file_get_full_name:nN, \file_get_full_name:VN}
+% \begin{macro}[TF]{\file_get_full_name:nN, \file_get_full_name:VN}
 % \begin{macro}{\@@_get_full_name_search:nN}
-%   The way to test if a file exists is to try to open it: if it does
+%   These functions pre-date using \cs{tex_filesize:D} for file searching,
+%   so are |get| functions with protection. To avoid having different
+%   search set ups, they are simply wrappers around the code above.
+%    \begin{macrocode}
+\cs_new_protected:Npn \file_get_full_name:nN #1#2
+  {
+    \file_get_full_name:nNF {#1} #2
+      { \tl_set:Nn #2 { \q_no_value } }
+  }
+\cs_generate_variant:Nn \file_get_full_name:nN { V }
+\prg_new_protected_conditional:Npnn \file_get_full_name:nN #1#2 { T , F , TF }
+  {
+    \tl_set:Nx #2
+      { \file_full_name:n {#1} }
+    \tl_if_empty:NTF #2
+      { \prg_return_false: }
+      { \prg_return_true: }
+  }
+\cs_generate_variant:Nn \file_get_full_name:nNT  { V }
+\cs_generate_variant:Nn \file_get_full_name:nNF  { V }
+\cs_generate_variant:Nn \file_get_full_name:nNTF { V }
+%    \end{macrocode}
+%   If \cs{tex_filesize:D} is not available, the
+%   way to test if a file exists is to try to open it: if it does
 %   not exist then \TeX{} reports end-of-file. A search is made
 %   looking at each potential path in turn (starting from the current
 %   directory). The first location is of course treated as the correct
@@ -2240,46 +2783,384 @@
 %   existence of the file with |.tex| extension in that directory, and
 %   if it exists we include the |.tex| extension in the result.
 %    \begin{macrocode}
-\cs_new_protected:Npn \file_get_full_name:nN #1#2
+\bool_lazy_or:nnF
+  { \cs_if_exist_p:N \tex_filesize:D }
+  { \sys_if_engine_luatex_p: }
   {
-    \__kernel_file_name_sanitize:nN {#1} \l_@@_base_name_str
-    \@@_get_full_name_search:nN { } \use:n
-    \seq_map_inline:Nn \l_file_search_path_seq
-      { \@@_get_full_name_search:nN { ##1 / } \seq_map_break:n }
+    \prg_set_protected_conditional:Npnn \file_get_full_name:nN #1#2 { T , F , TF }
+      {
+        \tl_set:Nx \l_@@_base_name_tl
+          { \__kernel_file_name_sanitize:n {#1} }
+        \@@_get_full_name_search:nN { } \use:n
+        \seq_map_inline:Nn \l_file_search_path_seq
+          { \@@_get_full_name_search:nN { ##1 / } \seq_map_break:n }
 %<*package>
-    \cs_if_exist:NT \input@path
-      {
-        \tl_map_inline:Nn \input@path
-          { \@@_get_full_name_search:nN { ##1 } \tl_map_break:n }
-      }
-%</package>
-    \str_clear:N \l_@@_full_name_str
-    \prg_break_point:
-    \str_if_empty:NF \l_@@_full_name_str
-      {
-        \exp_args:NV \file_parse_full_name:nNNN \l_@@_full_name_str
-          \l_@@_dir_str \l_@@_name_str \l_@@_ext_str
-        \str_if_empty:NT \l_@@_ext_str
+        \cs_if_exist:NT \input@path
           {
-            \__kernel_ior_open:No \g_@@_internal_ior
-              { \l_@@_full_name_str .tex }
-            \ior_if_eof:NF \g_@@_internal_ior
-              { \str_put_right:Nn \l_@@_full_name_str { .tex } }
+            \tl_map_inline:Nn \input@path
+              { \@@_get_full_name_search:nN { ##1 } \tl_map_break:n }
+          }
+%</package>
+        \tl_set:Nn \l_@@_full_name_tl { \q_no_value }
+        \prg_break_point:
+        \quark_if_no_value:NTF \l_@@_full_name_tl
+          {
+            \ior_close:N \g_@@_internal_ior
+            \prg_return_false:
+          }
+          {
+            \file_parse_full_name:VNNN \l_@@_full_name_tl
+              \l_@@_dir_str \l_@@_name_str \l_@@_ext_str
+            \str_if_empty:NT \l_@@_ext_str
+              {
+                \__kernel_ior_open:No \g_@@_internal_ior
+                  { \l_@@_full_name_tl .tex }
+                \ior_if_eof:NF \g_@@_internal_ior
+                   { \tl_put_right:Nn \l_@@_full_name_tl { .tex } }
+              }
+            \ior_close:N \g_@@_internal_ior
+            \tl_set_eq:NN #2 \l_@@_full_name_tl
+            \prg_return_true:
           }
       }
-    \str_set_eq:NN #2 \l_@@_full_name_str
-    \ior_close:N \g_@@_internal_ior
   }
-\cs_generate_variant:Nn \file_get_full_name:nN { V }
 \cs_new_protected:Npn \@@_get_full_name_search:nN #1#2
   {
-    \@@_name_quote:nN
-      { \tl_to_str:n {#1} \l_@@_base_name_str }
-      \l_@@_full_name_str
-    \__kernel_ior_open:No \g_@@_internal_ior \l_@@_full_name_str
+    \tl_set:Nx \l_@@_full_name_tl
+      { \tl_to_str:n {#1} \l_@@_base_name_tl }
+    \__kernel_ior_open:No \g_@@_internal_ior \l_@@_full_name_tl
     \ior_if_eof:NF \g_@@_internal_ior { #2 { \prg_break: } }
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \begin{variable}{\g_@@_internal_ior}
+%   A reserved stream to test for file existence, if required.
+%    \begin{macrocode}
+\bool_lazy_or:nnF
+  { \cs_if_exist_p:N \tex_filesize:D }
+  { \sys_if_engine_luatex_p: }
+  { \ior_new:N \g_@@_internal_ior }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}[rEXP]{\file_mdfive_hash:n, \file_size:n, \file_timestamp:n}
+% \begin{macro}[rEXP]{\@@_details:nn, \@@_details_aux:nn}
+% \begin{macro}[rEXP]{\@@_mdfive_hash:n}
+%   Getting file details by expansion is relatively easy if a bit repetitive.
+%   As the MD5 function has a slightly different syntax from the other commands,
+%   there is a little cleaning up to do.
+%    \begin{macrocode}
+\cs_new:Npn \file_mdfive_hash:n #1
+  { \@@_details:nn {#1} { mdfivesum } }
+\cs_new:Npn \file_size:n #1
+  { \@@_details:nn {#1} { size } }
+\cs_new:Npn \file_timestamp:n #1
+  { \@@_details:nn {#1} { moddate } }
+\cs_new:Npn \@@_details:nn #1#2
+  {
+    \exp_args:Ne \@@_details_aux:nn
+      { \file_full_name:n {#1} } {#2}
+  }
+\cs_new:Npn \@@_details_aux:nn #1#2
+  {
+    \tl_if_blank:nF {#1}
+      { \use:c { tex_file #2 :D } {#1} }
+  }
+\sys_if_engine_luatex:TF
+  {
+    \cs_gset:Npn \@@_details_aux:nn #1#2
+      {
+        \lua_now:e
+          { l3kernel.file#2 ( " \lua_escape:e { #1 } " ) }
+      }
+  }
+  {
+    \cs_gset:Npn \file_mdfive_hash:n #1
+      { \exp_args:Ne \@@_mdfive_hash:n { \file_full_name:n {#1} } }
+    \cs_new:Npn \@@_mdfive_hash:n #1
+      { \tex_mdfivesum:D file {#1} }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[rEXP]{\file_hex_dump:nnn, \@@_hex_dump_auxi:nnn}
+% \begin{macro}[rEXP]{\@@_hex_dump_auxii:nnnn, \@@_hex_dump_auxiii:nnnn}
+% \begin{macro}[rEXP]{\@@_hex_dump_auxiiv:nnn}
+% \begin{macro}[rEXP]{\file_hex_dump:n, \@@_hex_dump:n}
+%   These are separate as they need multiple arguments \emph{or} the
+%   file size. For \LuaTeX{}, the emulation does not need the file
+%   size so we save a little on expansion.
+%    \begin{macrocode}
+\cs_new:Npn \file_hex_dump:nnn #1#2#3
+  {
+    \exp_args:Neee \@@_hex_dump_auxi:nnn
+      { \file_full_name:n {#1} }
+      { \int_eval:n {#2} }
+      { \int_eval:n {#3} }
+  }
+\cs_new:Npn \@@_hex_dump_auxi:nnn #1#2#3
+  {
+    \bool_lazy_any:nF
+      {
+        { \tl_if_blank_p:n {#1} }
+        { \int_compare_p:nNn {#2} = 0 }
+        { \int_compare_p:nNn {#3} = 0 }
+      }
+      {
+        \exp_args:Ne \@@_hex_dump_auxii:nnnn
+          { \@@_details_aux:nn {#1} { size } }
+          {#1} {#2} {#3}
+      }
+  }
+\cs_new:Npn \@@_hex_dump_auxii:nnnn #1#2#3#4
+  {
+    \int_compare:nNnTF {#3} > 0
+      { \@@_hex_dump_auxiii:nnnn {#3} }
+      {
+        \exp_args:Ne \@@_hex_dump_auxiii:nnnn
+          { \int_eval:n { #1 + #3 } }
+      }
+        {#1} {#2} {#4}
+  }
+\cs_new:Npn \@@_hex_dump_auxiii:nnnn #1#2#3#4
+  {
+    \int_compare:nNnTF {#4} > 0
+      { \@@_hex_dump_auxiv:nnn {#4} }
+      {
+        \exp_args:Ne \@@_hex_dump_auxiv:nnn
+          { \int_eval:n { #2 + #4 } }
+      }
+        {#1} {#3}
+  }
+\cs_new:Npn \@@_hex_dump_auxiv:nnn #1#2#3
+  {
+    \tex_filedump:D
+      offset ~ \int_eval:n { #2 - 1 } ~
+      length ~ \int_eval:n { #1 - #2 + 1 }
+      {#3}
+  }
+\sys_if_engine_luatex:T
+  {
+    \cs_gset:Npn \@@_hex_dump_auxiv:nnn #1#2#3
+      {
+        \lua_now:e
+          {
+            l3kernel.filedump
+              (
+                " \lua_escape:e {#3} " ,
+                \int_eval:n { #2 - 1 } ,
+                \int_eval:n { #1 - #2 + 1 }
+              )
+          }
+      }
+  }
+\cs_new:Npn \file_hex_dump:n #1
+  { \exp_args:Ne \@@_hex_dump:n { \file_full_name:n {#1} } }
+\cs_new:Npn \@@_hex_dump:n #1
+  {
+    \tl_if_blank:nF {#1}
+      { \tex_filedump:D length \tex_filesize:D {#1} {#1} }
+  }
+\sys_if_engine_luatex:T
+  {
+    \cs_gset:Npn \@@_hex_dump:n #1
+      {
+        \lua_now:e
+          { l3kernel.filedump ( " \lua_escape:e { #1 } " ) }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[noTF]
+%   {
+%     \file_get_hex_dump:nN,
+%     \file_get_mdfive_hash:nN
+%     \file_get_size:nN,
+%     \file_get_timestamp:nN
+%   }
+% \begin{macro}{\@@_get_details:nnN}
+%   Non-expandable wrappers around the above in the case where appropriate
+%   primitive support exists.
+%    \begin{macrocode}
+\cs_new_protected:Npn \file_get_hex_dump:nN #1#2
+  { \file_get_hex_dump:nNF {#1} #2 { \tl_set:Nn #2 { \q_no_value } } }
+\cs_new_protected:Npn \file_get_mdfive_hash:nN #1#2
+  { \file_get_mdfive_hash:nNF {#1} #2 { \tl_set:Nn #2 { \q_no_value } } }
+\cs_new_protected:Npn \file_get_size:nN #1#2
+  { \file_get_size:nNF {#1} #2 { \tl_set:Nn #2 { \q_no_value } } }
+\cs_new_protected:Npn \file_get_timestamp:nN #1#2
+  { \file_get_timestamp:nNF {#1} #2 { \tl_set:Nn #2 { \q_no_value } } }
+\prg_new_protected_conditional:Npnn \file_get_hex_dump:nN #1#2 { T , F , TF }
+  { \@@_get_details:nnN {#1} { hex_dump } #2 }
+\prg_new_protected_conditional:Npnn \file_get_mdfive_hash:nN #1#2 { T , F , TF }
+  { \@@_get_details:nnN {#1} { mdfive_hash } #2 }
+\prg_new_protected_conditional:Npnn \file_get_size:nN #1#2 { T , F , TF }
+  { \@@_get_details:nnN {#1} { size } #2 }
+\prg_new_protected_conditional:Npnn \file_get_timestamp:nN #1#2 { T , F , TF }
+  { \@@_get_details:nnN {#1} { timestamp } #2 }
+\cs_new_protected:Npn \@@_get_details:nnN #1#2#3
+  {
+    \tl_set:Nx #3
+      { \use:c { file_ #2 :n } {#1} }
+    \tl_if_empty:NTF #3
+      { \prg_return_false: }
+      { \prg_return_true: }
+  }
+%    \end{macrocode}
+%   Where the primitive is not available, issue an error: this is a little
+%   more conservative than absolutely needed, but does work.
+%    \begin{macrocode}
+\bool_lazy_or:nnF
+  { \cs_if_exist_p:N \tex_filesize:D }
+  { \sys_if_engine_luatex_p: }
+  {
+    \cs_set_protected:Npn \@@_get_details:nnN #1#2#3
+       {
+        \tl_clear:N #3
+        \__kernel_msg_error:nnx
+          { kernel } { primitive-not-available }
+          {
+            \token_to_str:N \(pdf)file
+            \str_case:nn {#2}
+              {
+                { hex_dump } { dump }
+                { mdfive_hash } { mdfivesum }
+                { timestamp } { moddate }
+                { size } { size }
+              }
+          }
+        \prg_return_false:
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[noTF]{\file_get_hex_dump:nnnN}
+%   Custom code due to the additional arguments.
+%    \begin{macrocode}
+\cs_new_protected:Npn \file_get_hex_dump:nnnN #1#2#3#4
+  {
+    \file_get_hex_dump:nnnNF {#1} {#2} {#3} #4
+      { \tl_set:Nn #4 { \q_no_value } } 
+  }
+\prg_new_protected_conditional:Npnn \file_get_hex_dump:nnnN #1#2#3#4
+  { T , F , TF }
+  {
+    \tl_set:Nx #4
+      { \file_hex_dump:nnn {#1} {#2} {#3} }
+    \tl_if_empty:NTF #4
+      { \prg_return_false: }
+      { \prg_return_true: }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_str_cmp:nn}
+% \begin{macro}[EXP]{\@@_str_escape:n}
+%   As we are doing a fixed-length \enquote{big} integer comparison, it
+%   is easiest to use the low-level behavior  of string comparisons.
+%    \begin{macrocode}
+\cs_new:Npn \@@_str_cmp:nn #1#2 { \tex_strcmp:D {#1} {#2} }
+\sys_if_engine_luatex:T
+  {
+    \cs_set:Npn \@@_str_cmp:nn #1#2
+      {
+        \lua_now:e
+          {
+            l3kernel.strcmp
+              (
+                " \@@_str_escape:n {#1}",
+                " \@@_str_escape:n {#2}"
+              )
+          }
+      }
+   \cs_new:Npn \@@_str_escape:n #1
+     {
+       \lua_escape:e
+         { \__kernel_tl_to_str:w \use:e { {#1} } }
+     }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP, pTF]{\file_compare_timestamp:nNn}
+% \begin{macro}[EXP]{\@@_compare_timestamp:nnN}
+% \begin{macro}[EXP]{\@@_timestamp:n}
+%   Comparison of file date can be done by using the low-level nature of the
+%   string comparison functions.
+%    \begin{macrocode}
+\prg_new_conditional:Npnn \file_compare_timestamp:nNn #1#2#3
+  { p , T , F , TF }
+  {
+    \exp_args:Nee \@@_compare_timestamp:nnN
+      { \file_full_name:n {#1} }
+      { \file_full_name:n {#3} }
+      #2
+   }
+\cs_new:Npn \@@_compare_timestamp:nnN #1#2#3
+  {
+    \tl_if_blank:nTF {#1}
+      {
+        \if_charcode:w #3 <
+          \prg_return_true:
+        \else:
+          \prg_return_false:
+        \fi:
+      }
+      {
+        \tl_if_blank:nTF {#2}
+          {
+             \if_charcode:w #3 >
+                \prg_return_true:
+              \else:
+                \prg_return_false:
+              \fi:
+          }
+          {
+            \if_int_compare:w
+              \@@_str_cmp:nn
+                { \@@_timestamp:n {#1} }
+                { \@@_timestamp:n {#2} }
+                #3 0 \exp_stop_f:
+              \prg_return_true:
+            \else:
+              \prg_return_false:
+            \fi:
+          }
+      }
+  }
+\sys_if_engine_luatex:TF
+  {
+    \cs_new:Npn \@@_timestamp:n #1
+      {
+        \lua_now:e
+          { l3kernel.filemoddate ( " \lua_escape:e {#1} " ) }
+      }
+  }
+  { \cs_new_eq:NN \@@_timestamp:n \tex_filemoddate:D }
+\cs_if_exist:NF \tex_filemoddate:D
+  {
+    \prg_set_conditional:Npnn \file_compare_timestamp:nNn #1#2#3
+      { p , T , F , TF }
+      {
+        \__kernel_msg_expandable_error:nnn
+          { kernel } { primitive-not-available }
+          { \(pdf)filemoddate }
+        \prg_return_false:
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -2291,11 +3172,36 @@
 %    \begin{macrocode}
 \prg_new_protected_conditional:Npnn \file_if_exist:n #1 { T , F , TF }
   {
-    \file_get_full_name:nN {#1} \l_@@_full_name_str
-    \str_if_empty:NTF \l_@@_full_name_str
-      { \prg_return_false: }
+    \file_get_full_name:nNTF {#1} \l_@@_full_name_tl
       { \prg_return_true: }
+      { \prg_return_false: }
   }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\file_if_exist_input:n, \file_if_exist_input:nF}
+%   Input of a file with a test for existence.  We do not define the |T|
+%   or |TF| variants because the most useful place to place the
+%   \meta{true code} would be inconsistent with other conditionals.
+%    \begin{macrocode}
+\cs_new_protected:Npn \file_if_exist_input:n #1
+  {
+    \file_get_full_name:nNT {#1} \l_@@_full_name_tl
+      { \@@_input:V \l_@@_full_name_tl }
+  }
+\cs_new_protected:Npn \file_if_exist_input:nF #1#2
+  {
+    \file_get_full_name:nNTF {#1} \l_@@_full_name_tl
+      { \@@_input:V \l_@@_full_name_tl }
+      {#2}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\file_input_stop:}
+%   A simple rename.
+%    \begin{macrocode}
+\cs_new_protected:Npn \file_input_stop: { \tex_endinput:D }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2304,9 +3210,8 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \__kernel_file_missing:n #1
   {
-    \__kernel_file_name_sanitize:nN {#1} \l_@@_base_name_str
     \__kernel_msg_error:nnx { kernel } { file-not-found }
-      { \l_@@_base_name_str }
+      { \__kernel_file_name_sanitize:n {#1} }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2323,24 +3228,26 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \file_input:n #1
   {
-    \file_get_full_name:nN {#1} \l_@@_full_name_str
-    \str_if_empty:NTF \l_@@_full_name_str
+    \file_get_full_name:nNTF {#1} \l_@@_full_name_tl
+      { \@@_input:V \l_@@_full_name_tl }
       { \__kernel_file_missing:n {#1} }
-      { \@@_input:V \l_@@_full_name_str }
   }
-\cs_new_protected:Npn \@@_input:n #1
+\cs_new_protected:Npx \@@_input:n #1
   {
 %<*initex>
-    \seq_gput_right:Nn \g_@@_record_seq {#1}
+    \seq_gput_right:Nn \exp_not:N \g_@@_record_seq {#1}
 %</initex>
 %<*package>
-    \clist_if_exist:NTF \@filelist
-      { \@addtofilelist {#1} }
-      { \seq_gput_right:Nn \g_@@_record_seq {#1} }
+    \exp_not:N \clist_if_exist:NTF \exp_not:N \@filelist
+      { \exp_not:N \@addtofilelist {#1} }
+      { \seq_gput_right:Nn \exp_not:N \g_@@_record_seq {#1} }
 %</package>
-    \@@_input_push:n {#1}
-    \tex_input:D #1 \c_space_tl
-    \@@_input_pop:
+    \exp_not:N \@@_input_push:n {#1}
+    \exp_not:N \tex_input:D
+    \sys_if_engine_luatex:TF
+      { {#1} }
+      { \exp_not:N \__kernel_file_name_quote:n {#1} \scan_stop: }
+    \exp_not:N \@@_input_pop:
   }
 \cs_generate_variant:Nn \@@_input:n { V }
 %    \end{macrocode}
@@ -2362,7 +3269,7 @@
     \str_gset_eq:NN \g_file_curr_ext_str  \l_@@_ext_str
   }
 %<*package>
-\cs_new_eq:NN \__kernel_file_input_push:n \__file_input_push:n
+\cs_new_eq:NN \__kernel_file_input_push:n \@@_input_push:n
 %</package>
 \cs_new_protected:Npn \@@_input_pop:
   {
@@ -2370,7 +3277,7 @@
     \exp_after:wN \@@_input_pop:nnn \l_@@_internal_tl
   }
 %<*package>
-\cs_new_eq:NN \__kernel_file_input_pop: \__file_input_pop:
+\cs_new_eq:NN \__kernel_file_input_pop: \@@_input_pop:
 %</package>
 \cs_new_protected:Npn \@@_input_pop:nnn #1#2#3
   {
@@ -2385,7 +3292,7 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\file_parse_full_name:nNNN}
+% \begin{macro}{\file_parse_full_name:nNNN, \file_parse_full_name:VNNN}
 % \begin{macro}
 %   {\@@_parse_full_name_auxi:w, \@@_parse_full_name_split:nNNNTF}
 %   Parsing starts by stripping off any surrounding quotes.  Then find
@@ -2404,6 +3311,7 @@
     \exp_after:wN \@@_parse_full_name_auxi:w
       \tl_to_str:n { #1 " #1 " } \q_stop #2#3#4
   }
+\cs_generate_variant:Nn \file_parse_full_name:nNNN { V }
 \cs_new_protected:Npn \@@_parse_full_name_auxi:w
   #1 " #2 " #3 \q_stop #4#5#6
   {
@@ -2479,17 +3387,94 @@
 % \cs{g_@@_record_seq}.
 %    \begin{macrocode}
 %<*package>
-\AtBeginDocument
+\cs_if_exist:NT \@filelist
   {
-    \exp_args:NNx \seq_set_from_clist:Nn \l_@@_tmp_seq
-      { \tl_to_str:N \@filelist }
-    \seq_gconcat:NNN
-      \g_@@_record_seq
-      \g_@@_record_seq
-      \l_@@_tmp_seq
+    \AtBeginDocument
+      {
+        \exp_args:NNx \seq_set_from_clist:Nn \l_@@_tmp_seq
+          { \tl_to_str:N \@filelist }
+        \seq_gconcat:NNN
+          \g_@@_record_seq
+          \g_@@_record_seq
+          \l_@@_tmp_seq
+      }
   }
 %</package>
 %    \end{macrocode}
+%
+% \subsection{GetIfInfo}
+%
+% \begin{macro}{\GetIdInfo}
+% \begin{macro}{\@@_id_info_auxi:w, \@@_id_info_auxii:w, \@@_id_info_auxiii:w}
+%   As documented in \pkg{expl3.dtx} this function extracts file name
+%   etc from an \textsc{svn} \texttt{Id} line.  This used to be how we
+%   got version number and so on in all modules, so it had to be defined
+%   in \pkg{l3bootstrap}.  Now it's more convenient to define it after
+%   we have set up quite a lot of tools, and \pkg{l3file} seems the
+%   least unreasonable place for it.
+%
+%   The idea here is to extract out the information needed from a standard
+%   \textsc{svn} \texttt{Id} line, but to avoid a line that would get
+%   changed when the file is checked in. Hence the fact that none of the
+%   lines here include both a dollar sign and the \texttt{Id} keyword!
+%    \begin{macrocode}
+\cs_new_protected:Npn \GetIdInfo
+  {
+    \tl_clear_new:N \ExplFileDescription
+    \tl_clear_new:N \ExplFileDate
+    \tl_clear_new:N \ExplFileName
+    \tl_clear_new:N \ExplFileExtension
+    \tl_clear_new:N \ExplFileVersion
+    \group_begin:
+    \char_set_catcode_space:n { 32 }
+    \exp_after:wN
+    \group_end:
+    \@@_id_info_auxi:w
+  }
+%    \end{macrocode}
+%   A first check for a completely empty \textsc{svn} field. If that is
+%   not the case, there is a second case when a file created using
+%   \texttt{svn cp} but has not been checked in. That leaves a special
+%   marker \texttt{-1} version, which has no further data. Dealing
+%   correctly with that is the reason for the space in the line to use
+%   \cs{@@_id_info_auxii:w}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_id_info_auxi:w $ #1 $ #2
+  {
+    \tl_set:Nn \ExplFileDescription {#2}
+    \str_if_eq:nnTF {#1} { Id }
+      {
+        \tl_set:Nn \ExplFileDate { 0000/00/00 }
+        \tl_set:Nn \ExplFileName { [unknown] }
+        \tl_set:Nn \ExplFileExtension { [unknown~extension] }
+        \tl_set:Nn \ExplFileVersion {-1}
+      }
+      { \@@_id_info_auxii:w #1 ~ \q_stop }
+  }
+%    \end{macrocode}
+%   Here, |#1| is |Id|, |#2| is the file name, |#3| is the extension,
+%   |#4| is the version, |#5| is the check in date and |#6| is the check
+%   in time and user, plus some trailing spaces. If |#4| is the marker
+%   |-1| value then |#5| and |#6| are empty.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_id_info_auxii:w
+    #1 ~ #2.#3 ~ #4 ~ #5 ~ #6 \q_stop
+  {
+    \tl_set:Nn \ExplFileName {#2}
+    \tl_set:Nn \ExplFileExtension {#3}
+    \tl_set:Nn \ExplFileVersion {#4}
+    \str_if_eq:nnTF {#4} {-1}
+      { \tl_set:Nn \ExplFileDate { 0000/00/00 } }
+      { \@@_id_info_auxiii:w #5 - 0 - 0 - \q_stop }
+  }
+%    \end{macrocode}
+%   Convert an \textsc{svn}-style date into a \LaTeX{}-style one.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_id_info_auxiii:w #1 - #2 - #3 - #4 \q_stop
+  { \tl_set:Nn \ExplFileDate { #1/#2/#3 } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 %
 % \subsection{Messages}
 %
@@ -2533,6 +3518,50 @@
     \tl_if_empty:nF {#3} { ~ It~was~called~with~argument~'#3'. }
   }
 %    \end{macrocode}
+%
+% \subsection{Functions delayed from earlier modules}
+%
+%<@@=sys>
+%
+% \begin{variable}{\c_sys_platform_str}
+%   Detecting the platform on \LuaTeX{} is easy: for other engines, we use
+%   the fact that the two common cases have special null files. It is possible
+%   to probe further (see package \pkg{platform}), but that requires shell
+%   escape and seems unlikely to be useful. This is set up here as it requires
+%   file searching.
+%    \begin{macrocode}
+\sys_if_engine_luatex:TF
+  {
+    \str_const:Nx \c_sys_platform_str
+      { \tex_directlua:D { tex.print(os.type) } }
+  }
+  {
+    \file_if_exist:nTF { nul: }
+      {
+        \file_if_exist:nF { /dev/null }
+          { \str_const:Nn \c_sys_platform_str { windows } }
+      }
+      {
+        \file_if_exist:nT { /dev/null }
+          { \str_const:Nn \c_sys_platform_str { unix } }
+      }
+  }
+\cs_if_exist:NF \c_sys_platform_str
+  { \str_const:Nn \c_sys_platform_str { unknown }  }
+%    \end{macrocode}
+% \end{variable}
+% \begin{macro}[pTF]{\sys_if_platform_unix:}
+% \begin{macro}[pTF]{\sys_if_platform_windows:}
+%   We can now set up the tests.
+%    \begin{macrocode}
+\clist_map_inline:nn { unix , windows }
+  {
+    \@@_const:nn { sys_if_platform_ #1 }
+      { \str_if_eq_p:Vn \c_sys_platform_str { #1 } }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 %
 %    \begin{macrocode}
 %</initex|package>
