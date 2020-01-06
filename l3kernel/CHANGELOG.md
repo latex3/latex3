@@ -13,6 +13,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Distribute LaTeX3 News
 
+### Fixed
+- Set backend at the beginning of `\document` (see #657)
+
 ## [2019-11-07]
 
 ### Fixed
