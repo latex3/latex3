@@ -6,7 +6,7 @@ Release 2019-11-07
 Overview
 --------
 
-The `l3packages` collection is contains implementations for aspects of the
+The `l3packages` collection contains implementations for aspects of the
 LaTeX3 kernel, dealing with higher-level ideas such as the Designer Interface.
 The packages here are considered broadly stable (The LaTeX3 Project does not
 expect the interfaces to alter radically). These packages are build on LaTeX2e
