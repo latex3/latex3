@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Distribute LaTeX3 News
+- Documentation improvements
 
 ### Fixed
 - Inherit key required/forbidden properties (see #653)
