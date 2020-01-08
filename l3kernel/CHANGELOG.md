@@ -15,6 +15,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Distribute LaTeX3 News
 
 ### Fixed
+- Inherit key required/forbidden properties (see #653)
 - Set backend at the beginning of `\document` (see #657)
 
 ## [2019-11-07]
