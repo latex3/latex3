@@ -10,8 +10,6 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Bounding box for clipped paths (see #660)
 
-## [2019-11-07]
-
 ## [2019-10-11]
 
 ### Fixed
@@ -119,8 +117,7 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-11-07...HEAD
-[2019-11-07]: https://github.com/latex3/latex3/compare/2019-10-11...2019-11-07
+[Unreleased]: https://github.com/latex3/latex3/compare/2019-10-11...HEAD
 [2019-10-11]: https://github.com/latex3/latex3/compare/2019-09-28...2019-10-11
 [2019-09-28]: https://github.com/latex3/latex3/compare/2019-09-19...2019-09-28
 [2019-09-19]: https://github.com/latex3/latex3/compare/2019-08-25...2019-09-19
