@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Track `l3kernel` changes
+
 ### Fixed
 - Bounding box for clipped paths (see #660)
 

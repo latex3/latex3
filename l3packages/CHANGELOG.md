@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Track `l3kernel` changes
+
 ## [2019-10-11]
 
 ### Fixed
