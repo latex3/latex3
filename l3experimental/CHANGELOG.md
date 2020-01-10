@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Bounding box for clipped paths (see #660)
+
 ## [2019-11-07]
 
 ## [2019-10-11]
