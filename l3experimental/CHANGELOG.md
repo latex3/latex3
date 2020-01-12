@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-01-12]
+
 ### Changed
 - Track `l3kernel` changes
 
@@ -120,7 +122,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-10-11...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-01-12...HEAD
+[2020-01-12]: https://github.com/latex3/latex3/compare/2019-10-11...2020-01-12
 [2019-10-11]: https://github.com/latex3/latex3/compare/2019-09-28...2019-10-11
 [2019-09-28]: https://github.com/latex3/latex3/compare/2019-09-19...2019-09-28
 [2019-09-19]: https://github.com/latex3/latex3/compare/2019-08-25...2019-09-19
