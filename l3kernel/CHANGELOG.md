@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Require key values for numerical key types (dim, int, etc.) (see #661)
+
 ### Fixed
 - Issue with keys where some leading spaces could be left in key names
 
