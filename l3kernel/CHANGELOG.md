@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Issue with keys where some leading spaces could be left in key names
+
 ## [2020-01-12]
 
 ### Added
