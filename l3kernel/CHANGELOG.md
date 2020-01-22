@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for command replacement in text expansion
+
 ### Changed
 - Require key values for numerical key types (dim, int, etc.) (see #661)
 
