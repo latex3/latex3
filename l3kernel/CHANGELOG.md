@@ -37,8 +37,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Set backend at the beginning of `\document` (see #657)
 
 ### Deprecated
-- `\str_<type>_case:n`
-- `\tl_<type>_case:n(n)`
+- `\str_<type>_case:n` replaced by `\str_<type>case:n`
+  except `\str_mixed_case:n` replaced by `\str_titlecase:n`
+- `\tl_<type>_case:n(n)` replaced by `\text_<type>case:n(n)`,
+  except `\tl_mixed_case:n(n)` replaced by `\text_titlecase:n(n)`
 
 ## [2019-11-07]
 
