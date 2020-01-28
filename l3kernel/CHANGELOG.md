@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Use Lua `utf8` library if available
+
 ## [2020-01-22]
 
 ### Added
