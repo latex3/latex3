@@ -7,8 +7,14 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Table of Contents for combined LaTeX3 News
+
 ### Changed
 - Use Lua `utf8` library if available
+
+### Fixed
+- Undefined command in box debugging code
 
 ## [2020-01-22]
 
