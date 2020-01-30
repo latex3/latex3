@@ -33,7 +33,7 @@ tlmgr install amsmath graphics tools
 
 # Assuming a 'basic' font set up, metafont is required to avoid
 # warnings with some packages and errors with others
-tlmgr install metafont mfware
+tlmgr install metafont mfware texlive-scripts
 
 # Contrib packages for testing
 # The deps here will include l3... but that's not worth worrying about
