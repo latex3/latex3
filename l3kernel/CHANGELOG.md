@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-01-31]
+
 ### Added
 - Table of Contents for combined LaTeX3 News
 
@@ -579,7 +581,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-01-22...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-01-31...HEAD
+[2020-01-31]: https://github.com/latex3/latex3/compare/2020-01-22...2020-01-31
 [2020-01-22]: https://github.com/latex3/latex3/compare/2020-01-12...2020-01-22
 [2020-01-12]: https://github.com/latex3/latex3/compare/2019-11-07...2020-01-12
 [2019-11-07]: https://github.com/latex3/latex3/compare/2019-10-28...2019-11-07
