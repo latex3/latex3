@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Corrected release string information
+
 ## [2019-11-25]
 
 ### Changed
