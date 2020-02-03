@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-02-03]
+
 ### Fixed
 - Unknown key error text after loading `l3keys2e`
 
@@ -63,7 +65,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-01-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-03...HEAD
+[2020-02-03]: https://github.com/latex3/latex3/compare/2020-01-12...2020-02-03
 [2020-01-12]: https://github.com/latex3/latex3/compare/2019-10-11...2020-01-12
 [2019-10-11]: https://github.com/latex3/latex3/compare/2019-05-28...2019-10-11
 [2019-05-28]: https://github.com/latex3/latex3/compare/2019-05-03...2019-05-28
