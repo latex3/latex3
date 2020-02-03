@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Unknown key error text after loading `l3keys2e`
+
 ## [2020-01-12]
 
 ### Changed
