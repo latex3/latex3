@@ -1,6 +1,8 @@
 % \iffalse meta-comment
 %
-%% File: l3color.dtx Copyright(C) 2017-2018 The LaTeX3 Project
+%% File: l3color.dtx
+%
+% Copyright (C) 2017-2020 The LaTeX3 Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -44,7 +46,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2018-11-19}
+% \date{Released 2020-01-12}
 %
 % \maketitle
 %
@@ -189,7 +191,7 @@
 %     \cs{color_show:n} \Arg{name}
 %   \end{syntax}
 %   Displays the color specification stored in the \meta{name} on the
-%   terminal
+%   terminal.
 % \end{function}
 %
 % \section{Selecting colors}
@@ -241,7 +243,9 @@
 %     \cs{color_parse:nN} \Arg{color expression} \Arg{tl}
 %   \end{syntax}
 %   Parses the \meta{color expression} as described above, and sets the
-%   \meta{tl} the the equivalent \meta{core color representation}.
+%   \meta{tl} the the equivalent \meta{core color representation}
+%   (used at the backend level and based on \texttt{dvips} color
+%   representation).
 % \end{function}
 %
 % \section{Spot colors}
@@ -263,7 +267,7 @@
 %
 %    \begin{macrocode}
 %<*package>
-\ProvidesExplPackage{l3color}{2018-11-19}{}
+\ProvidesExplPackage{l3color}{2020-01-12}{}
   {L3 Experimental color support}
 %</package>
 %    \end{macrocode}
@@ -290,9 +294,9 @@
 %
 % \subsection{Setup}
 %
-% \begin{variable}{\l_@@_tmp_tl}
+% \begin{variable}{\l_@@_internal_tl}
 %    \begin{macrocode}
-\tl_new:N \l_@@_tmp_tl
+\tl_new:N \l_@@_internal_tl
 %    \end{macrocode}
 % \end{variable}
 %
@@ -446,18 +450,10 @@
 \cs_new_protected:Npn \color_parse:nN #1#2
   {
 %<*package>
-    \driver_color_pickup:N \l_@@_current_tl
+    \@@_backend_pickup:N \l_@@_current_tl
     \tl_set_eq:cN { l_@@_named_ . _tl } \l_@@_current_tl
 %</package>
-    \group_begin:
-      \seq_map_inline:Nn \l_char_active_seq
-        {
-          \tl_set:Nx \l_@@_tmp_tl { \cs_to_str:N ##1 }
-          \char_set_active_eq:NN ##1 \l_@@_tmp_tl
-        }
-      \tl_set:Nx \l_@@_tmp_tl {#1}
-    \exp_args:NNV \group_end:
-    \@@_parse:nN \l_@@_tmp_tl #2
+    \exp_args:Ne \@@_parse:nN { \tl_to_str:n {#1} } #2
   }
 %    \end{macrocode}
 %   Before going to all of the effort of parsing an expression, these two
@@ -480,7 +476,7 @@
           { \@@_parse_loop_init:Nnn #1 {#2} {#3} }
       }
       {
-        \__kernel_msg_error:nnn { color } { unknown-color } {#3}
+        \__kernel_msg_error:nnn { color } { unknown-color } {#2}
         \tl_set_eq:NN \l_@@_current_tl \l_@@_named_black_tl
       }
   }
@@ -494,10 +490,10 @@
     \group_begin:
       \@@_extract:nNN {#2} \l_@@_model_tl \l_@@_value_tl
       \@@_parse_loop:w #3 ! ! ! ! \q_stop
-      \tl_set:Nx \l_@@_tmp_tl
+      \tl_set:Nx \l_@@_internal_tl
         { \l_@@_model_tl \c_space_tl \l_@@_value_tl }
     \exp_args:NNNV \group_end:
-    \tl_set:Nn #1 \l_@@_tmp_tl
+    \tl_set:Nn #1 \l_@@_internal_tl
   }
 %    \end{macrocode}
 %   This is the loop proper: there can be an open-ended set of colors to parse,
@@ -631,19 +627,40 @@
 % \end{macro}
 %
 % \begin{macro}[EXP]
-%   {\@@_parse_gray:w, \@@_parse_rgb:w, \@@_parse_cmyk:w, \@@_parse_spot:w}
+%   {
+%     \@@_parse_model_gray:w, \@@_parse_model_rgb:w,
+%     \@@_parse_model_cmyk:w, \@@_parse_model_spot:w
+%   }
+% \begin{macro}[EXP]{\@@_parse_number:n}
+% \begin{macro}[EXP]{\@@_parse_number:w}
 % \begin{macro}[EXP]{\@@_parse_spot_aux:w}
-%   Turn the input into internal form.
+%   Turn the input into internal form, also tidying up the number quickly.
 %    \begin{macrocode}
-\cs_new:Npn \@@_parse_gray:w #1 , #2 \q_stop {#1}
-\cs_new:Npn \@@_parse_rgb:w #1 , #2 , #3 , #4 \q_stop { #1 ~ #2 ~ #3 }
-\cs_new:Npn \@@_parse_cmyk:w #1 , #2 , #3 , #4 , #5 \q_stop
-  { #1 ~ #2 ~ #3 ~ #4 }
-\cs_new:Npn \@@_parse_spot:w #1 , #2 \q_stop
+\cs_new:Npn \@@_parse_model_gray:w #1 , #2 \q_stop { \@@_parse_number:n {#1} }
+\cs_new:Npn \@@_parse_model_rgb:w #1 , #2 , #3 , #4 \q_stop
+  {
+    \@@_parse_number:n {#1} ~ 
+    \@@_parse_number:n {#2} ~
+    \@@_parse_number:n {#3}
+  }
+\cs_new:Npn \@@_parse_model_cmyk:w #1 , #2 , #3 , #4 , #5 \q_stop
+  {
+    \@@_parse_number:n {#1} ~ 
+    \@@_parse_number:n {#2} ~
+    \@@_parse_number:n {#3} ~
+    \@@_parse_number:n {#4}
+  }
+\cs_new:Npn \@@_parse_model_spot:w #1 , #2 \q_stop
   { \@@_parse_spot_aux:w #1 ! 100 ! \q_stop }
 \cs_new:Npn \@@_parse_spot_aux:w #1 ! #2 ! #3 \q_stop
   { #1 ~ \fp_eval:n { #2 / 100 } }
+\cs_new:Npn \@@_parse_number:n #1
+  {  \@@_parse_number:w #1 . 0 . \q_stop }
+\cs_new:Npn \@@_parse_number:w #1 . #2 . #3 \q_stop
+  { \tl_if_blank:nTF {#1} { 0 } {#1} . #2 }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -684,8 +701,8 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_select:}
-%   A driver-neutral location for \enquote{last minute} manipulations before
-%   handing off to the driver code.  We set the special |.| syntax here: this
+%   A backend-neutral location for \enquote{last minute} manipulations before
+%   handing off to the backend code.  We set the special |.| syntax here: this
 %   will therefore always be available. The finalisation is separate from the
 %   main function so it can also be applied to \emph{e.g.}~page color.
 %    \begin{macrocode}
@@ -699,7 +716,7 @@
 %
 % \begin{macro}{\color_select:n}
 % \begin{macro}{\color_select:nn}
-%   Parse the input expressions then get the driver to actually activate
+%   Parse the input expressions then get the backend to actually activate
 %   them.
 %    \begin{macrocode}
 \cs_new_protected:Npn \color_select:n #1
@@ -723,10 +740,10 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_direct:nnN #1#2#3
   {
-    \cs_if_exist:cTF { @@_parse_ #1 :w }
+    \cs_if_exist:cTF { @@_parse_model_ #1 :w }
       {
         \tl_set:Nx #3
-          { #1 ~ \use:c {  @@_parse_ #1 :w } #2 , 0 , 0 , 0 , 0 \q_stop }
+          { #1 ~ \use:c {  @@_parse_model_ #1 :w } #2 , 0 , 0 , 0 , 0 \q_stop }
         \@@_check_model:N #3
       }
       {

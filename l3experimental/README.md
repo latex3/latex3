@@ -1,7 +1,7 @@
 Experimental LaTeX3 Concepts
 ============================
 
-Release 2018-11-19
+Release 2020-01-12
 
 Overview
 --------
@@ -25,11 +25,12 @@ bundles:
 * `l3cctab`
 * `l3color`
 * `l3draw`
+* `l3graphics`
+* `l3pdf`
 * `l3str`
 * `l3sys-shell`
 * `xcoffins`
 * `xgalley`
-* `xmarks`
 
 `l3benchmark`
 -------------
@@ -58,14 +59,25 @@ This module provides a code-level interface for constructing drawings. The
 interfaces are heavily inspired by the `pgf` layer of the widely-used
 TikZ system.
 
+`l3graphics`
+-------------
+
+This module provides interfaces for the inclusion of graphics files
+in documents, similar to the `graphics` package.
+
+`l3pdf`
+-------
+
+This module provides support for core PDF concepts such compression, objects,
+PDF version and so on.
+
 `l3str`
 -------
 
 A 'string' in TeX terms is a token list in which all of the tokens have
 category code 12 ('other'), with the exception of spaces which have the
-category code 10 ('space'). The `l3str` bundle consists of two parts. The
-first is `l3str` itself. This is a collection of functions to act on strings,
-including for manipulations such as UTF8 mappings in pdfTeX.
+category code 10 ('space'). The `l3strf-format` module provides methods
+for formatting such strings.
 
 `l3sys-shell`
 -------------
@@ -122,27 +134,7 @@ The LaTeX3 Project
 ------------------
 
 Development of LaTeX3 is carried out by
-[The LaTeX3 Project](http://www.latex-project.org/latex3.html). Currently,
-the team members are
-
-* Johannes Braams
-* David Carlisle
-* Robin Fairbairns
-* Morten Høgholm
-* Bruno Le Floch
-* Thomas Lotze
-* Frank Mittelbach
-* Will Robertson
-* Chris Rowley
-* Rainer Schöpf
-* Joseph Wright
-
-Former members of The LaTeX3 Project team were
-
-* Michael Downes
-* Denys Duchier
-* Alan Jeffrey
-* Martin Schröder
+[The LaTeX3 Project](https://www.latex-project.org/latex3/). 
 
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
@@ -150,6 +142,6 @@ the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
-<p>Copyright (C) 1998-2011,2015-2018 The LaTeX3 Project <br />
+<p>Copyright (C) 1998-2011,2015-2020 The LaTeX3 Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>

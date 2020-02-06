@@ -1,0 +1,216 @@
+% \iffalse meta-comment
+%
+%% File: l3draw-layers.dtx
+%
+% Copyright (C) 2019,2020 The LaTeX3 Project
+%
+% It may be distributed and/or modified under the conditions of the
+% LaTeX Project Public License (LPPL), either version 1.3c of this
+% license or (at your option) any later version.  The latest version
+% of this license is in the file
+%
+%    http://www.latex-project.org/lppl.txt
+%
+% This file is part of the "l3experimental bundle" (The Work in LPPL)
+% and all files in that bundle must be distributed together.
+%
+% -----------------------------------------------------------------------
+%
+% The development version of the bundle can be found at
+%
+%    https://github.com/latex3/latex3
+%
+% for those people who are interested.
+%
+%<*driver>
+\RequirePackage{expl3}
+\documentclass[full]{l3doc}
+\begin{document}
+  \DocInput{\jobname.dtx}
+\end{document}
+%</driver>
+% \fi
+%
+% \title{^^A
+%   The \pkg{l3draw-layers} package\\ Layers^^A
+% }
+%
+% \author{^^A
+%  The \LaTeX3 Project\thanks
+%    {^^A
+%      E-mail:
+%        \href{mailto:latex-team@latex-project.org}
+%          {latex-team@latex-project.org}^^A
+%    }^^A
+% }
+%
+% \date{Released 2020-01-12}
+%
+% \maketitle
+%
+% \begin{implementation}
+%
+% \section{\pkg{l3draw-layers} implementation}
+%
+%    \begin{macrocode}
+%<*initex|package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<@@=draw>
+%    \end{macrocode}
+%
+% \subsection{User interface}
+%
+% \begin{macro}{\draw_layer_new:n}
+%    \begin{macrocode}
+\cs_new_protected:Npn \draw_layer_new:n #1
+  {
+    \str_if_eq:nnTF {#1} { main }
+      { \msg_error:nnn { draw } { main-reserved } }
+      {
+        \box_new:c { g_@@_layer_ #1 _box }
+        \box_new:c { l_@@_layer_ #1 _box }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\l_@@_layer_tl}
+%   The name of the current layer: we start off with |main|.
+%    \begin{macrocode}
+\tl_new:N \l_@@_layer_tl
+\tl_set:Nn \l_@@_layer_tl { main }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_layer_close_bool}
+%   Used to track if a layer needs to be closed.
+%    \begin{macrocode}
+\bool_new:N \l_@@_layer_close_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_draw_layers_clist, \g_@@_layers_clist}
+%   The list of layers to use starts off with just the |main| one.
+%    \begin{macrocode}
+\clist_new:N \l_draw_layers_clist
+\clist_set:Nn \l_draw_layers_clist { main }
+\clist_new:N \g_@@_layers_clist
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\draw_layer_begin:n}
+% \begin{macro}{\draw_layer_end:}
+%   Layers may be called multiple times and have to work when nested. That
+%   drives a bit of grouping to get everything in order. Layers have to be zero
+%   width, so they get set as we go along.
+%    \begin{macrocode}
+\cs_new_protected:Npn \draw_layer_begin:n #1
+  {
+    \group_begin:
+      \box_if_exist:cTF { g_@@_layer_ #1 _box }
+        {
+          \str_if_eq:VnTF \l_@@_layer_tl {#1}
+            { \bool_set_false:N \l_@@_layer_close_bool }
+            {
+              \bool_set_true:N \l_@@_layer_close_bool
+              \tl_set:Nn \l_@@_layer_tl {#1}
+              \box_gset_wd:cn { g_@@_layer_ #1 _box } { 0pt }
+              \hbox_gset:cw { g_@@_layer_ #1 _box }
+                \box_use_drop:c { g_@@_layer_ #1 _box }
+                \group_begin:
+            }
+          \draw_linewidth:n { \l_draw_default_linewidth_dim }
+        }
+        {
+          \str_if_eq:nnTF {#1} { main }
+            { \msg_error:nnn { draw } { unknown-layer } {#1} }
+            { \msg_error:nnn { draw } { main-layer } }
+        }
+  }
+\cs_new_protected:Npn \draw_layer_end:
+  {
+      \bool_if:NT \l_@@_layer_close_bool
+        {
+            \group_end:
+          \hbox_gset_end:
+        }
+    \group_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Internal cross-links}
+%
+% \begin{macro}{\@@_layers_insert:}
+%   The |main| layer is special, otherwise just dump the layer box inside
+%   a scope.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_layers_insert:
+  {
+    \clist_map_inline:Nn \l_draw_layers_clist
+      {
+        \str_if_eq:nnTF {##1} { main }
+          {
+            \box_set_wd:Nn \l_@@_layer_main_box { 0pt }
+            \box_use_drop:N \l_@@_layer_main_box
+          }
+          {
+            \@@_backend_scope_begin:
+            \box_gset_wd:cn { g_@@_layer_ ##1 _box } { 0pt }
+            \box_use_drop:c { g_@@_layer_ ##1 _box }
+            \@@_backend_scope_end:
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_layers_save:, \@@_layers_restore:}
+%   Simple save/restore functions.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_layers_save:
+  {
+    \clist_map_inline:Nn \l_draw_layers_clist
+      {
+        \str_if_eq:nnF {##1} { main }
+          {
+            \box_set_eq:cc { l_@@_layer_ ##1 _box }
+              { g_@@_layer_ ##1 _box }
+          }
+      }
+  }
+\cs_new_protected:Npn \@@_layers_restore:
+  {
+    \clist_map_inline:Nn \l_draw_layers_clist
+      {
+        \str_if_eq:nnF {##1} { main }
+          {
+            \box_gset_eq:cc { g_@@_layer_ ##1 _box }
+              { l_@@_layer_ ##1 _box }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macrocode}
+\msg_new:nnnn { draw } { main-layer }
+  { Material~cannot~be~added~to~'main'~layer. }
+  { The~main~layer~may~only~be~accessed~at~the~top~level. }
+\msg_new:nnn { draw } { main-reserved }
+  { The~'main'~layer~is~reserved. }
+\msg_new:nnnn { draw } { unknown-layer }
+  { Layer~'#1'~has~not~been~created. }
+  { You~have~tried~to~use~layer~'#1',~but~it~was~never~set~up. }
+% \end{macrocode}
+%
+%    \begin{macrocode}
+%</initex|package>
+%    \end{macrocode}
+%
+% \end{implementation}
+%
+% \PrintIndex

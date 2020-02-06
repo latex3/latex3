@@ -10,8 +10,7 @@ module = "l3hooks"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
--- Non-standard settings
-checksearch = true
+typesetfiles = {"l3hooks.dtx", "l3hooks-code.tex"}
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
