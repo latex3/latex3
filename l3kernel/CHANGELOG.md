@@ -7,6 +7,13 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\l_keys_key_str` and `\l_keys_path_str`
+
+### Deprecated
+- `\l_keys_key_tl` and `\l_keys_path_tl`, replaced by `\l_keys_key_str` and
+  `\l_keys_path_str`, respectively
+
 ## [2020-02-03]
 
 ### Changed
