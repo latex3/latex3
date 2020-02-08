@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-02-08]
+
 ### Added
 - `\l_keys_key_str` and `\l_keys_path_str`
 
@@ -593,7 +595,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-03...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-08...HEAD
+[2020-02-08]: https://github.com/latex3/latex3/compare/2020-02-03...2020-02-08
 [2020-02-03]: https://github.com/latex3/latex3/compare/2020-01-31...2020-02-03
 [2020-01-31]: https://github.com/latex3/latex3/compare/2020-01-22...2020-01-31
 [2020-01-22]: https://github.com/latex3/latex3/compare/2020-01-12...2020-01-22
