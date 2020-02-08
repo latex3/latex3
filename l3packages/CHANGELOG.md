@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Document that `\CurrentOption` is available and should be used in
+  `l3keys2e`
+
 ## [2020-02-03]
 
 ### Fixed
