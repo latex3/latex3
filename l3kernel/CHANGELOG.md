@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Allow for full range of encodings when expanding text (issue #671)
+- Support `\begin`/`\end` in text expansion
 
 ## [2020-02-08]
 
