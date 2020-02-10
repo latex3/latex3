@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Allow for full range of encodings when expanding text (issue #671)
+
 ## [2020-02-08]
 
 ### Added
