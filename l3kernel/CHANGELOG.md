@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Key property `.cs_set:Np` and variants
 
+### Changed
+- Support `\@uclclist` entries when case-changing
+
 ### Fixed
 - Allow for full range of encodings when expanding text (issue #671)
 - Support `\begin`/`\end` in text expansion
