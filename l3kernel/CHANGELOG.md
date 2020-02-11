@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Key property `.cs_set:Np` and variants
+
 ### Fixed
 - Allow for full range of encodings when expanding text (issue #671)
 - Support `\begin`/`\end` in text expansion
