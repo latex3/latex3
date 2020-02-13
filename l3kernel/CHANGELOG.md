@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Interaction with some `babel` languages at the start of the document
+
 ## [2020-02-13]
 
 ### Changed
