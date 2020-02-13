@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Leave implicit tokens unchanged by `\text_expand:n`
+- Extend the `de-alt` case changing locale to 8-bit engines
 
 ## [2020-02-11]
 
