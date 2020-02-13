@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-02-13]
+
 ### Changed
 - Leave implicit tokens unchanged by `\text_expand:n`
 - Extend the `de-alt` case changing locale to 8-bit engines
@@ -611,7 +613,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-11...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-13...HEAD
+[2020-02-13]: https://github.com/latex3/latex3/compare/2020-02-11...2020-02-13
 [2020-02-11]: https://github.com/latex3/latex3/compare/2020-02-08...2020-02-11
 [2020-02-08]: https://github.com/latex3/latex3/compare/2020-02-03...2020-02-08
 [2020-02-03]: https://github.com/latex3/latex3/compare/2020-01-31...2020-02-03
