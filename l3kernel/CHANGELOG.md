@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Leave implicit tokens unchanged by `\text_expand:n`
+
 ## [2020-02-11]
 
 ### Added
