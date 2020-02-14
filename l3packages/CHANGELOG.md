@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Grabbing `r`-type arguments by expandable commands (issse #672)
+
 ## [2020-02-08]
 
 ### Changed
