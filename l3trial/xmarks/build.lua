@@ -11,7 +11,7 @@ module = "xmarks"
 maindir = "../.."
 
 -- Non-standard settings
-checkdeps = {maindir .. "/l3packages/xparse"}
+-- checkdeps = {maindir .. "/l3packages/xparse"}
 
 -- not doing uptex as it generates spurious font warnings ...
 
@@ -27,8 +27,6 @@ typesetfiles  = {"*.tex"}
 
 checkruns     = 2
 
-
-
 checksuppfiles  = 
   {
     "CaseFolding.txt",
@@ -43,7 +41,6 @@ checksuppfiles  =
     "regression-test.tex",
     "size10.clo",
   }
-
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
