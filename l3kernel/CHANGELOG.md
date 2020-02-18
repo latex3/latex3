@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- `undo-recent-deprecations` would not reload the deprecation code
+
 ## [2020-02-14]
 
 ### Fixed
