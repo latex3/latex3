@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Allow `dvisvgm` driver with XeTeX (issue #677)
+
 ### Fixed
 - `undo-recent-deprecations` would not reload the deprecation code
 
