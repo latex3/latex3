@@ -6,6 +6,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for suppressing backend headers (see matching change in
+  `l3kernel`)
+
 ## [2020-02-03]
 
 ### Fixed

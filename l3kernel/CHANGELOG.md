@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Option `suppress-backend-headers` (see matching change in
+  `l3backend`)
+
 ### Changed
 - Allow `dvisvgm` driver with XeTeX (issue #677)
 
