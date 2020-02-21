@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-02-21]
+
 ### Added
 - Support for suppressing backend headers (see matching change in
   `l3kernel`)
@@ -49,7 +51,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-03...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-21...HEAD
+[2020-02-21]: https://github.com/latex3/latex3/compare/2020-02-03...2020-02-21
 [2020-02-03]: https://github.com/latex3/latex3/compare/2019-11-25...2020-02-03
 [2019-11-25]: https://github.com/latex3/latex3/compare/2019-10-11...2019-11-25
 [2019-10-11]: https://github.com/latex3/latex3/compare/2019-09-05...2019-10-11
