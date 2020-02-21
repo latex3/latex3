@@ -23,6 +23,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Allow `dvisvgm` driver with XeTeX (issue #677)
+- `\keyval_parse:NNn` is now expandable
 
 ### Fixed
 - `undo-recent-deprecations` would not reload the deprecation code
