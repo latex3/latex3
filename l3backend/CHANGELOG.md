@@ -8,6 +8,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2020-02-23]
 
+### Fixed
+- Mismatch between release tag and CTAN version
+
 ## [2020-02-21]
 
 ### Added
