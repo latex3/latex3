@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
-- Extend case-changing encoding support to `T2` (Cyrillic)
+- Extend case-changing encoding support to Cyrillic and Greek
 
 ## [2020-02-21]
 
