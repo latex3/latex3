@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Issue warnings for unsupported delimiters in `xparse`
+
 ## [2020-02-14]
 
 ### Fixed
