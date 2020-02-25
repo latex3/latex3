@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-02-25]
+
 ### Changed
 - Extend case-changing encoding support to Cyrillic and Greek
 
@@ -633,7 +635,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-21...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-25...HEAD
+[2020-02-25]: https://github.com/latex3/latex3/compare/2020-02-21...2020-02-25
 [2020-02-21]: https://github.com/latex3/latex3/compare/2020-02-14...2020-02-21
 [2020-02-14]: https://github.com/latex3/latex3/compare/2020-02-13...2020-02-14
 [2020-02-13]: https://github.com/latex3/latex3/compare/2020-02-11...2020-02-13

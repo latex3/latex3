@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-02-25]
+
 ### Changed
 - Issue warnings for unsupported delimiters in `xparse`
 
@@ -79,7 +81,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-14...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-25...HEAD
+[2020-02-25]: https://github.com/latex3/latex3/compare/2020-02-14...2020-02-25
 [2020-02-14]: https://github.com/latex3/latex3/compare/2020-02-08...2020-02-14
 [2020-02-08]: https://github.com/latex3/latex3/compare/2020-02-03...2020-02-08
 [2020-02-03]: https://github.com/latex3/latex3/compare/2020-01-12...2020-02-03
