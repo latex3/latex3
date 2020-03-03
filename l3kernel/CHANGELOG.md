@@ -13,8 +13,6 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - New implementation for `\keyval_parse:NNn` - around 40% speed improvement,
   also *expandable*
-- `xparse` delimited arguments (`DdRrEet`) now allow control sequence tokens
-  as delimiters
 
 ### Fixed
 - Make `expl3` reload-safe for `latexrelease` (see latex3/latex2e#295)
