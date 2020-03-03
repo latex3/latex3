@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\tex...:D` coverage for TeX Live 2020 engine changes
+
 ### Changed
 - New implementation for `\keyval_parse:NNn` - around 40% speed improvement,
   also *expandable*
