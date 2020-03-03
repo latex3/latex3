@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Issue with case-changing Turkish
+
 ## [2020-03-03]
 
 ### Added
