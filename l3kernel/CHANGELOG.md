@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Make `expl3` reload-safe for `latexrelease` (see latex3/latex2e#295)
+
 ## [2020-02-25]
 
 ### Changed
