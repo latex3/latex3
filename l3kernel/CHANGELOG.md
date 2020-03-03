@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- New implementation for `\keyval_parse:NNn` - around 40% speed improvement,
+  also *expandable*
+
 ### Fixed
 - Make `expl3` reload-safe for `latexrelease` (see latex3/latex2e#295)
 
@@ -23,7 +27,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Allow `dvisvgm` driver with XeTeX (issue #677)
-- `\keyval_parse:NNn` is now expandable
 
 ### Fixed
 - `undo-recent-deprecations` would not reload the deprecation code
