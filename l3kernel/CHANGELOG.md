@@ -182,7 +182,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-09-28]
 
 ### Changed
-- Speed up variants and reduce their \tracingall output
+- Speed up variants and reduce their `\tracingall` output
 - Debug and deprecation code are now loaded independently of expl3 core
 - `\file_compare_timestamp:nNn(TF)` now usable in expansion contexts
 - Moved to stable:
@@ -590,10 +590,10 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2018-04-30]
 
 ### Added
-- Implement \tl_analysis_map_inline:nn
-- Implement \exp_args_generate:n to define new \exp_args:N...
+- Implement `\tl_analysis_map_inline:nn`
+- Implement `\exp_args_generate:n` to define new `\exp_args:N...`
   functions
-- Low-level \int_value:w function
+- Low-level `\int_value:w` function
 - New experimental functions for
   - Building token lists piecewise
   - Fast manipulation of integer arrays
@@ -607,7 +607,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Better documentation of cross-module kernel-internal functions
 - Enable `\char_generate:nn` for active chars
 - Renamed `\tl_show_analysis:(N|n)n` as `\tl_analysis_show:(N|n)n`
-- Change \int_rand:nn (and rand_item functions) to better use
+- Change `\int_rand:nn` (and rand_item functions) to better use
   the RNG
 - Make prg break functions public
 - Make scan marks mechanism public
