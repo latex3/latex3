@@ -11,7 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Delimited arguments (`DdRrEet`) now allow control sequence tokens
-  as delimiters
+  as delimiters (issues #367 and #368)
 
 ## [2020-02-25]
 
