@@ -413,7 +413,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Deprecated
 - `\box_(g)set_eq_clear:NN`, replaced by `\box_(g)set_eq_drop:NN`
-- `\(h|v)box_unpack_clear:N`, replaced by `\(h|v)box_unpack_drop:N
+- `\(h|v)box_unpack_clear:N`, replaced by `\(h|v)box_unpack_drop:N`
 - `\tl_(g)set_from_file(_x):Nnn`, replaced by `\file_get:nnN`
 
 ### Fixed
@@ -449,7 +449,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Correct fp randint with zero argument (see #507)
-- Handling of `\current@color` with (x)dvipdfmx` (see #510)
+- Handling of `\current@color` with `(x)dvipdfmx` (see #510)
 
 ### Removed
 - Support for stand-alone `l3regex`, `l3sort`, `l3srt`, `l3tl-analysis`,
