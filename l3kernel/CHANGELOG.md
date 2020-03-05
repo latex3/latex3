@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\text_purify:n`
+
 ### Fixed
 - Issue with case-changing Turkish
 
