@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Pre-loader file `xparse.ltx`
+
 ## [2020-03-03]
 
 ### Changed
