@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-03-06]
+
 ### Added
 - Pre-loader file `xparse.ltx`
 
@@ -90,7 +92,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-03-03...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-03-06...HEAD
+[2020-03-06]: https://github.com/latex3/latex3/compare/2020-03-03...2020-03-06
 [2020-03-03]: https://github.com/latex3/latex3/compare/2020-02-25...2020-03-03
 [2020-02-25]: https://github.com/latex3/latex3/compare/2020-02-14...2020-02-25
 [2020-02-14]: https://github.com/latex3/latex3/compare/2020-02-08...2020-02-14
