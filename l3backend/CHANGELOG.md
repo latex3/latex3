@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Creation of PDF annotations with `dvips` backend
+
 ## [2020-02-23]
 
 ### Fixed
