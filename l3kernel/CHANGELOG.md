@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Nesting of `\seq_shuffle:N` in another sequence mapping (issue #687)
+
 ## [2020-03-06]
 
 ### Added
