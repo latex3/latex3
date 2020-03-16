@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Control for start-of-titecasing: see `\l_text_titlecase_check_letter_bool`
+
 ### Fixed
 - Nesting of `\seq_shuffle:N` in another sequence mapping (issue #687)
 
