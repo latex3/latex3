@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Moved core `l3pdf` code to the kernel
+
 ## [2020-01-12]
 
 ### Changed

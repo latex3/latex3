@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Control for start-of-titecasing: see `\l_text_titlecase_check_letter_bool`
 
+### Changed
+- Moved `l3pdf` core code to the kernel
+
 ### Fixed
 - Nesting of `\seq_shuffle:N` in another sequence mapping (issue #687)
 
