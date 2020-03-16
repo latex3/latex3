@@ -7,7 +7,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
-- Add advice for PDF compression in DVI mode
+- Extend PDF compression control to `dvips`
 
 ## [2020-03-12]
 
