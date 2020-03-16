@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\__pdf_backend_pageobject_ref:n`
+
 ### Changed
 - Extend PDF compression control to `dvips`
 
