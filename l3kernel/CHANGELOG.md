@@ -12,6 +12,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Nesting of `\seq_shuffle:N` in another sequence mapping (issue #687)
+- `\ior_shell_open:Nn` in engines other than LuaTeX - shell commands didn't
+  execute, plus the command call would be left in the input stream.
 
 ## [2020-03-06]
 
