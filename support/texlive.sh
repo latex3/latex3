@@ -50,6 +50,7 @@ tlmgr install \
   adobemapping  \
   alphalph      \
   amsfonts      \
+  bibtex        \
   bitset        \
   catchfile     \
   cjk           \
