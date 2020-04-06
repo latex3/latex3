@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-04-06]
+
 ### Added
 - Control for start-of-titecasing: see `\l_text_titlecase_check_letter_bool`
 
@@ -663,7 +665,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-03-06...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-04-06...HEAD
+[2020-04-06]: https://github.com/latex3/latex3/compare/2020-03-06...2020-04-06
 [2020-03-06]: https://github.com/latex3/latex3/compare/2020-03-03...2020-03-06
 [2020-03-03]: https://github.com/latex3/latex3/compare/2020-02-25...2020-03-03
 [2020-02-25]: https://github.com/latex3/latex3/compare/2020-02-21...2020-02-25
