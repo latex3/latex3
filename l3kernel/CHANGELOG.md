@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Recognize the exponent marker `E` (same as `e`) in floating point numbers
+
 ## [2020-04-06]
 
 ### Added
