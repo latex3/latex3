@@ -2,7 +2,7 @@
 %
 %% File: l3backend-pdf.dtx
 %
-% Copyright (C) 2019 The LaTeX3 Project
+% Copyright (C) 2019,2020 The LaTeX3 Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2019-09-05}
+% \date{Released 2020-03-12}
 %
 % \maketitle
 %
@@ -71,7 +71,7 @@
 % A very small number of items that belong at the backend level but which
 % are common to all backends.
 %
-% \begin{variable}{\l_@@_internal_boxf}
+% \begin{variable}{\l_@@_internal_box}
 %    \begin{macrocode}
 \box_new:N \l_@@_internal_box
 %    \end{macrocode}
@@ -227,539 +227,18 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[EXP]{\@@_backend_pageobject_ref:n}
+%   Page references are easy in \texttt{dvips}.
+%    \begin{macrocode}
+\cs_new:Npn \@@_backend_pageobject_ref:n #1
+  { { Page #1 } }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Annotations}
 %
 % In \texttt{dvips}, annotations have to be constructed manually. As such,
 % we need the object code above for some definitions.
-%
-% \begin{macro}{pdf.globaldict}
-%   A small global dictionary for backend use.
-%    \begin{macrocode}
-\__kernel_backend_postscript_header:n
-  {
-    true ~ setglobal ~
-    /pdf.globaldict ~ 4 ~ dict ~ def ~
-    false ~ setglobal
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}
-%   {
-%     pdf.cvs     ,
-%     pdf.dvi.pt  ,
-%     pdf.pt.dvi  ,
-%     pdf.rect.ht
-%   }
-%   Small utilities for PostScript manipulations. Conversion to DVI dimensions
-%   is done here to allow for |Resolution|. The total height of a rectangle
-%   (an array) needs a little maths, in contrast to simply extracting a value.
-%    \begin{macrocode}
-\__kernel_backend_postscript_header:n
-  {
-    /pdf.cvs { 65534 ~ string ~ cvs } def
-    /pdf.dvi.pt { 72.27 ~ mul ~ Resolution ~ div } def
-    /pdf.pt.dvi { 72.27 ~ div ~ Resolution ~ mul } def
-    /pdf.rect.ht { dup ~ 1 ~ get ~ neg ~ exch ~ 3 ~ get ~ add } def
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{pdf.linkmargin, pdf.linkdp.pad, pdf.linkht.pad}
-%   Settings which are defined up-front in |SDict|.
-%    \begin{macrocode}
-\__kernel_backend_postscript_header:n
-  {
-    /pdf.linkmargin { 1 ~ pdf.pt.dvi } def
-    /pdf.linkdp.pad { 0 } def
-    /pdf.linkht.pad { 0 } def
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}
-%   {
-%     pdf.rect        ,
-%     pdf.save.ll     ,
-%     pdf.save.ur     ,
-%     pdf.save.linkll ,
-%     pdf.save.linkur ,
-%     pdf.llx         ,
-%     pdf.lly         ,
-%     pdf.urx         ,
-%     pdf.ury
-%   }
-%   Functions for marking the limits of an annotation/link, plus drawing the
-%   border. We separate links for generic annotations to support adding a
-%   margin and setting a minimal size.
-%    \begin{macrocode}
-\__kernel_backend_postscript_header:n
-  {
-    /pdf.rect
-      { /Rect [ pdf.llx ~ pdf.lly ~ pdf.urx ~ pdf.ury ] } def
-    /pdf.save.ll
-      {
-        currentpoint
-        /pdf.lly ~ exch ~ def
-        /pdf.llx ~ exch ~ def
-      }
-        def
-    /pdf.save.ur
-      {
-        currentpoint
-        /pdf.ury ~ exch ~ def
-        /pdf.urx ~ exch ~ def
-      }
-        def
-    /pdf.save.linkll
-      {
-        currentpoint ~
-        pdf.linkmargin ~ add ~
-        pdf.linkdp.pad ~ add
-        /pdf.lly ~ exch ~ def ~
-        pdf.linkmargin ~ sub
-        /pdf.llx ~ exch ~ def
-      }
-        def
-    /pdf.save.linkur
-      {
-        currentpoint ~
-        pdf.linkmargin ~ sub ~
-        pdf.linkht.pad ~ sub
-        /pdf.ury ~ exch ~ def ~
-        pdf.linkmargin ~ add
-        /pdf.urx ~ exch ~ def
-      }
-        def
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}
-%   {
-%     pdf.dest.anchor ,
-%     pdf.dest.x      ,
-%     pdf.dest.y      ,
-%     pdf.dest.point  ,
-%     pdf.dest2device ,
-%     pdf.dev.x       ,
-%     pdf.dev.y       ,
-%     pdf.tmpa        ,
-%     pdf.tmpb        ,
-%     pdf.tmpc        ,
-%     pdf.tmpd
-%   }
-%   For finding the anchor point of a destination link. We make the use case
-%   a separate function as it comes up a lot, and as this makes it easier to
-%   adjust if we need additional effects. We also need a more complex approach
-%   to convert a co-ordinate pair correctly when defining a rectangle: this
-%   can otherwise be out when using a landscape page. (Thanks to Alexander
-%   Grahn for the approach here.)
-%    \begin{macrocode}
-\__kernel_backend_postscript_header:n
-  {
-    /pdf.dest.anchor
-      {
-        currentpoint ~ exch ~
-        pdf.dvi.pt ~ 72 ~ add ~
-        /pdf.dest.x ~ exch ~ def ~
-        pdf.dvi.pt ~
-        vsize ~ 72 ~ sub ~ exch ~ sub ~
-        /pdf.dest.y ~ exch ~ def
-      }
-        def
-    /pdf.dest.point
-      { pdf.dest.x ~ pdf.dest.y } def
-   /pdf.dest2device
-     {
-       /pdf.dest.y ~ exch ~ def
-       /pdf.dest.x ~ exch ~ def ~
-       matrix ~ currentmatrix ~
-       matrix ~ defaultmatrix ~
-       matrix ~ invertmatrix ~
-       matrix ~ concatmatrix ~
-       cvx ~ exec
-       /pdf.dev.y ~ exch ~ def
-       /pdf.dev.x ~ exch ~ def
-       /pdf.tmpd ~ exch ~ def
-       /pdf.tmpc ~ exch ~ def
-       /pdf.tmpb ~ exch ~ def
-       /pdf.tmpa ~ exch ~ def ~
-       pdf.dest.x ~ pdf.tmpa ~ mul ~
-         pdf.dest.y ~ pdf.tmpc ~ mul ~ add ~
-         pdf.dev.x ~ add ~
-       pdf.dest.x ~ pdf.tmpb ~ mul ~
-         pdf.dest.y ~ pdf.tmpd ~ mul ~ add ~
-         pdf.dev.y ~ add
-     }
-       def
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}
-%   {
-%     pdf.bordertracking          ,
-%     pdf.bordertracking.begin    ,
-%     pdf.bordertracking.end      ,
-%     pdf.leftboundary            ,
-%     pdf.rightboundary           ,
-%     pdf.brokenlink.rect         ,
-%     pdf.brokenlink.skip         ,
-%     pdf.brokenlink.dict         ,
-%     pdf.bordertracking.endpage  ,
-%     pdf.bordertracking.continue ,
-%     pdf.originx                 ,
-%     pdf.originy
-%   }
-%    To know where a breakable link can go, we need to track the boundary
-%    rectangle. That can be done by hooking into |a| and |x| operations:
-%    those names have to be retained. The boundary is stored at the end of
-%    the operation. Special effort is needed at the start and end of pages
-%    (or rather galleys), such that everything works properly.
-%    \begin{macrocode}
-\__kernel_backend_postscript_header:n
-  {
-    /pdf.bordertracking ~ false ~ def
-    /pdf.bordertracking.begin
-      {
-        SDict ~ /pdf.bordertracking ~ true ~ put ~
-        SDict ~ /pdf.leftboundary ~ undef ~
-        SDict ~ /pdf.rightboundary ~ undef ~
-        /a ~ where
-          {
-            /a
-              {
-                currentpoint ~ pop ~
-                SDict /pdf.rightboundary ~ known ~ dup
-                  {
-                    SDict /pdf.rightboundary ~ get ~ 2 ~ index ~ lt
-                      { not }
-                    if
-                  }
-                if
-                  { pop }
-                  { SDict ~ exch /pdf.rightboundary ~ exch ~ put }
-                ifelse ~
-                moveto ~
-                currentpoint ~ pop ~
-                SDict /pdf.leftboundary ~ known ~ dup
-                  {
-                    SDict /pdf.leftboundary ~ get ~ 2 ~ index ~ gt
-                      { not }
-                    if
-                  }
-                if
-                  { pop }
-                  { SDict ~ exch /pdf.leftboundary ~ exch ~ put }
-                ifelse
-              }
-            put
-          }
-        if
-      }
-        def
-    /pdf.bordertracking.end
-      {
-        /a ~ where { /a { moveto } put } if
-        /x ~ where { /x { 0 ~ exch ~ rmoveto } put } if ~
-        SDict /pdf.leftboundary ~ known
-          { pdf.outerbox ~ 0 ~ pdf.leftboundary ~ put }
-        if ~
-        SDict /pdf.rightboundary ~ known
-          { pdf.outerbox ~ 2 ~ pdf.rightboundary ~ put }
-        if ~
-        SDict /pdf.bordertracking ~ false ~ put
-      }
-        def
-  /pdf.bordertracking.endpage
-    {
-      pdf.bordertracking
-        {
-          pdf.bordertracking.end ~
-          true ~ setglobal ~
-          pdf.globaldict
-            /pdf.brokenlink.rect [ pdf.outerbox ~ aload ~ pop ] put ~
-          pdf.globaldict
-            /pdf.brokenlink.skip ~ pdf.baselineskip ~ put ~
-          pdf.globaldict
-            /pdf.brokenlink.dict ~
-              pdf.link.dict ~ pdf.cvs ~ put ~
-          false ~ setglobal ~
-          mark ~ pdf.link.dict ~ cvx ~ exec ~ /Rect
-            [
-              pdf.llx ~
-              pdf.lly ~
-              pdf.outerbox ~ 2 ~ get ~ pdf.linkmargin ~ add ~
-              currentpoint ~ exch ~ pop ~
-              pdf.outerbox ~ pdf.rect.ht ~ sub ~ pdf.linkmargin ~ sub
-            ]
-          /ANN ~ pdf.pdfmark
-        }
-      if
-    }
-      def
-    /pdf.bordertracking.continue
-      {
-        /pdf.link.dict ~ pdf.globaldict
-          /pdf.brokenlink.dict ~ get ~ def
-        /pdf.outerbox ~ pdf.globaldict
-          /pdf.brokenlink.rect ~ get ~ def
-        /pdf.baselineskip ~ pdf.globaldict
-          /pdf.brokenlink.skip ~ get ~ def ~
-        pdf.globaldict ~ dup ~ dup
-        /pdf.brokenlink.dict ~ undef
-        /pdf.brokenlink.skip ~ undef
-        /pdf.brokenlink.rect ~ undef ~
-        currentpoint
-        /pdf.originy ~ exch ~ def
-        /pdf.originx ~ exch ~ def
-        /a ~ where
-          {
-            /a
-              {
-                moveto ~
-                SDict ~
-                begin ~
-                currentpoint ~ pdf.originy ~ ne ~ exch ~
-                  pdf.originx ~ ne ~ or
-                  {
-                    pdf.save.linkll
-                    /pdf.lly ~
-                      pdf.lly ~ pdf.outerbox ~ 1 ~ get ~ sub ~ def ~
-                    pdf.bordertracking.begin
-                  }
-                if ~
-                end
-              }
-            put
-          }
-        if
-        /x ~ where
-          {
-            /x
-              {
-                0 ~ exch ~ rmoveto ~
-                SDict~
-                begin ~
-                currentpoint ~
-                pdf.originy ~ ne ~ exch ~ pdf.originx ~ ne ~ or
-                  {
-                    pdf.save.linkll
-                    /pdf.lly ~
-                      pdf.lly ~ pdf.outerbox ~ 1 ~ get ~ sub ~ def ~
-                    pdf.bordertracking.begin
-                  }
-                if ~
-                end
-              }
-            put
-          }
-        if
-      }
-        def
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}
-%   {
-%     pdf.breaklink       ,
-%     pdf.breaklink.write ,
-%     pdf.count           ,
-%     pdf.currentrect
-%   }
-%   Dealing with link breaking itself has multiple stage. The first step is to
-%   find the |Rect| entry in the dictionary, looping over key--value pairs.
-%   The first line is handled first, adjusting the rectangle to stay inside the
-%   text area. The second phase is a loop over the height of the bulk of the
-%   link area, done on the basis of a number of baselines. Finally, the end of
-%   the link area is tidied up, again from the boundary of the text area.
-%    \begin{macrocode}
-\__kernel_backend_postscript_header:n
-  {
-    /pdf.breaklink
-      {
-        pop ~
-        counttomark ~ 2 ~ mod ~ 0 ~ eq
-          {
-            counttomark /pdf.count ~ exch ~ def
-              {
-               pdf.count ~ 0 ~ eq { exit } if ~
-               counttomark ~ 2 ~ roll ~
-               1 ~ index ~ /Rect ~ eq
-                 {
-                   dup ~ 4 ~ array ~ copy ~
-                   dup ~ dup ~
-                     1 ~ get ~
-                     pdf.outerbox ~ pdf.rect.ht ~
-                     pdf.linkmargin ~ 2 ~ mul ~ add ~ sub ~
-                     3 ~ exch ~ put ~
-                   dup ~
-                     pdf.outerbox ~ 2 ~ get ~
-                     pdf.linkmargin ~ add ~
-                     2 ~ exch ~ put ~
-                   dup ~ dup ~
-                     3 ~ get ~
-                     pdf.outerbox ~ pdf.rect.ht ~
-                     pdf.linkmargin ~ 2 ~ mul ~ add ~ add ~
-                     1 ~ exch ~ put
-                   /pdf.currentrect ~ exch ~  def ~
-                   pdf.breaklink.write
-                     {
-                       pdf.currentrect ~
-                       dup ~
-                         pdf.outerbox ~ 0 ~ get ~
-                         pdf.linkmargin ~ sub ~
-                         0 ~ exch ~ put ~
-                       dup ~
-                         pdf.outerbox ~ 2 ~ get ~
-                         pdf.linkmargin ~ add ~
-                         2 ~ exch ~ put ~
-                       dup ~ dup ~
-                         1 ~ get ~
-                         pdf.baselineskip ~ add ~
-                         1 ~ exch ~ put ~
-                       dup ~ dup ~
-                         3 ~ get ~
-                         pdf.baselineskip ~ add ~
-                         3 ~ exch ~ put ~
-                       /pdf.currentrect ~ exch ~ def ~
-                       pdf.breaklink.write
-                      }
-                    1 ~ index ~ 3 ~ get ~
-                    pdf.linkmargin ~ 2 ~ mul ~ add ~
-                    pdf.outerbox ~ pdf.rect.ht ~ add ~
-                    2 ~ index ~ 1 ~ get ~ sub ~
-                    pdf.baselineskip ~ div ~ round ~ cvi ~ 1 ~ sub ~
-                    exch ~
-                  repeat ~
-                  pdf.currentrect ~
-                  dup ~
-                    pdf.outerbox ~ 0 ~ get ~
-                    pdf.linkmargin ~ sub ~
-                    0 ~ exch ~ put ~
-                  dup ~ dup ~
-                    1 ~ get ~
-                    pdf.baselineskip ~ add ~
-                    1 ~ exch ~ put ~
-                  dup ~ dup ~
-                    3 ~ get ~
-                    pdf.baselineskip ~ add ~
-                    3 ~ exch ~ put ~
-                  dup ~ 2 ~ index ~ 2 ~ get ~  2 ~ exch ~ put
-                  /pdf.currentrect ~ exch ~ def ~
-                  pdf.breaklink.write ~
-                  SDict /pdf.pdfmark.good ~ false ~ put ~
-                  exit
-                }
-                { pdf.count ~ 2 ~ sub /pdf.count ~ exch ~ def }
-              ifelse
-            }
-          loop
-        }
-      if
-      /ANN
-    }
-      def
-    /pdf.breaklink.write
-      {
-        counttomark ~ 1 ~ sub ~
-        index /_objdef ~ eq
-          {
-            counttomark ~ -2 ~ roll ~
-            dup ~ wcheck ~
-              {
-                readonly ~
-                counttomark ~ 2 ~ roll
-              }
-              { pop ~ pop }
-            ifelse
-          }
-        if ~
-        counttomark ~ 1 ~ add ~ copy ~
-        pop ~ pdf.currentrect
-        /ANN ~ pdfmark
-      }
-        def
-  }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}
-%   {
-%     pdf.pdfmark      ,
-%     pdf.pdfmark.good ,
-%     pdf.outerbox     ,
-%     pdf.baselineskip ,
-%     pdf.pdfmark.dict
-%   }
-%   The business end of breaking links starts by hooking into |pdfmarks|.
-%   Unlike \pkg{hypdvips}, we avoid altering any links we have not created
-%   by using a copy of the core |pdfmarks| function. Only mark types which
-%   are known are altered. At present, this is purely |ANN| marks, which are
-%   measured relative to the size of the baseline skip. If they are
-%   more than one apparent line high, breaking is applied.
-%    \begin{macrocode}
-\__kernel_backend_postscript_header:n
-  {
-    /pdf.pdfmark
-      {
-        SDict /pdf.pdfmark.good ~ true ~ put ~
-        dup /ANN ~ eq
-          {
-            pdf.pdfmark.store ~
-            pdf.pdfmark.dict ~
-              begin ~
-                Subtype /Link ~ eq ~
-                currentdict /Rect ~ known ~ and ~
-                SDict /pdf.outerbox ~ known ~ and ~
-                SDict /pdf.baselineskip ~ known ~ and ~
-                  {
-                    Rect ~ 3 ~ get ~
-                    pdf.linkmargin ~ 2 ~ mul ~ add ~
-                    pdf.outerbox ~ pdf.rect.ht ~ add ~
-                    Rect ~ 1 ~ get ~ sub ~
-                    pdf.baselineskip ~ div ~ round ~ cvi ~ 0 ~ gt
-                      { pdf.breaklink }
-                    if
-                  }
-                if ~
-              end ~
-            SDict /pdf.outerbox ~ undef ~
-            SDict /pdf.baselineskip ~ undef ~
-            currentdict /pdf.pdfmark.dict ~ undef ~
-          }
-        if ~
-        pdf.pdfmark.good
-          { pdfmark }
-          { cleartomark }
-        ifelse
-      }
-        def
-    /pdf.pdfmark.store
-      {
-        /pdf.pdfmark.dict ~ 65534 ~ dict ~ def ~
-        counttomark ~ 1 ~ add ~ copy ~
-        pop
-          {
-            dup ~ mark ~ eq
-              {
-                pop ~
-                exit
-              }
-              {
-                pdf.pdfmark.dict ~
-                begin ~ def ~ end
-              }
-            ifelse
-          }
-        loop
-    }
-      def
-  }
-%    \end{macrocode}
-% \end{macro}
 %
 % \begin{variable}{\l_@@_backend_content_box}
 %   The content of an annotation.
@@ -782,41 +261,30 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\@@_backend_annotation:nnnn, \@@_backend_annotation_aux:nnnn}
-% \begin{macro}{pdf.llx, pdf.lly, pdf.urx, pdf.ury}
+% \begin{macro}{\@@_backend_annotation:nnnn}
 %   Annotations are objects, but we track them separately. Notably, they are
 %   not in the object data lists. Here, to get the co-ordinates of the
 %   annotation, we need to have the data collected at the PostScript level.
 %   That requires a bit of box trickery (effectively a \LaTeXe{} |picture|
 %   of zero size). Once the data is collected, use it to set up the annotation
-%   border. There is a split into two parts here to allow an easy way of
-%   applying the Adobe Reader fix.
+%   border.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_backend_annotation:nnnn #1#2#3#4
   {
-    \@@_backend_annotation_aux:nnnn {#1} {#2} {#3} {#4}
-    \int_gincr:N \g_@@_backend_object_int
-    \int_gset_eq:NN \g_@@_backend_annotation_int \g_@@_backend_object_int
-    \@@_backend_pdfmark:x
-      {
-
-        /_objdef { pdf.obj \int_use:N \g_@@_backend_object_int }
-        pdf.rect ~
-        #4 ~
-        /ANN
-      }
+    \exp_args:Nf \@@_backend_annotation_aux:nnnn
+      { \dim_eval:n {#1} } {#2} {#3} {#4}
   }
 \cs_new_protected:Npn \@@_backend_annotation_aux:nnnn #1#2#3#4
   {
     \box_move_down:nn {#3}
       { \hbox:n { \__kernel_backend_postscript:n { pdf.save.ll } } }
-    \hbox:n {#4}
     \box_move_up:nn {#2}
       {
         \hbox:n
           {
-            \tex_kern:D \dim_eval:n {#1} \scan_stop:
+            \tex_kern:D #1 \scan_stop:
             \__kernel_backend_postscript:n { pdf.save.ur }
+            \tex_kern:D -#1 \scan_stop:
           }
       }
     \int_gincr:N \g_@@_backend_object_int
@@ -825,11 +293,11 @@
       {
         /_objdef { pdf.obj \int_use:N \g_@@_backend_object_int }
         pdf.rect
+        #4 ~
         /ANN
       }
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[EXP]{\@@_backend_annotation_last:}
@@ -1145,7 +613,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_rectangle:nn}
+% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_box:nn}
 %   Here, we need to turn the zoom into a scale. We also need to know where
 %   the current anchor point actually is: worked out in PostScript. For the
 %   rectangle version, we have a bit more PostScript: we need two points.
@@ -1175,7 +643,7 @@
         /DEST
       }
   }
-\cs_new_protected:Npn \@@_backend_destination_rectangle:nn #1#2
+\cs_new_protected:Npn \@@_backend_destination_box:nn #1#2
   {
     \group_begin:
       \hbox_set:Nn \l_@@_internal_box {#2}
@@ -1206,10 +674,32 @@
 %
 % \begin{macro}{\@@_backend_compresslevel:n}
 % \begin{macro}{\@@_backend_compress_objects:n}
-%   These are all no-ops.
+%   Doable for the usual \texttt{ps2pdf} method.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_compresslevel:n #1 { }
-\cs_new_protected:Npn \@@_backend_compress_objects:n #1 { }
+\cs_new_protected:Npn \@@_backend_compresslevel:n #1
+  {
+    \int_compare:nNnT {#1} = 0
+      {
+        \__kernel_backend_literal_postscript:n
+          {
+            /setdistillerparams ~ where
+             { pop << /CompressPages ~ false >> setdistillerparams }
+            if
+          }
+      }
+  }
+\cs_new_protected:Npn \@@_backend_compress_objects:n #1
+  {
+    \bool_if:nF {#1}
+      {
+        \__kernel_backend_literal_postscript:n
+          {
+            /setdistillerparams ~ where
+             { pop << /CompressStreams ~ false >> setdistillerparams }
+            if
+          }
+      }
+  }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -1343,7 +833,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_rectangle:nn}
+% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_box:nn}
 %   A simple task: pass the data to the primitive. The |\scan_stop:| deals
 %   with the danger of an unterminated keyword. The zoom given here is a
 %   percentage, but we need to pass it as \emph{per mille}. The rectangle
@@ -1368,7 +858,7 @@
           { xyz ~ zoom \exp_not:N \fp_eval:n { #2 * 10 } }
         \scan_stop:
   }
-\cs_new_protected:Npx \@@_backend_destination_rectangle:nn #1#2
+\cs_new_protected:Npx \@@_backend_destination_box:nn #1#2
   {
     \group_begin:
       \hbox_set:Nn \l_@@_internal_box {#2}
@@ -1534,6 +1024,20 @@
       { \exp_not:N \tex_pdffeedback:D lastobj ~ }
       { \exp_not:N \tex_pdflastobj:D }
       \c_space_tl 0 ~ R
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_backend_pageobject_ref:n}
+%   The usual wrapper situation.
+%    \begin{macrocode}
+\cs_new:Npx \@@_backend_pageobject_ref:n #1
+  {
+    \exp_not:N \int_value:w
+      \cs_if_exist:NTF \tex_pdffeedback:D
+        { \exp_not:N \tex_pdffeedback:D pageref }
+        { \exp_not:N \tex_pdfpageref:D }
+          \c_space_tl #1 \c_space_tl \c_space_tl \c_space_tl 0 ~ R
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1780,6 +1284,14 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[EXP]{\@@_backend_pageobject_ref:n}
+%   Page references are easy in \texttt{(x)dvipdfmx}.
+%    \begin{macrocode}
+\cs_new:Npn \@@_backend_pageobject_ref:n #1
+  { @page #1 }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Annotations}
 %
 % \begin{variable}{\g_@@_landscape_bool}
@@ -1894,7 +1406,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_rectangle:nn}
+% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_box:nn}
 %   Here, we need to turn the zoom into a scale. The method for \texttt{FitR}
 %   is from Alexander Grahn: the idea is to avoid needing to do any calculations
 %   in \TeX{} by using the backend data for \texttt{@xpos} and \texttt{@ypos}.
@@ -1920,7 +1432,7 @@
         ]
       }
   }
-\cs_new_protected:Npn \@@_backend_destination_rectangle:nn #1#2
+\cs_new_protected:Npn \@@_backend_destination_box:nn #1#2
   {
     \group_begin:
       \hbox_set:Nn \l_@@_internal_box {#2}
@@ -2038,6 +1550,7 @@
 % \begin{macro}{\@@_backend_object_write:nn, , \@@_backend_object_write:nx}
 % \begin{macro}{\@@_backend_object_now:nn, , \@@_backend_object_now:nx}
 % \begin{macro}{\@@_backend_object_last:}
+% \begin{macro}[EXP]{\@@_backend_pageobject_ref:n}
 %   All no-ops here.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_backend_object_new:nn #1#2 { }
@@ -2047,7 +1560,9 @@
 \cs_new_protected:Npn \@@_backend_object_now:nn #1#2 { }
 \cs_new_protected:Npn \@@_backend_object_now:nx #1#2 { }
 \cs_new:Npn \@@_backend_object_last: { }
+\cs_new:Npn \@@_backend_pageobject_ref:n #1 { }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}

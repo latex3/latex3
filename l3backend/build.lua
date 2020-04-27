@@ -9,19 +9,22 @@ bundle = ""
 -- Location of main directory: use Unix-style path separators
 maindir = ".."
 
-installfiles = {"*.def"}
+installfiles = {"*.def", "*.pro"}
 sourcefiles  = {"*.dtx", "*.ins"}
-tagfiles     = {"*.dtx", "CHANGELOG.md", "README.md"}
+tagfiles     = {"*.dtx", "CHANGELOG.md", "README.md", "*.ins"}
 typesetfiles = {"l3backend-code.tex"}
 unpackfiles  = {"l3backend.ins"}
 
 -- As we need l3docstrip, a bit of 'fun'
 supportdir = maindir
-unpacksuppfiles = {"/support/docstrip.tex", "/l3kernel/l3docstrip.dtx"}
+unpacksuppfiles = {"/support/docstrip.tex","/l3kernel/l3docstrip.dtx"}
 
 -- No deps other than the test system
 unpackdeps  = { }
 typesetdeps = {maindir .. "/l3packages/xparse"}
+
+-- Get the .pro files in the right place
+tdslocations = {"dvips/l3backend/*.pro"}
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
@@ -37,15 +40,15 @@ function update_tag(file,content,tagname,tagdate)
       "(C) %1," .. year .. " The LaTeX3 Project")
    content = string.gsub(content,year .. "," .. year,year)
    content = string.gsub(content,
-     "%-" .. year - 1 .. "," .. year,
+     "%-" .. math.tointeger(year - 1) .. "," .. year,
      "-" .. year)
    content = string.gsub(content,
-     year - 2 .. "," .. year - 1 .. "," .. year,
-     year - 2 .. "-" .. year)
+     math.tointeger(year - 2) .. "," .. math.tointeger(year - 1) .. "," .. year,
+     math.tointeger(year - 2).. "-" .. year)
   end
-  if string.match(file,"l3backend%.dtx$") then
+  if string.match(file,"l3backend%-basics%.dtx$") then
     content = string.gsub(content,
-      "\n  ({l3%w+%.def}){" .. iso .. "}",
+      "\n  ({l3backend%-%w+%.def}){" .. iso .. "}",
       "\n  %1{" .. tagname .. "}")
   end
   if string.match(file,"%.dtx$") or string.match(file,"%.tex$") then

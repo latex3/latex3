@@ -2,7 +2,7 @@
 %
 %% File: l3seq.dtx
 %
-% Copyright (C) 1990-2019 The LaTeX3 Project
+% Copyright (C) 1990-2020 The LaTeX3 Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2019-09-05}
+% \date{Released 2020-04-06}
 %
 % \maketitle
 %
@@ -112,6 +112,16 @@
 %   \end{syntax}
 %   Converts the data in the \meta{comma list} into a \meta{sequence}:
 %   the original \meta{comma list} is unchanged.
+% \end{function}
+%
+% \begin{function}[added = 2017-11-28]
+%   {\seq_const_from_clist:Nn,  \seq_const_from_clist:cn}
+%   \begin{syntax}
+%     \cs{seq_const_from_clist:Nn} \meta{seq~var} \Arg{comma-list}
+%   \end{syntax}
+%   Creates a new constant \meta{seq~var} or raises an error if the name
+%   is already taken. The \meta{seq~var} is set globally to contain the
+%   items in the \meta{comma list}.
 % \end{function}
 %
 % \begin{function}[added = 2011-08-15, updated = 2012-07-02]
@@ -461,6 +471,24 @@
 %   \meta{comparison code}, and assigns the result to
 %   \meta{sequence}. The details of sorting comparison are
 %   described in Section~\ref{sec:l3sort:mech}.
+% \end{function}
+%
+% \begin{function}[added = 2018-04-29]
+%   {\seq_shuffle:N, \seq_shuffle:c, \seq_gshuffle:N, \seq_gshuffle:c}
+%   \begin{syntax}
+%     \cs{seq_shuffle:N} \meta{seq~var}
+%   \end{syntax}
+%   Sets the \meta{seq~var} to the result of placing the items of the
+%   \meta{seq~var} in a random order.  Each item is (roughly) as likely
+%   to end up in any given position.
+%   \begin{texnote}
+%     For sequences with more than $13$ items or so, only a small
+%     proportion of all possible permutations can be reached, because
+%     the random seed \cs{sys_rand_seed:} only has $28$-bits.  The use
+%     of \tn{toks} internally means that sequences with more than
+%     $32767$ or $65535$ items (depending on the engine) cannot be
+%     shuffled.
+%   \end{texnote}
 % \end{function}
 %
 % \section{Sequence conditionals}
@@ -1103,6 +1131,18 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\seq_const_from_clist:Nn, \seq_const_from_clist:cn}
+%   Almost identical to \cs{seq_set_from_clist:Nn}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \seq_const_from_clist:Nn #1#2
+  {
+    \tl_const:Nx #1
+      { \s_@@ \clist_map_function:nN {#2} \@@_wrap_item:n }
+  }
+\cs_generate_variant:Nn \seq_const_from_clist:Nn { c }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}
 %   {
 %     \seq_set_split:Nnn , \seq_set_split:NnV ,
@@ -1456,6 +1496,72 @@
 \prg_generate_conditional_variant:Nnn \seq_if_empty:N
   { c } { p , T , F , TF }
 %    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\seq_shuffle:N, \seq_shuffle:c, \seq_gshuffle:N, \seq_gshuffle:c}
+% \begin{macro}{\@@_shuffle:NN}
+% \begin{macro}{\@@_shuffle_item:n}
+% \begin{variable}{\g_@@_internal_seq}
+%   We apply the Fisher--Yates shuffle, storing items in \tn{toks}
+%   registers.  We use the primitive \cs{tex_uniformdeviate:D} for
+%   speed reasons.  Its non-uniformity is of order its argument divided
+%   by $2^{28}$, not too bad for small lists.  For sequences with more
+%   than $13$ elements there are more possible permutations than
+%   possible seeds ($13!>2^{28}$) so the question of uniformity is
+%   somewhat moot. The integer variables are declared in \pkg{l3int}:
+%   load-order issues.
+%    \begin{macrocode}
+\cs_if_exist:NTF \tex_uniformdeviate:D
+  {
+    \seq_new:N \g_@@_internal_seq
+    \cs_new_protected:Npn \seq_shuffle:N { \@@_shuffle:NN \seq_set_eq:NN }
+    \cs_new_protected:Npn \seq_gshuffle:N { \@@_shuffle:NN \seq_gset_eq:NN }
+    \cs_new_protected:Npn \@@_shuffle:NN #1#2
+      {
+        \int_compare:nNnTF { \seq_count:N #2 } > \c_max_register_int
+          {
+            \__kernel_msg_error:nnx { kernel } { shuffle-too-large }
+              { \token_to_str:N #2 }
+          }
+          {
+            \group_begin:
+              \int_zero:N \l_@@_internal_a_int
+              \@@_push_item_def:
+              \cs_gset_eq:NN \@@_item:n \@@_shuffle_item:n
+              #2
+              \@@_pop_item_def:
+              \seq_gset_from_inline_x:Nnn \g_@@_internal_seq
+                { \int_step_function:nN { \l_@@_internal_a_int } }
+                { \tex_the:D \tex_toks:D ##1 }
+            \group_end:
+            #1 #2 \g_@@_internal_seq
+            \seq_gclear:N \g_@@_internal_seq
+          }
+      }
+    \cs_new_protected:Npn \@@_shuffle_item:n
+      {
+        \int_incr:N \l_@@_internal_a_int
+        \int_set:Nn \l_@@_internal_b_int
+          { 1 + \tex_uniformdeviate:D \l_@@_internal_a_int }
+        \tex_toks:D \l_@@_internal_a_int
+          = \tex_toks:D \l_@@_internal_b_int
+        \tex_toks:D \l_@@_internal_b_int
+      }
+  }
+  {
+    \cs_new_protected:Npn \seq_shuffle:N #1
+      {
+        \__kernel_msg_error:nnn { kernel } { fp-no-random }
+          { \seq_shuffle:N #1 }
+      }
+    \cs_new_eq:NN \seq_gshuffle:N \seq_shuffle:N
+  }
+\cs_generate_variant:Nn \seq_shuffle:N { c }
+\cs_generate_variant:Nn \seq_gshuffle:N { c }
+%    \end{macrocode}
+% \end{variable}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[TF]

@@ -7,41 +7,57 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-01-12]
+
+### Changed
+- Track `l3kernel` changes
+
+### Fixed
+- Bounding box for clipped paths (see #660)
+
+## [2019-10-11]
+
+### Fixed
+- Error message for unknown colors (see #640)
+
+## [2019-09-28]
+
+### Changed
+- `\sys_shell_get_pwd:N` renamed as `\sys_get_shell_pwd:N`
+
+## [2019-09-19]
+
+### Changed
+- Various improvements to `l3cctab`
+
 ## [2019-08-25]
 
 ### Changed
-
 - `\draw_unit_vector:n` returns a vertical vector when the length is
   zero (see #609)
 - Collect `pwd` data with no `\endlinechar` (see #613)
 - Default precision in `\fp_format:nn` when no style is specified
 
 ### Fixed
-
 - Corrected behaviour of catcode tables (see #610)
 
 ## [2019-07-01]
 
 ### Added
-
 - New module `l3pdf`
 
 ### Changed
-
 - Re-order arguments for polar points (`l3draw`)
 
 ### Removed
-
 - `l3str-convert` module: moved to `l3kernel` (`expl3` core)
 
 ## [2019-05-28]
 
 ### Added
-
 - New `l3graphics` module
 
 ### Fixed
-
 - Missing `\scan_stop:` in benchmark code (fixes #577)
 
 ## [2019-05-03]
@@ -53,35 +69,29 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-03-05]
 
 ### Added
-
 - Support for drawing layers
 
 ### Changed
-
 - Update `l3draw` transformation names
 
 ## [2019-01-28]
 
 ### Changed
-
 - Track `expl3` changes
 
 ## [2018-10-31]
 
 ### Added
-
 - New module `l3cctab`
 
 ## [2018-10-26]
 
 ### Added
-
 - New module `l3benchmark`
 
 ## [2018-08-24]
 
 ### Fixed
-
 - Actually distribute `l3sys-shell`
 
 ## [2018-08-23]
@@ -112,7 +122,11 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2019-08-25...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-01-12...HEAD
+[2020-01-12]: https://github.com/latex3/latex3/compare/2019-10-11...2020-01-12
+[2019-10-11]: https://github.com/latex3/latex3/compare/2019-09-28...2019-10-11
+[2019-09-28]: https://github.com/latex3/latex3/compare/2019-09-19...2019-09-28
+[2019-09-19]: https://github.com/latex3/latex3/compare/2019-08-25...2019-09-19
 [2019-08-25]: https://github.com/latex3/latex3/compare/2019-07-01...2019-08-25
 [2019-07-01]: https://github.com/latex3/latex3/compare/2019-05-28...2019-07-01
 [2019-05-28]: https://github.com/latex3/latex3/compare/2019-05-03...2019-05-28

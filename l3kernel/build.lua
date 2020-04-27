@@ -8,6 +8,7 @@ bundle = ""
 
 -- Location of main directory: use Unix-style path separators
 maindir = ".."
+docfiledir = "./doc"
 
 -- Non-standard settings
 checkfiles   = {"l3names.def"}
@@ -18,7 +19,8 @@ installfiles =
     "l3dvipdfmx.def", "l3dvips.def", "l3dvisvgm.def", "l3pdfmode.def",
     "l3xdvipdfmx.def",
     "l3str-enc-*.def",
-    "expl3.lua",
+    "l3debug.def", "l3deprecation.def", "l3sys.def",
+    "expl3.lua","expl3.ltx",
     "*.cls", "*.sty", "*.tex"
   }
 sourcefiles  = {"*.dtx", "*.ins"}
@@ -28,13 +30,15 @@ tagfiles     =
     "interface3.tex", "l3styleguide.tex",
     "l3syntax-changes.tex",
     "l3term-glossary.tex",
-    "source3.tex"
+    "source3.tex",
+    "*.ins"
   }
 typesetfiles =
   {
     "expl3.dtx", "l3docstrip.dtx","interface3.tex", "l3syntax-changes.tex",
     "l3styleguide.tex", "l3term-glossary.tex", "source3.tex",
-    "l3prefixes.tex"
+    "l3prefixes.tex",
+    "l3news*.tex"
   }
 typesetskipfiles = {"source3-body.tex"}
 typesetruns      = 3
@@ -58,11 +62,11 @@ function update_tag(file,content,tagname,tagdate)
       "(C) %1," .. year .. " The LaTeX3 Project")
    content = string.gsub(content,year .. "," .. year,year)
    content = string.gsub(content,
-     "%-" .. year - 1 .. "," .. year,
+     "%-" .. tonumber(year) - 1 .. "," .. year,
      "-" .. year)
    content = string.gsub(content,
-     year - 2 .. "," .. year - 1 .. "," .. year,
-     year - 2 .. "-" .. year)
+     tonumber(year) - 2 .. "," .. tonumber(year) - 1 .. "," .. year,
+     tonumber(year) - 2 .. "-" .. year)
   end
   if string.match(file,"expl3%.dtx$") then
     content = string.gsub(content,
@@ -154,9 +158,13 @@ function format()
     return errorlevel
   end
   local localdir = abspath(localdir)
+  local localtexmf = ""
+  if texmfdir and texmfdir ~= "" then
+    localtexmf = os_pathsep .. abspath(texmfdir) .. "//"
+  end
   errorlevel = run(
     unpackdir,
-    os_setenv .. " TEXINPUTS=." .. os_pathsep
+    os_setenv .. " TEXINPUTS=." .. localtexmf .. os_pathsep
       .. localdir .. (unpacksearch and os_pathsep or "") ..
     os_concat ..
     unpackexe .. " " .. unpackopts .. " l3format.ins"
@@ -190,10 +198,15 @@ function format()
 end
 
 target_list = target_list or { }
+target_list.cmdcheck =
+  {
+    func = cmdcheck,
+    desc = "Run cmd cover test"
+  }
 target_list.format =
   {
     func = format,
-    desc = "Creat l3formats"
+    desc = "Create l3formats"
   }
 
 -- Find and run the build system

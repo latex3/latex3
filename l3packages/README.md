@@ -1,12 +1,12 @@
 LaTeX3 High-Level Concepts
 ==========================
 
-Release 2019-05-28
+Release 2020-03-06
 
 Overview
 --------
 
-The `l3packages` collection is contains implementations for aspects of the
+The `l3packages` collection contains implementations for aspects of the
 LaTeX3 kernel, dealing with higher-level ideas such as the Designer Interface.
 The packages here are considered broadly stable (The LaTeX3 Project does not
 expect the interfaces to alter radically). These packages are build on LaTeX2e
@@ -102,6 +102,6 @@ the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
-<p>Copyright (C) 1998-2011,2015-2019 The LaTeX3 Project <br />
+<p>Copyright (C) 1998-2012,2015-2020 The LaTeX3 Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>
