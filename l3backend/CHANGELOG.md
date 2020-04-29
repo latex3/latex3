@@ -6,6 +6,17 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\__pdf_backend_pageobject_ref:n`
+
+### Changed
+- Extend PDF compression control to `dvips`
+
+## [2020-03-12]
+
+### Fixed
+- Creation of PDF annotations with `dvips` backend
+
 ## [2020-02-23]
 
 ### Fixed
@@ -56,7 +67,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-23...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-03-12...HEAD
+[2020-03-12]: https://github.com/latex3/latex3/compare/2020-02-23...2020-03-12
 [2020-02-23]: https://github.com/latex3/latex3/compare/2020-02-21...2020-02-23
 [2020-02-21]: https://github.com/latex3/latex3/compare/2020-02-03...2020-02-21
 [2020-02-03]: https://github.com/latex3/latex3/compare/2019-11-25...2020-02-03

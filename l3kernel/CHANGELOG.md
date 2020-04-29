@@ -7,6 +7,19 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Recognize the exponent marker `E` (same as `e`) in floating point numbers
+
+## [2020-04-06]
+
+### Added
+- Control for start-of-titlecasing: see `\l_text_titlecase_check_letter_bool`
+
+### Fixed
+- Nesting of `\seq_shuffle:N` in another sequence mapping (issue #687)
+- `\ior_shell_open:Nn` in engines other than LuaTeX - shell commands didn't
+  execute, plus the command call would be left in the input stream.
+
 ## [2020-03-06]
 
 ### Added
@@ -655,7 +668,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-03-06...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-04-06...HEAD
+[2020-04-06]: https://github.com/latex3/latex3/compare/2020-03-06...2020-04-06
 [2020-03-06]: https://github.com/latex3/latex3/compare/2020-03-03...2020-03-06
 [2020-03-03]: https://github.com/latex3/latex3/compare/2020-02-25...2020-03-03
 [2020-02-25]: https://github.com/latex3/latex3/compare/2020-02-21...2020-02-25

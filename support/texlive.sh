@@ -26,7 +26,7 @@ tlmgr update --self
 tlmgr install l3build
 
 # Required to build plain and LaTeX formats including (u)pLaTeX
-tlmgr install latex-bin platex uplatex tex xetex
+tlmgr install latex-bin luahbtex platex uplatex tex xetex
 
 # Then get the rest of required LaTeX
 tlmgr install amsmath graphics tools 
@@ -50,6 +50,7 @@ tlmgr install \
   adobemapping  \
   alphalph      \
   amsfonts      \
+  bibtex        \
   bitset        \
   catchfile     \
   cjk           \
