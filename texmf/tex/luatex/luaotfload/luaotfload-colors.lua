@@ -5,8 +5,8 @@
 
 local ProvidesLuaModule = { 
     name          = "luaotfload-colors",
-    version       = "3.00",       --TAGVERSION
-    date          = "2019-09-13", --TAGDATE
+    version       = "3.13",       --TAGVERSION
+    date          = "2020-05-01", --TAGDATE
     description   = "luaotfload submodule / color",
     license       = "GPL v2.0",
     author        = "Khaled Hosny, Elie Roux, Philipp Gesang, Dohyun Kim, David Carlisle",
@@ -40,9 +40,13 @@ local insert_node_after     = nodedirect.insert_after
 local todirect              = nodedirect.todirect
 local tonode                = nodedirect.tonode
 local setfield              = nodedirect.setfield
+local setdisc               = nodedirect.setdisc
+local setreplace            = nodedirect.setreplace
 local getid                 = nodedirect.getid
 local getfont               = nodedirect.getfont
+local getchar               = nodedirect.getchar
 local getlist               = nodedirect.getlist
+local getdisc               = nodedirect.getdisc
 local getsubtype            = nodedirect.getsubtype
 local getnext               = nodedirect.getnext
 local nodetail              = nodedirect.tail
@@ -55,54 +59,23 @@ local identifiers           = fonts.hashes.identifiers
 local add_color_callback --[[ this used to be a global‽ ]]
 
 --[[doc--
-This converts a single octet into a decimal with three digits of
-precision. The optional second argument limits precision to a single
-digit.
---doc]]--
-
---- string -> bool? -> string
-local hex_to_dec = function (hex,one) --- one isn’t actually used anywhere ...
-    if one then
-        return stringformat("%.1g", tonumber(hex, 16)/255)
-    else
-        return stringformat("%.3g", tonumber(hex, 16)/255)
-    end
-end
-
---[[doc--
-Color string validator / parser.
+Color string parser.
 --doc]]--
 
 local lpeg           = require"lpeg"
 local lpegmatch      = lpeg.match
 local C, Cg, Ct, P, R, S = lpeg.C, lpeg.Cg, lpeg.Ct, lpeg.P, lpeg.R, lpeg.S
 
+local spaces         = S"\t "^0
 local digit16        = R("09", "af", "AF")
 local opaque         = S("fF") * S("fF")
-local octet          = C(digit16 * digit16)
-
-local p_rgb          = octet * octet * octet
-local p_rgba         = p_rgb * (octet - opaque)
-local valid_digits   = C(p_rgba + p_rgb) -- matches eight or six hex digits
-
-local p_Crgb         = Cg(octet/hex_to_dec, "red") --- for captures
-                     * Cg(octet/hex_to_dec, "green")
-                     * Cg(octet/hex_to_dec, "blue")
-local p_Crgba        = p_Crgb * Cg(octet/hex_to_dec, "alpha")
-local extract_color  = Ct(p_Crgba + p_Crgb)
-
---- string -> (string | nil)
-local sanitize_color_expression = function (digits)
-    digits = tostring(digits)
-    local sanitized = lpegmatch(valid_digits, digits)
-    if not sanitized then
-        logreport("both", 0, "color",
-                  "%q is not a valid rgb[a] color expression",
-                  digits)
-        return nil
-    end
-    return sanitized
+local octet          = digit16 * digit16 / function(s)
+    return tonumber(s, 16) / 255
 end
+
+local extract_color  = spaces * octet * octet * octet / function(r,g,b)
+                         return stringformat("%.3g %.3g %.3g rg", r, g, b)
+                       end * (opaque + octet)^-1 * spaces * -1
 
 --- something is carried around in ``res``
 --- for later use by color_handler() --- but what?
@@ -111,48 +84,37 @@ local res = nil
 
 --- float -> unit
 local function pageresources(alpha)
-    res = res or {}
-    res[alpha] = true
+    res = res or {true} -- Initialize with /TransGs1
+    local f = res[alpha]
+        or stringformat("/TransGs%.3g gs", alpha, alpha)
+    res[alpha] = f
+    return f
 end
 
---- we store results of below color handler as tuples of
---- push/pop strings
-local color_cache = { } --- (string, (string * string)) hash_t
-
---- string -> (string * string)
-local hex_to_rgba = function (digits)
-    if not digits then
+--- string -> (string | nil)
+local function sanitize_color_expression (digits)
+    digits = tostring(digits)
+    local rgb, a = lpegmatch(extract_color, digits)
+    if not rgb then
+        logreport("both", 0, "color",
+                  "%q is not a valid rgb[a] color expression",
+                  digits)
         return
     end
+    return rgb, (a and pageresources(a))
+end
 
-    --- this is called like a thousand times, so some
-    --- memoizing is in order.
-    local cached = color_cache[digits]
-    if not cached then
-        local push, pop
-        local rgb = lpegmatch(extract_color, digits)
-        if rgb.alpha then
-            pageresources(rgb.alpha)
-            push = stringformat(
-                        "/TransGs%g gs %s %s %s rg",
-                        rgb.alpha,
-                        rgb.red,
-                        rgb.green,
-                        rgb.blue)
-            pop  = "0 g /TransGs1 gs"
-        else
-            push = stringformat(
-                        "%s %s %s rg",
-                        rgb.red,
-                        rgb.green,
-                        rgb.blue)
-            pop  = "0 g"
-        end
-        color_cache[digits] = { push, pop }
-        return push, pop
-    end
-
-    return cached[1], cached[2]
+local color_stack = 0
+-- Beside maybe allowing {transpareny} package compatibility at some
+-- point, this ensures that the stack is only created if it is actually
+-- needed. Especially important because it adds /TransGs1 gs to every page
+local function transparent_stack()
+    -- if token.is_defined'TRP@colorstack' then -- transparency
+        -- transparent_stack = tonumber(token.get_macro'TRP@colorstack')
+    -- else
+        transparent_stack = pdf.newcolorstack("/TransGs1 gs","direct",true)
+    -- end
+    return transparent_stack
 end
 
 --- Luatex internal types
@@ -163,45 +125,44 @@ local hlist_t           = nodetype("hlist")
 local vlist_t           = nodetype("vlist")
 local whatsit_t         = nodetype("whatsit")
 local disc_t            = nodetype("disc")
-local pdfliteral_t      = node.subtype("pdf_literal")
 local colorstack_t      = node.subtype("pdf_colorstack")
-local mlist_to_hlist    = node.mlist_to_hlist
 
 local color_callback
 local color_attr        = luatexbase.new_attribute("luaotfload_color_attribute")
 
--- (node * node * string * bool * (bool | nil)) -> (node * node * (string | nil))
-local color_whatsit
-color_whatsit = function (head, curr, color, push, tail)
-    local pushdata  = hex_to_rgba(color)
+local custom_setcolor
+
+-- Pass nil for new_color or old_color to indicate no color
+-- If color is nil, pass tail to decide where to add whatsit
+local function color_whatsit (head, curr, stack, old_color, new_color, tail)
+    if new_color == old_color then
+        return head, curr, old_color
+    end
     local colornode = newnode(whatsit_t, colorstack_t)
-    setfield(colornode, "stack", 0)
-    setfield(colornode, "command", push and 1 or 2) -- 1: push, 2: pop
-    setfield(colornode, "data", push and pushdata or nil)
+    setfield(colornode, "stack", tonumber(stack) or stack())
+    setfield(colornode, "command", new_color and (old_color and 0 or 1) or 2) -- 1: push, 2: pop
+    setfield(colornode, "data", new_color) -- Is nil for pop
     if tail then
         head, curr = insert_node_after (head, curr, colornode)
     else
         head = insert_node_before(head, curr, colornode)
     end
-    if not push and color:len() > 6 then
-        local colornode = newnode(whatsit_t, pdfliteral_t)
-        setfield(colornode, "mode", 2)
-        setfield(colornode, "data", "/TransGs1 gs")
-        if tail then
-            head, curr = insert_node_after (head, curr, colornode)
-        else
-            head = insert_node_before(head, curr, colornode)
-        end
-    end
-    color = push and color or nil
-    return head, curr, color
+    return head, curr, new_color
 end
 
 -- number -> string | nil
-local get_font_color = function (font_id)
+local function get_glyph_color (font_id, char)
     local tfmdata    = identifiers[font_id]
-    local font_color = tfmdata and tfmdata.properties and tfmdata.properties.color
-    return font_color
+    local properties = tfmdata and tfmdata.properties
+    local font_color = properties and properties.color_rgb
+    local font_transparent = properties and properties.color_a
+    if type(font_color) == "table" then
+        local char_tbl = tfmdata.characters[char]
+        char = char_tbl and (char_tbl.index or char)
+        font_color = char and font_color[char] or font_color.default
+        font_transparent = font_transparent and (char and font_transparent[char] or font_transparent.default)
+    end
+    return font_color, font_transparent
 end
 
 --[[doc--
@@ -211,8 +172,7 @@ values during the node list traversal.
 --doc]]--
 
 --- (node * (string | nil)) -> (node * (string | nil))
-local node_colorize
-node_colorize = function (head, toplevel, current_color)
+local function node_colorize (head, toplevel, current_color, current_transparent)
     local n = head
     while n do
         local n_id = getid(n)
@@ -220,65 +180,60 @@ node_colorize = function (head, toplevel, current_color)
         if n_id == hlist_t or n_id == vlist_t then
             local n_list = getlist(n)
             if getattribute(n_list, color_attr) then
-                if current_color then
-                    head, n, current_color = color_whatsit(head, n, current_color, false)
-                end
+                head, n, current_color = color_whatsit(head, n, color_stack, current_color, nil)
+                head, n, current_transparent = color_whatsit(head, n, transparent_stack, current_transparent, nil)
             else
-                n_list, current_color = node_colorize(n_list, false, current_color)
-                if current_color and getsubtype(n) == 1 then -- created by linebreak
-                    n_list, _, current_color = color_whatsit(n_list, nodetail(n_list), current_color, false, true)
+                n_list, current_color, current_transparent = node_colorize(n_list, false, current_color, current_transparent)
+                if getsubtype(n) == 1 then -- created by linebreak
+                    local nn = nodetail(n_list)
+                    n_list, nn, current_color = color_whatsit(n_list, nn, color_stack, current_color, nil, true)
+                    n_list, nn, current_transparent = color_whatsit(n_list, nn, transparent_stack, current_transparent, nil, true)
                 end
                 setfield(n, "head", n_list)
             end
+
+        elseif n_id == disc_t then
+            local n_pre, n_post, n_replace = getdisc(n)
+            n_replace, current_color, current_transparent = node_colorize(n_replace, false, current_color, current_transparent)
+            setdisc(n, n_pre, n_post, n_replace)
 
         elseif n_id == glyph_t then
             --- colorization is restricted to those fonts
             --- that received the “color” property upon
             --- loading (see ``setcolor()`` above)
-            local font_color = get_font_color(getfont(n))
-            if font_color ~= current_color then
-                if current_color then
-                    head, n, current_color = color_whatsit(head, n, current_color, false)
+            local glyph_color, glyph_transparent = get_glyph_color(getfont(n), getchar(n))
+            if custom_setcolor then
+                if glyph_color then
+                    head, n = custom_setcolor(head, n, glyph_color) -- Don't change current_color to transform all other color_whatsit calls into noops
                 end
-                if font_color then
-                    head, n, current_color = color_whatsit(head, n, font_color, true)
-                end
+            else
+                head, n, current_color = color_whatsit(head, n, color_stack, current_color, glyph_color)
             end
-
-            if current_color and color_callback == "pre_linebreak_filter" then
-                local nn = getnext(n)
-                while nn and getid(nn) == glyph_t do
-                    local font_color = get_font_color(getfont(nn))
-                    if font_color == current_color then
-                        n = nn
-                    else
-                        break
-                    end
-                    nn = getnext(nn)
+            if custom_settransparent then
+                if glyph_transparent then
+                    head, n = custom_settransparent(head, n, glyph_transparent) -- Don't change current_transparent to transform all other color_whatsit calls into noops
                 end
-                if getid(nn) == disc_t then
-                    head, n, current_color = color_whatsit(head, nn, current_color, false, true)
-                else
-                    head, n, current_color = color_whatsit(head, n, current_color, false, true)
-                end
+            else
+                head, n, current_transparent = color_whatsit(head, n, transparent_stack, current_transparent, glyph_transparent)
             end
 
         elseif n_id == whatsit_t then
-            if current_color then
-                head, n, current_color = color_whatsit(head, n, current_color, false)
-            end
+            head, n, current_color = color_whatsit(head, n, color_stack, current_color, nil)
+            head, n, current_transparent = color_whatsit(head, n, transparent_stack, current_transparent, nil)
 
         end
 
         n = getnext(n)
     end
 
-    if toplevel and current_color then
-        head, _, current_color = color_whatsit(head, nodetail(head), current_color, false, true)
+    if toplevel then
+        local nn = nodetail(head)
+        head, nn, current_color = color_whatsit(head, nn, color_stack, current_color, nil, true)
+        head, nn, current_transparent = color_whatsit(head, nn, transparent_stack, current_transparent, nil, true)
     end
 
     setattribute(head, color_attr, 1)
-    return head, current_color
+    return head, current_color, current_transparent
 end
 
 local getpageres = pdf.getpageresources or function() return pdf.pageresources end
@@ -288,23 +243,23 @@ local gettoks, scantoks = tex.gettoks, tex.scantoks
 local pgf = { bye = "pgfutil@everybye", extgs = "\\pgf@sys@addpdfresource@extgs@plain" }
 
 --- node -> node
-local color_handler = function (head)
+local function color_handler (head)
     head = todirect(head)
     head = node_colorize(head, true)
     head = tonode(head)
 
     -- now append our page resources
-    if res then
-        res["1"]  = true
-        if scantoks and pgf.bye and not pgf.loaded then
+    if res and tonumber(transparent_stack) then
+        if scantoks and nil == pgf.loaded then
             pgf.loaded = token.create(pgf.bye).cmdname == "assign_toks"
-            pgf.bye    = pgf.loaded and pgf.bye
         end
-        local tpr = pgf.loaded and gettoks(pgf.bye) or getpageres() or ""
+        local tpr = pgf.loaded                 and gettoks(pgf.bye) or -- PGF
+                    -- token.is_defined'TRP@list' and token.get_macro'TRP@list' or -- transparency
+                                                   getpageres() or ""
 
         local t   = ""
         for k in pairs(res) do
-            local str = stringformat("/TransGs%s<</ca %s>>", k, k) -- don't touch stroking elements
+            local str = stringformat("/TransGs%.3g<</ca %.3g>>", k, k) -- don't touch stroking elements
             if not tpr:find(str) then
                 t = t .. str
             end
@@ -312,6 +267,8 @@ local color_handler = function (head)
         if t ~= "" then
             if pgf.loaded then
                 scantoks("global", pgf.bye, catat11, stringformat("%s{%s}%s", pgf.extgs, t, tpr))
+            -- elseif token.is_defined'TRP@list' then
+            --     token.set_macro('TRP@list', t .. tpr, 'global')
             else
                 local tpr, n = tpr:gsub("/ExtGState<<", "%1"..t)
                 if n == 0 then
@@ -328,12 +285,6 @@ end
 local color_callback_name      = "luaotfload.color_handler"
 local color_callback_activated = 0
 local add_to_callback          = luatexbase.add_to_callback
-
---- unit -> bool
-local mlist_to_hlist_initial = function ()
-    local cdesc = luatexbase.callback_descriptions "mlist_to_hlist"
-    return cdesc and cdesc[1] == color_callback_name
-end
 
 --- unit -> unit
 add_color_callback = function ( )
@@ -356,11 +307,8 @@ add_color_callback = function ( )
                             return head
                         end,
                         color_callback_name)
-        add_to_callback("mlist_to_hlist",
-                        function (head, display_type, need_penalties)
-                            if mlist_to_hlist_initial () then
-                                head = mlist_to_hlist(head, display_type, need_penalties)
-                            end
+        add_to_callback("post_mlist_to_hlist_filter",
+                        function (head, display_type)
                             if display_type == "text" then
                                 return head
                             end
@@ -381,14 +329,72 @@ end
 ---         hexadecimal, with an optional fourth transparency
 ---         value)
 ---
-local setcolor = function (tfmdata, value)
-    local sanitized  = sanitize_color_expression(value)
+local glyph_color_tables = { }
+-- Currently this either sets a common color for the whole font or
+-- builds a GID lookup table. This might change later to replace the
+-- lookup table with color information in the character hash. The
+-- problem with that approach right now are differences between harf
+-- and node and difficulties with getting the mapped unicode value for
+-- a GID.
+local function setcolor (tfmdata, value)
+    local sanitized_rgb, sanitized_a
+    local color_table = glyph_color_tables[tonumber(value) or value]
+    if color_table then
+        sanitized_rgb = {}
+        local unicodes = tfmdata.resources.unicodes
+        local gid_mapping = {}
+        local descriptions = tfmdata.descriptions or tfmdata.characters
+        for color, glyphs in next, color_table do
+            for _, glyph in ipairs(glyphs) do
+                local gid = glyph == "default" and "default" or tonumber(glyph)
+                if not gid then
+                    local unicode = unicodes[glyph]
+                    local desc = unicode and descriptions[unicode]
+                    gid = desc and (desc.index or unicode)
+                end
+                if gid then
+                    local a
+                    sanitized_rgb[gid], a
+                        = sanitize_color_expression(color)
+                    if a then
+                        sanitized_a = sanitized_a or {}
+                        sanitized_a[gid] = a
+                    end
+                else
+                    -- TODO: ??? Error out, warn or just ignore? Ignore
+                    -- makes sense because we have to ignore for GIDs
+                    -- anyway.
+                end
+            end
+        end
+    else
+        sanitized_rgb, sanitized_a = sanitize_color_expression(value)
+    end
     local properties = tfmdata.properties
 
-    if sanitized then
-        properties.color = sanitized
+    if sanitized_rgb then
+        properties.color_rgb, properties.color_a = sanitized_rgb, sanitized_a
         add_color_callback()
     end
+end
+
+function luaotfload.add_colorscheme(name, colortable)
+  if fonts == nil then
+    fonts = name
+    name = #glyph_color_tables + 1
+  else
+    name = name:lower()
+  end
+  glyph_color_tables[name] = colortable
+  return name
+end
+
+-- cb must have the signature
+-- head, n = cb(head, n, color)
+-- and apply the PDF color operators in color to the node n.
+-- Call with nil to disable.
+function luaotfload.set_colorhandler(cb)
+  custom_setcolor = cb
 end
 
 return function ()
@@ -405,6 +411,7 @@ return function ()
         initializers = {
             base = setcolor,
             node = setcolor,
+            plug = setcolor,
         }
     }
     return true

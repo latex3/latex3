@@ -6,8 +6,8 @@
 
 local ProvidesLuaModule = { 
     name          = "luaotfload-filelist",
-    version       = "3.00",       --TAGVERSION
-    date          = "2019-09-13", --TAGDATE
+    version       = "3.13",       --TAGVERSION
+    date          = "2020-05-01", --TAGDATE
     description   = "luaotfload submodule / filelist",
     license       = "GPL v2.0"
 }
@@ -248,11 +248,17 @@ luaotfload.filelist.data =
     { name = "letterspace"       ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" }, 
     { name = "embolden"          ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" },
     { name = "notdef"            ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" },
+    { name = "harf-define"       ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" },
+    { name = "harf-plug"         ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" },
     { name = "loaders"           ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" }, 
     { name = "multiscript"       ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" }, 
+    { name = "scripts"           ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" },
+    { name = "szss"              ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" },
+    { name = "fallback"          ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" }, 
     { name = "parsers"           ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" }, 
     { name = "resolvers"         ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" }, 
     { name = "unicode"           ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" },
+    { name = "tounicode"         ,kind = kind_library, ext =".lua", gitdir=gitdirsrc, texdir=texdirtex, gitpref = "luaotfload-" },
 
     { name = "characters"        ,kind = kind_generated, ext =".lua", gitdir=gitdirgen, texdir=texdirtex, gitpref = "luaotfload-", script="mkcharacter" },
     { name = "glyphlist"         ,kind = kind_generated, ext =".lua", gitdir=gitdirgen, texdir=texdirtex, gitpref = "luaotfload-", script="mkglyphlist" },

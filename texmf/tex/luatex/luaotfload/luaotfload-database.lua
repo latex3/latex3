@@ -5,8 +5,8 @@
 do -- block to avoid to many local variables error
  local ProvidesLuaModule = { 
      name          = "luaotfload-database",
-     version       = "3.00",       --TAGVERSION
-     date          = "2019-09-13", --TAGDATE
+     version       = "3.13",       --TAGVERSION
+     date          = "2020-05-01", --TAGDATE
      description   = "luaotfload submodule / database",
      license       = "GPL v2.0",
      author        = "Khaled Hosny, Elie Roux, Philipp Gesang, Marcel Krüger",
@@ -148,7 +148,6 @@ local gzipload                 = gzip.load
 local gzipsave                 = gzip.save
 local iolines                  = io.lines
 local ioopen                   = io.open
-local iopopen                  = io.popen
 local kpseexpand_path          = kpse.expand_path
 local kpsefind_file            = kpse.find_file
 local kpselookup               = kpse.lookup
@@ -168,13 +167,14 @@ local stringgmatch             = string.gmatch
 local stringgsub               = string.gsub
 local stringlower              = string.lower
 local stringsub                = string.sub
-local stringupper              = string.upper
 local tableconcat              = table.concat
 local tablesort                = table.sort
 local utf8len                  = utf8.len
 local utf8offset               = utf8.offset
 
 --- these come from Lualibs/Context
+local context_environment      = luaotfload.fontloader
+local caches                   = context_environment.caches
 local filebasename             = file.basename
 local filecollapsepath         = file.collapsepath or file.collapse_path
 local filedirname              = file.dirname
@@ -198,9 +198,9 @@ local tablecontains            = table.contains
 local tablecopy                = table.copy
 local tablefastcopy            = table.fastcopy
 local tabletofile              = table.tofile
-local tabletohash              = table.tohash
 local tableserialize           = table.serialize
 local names                    = fonts and fonts.names or { }
+local resolversfindfile        = context_environment.resolvers.findfile
 
 --- some of our own
 local unicode                  = require'luaotfload-unicode'
@@ -211,7 +211,7 @@ local name_index               = nil --> upvalue for names.data
 local lookup_cache             = nil --> for names.lookups
 
 --- string -> (string * string)
-local make_luanames = function (path)
+local function make_luanames (path)
     return filereplacesuffix(path, "lua"),
            filereplacesuffix(path, "luc")
 end
@@ -224,7 +224,7 @@ local location_precedence = {
     "local", "system", "texmf",
 }
 
-local set_location_precedence = function (precedence)
+local function set_location_precedence (precedence)
     location_precedence = precedence
 end
 
@@ -282,7 +282,7 @@ local macroman2utf8 do
         return utf8.char(table.unpack(bytes))
     end
 end
-local sanitize_fontname = function (str)
+local function sanitize_fontname (str)
     if str ~= nil then
         str = utf8len(str) and str or macroman2utf8(str)
         str = alphnum_only(casefold(str, true))
@@ -291,7 +291,7 @@ local sanitize_fontname = function (str)
     return nil
 end
 
-local sanitize_fontnames = function (rawnames)
+local function sanitize_fontnames (rawnames)
     local result = { }
     for category, namedata in next, rawnames do
 
@@ -310,8 +310,7 @@ local sanitize_fontnames = function (rawnames)
     return result
 end
 
-local find_files_indeed
-find_files_indeed = function (acc, dirs, filter)
+local function find_files_indeed (acc, dirs, filter)
     if not next (dirs) then --- done
         return acc
     end
@@ -343,14 +342,14 @@ find_files_indeed = function (acc, dirs, filter)
     return find_files_indeed (acc, dirs, filter)
 end
 
-local dummyfilter = function () return true end
+local function dummyfilter () return true end
 
 --- the optional filter function receives the full path of a file
 --- system entity. a filter applies if the first argument it returns is
 --- true.
 
 --- string -> function? -> string list
-local find_files = function (root, filter)
+local function find_files (root, filter)
     if lfsisdir (root) then
         return find_files_indeed ({}, { root }, filter or dummyfilter)
     end
@@ -467,7 +466,7 @@ mtx-fonts has in names.tma:
 
 --- string list -> string option -> dbobj
 
-local initialize_namedata = function (formats, created)
+local function initialize_namedata (formats, created)
     local now = os.date "%Y-%m-%d %H:%M:%S" --- i. e. "%F %T" on POSIX systems
     return {
         status          = { }, -- was: status; map abspath -> mapping
@@ -489,7 +488,7 @@ end
 --- .luc.
 
 --- string -> (string * table)
-local load_lua_file = function (path)
+local function load_lua_file (path)
     local foundname = filereplacesuffix (path, "luc")
     local code      = nil
 
@@ -632,8 +631,7 @@ getmetadata = function ()
 end
 
 --- unit -> unit
-local load_lookups
-load_lookups = function ( )
+local function load_lookups ( )
     local foundname, data = load_lua_file(config.luaotfload.paths.lookup_path_lua)
     if data then
         logreport ("log", 0, "cache", "Lookup cache loaded from %s.", foundname)
@@ -671,7 +669,7 @@ local casefold_search =
         [(kpse.var_value'texmf_casefold_search' or '1'):sub(1,1)]
 -- /MK
 
-local lookup_filename = function (filename)
+local function lookup_filename (filename)
     if not name_index then name_index = load_names () end
     local files    = name_index.files
     local basedata = files.base
@@ -736,7 +734,7 @@ lookup_font_file = function (filename)
     if not found then
         local type = file.suffix(filename)
         if type ~= "" then
-            found = resolvers.findfile(filename, type)
+            found = resolversfindfile(filename, type)
         end
     end
 
@@ -746,7 +744,7 @@ lookup_font_file = function (filename)
 
     for i=1, #type1_metrics do
         local format = type1_metrics[i]
-        if resolvers.findfile(filename, format) then
+        if resolversfindfile(filename, format) then
             return file.addsuffix(filename, format), format, true
         end
     end
@@ -778,14 +776,14 @@ end
 --doc]]--
 
 --- int -> bool * (string * int) option
-local get_font_file = function (index)
+local function get_font_file (index)
     local entry = name_index.mappings [index]
     if not entry then
         return false
     end
     local basename = entry.basename
     if entry.location == "texmf" then
-        local fullname = resolvers.findfile(basename, entry.format)
+        local fullname = resolversfindfile(basename, entry.format)
         if fullname then
             return true, fullname, entry.subfont
         end
@@ -804,12 +802,12 @@ the texmf or filesystem. Again, due to the schizoprenic nature of the
 font managment we have to check both the system path and the texmf.
 --doc]]--
 
-local verify_font_file = function (basename)
+local function verify_font_file (basename)
     local path = lookup_fullpath (basename)
     if path and lfsisfile(path) then
         return true
     end
-    if resolvers.findfile(basename) then
+    if resolversfindfile(basename) then
         return true
     end
     return false
@@ -855,7 +853,7 @@ local hash_fields = {
 local n_hash_fields = #hash_fields
 
 --- spec -> string
-local hash_request = function (specification)
+local function hash_request (specification)
     local key = { } --- segments of the hash
     for i=1, n_hash_fields do
         local field = specification[hash_fields[i]]
@@ -867,8 +865,7 @@ local hash_request = function (specification)
 end
 
 --- 'a -> 'a -> table -> (string * int|boolean * boolean)
-local lookup_font_name_cached
-lookup_font_name_cached = function (specification)
+local function lookup_font_name_cached (specification)
     if not lookup_cache then load_lookups () end
     local request = hash_request(specification)
     logreport ("both", 4, "cache", "Looking for %q in cache ...",
@@ -916,7 +913,7 @@ end
 --- this used to be inlined; with the lookup cache we don’t
 --- have to be parsimonious wrt function calls anymore
 --- “found” is the match accumulator
-local add_to_match = function (found, size, face)
+local function add_to_match (found, size, face)
 
     local continue = true
 
@@ -944,7 +941,7 @@ local add_to_match = function (found, size, face)
     return found, continue
 end
 
-local choose_closest = function (distances)
+local function choose_closest (distances)
     local closest = 2^51
     local match
     for i = 1, #distances do
@@ -1042,7 +1039,7 @@ end
 
 --doc]]--
 --- spec -> string -> string -> int -> string * int * bool
-local lookup_familyname = function (specification, name, style, askedsize)
+local function lookup_familyname (specification, name, style, askedsize)
     local families   = name_index.families
     local mappings   = name_index.mappings
     local candidates = nil
@@ -1083,7 +1080,7 @@ local lookup_familyname = function (specification, name, style, askedsize)
     return resolved, subfont, fallback
 end
 
-local lookup_fontname = function (specification, name)
+local function lookup_fontname (specification, name)
     local mappings    = name_index.mappings
     local fallback    = nil
     local lastresort  = nil
@@ -1142,7 +1139,7 @@ do
 
     design_size_dimension = dimens.bp
 
-    set_size_dimension = function (dim)
+    function set_size_dimension (dim)
         local conv = dimens [dim]
         if conv ~= nil then
             logreport ("both", 4, "db",
@@ -1306,7 +1303,7 @@ reload_db = function (why, caller, ...)
 end
 
 --- string -> string -> int
-local iterative_levenshtein = function (s1, s2)
+local function iterative_levenshtein (s1, s2)
 
   local costs = { }
   local len1, len2 = #s1, #s2
@@ -1334,7 +1331,7 @@ local iterative_levenshtein = function (s1, s2)
 end
 
 --- string list -> string list
-local delete_dupes = function (lst)
+local function delete_dupes (lst)
     local n0 = #lst
     if n0 == 0 then return lst end
     tablesort (lst)
@@ -1413,7 +1410,7 @@ find_closest = function (name, limit)
             local dist     = distances[i]
             local namelst  = delete_dupes (by_distance[dist])
             logreport (false, 0, "query",
-                       "Distance from \"%s\": %s\n    "
+                       "Distance from %q: %s\n    "
                        .. tableconcat (namelst, "\n    "),
                        name, dist)
         end
@@ -1424,7 +1421,7 @@ find_closest = function (name, limit)
 end --- find_closest()
 
 --- string -> uint -> bool * (string | rawdata)
-local read_font_file = function (filename, subfont)
+local function read_font_file (filename, subfont)
     local fontdata = otfhandler.readers.getinfo (filename,
                                                  { subfont        = subfont
                                                  , platformnames  = true
@@ -1437,7 +1434,7 @@ local read_font_file = function (filename, subfont)
     return true, fontdata
 end
 
-local load_font_file = function (filename, subfont)
+local function load_font_file (filename, subfont)
     local err, ret = read_font_file (filename, subfont)
     if err == false then
         logreport ("both", 1, "db", "ERROR: failed to open %q: %q.",
@@ -1457,7 +1454,7 @@ local get_size_info do --- too many upvalues :/
     local sp = 2^16        -- pt
     local bp = 7227 / 7200 -- pt
 
-    get_size_info = function (rawinfo)
+    function get_size_info (rawinfo)
         local design_size         = rawinfo.design_size
         local design_range_top    = rawinfo.design_range_top
         local design_range_bottom = rawinfo.design_range_bottom
@@ -1491,7 +1488,7 @@ end ---[local get_size_info]
     stick to that part.
 --doc]]--
 
-local get_english_names = function (metadata)
+local function get_english_names (metadata)
     local namesource
     local platformnames = metadata.platformnames
     --[[--
@@ -1538,7 +1535,7 @@ end
     For this reason we copy what is necessary whilst keeping the table
     structure the same as in the tfmdata.
 --]]--
-local get_raw_info = function (metadata, basename)
+local function get_raw_info (metadata, basename)
     local fontname = metadata.fontname
     local fullname = metadata.fullname
 
@@ -1569,10 +1566,10 @@ local get_raw_info = function (metadata, basename)
     }
 end
 
-local organize_namedata = function (rawinfo,
-                                    nametable,
-                                    basename,
-                                    info)
+local function organize_namedata (rawinfo,
+                                  nametable,
+                                  basename,
+                                  info)
     local default_name = nametable.compatiblefullname
                       or nametable.fullname
                       or nametable.postscriptname
@@ -1639,7 +1636,7 @@ end
 
 local dashsplitter = lpegsplitat "-"
 
-local split_fontname = function (fontname)
+local function split_fontname (fontname)
     --- sometimes the style hides in the latter part of the
     --- fontname, separated by a dash, e.g. “Iwona-Regular”,
     --- “GFSSolomos-Regular”
@@ -1649,7 +1646,7 @@ local split_fontname = function (fontname)
     end
 end
 
-local organize_styledata = function (metadata, rawinfo, info)
+local function organize_styledata (metadata, rawinfo, info)
     local pfminfo   = metadata.pfminfo
     local names     = rawinfo.names
     return {
@@ -1777,13 +1774,13 @@ local loaders = {
 
 --- not side-effect free!
 
-local compare_timestamps = function (fullname,
-                                     currentstatus,
-                                     currententrystatus,
-                                     currentmappings,
-                                     targetstatus,
-                                     targetentrystatus,
-                                     targetmappings)
+local function compare_timestamps (fullname,
+                                   currentstatus,
+                                   currententrystatus,
+                                   currentmappings,
+                                   targetstatus,
+                                   targetentrystatus,
+                                   targetmappings)
 
     local currenttimestamp = currententrystatus
                          and currententrystatus.timestamp
@@ -1821,15 +1818,15 @@ local compare_timestamps = function (fullname,
     return true
 end
 
-local insert_fullinfo = function (fullname,
-                                  basename,
-                                  n_font,
-                                  loader,
-                                  format,
-                                  location,
-                                  targetmappings,
-                                  targetentrystatus,
-                                  info)
+local function insert_fullinfo (fullname,
+                                basename,
+                                n_font,
+                                loader,
+                                format,
+                                location,
+                                targetmappings,
+                                targetentrystatus,
+                                info)
 
     local fullinfo = loader (fullname, n_font,
                              location, basename,
@@ -1856,10 +1853,10 @@ end
 --- we return true if the font is new or re-indexed
 --- string -> dbobj -> dbobj -> bool
 
-local read_font_names = function (fullname,
-                                  currentnames,
-                                  targetnames,
-                                  location)
+local function read_font_names (fullname,
+                                currentnames,
+                                targetnames,
+                                location)
 
     local targetmappings        = targetnames.mappings
     local targetstatus          = targetnames.status --- by full path
@@ -1963,7 +1960,7 @@ do
     --- windows and dos
     if os_type == "windows" or os_type == "msdos" then
         --- ms platfom specific stuff
-        path_normalize = function (path)
+        function path_normalize (path)
             path = stringgsub(path, '\\', '/')
             path = stringlower(path)
             path = filecollapsepath(path)
@@ -1976,7 +1973,7 @@ do
 --doc]]--
 
     else -- posix
-        path_normalize = function (path)
+        function path_normalize (path)
             local dest = lfsreadlink(path)
             if dest then
                 if kpsereadable_file(dest) then
@@ -1997,7 +1994,7 @@ local blacklist = { }
 local p_blacklist --- prefixes of dirs
 
 --- string list -> string list
-local collapse_prefixes = function (lst)
+local function collapse_prefixes (lst)
     --- avoid redundancies in blacklist
     if #lst < 2 then
         return lst
@@ -2018,7 +2015,7 @@ local collapse_prefixes = function (lst)
 end
 
 --- string list -> string list -> (string, bool) hash_t
-local create_blacklist = function (blacklist, whitelist)
+local function create_blacklist (blacklist, whitelist)
     local result = { }
     local dirs   = { }
 
@@ -2099,7 +2096,7 @@ end
 local p_font_filter
 
 do
-    local extension_pattern = function (list)
+    local function extension_pattern (list)
         if type (list) ~= "table" or #list == 0 then return P(-1) end
         local pat
         for i=#list, 1, -1 do
@@ -2119,15 +2116,14 @@ do
 
     local current_formats = { }
 
-    set_font_filter = function (formats)
+    function set_font_filter (formats)
 
         if not formats or type (formats) ~= "string" then
             return
         end
 
-        if splitcomma == nil then
-            splitcomma = luaotfload.parsers and luaotfload.parsers.splitcomma
-        end
+        local splitcomma = luaotfload.parsers and luaotfload.parsers.splitcomma
+
         if stringsub (formats, 1, 1) == "+" then -- add
             formats = lpegmatch (splitcomma, stringsub (formats, 2))
             if formats then
@@ -2161,12 +2157,12 @@ do
         p_font_filter = extension_pattern (current_formats)
     end
 
-    get_font_filter = function (formats)
+    function get_font_filter (formats)
         return tablefastcopy (current_formats)
     end
 end
 
-local locate_matching_pfb = function (afmfile, dir)
+local function locate_matching_pfb (afmfile, dir)
     local pfbname = filereplacesuffix (afmfile, "pfb")
     local pfbpath = dir .. "/" .. pfbname
     if lfsisfile (pfbpath) then
@@ -2176,8 +2172,7 @@ local locate_matching_pfb = function (afmfile, dir)
     return kpsefind_file (pfbname, "type1 fonts")
 end
 
-local process_dir_tree
-process_dir_tree = function (acc, dirs, done)
+local function process_dir_tree (acc, dirs, done)
     if not next (dirs) then --- done
         return acc
     end
@@ -2230,7 +2225,7 @@ process_dir_tree = function (acc, dirs, done)
     return process_dir_tree (tableappend (acc, newfiles), dirs, done)
 end
 
-local process_dir = function (dir)
+local function process_dir (dir)
     local pwd = lfscurrentdir ()
     if lfschdir (dir) then
         dir = lfscurrentdir () --- resolve symlinks
@@ -2263,7 +2258,7 @@ local process_dir = function (dir)
 end
 
 --- string -> bool -> string list
-local find_font_files = function (root, recurse)
+local function find_font_files (root, recurse)
     if lfsisdir (root) then
         if recurse == true then
             return process_dir_tree ({}, { root }, {})
@@ -2277,11 +2272,18 @@ end
 --- into a given terminal width. The parameter “restrict” (int)
 --- indicates the number of characters already consumed on the
 --- line.
-local truncate_string = function (str, restrict)
+local function truncate_string (str, restrict)
     local tw  = config.luaotfload.misc.termwidth
     local wd  = tw - restrict
     local len = utf8len (str)
-    if wd - len < 0 then
+    if not len then
+        -- str is not valid UTF-8... We will assume a 8-bit
+        -- encoding and forward it verbatim to the output.
+        len = #str
+        if wd - len < 0 then
+            str = ".." .. stringsub(str, len - wd + 2)
+        end
+    elseif wd - len < 0 then
         --- combined length exceeds terminal,
         str = ".." .. stringsub(str, utf8offset(str, - wd + 2))
     end
@@ -2298,7 +2300,7 @@ end
 --doc]]--
 
 --- string -> string -> string * string list
-local collect_font_filenames_dir = function (dirname, location)
+local function collect_font_filenames_dir (dirname, location)
     if lpegmatch (p_blacklist, dirname) then
         logreport ("both", 4, "db",
                    "Skipping blacklisted directory %s.", dirname)
@@ -2326,7 +2328,7 @@ local collect_font_filenames_dir = function (dirname, location)
 end
 
 --- string list -> string list
-local filter_out_pwd = function (dirs)
+local function filter_out_pwd (dirs)
     local result = { }
     if stripslashes == nil then
         stripslashes = luaotfload.parsers and luaotfload.parsers.stripslashes
@@ -2338,7 +2340,7 @@ local filter_out_pwd = function (dirs)
         local dir = path_normalize (lpegmatch (stripslashes, dirs[i]))
         if dir == "." or dir == pwd then
             logreport ("both", 3, "db",
-                       "Path “%s” matches $PWD (“%s”), skipping.",
+                       "Path %q matches $PWD (%q), skipping.",
                        dir, pwd)
         else
             result[#result+1] = dir
@@ -2362,7 +2364,7 @@ local path_separator = os.type == "windows" and ";" or ":"
 --doc]]--
 
 --- unit -> string * string list
-local collect_font_filenames_texmf = function ()
+local function collect_font_filenames_texmf ()
 
     local osfontdir = kpseexpand_path "$OSFONTDIR"
 
@@ -2411,7 +2413,8 @@ local function get_os_dirs ()
         }
     elseif os.type == "windows" or os.type == "msdos" then
         local windir = osgetenv("WINDIR")
-        return { filejoin(windir, 'Fonts') }
+        local appdata = osgetenv("LOCALAPPDATA")
+        return { filejoin(windir, 'Fonts'), filejoin(appdata, 'Microsoft/Windows/Fonts') }
     else
         local fonts_conves = { --- plural, much?
             "/usr/local/etc/fonts/fonts.conf",
@@ -2433,7 +2436,7 @@ end
 --doc]]--
 
 --- string list -> size_t
-local count_removed = function (files)
+local function count_removed (files)
     if not files or not files.full then
         logreport ("log", 4, "db", "Empty file store; no data to work with.")
         return 0
@@ -2446,7 +2449,7 @@ local count_removed = function (files)
         local f = old[i]
         if not kpsereadable_file (f) then
             logreport ("log", 2, "db",
-                      "File %s does not exist in file system.")
+                      "File %q does not exist in file system.")
             nrem = nrem + 1
         end
     end
@@ -2468,7 +2471,7 @@ end
 --doc]]--
 
 --- string * string list -> dbobj -> dbobj -> bool? -> int * int
-local retrieve_namedata = function (files, currentnames, targetnames, dry_run)
+local function retrieve_namedata (files, currentnames, targetnames, dry_run)
 
     local nfiles    = #files
     local nnew      = 0
@@ -2510,7 +2513,7 @@ local retrieve_namedata = function (files, currentnames, targetnames, dry_run)
 end
 
 --- unit -> string * string list
-local collect_font_filenames_system = function ()
+local function collect_font_filenames_system ()
 
     local n_scanned, n_new = 0, 0
     logreport ("info", 1, "db", "Scanning system fonts...")
@@ -2545,7 +2548,7 @@ end
 --doc]]--
 
 --- unit -> string * string list
-local collect_font_filenames_local = function ()
+local function collect_font_filenames_local ()
     local pwd = lfscurrentdir ()
     logreport ("both", 1, "db", "Scanning for fonts in $PWD (%q) ...", pwd)
 
@@ -2751,11 +2754,11 @@ local pick_fallback_style
 local check_regular
 
 do
-    pick_style = function (typographicsubfamily, subfamily)
+    function pick_style (typographicsubfamily, subfamily)
         return style_synonym [typographicsubfamily or subfamily or ""]
     end
 
-    pick_fallback_style = function (italicangle, pfmweight, width)
+    function pick_fallback_style (italicangle, pfmweight, width)
         --[[--
             More aggressive, but only to determine bold faces.
             Note: Before you make this test more inclusive, ensure
@@ -2786,12 +2789,12 @@ do
     --- we use only exact matches here since there are constructs
     --- like “regularitalic” (Cabin, Bodoni Old Fashion)
 
-    check_regular = function (typographicsubfamily,
-                              subfamily,
-                              italicangle,
-                              weight,
-                              width,
-                              pfmweight)
+    function check_regular (typographicsubfamily,
+                            subfamily,
+                            italicangle,
+                            weight,
+                            width,
+                            pfmweight)
         local plausible_weight = false
         --[[--
           This filters out undesirable candidates that specify their
@@ -2832,7 +2835,7 @@ do
     end
 end
 
-local pull_values = function (entry)
+local function pull_values (entry)
     local file              = entry.file
     local names             = entry.names
     local style             = entry.style
@@ -2870,7 +2873,7 @@ local pull_values = function (entry)
     end
 end
 
-local add_family = function (name, subtable, modifier, entry)
+local function add_family (name, subtable, modifier, entry)
     if not name then --- probably borked font
         return
     end
@@ -2886,7 +2889,7 @@ local add_family = function (name, subtable, modifier, entry)
     }
 end
 
-local add_lastresort_regular = function (name, subtable, entry)
+local function add_lastresort_regular (name, subtable, entry)
     if not name then --- probably borked font
         return
     end
@@ -2898,7 +2901,7 @@ local add_lastresort_regular = function (name, subtable, entry)
     familytable.fallback = entry.index
 end
 
-local get_subtable = function (families, entry)
+local function get_subtable (families, entry)
     local location  = entry.location
     local format    = entry.format
     local subtable  = families [location] [format]
@@ -2909,7 +2912,7 @@ local get_subtable = function (families, entry)
     return subtable
 end
 
-local collect_families = function (mappings)
+local function collect_families (mappings)
 
     logreport ("info", 2, "db", "Analyzing families.")
 
@@ -3075,7 +3078,7 @@ group_modifiers = function (mappings, families)
     return families
 end
 
-local cmp_sizes = function (a, b)
+local function cmp_sizes (a, b)
     return a [1] < b [1]
 end
 
@@ -3098,13 +3101,46 @@ end
 
 --[[doc--
 
+    Get the subfont index corresponding to a given psname in a
+    font collection
+
+--doc]]--
+
+local function lookup_subfont_index(filepath, psname)
+    assert(name_index)
+    -- if not name_index then name_index = load_names () end
+    local filestatus = name_index.status[filepath]
+    local mappings = name_index.mappings
+    if filestatus then
+        for subfont, idx in next, filestatus.index do
+            if mappings[idx].psname == psname then
+                return subfont or 1
+            end
+        end
+    end
+
+    -- If that didn't work, we do a manual search
+    psname = sanitize_fontname(psname)
+    local err, info = read_font_file (filepath)
+    if #info == 0 then return 1 end
+    for i = 1, #info do
+        for _, names in next, info[i].platformnames do
+            if psname == sanitize_fontname(names.postscriptname) then
+                return i
+            end
+        end
+    end
+end
+
+--[[doc--
+
     collect_font_filenames -- Scan the three search path categories for
     font files. This constitutes the first pass of the update mode.
 
 --doc]]--
 
 --- unit -> string * string list
-local collect_font_filenames = function ()
+local function collect_font_filenames ()
 
     logreport ("info", 4, "db", "Scanning the filesystem for font files.")
 
@@ -3141,7 +3177,7 @@ end
 --doc]]--
 
 --- int -> string
-local nth_font_filename = function (n)
+local function nth_font_filename (n)
     logreport ("info", 4, "db", "Picking font file no. %d.", n)
     if not p_blacklist then
         read_blacklist ()
@@ -3156,7 +3192,7 @@ end
 
 --doc]]--
 
-local font_slice = function (lo, hi)
+local function font_slice (lo, hi)
     logreport ("info", 4, "db", "Retrieving font files nos. %d--%d.", lo, hi)
     if not p_blacklist then
         read_blacklist ()
@@ -3178,7 +3214,7 @@ end
 --doc]]--
 
 --- unit -> int
-local count_font_files = function ()
+local function count_font_files ()
     logreport ("info", 4, "db", "Counting font files.")
     if not p_blacklist then
         read_blacklist ()
@@ -3188,13 +3224,13 @@ end
 
 --- dbobj -> stats
 
-local collect_statistics = function (mappings)
+local function collect_statistics (mappings)
     local sum_dsnsize, n_dsnsize = 0, 0
 
     local fullname, family, families = { }, { }, { }
     local subfamily, typographicsubfamily = { }, { }
 
-    local addtohash = function (hash, item)
+    local function addtohash (hash, item)
         if item then
             local times = hash [item]
             if times then
@@ -3205,7 +3241,7 @@ local collect_statistics = function (mappings)
         end
     end
 
-    local appendtohash = function (hash, key, value)
+    local function appendtohash (hash, key, value)
         if key and value then
             local entry = hash [key]
             if entry then
@@ -3216,7 +3252,7 @@ local collect_statistics = function (mappings)
         end
     end
 
-    local addtoset = function (hash, key, value)
+    local function addtoset (hash, key, value)
         if key and value then
             local set = hash [key]
             if set then
@@ -3227,7 +3263,7 @@ local collect_statistics = function (mappings)
         end
     end
 
-    local setsize = function (set)
+    local function setsize (set)
         local n = 0
         for _, _ in next, set do
             n = n + 1
@@ -3235,7 +3271,7 @@ local collect_statistics = function (mappings)
         return n
     end
 
-    local hashsum = function (hash)
+    local function hashsum (hash)
         local n = 0
         for _, m in next, hash do
             n = n + m
@@ -3268,7 +3304,7 @@ local collect_statistics = function (mappings)
     local n_family   = setsize (family)
 
     if log.get_loglevel () > 1 then
-        local pprint_top = function (hash, n, set)
+        local function pprint_top (hash, n, set)
 
             local freqs = { }
             local items = { }
@@ -3317,12 +3353,12 @@ local collect_statistics = function (mappings)
         pprint_top (families, 4, true)
 
         logreport ("both", 0, "db",
-                   "   · %d different “subfamily” kinds.",
+                   "   · %d different \"subfamily\" kinds.",
                    setsize (subfamily))
         pprint_top (subfamily, 4)
 
         logreport ("both", 0, "db",
-                   "   · %d different “typographicsubfamily” kinds.",
+                   "   · %d different \"typographicsubfamily\" kinds.",
                    setsize (typographicsubfamily))
         pprint_top (typographicsubfamily, 4)
 
@@ -3560,8 +3596,8 @@ end
 --doc]]--
 
 --- string -> string -> string list -> string list -> string list -> unit
-local print_cache = function (category, path, luanames, lucnames, rest)
-    local report_indeed = function (...)
+local function print_cache (category, path, luanames, lucnames, rest)
+    local function report_indeed (...)
         logreport ("info", 0, "cache", ...)
     end
     report_indeed("Luaotfload cache: %s", category)
@@ -3573,7 +3609,7 @@ local print_cache = function (category, path, luanames, lucnames, rest)
 end
 
 --- string -> string -> string list -> bool -> bool
-local purge_from_cache = function (category, path, list, all)
+local function purge_from_cache (category, path, list, all)
     logreport ("info", 1, "cache", "Luaotfload cache: %s %s",
                (all and "erase" or "purge"), category)
     logreport ("info", 1, "cache", "location: %s", path)
@@ -3605,8 +3641,7 @@ end
 
 --- string -> string list -> int -> string list -> string list -> string list ->
 ---     (string list * string list * string list * string list)
-local collect_cache collect_cache = function (path, all, n, luanames,
-                                              lucnames, rest)
+local function collect_cache (path, all, n, luanames, lucnames, rest)
     if not all then
         local all = find_files (path)
 
@@ -3629,7 +3664,7 @@ local collect_cache collect_cache = function (path, all, n, luanames,
     return luanames, lucnames, rest, all
 end
 
-local getwritablecachepath = function ( )
+local function getwritablecachepath ( )
     --- fonts.handlers.otf doesn’t exist outside a Luatex run,
     --- so we have to improvise
     local writable = getwritablepath (config.luaotfload.paths.cache_dir, "")
@@ -3638,7 +3673,7 @@ local getwritablecachepath = function ( )
     end
 end
 
-local getreadablecachepaths = function ( )
+local function getreadablecachepaths ( )
     local readables = caches.getreadablepaths
                         (config.luaotfload.paths.cache_dir)
     local result    = { }
@@ -3654,7 +3689,7 @@ local getreadablecachepaths = function ( )
 end
 
 --- unit -> unit
-local purge_cache = function ( )
+local function purge_cache ( )
     local writable_path = getwritablecachepath ()
     local luanames, lucnames, rest = collect_cache(writable_path)
     if log.get_loglevel() > 1 then
@@ -3665,7 +3700,7 @@ local purge_cache = function ( )
 end
 
 --- unit -> unit
-local erase_cache = function ( )
+local function erase_cache ( )
     local writable_path = getwritablecachepath ()
     local luanames, lucnames, rest, all = collect_cache(writable_path)
     if log.get_loglevel() > 1 then
@@ -3675,12 +3710,12 @@ local erase_cache = function ( )
     return success
 end
 
-local separator = function ( )
+local function separator ( )
     logreport ("info", 0, string.rep("-", 67))
 end
 
 --- unit -> unit
-local show_cache = function ( )
+local function show_cache ( )
     local readable_paths = getreadablecachepaths ()
     local writable_path  = getwritablecachepath ()
     local luanames, lucnames, rest = collect_cache(writable_path)
@@ -3707,29 +3742,27 @@ end
 --- PHG: we need to investigate these, maybe they’re useful as early
 ---      hooks
 
-local ignoredfile = function () return false end
-
-local reportmissingbase = function ()
+local function reportmissingbase ()
     logreport ("info", 0, "db", --> bug‽
                "Font name database not found but expected by fontloader.")
     fonts.names.reportmissingbase = nil
 end
 
-local reportmissingname = function ()
+local function reportmissingname ()
     logreport ("info", 0, "db", --> bug‽
                "Fontloader attempted to lookup name before Luaotfload \z
                 was initialized.")
     fonts.names.reportmissingname = nil
 end
 
-local getfilename = function (a1, a2)
+local function getfilename (a1, a2)
     logreport ("info", 6, "db", --> bug‽
                "Fontloader looked up font file (%s, %s) before Luaotfload \z
                 was initialized.", tostring(a1), tostring(a2))
     return lookup_fullpath (a1, a2)
 end
 
-local resolve = function (name, subfont)
+local function resolve (name, subfont)
     logreport ("info", 6, "db", --> bug‽
                "Fontloader attempted to resolve name (%s, %s) before \z
                 Luaotfload was initialized.", tostring(name), tostring(subfont))
@@ -3737,7 +3770,7 @@ local resolve = function (name, subfont)
 end
 
 local api = {
-    ignoredfile       = ignoredfile,
+    ignoredfile       = function() return false end,
     reportmissingbase = reportmissingbase,
     reportmissingname = reportmissingname,
     getfilename       = getfilename,
@@ -3770,6 +3803,7 @@ local export = {
     count_font_files            = count_font_files,
     nth_font_filename           = nth_font_filename,
     font_slice                  = font_slice,
+    lookup_subfont_index        = lookup_subfont_index,
     --- font cache
     purge_cache                 = purge_cache,
     erase_cache                 = erase_cache,
