@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Recognize the exponent marker `E` (same as `e`) in floating point numbers
 
+### Fixed
+- Leave active characters untouched when case-changing (see #715)
+
 ## [2020-04-06]
 
 ### Added
