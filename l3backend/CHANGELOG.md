@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-05-05]
+
 ### Added
 - `\__pdf_backend_pageobject_ref:n`
 
@@ -67,7 +69,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-03-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-05-05...HEAD
+[2020-05-05]: https://github.com/latex3/latex3/compare/2020-03-12...2020-05-05
 [2020-03-12]: https://github.com/latex3/latex3/compare/2020-02-23...2020-03-12
 [2020-02-23]: https://github.com/latex3/latex3/compare/2020-02-21...2020-02-23
 [2020-02-21]: https://github.com/latex3/latex3/compare/2020-02-03...2020-02-21
