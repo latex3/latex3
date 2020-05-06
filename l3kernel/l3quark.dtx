@@ -635,8 +635,12 @@
   { \@@_new_test_aux:Nx #1 { \@@_get_module_name:N #1 } }
 \cs_new_protected:Npn \@@_new_test_aux:Nn #1 #2
   {
-    \@@_new_test:Nccn #1
-      { q__#2_recursion_tail } { q__#2_recursion_stop } { __#2 }
+    \tl_if_empty:nTF {#2}
+      { \__kernel_msg_expandable_error:nn { kernel } { invalid-quark-function } }
+      {
+        \@@_new_test:Nccn #1
+          { q__#2_recursion_tail } { q__#2_recursion_stop } { __#2 }
+      }
   }
 \cs_generate_variant:Nn \@@_new_test_aux:Nn { Nx }
 \cs_new_protected:Npn \@@_new_test:NNNn #1
@@ -652,11 +656,16 @@
       { \@@_get_quark_name:N #1 }
       { \@@_get_module_name:N #1 }
   }
-\cs_new_protected:Npn \@@_new_conditional:Nnnn #1
+\cs_new_protected:Npn \@@_new_conditional:Nnnn #1#2#3#4
   {
-    \exp_last_unbraced:Nf \@@_new_test_aux:nnNNnnnn
-      { \cs_split_function:N #1 }
-      #1 { conditional }
+    \tl_if_empty:nTF {#3} { \use_i:nn } { \tl_if_empty:nTF {#2} }
+      { \__kernel_msg_error:nn { kernel } { invalid-quark-function } }
+      {
+        \exp_last_unbraced:Nf \@@_new_test_aux:nnNNnnnn
+          { \cs_split_function:N #1 }
+          #1 { conditional }
+          {#2} {#3} {#4}
+      }
   }
 \cs_generate_variant:Nn \@@_new_conditional:Nnnn { Nxx }
 \cs_new_protected:Npn \@@_new_test_aux:nnNNnnnn #1 #2 #3 #4
@@ -850,99 +859,74 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[rEXP]{\@@_get_module_name:N}
-% \begin{macro}[rEXP]{
-%     \@@_get_module_name_auxi:w,
-%     \@@_get_module_name_auxii:w,
+% \begin{macro}[EXP]{\@@_get_module_name:N}
+% \begin{macro}[EXP]{
+%     \@@_get_module_name:w,
+%     \@@_get_module_name_loop:w,
+%     \@@_get_module_name_end:w
 %   }
-%   \cs{@@_get_module_name:N} takes a function and returns the \meta{module} name.
-%   |#1| may be a public function named as
-%   \cs[no-index]{\meta{module}_\meta{name}:\meta{signature}}, or a private
-%   function named as \cs[no-index]{__\meta{module}_\meta{name}:\meta{signature}}
-%   (more precisely, any number of underscore characters are removed from the start
-%   of the function name, and the \meta{module} name is delimited by the next |_|).
+%   \cs{@@_get_module_name:N} takes a control sequence and returns its
+%   \meta{module} name, determined as the first non-empty
+%   non-single-character word, separated by |_| or~|:|.  These rules
+%   give the correct result for public functions
+%   \cs[no-index]{\meta{module}_\ldots{}}, private functions
+%   \cs[no-index]{__\meta{module}_\ldots{}}, and variables such as
+%   \cs[no-index]{l_\meta{module}_\ldots{}}.  If no valid module is
+%   found the result is an empty string.  The approach is to first cut
+%   off everything after the (first) |:| if any is present, then
+%   repeatedly grab |_|-delimited words until finding one of length at
+%   least~$2$.  If no \meta{module} is found (such as in \cs{::n}) we
+%   get the trailing marker \cs{use_none:n} |{}|, which expands to
+%   nothing.
 %    \begin{macrocode}
-\cs_new:Npx \@@_get_module_name:N #1
+\cs_set:Npn \@@_tmp:w #1#2
   {
-    \exp_not:N \exp_last_unbraced:Nf \exp_not:N \@@_get_module_name_auxi:w
-      { \exp_not:N \cs_to_str:N #1 } \token_to_str:N _ \s_@@
-  }
-\cs_new:Npn \@@_get_module_name_auxi:w #1
-  {
-    \if_meaning:w \s_@@ #1
-      \__kernel_msg_expandable_error:nn { kernel } { invalid-quark-function }
-    \else:
-      \if_charcode:w _ #1
-        \exp_after:wN \use_i:nn
-      \else:
-        \exp_after:wN \use_ii:nn
-      \fi:
-        { \exp_after:wN \@@_get_module_name_auxi:w }
-        {
-          \exp_after:wN \@@_get_module_name_auxii:w
-          \exp_after:wN #1
-        }
-    \fi:
-  }
-\use:x
-  {
-    \cs_new:Npn \exp_not:N \@@_get_module_name_auxii:w ##1
-      \token_to_str:N _ ##2 \exp_not:N \s_@@
-  }
+    \cs_new:Npn \@@_get_module_name:N ##1
       {
-        \if:w \scan_stop: \tl_to_str:n {#1} \scan_stop:
-          \__kernel_msg_expandable_error:nn { kernel } { invalid-quark-function }
-        \else:
-          #1
-        \fi:
+        \exp_last_unbraced:Nf \@@_get_module_name:w
+          { \cs_to_str:N ##1 } #1 \s_@@
       }
+    \cs_new:Npn \@@_get_module_name:w ##1 #1 ##2 \s_@@
+      { \@@_get_module_name_loop:w ##1 #2 \use_none:n { } #2 \s_@@ }
+    \cs_new:Npn \@@_get_module_name_loop:w ##1 #2
+      {
+        \tl_if_empty:nTF {##1} { \@@_get_module_name_loop:w }
+          {
+            \tl_if_single:nTF {##1} { \@@_get_module_name_loop:w }
+              { ##1 \@@_get_module_name_end:w }
+          }
+      }
+    \cs_new:Npn \@@_get_module_name_end:w ##1 \s_@@ { }
+  }
+\exp_after:wN \@@_tmp:w \tl_to_str:n { : _ }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[rEXP]{\@@_get_quark_name:N}
-% \begin{macro}[rEXP]{
-%     \@@_quark_name_after_if:w,
-%     \@@_quark_name_after_if_cleanup:w,
-%     \@@_quark_name_until_colon:w,
-%   }
-%   \cs{@@_get_quark_name:N} takes a quark conditional function, and tries to
-%   guess the quark name that that function queries.  \cs{@@_get_quark_name:N}
-%   looks for the string |_quark_if_| in the function name, and takes everything
-%   up to the |:| as the name of the quark.  If either is not present, an error
-%   is raised and \cs{@@_get_quark_name:N} returns an empty string.
+% \begin{macro}[EXP]{\@@_get_quark_name:N, \@@_get_quark_name:w}
+%   \cs{@@_get_quark_name:N} determines the quark name that the quark
+%   conditional function~|##1| queries, as the part of the function name
+%   between |_quark_if_| and the trailing~|:|.  Again we define it
+%   through \cs{@@_tmp:w}, which receives |:| as |#1| and |_quark_if_|
+%   as |#2|.  The auxiliary \cs{@@_get_quark_name:w} returns the part
+%   between the first |_quark_if_| and the next~|:|, and we apply this
+%   auxiliary to the function name followed by |:| (in case the function
+%   name is lacking a signature), and |_quark_if_:| so that
+%   \cs{@@_get_quark_name:N} returns an empty string if |_quark_if_| is
+%   not present.
 %    \begin{macrocode}
-\cs_set:Npn \@@_tmp:w #1#2
+\cs_set:Npn \@@_tmp:w #1 #2 \s_@@
   {
     \cs_new:Npn \@@_get_quark_name:N ##1
       {
-        \exp_last_unbraced:Nf \@@_quark_name_after_if:w
-          { \cs_to_str:N ##1 } #1 \q_@@_nil \s_@@
+        \exp_last_unbraced:Nf \@@_get_quark_name:w
+          { \cs_to_str:N ##1 } #1 #2 #1 \s_@@
       }
-    \cs_new:Npn \@@_quark_name_after_if:w ##1 #1 ##2 \s_@@
-      {
-        \if_meaning:w \q_@@_nil ##2
-          \__kernel_msg_expandable_error:nn
-            { kernel } { invalid-quark-function }
-          \use_i:nnn
-        \fi:
-        \use:n { \@@_quark_name_after_if_cleanup:w ##2 }
-      }
-    \cs_new:Npn \@@_quark_name_after_if_cleanup:w ##1 #1 \q_@@_nil
-      { \@@_quark_name_until_colon:w ##1 #2 \q_@@_nil \s_@@ }
-    \cs_new:Npn \@@_quark_name_until_colon:w ##1 #2 ##2 \s_@@
-      {
-        \if_meaning:w \q_@@_nil ##2
-          \__kernel_msg_expandable_error:nn
-            { kernel } { invalid-quark-function }
-        \else:
-          ##1
-        \fi:
-      }
+    \cs_new:Npn \@@_get_quark_name:w
+      ##1 #2 ##2 #1 ##3 \s_@@ {##2}
   }
-\exp_args:Nxx \@@_tmp:w { \tl_to_str:n { _quark_if_ } } { \tl_to_str:n { : } }
+\exp_after:wN \@@_tmp:w \tl_to_str:n { : _quark_if_ } \s_@@
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \subsection{Scan marks}
