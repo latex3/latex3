@@ -7,8 +7,8 @@
 
 local ProvidesLuaModule = { 
     name          = "luaotfload-init",
-    version       = "3.00",       --TAGVERSION
-    date          = "2019-09-13", --TAGDATE
+    version       = "3.13",       --TAGVERSION
+    date          = "2020-05-01", --TAGDATE
     description   = "luaotfload submodule / initialization",
     license       = "GPL v2.0"
 }
@@ -78,122 +78,6 @@ local logreport  --- filled in after loading the log module
 
 --doc]]--
 
-local init_early = function ()
-
-  local store                  = { }
-  config                       = config or { } --- global
-  config.luaotfload            = config.luaotfload or { }
-  config.lualibs               = config.lualibs    or { }
-  config.lualibs.verbose       = false
-  config.lualibs.prefer_merged = true
-  config.lualibs.load_extended = true
-  fonts                        = fonts or { }
-
-  require "lualibs"
-
-  if not lualibs    then error "this module requires Luaotfload" end
-  if not luaotfload then error "this module requires Luaotfload" end
-
-  --[[doc--
-
-    The logger needs to be in place prior to loading the fontloader due
-    to order of initialization being crucial for the logger functions
-    that are swapped.
-
-  --doc]]--
-
-  luaotfload.loaders.luaotfload "log"
-  log       = luaotfload.log
-  logreport = log.report
-  log.set_loglevel (default_log_level)
-
-  logreport ("log", 4, "init", "Concealing callback.register().")
-  store.trapped_register = callback.register
-
-  callback.register = function (id)
-    logreport ("log", 4, "init",
-               "Dummy callback.register() invoked on %s.",
-               id)
-  end
-
-  --[[doc--
-
-    By default, the fontloader requires a number of \emphasis{private
-    attributes} for internal use.
-    These must be kept consistent with the attribute handling methods
-    as provided by \identifier{luatexbase}.
-    Our strategy is to override the function that allocates new
-    attributes before we initialize the font loader, making it a
-    wrapper around \luafunction{luatexbase.new_attribute}.\footnote{%
-        Many thanks, again, to Hans Hagen for making this part
-        configurable!
-    }
-    The attribute identifiers are prefixed “\fileent{luaotfload@}” to
-    avoid name clashes.
-
-  --doc]]--
-
-  local new_attribute    = luatexbase.new_attribute
-  local the_attributes   = luatexbase.attributes
-
-  attributes = attributes or { } --- this writes a global, sorry
-
-  attributes.private = function (name)
-    local attr   = "luaotfload@" .. name --- used to be: “otfl@”
-    local number = the_attributes[attr]
-    if not number then number = new_attribute(attr) end
-    return number
-  end
-
-  luaotfload.loaders.fontloader "basics-gen"
-
-  return store
-end --- [init_early]
-
---[[doc--
-
-    These next lines replicate the behavior of
-    \fileent{luatex-fonts.lua}.
-
---doc]]--
-
-local push_namespaces = function ()
-    logreport ("log", 4, "init", "push namespace for font loader")
-    local normalglobal = { }
-    for k, v in next, _G do
-        normalglobal[k] = v
-    end
-    return normalglobal
-end
-
-local pop_namespaces = function (normalglobal,
-                                 isolate,
-                                 context_environment)
-    if normalglobal then
-        local _G = _G
-        local mode = "non-destructive"
-        if isolate then mode = "destructive" end
-        logreport ("log", 4, "init", "pop namespace from font loader -- " .. mode)
-        for k, v in next, _G do
-            if not normalglobal[k] then
-                context_environment[k] = v
-                if isolate then
-                    _G[k] = nil
-                end
-            end
-        end
-        for k, v in next, normalglobal do
-            _G[k] = v
-        end
-        -- just to be sure:
-        setmetatable(context_environment, _G)
-    else
-        logreport ("both", 0, "init",
-                   "irrecoverable error during pop_namespace: no globals to restore")
-        os.exit ()
-    end
-end
-
 --- below paths are relative to the texmf-context
 local ltx = "tex/generic/context/luatex"
 local ctx = { "tex/context/base/mkiv", "tex/context/base" }
@@ -260,7 +144,7 @@ local context_modules = {
 
 } --[[context_modules]]
 
-local load_context_modules = function (pth)
+local function load_context_modules (pth)
 
   local load_module   = luaotfload.loaders.context
   local ignore_module = luaotfload.loaders.ignore
@@ -308,159 +192,87 @@ local load_context_modules = function (pth)
 
 end
 
-local init_adapt = function ()
+local function verify_context_dir (pth)
+  if lfsisdir(file.join(pth, ltx)) then
+    return true
+  end
+  for _, d in ipairs(ctx) do
+    if lfsisdir(file.join(pth, d)) then
+      return true
+    end
+  end
+  logreport("both", 0, "init", "A directory name has been passed as \z
+    fontloader name but this directory does not acutally seem to contain \z
+    a font loader. I will try to interpret your fontloader name in another \z
+    way for now, but please fix your settings.")
+  return false
+end
 
-  local context_environment  = { }
-  local our_environment      = push_namespaces ()
+local function init_main(early_hook)
+  config                       = config or { } --- global
+  config.luaotfload            = config.luaotfload or { }
+  config.lualibs               = config.lualibs    or { }
+  config.lualibs.verbose       = false
+  config.lualibs.prefer_merged = true
+  config.lualibs.load_extended = true
+  fonts                        = fonts or { }
+
+  require "lualibs"
+
+  if not lualibs    then error "this module requires Luaotfload" end
+  if not luaotfload then error "this module requires Luaotfload" end
 
   --[[doc--
 
-      The font loader requires that the attribute with index zero be
-      zero. We happily oblige.
-      (Cf. \fileent{luatex-fonts-nod.lua}.)
+    The logger needs to be in place prior to loading the fontloader due
+    to order of initialization being crucial for the logger functions
+    that are swapped.
 
   --doc]]--
 
-  tex.attribute[0] = 0
+  luaotfload.loaders.luaotfload "log"
+  log       = luaotfload.log
+  logreport = log.report
+  log.set_loglevel (default_log_level)
 
-  return our_environment, context_environment
+  logreport ("log", 4, "init", "Concealing callback.register().")
+  local trapped_register = callback.register
 
-end --- [init_adapt]
+  function callback.register (id)
+    logreport ("log", 4, "init",
+               "Dummy callback.register() invoked on %s.",
+               id)
+  end
 
---[[doc--
+  --[[doc--
 
-  In Context, characters.data is where the data from char-def.lua
-  resides. The file is huge (>4.4 MB as of 2016) and only a stripped
-  down version is part of the isolated font loader. Nevertheless, we
-  include an excerpt generated by the mkcharacters script that contains
-  a subset of the fields of each character defined and some extra
-  metadata.
+    By default, the fontloader requires a number of \emphasis{private
+    attributes} for internal use.
+    These must be kept consistent with the attribute handling methods
+    as provided by \identifier{luatexbase}.
+    Our strategy is to override the function that allocates new
+    attributes before we initialize the font loader, making it a
+    wrapper around \luafunction{luatexbase.new_attribute}.\footnote{%
+        Many thanks, again, to Hans Hagen for making this part
+        configurable!
+    }
+    The attribute identifiers are prefixed “\fileent{luaotfload@}” to
+    avoid name clashes.
 
-  Currently, these are (compare the mkcharacters script!)
+  --doc]]--
 
-    · "direction"
-    · "mirror"
-    · "category"
-    · "textclass"
+  local new_attribute    = luatexbase.new_attribute
+  local the_attributes   = luatexbase.attributes
 
-  The directional information is required for packages like Simurgh [0]
-  to work correctly. In an early stage [1] it was necessary to load
-  further files from Context directly, including the full blown version
-  of char-def.  Since we have no use for most of the so imported
-  functionality, the required parts have been isolated and are now
-  instated along with luaotfload-characters.lua. We can extend the set
-  of imported features easily should it not be enough.
-
-  [0] https://github.com/persian-tex/simurgh
-  [1] http://tex.stackexchange.com/a/132301/14066
-
---doc]]--
-
---[[--14.12.2018disable characters 
---characters         = characters or { } --- should be created in basics-gen
---characters.data    = nil
---local chardef      = "luaotfload-characters"
---
---do
---  local setmetatableindex = function (t, f)
---    local mt = getmetatable (t)
---    if mt then
---      mt.__index = f
---    else
---      setmetatable (t, { __index = f })
---    end
---  end
---
---  --- there are some special tables for each field that provide access
---  --- to fields of the character table by means of a metatable
---
---  local mkcharspecial = function (characters, tablename, field)
---
---    local chardata = characters.data
---
---    if chardata then
---      local newspecial        = { }
---      characters [tablename]  = newspecial --> e.g. “characters.data.mirrors”
---
---      local idx = function (t, char)
---        local c = chardata [char]
---        if c then
---          local m = c [field] --> e.g. “mirror”
---          if m then
---            t [char] = m
---            return m
---          end
---        end
---        newspecial [char] = false
---        return char
---      end
---
---      setmetatableindex (newspecial, idx)
---    end
---
---  end
---
---  local mkcategories = function (characters) -- different from the others
---
---    local chardata         = characters.data
---    local categories       = characters.categories or { }
---    characters.categories  = categories
---
---    setmetatable (categories, { __index = function (t, char)
---      if char then
---        local c = chardata [char]
---        c = c.category or char
---        t [char] = c
---        return c
---      end
---    end})
---
---  end
---
---  local load_failed = false
---  local chardata --> characters.data; loaded on demand
---
---  local load_chardef = function ()
---
---    logreport ("both", 1, "aux", "Loading character metadata from %s.", chardef)
---    chardata = dofile (kpse.find_file (chardef, "lua"))
---
---    if chardata == nil then
---      logreport ("both", 0, "aux",
---                 "Could not load %s; continuing with empty character table.",
---                 chardef)
---      chardata    = { }
---      load_failed = true
---    end
---
---    characters             = { } --- nuke metatable
---    characters.data        = chardata
---    characters.classifiers = chardata.classifiers
---    chardata.classifiers   = nil
---
---    --- institute some of the functionality from char-ini.lua
---
---    mkcharspecial (characters, "mirrors",     "mirror")
---    mkcharspecial (characters, "directions",  "direction")
---    mkcharspecial (characters, "textclasses", "textclass")
---    mkcategories  (characters)
---
---  end
---
---  local charindex = function (t, k)
---    if chardata == nil and load_failed ~= true then
---      load_chardef ()
---    end
---
---    return rawget (characters, k)
---  end
---
---  setmetatableindex (characters, charindex)
---
---end
---]] --14.12.2018disable characters 
-
-local init_main = function ()
+  local context_environment = luaotfload.fontloader
+  context_environment.attributes = {
+    private = function (name)
+      local attr   = "luaotfload@" .. name --- used to be: “otfl@”
+      local number = the_attributes[attr]
+      if not number then number = new_attribute(attr) end
+      return number
+    end
+  }
 
   --[[doc--
 
@@ -472,6 +284,20 @@ local init_main = function ()
 
   local load_fontloader_module = luaotfload.loaders.fontloader
   local ignore_module          = luaotfload.loaders.ignore
+
+  load_fontloader_module "basics-gen"
+
+  if early_hook then early_hook() end
+
+  --[[doc--
+
+      The font loader requires that the attribute with index zero be
+      zero. We happily oblige.
+      (Cf. \fileent{luatex-fonts-nod.lua}.)
+
+  --doc]]--
+
+  tex.attribute[0] = 0
 
   --[[doc--
 
@@ -493,7 +319,7 @@ local init_main = function ()
     --- of our fontloader package. Perhaps something’s wrong with the status
     --- file which contains the datestamped filename? In any case, it can’t
     --- hurt reporting it as a bug.
-    logreport ("both", 0, "init", "Fontloader substitution failed, got “default”.")
+    logreport ("both", 0, "init", "Fontloader substitution failed, got \"default\".")
     logreport ("log",  4, "init", "Falling back to reference fontloader.")
     load_fontloader_module (luaotfload.fontloader_package)
 
@@ -564,38 +390,38 @@ local init_main = function ()
                "Loading Context modules in lookup path.")
     load_context_modules ()
 
-  elseif lfsisdir (fontloader) then
+  elseif lfsisdir (fontloader) and verify_context_dir (fontloader) then
     logreport ("log", 0, "init",
-               "Loading Context files under prefix “%s”.",
+               "Loading Context files under prefix %q.",
                fontloader)
     load_context_modules (fontloader)
 
   elseif lfs.isfile (fontloader) then
     logreport ("log", 0, "init",
-               "Loading fontloader from absolute path “%s”.",
+               "Loading fontloader from absolute path %q.",
                fontloader)
-    local _void = require (fontloader)
+    local _void = assert (loadfile (fontloader, nil, context_environment)) ()
 
   elseif kpsefind_file (fontloader) then
     local path = kpsefind_file (fontloader)
     logreport ("log", 0, "init",
-               "Loading fontloader “%s” from kpse-resolved path “%s”.",
+               "Loading fontloader %q from kpse-resolved path %q.",
                fontloader, path)
-    local _void = require (path)
+    local _void = assert (loadfile (path, nil, context_environment)) ()
 
   elseif kpsefind_file (("fontloader-%s.lua"):format(fontloader)) then
     logreport ("log", 0, "init",
-               "Using predefined fontloader “%s”.",
+               "Using predefined fontloader %q.",
                fontloader)
     load_fontloader_module (fontloader)
 
   else
     logreport ("both", 0, "init",
-               "No match for requested fontloader “%s”.",
+               "No match for requested fontloader %q.",
                fontloader)
     fontloader = luaotfload.fontloader_package
     logreport ("both", 0, "init",
-               "Defaulting to predefined fontloader “%s”.",
+               "Defaulting to predefined fontloader %q.",
                fontloader)
     load_fontloader_module (fontloader)
   end
@@ -603,44 +429,13 @@ local init_main = function ()
   ---load_fontloader_module "font-odv.lua" --- <= Devanagari support from Context
 
   logreport ("log", 0, "init",
-             "Context OpenType loader version “%s”",
+             "Context OpenType loader version %q",
              fonts.handlers.otf.version)
+  callback.register = trapped_register
+  nodes = context_environment.nodes
+  -- setmetatable(context_environment, nil) -- Would be nice, might break the
+  -- fontloader
 end --- [init_main]
-
-local init_cleanup = function (store)
-  --- reinstate all the stuff we had to move out of the way to
-  --- accomodate the loader
-
-  --[[doc--
-
-      Here we adjust the globals created during font loader
-      initialization. If the second argument to
-      \luafunction{pop_namespaces()} is \verb|true| this will restore the
-      state of \luafunction{_G}, eliminating every global generated since
-      the last call to \luafunction{push_namespaces()}. At the moment we
-      see no reason to do this, and since the font loader is considered
-      an essential part of \identifier{luatex} as well as a very well
-      organized piece of code, we happily concede it the right to add to
-      \luafunction{_G} if needed.
-
-  --doc]]--
-
-  pop_namespaces (store.our_environment,
-                  false,
-                  store.context_environment)
-
-  --[[doc--
-
-      \subsection{Callbacks}
-        After the fontloader is ready we can restore the callback trap
-        from \identifier{luatexbase}.
-
-  --doc]]--
-
-  logreport ("log", 4, "init",
-             "Restoring original callback.register().")
-  callback.register = store.trapped_register
-end --- [init_cleanup]
 
 local init_post_install_callbacks = function ()
   --[[doc--
@@ -653,13 +448,19 @@ local init_post_install_callbacks = function ()
 
   --doc]]--
 
+  -- The order is important here: multiscript=auto needs to look at the
+  -- fallback fonts, so they already have to be processed at that stage
+  local fallback = luaotfload.loaders.luaotfload "fallback".process
+  local multiscript = luaotfload.loaders.luaotfload "multiscript".process
+
   -- MK Pass current text direction to simple_font_handler
-  local handler = nodes.simple_font_handler
+  local handler = luaotfload.fontloader.nodes.simple_font_handler
   local callback = function(head, groupcode, _, _, direction)
     if not direction then
       direction = tex.get'textdir'
     end
-    domultiscript(head, nil, nil, nil, direction)
+    multiscript(head, nil, nil, nil, direction)
+    fallback(head, nil, nil, nil, direction)
     return handler(head, groupcode, nil, nil, direction)
   end
   luatexbase.add_to_callback("pre_linebreak_filter",
@@ -673,7 +474,7 @@ local init_post_install_callbacks = function ()
   -- /MK
 end
 
-local init_post_load_agl = function ()
+local function init_post_load_agl ()
 
   --[[doc--
 
@@ -736,7 +537,7 @@ local init_post_load_agl = function ()
       return nil
     end
     logreport ("both", 4, "init",
-               "found Adobe glyph list file at ``%s``, using that.",
+               "found Adobe glyph list file at %q, using that.",
                glyphlist)
 
     local unicodes = dofile(glyphlist)
@@ -753,7 +554,7 @@ local init_post_actions = {
 }
 
 --- unit -> size_t
-local init_post = function ()
+local function init_post ()
   --- hook for actions that need to take place after the fontloader is
   --- installed
 
@@ -774,20 +575,14 @@ local init_post = function ()
   return n
 end --- [init_post]
 
-return {
-  early = init_early,
-  main = function (store)
-    local starttime = os.gettimeofday ()
-    store.our_environment, store.context_environment = init_adapt ()
-    init_main ()
-    init_cleanup (store)
-    logreport ("both", 1, "init",
-               "fontloader loaded in %0.3f seconds",
-               os.gettimeofday() - starttime)
-    local n = init_post ()
-    logreport ("both", 5, "init", "post hook terminated, %d actions performed", n)
-    return true
-  end
-}
-
+return function (early_hook)
+  local starttime = os.gettimeofday ()
+  init_main (early_hook)
+  logreport ("both", 1, "init",
+             "fontloader loaded in %0.3f seconds",
+             os.gettimeofday() - starttime)
+  local n = init_post ()
+  logreport ("both", 5, "init", "post hook terminated, %d actions performed", n)
+  return true
+end
 -- vim:tw=79:sw=2:ts=2:expandtab

@@ -9,7 +9,7 @@ if not modules then modules = { } end modules ['font-oto'] = { -- original tex
 local concat, unpack = table.concat, table.unpack
 local insert, remove = table.insert, table.remove
 local format, gmatch, gsub, find, match, lower, strip = string.format, string.gmatch, string.gsub, string.find, string.match, string.lower, string.strip
-local type, next, tonumber, tostring, rawget = type, next, tonumber, tostring, rawget
+local type, next, tonumber, tostring = type, next, tonumber, tostring
 
 local trace_baseinit         = false  trackers.register("otf.baseinit",     function(v) trace_baseinit     = v end)
 local trace_singles          = false  trackers.register("otf.singles",      function(v) trace_singles      = v end)
