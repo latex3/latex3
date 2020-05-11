@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Internal changes to quark handling
+
 ## [2020-05-05]
 
 ### Added
