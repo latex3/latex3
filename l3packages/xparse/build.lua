@@ -7,7 +7,7 @@
 bundle = "l3packages"
 module = "xparse"
 
-installfiles = {"xparse.ltx", "xparse.sty", "xparse.tex"}
+installfiles = {"xparse.ltx", "xparse.sty", "xparse-generic.tex"}
 
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
