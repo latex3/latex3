@@ -939,13 +939,13 @@
 %
 % \subsection{Low-level interface}
 %
-% The low-level key parser is based heavily on \pkg{keyval}, but with a number
-% of additional \enquote{safety} requirements and with the idea that the
-% parsed list of key--value pairs can be processed in a variety of ways.
-% The net result is that this code needs around twice the amount of time
-% as \pkg{keyval} to parse the same list of keys. To optimise speed as far
-% as reasonably practical, a number of lower-level approaches are taken
-% rather than using the higher-level \pkg{expl3} interfaces.
+% The low-level key parser's implementation is based heavily on \pkg{expkv}.
+% Compared to \pkg{keyval} it adds a number of additional \enquote{safety}
+% requirements and allows to process the parsed list of key--value pairs in a
+% variety of ways.  The net result is that this code needs around one and a half
+% the amount of time as \pkg{keyval} to parse the same list of keys. To optimise
+% speed as far as reasonably practical, a number of lower-level approaches are
+% taken rather than using the higher-level \pkg{expl3} interfaces.
 %
 %    \begin{macrocode}
 %<@@=keyval>
@@ -970,9 +970,9 @@
 %    \end{macrocode}
 %
 % \begin{macro}[EXP]{\keyval_parse:NNn}
-%   The main function starts the first of two input loops. The outer loop splits
-%   the key--value list at active commas, the inner loop will do so at other
-%   commas. The use of \cs{s_@@_mark} here prevents loss of braces from the key
+%   The main function starts the first of two loops. The outer loop splits the
+%   key--value list at active commas, the inner loop will do so at other commas.
+%   The use of \cs{s_@@_mark} here prevents loss of braces from the key
 %   argument.
 %    \begin{macrocode}
       \cs_new:Npn \keyval_parse:NNn ##1 ##2 ##3
@@ -982,89 +982,242 @@
 %
 % \begin{macro}[EXP]{\@@_loop_active:NNw}
 %   First a fast test for the end of the loop is done, it'll gobble everything
-%   up to an \cs{s_@@_mark} immediately followed by an \cs{s_@@_tail}. The loop
-%   ending macro will gobble everything to the last \cs{s_@@_mark} in this
-%   definition.
+%   up to a \cs{s_@@_tail}. The loop ending macro will gobble everything to the
+%   last \cs{s_@@_mark} in this definition.
 %   If the end isn't reached yet, start the second loop splitting at other
-%   comments, and after that one iterate the current loop.
+%   commas, and after that one iterate the current loop.
 %    \begin{macrocode}
       \cs_new:Npn \@@_loop_active:NNw ##1 ##2 ##3 #1
         {
           \@@_if_recursion_tail:w ##3
-            \@@_end_loop_active:w \s_@@_mark \s_@@_tail
+            \@@_end_loop_active:w \s_@@_tail
           \@@_loop_other:NNw ##1 ##2 ##3 , \s_@@_tail ,
           \@@_loop_active:NNw ##1 ##2 \s_@@_mark
         }
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[EXP]{\@@_split_other:w, \@@_split_active:w}
+%   These two macros allow to split at the first equals sign of category 12 or
+%   13. At the same time they also execute branching by inserting the first
+%   token following \cs{s_@@_mark} that followed the equals sign. Hence they
+%   also test for the presence of such an equals sign simultaneously.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_split_other:w ##1 = ##2 \s_@@_mark ##3 ##4 \s_@@_stop
+        { ##3 ##1 \s_@@_stop \s_@@_mark ##2 }
+      \cs_new:Npn \@@_split_active:w ##1 #2 ##2 \s_@@_mark ##3 ##4 \s_@@_stop
+        { ##3 ##1 \s_@@_stop \s_@@_mark ##2 }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[EXP]{\@@_loop_other:NNw}
 %   The second loop uses the same test for its end as the first loop, next it
-%   tests whether there are other or active equals signs, throwing an error if
-%   there are both. If there are none, test whether the argument is blank or is
-%   a single key. If there are only active equals signs split at those, else
-%   split at others. Finally, iterate the loop.
+%   splits at the first active equals sign using \cs{@@_split_active:w}.  The
+%   \cs{s_@@_nil} prevents accidental brace stripping and acts as a delimiter in
+%   the next steps. First testing for an active equals sign will reduce the
+%   number of necessary expansion steps for the expected average use case of
+%   other equals signs and hence perform better on average.
 %    \begin{macrocode}
       \cs_new:Npn \@@_loop_other:NNw ##1 ##2 ##3 ,
         {
           \@@_if_recursion_tail:w ##3
-            \@@_end_loop_other:w \s_@@_mark \s_@@_tail
-          \@@_if_has_equal_other:w ##3 = \s_@@_stop
-            \@@_has_false:w \s_@@_mark \s_@@_stop \use_i:nn
-            {
-              \@@_if_has_equal_active:w ##3 #2 \s_@@_stop
-                \@@_has_false:w \s_@@_mark \s_@@_stop \use_i:nn
-                \@@_misplaced_equal_error:
-                { \@@_split_other:w ##3 = \s_@@_stop ##2 }
-            }
-            {
-              \@@_if_has_equal_active:w ##3 #2 \s_@@_stop
-                \@@_has_false:w \s_@@_mark \s_@@_stop \use_i:nn
-                { \@@_split_active:w ##3 #2 \s_@@_stop ##2 }
-                {
-                  \@@_if_blank:w ##3 \s_@@_nil \s_@@_stop
-                    \@@_blank_true:w \s_@@_mark \s_@@_stop \use:n
-                    { \@@_trim:nN { ##3 } \@@_key:nN ##1 }
-                }
-            }
+            \@@_end_loop_other:w \s_@@_tail
+          \@@_split_active:w ##3 \s_@@_nil
+            \s_@@_mark \@@_split_active_auxi:w
+            #2 \s_@@_mark \@@_clean_up_active:w
+            \s_@@_stop
+          ##1 ##2
           \@@_loop_other:NNw ##1 ##2 \s_@@_mark
         }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_split_active:w}
-% \begin{macro}[EXP]{\@@_split_active:nw}
-%   Splits at the first active equals sign and trims the key. Next test whether
-%   there are any more valid split points, if so throw an error and gobble the
-%   remaining \meta{function_2}, which will not yet be gobbled. If there was
-%   only one active equals sign start trimming the spaces off the value and give
-%   control to \cs[no-index]{@@_key_val:nnN}.
+% \begin{macro}[EXP]{\@@_split_active_auxi:w}
+% \begin{macro}[EXP]{\@@_split_active_auxii:w}
+% \begin{macro}[EXP]{\@@_split_active_auxiii:w}
+% \begin{macro}[EXP]{\@@_split_active_auxiv:w}
+% \begin{macro}[EXP]{\@@_split_active_auxv:w}
+%   After \cs{@@_split_active:w} the following will only be called if there was
+%   at least one active equals sign in the current key--value pair. Therefore
+%   this is the execution branch for a key--value pair with an active equals
+%   sign. |##1| will be everything up to the first active equals sign. First it
+%   tests for other equals signs in the key name, which will eventually throw an
+%   error via \cs{@@_misplaced_equal_after_active_error:w}. If none was found we
+%   forward the key to \cs{@@_split_active_auxii:w}.
 %    \begin{macrocode}
-      \cs_new:Npn \@@_split_active:w ##1 #2
-        { \@@_trim:nN { ##1 } \@@_split_active:nw \s_@@_mark }
-      \cs_new:Npn \@@_split_active:nw ##1 ##2 #2 ##3 \s_@@_stop
+      \cs_new:Npn \@@_split_active_auxi:w ##1 \s_@@_stop
         {
-          \@@_if_empty:w \s_@@_mark ##3 \s_@@_stop
-            \@@_has_false:w \s_@@_mark \s_@@_stop \use_i:nn
-            { \@@_misplaced_equal_error: \use_none:n }
-            { \@@_trim:nN { ##2 } \@@_key_val:nnN { ##1 } }
+          \@@_split_other:w ##1 \s_@@_nil
+            \s_@@_mark \@@_misplaced_equal_after_active_error:w
+            = \s_@@_mark \@@_split_active_auxii:w
+            \s_@@_stop
+        }
+%    \end{macrocode}
+%   \cs{@@_split_active_auxii:w} gets the correct key name with a leading
+%   \cs{s_@@_mark} as |##1|. It has to sanitise the remainder of the previous
+%   test and trims the key name which will be forwarded to
+%   \cs{@@_split_active_auxiii:w}.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_split_active_auxii:w
+          ##1 \s_@@_nil \s_@@_mark \@@_misplaced_equal_after_active_error:w
+          \s_@@_stop \s_@@_mark
+        { \@@_trim:nN { ##1 } \@@_split_active_auxiii:w }
+%    \end{macrocode}
+%   Next we test for a misplaced active equals sign in the value, if none is
+%   found \cs{@@_split_active_auxiv:w} will be called.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_split_active_auxiii:w ##1 ##2 \s_@@_nil
+        {
+          \@@_split_active:w ##2 \s_@@_nil
+            \s_@@_mark \@@_misplaced_equal_in_split_error:w
+            #2 \s_@@_mark \@@_split_active_auxiv:w
+            \s_@@_stop
+            { ##1 }
+        }
+%    \end{macrocode}
+%   This runs the last test after sanitising the remainder of the previous one.
+%   This time test for a misplaced equals sign of category 12 in the value.
+%   Finally the last auxiliary macro will be called.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_split_active_auxiv:w
+          ##1 \s_@@_nil \s_@@_mark \@@_misplaced_equal_in_split_error:w
+          \s_@@_stop \s_@@_mark
+        {
+          \@@_split_other:w ##1 \s_@@_nil
+            \s_@@_mark \@@_misplaced_equal_in_split_error:w
+            = \s_@@_mark \@@_split_active_auxv:w
+            \s_@@_stop
+        }
+%    \end{macrocode}
+%   This last macro in this execution branch sanitises the last test, trims the
+%   value and passes it to \cs{@@_pair:nnNN}.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_split_active_auxv:w
+          ##1 \s_@@_nil \s_@@_mark \@@_misplaced_equal_in_split_error:w
+          \s_@@_stop \s_@@_mark
+        { \@@_trim:nN { ##1 } \@@_pair:nnNN }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_clean_up_active:w}
+%   The following is the branch taken if the key--value pair doesn't contain an
+%   active equals sign. The remainder of that test will be cleaned up by
+%   \cs{@@_clean_up_active:w} which will then split at an equals sign of
+%   category other.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_clean_up_active:w
+          ##1 \s_@@_nil \s_@@_mark \@@_split_active_auxi:w \s_@@_stop \s_@@_mark
+        {
+          \@@_split_other:w ##1 \s_@@_nil
+            \s_@@_mark \@@_split_other_auxi:w
+            = \s_@@_mark \@@_clean_up_other:w
+            \s_@@_stop
+        }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_split_other_auxi:w}
+% \begin{macro}[EXP]{\@@_split_other_auxii:w}
+% \begin{macro}[EXP]{\@@_split_other_auxiii:w}
+%   This is executed if the key--value pair doesn't contain an active equals
+%   sign but at least one other. |##1| of \cs{@@_split_other_auxi:w} will
+%   contain the complete key name, which is trimmed and forwarded to the next
+%   auxiliary macro.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_split_other_auxi:w ##1 \s_@@_stop
+        { \@@_trim:nN { ##1 } \@@_split_other_auxii:w }
+%    \end{macrocode}
+%   We know that the value doesn't contain misplaced active equals signs but we
+%   have to test for others.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_split_other_auxii:w ##1 ##2 \s_@@_nil
+        {
+          \@@_split_other:w ##2 \s_@@_nil
+            \s_@@_mark \@@_misplaced_equal_in_split_error:w
+            = \s_@@_mark \@@_split_other_auxiii:w
+            \s_@@_stop
+            { ##1 }
+        }
+%    \end{macrocode}
+%   \cs{@@_split_other_auxiii:w} sanitises the test for other equals signs,
+%   trims the value and forwards it to \cs{@@_pair:nnNN}.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_split_other_auxiii:w
+          ##1 \s_@@_nil \s_@@_mark \@@_misplaced_equal_in_split_error:w
+          \s_@@_stop \s_@@_mark
+        { \@@_trim:nN { ##1 } \@@_pair:nnNN }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_clean_up_other:w}
+%   \cs{@@_clean_up_other:w} is the last branch that might exist. It is called
+%   if no equals sign was found, hence the only possibilities left are a blank
+%   list element, which is to be skipped, or a lonely key. If it's no empty list
+%   element this will trim the key name and forward it to \cs{@@_key:nNN}.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_clean_up_other:w
+          ##1 \s_@@_nil \s_@@_mark \@@_split_other_auxi:w \s_@@_stop \s_@@_mark
+        {
+          \@@_if_blank:w ##1 \s_@@_nil \s_@@_stop \@@_blank_true:w
+            \s_@@_mark \s_@@_stop \use:n
+            { \@@_trim:nN { ##1 } \@@_key:nNN }
+        }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_misplaced_equal_after_active_error:w}
+% \begin{macro}[EXP]{\@@_misplaced_equal_in_split_error:w}
+%   All these two macros do is gobble the remainder of the current other loop
+%   execution and throw an error.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_misplaced_equal_after_active_error:w
+          \s_@@_mark ##1 \s_@@_stop \s_@@_mark ##2 \s_@@_nil
+          \s_@@_mark ##3 \s_@@_nil ##4 ##5
+        {
+          \__kernel_msg_expandable_error:nn
+            { kernel } { misplaced-equals-sign }
+        }
+      \cs_new:Npn \@@_misplaced_equal_in_split_error:w
+          \s_@@_mark ##1 \s_@@_stop \s_@@_mark ##2 \s_@@_nil
+          ##3 ##4 ##5
+        {
+          \__kernel_msg_expandable_error:nn
+            { kernel } { misplaced-equals-sign }
         }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_if_has_equal_active:w}
-%   The test for an active equals sign just gobbles tokens until the first
-%   active equals sign and then runs the test for an empty argument.
+% \begin{macro}[EXP]{\@@_end_loop_other:w, \@@_end_loop_active:w}
+%   All that's left for the parsing loops are the macros which end the
+%   recursion. Both just gobble the remaining tokens of the respective loop
+%   including the next recursion call.
 %    \begin{macrocode}
-      \cs_new:Npn \@@_if_has_equal_active:w ##1 #2
-        { \@@_if_empty:w \s_@@_mark }
+      \cs_new:Npn \@@_end_loop_other:w
+          \s_@@_tail
+          \@@_split_active:w ##1 \s_@@_nil
+          \s_@@_mark \@@_split_active_auxi:w
+          #2 \s_@@_mark \@@_clean_up_active:w
+          \s_@@_stop
+          ##2 ##3
+          \@@_loop_other:NNw ##4 \s_@@_mark
+        { }
+      \cs_new:Npn \@@_end_loop_active:w
+          \s_@@_tail
+          \@@_loop_other:NNw ##1 , \s_@@_tail ,
+          \@@_loop_active:NNw ##2 \s_@@_mark
+        { }
 %    \end{macrocode}
 % \end{macro}
 %
-% We're done with the macros which need active equals signs or commas in their
-% definition, so we can end that scope and call the temporary macro which will
-% do the definitions.
+% The parsing loops are done, so here ends the definition of \cs{@@_tmp:NN},
+% which will finally set up the macros.
 %    \begin{macrocode}
     }
   \char_set_catcode_active:n { `\, }
@@ -1073,66 +1226,23 @@
 \group_end:
 %    \end{macrocode}
 %
-% \begin{macro}[EXP]{\@@_end_loop_active:w,\@@_end_loop_other:w}
-%   Both of these macros just have to gobble a few tokens to remove the reminder
-%   of the loops current iteration. We do this in a pretty static manner,
-%   explicitly stating every token we know beforehand because this is slightly
-%   faster.
+% \begin{macro}[EXP]{\@@_pair:nnNN, \@@_key:nNN}
+%   These macros will be called on the parsed keys and values of the key--value
+%   list. All arguments are completely trimmed. They test for blank key names
+%   and call the functions passed to \cs{keyval_parse:NNn} inside of
+%   \cs{exp_not:n} with the correct arguments.
 %    \begin{macrocode}
-\cs_new:Npn \@@_end_loop_active:w
-    \s_@@_mark \s_@@_tail
-    \@@_loop_other:NNw #1 , \s_@@_tail ,
-    \@@_loop_active:NNw #2 \s_@@_mark
-  { }
-\cs_new:Npn \@@_end_loop_other:w
-    \s_@@_mark \s_@@_tail
-    \@@_if_has_equal_other:w #1 = \s_@@_stop
-    \@@_has_false:w \s_@@_mark \s_@@_stop \use_i:nn
-    #2
-    \@@_loop_other:NNw #3 \s_@@_mark
-  { }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\@@_split_other:w}
-% \begin{macro}[EXP]{\@@_split_other:nw}
-%   These work exactly as \cs[no-index]{@@_split_active:wN}, just for
-%   equals signs of category other.
-%    \begin{macrocode}
-\cs_new:Npn \@@_split_other:w #1 =
-  { \@@_trim:nN { #1 } \@@_split_other:nw \s_@@_mark }
-\cs_new:Npn \@@_split_other:nw #1 #2 = #3 \s_@@_stop
+\cs_new:Npn \@@_pair:nnNN #1 #2 #3 #4
   {
-    \@@_if_empty:w \s_@@_mark #3 \s_@@_stop
-      \@@_has_false:w \s_@@_mark \s_@@_stop \use_i:nn
-      { \@@_misplaced_equal_error: \use_none:n }
-      { \@@_trim:nN { #2 } \@@_key_val:nnN { #1 } }
+    \@@_if_blank:w \s_@@_mark #2 \s_@@_nil \s_@@_stop \@@_blank_key_error:w
+      \s_@@_mark \s_@@_stop
+    \exp_not:n { #4 { #2 } { #1 } }
   }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\@@_key:nN}
-%   This will get the current key with spaces trimmed and \meta{function_1} as
-%   its arguments. All it has to do is put them in an \cs{exp_not:n} and reorder
-%   them.
-%    \begin{macrocode}
-\cs_new:Npn \@@_key:nN #1 #2
-  { \exp_not:n { #2 { #1 } } }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\@@_key_val:nnN}
-%   This will get the key name and value with spaces trimmed. It has to
-%   assert that the key name isn't empty. Afterwards put them into an
-%   \cs{exp_not:n} together with \meta{function_2}. If the key is empty they are
-%   gobbled instead.
-%    \begin{macrocode}
-\cs_new:Npn \@@_key_val:nnN #1 #2 #3
+\cs_new:Npn \@@_key:nNN #1 #2 #3
   {
-    \@@_if_empty:w \s_@@_mark #2 \s_@@_stop
-      \@@_empty_key:w \s_@@_mark \s_@@_stop
-    \exp_not:n { #3 { #2 } { #1 } }
+    \@@_if_blank:w \s_@@_mark #1 \s_@@_nil \s_@@_stop \@@_blank_key_error:w
+      \s_@@_mark \s_@@_stop
+    \exp_not:n { #2 { #1 } }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1143,46 +1253,31 @@
 %   with an arbitrary token following the argument. Each of these utilize the
 %   fact that the argument will contain a leading \cs{s_@@_mark}.
 %    \begin{macrocode}
-\cs_new:Npn \@@_if_empty:w #1 \s_@@_mark \s_@@_stop {}
+\cs_new:Npn \@@_if_empty:w #1 \s_@@_mark \s_@@_stop { }
 \cs_new:Npn \@@_if_blank:w \s_@@_mark #1 { \@@_if_empty:w \s_@@_mark }
-\cs_new:Npn \@@_if_recursion_tail:w #1 \s_@@_mark \s_@@_tail {}
+\cs_new:Npn \@@_if_recursion_tail:w \s_@@_mark #1 \s_@@_tail { }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_has_false:w,\@@_blank_true:w,\@@_empty_key:w}
+% \begin{macro}[EXP]{\@@_blank_true:w,\@@_blank_key_error:w}
 %   These macros will be called if the tests above didn't gobble them, they
 %   execute the branching.
 %    \begin{macrocode}
-\cs_new:Npn \@@_has_false:w \s_@@_mark \s_@@_stop \use_i:nn #1 #2 { #2 }
-\cs_new:Npn \@@_blank_true:w \s_@@_mark \s_@@_stop \use:n #1 {}
-\cs_new:Npn \@@_empty_key:w \s_@@_mark \s_@@_stop \exp_not:n #1
-  { \@@_misplaced_equal_error: }
+\cs_new:Npn \@@_blank_true:w \s_@@_mark \s_@@_stop \use:n #1 #2 #3 { }
+\cs_new:Npn \@@_blank_key_error:w \s_@@_mark \s_@@_stop \exp_not:n #1
+  {
+    \__kernel_msg_expandable_error:nn
+      { kernel } { blank-key-name }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_if_has_equal_other:w}
-%   Another test that works by gobbling tokens until a specific one is hit.
-%    \begin{macrocode}
-\cs_new:Npn \@@_if_has_equal_other:w #1 =
-  { \@@_if_empty:w \s_@@_mark }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}[EXP]{\@@_misplaced_equal_error:}
-%   Just throw an error expandably. This is hid inside a macro so that other
-%   macros don't have to gobble so many tokens, which increases speed for
-%   correct input. This will marginally slow down the error case, but that
-%   doesn't have to be fast anyway.
-%    \begin{macrocode}
-\cs_new:Npn \@@_misplaced_equal_error:
-  { \__kernel_msg_expandable_error:nn { kernel } { misplaced-equals-sign } }
-%    \end{macrocode}
-% \end{macro}
-%
-% One message for the low level parsing system.
+% Two messages for the low level parsing system.
 %    \begin{macrocode}
 \__kernel_msg_new:nnn { kernel } { misplaced-equals-sign }
   { Misplaced~equals~sign~in~key-value~input~\msg_line_context: }
+\__kernel_msg_new:nnn { kernel } { blank-key-name }
+  { Blank~key~name~in~key-value~input~\msg_line_context: }
 %    \end{macrocode}
 %
 % \begin{macro}[EXP]{\@@_trim:nN}
@@ -1203,7 +1298,7 @@
           \@@_trim_auxi:w
             ##1
             \s_@@_nil
-            \s_@@_mark #1 {}
+            \s_@@_mark #1 { }
             \s_@@_mark \@@_trim_auxii:w
             \@@_trim_auxiii:w
             #1 \s_@@_nil
@@ -1482,11 +1577,11 @@
     \cs_if_exist:cTF { \c_@@_props_root_str \l_@@_property_str }
       { \@@_define_code:n {#2} }
       {
-         \str_if_empty:NF \l_@@_property_str
-           {
-             \__kernel_msg_error:nnxx { kernel } { key-property-unknown }
-               { \l_@@_property_str } { \l_keys_path_str }
-           }
+        \str_if_empty:NF \l_@@_property_str
+          {
+            \__kernel_msg_error:nnxx { kernel } { key-property-unknown }
+              { \l_@@_property_str } { \l_keys_path_str }
+          }
       }
   }
 %    \end{macrocode}
@@ -2729,7 +2824,7 @@
           }
           {
             \__kernel_msg_error:nnxx { kernel } { key-unknown }
-             { \l_keys_path_str } { \l_@@_module_str }
+              { \l_keys_path_str } { \l_@@_module_str }
           }
       }
   }
