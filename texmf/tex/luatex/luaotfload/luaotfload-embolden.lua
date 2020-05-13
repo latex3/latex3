@@ -5,8 +5,8 @@
 
 local ProvidesLuaModule = { 
     name          = "luaotfload-embolden",
-    version       = "3.00",       --TAGVERSION
-    date          = "2019-09-13", --TAGDATE
+    version       = "3.13",       --TAGVERSION
+    date          = "2020-05-01", --TAGDATE
     description   = "luaotfload submodule / color",
     license       = "GPL v2.0",
     author        = "Marcel Krüger"
@@ -18,24 +18,17 @@ end
 
 local otffeatures        = fonts.constructors.newfeatures "otf"
 
-local function setembolden(tfmdata, factor)
-  tfmdata.embolden = factor
-end
-
-local function enableembolden(tfmdata)
-  tfmdata.mode, tfmdata.width = 2, tfmdata.size*tfmdata.unscaled.embolden/6578.176
+local function enableembolden(tfmdata, _, embolden)
+  tfmdata.mode, tfmdata.width = 2, tfmdata.size*embolden/6578.176
 end
 
 otffeatures.register {
   name        = "embolden",
   description = "embolden",
-  initializers = {
-    base = setembolden,
-    node = setembolden,
-  },
   manipulators = {
     base = enableembolden,
     node = enableembolden,
+    plug = enableembolden,
   }
 }
 

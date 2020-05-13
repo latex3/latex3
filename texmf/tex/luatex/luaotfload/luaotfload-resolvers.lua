@@ -11,8 +11,8 @@
 
 local ProvidesLuaModule = { 
     name          = "luaotfload-resolvers",
-    version       = "3.00",       --TAGVERSION
-    date          = "2019-09-13", --TAGDATE
+    version       = "3.13",       --TAGVERSION
+    date          = "2020-05-01", --TAGDATE
     description   = "luaotfload submodule / resolvers",
     license       = "GPL v2.0"
 }
@@ -114,9 +114,9 @@ local function resolve_name (specification)
     end
     local resolved, subfont = resolver (specification)
     if resolved then
-        logreport ("log", 1, "resolve", "name lookup %q -> \"%s%s\"",
-                   specification.name, resolved,
-                   subfont and stringformat ("(%d)", subfont) or "")
+        logreport ("log", 1, "resolve", "name lookup %q -> %q",
+                   specification.name, resolved ..
+                   (subfont and stringformat ("(%d)", subfont) or ""))
         return resolved, tonumber(subfont)
     end
     return resolve_file (specification)
@@ -148,18 +148,19 @@ end
 
 local tex_formats = { "tfm", "ofm" }
 
-local resolve_tex_format = function (specification)
+local resolvers_findfile = luaotfload.fontloader.resolvers.findfile
+local function resolve_tex_format (specification)
     local name = specification.name
     for i=1, #tex_formats do
         local format = tex_formats [i]
-        local resolved = resolvers.findfile(name, format)
+        local resolved = resolvers_findfile(name, format)
         if resolved then
             return resolved, format
         end
     end
 end
 
-local resolve_path_if_exists = function (specification)
+local function resolve_path_if_exists (specification)
     local spec = specification.specification
     local exists = lfsisfile (spec)
     if exists then
@@ -178,7 +179,7 @@ end
     Custom file resolvers via callback.
 --doc]]--
 
-local resolve_my = function (specification)
+local function resolve_my (specification)
     return luatexbase.call_callback ("luaotfload.resolve_font", specification)
 end
 
@@ -190,7 +191,7 @@ local resolve_methods = {
     my   = resolve_my,
 }
 
-local resolve_sequence = function (seq, specification)
+local function resolve_sequence (seq, specification)
     for i = 1, #seq do
         local id  = seq [i]
         local mth = resolve_methods [id]
@@ -241,6 +242,7 @@ local function resolve_kpse (specification)
     end
 end
 
+local lookup_subfont_index = fonts.names.lookup_subfont_index
 local function wrap_resolver(resolver)
     return function (specification)
         local filename, sub, forced = resolver(specification)
@@ -253,6 +255,10 @@ local function wrap_resolver(resolver)
             specification.filename = filename
             specification.name = filename
             specification.sub = sub or specification.sub
+            if type(specification.sub) == "string" then
+                specification.sub =
+                    lookup_subfont_index(filename, specification.sub)
+            end
             specification.forced = specification.forced or forced
             if not specification.forced then
                 local suffix = stringlower (filesuffix (filename))

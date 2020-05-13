@@ -27,8 +27,6 @@ local methods             = allocate()
 analyzers.initializers    = initializers
 analyzers.methods         = methods
 
-local a_state             = attributes.private('state')
-
 local nuts                = nodes.nuts
 local tonut               = nuts.tonut
 
@@ -59,6 +57,26 @@ local registerotffeature  = otffeatures.register
 <p>Analyzers run per script and/or language and are needed in order to
 process features right.</p>
 --ldx]]--
+
+local setstate = nuts.setstate
+local getstate = nuts.getstate
+
+if not setstate or not getstate then
+    -- generic (might move to the nod lib)
+    setstate = function(n,v)
+        setprop(n,"state",v)
+    end
+    getstate = function(n,v)
+        local s = getprop(n,"state")
+        if v then
+            return s == v
+        else
+            return s
+        end
+    end
+    nuts.setstate = setstate
+    nuts.getstate = getstate
+end
 
 -- never use these numbers directly
 
@@ -120,37 +138,37 @@ function analyzers.setstate(head,font)
     current = tonut(current)
     while current do
         local char, id = ischar(current,font)
-        if char and not getprop(current,a_state) then
+        if char and not getstate(current) then
             done = true
             local d = descriptions[char]
             if d then
                 if d.class == "mark" then
                     done = true
-                    setprop(current,a_state,s_mark)
+                    setstate(current,s_mark)
                 elseif useunicodemarks and categories[char] == "mn" then
                     done = true
-                    setprop(current,a_state,s_mark)
+                    setstate(current,s_mark)
                 elseif n == 0 then
                     first, last, n = current, current, 1
-                    setprop(current,a_state,s_init)
+                    setstate(current,s_init)
                 else
                     last, n = current, n+1
-                    setprop(current,a_state,s_medi)
+                    setstate(current,s_medi)
                 end
             else -- finish
                 if first and first == last then
-                    setprop(last,a_state,s_isol)
+                    setstate(last,s_isol)
                 elseif last then
-                    setprop(last,a_state,s_fina)
+                    setstate(last,s_fina)
                 end
                 first, last, n = nil, nil, 0
             end
         elseif char == false then
             -- other font
             if first and first == last then
-                setprop(last,a_state,s_isol)
+                setstate(last,s_isol)
             elseif last then
-                setprop(last,a_state,s_fina)
+                setstate(last,s_fina)
             end
             first, last, n = nil, nil, 0
             if id == math_code then
@@ -160,13 +178,13 @@ function analyzers.setstate(head,font)
             -- always in the middle .. it doesn't make much sense to assign a property
             -- here ... we might at some point decide to flag the components when present
             -- but even then it's kind of bogus
-            setprop(current,a_state,s_medi)
+            setstate(current,s_medi)
             last = current
         else -- finish
             if first and first == last then
-                setprop(last,a_state,s_isol)
+                setstate(last,s_isol)
             elseif last then
-                setprop(last,a_state,s_fina)
+                setstate(last,s_fina)
             end
             first, last, n = nil, nil, 0
             if id == math_code then
@@ -176,9 +194,9 @@ function analyzers.setstate(head,font)
         current = getnext(current)
     end
     if first and first == last then
-        setprop(last,a_state,s_isol)
+        setstate(last,s_isol)
     elseif last then
-        setprop(last,a_state,s_fina)
+        setstate(last,s_fina)
     end
     return head, done
 end
@@ -308,91 +326,91 @@ function methods.arab(head,font,attr)
     current = tonut(current)
     while current do
         local char, id = ischar(current,font)
-        if char and not getprop(current,a_state) then
+        if char and not getstate(current) then
             done = true
             local classifier = classifiers[char]
             if not classifier then
                 if last then
                     if c_last == s_medi or c_last == s_fina then
-                        setprop(last,a_state,s_fina)
+                        setstate(last,s_fina)
                     else
                         warning(last,"fina")
-                        setprop(last,a_state,s_error)
+                        setstate(last,s_error)
                     end
                     first, last = nil, nil
                 elseif first then
                     if c_first == s_medi or c_first == s_fina then
-                        setprop(first,a_state,s_isol)
+                        setstate(first,s_isol)
                     else
                         warning(first,"isol")
-                        setprop(first,a_state,s_error)
+                        setstate(first,s_error)
                     end
                     first = nil
                 end
             elseif classifier == s_mark then
-                setprop(current,a_state,s_mark)
+                setstate(current,s_mark)
             elseif classifier == s_isol then
                 if last then
                     if c_last == s_medi or c_last == s_fina then
-                        setprop(last,a_state,s_fina)
+                        setstate(last,s_fina)
                     else
                         warning(last,"fina")
-                        setprop(last,a_state,s_error)
+                        setstate(last,s_error)
                     end
                     first, last = nil, nil
                 elseif first then
                     if c_first == s_medi or c_first == s_fina then
-                        setprop(first,a_state,s_isol)
+                        setstate(first,s_isol)
                     else
                         warning(first,"isol")
-                        setprop(first,a_state,s_error)
+                        setstate(first,s_error)
                     end
                     first = nil
                 end
-                setprop(current,a_state,s_isol)
+                setstate(current,s_isol)
             elseif classifier == s_medi then
                 if first then
                     last = current
                     c_last = classifier
-                    setprop(current,a_state,s_medi)
+                    setstate(current,s_medi)
                 else
-                    setprop(current,a_state,s_init)
+                    setstate(current,s_init)
                     first = current
                     c_first = classifier
                 end
             elseif classifier == s_fina then
                 if last then
-                    if getprop(last,a_state) ~= s_init then
-                        setprop(last,a_state,s_medi)
+                    if getstate(last) ~= s_init then
+                        setstate(last,s_medi)
                     end
-                    setprop(current,a_state,s_fina)
+                    setstate(current,s_fina)
                     first, last = nil, nil
                 elseif first then
-                 -- if getprop(first,a_state) ~= s_init then
+                 -- if getstate(first) ~= s_init then
                  --     -- needs checking
-                 --     setprop(first,a_state,s_medi)
+                 --     setstate(first,s_medi)
                  -- end
-                    setprop(current,a_state,s_fina)
+                    setstate(current,s_fina)
                     first = nil
                 else
-                    setprop(current,a_state,s_isol)
+                    setstate(current,s_isol)
                 end
             else -- classifier == s_rest
-                setprop(current,a_state,s_rest)
+                setstate(current,s_rest)
                 if last then
                     if c_last == s_medi or c_last == s_fina then
-                        setprop(last,a_state,s_fina)
+                        setstate(last,s_fina)
                     else
                         warning(last,"fina")
-                        setprop(last,a_state,s_error)
+                        setstate(last,s_error)
                     end
                     first, last = nil, nil
                 elseif first then
                     if c_first == s_medi or c_first == s_fina then
-                        setprop(first,a_state,s_isol)
+                        setstate(first,s_isol)
                     else
                         warning(first,"isol")
-                        setprop(first,a_state,s_error)
+                        setstate(first,s_error)
                     end
                     first = nil
                 end
@@ -400,18 +418,18 @@ function methods.arab(head,font,attr)
         else
             if last then
                 if c_last == s_medi or c_last == s_fina then
-                    setprop(last,a_state,s_fina)
+                    setstate(last,s_fina)
                 else
                     warning(last,"fina")
-                    setprop(last,a_state,s_error)
+                    setstate(last,s_error)
                 end
                 first, last = nil, nil
             elseif first then
                 if c_first == s_medi or c_first == s_fina then
-                    setprop(first,a_state,s_isol)
+                    setstate(first,s_isol)
                 else
                     warning(first,"isol")
-                    setprop(first,a_state,s_error)
+                    setstate(first,s_error)
                 end
                 first = nil
             end
@@ -423,17 +441,17 @@ function methods.arab(head,font,attr)
     end
     if last then
         if c_last == s_medi or c_last == s_fina then
-            setprop(last,a_state,s_fina)
+            setstate(last,s_fina)
         else
             warning(last,"fina")
-            setprop(last,a_state,s_error)
+            setstate(last,s_error)
         end
     elseif first then
         if c_first == s_medi or c_first == s_fina then
-            setprop(first,a_state,s_isol)
+            setstate(first,s_isol)
         else
             warning(first,"isol")
-            setprop(first,a_state,s_error)
+            setstate(first,s_error)
         end
     end
     return head, done

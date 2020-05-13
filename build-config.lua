@@ -28,6 +28,9 @@ packtdszip  = true
 
 typesetcmds = typesetcmds or "\\AtBeginDocument{\\csname DisableImplementation\\endcsname}"
 
+typesetexe = "pdftex"
+typesetopts = "--fmt=pdflatex -interaction=nonstopmode"
+
 if checksearch == nil then
   checksearch = false
 end
@@ -127,4 +130,8 @@ end
 
 function checkinit_hook()
   return fmt(options["engine"] or checkengines,testdir)
+end
+
+function docinit_hook()
+  return fmt({typesetexe},typesetdir)
 end

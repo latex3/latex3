@@ -5,8 +5,8 @@
 
 local ProvidesLuaModule = { 
     name          = "luaotfload-letterspace",
-    version       = "3.00",       --TAGVERSION
-    date          = "2019-09-13", --TAGDATE
+    version       = "3.13",       --TAGVERSION
+    date          = "2020-05-01", --TAGDATE
     description   = "luaotfload submodule / color",
     license       = "GPL v2.0",
     copyright     = "PRAGMA ADE / ConTeXt Development Team",
@@ -82,6 +82,7 @@ local fonthashes         = fonts.hashes
 local identifiers        = fonthashes.identifiers
 local chardata           = fonthashes.characters
 local otffeatures        = fonts.constructors.newfeatures "otf"
+local markdata
 
 local function getprevreal(n)
   repeat
@@ -144,12 +145,27 @@ if not chardata then
   fonthashes.characters = chardata
 end
 
+if not markdata then
+  markdata = setmetatable({}, {__index = function(t, k)
+    if k == true then
+      return t[currentfont()]
+    else
+      local tfmdata = font.getfont(k) or font.fonts[k]
+      if tfmdata then
+        local marks = tfmdata.resources.marks or {}
+        t[k] = marks
+        return marks
+      end
+    end
+  end})
+end
+
 ---=================================================================---
 ---                 character kerning functionality
 ---=================================================================---
 
 -- UF changed 2017-07-14
-local kern_injector = function (fillup, kern)
+local function kern_injector (fillup, kern)
  if fillup then
    local g = new_node(glue_code)
    setglue(g, 0, kern, 0, 1, 0)
@@ -161,7 +177,7 @@ local kern_injector = function (fillup, kern)
 end
 -- /UF
 
-local kernable_skip = function (n)
+local function kernable_skip (n)
   local st = getsubtype (n)
   return st == userskip_code
       or st == spaceskip_code
@@ -334,7 +350,7 @@ kerncharacters = function (head)
                   local kern = 0
                   local kerns = prevchardata.kerns
                   if kerns then kern = kerns[lastchar] or kern end
-                  krn = kern + krn -- here
+                  krn = kern + (markdata[lastfont][lastchar] and 0 or krn) -- here
                   insert_node_before(head,start,kern_injector(fillup,krn))
                 end
               end
@@ -409,7 +425,7 @@ kerncharacters = function (head)
                   if kerns then kern = kerns[lastchar] or kern end
                 end
               end
-              krn = kern + krn -- here
+              krn = kern + (markdata[lastfont][lastchar] and 0 or krn) -- here
             end
             setfield(disc, "replace", kern_injector(false, krn))
           end --[[if replace and prv and nxt]]
@@ -436,25 +452,13 @@ end
 
 --- (node_t -> node_t) -> string -> string list -> bool
 local registered_as = { } --- procname -> callbacks
-local add_processor = function (processor, name, ...)
+local function add_processor (processor, name, ...)
   local callbacks = { ... }
   for i=1, #callbacks do
     luatexbase.add_to_callback(callbacks[i], processor, name)
   end
   registered_as[name] = callbacks --- for removal
   return true
-end
-
---- string -> bool
-local remove_processor = function (name)
-  local callbacks = registered_as[name]
-  if callbacks then
-    for i=1, #callbacks do
-      luatexbase.remove_from_callback(callbacks[i], name)
-    end
-    return true
-  end
-  return false --> unregistered
 end
 
 --- When font kerning is requested, usually by defining a font with the
@@ -466,9 +470,9 @@ end
 --- performs all node operations on direct nodes.
 
 --- unit -> bool
-local enablefontkerning = function ( )
+local function enablefontkerning ( )
 
-  local handler = function (hd)
+  local function handler (hd)
     local direct_hd = todirect (hd)
     logreport ("term", 5, "letterspace",
                "kerncharacters() invoked with node.direct interface \z
@@ -507,7 +511,7 @@ end
 local fontkerning_enabled = false --- callback state
 
 --- fontobj -> float -> unit
-local initializefontkerning = function (tfmdata, factor)
+local function initializefontkerning (tfmdata, factor)
   if factor ~= "max" then
     factor = tonumber (factor) or 0
   end
@@ -532,6 +536,7 @@ otffeatures.register {
   initializers = {
     base = initializefontkerning,
     node = initializefontkerning,
+    plug = initializefontkerning,
   }
 }
 
@@ -546,7 +551,7 @@ otffeatures.register {
 
 --doc]]--
 
-local initializecompatfontkerning = function (tfmdata, percentage)
+local function initializecompatfontkerning (tfmdata, percentage)
   local factor = tonumber (percentage)
   if not factor then
     logreport ("both", 0, "letterspace",
@@ -564,6 +569,7 @@ otffeatures.register {
   initializers = {
     base = initializecompatfontkerning,
     node = initializecompatfontkerning,
+    plug = initializecompatfontkerning,
   }
 }
 
