@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Performance improvements in keyval processing
+
 ## [2020-05-11]
 
 ### Changed
