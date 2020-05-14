@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Make `\text_purify:n` `f`-type expandable
+
 ## [2020-05-14]
 
 ### Changed
