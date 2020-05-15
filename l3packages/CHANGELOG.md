@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-05-15]
+
 ## [2020-05-14]
 
 ### Changed
@@ -97,7 +99,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-05-14...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-05-15...HEAD
+[2020-05-15]: https://github.com/latex3/latex3/compare/2020-05-14...2020-05-15
 [2020-05-14]: https://github.com/latex3/latex3/compare/2020-03-06...2020-05-14
 [2020-03-06]: https://github.com/latex3/latex3/compare/2020-03-03...2020-03-06
 [2020-03-03]: https://github.com/latex3/latex3/compare/2020-02-25...2020-03-03
