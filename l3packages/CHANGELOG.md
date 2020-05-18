@@ -9,6 +9,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2020-05-15]
 
+### Changed
+- Internal packaging of `xparse` in advance of changes to the LaTeX2e kernel
+
 ## [2020-05-14]
 
 ### Changed
