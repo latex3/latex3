@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\pdf_object_if_exist:n(TF)`
+
 ## [2020-01-12]
 
 ### Changed
