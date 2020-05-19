@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\cctab_select:N`
+
 ## [2020-05-18]
 
 ### Added
