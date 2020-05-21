@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- `\__pdf_backend_object_write_fstream:nn` with `dvips` backend (issue #710)
+
 ## [2020-05-05]
 
 ### Added
