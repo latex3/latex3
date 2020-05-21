@@ -7,6 +7,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Fixed
+- Unneeded `[nobreak]` in `dvips` driver (issue #709)
 - `\__pdf_backend_object_write_fstream:nn` with `dvips` backend (issue #710)
 
 ## [2020-05-05]
