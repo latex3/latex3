@@ -28,6 +28,9 @@ packtdszip  = true
 
 typesetcmds = typesetcmds or "\\AtBeginDocument{\\csname DisableImplementation\\endcsname}"
 
+typesetexe = "pdftex"
+typesetopts = "--fmt=pdflatex -interaction=nonstopmode"
+
 if checksearch == nil then
   checksearch = false
 end
@@ -87,6 +90,8 @@ local function fmt(engines,dest)
       cmd = "euptex"
     elseif string.match(engine,"ptex") then
       cmd = "eptex"
+    elseif string.match(engine,"luatex") then
+      cmd = "luahbtex"
     end
     -- Use .ini files if available
     local src = "latex.ltx"
@@ -125,4 +130,8 @@ end
 
 function checkinit_hook()
   return fmt(options["engine"] or checkengines,testdir)
+end
+
+function docinit_hook()
+  return fmt({typesetexe},typesetdir)
 end

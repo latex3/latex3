@@ -113,6 +113,8 @@ local setprev            = nuts.setprev
 local setchar            = nuts.setchar
 local getprop            = nuts.getprop
 local setprop            = nuts.setprop
+local getstate           = nuts.getstate
+local setstate           = nuts.setstate
 
 local ischar             = nuts.ischar
 
@@ -128,7 +130,6 @@ local unsetvalue         = attributes.unsetvalue
 
 local fontdata           = fonts.hashes.identifiers
 
-local a_state            = attributes.private('state')
 local a_syllabe          = attributes.private('syllabe')
 
 local dotted_circle      = 0x25CC
@@ -958,7 +959,7 @@ local function reorder_one(head,start,stop,font,attr,nbspaces)
             current = start
         else
             current = getnext(n)
-            setprop(start,a_state,s_rphf)
+            setstate(start,s_rphf)
         end
     end
 
@@ -993,9 +994,9 @@ local function reorder_one(head,start,stop,font,attr,nbspaces)
                         local nextcurrent = copy_node(current)
                         copyinjection(nextcurrent,current) -- KE: necessary? HH: probably not as positioning comes later and we rawget/set
                         setlink(tempcurrent,nextcurrent)
-                        setprop(tempcurrent,a_state,s_blwf)
+                        setstate(tempcurrent,s_blwf)
                         tempcurrent = processcharacters(tempcurrent,font)
-                        setprop(tempcurrent,a_state,unsetvalue)
+                        setstate(tempcurrent,unsetvalue)
                         if getchar(next) == getchar(tempcurrent) then
                             flush_list(tempcurrent)
                             if show_syntax_errors then
@@ -1021,7 +1022,7 @@ local function reorder_one(head,start,stop,font,attr,nbspaces)
         -- find base consonant
         local char = getchar(current)
         if consonant[char] then
-            setprop(current,a_state,s_half)
+            setstate(current,s_half)
             if not firstcons then
                 firstcons = current
             end
@@ -1030,10 +1031,10 @@ local function reorder_one(head,start,stop,font,attr,nbspaces)
                 base = current
             elseif blwfcache[char] then
                 -- consonant has below-base form
-                setprop(current,a_state,s_blwf)
+                setstate(current,s_blwf)
             elseif pstfcache[char] then
                 -- consonant has post-base form
-                setprop(current,a_state,s_pstf)
+                setstate(current,s_pstf)
             else
                 base = current
             end
@@ -1107,15 +1108,15 @@ local function reorder_one(head,start,stop,font,attr,nbspaces)
     while current ~= stop do
         local next = getnext(current)
         if next ~= stop and halant[getchar(next)] and getchar(getnext(next)) == c_zwnj then
-            setprop(current,a_state,unsetvalue)
+            setstate(current,unsetvalue)
         end
         current = next
     end
 
-    if base ~= stop and getprop(base,a_state) then -- a_state can also be init
+    if base ~= stop and getstate(base) then -- state can also be init
         local next = getnext(base)
         if halant[getchar(next)] and not (next ~= stop and getchar(getnext(next)) == c_zwj) then
-            setprop(base,a_state,unsetvalue)
+            setstate(base,unsetvalue)
         end
     end
 
@@ -1261,7 +1262,7 @@ local function reorder_one(head,start,stop,font,attr,nbspaces)
                     end
                     bn = next
                 end
-                if getprop(current,a_state) == s_rphf then
+                if getstate(current,s_rphf) then
                     -- position Reph (Ra + H) after post-base 'matra' (if any) since these
                     -- become marks on the 'matra', not on the base glyph
                     if b ~= current then
@@ -1285,7 +1286,7 @@ local function reorder_one(head,start,stop,font,attr,nbspaces)
                     local cp   = getprev(current)
                     local cnsn = getnext(cns)
                     setlink(cp,n)
-                    setlink(cns,current)
+                    setlink(cns,current) -- cns ?
                     setlink(c,cnsn)
                     if c == stop then
                         stop = cp
@@ -1357,7 +1358,7 @@ function handlers.devanagari_reorder_matras(head,start) -- no leak
         local char = ischar(current,startfont)
         local next = getnext(current)
         if char and getprop(current,a_syllabe) == startattr then
-            if halant[char] then -- a_state can also be init
+            if halant[char] then -- state can also be init
                 if next then
                     local char = ischar(next,startfont)
                     if char and zw_char[char] and getprop(next,a_syllabe) == startattr then
@@ -1373,7 +1374,7 @@ function handlers.devanagari_reorder_matras(head,start) -- no leak
              -- setlink(current,start,next) -- maybe
                 start = startnext
                 break
-         -- elseif consonant[char] and ( not getprop(current,a_state) or getprop(current,a_state) == s_init) then
+         -- elseif consonant[char] and (not getstate(current) or getstate(current,s_init) then
          --     startnext = getnext(start)
          --     head = remove_node(head,start)
          --     if current == head then
@@ -1473,7 +1474,7 @@ function handlers.devanagari_reorder_reph(head,start)
             while current do
                 local char = ischar(current,startfont)
                 if char and getprop(current,a_syllabe) == startattr then
-                    if consonant[char] and not getprop(current,a_state) == s_pref then
+                    if consonant[char] and not getstate(current,s_pref) then
                         startnext = getnext(start)
                         head = remove_node(head,start)
                         setlink(current,start)
@@ -1504,7 +1505,7 @@ function handlers.devanagari_reorder_reph(head,start)
             while current do
                 local char = ischar(current,startfont)
                 if char and getprop(current,a_syllabe) == startattr then
-                    if getprop(current,a_state) == s_pstf then -- post-base
+                    if getstate(current,s_pstf) then -- post-base
                         startnext = getnext(start)
                         head = remove_node(head,start)
                         setlink(getprev(current),start)
@@ -1547,7 +1548,7 @@ function handlers.devanagari_reorder_reph(head,start)
         while current do
             local char = ischar(current,startfont)
             if char and getprop(current,a_syllabe) == startattr then
-                local state = getprop(current,a_state)
+                local state = getstate(current)
                 if before_subscript[rephbase] and (state == s_blwf or state == s_pstf) then
                     c = current
                 elseif after_subscript[rephbase] and (state == s_pstf) then
@@ -1628,7 +1629,7 @@ function handlers.devanagari_reorder_pre_base_reordering_consonants(head,start)
         local char = ischar(current,startfont)
         local next = getnext(current)
         if char and getprop(current,a_syllabe) == startattr then
-            if halant[char] then -- a_state can also be init
+            if halant[char] then -- state can also be init
                 if next then
                     local char = ischar(next,startfont)
                     if char and zw_char[char] and getprop(next,a_syllabe) == startattr then
@@ -1645,7 +1646,7 @@ function handlers.devanagari_reorder_pre_base_reordering_consonants(head,start)
                 reordered_pre_base_reordering_consonants[start] = true
                 start = startnext
                 return head, start, true
-         -- elseif consonant[char] and ( not getprop(current,a_state) or getprop(current,a_state) == s_init) then
+         -- elseif consonant[char] and (not getstate(current) or getstate(current,s_init)) then
          --     startnext = getnext(start)
          --     head = remove_node(head,start)
          --     if current == head then
@@ -1668,7 +1669,7 @@ function handlers.devanagari_reorder_pre_base_reordering_consonants(head,start)
     local current = getprev(start)
     while current and getprop(current,a_syllabe) == startattr do
         local char = ischar(current)
-        if ( not dependent_vowel[char] and not getprop(current,a_state) or getprop(current,a_state) == s_init) then
+        if (not dependent_vowel[char] and (not getstate(current) or getstate(current,s_init))) then
             startnext = getnext(start)
             head = remove_node(head,start)
             if current == head then
@@ -1764,7 +1765,7 @@ local function reorder_two(head,start,stop,font,attr,nbspaces) -- maybe do a pas
                             if afternext and zw_char[getchar(afternext)] then -- ZWJ and ZWNJ prevent creation of reph
                                 current = afternext -- getnext(next)
                             elseif current == start then
-                                setprop(current,a_state,s_rphf)
+                                setstate(current,s_rphf)
                                 current = next
                             else
                                 current = next
@@ -1784,9 +1785,9 @@ local function reorder_two(head,start,stop,font,attr,nbspaces) -- maybe do a pas
                     if found then -- pre-base: pref	Halant + Consonant
                         local next = getnext(current)
                         if found[getchar(next)] or contextchain(found, next) then
-                            if (not getprop(current,a_state) and not getprop(next,a_state)) then	--KE: a_state can also be init...
-                                setprop(current,a_state,s_pref)
-                                setprop(next,a_state,s_pref)
+                            if (not getstate(current) and not getstate(next)) then	--KE: state can also be init...
+                                setstate(current,s_pref)
+                                setstate(next,s_pref)
                                 current = next
                             end
                         end
@@ -1806,8 +1807,8 @@ local function reorder_two(head,start,stop,font,attr,nbspaces) -- maybe do a pas
                         if found[getchar(next)] or contextchain(found, next) then
                             if next ~= stop and getchar(getnext(next)) == c_zwnj then    -- zwnj prevent creation of half
                                 current = next
-                            elseif (not getprop(current,a_state)) then	--KE: a_state can also be init...
-                                setprop(current,a_state,s_half)
+                            elseif (not getstate(current)) then	--KE: state can also be init...
+                                setstate(current,s_half)
                                 if not halfpos then
                                     halfpos = current
                                 end
@@ -1828,9 +1829,9 @@ local function reorder_two(head,start,stop,font,attr,nbspaces) -- maybe do a pas
                     if found then
                         local next = getnext(current)
                         if found[getchar(next)] or contextchain(found, next) then
-                            if (not getprop(current,a_state) and not getprop(next,a_state)) then	--KE: a_state can also be init...
-                                setprop(current,a_state,s_blwf)
-                                setprop(next,a_state,s_blwf)
+                            if (not getstate(current) and not getstate(next)) then --KE: state can also be init...
+                                setstate(current,s_blwf)
+                                setstate(next,s_blwf)
                                 current = next
                                 subpos  = current
                             end
@@ -1849,9 +1850,9 @@ local function reorder_two(head,start,stop,font,attr,nbspaces) -- maybe do a pas
                     if found then
                         local next = getnext(current)
                         if found[getchar(next)] or contextchain(found, next) then
-                            if (not getprop(current,a_state) and not getprop(next,a_state)) then	--KE: a_state can also be init...
-                                setprop(current,a_state,s_pstf)
-                                setprop(next,a_state,s_pstf)
+                            if (not getstate(current) and not getstate(next)) then -- KE: state can also be init...
+                                setstate(current,s_pstf)
+                                setstate(next,s_pstf)
                                 current = next
                                 postpos = current
                             end
@@ -1865,7 +1866,7 @@ local function reorder_two(head,start,stop,font,attr,nbspaces) -- maybe do a pas
 
     local current, base, firstcons = start, nil, nil
 
-    if getprop(start,a_state) == s_rphf then
+    if getstate(start,s_rphf) then
         -- if syllable starts with Ra + H and script has 'Reph' then exclude Reph from candidates for base consonants
         current = getnext(getnext(start))
     end
@@ -1895,13 +1896,13 @@ local function reorder_two(head,start,stop,font,attr,nbspaces) -- maybe do a pas
                         local tmp = getnext(next)
                         local changestop = next == stop
                         setnext(next)
-                        setprop(current,a_state,s_pref)
+                        setstate(current,s_pref)
                         current = processcharacters(current,font)
-                        setprop(current,a_state,s_blwf)
+                        setstate(current,s_blwf)
                         current = processcharacters(current,font)
-                        setprop(current,a_state,s_pstf)
+                        setstate(current,s_pstf)
                         current = processcharacters(current,font)
-                        setprop(current,a_state,unsetvalue)
+                        setstate(current,unsetvalue)
                         if halant[getchar(current)] then
                             setnext(getnext(current),tmp)
                             if show_syntax_errors then
@@ -1927,7 +1928,7 @@ local function reorder_two(head,start,stop,font,attr,nbspaces) -- maybe do a pas
                         firstcons = current
                     end
                     -- check whether consonant has below-base or post-base form or is pre-base reordering Ra
-                    local a = getprop(current,a_state)
+                    local a = getstate(current)
                     if not (a == s_blwf or a == s_pstf or (a ~= s_rphf and a ~= s_blwf and ra[getchar(current)])) then
                         base = current
                     end
@@ -1941,13 +1942,13 @@ local function reorder_two(head,start,stop,font,attr,nbspaces) -- maybe do a pas
     end
 
     if not base then
-        if getprop(start,a_state) == s_rphf then
-            setprop(start,a_state,unsetvalue)
+        if getstate(start,s_rphf) then
+            setstate(start,unsetvalue)
         end
         return head, stop, nbspaces
     else
-        if getprop(base,a_state) then -- a_state can also be init
-            setprop(base,a_state,unsetvalue)
+        if getstate(base) then -- state can also be init
+            setstate(base,unsetvalue)
         end
         basepos = base
     end
@@ -2004,7 +2005,7 @@ local function reorder_two(head,start,stop,font,attr,nbspaces) -- maybe do a pas
 
                 local ppos = getprev(pos) -- necessary?
                 while ppos and getprop(ppos,a_syllabe) == getprop(pos,a_syllabe) do
-                    if getprop(ppos,a_state) == s_pref then
+                    if getstate(ppos,s_pref) then
                         pos = ppos
                     end
                     ppos = getprev(ppos)
@@ -2086,7 +2087,7 @@ local function reorder_two(head,start,stop,font,attr,nbspaces) -- maybe do a pas
     while current ~= last do
         local char = getchar(current)
         local cn   = getnext(current)
-        if halant[char] and ra[ischar(cn)] and getprop(cn,a_state) ~= s_rphf and getprop(cn,a_state) ~= s_blwf then
+        if halant[char] and ra[ischar(cn)] and (not getstate(cn,s_rphf)) and (not getstate(cn,s_blwf)) then
             if after_main[ischar(cn)] then
                 local prev = getprev(current)
                 local next = getnext(cn)
@@ -2730,8 +2731,8 @@ local function method_one(head,font,attr)
     while current do
         local char = ischar(current,font)
         if char then
-			if n == 0 and not getprop(current,a_state) then
-				setprop(current,a_state,s_init)
+			if n == 0 and not getstate(current) then
+				setstate(current,s_init)
 			end
 			n = n + 1
 		else
@@ -2820,7 +2821,7 @@ local function method_two(head,font,attr)
         end
         if not syllableend and show_syntax_errors then
             local char = ischar(current,font)
-            if char and not getprop(current,a_state) then -- a_state can also be init
+            if char and not getstate(current) then -- state can also be init
                 local mark = mark_four[char]
                 if mark then
                     head, current = inject_syntax_error(head,current,char)
@@ -2840,8 +2841,8 @@ local function method_two(head,font,attr)
     while current do
         local char = ischar(current,font)
         if char then
-			if n == 0 and not getprop(current,a_state) then	-- a_state can also be init
-				setprop(current,a_state,s_init)
+			if n == 0 and not getstate(current) then -- state can also be init
+				setstate(current,s_init)
 			end
 			n = n + 1
 		else

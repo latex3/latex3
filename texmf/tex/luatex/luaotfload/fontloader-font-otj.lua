@@ -110,7 +110,7 @@ local properties         = nodes.properties.data
 local fontkern           = nuts.pool and nuts.pool.fontkern   -- context
 local italickern         = nuts.pool and nuts.pool.italickern -- context
 
-local useitalickerns     = false
+local useitalickerns     = false -- context only
 
 directives.register("fonts.injections.useitalics", function(v)
     if v then
@@ -119,7 +119,7 @@ directives.register("fonts.injections.useitalics", function(v)
     useitalickerns = v
 end)
 
-do if not fontkern then -- generic
+if not fontkern then -- generic
 
     local thekern   = nuts.new("kern",0) -- fontkern
     local setkern   = nuts.setkern
@@ -131,9 +131,9 @@ do if not fontkern then -- generic
         return n
     end
 
-end end
+end
 
-do if not italickern then -- generic
+if not italickern then -- generic
 
     local thekern   = nuts.new("kern",3) -- italiccorrection
     local setkern   = nuts.setkern
@@ -145,7 +145,7 @@ do if not italickern then -- generic
         return n
     end
 
-end end
+end
 
 function injections.installnewkern() end -- obsolete
 
@@ -664,7 +664,15 @@ local function inject_kerns_only(head,where)
                     -- left|glyph|right
                     local leftkern = i.leftkern
                     if leftkern and leftkern ~= 0 then
-                        head = insert_node_before(head,current,fontkern(leftkern))
+                        if prev and getid(prev) == glue_code then
+                            if useitalickerns then
+                                head = insert_node_before(head,current,italickern(leftkern))
+                            else
+                                setwidth(prev, getwidth(prev) + leftkern)
+                            end
+                        else
+                            head = insert_node_before(head,current,fontkern(leftkern))
+                        end
                     end
                 end
                 if prevdisc then
@@ -819,12 +827,26 @@ local function inject_positions_only(head,where)
                         if rightkern and leftkern == -rightkern then
                             setoffsets(current,leftkern,false)
                             rightkern = 0
+                        elseif prev and getid(prev) == glue_code then
+                            if useitalickerns then
+                                head = insert_node_before(head,current,italickern(leftkern))
+                            else
+                                setwidth(prev, getwidth(prev) + leftkern)
+                            end
                         else
                             head = insert_node_before(head,current,fontkern(leftkern))
                         end
                     end
                     if rightkern and rightkern ~= 0 then
-                        insert_node_after(head,current,fontkern(rightkern))
+                        if next and getid(next) == glue_code then
+                            if useitalickerns then
+                                insert_node_after(head,current,italickern(rightkern))
+                            else
+                                setwidth(next, getwidth(next) + rightkern)
+                            end
+                        else
+                            insert_node_after(head,current,fontkern(rightkern))
+                        end
                     end
                 else
                     local i = p.emptyinjections
@@ -1270,12 +1292,26 @@ local function inject_everything(head,where)
                             if rightkern and leftkern == -rightkern then
                                 setoffsets(current,leftkern,false)
                                 rightkern = 0
+                            elseif prev and getid(prev) == glue_code then
+                                if useitalickerns then
+                                    head = insert_node_before(head,current,italickern(leftkern))
+                                else
+                                    setwidth(prev, getwidth(prev) + leftkern)
+                                end
                             else
                                 head = insert_node_before(head,current,fontkern(leftkern))
                             end
                         end
                         if rightkern and rightkern ~= 0 then
-                            insert_node_after(head,current,fontkern(rightkern))
+                            if next and getid(next) == glue_code then
+                                if useitalickerns then
+                                    insert_node_after(head,current,italickern(rightkern))
+                                else
+                                    setwidth(next, getwidth(next) + rightkern)
+                                end
+                            else
+                                insert_node_after(head,current,fontkern(rightkern))
+                            end
                         end
                     end
                 else
@@ -1518,7 +1554,7 @@ local function inject_everything(head,where)
     end
     --
     if keepregisteredcounts then
-        keepregisteredcounts  = false
+        keepregisteredcounts = false
     else
         nofregisteredkerns     = 0
         nofregisteredpositions = 0
@@ -1707,16 +1743,18 @@ local function injectspaces(head)
                 if useitalickerns then
                     local new = rightkern * factor
                     if trace_spaces then
-                        report_spaces("%C [%p + %p]",nextchar,old,new)
+                        report_spaces("[%p + %p] %C",old,new,nextchar)
                     end
                     insert_node_after(head,n,italickern(new))
                 else
                     local new = old + rightkern * factor
                     if trace_spaces then
-                        report_spaces("[%p -> %p] %C",nextchar,old,new)
+                        report_spaces("[%p -> %p] %C",old,new,nextchar)
                     end
                     setwidth(n,new)
                 end
+            else
+                -- message
             end
             rightkern = false
         end
@@ -1753,3 +1791,4 @@ function injections.handler(head,where)
         return head
     end
 end
+

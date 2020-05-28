@@ -10,10 +10,33 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\str_convert_pdfname:n`
 
+## [2020-05-15]
+
+### Changed
+- Make `\text_purify:n` `f`-type expandable
+
+## [2020-05-14]
+
+### Changed
+- Performance improvements in keyval processing
+
+## [2020-05-11]
+
+### Changed
+- Internal changes to quark handling
+
+## [2020-05-05]
+
+### Added
+- Recognize the exponent marker `E` (same as `e`) in floating point numbers
+
+### Fixed
+- Leave active characters untouched when case-changing (see #715)
+
 ## [2020-04-06]
 
 ### Added
-- Control for start-of-titecasing: see `\l_text_titlecase_check_letter_bool`
+- Control for start-of-titlecasing: see `\l_text_titlecase_check_letter_bool`
 
 ### Fixed
 - Nesting of `\seq_shuffle:N` in another sequence mapping (issue #687)
@@ -668,7 +691,11 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-04-06...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-05-15...HEAD
+[2020-05-15]: https://github.com/latex3/latex3/compare/2020-05-14...2020-05-15
+[2020-05-14]: https://github.com/latex3/latex3/compare/2020-05-11...2020-05-14
+[2020-05-11]: https://github.com/latex3/latex3/compare/2020-05-05...2020-05-11
+[2020-05-05]: https://github.com/latex3/latex3/compare/2020-04-06...2020-05-05
 [2020-04-06]: https://github.com/latex3/latex3/compare/2020-03-06...2020-04-06
 [2020-03-06]: https://github.com/latex3/latex3/compare/2020-03-03...2020-03-06
 [2020-03-03]: https://github.com/latex3/latex3/compare/2020-02-25...2020-03-03

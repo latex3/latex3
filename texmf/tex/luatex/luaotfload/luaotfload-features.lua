@@ -5,8 +5,8 @@
 
 local ProvidesLuaModule = { 
     name          = "luaotfload-features",
-    version       = "3.00",       --TAGVERSION
-    date          = "2019-09-13", --TAGDATE
+    version       = "3.13",       --TAGVERSION
+    date          = "2020-05-01", --TAGDATE
     description   = "luaotfload submodule / features",
     license       = "GPL v2.0",
     author        = "Hans Hagen, Khaled Hosny, Elie Roux, Philipp Gesang, Marcel Krüger",
@@ -26,7 +26,10 @@ local lpeg              = require "lpeg"
 local lpegmatch         = lpeg.match
 local P                 = lpeg.P
 local R                 = lpeg.R
+local S                 = lpeg.S
 local C                 = lpeg.C
+
+local lower             = string.lower
 
 local table             = table
 local tabletohash       = table.tohash
@@ -66,11 +69,11 @@ local stringgsub       = string.gsub
 local stringformat     = string.format
 local stringis_empty   = string.is_empty
 
-local cmp_by_idx = function (a, b) return a.idx < b.idx end
+local function cmp_by_idx (a, b) return a.idx < b.idx end
 
 local defined_combos = 0
 
-local handle_combination = function (combo, spec)
+local function handle_combination (combo, spec)
     defined_combos = defined_combos + 1
     if not combo [1] then
         report ("both", 0, "features",
@@ -148,7 +151,7 @@ local handle_combination = function (combo, spec)
         local src = fnt.characters
         local cnt = 0
 
-        local pickchr = function (uc, unavailable)
+        local function pickchr (uc, unavailable)
             local chr = src [uc]
             if unavailable == true and basechar [uc] then
                 --- fallback mode: already known
@@ -199,7 +202,7 @@ end
 
 ---[[ begin excerpt from font-ott.lua ]]
 
-local swapped = function (h)
+local function swapped (h)
     local r = { }
     for k, v in next, h do
         r[stringgsub(v,"[^a-z0-9]","")] = k -- is already lower
@@ -239,7 +242,14 @@ local support_incomplete = tabletohash({
 --doc]]--
 
 --- (string, string) dict -> (string, string) dict
-local apply_default_features = function (speclist)
+local function apply_default_features (rawlist)
+    local speclist = {}
+    for k, v in pairs(rawlist) do
+        if type(v) == 'string' then
+            v = ({['true'] = true, ['false'] = false})[lower(v)] or v
+        end
+        speclist[k] = v
+    end
     local default_features = luaotfload.features
 
     speclist = speclist or { }
@@ -247,8 +257,8 @@ local apply_default_features = function (speclist)
 
     --- handle language tag
     local language = speclist.language
-    if language then --- already lowercase at this point
-        language = stringgsub(language, "[^a-z0-9]", "")
+    if language then
+        language = stringgsub(lower(language), "[^a-z0-9]", "")
         language = rawget(verboselanguages, language) -- srsly, rawget?
                 or (languages[language] and language)
                 or "dflt"
@@ -260,7 +270,7 @@ local apply_default_features = function (speclist)
     --- handle script tag
     local script = speclist.script
     if script then
-        script = stringgsub(script, "[^a-z0-9]","")
+        script = stringgsub(lower(script), "[^a-z0-9]","")
         script = rawget(verbosescripts, script)
               or (scripts[script] and script)
               or "dflt"
@@ -317,7 +327,7 @@ local supported = {
 }
 
 --- (string | (string * string) | bool) list -> (string * number)
-local handle_slashed = function (modifiers)
+local function handle_slashed (modifiers)
     local style, optsize
     for i=1, #modifiers do
         local mod  = modifiers[i]
@@ -338,16 +348,15 @@ end
 local extract_subfont
 do
     local eof         = P(-1)
-    local digit       = R"09"
     --- Theoretically a valid subfont address can be up to ten
-    --- digits long.
-    local sub_expr    = P"(" * C(digit^1) * P")" * eof
+    --- digits long. Additionally we allow names
+    local sub_expr    = P"(" * C((1 - S"()")^1) * P")" * eof
     local full_path   = C(P(1 - sub_expr)^1)
     extract_subfont   = full_path * sub_expr
 end
 
 --- spec -> spec
-local handle_request = function (specification)
+local function handle_request (specification)
     local request = lpegmatch(luaotfload.parsers.font_request,
                               specification.specification)
 ----inspect(request)
@@ -371,7 +380,7 @@ local handle_request = function (specification)
         local fullpath, sub = lpegmatch(extract_subfont,
                                         specification.specification)
         if fullpath and sub then
-            specification.sub  = tonumber(sub)
+            specification.sub  = tonumber(sub) or sub
             specification.name = fullpath
         else
             specification.name = specification.specification
@@ -392,15 +401,7 @@ local handle_request = function (specification)
     end
 
     features.raw = request.features or {}
-    request.features = {}
-    for k, v in pairs(features.raw) do
-        if type(v) == 'string' then
-            v = string.lower(v)
-            v = ({['true'] = true, ['false'] = false})[v] or v
-        end
-        request.features[k] = v
-    end
-    request.features = apply_default_features(request.features)
+    request.features = apply_default_features(features.raw)
 
     if name then
         specification.name     = name
@@ -428,16 +429,14 @@ local handle_request = function (specification)
     --- investigated it any further (luatex-fonts-ext), so it will
     --- just stay here.
     features.normal = normalize (request.features)
-    local subfont = tonumber (request.sub)
-    if subfont and subfont >= 0 then
-        specification.sub = subfont + 1
-    else
-        specification.sub = false
-    end
+    specification.sub = request.sub or specification.sub or false
 
-    if request.features and request.features.mode
-          and fonts.readers[request.features.mode] then
-        specification.forced = request.features.mode
+    local forced_mode = request.features and request.features.mode
+    if forced_mode then
+        forced_mode = lower(forced_mode)
+        if fonts.readers[forced_mode] then
+            specification.forced = forced_mode
+        end
     end
 
     return specification
@@ -570,10 +569,10 @@ local autofeatures = {
     { "!!??",  interrolig_specification, "interrobang substitutions"  },
 }
 
-local add_auto_features = function ()
+local function add_auto_features ()
     local nfeats = #autofeatures
-    logreport ("both", 5, "features",
-               "auto-installing %d feature definitions", nfeats)
+    report ("both", 5, "features",
+            "auto-installing %d feature definitions", nfeats)
     for i = 1, nfeats do
         local name, spec, desc = unpack (autofeatures [i])
         spec.description = desc
@@ -581,13 +580,33 @@ local add_auto_features = function ()
     end
 end
 
-return function ()
-    logreport = luaotfload.log.report
+luaotfload.apply_default_features = apply_default_features
 
+do
+    local function mathparaminitializer(tfmdata, value, features)
+        if not next(tfmdata.mathparameters) then return end
+        if value == 'auto' then
+            if features.script == 'math' then return end
+        end
+        tfmdata.mathparameters = {}
+    end
+    fonts.constructors.features.otf.register {
+        name = 'nomathparam',
+        description = 'Set Math parameters based on this font',
+        default = 'auto',
+        initializers = {
+            base = mathparaminitializer,
+            node = mathparaminitializer,
+          -- plug = mathparaminitializer,
+        },
+    }
+end
+
+return function ()
     if not fonts and fonts.handlers then
-        logreport ("log", 0, "features",
-                   "OTF mechanisms missing -- did you forget to \z
-                   load a font loader?")
+        report ("log", 0, "features",
+                "OTF mechanisms missing -- did you forget to \z
+                load a font loader?")
         return false
     end
     add_auto_features ()

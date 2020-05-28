@@ -114,6 +114,14 @@ mechanisms. Both put some constraints on the code here.</p>
 --
 -- Todo: just (0=l2r and 1=r2l) or maybe (r2l = true)
 
+-- Experiments with returning the data with the ischar are positive for lmtx but
+-- have a performance hit on mkiv because there we need to wrap ischardata (pending
+-- extensions to luatex which is unlikely to happen for such an experiment because
+-- we then can't remove it). Actually it might make generic slightly faster. Also,
+-- there are some corner cases where a data check comes before a char fetch and
+-- we're talking of millions of calls there. At some point I might make a version
+-- for lmtx that does it slightly different anyway.
+
 local type, next, tonumber = type, next, tonumber
 local random = math.random
 local formatters = string.formatters
@@ -177,7 +185,6 @@ registertracker("otf.sample.silent", "otf.steps=silent","otf.substitutions","otf
 
 local nuts               = nodes.nuts
 
-local getfield           = nuts.getfield
 local getnext            = nuts.getnext
 local setnext            = nuts.setnext
 local getprev            = nuts.getprev
@@ -185,24 +192,35 @@ local setprev            = nuts.setprev
 local getboth            = nuts.getboth
 local setboth            = nuts.setboth
 local getid              = nuts.getid
-local getprop            = nuts.getprop
-local setprop            = nuts.setprop
+local getstate           = nuts.getstate
 local getsubtype         = nuts.getsubtype
 local setsubtype         = nuts.setsubtype
 local getchar            = nuts.getchar
 local setchar            = nuts.setchar
 local getdisc            = nuts.getdisc
 local setdisc            = nuts.setdisc
+local getreplace         = nuts.getreplace
 local setlink            = nuts.setlink
-local getcomponents      = nuts.getcomponents -- the original one, not yet node-aux
-local setcomponents      = nuts.setcomponents -- the original one, not yet node-aux
 local getwidth           = nuts.getwidth
 local getattr            = nuts.getattr
 
 local getglyphdata       = nuts.getglyphdata
 
+---------------------------------------------------------------------------------------
+
+-- Beware: In ConTeXt components no longer are real components. We only keep track of
+-- their positions because some complex ligatures might need that. For the moment we
+-- use an x_ prefix because for now generic follows the other approach.
+
+local copy_no_components = nuts.copy_no_components
+local copy_only_glyphs   = nuts.copy_only_glyphs
+local count_components   = nuts.count_components
+local set_components     = nuts.set_components
+local get_components     = nuts.get_components
+
+---------------------------------------------------------------------------------------
+
 local ischar             = nuts.ischar
-local isglyph            = nuts.isglyph
 local usesfont           = nuts.uses_font
 
 local insert_node_after  = nuts.insert_after
@@ -213,6 +231,7 @@ local find_node_tail     = nuts.tail
 local flush_node_list    = nuts.flush_list
 local flush_node         = nuts.flush_node
 local end_of_math        = nuts.end_of_math
+local start_of_par       = nuts.start_of_par
 
 local setmetatable       = setmetatable
 local setmetatableindex  = table.setmetatableindex
@@ -236,7 +255,6 @@ local localpar_code      = nodecodes.localpar
 local discretionarydisc_code = disccodes.discretionary
 local ligatureglyph_code     = glyphcodes.ligature
 
-local a_state            = attributes.private('state')
 local a_noligature       = attributes.private("noligature")
 
 local injections         = nodes.injections
@@ -449,32 +467,6 @@ local function appenddisc(disc,list)
     setdisc(disc,pre,post,replace)
 end
 
--- start is a mark and we need to keep that one
-
-local copy_no_components = nuts.copy_no_components
-local copy_only_glyphs   = nuts.copy_only_glyphs
-
-local set_components     = setcomponents
-local take_components    = getcomponents
-
-local function count_components(start,marks)
-    local char = isglyph(start)
-    if char then
-        if getsubtype(start) == ligatureglyph_code then
-            local i = 0
-            local components = getcomponents(start)
-            while components do
-                i = i + count_components(components,marks)
-                components = getnext(components)
-            end
-            return i
-        elseif not marks[char] then
-            return 1
-        end
-    end
-    return 0
-end
-
 local function markstoligature(head,start,stop,char)
     if start == stop and getchar(start) == char then
         return head, start
@@ -530,7 +522,7 @@ local function toligature(head,start,stop,char,dataset,sequence,skiphash,discfou
     setlink(prev,base,next)
     if not discfound then
         local deletemarks = not skiphash or hasmarks
-        local components = start
+        local components = start -- not used
         local baseindex = 0
         local componentindex = 0
         local head = base
@@ -541,19 +533,19 @@ local function toligature(head,start,stop,char,dataset,sequence,skiphash,discfou
             if not marks[char] then
                 baseindex = baseindex + componentindex
                 componentindex = count_components(start,marks)
-            -- we can be more clever here: "not deletemarks or (skiphash and not skiphash[char])"
-            -- and such:
+             -- we can be more clever here: "not deletemarks or (skiphash and not skiphash[char])"
+             -- and such:
             elseif not deletemarks then
                 -- we can get a loop when the font expects otherwise (i.e. unexpected deletemarks)
                 setligaindex(start,baseindex + getligaindex(start,componentindex))
                 if trace_marks then
-                    logwarning("%s: keep mark %s, gets index %s",pref(dataset,sequence),gref(char),getligaindex(start))
+                    logwarning("%s: keep ligature mark %s, gets index %s",pref(dataset,sequence),gref(char),getligaindex(start))
                 end
                 local n = copy_node(start)
                 copyinjection(n,start) -- is this ok ? we position later anyway
                 head, current = insert_node_after(head,current,n) -- unlikely that mark has components
             elseif trace_marks then
-                logwarning("%s: delete mark %s",pref(dataset,sequence),gref(char))
+                logwarning("%s: delete ligature mark %s",pref(dataset,sequence),gref(char))
             end
             start = getnext(start)
         end
@@ -566,7 +558,7 @@ local function toligature(head,start,stop,char,dataset,sequence,skiphash,discfou
                 if marks[char] then
                     setligaindex(start,baseindex + getligaindex(start,componentindex))
                     if trace_marks then
-                        logwarning("%s: set mark %s, gets index %s",pref(dataset,sequence),gref(char),getligaindex(start))
+                        logwarning("%s: set ligature mark %s, gets index %s",pref(dataset,sequence),gref(char),getligaindex(start))
                     end
                     start = getnext(start)
                 else
@@ -585,18 +577,19 @@ local function toligature(head,start,stop,char,dataset,sequence,skiphash,discfou
             -- anyway
             local pre, post, replace, pretail, posttail, replacetail = getdisc(discfound,true)
             if not replace then
+                -- looks like we never come here as it's not okay
                 local prev = getprev(base)
-                local comp = take_components(base)
+             -- local comp = get_components(base) -- already set
                 local copied = copy_only_glyphs(comp)
                 if pre then
                     setlink(discprev,pre)
                 else
                     setnext(discprev) -- also blocks funny assignments
                 end
-                pre = comp
+                pre = comp -- is start
                 if post then
                     setlink(posttail,discnext)
-                    setprev(post)
+                    setprev(post) -- nil anyway
                 else
                     post = discnext
                     setprev(discnext) -- also blocks funny assignments
@@ -2090,7 +2083,7 @@ local function chaindisk(head,start,dataset,sequence,rlmode,skiphash,ck)
             if keepdisc then
                 keepdisc      = false
                 lookaheaddisc = current
-                local replace = getfield(current,"replace")
+                local replace = getreplace(current)
                 if not replace then
                     sweepoverflow = true
                     sweepnode     = current
@@ -2167,7 +2160,7 @@ local function chaindisk(head,start,dataset,sequence,rlmode,skiphash,ck)
                         lookaheaddisc = current
                     end
                     -- we assume a simple text only replace (we could use nuts.count)
-                    local replace = getfield(current,"replace")
+                    local replace = getreplace(current)
                     while replace and i < s do
                         if getid(replace) == glyph_code then
                             i = i + 1
@@ -2213,7 +2206,7 @@ local function chaindisk(head,start,dataset,sequence,rlmode,skiphash,ck)
                         backtrackdisc = current
                     end
                     -- we assume a simple text only replace (we could use nuts.count)
-                    local replace = getfield(current,"replace")
+                    local replace = getreplace(current)
                     while replace and i > 1 do
                         if getid(replace) == glyph_code then
                             i = i - 1
@@ -3178,7 +3171,7 @@ local function testrun(disc,t_run,c_run,...)
     end
     local pre, post, replace, pretail, posttail, replacetail = getdisc(disc,true)
     local renewed = false
-    if (post or replace) then -- and prev then -- hm, we can start with a disc
+    if post or replace then -- and prev then -- hm, we can start with a disc
         if post then
             setlink(posttail,next)
         else
@@ -3286,28 +3279,6 @@ local function testrun(disc,t_run,c_run,...)
     return getnext(disc), renewed
 end
 
--- We can make some assumptions with respect to discretionaries. First of all it is very
--- unlikely that some of the analysis related attributes applies. Then we can also assume
--- that the ConTeXt specific dynamic attribute is different, although we do use explicit
--- discretionaries (maybe we need to tag those some day). So, at least for now, we don't
--- have the following test in the sub runs:
---
--- -- local a = getglyhpdata(start)
--- -- if a then
--- --     a = (a == attr) and (not attribute or getprop(start,a_state) == attribute)
--- -- else
--- --     a = not attribute or getprop(start,a_state) == attribute
--- -- end
--- -- if a then
---
--- but use this instead:
---
--- -- local a = getglyphdata(start)
--- -- if not a or (a == attr) then
---
--- and even that one is probably not needed. However, we can handle interesting
--- cases now:
---
 --  1{2{\oldstyle\discretionary{3}{4}{5}}6}7\par
 --  1{2\discretionary{3{\oldstyle3}}{{\oldstyle4}4}{5{\oldstyle5}5}6}7\par
 
@@ -3316,6 +3287,7 @@ local nesting = 0
 local function c_run_single(head,font,attr,lookupcache,step,dataset,sequence,rlmode,skiphash,handler)
     local done  = false
     local sweep = sweephead[head]
+    local start
     if sweep then
         start = sweep
      -- sweephead[head] = nil
@@ -3386,7 +3358,7 @@ local function t_run_single(start,stop,font,attr,lookupcache)
                     -- how about post ... we can probably merge this into the while
                     while getid(s) == disc_code do
                         ss = getnext(s)
-                        s  = getfield(s,"replace")
+                        s  = getreplace(s)
                         if not s then
                             s = ss
                             ss = nil
@@ -3413,13 +3385,13 @@ local function t_run_single(start,stop,font,attr,lookupcache)
                                 end
                                 while getid(s) == disc_code do
                                     ss = getnext(s)
-                                    s  = getfield(s,"replace")
+                                    s  = getreplace(s)
                                     if not s then
                                         s  = ss
                                         ss = nil
                                     end
                                 end
-lookupmatch = lg
+                                lookupmatch = lg
                             else
                                 break
                             end
@@ -3430,14 +3402,14 @@ lookupmatch = lg
                     if l and l.ligature then -- so we test for ligature
                         lastd = d
                     end
--- why not: if not l then break elseif l.ligature then return d end
+                    -- why not: if not l then break elseif l.ligature then return d end
                 else
--- why not: break
+                    -- why not: break
                     -- no match (yet)
                 end
             else
                 -- go on can be a mixed one
--- why not: break
+                -- why not: break
             end
             if lastd then
                 return lastd
@@ -3460,7 +3432,7 @@ local function k_run_single(sub,injection,last,font,attr,lookupcache,step,datase
             if n == last then
                 break
             end
-            local char = ischar(n)
+            local char = ischar(n,font)
             if char then
                 local lookupmatch = lookupcache[char]
                 if lookupmatch then
@@ -3477,6 +3449,7 @@ end
 local function c_run_multiple(head,font,attr,steps,nofsteps,dataset,sequence,rlmode,skiphash,handler)
     local done  = false
     local sweep = sweephead[head]
+    local start
     if sweep then
         start = sweep
      -- sweephead[head] = nil
@@ -3556,7 +3529,7 @@ local function t_run_multiple(start,stop,font,attr,steps,nofsteps)
                         end
                         while getid(s) == disc_code do
                             ss = getnext(s)
-                            s  = getfield(s,"replace")
+                            s  = getreplace(s)
                             if not s then
                                 s  = ss
                                 ss = nil
@@ -3583,13 +3556,13 @@ local function t_run_multiple(start,stop,font,attr,steps,nofsteps)
                                     end
                                     while getid(s) == disc_code do
                                         ss = getnext(s)
-                                        s  = getfield(s,"replace")
+                                        s  = getreplace(s)
                                         if not s then
                                             s  = ss
                                             ss = nil
                                         end
                                     end
-lookupmatch = lg
+                                    lookupmatch = lg
                                 else
                                     break
                                 end
@@ -3710,26 +3683,6 @@ otf.helpers.pardirstate = pardirstate
 
 do
 
-    -- reference:
-    --
-    --  local a = attr and getglyphdata(start)
-    --  if a then
-    --      a = (a == attr) and (not attribute or getprop(start,a_state) == attribute)
-    --  else
-    --      a = not attribute or getprop(start,a_state) == attribute
-    --  end
-    --
-    -- used:
-    --
-    --  local a -- happens often so no assignment is faster
-    --  if attr then
-    --      if getglyphdata(start) == attr and (not attribute or getprop(start,a_state) == attribute) then
-    --          a = true
-    --      end
-    --  elseif not attribute or getprop(start,a_state) == attribute then
-    --      a = true
-    --  end
-
     -- This is a measurable experimental speedup (only with hyphenated text and multiple
     -- fonts per processor call), especially for fonts with lots of contextual lookups.
 
@@ -3804,7 +3757,7 @@ do
 
         local initialrl = 0
 
-        if getid(head) == localpar_code and getsubtype(head) == 0 then
+        if getid(head) == localpar_code and start_of_par(head) then
             initialrl = pardirstate(head)
         elseif direction == 1 or direction == "TRT" then
             initialrl = -1
@@ -3910,10 +3863,10 @@ do
                                 if lookupmatch then
                                     local a -- happens often so no assignment is faster
                                     if attr then
-                                        if getglyphdata(start) == attr and (not attribute or getprop(start,a_state) == attribute) then
+                                        if getglyphdata(start) == attr and (not attribute or getstate(start,attribute)) then
                                             a = true
                                         end
-                                    elseif not attribute or getprop(start,a_state) == attribute then
+                                    elseif not attribute or getstate(start,attribute) then
                                         a = true
                                     end
                                     if a then
@@ -3958,7 +3911,7 @@ do
                         elseif id == dir_code then
                             topstack, rlmode = txtdirstate(start,dirstack,topstack,rlparmode)
                             start = getnext(start)
-                     -- elseif id == localpar_code then
+                     -- elseif id == localpar_code and start_of_par(start) then
                      --     rlparmode, rlmode = pardirstate(start)
                      --     start = getnext(start)
                         else
@@ -3977,10 +3930,10 @@ do
                                 if m then
                                     local a -- happens often so no assignment is faster
                                     if attr then
-                                        if getglyphdata(start) == attr and (not attribute or getprop(start,a_state) == attribute) then
+                                        if getglyphdata(start) == attr and (not attribute or getstate(start,attribute)) then
                                             a = true
                                         end
-                                    elseif not attribute or getprop(start,a_state) == attribute then
+                                    elseif not attribute or getstate(start,attribute) then
                                         a = true
                                     end
                                     if a then
@@ -4042,7 +3995,7 @@ do
                         elseif id == dir_code then
                             topstack, rlmode = txtdirstate(start,dirstack,topstack,rlparmode)
                             start = getnext(start)
-                     -- elseif id == localpar_code then
+                     -- elseif id == localpar_code and start_of_par(start) then
                      --     rlparmode, rlmode = pardirstate(start)
                      --     start = getnext(start)
                         else
@@ -4153,7 +4106,7 @@ do
             elseif id == dir_code then
                 topstack, rlmode = txtdirstate(start,dirstack,topstack,rlparmode)
                 start = getnext(start)
-         -- elseif id == localpar_code then
+         -- elseif id == localpar_code and start_of_par(start) then
          --     rlparmode, rlmode = pardirstate(start)
          --     start = getnext(start)
             else
@@ -4234,9 +4187,26 @@ registerotffeature {
     }
 }
 
+-- Moved here (up) a bit. This doesn't really belong in generic so it will
+-- move to a context module some day.
+
+local function markinitializer(tfmdata,value)
+    local properties = tfmdata.properties
+    properties.checkmarks = value
+end
+
+registerotffeature {
+    name         = "checkmarks",
+    description  = "check mark widths",
+    default      = true,
+    initializers = {
+        node     = markinitializer,
+    },
+}
+
 -- This can be used for extra handlers, but should be used with care! We implement one
 -- here but some more can be found in the osd (script devanagary) file. Now watch out:
--- when a handlers has steps, it is called as the other ones, but when we have no steps,
+-- when a handler has steps, it is called as the other ones, but when we have no steps,
 -- we use a different call:
 --
 --   function(head,dataset,sequence,initialrl,font,attr)
@@ -4247,22 +4217,28 @@ registerotffeature {
 
 otf.handlers = handlers
 
+if context then
+    return
+else
+    -- todo: move the following code someplace else
+end
+
 local setspacekerns = nodes.injections.setspacekerns if not setspacekerns then os.exit() end
 
-local tag = "kern" -- maybe some day a merge
+local tag = "kern"
 
-if fontfeatures then
+-- if fontfeatures then
 
-    function handlers.trigger_space_kerns(head,dataset,sequence,initialrl,font,attr)
-        local features = fontfeatures[font]
-        local enabled  = features and features.spacekern and features[tag]
-        if enabled then
-            setspacekerns(font,sequence)
-        end
-        return head, enabled
-    end
+--     function handlers.trigger_space_kerns(head,dataset,sequence,initialrl,font,attr)
+--         local features = fontfeatures[font]
+--         local enabled  = features and features.spacekern and features[tag]
+--         if enabled then
+--             setspacekerns(font,sequence)
+--         end
+--         return head, enabled
+--     end
 
-else -- generic (no hashes)
+-- else -- generic (no hashes)
 
     function handlers.trigger_space_kerns(head,dataset,sequence,initialrl,font,attr)
         local shared   = fontdata[font].shared
@@ -4274,7 +4250,7 @@ else -- generic (no hashes)
         return head, enabled
     end
 
-end
+-- end
 
 -- There are fonts out there that change the space but we don't do that kind of
 -- things in TeX.
@@ -4392,7 +4368,7 @@ local function spaceinitializer(tfmdata,value) -- attr
                                     if rules then
                                         -- not now: analyze (simple) rules
                                     elseif not coverage then
-                                        -- nothng to do
+                                        -- nothing to do
                                     elseif kind == "gpos_single" then
                                         -- makes no sense in TeX
                                     elseif kind == "gpos_pair" then
@@ -4474,19 +4450,5 @@ registerotffeature {
     default      = true,
     initializers = {
         node     = spaceinitializer,
-    },
-}
-
-local function markinitializer(tfmdata,value)
-    local properties = tfmdata.properties
-    properties.checkmarks = value
-end
-
-registerotffeature {
-    name         = "checkmarks",
-    description  = "check mark widths",
-    default      = true,
-    initializers = {
-        node     = markinitializer,
     },
 }
