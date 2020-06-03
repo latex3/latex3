@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-06-03]
+
 ### Added
 - `\str_convert_pdfname:n`
 
@@ -691,7 +693,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-05-15...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-06-03...HEAD
+[2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-15...2020-06-03
 [2020-05-15]: https://github.com/latex3/latex3/compare/2020-05-14...2020-05-15
 [2020-05-14]: https://github.com/latex3/latex3/compare/2020-05-11...2020-05-14
 [2020-05-11]: https://github.com/latex3/latex3/compare/2020-05-05...2020-05-11
