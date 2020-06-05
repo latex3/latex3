@@ -1323,19 +1323,74 @@
   }
 %    \end{macrocode}
 %
-%  A backend has to be in place by the start of the document: this has to be
-%  before global options are checked for use. The odd group stuff avoids
-%  needing to actually patch \tn{document}.
+% \begin{macro}{\@expl@sys@load@backend@@@@}
+%   A backend has to be in place by the start of the document: this has
+%   to be before global options are checked for use.
+%
+%   The \cs[no-index]{@expl@...@@@@} macros defined in this package are
+%   interfaces for \LaTeXe{}.  There are currently (this will change
+%   with the next release of \LaTeXe{}) two possible cases, at this
+%   point of the code:  either \cs{@expl@sys@load@backend@@@@} (and the
+%   others) already exist because they were defined in
+%   \texttt{ltexpl.ltx} (in \texttt{2ekernel} mode) or in
+%   \texttt{expl3.ltx} (in \texttt{package} mode).
+%
+%   In \texttt{2ekernel} mode, if they exist we are using a future
+%   (2020-10-01) release of \LaTeXe{} and we don't need (and can't)
+%   patch \LaTeXe's internals because these commands are already there.
+%   Though if they don't exist in \texttt{2ekernel} mode, we're using
+%   an older version of the kernel, so we \emph{must} patch.
+%
+%   In \texttt{package} mode, if these commands exist, then we are using
+%   a version of \LaTeXe{} with \textsf{expl3} preloaded (any version)
+%   and in any case patching is already done or the macros are in the
+%   format itself, so nothing to do.
+%   But if in \texttt{package} mode these macros don't exist, we have an
+%   even older version of \LaTeXe{} which doesn't even have
+%   \textsf{expl3} preloaded, so patching is necessary.
+%
+%   All this means that in both \texttt{2ekernel} and \texttt{package}
+%   mode we have to check whether \cs{@expl@sys@load@backend@@@@}
+%   exists, and patch some \LaTeXe{} internals if it doesn't.
+%
+%   In newer \LaTeXe{}, these macros have an empty definition in
+%   \texttt{ltexpl.dtx} in case something wrong happens while loading
+%   this file (\texttt{expl3.ltx}), so they can safely be used in the
+%   \LaTeXe{} kernel.
+%
+%   \cs{@expl@sys@load@backend@@@@} is inserted right at the beginning
+%   of \cs{document}, but after closing the group started by \cs{begin}.
+%   When using \cs{tl_put_left:Nn} to patch the backend loading in
+%   \cs{document}, we need to make sure that it happens at group level
+%   zero, thus the strange |\endgroup...\begingroup| thing.
+%
+%   This chunk of code should only be executed when loading
+%   \texttt{expl3.sty} in a \LaTeXe{} without \pkg{expl3} preloaded, so
+%   we check if \cs{@expl@sys@load@backend@@@@} exists.
 %    \begin{macrocode}
-%<*2ekernel>
-\tl_put_left:Nn \document
+\cs_if_exist:NF \@expl@sys@load@backend@@@@
   {
-    \endgroup
+    \tl_put_left:Nn \document
+      {
+        \endgroup
+        \@expl@sys@load@backend@@@@
+        \begingroup
+      }
+  }
+%    \end{macrocode}
+%
+%   Now we define it anyhow.
+%    \begin{macrocode}
+\cs_gset_protected:Npn \@expl@sys@load@backend@@@@
+  {
     \str_if_exist:NF \c_sys_backend_str
       { \sys_load_backend:n { } }
-    \begingroup
   }
-%</2ekernel>
+%    \end{macrocode}
+% \end{macro}
+%
+%  Process package options.
+%    \begin{macrocode}
 %<*!2ekernel>
 \keys_set:nV { sys } \l_@@_options_clist
 \str_if_exist:NF \c_sys_backend_str
@@ -1380,13 +1435,24 @@
 %
 % \begin{macro}{\@pushfilename, \@popfilename}
 % \begin{macro}{\@@_status_pop:w}
+% \begin{macro}{\@expl@push@filename@@@@}
+% \begin{macro}{\@expl@push@filename@aux@@@@}
+% \begin{macro}{\@expl@pop@filename@@@@}
 %   The idea here is to use \LaTeXe{}'s \tn{@pushfilename} and
 %   \tn{@popfilename} to track the current syntax status. This can be
 %   achieved by saving the current status flag at each push to a stack,
 %   then recovering it at the pop stage and checking if the code
 %   environment should still be active.
+%
+%   Here the code follows the same patching logic than above for
+%   \cs{@expl@sys@load@backend@@@@}.
 %    \begin{macrocode}
-\tl_put_left:Nn \@pushfilename
+\cs_if_exist:NF \@expl@push@filename@@@@
+  {
+    \tl_put_left:Nn  \@pushfilename { \@expl@push@filename@@@@ }
+    \tl_put_right:Nn \@pushfilename { \@expl@push@filename@aux@@@@ }
+  }
+\cs_gset_protected:Npn \@expl@push@filename@@@@
   {
     \exp_args:Nx \__kernel_file_input_push:n
       {
@@ -1401,17 +1467,24 @@
       }
     \ExplSyntaxOff
   }
-\tl_put_right:Nn \@pushfilename { \@pushfilenameaux }
 %    \end{macrocode}
 %   This bit of trickery is needed to grab the name of the file being loaded
 %   so we can record it.
 %    \begin{macrocode}
-\cs_set_protected:Npn \@pushfilenameaux #1#2#3
+\cs_gset_protected:Npn \@expl@push@filename@aux@@@@ #1#2#3
   {
     \str_gset:Nn \g_file_curr_name_str {#3}
     #1 #2 {#3}
   }
-\tl_put_right:Nn \@popfilename
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\cs_if_exist:NF \@expl@pop@filename@@@@
+  {
+    \tl_put_right:Nn \@popfilename
+      { \@expl@pop@filename@@@@ }
+  }
+\cs_gset_protected:Npn \@expl@pop@filename@@@@
   {
     \__kernel_file_input_pop:
     \tl_if_empty:NTF \l_@@_status_stack_tl
@@ -1431,6 +1504,9 @@
       { \ExplSyntaxOff }
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
