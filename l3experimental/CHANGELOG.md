@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\cctab_select:N`
 - Support for `Hsb`, `HSB`, `HTML` and `RGB` color models
+- Generalise color model support
 
 ## [2020-05-18]
 

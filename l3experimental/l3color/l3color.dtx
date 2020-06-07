@@ -71,9 +71,6 @@
 %     the components
 %   \item \texttt{cmyk} Cyan-magenta-yellow-black color, with four axes, one for
 %     each of the components
-%   \item \texttt{spot} Spot color, with one value, the name of the color
-%     (see \url{https://helpx.adobe.com/indesign/using/spot-process-colors.html}
-%     for details of the use of spot colors in print)
 % \end{itemize}
 % There are also interface models: these are convenient for users but have
 % to be manipulated before storing/passing to the backend. Interface models
@@ -93,9 +90,9 @@
 % \end{itemize}
 % All interface models are internally stored as |rgb|.
 % 
-% Additional models may be created to allow mixing of spot colors
-% with each other or with those from other models. See
-% Section~\ref{l3color:sec:spot} for more detail of spot color support.
+% Additional models may be created to allow for more complex constructs, for
+% example support for spot colors. See Section~\ref{l3color:sec:addn} for more
+% detail.
 %
 % When color is selected by model, the \meta{values} given are specified as
 % a comma-separated list. The length of the list will therefore be determined
@@ -267,8 +264,32 @@
 %   representation).
 % \end{function}
 %
-% \section{Spot colors}
-% \label{l3color:sec:spot}
+% \section{Additional color models}
+% \label{l3color:sec:addn}
+%
+% Additional color models are required to support specialist workflows, for
+% example those involving spot colors (see
+% \url{https://helpx.adobe.com/indesign/using/spot-process-colors.html}
+% for details of the use of spot colors in print). Color models may be split
+% into families; in the case of the basic \texttt{cmyk}, \texttt{gray}
+% and \texttt{rgb} models, the family and the model itself are synonymous. This
+% is not generally the case: see the PDF reference for more dteails. 
+% 
+% \begin{function}{\color_model_new:nnnn}
+%   \begin{syntax}
+%     \cs{color_model_new:nnnn} \Arg{name} \Arg{family} \Arg{cmyk eq} \Arg{params}
+%   \end{syntax}
+%   Creates a new \meta{model} which is derived from the color model \meta{family}.
+%   The latter should be one of
+%   \begin{itemize}
+%     \item \texttt{separation}
+%   \end{itemize}
+%   (The \meta{family} may be given in mixed case as-in the PDF reference:
+%   internally, case of these strings is folded.)
+%   The \meta{cmyk eq} should be a conversion value, used to approximate the
+%   color where the \meta{model type} is not supported. Depending on the
+%   \meta{family}, one or more \meta{params} are needed.
+% \end{function}
 %
 % \end{documentation}
 %
@@ -368,6 +389,13 @@
 %
 % \subsection{Model conversion}
 %
+% \begin{variable}{\c_@@_core_model_clist}
+%   Core models which can be converted to: all are parameter-based.
+%    \begin{macrocode}
+\clist_const:Nn \c_@@_core_model_clist { cmyk , gray , rgb }
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{macro}{\@@_convert:nnN, \@@_convert:VVN}
 % \begin{macro}{\@@_convert:nnnN}
 % \begin{macro}[aux, EXP]
@@ -389,10 +417,10 @@
 \cs_generate_variant:Nn \@@_convert:nnN { VV }
 \cs_new_protected:Npn \@@_convert:nnnN #1#2#3#4
   {
-    \str_if_eq:nnT {#1} { spot } % TO DO!!!
-      { }
     \tl_set:Nx #4
-      { \use:c { @@_convert_ #1 _ #2 :w } #3 ~ 0 ~ 0 ~ 0 \s_@@_stop }
+      {
+        \use:c { @@_convert_ #1 _ #2 :w } #3 ~ 0 ~ 0 ~ 0 \s_@@_stop
+      }
   }
 \cs_generate_variant:Nn \@@_convert:nnnN { nnV }
 \cs_new:Npn \@@_convert_gray_rgb:w #1 ~ #2 \s_@@_stop
@@ -587,10 +615,15 @@
                       { \l_@@_value_tl }
                   }
               }
-            \@@_convert:VVN
-              \l_@@_next_model_tl
+            \clist_if_in:NVTF \c_@@_core_model_clist
               \l_@@_model_tl
-              \l_@@_next_value_tl
+              {
+                \@@_convert:VVN
+                  \l_@@_next_model_tl
+                  \l_@@_model_tl
+                  \l_@@_next_value_tl
+               }
+               { } % TO DO
           }
         \tl_set:Nx \l_@@_value_tl
           {
@@ -793,11 +826,15 @@
         \exp_after:wN \@@_check_model:w #1 \s_@@_stop
         \tl_if_eq:NNF \l_@@_model_tl \l_color_fixed_model_tl
           {
-            \@@_convert:VVN \l_@@_model_tl \l_color_fixed_model_tl
-              \l_@@_value_tl
+            \clist_if_in:NVT \c_@@_core_model_clist
+              \l_color_fixed_model_tl
+              {
+                \@@_convert:VVN \l_@@_model_tl \l_color_fixed_model_tl
+                  \l_@@_value_tl
+                \tl_set:Nx #1
+                  { \l_color_fixed_model_tl \c_space_tl \l_@@_value_tl }
+              }
           }
-        \tl_set:Nx #1
-          { \l_color_fixed_model_tl \c_space_tl \l_@@_value_tl }
       }
   }
 \cs_new_protected:Npn \@@_check_model:w #1 ~ #2 \s_@@_stop
@@ -844,10 +881,15 @@
 %
 % \subsection{Direct model use}
 %
-% \begin{macro}{\@@_direct:nnN}
+% \begin{macro}{\@@_direct:nnN, \@@_direct_aux:nnN}
 %   Directly set a color based on a model/value combination.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_direct:nnN #1#2#3
+  {
+    \exp_args:Ne \@@_direct_aux:nnN
+      { \tl_to_str:n {#1} } {#2} #3
+  }
+\cs_new_protected:Npn \@@_direct_aux:nnN #1#2#3
   {
     \cs_if_exist:cTF { @@_parse_model_ #1 :w }
       {
@@ -943,6 +985,87 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \subsection{Additional color models}
+%
+% \begin{variable}{\l_@@_internal_prop}
+%    \begin{macrocode}
+\prop_new:N \l_@@_internal_prop
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\color_model_new:nnnn, \@@_model_new:nnnn}
+% \begin{macro}{\@@_model_new_separation:nn}
+% \begin{macro}{\@@_model_new_separation:nw}
+%   Set up a new model: in general this has to be handled by a family-dependent
+%   function. We always require |cmyk| equivalent values, which are passed through,
+%   plus a key--value list which is converted into a |prop| before calling the
+%   handler.
+%    \begin{macrocode}
+\cs_new_protected:Npn \color_model_new:nnnn #1#2#3#4
+  {
+    \exp_args:Nee \@@_model_new:nnnn
+      { \tl_to_str:n {#1} }
+      { \str_foldcase:n {#2} } {#3} {#4}
+  }
+\cs_new_protected:Npn \@@_model_new:nnnn #1#2#3#4
+  {
+    \cs_if_exist:cTF { @@_parse_model_ #1 :w }
+      {
+        \__kernel_msg_error:nnn { color } { model-already-defined } {#1}
+      }
+      {
+        \cs_if_exist:cTF { @@_model_new_ #2 :nn }
+          {
+            \prop_set_from_keyval:Nn \l_@@_internal_prop {#4}
+            \use:c { @@_model_new_ #2 :nn } {#1} {#3}
+          }
+          {
+            \__kernel_msg_error:nnn { color } { unknown-model-type } {#2}
+          }
+      }
+  }
+%    \end{macrocode}
+%   Separations have to two forms: they can be based on |cmyk| or CIE-Lab
+%   values. As we \emph{always} set up with |cmyk|, that part is easy. 
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_model_new_separation:nn #1#2
+  {
+    \cs_new:cpn { @@_parse_model_ #1 :w } ##1 , ##2 \s_@@_stop
+      { #1 ~ \@@_parse_number:n {##1} }
+    \cs_new_protected:cpn { @@_backend_ #1 :w }
+      { \@@_backend_family_separation:nw {#1} }
+    \@@_model_new_separation:nw {#1) #2 , 0 , 0 , 0 , 0 \s_@@_stop
+  }
+\cs_new_protected:Npn \@@_model_new_separation:nw
+  #1 #2 , #3 , #4 , #5 , #6 \s_@@_stop
+  {
+    \cs_new:cpn { @@_convert_ #1 _cmyk:w } ##1 ~ ##2 \s_@@_stop
+      {
+         \fp_eval:n {##1 * #2} ~
+         \fp_eval:n {##1 * #3} ~
+         \fp_eval:n {##1 * #4} ~
+         \fp_eval:n {##1 * #5}
+      }
+    \cs_new:cpx { @@_convert_ #1 _gray:w } ##1 ~ ##2 \s_@@_stop
+      {
+        \exp_not:N \exp_args:NNe \exp_not:N \use:nn
+        \exp_not:N \@@_convert_cmyk_gray:w
+          { \exp_not:c { @@_convert_ #1 _cmyk:w } ##1 ~ ##2 \s_@@_stop }
+          \c_space_tl \exp_not:N \s_@@_stop
+      }
+    \cs_new:cpx { @@_convert_ #1 _rgb:w } ##1 ~ ##2 \s_@@_stop
+      {
+        \exp_not:N \exp_args:NNe \exp_not:N \use:nn
+        \exp_not:N \@@_convert_cmyk_rgb:w
+          { \exp_not:c { @@_convert_ #1 _cmyk:w } ##1 ~ ##2 \s_@@_stop }
+          \c_space_tl \exp_not:N \s_@@_stop
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
 % \subsection{Diagnostics}
 %
 % \begin{macro}{\color_show:n}
@@ -980,6 +1103,14 @@
 % \subsection{Messages}
 %
 % \begin{macrocode}
+\__kernel_msg_new:nnnn { color } { model-already-defined }
+  { Color~model~'#2'~already~defined. }
+  {
+    \c_@@_coding_error_text_tl
+    LaTeX~was~asked~to~define~a~new~color~model~called~'#1',~but~
+    this~color~model~already~exists.
+    \c_@@_return_text_tl
+  }
 \__kernel_msg_new:nnnn { color } { unknown-color }
   { Unknown~color~'#1'. }
   {
@@ -991,6 +1122,12 @@
   {
     LaTeX~has~been~asked~to~use~a~color~model~called~'#1',~
     but~this~model~is~not~set~up.
+  }
+\__kernel_msg_new:nnnn { color } { unknown-model-type }
+  { Unknown~color~model~type~'#1'. }
+  {
+    LaTeX~has~been~asked~to~use~create~a~new~color~model~of~type~'#1',~
+    but~this~type~of~model~is~not~set~up.
   }
 % \end{macrocode}
 %
