@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-06-03]
+
 ### Added
 - `\cctab_select:N`
 - Support for `Hsb`, `HSB`, `HTML` and `RGB` color models
@@ -132,7 +134,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-05-18...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-06-03...HEAD
+[2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-18...2020-06-03
 [2020-05-18]: https://github.com/latex3/latex3/compare/2020-01-12...2020-05-18
 [2020-01-12]: https://github.com/latex3/latex3/compare/2019-10-11...2020-01-12
 [2019-10-11]: https://github.com/latex3/latex3/compare/2019-09-28...2019-10-11
