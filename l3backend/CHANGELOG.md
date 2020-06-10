@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Use `scn` operator for separations
+- Internal color model
 
 ## [2020-06-03]
 
