@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Moved `\seq_indexed_map_inline:Nn` and `\seq_indexed_map_function:Nn`
+  to stable.
+
 ## [2020-06-03]
 
 ### Added
