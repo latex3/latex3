@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
+- Internal color model
 - Moved `\msg_expandable_error:nn(nnnn)` to stable.
 
 ## [2020-06-03]
