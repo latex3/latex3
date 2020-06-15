@@ -6,6 +6,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Use `scn` operator for separations
+- Internal color model
+- Internal performance enhancements
+
 ## [2020-06-03]
 
 ### Fixed

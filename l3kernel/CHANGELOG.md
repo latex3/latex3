@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
+- Internal color model
 - Moved `\seq_indexed_map_inline:Nn` and `\seq_indexed_map_function:Nn`
   to stable.
 
