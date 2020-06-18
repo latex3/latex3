@@ -10,6 +10,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Internal color model
 - Moved `\msg_expandable_error:nn(nnnn)` to stable.
+- Moved `\seq_indexed_map_inline:Nn` and `\seq_indexed_map_function:Nn`
+  to stable as `\seq_map_indexed_inline:Nn` and `\seq_map_indexed_function:Nn`.
 
 ## [2020-06-03]
 
