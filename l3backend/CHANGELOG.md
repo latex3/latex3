@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-06-18]
+
 ### Changed
 - Use `scn` operator for separations
 - Internal color model
@@ -81,7 +83,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-06-03...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-06-18...HEAD
+[2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18
 [2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-05...2020-06-03
 [2020-05-05]: https://github.com/latex3/latex3/compare/2020-03-12...2020-05-05
 [2020-03-12]: https://github.com/latex3/latex3/compare/2020-02-23...2020-03-12
