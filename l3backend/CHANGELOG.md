@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Improved color support for drawings with `dvisvgm`
+
 ### Fixed
 - Loading with `dvisvgm`
 
