@@ -7,6 +7,13 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\file_parse_full_name:n` and `\file_parse_full_name_apply:nN`
+
+### Changed
+- Implementation of `\file_parse_full_name:nNNN` now uses
+  `\file_parse_full_name:n` internally
+
 ## [2020-06-18]
 
 ### Changed
