@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Loading with `dvisvgm`
+
 ## [2020-06-23]
 
 ### Changed
