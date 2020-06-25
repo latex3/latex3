@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Removed
+
+- `l3cctab`: moved to `l3kernel`
+
 ## [2020-06-18]
 
 ### Changed
