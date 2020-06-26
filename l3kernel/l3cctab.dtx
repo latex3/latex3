@@ -276,32 +276,22 @@
       }
   }
 %    \end{macrocode}
-%   Now the case for other engines. Here, we use an integer array for each
-%   table. The index base is out-by-one, so we have an internal function to
-%   handle that. The rest of the approach here is pretty simple: use a stack
-%   of tables, and save to them at each |begin|. Unlike the \LuaTeX{} case,
-%   we can't accidentally alter a saved table, which makes life a little
-%   easier.
+%   Now the case for other engines. Here, each table is an integer
+%   array.  The index base is out-by-one, so we have an internal
+%   function to handle that. The rest of the approach here is pretty
+%   simple: use a stack of tables, and save to them at each
+%   |begin|. Unlike the \LuaTeX{} case, we can't accidentally alter a
+%   saved table, which makes life a little easier.  Following the
+%   \LuaTeX{} pattern, a new table starts with \IniTeX{} codes.
 %    \begin{macrocode}
   {
     \cs_new_protected:Npn \@@_gstore:Nnn #1#2#3
-      {
-        \intarray_gset:cnn
-          { g_@@_ \int_use:N #1 _cctab } { #2 + 1 } {#3}
-      }
-%    \end{macrocode}
-%   Following the \LuaTeX{} pattern, a new table starts with \IniTeX{} codes.
-%    \begin{macrocode}
+      { \intarray_gset:Nnn #1 { \int_eval:n { #2 + 1 } } {#3} }
     \cs_new_protected:Npn \cctab_new:N #1
       {
-        \int_gadd:Nn \g_@@_allocate_int { 2 }
-        \int_const:Nn #1 { \g_@@_allocate_int }
-        \intarray_new:cn { g_@@_ \int_use:N #1 _cctab } { 256 }
+        \intarray_new:Nn #1 { 256 }
         \int_step_inline:nn { 256 }
-          {
-            \intarray_gset:cnn
-              { g_@@_ \int_use:N #1 _cctab } {##1} { 12 }
-          }
+          { \__kernel_intarray_gset:Nnn #1 {##1} { 12 } }
         \@@_gstore:Nnn #1 { 0 } { 9 }
         \@@_gstore:Nnn #1 { 13 } { 5 }
         \@@_gstore:Nnn #1 { 32 } { 10 }
@@ -313,58 +303,60 @@
           { \@@_gstore:Nnn #1 {##1} { 11 } }
         \@@_gstore:Nnn #1 { 127 } { 15 }
       }
+%    \end{macrocode}
+%   Then, two basic operations: setting catcodes (selecting
+%   a catcode table) and saving catcodes (assigning a
+%   catcode table).
+%    \begin{macrocode}
+    \cs_new_protected:Npn \@@_select:N #1
+      {
+        \int_step_inline:nn { 256 }
+          {
+            \char_set_catcode:nn { ##1 - 1 }
+              { \__kernel_intarray_item:Nn #1 {##1} }
+          }
+      }
+    \cs_new_protected:Npn \@@_gset:N #1
+      {
+        \int_step_inline:nn { 256 }
+          {
+            \__kernel_intarray_gset:Nnn #1 {##1}
+              { \char_value_catcode:n { ##1 - 1 } }
+          }
+      }
+%    \end{macrocode}
+%   Beginning and ending a catcode table simply involves
+%   some bookkeeping to store the current catcodes in a
+%   dynamically generated variable.
+%    \begin{macrocode}
     \cs_new_protected:Npn \@@_begin:N #1
       {
         \int_gadd:Nn \g_@@_stack_int { 2 }
-        \int_compare:nNnT \g_@@_stack_int > \c_max_register_int
-          { \__kernel_msg_fatal:nn { kernel } { cctab-stack-full } }
-        \cs_if_exist:cF { g_@@_ \int_use:N \g_@@_stack_int _cctab }
-          {
-            \intarray_new:cn
-              { g_@@_ \int_use:N \g_@@_stack_int _cctab }
-              { 256 }
-          }
-        \int_step_inline:nn { 256 }
-          {
-            \intarray_gset:cnn
-              { g_@@_ \int_use:N \g_@@_stack_int _cctab }
-              {##1}
-              { \char_value_catcode:n { ##1 - 1 } }
-          }
-        \int_step_inline:nn { 256 }
-          {
-            \char_set_catcode:nn { ##1 - 1 }
-              {
-                \intarray_item:cn
-                  { g_@@_ \int_use:N #1 _cctab } {##1}
-              }
-          }
+        \exp_args:Nc \@@_begin_aux:N
+          { g_@@_ \int_use:N \g_@@_stack_int _intarray }
+        \@@_select:N #1
       }
-    \cs_generate_variant:Nn \intarray_new:Nn { c }
-    \cs_generate_variant:Nn \intarray_gset:Nnn { c }
+    \cs_new_protected:Npn \@@_begin_aux:N #1
+      {
+        \cs_if_exist:NF #1 { \intarray_new:Nn #1 { 256 } }
+        \@@_gset:N #1
+      }
     \cs_new_protected:Npn \@@_end:
       {
-        \int_step_inline:nn { 256 }
-          {
-            \char_set_catcode:nn { ##1 - 1 }
-              {
-                \intarray_item:cn
-                  { g_@@_ \int_use:N \g_@@_stack_int _cctab }
-                  {##1}
-              }
-          }
+        \exp_args:Nc \@@_select:N
+          { g_@@_ \int_use:N \g_@@_stack_int _intarray }
         \int_gsub:Nn \g_@@_stack_int { 2 }
       }
-    \cs_generate_variant:Nn \intarray_item:Nn { c }
+%    \end{macrocode}
+%   Beginning and ending a catcode table simply involves
+%   some bookkeeping to store the current catcodes in a
+%   dynamically generated variable.
+%    \begin{macrocode}
     \cs_new_protected:Npn \cctab_gset:Nn #1#2
       {
         \group_begin:
           #2 \scan_stop:
-          \int_step_inline:nn { 256 }
-            {
-              \intarray_gset:cnn { g_@@_ \int_use:N #1 _cctab } {##1}
-                { \char_value_catcode:n { ##1 - 1 } }
-            }
+          \@@_gset:N #1
         \group_end:
       }
   }
@@ -404,21 +396,30 @@
 % \begin{macro}{\@@_end_fast:}
 %   Select a catcode table within a group.
 %    \begin{macrocode}
-\cs_new_protected:Npn \cctab_select:N #1
+\sys_if_engine_luatex:TF
   {
-    \@@_chk_if_valid:NT #1
+    \cs_new_protected:Npn \cctab_select:N #1
       {
-        \@@_begin:N #1
-        \group_insert_after:N \@@_end_fast:
+        \@@_chk_if_valid:NT #1
+          {
+            \@@_begin:N #1
+            \group_insert_after:N \@@_end_fast:
+          }
+      }
+    \cs_new_protected:Npn \@@_end_fast:
+      {
+        \int_gsub:Nn \g_@@_stack_int { 2 }
+        \seq_gpop:NN \g_@@_stack_seq \l_@@_tmp_tl
+      }
+  }
+  {
+    \cs_new_protected:Npn \cctab_select:N #1
+      {
+        \@@_chk_if_valid:NT #1
+          { \@@_select:N #1 }
       }
   }
 \cs_generate_variant:Nn \cctab_select:N { c }
-\cs_new_protected:Npx \@@_end_fast:
-  {
-    \int_gsub:Nn \exp_not:N \g_@@_stack_int { 2 }
-    \sys_if_engine_luatex:T
-      { \seq_gpop:NN \exp_not:N \g_@@_stack_seq \exp_not:N \l_@@_tmp_tl }
-  }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -436,10 +437,10 @@
 % \begin{macro}{\@@_chk_if_valid:N}
 %   Checks whether the argument is defined and whether it is a valid
 %   \meta{cctab~var}. In \LuaTeX{} the validity of the \meta{cctab~var}
-%   is checked by the engine, which complains if the argument is not
-%   a \cs{chardef}'ed constant. In other engines, check if the
-%   underlying \cs[no-index]{g_@@_\meta{integer}_cctab}
-%   \meta{intarray~var} exists.
+%   is checked by the engine, which complains if the argument is not a
+%   \cs{chardef}'ed constant. In other engines, check if the given
+%   command is an intarray variable (the underlying definition is a copy
+%   of the \texttt{cmr10} font).
 %    \begin{macrocode}
 \sys_if_engine_luatex:TF
   {
@@ -476,7 +477,9 @@
       {
         \cctab_if_exist:NTF #1
           {
-            \cs_if_exist:cTF { g_@@_ \int_use:N #1 _cctab }
+            \exp_args:Nf \str_if_in:nnTF
+              { \cs_meaning:N #1 }
+              { select~font~cmr10~at~ }
               { \prg_return_true: }
               {
                 \__kernel_msg_error:nnx { kernel } { invalid-cctab }
