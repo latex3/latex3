@@ -197,10 +197,13 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\cctab_new:N,\cctab_new:c}
-% \begin{macro}{\@@_begin:N,\@@_begin:c}
-% \begin{macro}{\@@_end:}
-% \begin{macro}{\cctab_gset:Nn,\cctab_gset:cn}
+% \subsection{Category code table engine-dependent code}
+%
+% \begin{macro}
+%   {
+%     \cctab_new:N, \cctab_new:c, \@@_begin:N, \@@_begin_aux:N,
+%     \@@_end:, \@@_select:N, \@@_end_fast:, \@@_gset:N
+%   }
 %   As \LuaTeX{} offers engine support for category code tables, and this is
 %   entirely lacking from the other engines, we need two complementary
 %   approaches here. Rather than intermix them, we split the set up based on
@@ -262,18 +265,17 @@
           { \tl_set:Nn \l_@@_tmp_tl { 0 } }
         \tex_catcodetable:D \l_@@_tmp_tl \scan_stop:
       }
-%    \end{macrocode}
-%   Category code tables are always global, so only one version is needed.
-%   The set up here is simple, and means that at the point of use there is
-%   no need to worry about escaping category codes.
-%    \begin{macrocode}
-    \cs_new_protected:Npn \cctab_gset:Nn #1#2
+    \cs_new_protected:Npn \@@_select:N #1
       {
-        \group_begin:
-          #2 \scan_stop:
-          \tex_savecatcodetable:D #1
-        \group_end:
+        \@@_begin:N #1
+        \group_insert_after:N \@@_end_fast:
       }
+    \cs_new_protected:Npn \@@_end_fast:
+      {
+        \int_gsub:Nn \g_@@_stack_int { 2 }
+        \seq_gpop:NN \g_@@_stack_seq \l_@@_tmp_tl
+      }
+    \cs_new_eq:NN \@@_gset:N \tex_savecatcodetable:D
   }
 %    \end{macrocode}
 %   Now the case for other engines. Here, each table is an integer
@@ -304,9 +306,8 @@
         \@@_gstore:Nnn #1 { 127 } { 15 }
       }
 %    \end{macrocode}
-%   Then, two basic operations: setting catcodes (selecting
-%   a catcode table) and saving catcodes (assigning a
-%   catcode table).
+%   Then we implement two basic operations: setting catcodes (selecting
+%   a catcode table) and saving catcodes (assigning a catcode table).
 %    \begin{macrocode}
     \cs_new_protected:Npn \@@_select:N #1
       {
@@ -352,34 +353,26 @@
 %   some bookkeeping to store the current catcodes in a
 %   dynamically generated variable.
 %    \begin{macrocode}
-    \cs_new_protected:Npn \cctab_gset:Nn #1#2
-      {
-        \group_begin:
-          #2 \scan_stop:
-          \@@_gset:N #1
-        \group_end:
-      }
   }
 \cs_generate_variant:Nn \cctab_new:N { c }
-\cs_generate_variant:Nn \cctab_gset:Nn { c }
 %    \end{macrocode}
 % \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
 %
-% \begin{macro}{\cctab_begin:N,\cctab_end:}
-%   These functions perform a few sanity checks before calling the
-%   functions which will do the heavy-lifting.
-%   \cs{cctab_begin:N} checks if a \meta{cctab~var} exists before trying
-%   to use it. \cs{cctab_end:} checks if a \cs{cctab_begin:N} was used
-%   some time earlier.
-%   
-%   Skipping these checks would result in an \enquote{Undefined control
-%   sequence} error for \cs{cctab_begin:N} with an undefined
-%   \meta{cctab~var}, and a \enquote{Missing font identifier} for an extra
-%   \cs{cctab_end:} (or another error in LuaTeX).
+% \subsection{Using category code tables}
+%
+% \begin{macro}{\cctab_select:N, \cctab_select:c}
+% \begin{macro}{\cctab_begin:N, \cctab_begin:c}
+% \begin{macro}{\cctab_end:}
+%   These functions perform a few sanity checks before calling internal
+%   functions defined below, which do the engine-dependent
+%   heavy-lifting.  The first two functions check if a \meta{cctab~var}
+%   exists before trying to use it while \cs{cctab_end:} checks if a
+%   \cs{cctab_begin:N} was used some time earlier.  Skipping these
+%   checks would result in low-level engine-dependent errors.
 %    \begin{macrocode}
+\cs_new_protected:Npn \cctab_select:N #1
+  { \@@_chk_if_valid:NT #1 { \@@_select:N #1 } }
+\cs_generate_variant:Nn \cctab_select:N { c }
 \cs_new_protected:Npn \cctab_begin:N #1
   { \@@_chk_if_valid:NT #1 { \@@_begin:N #1 } }
 \cs_generate_variant:Nn \cctab_begin:N { c }
@@ -391,38 +384,30 @@
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+% \end{macro}
 %
-% \begin{macro}{\cctab_select:N}
-% \begin{macro}{\@@_end_fast:}
-%   Select a catcode table within a group.
+% \begin{macro}{\cctab_gset:Nn, \cctab_gset:cn}
+%   Category code tables are always global, so only one version of
+%   assignments is needed.  Simply run the setup in a group and save the
+%   result in a category code table~|#1|, provided it is valid.  The
+%   internal function is defined below depending on the engine.
 %    \begin{macrocode}
-\sys_if_engine_luatex:TF
+\cs_new_protected:Npn \cctab_gset:Nn #1#2
   {
-    \cs_new_protected:Npn \cctab_select:N #1
+    \@@_chk_if_valid:NT #1
       {
-        \@@_chk_if_valid:NT #1
-          {
-            \@@_begin:N #1
-            \group_insert_after:N \@@_end_fast:
-          }
-      }
-    \cs_new_protected:Npn \@@_end_fast:
-      {
-        \int_gsub:Nn \g_@@_stack_int { 2 }
-        \seq_gpop:NN \g_@@_stack_seq \l_@@_tmp_tl
+        \group_begin:
+          #2 \scan_stop:
+          \@@_gset:N #1
+        \group_end:
       }
   }
-  {
-    \cs_new_protected:Npn \cctab_select:N #1
-      {
-        \@@_chk_if_valid:NT #1
-          { \@@_select:N #1 }
-      }
-  }
-\cs_generate_variant:Nn \cctab_select:N { c }
+\cs_generate_variant:Nn \cctab_gset:Nn { c }
 %    \end{macrocode}
 % \end{macro}
-% \end{macro}
+%
+% \subsection{Category code table conditionals}
 %
 % \begin{macro}{\cctab_if_exist:N,\cctab_if_exist:c}
 %   Checks whether a \meta{cctab~var} is defined.
@@ -574,6 +559,6 @@
 %</initex|package>
 %    \end{macrocode}
 %
-%\end{implementation}
+% \end{implementation}
 %
 %\PrintIndex
