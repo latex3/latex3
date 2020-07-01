@@ -178,60 +178,64 @@
 %<@@=cctab>
 %    \end{macrocode}
 %
+% As \LuaTeX{} offers engine support for category code tables, and this
+% is entirely lacking from the other engines, we need two complementary
+% approaches. (Some future \XeTeX{} may add support, at which point the
+% conditionals below would be different.)
+%
+% \subsection{Variables}
+%
+% \begin{variable}{\g_@@_stack_seq, \g_@@_unused_seq}
+%   List of catcode tables saved by nested \cs{cctab_begin:N}, to
+%   restore catcodes at the matching \cs{cctab_end:}.  When popped from
+%   the \cs{g_@@_stack_seq} the table numbers are stored in
+%   \cs{g_@@_unused_seq} for later reuse.
+%    \begin{macrocode}
+\seq_new:N \g_@@_stack_seq
+\seq_new:N \g_@@_unused_seq
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\g_@@_allocate_int}
-% \begin{variable}{\g_@@_stack_int}
-% \begin{variable}{\g_@@_stack_seq}
-%   To allocate category code tables, both the read-only and stack
-%   tables need to be followed. There is also a sequence stack for the
-%   dynamic tables themselves.
+%   Integer to keep track of what category code table to allocate.  In
+%   \LuaTeX{} it is only used in format mode to implement
+%   \cs{cctab_new:N}.  In other engines it is used to make csnames for
+%   dynamic tables.
 %    \begin{macrocode}
 \int_new:N  \g_@@_allocate_int
-\int_gset:Nn \g_@@_allocate_int { -1 }
-\int_new:N \g_@@_stack_int
-\seq_new:N \g_@@_stack_seq
 %    \end{macrocode}
 % \end{variable}
-% \end{variable}
-% \end{variable}
 %
-% \begin{variable}{\l_@@_tmp_tl}
-%   Scratch space.
+% \begin{variable}{\l_@@_internal_tl}
+%   Scratch space when popping sequences.
 %    \begin{macrocode}
-\tl_new:N \l_@@_tmp_tl
+\tl_new:N \l_@@_internal_tl
 %    \end{macrocode}
 % \end{variable}
 %
-% \subsection{Category code table engine-dependent code}
+% \subsection{Allocating category code tables}
 %
-% \begin{macro}
-%   {
-%     \cctab_new:N, \cctab_new:c, \@@_begin:N, \@@_begin_aux:N,
-%     \@@_end:, \@@_select:N, \@@_end_fast:, \@@_gset:N
-%   }
-%   As \LuaTeX{} offers engine support for category code tables, and this is
-%   entirely lacking from the other engines, we need two complementary
-%   approaches here. Rather than intermix them, we split the set up based on
-%   engine. (Some future \XeTeX{} may add support, at which point the
-%   conditional here would be subtly different.)
+% \begin{macro}{\cctab_new:N, \cctab_new:c, \@@_new:N, \@@_gstore:Nnn}
+%   The \cs{@@_new:N} auxiliary allocates a new catcode table but does
+%   not attempt to set its value consistently across engines.  It is
+%   used both in \cs{cctab_new:N}, which sets catcodes to \IniTeX{}
+%   values, and in \cs{cctab_begin:N}/\cs{cctab_end:} for dynamically
+%   allocated tables.
 %
 %   First, the \LuaTeX{} case.
+%   Creating a new category code table is done like other registers.
 %    \begin{macrocode}
 \sys_if_engine_luatex:TF
   {
-%    \end{macrocode}
-%   Creating a new category code table is done slightly differently
-%   from other registers. Low-numbered tables are more efficiently-stored
-%   than high-numbered ones. There is also a need to have a stack of
-%   flexible tables as well as the set of read-only ones. To satisfy both
-%   of these requirements, odd numbered tables are used for read-only
-%   tables, and even ones for the stack. Here, therefore, the odd numbers
-%   are allocated.
-%    \begin{macrocode}
     \cs_new_protected:Npn \cctab_new:N #1
       {
         \__kernel_chk_if_free_cs:N #1
+        \@@_new:N #1
+      }
 %<*initex>
-        \int_gadd:Nn \g_@@_allocate_int { 2 }
+    \cs_new_protected:Npn \@@_new:N #1
+      {
+        \int_gincr:N \g_@@_allocate_int
         \int_compare:nNnTF
           \g_@@_allocate_int > \c_max_register_int
            {
@@ -242,60 +246,27 @@
              \tex_global:D \tex_chardef:D #1 \g_@@_allocate_int
              \tex_initcatcodetable:D #1
            }
+      }
 %</initex>
 %<*package>
-        \newcatcodetable #1
+    \cs_new_eq:NN \@@_new:N \newcatcodetable
 %</package>
-      }
-%    \end{macrocode}
-%   The aim here is to ensure that the saved tables are read-only. This is
-%   done by using a stack of tables which are not read only, and actually
-%   having them as \enquote{in use} copies.
-%    \begin{macrocode}
-    \cs_new_protected:Npn \@@_begin:N #1
-      {
-        \seq_gpush:Nx \g_@@_stack_seq { \tex_the:D \tex_catcodetable:D }
-        \tex_catcodetable:D #1
-        \int_gadd:Nn \g_@@_stack_int { 2 }
-        \int_compare:nNnT \g_@@_stack_int > \c_max_register_int
-          { \__kernel_msg_fatal:nn { kernel } { cctab-stack-full } }
-        \tex_savecatcodetable:D \g_@@_stack_int
-        \tex_catcodetable:D \g_@@_stack_int
-      }
-    \cs_new_protected:Npn \@@_end:
-      {
-        \int_gsub:Nn \g_@@_stack_int { 2 }
-        \seq_gpop:NNF \g_@@_stack_seq \l_@@_tmp_tl
-          { \tl_set:Nn \l_@@_tmp_tl { 0 } }
-        \tex_catcodetable:D \l_@@_tmp_tl \scan_stop:
-      }
-    \cs_new_protected:Npn \@@_select:N #1
-      {
-        \@@_begin:N #1
-        \group_insert_after:N \@@_end_fast:
-      }
-    \cs_new_protected:Npn \@@_end_fast:
-      {
-        \int_gsub:Nn \g_@@_stack_int { 2 }
-        \seq_gpop:NN \g_@@_stack_seq \l_@@_tmp_tl
-      }
-    \cs_new_eq:NN \@@_gset:N \tex_savecatcodetable:D
   }
 %    \end{macrocode}
 %   Now the case for other engines. Here, each table is an integer
-%   array.  The index base is out-by-one, so we have an internal
-%   function to handle that. The rest of the approach here is pretty
-%   simple: use a stack of tables, and save to them at each
-%   |begin|. Unlike the \LuaTeX{} case, we can't accidentally alter a
-%   saved table, which makes life a little easier.  Following the
-%   \LuaTeX{} pattern, a new table starts with \IniTeX{} codes.
+%   array.  Following the \LuaTeX{} pattern, a new table starts with
+%   \IniTeX{} codes.  The index base is out-by-one, so we have an
+%   internal function to handle that.
 %    \begin{macrocode}
   {
+    \cs_new_protected:Npn \@@_new:N #1
+      { \intarray_new:Nn #1 { 256 } }
     \cs_new_protected:Npn \@@_gstore:Nnn #1#2#3
       { \intarray_gset:Nnn #1 { \int_eval:n { #2 + 1 } } {#3} }
     \cs_new_protected:Npn \cctab_new:N #1
       {
-        \intarray_new:Nn #1 { 256 }
+        \__kernel_chk_if_free_cs:N #1
+        \@@_new:N #1
         \int_step_inline:nn { 256 }
           { \__kernel_intarray_gset:Nnn #1 {##1} { 12 } }
         \@@_gstore:Nnn #1 { 0 } { 9 }
@@ -309,19 +280,24 @@
           { \@@_gstore:Nnn #1 {##1} { 11 } }
         \@@_gstore:Nnn #1 { 127 } { 15 }
       }
+  }
+\cs_generate_variant:Nn \cctab_new:N { c }
 %    \end{macrocode}
-%   Then we implement two basic operations: setting catcodes (selecting
-%   a catcode table) and saving catcodes (assigning a catcode table).
+% \end{macro}
+%
+% \subsection{Saving category code tables}
+%
+% \begin{macro}{\@@_gset:w}
+%   In various functions we need to save the current catcodes (globally)
+%   in a table.  It is a primitive in \LuaTeX{}.  In other engines we
+%   store $256$ current catcodes in an intarray variable.  We use a |w|
+%   signature because in \LuaTeX{} it also works when followed by an
+%   explicit integer denotation, as we use later on.
 %    \begin{macrocode}
-    \cs_new_protected:Npn \@@_select:N #1
-      {
-        \int_step_inline:nn { 256 }
-          {
-            \char_set_catcode:nn { ##1 - 1 }
-              { \__kernel_intarray_item:Nn #1 {##1} }
-          }
-      }
-    \cs_new_protected:Npn \@@_gset:N #1
+\sys_if_engine_luatex:TF
+  { \cs_new_eq:NN \@@_gset:w \tex_savecatcodetable:D }
+  {
+    \cs_new_protected:Npn \@@_gset:w #1
       {
         \int_step_inline:nn { 256 }
           {
@@ -329,66 +305,8 @@
               { \char_value_catcode:n { ##1 - 1 } }
           }
       }
-%    \end{macrocode}
-%   Beginning and ending a catcode table simply involves
-%   some bookkeeping to store the current catcodes in a
-%   dynamically generated variable.
-%    \begin{macrocode}
-    \cs_new_protected:Npn \@@_begin:N #1
-      {
-        \int_gadd:Nn \g_@@_stack_int { 2 }
-        \exp_args:Nc \@@_begin_aux:N
-          { g_@@_ \int_use:N \g_@@_stack_int _intarray }
-        \@@_select:N #1
-      }
-    \cs_new_protected:Npn \@@_begin_aux:N #1
-      {
-        \cs_if_exist:NF #1 { \intarray_new:Nn #1 { 256 } }
-        \@@_gset:N #1
-      }
-    \cs_new_protected:Npn \@@_end:
-      {
-        \exp_args:Nc \@@_select:N
-          { g_@@_ \int_use:N \g_@@_stack_int _intarray }
-        \int_gsub:Nn \g_@@_stack_int { 2 }
-      }
-%    \end{macrocode}
-%   Beginning and ending a catcode table simply involves
-%   some bookkeeping to store the current catcodes in a
-%   dynamically generated variable.
-%    \begin{macrocode}
-  }
-\cs_generate_variant:Nn \cctab_new:N { c }
-%    \end{macrocode}
-% \end{macro}
-%
-% \subsection{Using category code tables}
-%
-% \begin{macro}{\cctab_select:N, \cctab_select:c}
-% \begin{macro}{\cctab_begin:N, \cctab_begin:c}
-% \begin{macro}{\cctab_end:}
-%   These functions perform a few sanity checks before calling internal
-%   functions defined above, which do the engine-dependent
-%   heavy-lifting.  The first two functions check if a \meta{cctab~var}
-%   exists before trying to use it while \cs{cctab_end:} checks if a
-%   \cs{cctab_begin:N} was used some time earlier.  Skipping these
-%   checks would result in low-level engine-dependent errors.
-%    \begin{macrocode}
-\cs_new_protected:Npn \cctab_select:N #1
-  { \@@_chk_if_valid:NT #1 { \@@_select:N #1 } }
-\cs_generate_variant:Nn \cctab_select:N { c }
-\cs_new_protected:Npn \cctab_begin:N #1
-  { \@@_chk_if_valid:NT #1 { \@@_begin:N #1 } }
-\cs_generate_variant:Nn \cctab_begin:N { c }
-\cs_new_protected:Npn \cctab_end:
-  {
-    \int_compare:nNnTF { \g_@@_stack_int } = { \c_zero_int }
-      { \__kernel_msg_error:nn { kernel } { cctab-extra-end } }
-      { \@@_end: }
   }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\cctab_gset:Nn, \cctab_gset:cn}
@@ -403,11 +321,129 @@
       {
         \group_begin:
           #2 \scan_stop:
-          \@@_gset:N #1
+          \@@_gset:w #1
         \group_end:
       }
   }
 \cs_generate_variant:Nn \cctab_gset:Nn { c }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Using category code tables}
+%
+% \begin{macro}{\cctab_select:N, \cctab_select:c}
+% \begin{variable}{\g_@@_internal_cctab}
+% \begin{macro}{\@@_select:N}
+%   The public function simply checks the \meta{cctab~var} exists before
+%   using the engine-dependent \cs{@@_select:N}.  Skipping these checks
+%   would result in low-level engine-dependent errors.  First, the
+%   \LuaTeX{} case.  The aim here is to ensure that the saved tables are
+%   read-only.  This is done by applying the saved table, then switching
+%   immediately to a scratch table \cs{g_@@_internal_cctab}.  Any
+%   catcode assignment will affect that scratch table rather than the
+%   saved one.  In other engines, selecting a catcode table is a matter
+%   of doing $256$ catcode assignments.
+%    \begin{macrocode}
+\cs_new_protected:Npn \cctab_select:N #1
+  { \@@_chk_if_valid:NT #1 { \@@_select:N #1 } }
+\cs_generate_variant:Nn \cctab_select:N { c }
+\sys_if_engine_luatex:TF
+  {
+    \@@_new:N \g_@@_internal_cctab
+    \cs_new_protected:Npn \@@_select:N #1
+      {
+        \tex_catcodetable:D #1
+        \tex_savecatcodetable:D \g_@@_internal_cctab
+        \tex_catcodetable:D \g_@@_internal_cctab
+      }
+  }
+  {
+    \cs_new_protected:Npn \@@_select:N #1
+      {
+        \int_step_inline:nn { 256 }
+          {
+            \char_set_catcode:nn { ##1 - 1 }
+              { \__kernel_intarray_item:Nn #1 {##1} }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{variable}
+% \end{macro}
+%
+% \begin{variable}{\g_@@_next_cctab}
+% \begin{macro}{\@@_begin_aux:}
+%   For \cs{cctab_begin:N}/\cs{cctab_end:} we will need to allocate
+%   dynamic tables.  This is done here by \cs{@@_begin_aux:}, which puts
+%   a table number (in \LuaTeX{}) or name (in other engines) into
+%   \cs{l_@@_internal_tl}.  In \LuaTeX{} this simply calls \cs{@@_new:N}
+%   and uses the resulting catcodetable number; in other engines we need
+%   to give a name to the intarray variable and use that.
+%    \begin{macrocode}
+\sys_if_engine_luatex:TF
+  {
+    \cs_new_protected:Npn \@@_begin_aux:
+      {
+        \@@_new:N \g_@@_next_cctab
+        \tl_set:NV \l_@@_internal_tl \g_@@_next_cctab
+        \cs_undefine:N \g_@@_next_cctab
+      }
+  }
+  {
+    \cs_new_protected:Npn \@@_begin_aux:
+      {
+        \int_gincr:N \g_@@_allocate_int
+        \exp_args:Nc \@@_new:N
+          { g_@@_ \int_use:N \g_@@_allocate_int _cctab }
+        \exp_args:NNc \tl_set:Nn \l_@@_internal_tl
+          { g_@@_ \int_use:N \g_@@_allocate_int _cctab }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{variable}
+%
+% \begin{macro}{\cctab_begin:N, \cctab_begin:c}
+%   Check the \meta{cctab~var} exists, to avoid low-level errors.  Get
+%   in \cs{l_@@_internal_tl} the number/name of a dynamic table, either
+%   from \cs{g_@@_unused_seq} where we save tables that are not
+%   currently in use, or from \cs{@@_begin_aux:} if none are available.
+%   Then save the current catcodes into the table (pointed to by)
+%   \cs{l_@@_internal_tl} and save that table number in a stack before
+%   selecting the desired catcodes.
+%    \begin{macrocode}
+\cs_new_protected:Npn \cctab_begin:N #1
+  {
+    \@@_chk_if_valid:NT #1
+      {
+        \seq_gpop:NNF \g_@@_unused_seq \l_@@_internal_tl
+          { \@@_begin_aux: }
+        \seq_gpush:NV \g_@@_stack_seq { \l_@@_internal_tl }
+        \exp_after:wN \@@_gset:w \l_@@_internal_tl \scan_stop:
+        \@@_select:N #1
+      }
+  }
+\cs_generate_variant:Nn \cctab_begin:N { c }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\cctab_end:}
+%   Make sure a \cs{cctab_begin:N} was used some time earlier, get in
+%   \cs{l_@@_internal_tl} the catcode table number/name in which the
+%   prevailing catcodes were stored, then restore these catcodes.  The
+%   dynamic table is now unused hence stored in \cs{g_@@_unused_seq} for
+%   recycling by later \cs{cctab_begin:N}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \cctab_end:
+  {
+    \seq_gpop:NNTF \g_@@_stack_seq \l_@@_internal_tl
+      {
+        \seq_gpush:NV \g_@@_unused_seq \l_@@_internal_tl
+        \@@_select:N \l_@@_internal_tl
+      }
+      { \__kernel_msg_error:nn { kernel } { cctab-extra-end } }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
