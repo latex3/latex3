@@ -361,17 +361,69 @@
 %
 % \subsection{Using category code tables}
 %
-% \begin{macro}{\cctab_select:N, \cctab_select:c}
 % \begin{variable}{\g_@@_internal_cctab}
+% \begin{macro}[EXP]{\@@_internal_cctab_name:}
+%   In \LuaTeX{}, we must ensure that the saved tables are read-only.
+%   This is done by applying the saved table, then switching immediately
+%   to a scratch table.  Any later catcode assignment will affect that
+%   scratch table rather than the saved one.  If we simply switched to
+%   the saved tables, then \cs{char_set_catcode_other:N} in the example
+%   below would change \cs{c_document_cctab} and a later use of that
+%   table would give the wrong category code to |_|.
+% \begin{verbatim}
+% \use:n
+%   {
+%     \cctab_begin:N \c_document_cctab
+%       \char_set_catcode_other:N \_
+%     \cctab_end:
+%     \cctab_begin:N \c_document_cctab
+%       \int_compare:nTF { \char_value_catcode:n { `_ } = 8 }
+%         { \TRUE } { \ERROR }
+%     \cctab_end:
+%   }
+% \end{verbatim}
+%   We must also make sure that a scratch table is never reused in a
+%   nested group: in the following example, the scratch table used by
+%   the first \cs{cctab_begin:N} would be changed globally by the second
+%   one issuing \tn{savecatcodetable}, and after \cs{group_end:} the
+%   wrong category codes (those of \cs{c_str_cctab}) would be imposed.
+%   Note that the inner \cs{cctab_end:} restores the correct catcodes
+%   only locally, so the problem really comes up because of the
+%   different grouping level.  The simplest is to use a scratch table
+%   labeled by the \tn{currentgrouplevel}.  We initialize one of them as
+%   an example.
+% \begin{verbatim}
+% \use:n
+%   {
+%     \cctab_begin:N \c_document_cctab
+%       \group_begin:
+%         \cctab_begin:N \c_str_cctab
+%         \cctab_end:
+%       \group_end:
+%     \cctab_end:
+%   }
+% \end{verbatim}
+%    \begin{macrocode}
+\sys_if_engine_luatex:T
+  {
+    \@@_new:N \g_@@_internal_cctab
+    \cs_new:Npn \@@_internal_cctab_name:
+      {
+        g_@@_internal
+        \tex_romannumeral:D \tex_currentgrouplevel:D
+        _cctab
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{variable}
+%
+% \begin{macro}{\cctab_select:N, \cctab_select:c}
 % \begin{macro}{\@@_select:N}
 %   The public function simply checks the \meta{cctab~var} exists before
 %   using the engine-dependent \cs{@@_select:N}.  Skipping these checks
 %   would result in low-level engine-dependent errors.  First, the
-%   \LuaTeX{} case.  The aim here is to ensure that the saved tables are
-%   read-only.  This is done by applying the saved table, then switching
-%   immediately to a scratch table \cs{g_@@_internal_cctab}.  Any later
-%   catcode assignment will affect that scratch table rather than the
-%   saved one.  In other engines, selecting a catcode table is a matter
+%   \LuaTeX{} case.  In other engines, selecting a catcode table is a matter
 %   of doing $256$ catcode assignments and setting the \tn{endlinechar}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \cctab_select:N #1
@@ -379,15 +431,16 @@
 \cs_generate_variant:Nn \cctab_select:N { c }
 \sys_if_engine_luatex:TF
   {
-    \@@_new:N \g_@@_internal_cctab
     \cs_new_protected:Npn \@@_select:N #1
       {
         \tex_catcodetable:D #1
-        \tex_savecatcodetable:D \g_@@_internal_cctab
-        \tex_catcodetable:D \g_@@_internal_cctab
         \prop_get:NVNTF \g_@@_endlinechar_prop #1 \l_@@_internal_tl
           { \int_set:Nn \tex_endlinechar:D { \l_@@_internal_tl } }
           { \int_set:Nn \tex_endlinechar:D { 13 } }
+        \cs_if_exist:cF { \@@_internal_cctab_name: }
+          { \exp_args:Nc \@@_new:N { \@@_internal_cctab_name: } }
+        \exp_args:Nc \tex_savecatcodetable:D { \@@_internal_cctab_name: }
+        \exp_args:Nc \tex_catcodetable:D { \@@_internal_cctab_name: }
       }
   }
   {
@@ -404,7 +457,6 @@
   }
 %    \end{macrocode}
 % \end{macro}
-% \end{variable}
 % \end{macro}
 %
 % \begin{variable}{\g_@@_next_cctab}
@@ -414,7 +466,12 @@
 %   a table number (in \LuaTeX{}) or name (in other engines) into
 %   \cs{l_@@_internal_tl}.  In \LuaTeX{} this simply calls \cs{@@_new:N}
 %   and uses the resulting catcodetable number; in other engines we need
-%   to give a name to the intarray variable and use that.
+%   to give a name to the intarray variable and use that.  In \LuaTeX{},
+%   to restore catcodes at \cs{cctab_end:} we cannot just set
+%   \tn{catcodetable} to its value before \cs{cctab_begin:N}, because
+%   that table may have been altered by other code in the mean time.  So
+%   we must make sure to save the catcodes in a table we control and
+%   restore them at \cs{cctab_end:}.
 %    \begin{macrocode}
 \sys_if_engine_luatex:TF
   {
