@@ -206,12 +206,22 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_@@_table_tl}
-%   Used when popping sequences: consists of the catcodetable number
-%   (integer denotation) in \LuaTeX{}, or of an intarray variable (as a
-%   single token) in other engines.
+% \begin{variable}{\l_@@_internal_tl}
+%   Scratch space.  For instance, when popping
+%   \cs{g_@@_stack_seq}/\cs{g_@@_unused_seq}, consists of the
+%   catcodetable number (integer denotation) in \LuaTeX{}, or of an
+%   intarray variable (as a single token) in other engines.
 %    \begin{macrocode}
-\tl_new:N \l_@@_table_tl
+\tl_new:N \l_@@_internal_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_endlinechar_prop}
+%   In \LuaTeX{} we store the \tn{endlinechar} associated to each
+%   \tn{catcodetable} in a property list, unless it is the default
+%   value~$13$.
+%    \begin{macrocode}
+\prop_new:N \g_@@_endlinechar_prop
 %    \end{macrocode}
 % \end{variable}
 %
@@ -258,11 +268,12 @@
 %   Now the case for other engines. Here, each table is an integer
 %   array.  Following the \LuaTeX{} pattern, a new table starts with
 %   \IniTeX{} codes.  The index base is out-by-one, so we have an
-%   internal function to handle that.
+%   internal function to handle that.  The \IniTeX{} \tn{endlinechar} is
+%   $13$.
 %    \begin{macrocode}
   {
     \cs_new_protected:Npn \@@_new:N #1
-      { \intarray_new:Nn #1 { 256 } }
+      { \intarray_new:Nn #1 { 257 } }
     \cs_new_protected:Npn \@@_gstore:Nnn #1#2#3
       { \intarray_gset:Nnn #1 { \int_eval:n { #2 + 1 } } {#3} }
     \cs_new_protected:Npn \cctab_new:N #1
@@ -271,6 +282,7 @@
         \@@_new:N #1
         \int_step_inline:nn { 256 }
           { \__kernel_intarray_gset:Nnn #1 {##1} { 12 } }
+        \__kernel_intarray_gset:Nnn #1 { 257 } { 13 }
         \@@_gstore:Nnn #1 { 0 } { 9 }
         \@@_gstore:Nnn #1 { 13 } { 5 }
         \@@_gstore:Nnn #1 { 32 } { 10 }
@@ -289,23 +301,39 @@
 %
 % \subsection{Saving category code tables}
 %
-% \begin{macro}{\@@_gset:w}
+% \begin{macro}{\@@_gset:n, \@@_gset_aux:n}
 %   In various functions we need to save the current catcodes (globally)
-%   in a table.  It is a primitive in \LuaTeX{}.  In other engines we
-%   store $256$ current catcodes in an intarray variable.  We use a |w|
-%   signature because in \LuaTeX{} it also works when followed by an
-%   explicit integer denotation, as we use later on.
+%   in a table.  In \LuaTeX{}, saving the catcodes is a primitives, but
+%   the \tn{endlinechar} needs more work: to avoid filling
+%   \cs{g_@@_endlinechar_prop} with many entries we special-case the
+%   default value $13$.  In other engines we store $256$ current
+%   catcodes and the \tn{endlinechar} in an intarray variable.
 %    \begin{macrocode}
 \sys_if_engine_luatex:TF
-  { \cs_new_eq:NN \@@_gset:w \tex_savecatcodetable:D }
   {
-    \cs_new_protected:Npn \@@_gset:w #1
+    \cs_new_protected:Npn \@@_gset:n #1
+      { \exp_args:Nf \@@_gset_aux:n { \int_eval:n {#1} } }
+    \cs_new_protected:Npn \@@_gset_aux:n #1
+      {
+        \tex_savecatcodetable:D #1 \scan_stop:
+        \int_compare:nNnTF { \tex_endlinechar:D } = { 13 }
+          { \prop_gremove:Nn \g_@@_endlinechar_prop {#1} }
+          {
+            \prop_gput:NnV \g_@@_endlinechar_prop {#1}
+              \tex_endlinechar:D
+          }
+      }
+  }
+  {
+    \cs_new_protected:Npn \@@_gset:n #1
       {
         \int_step_inline:nn { 256 }
           {
             \__kernel_intarray_gset:Nnn #1 {##1}
               { \char_value_catcode:n { ##1 - 1 } }
           }
+        \__kernel_intarray_gset:Nnn #1 { 257 }
+          { \tex_endlinechar:D }
       }
   }
 %    \end{macrocode}
@@ -323,7 +351,7 @@
       {
         \group_begin:
           #2 \scan_stop:
-          \@@_gset:w #1
+          \@@_gset:n {#1}
         \group_end:
       }
   }
@@ -341,10 +369,10 @@
 %   would result in low-level engine-dependent errors.  First, the
 %   \LuaTeX{} case.  The aim here is to ensure that the saved tables are
 %   read-only.  This is done by applying the saved table, then switching
-%   immediately to a scratch table \cs{g_@@_internal_cctab}.  Any
+%   immediately to a scratch table \cs{g_@@_internal_cctab}.  Any later
 %   catcode assignment will affect that scratch table rather than the
 %   saved one.  In other engines, selecting a catcode table is a matter
-%   of doing $256$ catcode assignments.
+%   of doing $256$ catcode assignments and setting the \tn{endlinechar}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \cctab_select:N #1
   { \@@_chk_if_valid:NT #1 { \@@_select:N #1 } }
@@ -357,6 +385,9 @@
         \tex_catcodetable:D #1
         \tex_savecatcodetable:D \g_@@_internal_cctab
         \tex_catcodetable:D \g_@@_internal_cctab
+        \prop_get:NVNTF \g_@@_endlinechar_prop #1 \l_@@_internal_tl
+          { \int_set:Nn \tex_endlinechar:D { \l_@@_internal_tl } }
+          { \int_set:Nn \tex_endlinechar:D { 13 } }
       }
   }
   {
@@ -367,6 +398,8 @@
             \char_set_catcode:nn { ##1 - 1 }
               { \__kernel_intarray_item:Nn #1 {##1} }
           }
+        \int_set:Nn \tex_endlinechar:D
+          { \__kernel_intarray_item:Nn #1 { 257 } }
       }
   }
 %    \end{macrocode}
@@ -379,7 +412,7 @@
 %   For \cs{cctab_begin:N}/\cs{cctab_end:} we will need to allocate
 %   dynamic tables.  This is done here by \cs{@@_begin_aux:}, which puts
 %   a table number (in \LuaTeX{}) or name (in other engines) into
-%   \cs{l_@@_table_tl}.  In \LuaTeX{} this simply calls \cs{@@_new:N}
+%   \cs{l_@@_internal_tl}.  In \LuaTeX{} this simply calls \cs{@@_new:N}
 %   and uses the resulting catcodetable number; in other engines we need
 %   to give a name to the intarray variable and use that.
 %    \begin{macrocode}
@@ -388,7 +421,7 @@
     \cs_new_protected:Npn \@@_begin_aux:
       {
         \@@_new:N \g_@@_next_cctab
-        \tl_set:NV \l_@@_table_tl \g_@@_next_cctab
+        \tl_set:NV \l_@@_internal_tl \g_@@_next_cctab
         \cs_undefine:N \g_@@_next_cctab
       }
   }
@@ -398,7 +431,7 @@
         \int_gincr:N \g_@@_allocate_int
         \exp_args:Nc \@@_new:N
           { g_@@_ \int_use:N \g_@@_allocate_int _cctab }
-        \exp_args:NNc \tl_set:Nn \l_@@_table_tl
+        \exp_args:NNc \tl_set:Nn \l_@@_internal_tl
           { g_@@_ \int_use:N \g_@@_allocate_int _cctab }
       }
   }
@@ -408,21 +441,21 @@
 %
 % \begin{macro}{\cctab_begin:N, \cctab_begin:c}
 %   Check the \meta{cctab~var} exists, to avoid low-level errors.  Get
-%   in \cs{l_@@_table_tl} the number/name of a dynamic table, either
+%   in \cs{l_@@_internal_tl} the number/name of a dynamic table, either
 %   from \cs{g_@@_unused_seq} where we save tables that are not
 %   currently in use, or from \cs{@@_begin_aux:} if none are available.
 %   Then save the current catcodes into the table (pointed to by)
-%   \cs{l_@@_table_tl} and save that table number in a stack before
+%   \cs{l_@@_internal_tl} and save that table number in a stack before
 %   selecting the desired catcodes.
 %    \begin{macrocode}
 \cs_new_protected:Npn \cctab_begin:N #1
   {
     \@@_chk_if_valid:NT #1
       {
-        \seq_gpop:NNF \g_@@_unused_seq \l_@@_table_tl
+        \seq_gpop:NNF \g_@@_unused_seq \l_@@_internal_tl
           { \@@_begin_aux: }
-        \seq_gpush:NV \g_@@_stack_seq \l_@@_table_tl
-        \exp_after:wN \@@_gset:w \l_@@_table_tl \scan_stop:
+        \seq_gpush:NV \g_@@_stack_seq \l_@@_internal_tl
+        \exp_args:NV \@@_gset:n \l_@@_internal_tl
         \@@_select:N #1
       }
   }
@@ -432,17 +465,17 @@
 %
 % \begin{macro}{\cctab_end:}
 %   Make sure a \cs{cctab_begin:N} was used some time earlier, get in
-%   \cs{l_@@_table_tl} the catcode table number/name in which the
+%   \cs{l_@@_internal_tl} the catcode table number/name in which the
 %   prevailing catcodes were stored, then restore these catcodes.  The
 %   dynamic table is now unused hence stored in \cs{g_@@_unused_seq} for
 %   recycling by later \cs{cctab_begin:N}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \cctab_end:
   {
-    \seq_gpop:NNTF \g_@@_stack_seq \l_@@_table_tl
+    \seq_gpop:NNTF \g_@@_stack_seq \l_@@_internal_tl
       {
-        \seq_gpush:NV \g_@@_unused_seq \l_@@_table_tl
-        \@@_select:N \l_@@_table_tl
+        \seq_gpush:NV \g_@@_unused_seq \l_@@_internal_tl
+        \@@_select:N \l_@@_internal_tl
       }
       { \__kernel_msg_error:nn { kernel } { cctab-extra-end } }
   }
@@ -546,9 +579,11 @@
 \cctab_const:Nn \c_code_cctab
   {
     \char_set_catcode_letter:n         { 64 }
+    \int_set:Nn \tex_endlinechar:D     { 32 }
   }
 \cctab_const:Nn \c_document_cctab
   {
+    \int_set:Nn \tex_endlinechar:D     { 13 }
     \char_set_catcode_space:n          { 9 }
     \char_set_catcode_space:n          { 32 }
     \char_set_catcode_other:n          { 58 }
@@ -558,6 +593,7 @@
 \cctab_const:Nn \c_other_cctab
   {
     \cctab_select:N \c_initex_cctab
+    \int_set:Nn \tex_endlinechar:D     { -1 }
     \int_step_inline:nnn { 0 } { 127 }
       { \char_set_catcode_other:n {#1} }
   }
