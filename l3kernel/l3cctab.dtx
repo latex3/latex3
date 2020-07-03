@@ -196,6 +196,13 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\g_@@_group_seq}
+%   A stack to store the group level when a catcode table started.
+%    \begin{macrocode}
+\seq_new:N \g_@@_group_seq
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\g_@@_allocate_int}
 %   Integer to keep track of what category code table to allocate.  In
 %   \LuaTeX{} it is only used in format mode to implement
@@ -509,6 +516,7 @@
   {
     \@@_chk_if_valid:NT #1
       {
+        \@@_chk_group_begin:
         \seq_gpop:NNF \g_@@_unused_seq \l_@@_internal_tl
           { \@@_begin_aux: }
         \seq_gpush:NV \g_@@_stack_seq \l_@@_internal_tl
@@ -533,8 +541,61 @@
       {
         \seq_gpush:NV \g_@@_unused_seq \l_@@_internal_tl
         \@@_select:N \l_@@_internal_tl
+        \@@_chk_group_end:
       }
       { \__kernel_msg_error:nn { kernel } { cctab-extra-end } }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_chk_group_begin:,\@@_chk_group_end:}
+%   Catcode tables are not allowed to be intermixed with groups, so here
+%   we check that they are properly nested regarding \TeX{} groups.
+%   \cs{@@_chk_group_begin:} stores the current group level in a stack,
+%   and locally defines a dummy control sequence
+%   \cs[no-index]{@@_group_\meta{group-level}_chk:}.
+%
+%   \cs{@@_chk_group_end:} pops the stack, and compares the returned
+%   value with \cs{tex_currentgrouplevel:D}.  If they differ,
+%   \cs{cctab_end:} is in a different grouping level than the matching
+%   \cs{cctab_begin:N}.  If they are the same, both happened at the same
+%   level, but a group might have ended and another started between
+%   \cs{cctab_begin:N} and \cs{cctab_end:}, which is the case if
+%   \cs[no-index]{@@_group_\meta{group-level}_chk:} doesn't exist
+%   since it was locally defined.
+%
+%   Any of these cases just raise an error, but no recovery is
+%   attempted:  usually interleaving groups and catcode tables will work
+%   as expected.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_chk_group_begin:
+  {
+    \seq_gpush:Nx \g_@@_group_seq
+      { \int_use:N \tex_currentgrouplevel:D }
+    \cs_set_eq:cN
+      { @@_group_ \int_use:N \tex_currentgrouplevel:D _chk: }
+      \prg_do_nothing:
+  }
+\cs_new_protected:Npn \@@_chk_group_end:
+  {
+    \seq_gpop:NN \g_@@_group_seq \l_@@_internal_tl
+    \int_compare:nNnTF
+        { \tex_currentgrouplevel:D } = { \l_@@_internal_tl }
+      {
+        \cs_if_exist:cF { @@_group_ \l_@@_internal_tl _chk: }
+          {
+            \__kernel_msg_error:nnx { kernel } { cctab-group-mismatch }
+              { different~group }
+          }
+      }
+      {
+        \__kernel_msg_error:nnx { kernel } { cctab-group-mismatch }
+          {
+            \int_compare:nNnTF
+                { \tex_currentgrouplevel:D } < { \l_@@_internal_tl }
+              { lower } { higher } ~group~level
+          }
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -684,6 +745,16 @@
     You~can~only~switch~to~a~\iow_char:N\\catcode~table~that~is~
     initialized~using~\iow_char:N\\cctab_new:N~or~
     \iow_char:N\\cctab_const:Nn.
+  }
+\__kernel_msg_new:nnnn { kernel } { cctab-group-mismatch }
+  {
+    \iow_char:N\\cctab_end:~occurred~in~a~#1~than~
+    the~matching~\iow_char:N\\cctab_begin:N.
+  }
+  {
+    Catcode~tables~and~groups~must~be~properly~nested,~but~
+    you~tried~to~interleave~them.~LaTeX~will~try~to~proceed,~
+    but~results~may~be~unexpected.
   }
 %    \end{macrocode}
 %
