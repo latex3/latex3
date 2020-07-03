@@ -44,7 +44,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2020-05-14}
+% \date{Released 2020-06-18}
 %
 % \maketitle
 %
@@ -677,7 +677,7 @@
 %   If the file is not found on the path, the expansion is empty.
 % \end{function}
 %
-% \begin{function}[added = 2017-06-23, updated = 2017-06-26]
+% \begin{function}[added = 2017-06-23, updated = 2020-06-24]
 %   {\file_parse_full_name:nNNN, \file_parse_full_name:VNNN}
 %   \begin{syntax}
 %     \cs{file_parse_full_name:nNNN} \Arg{full name} \meta{dir} \meta{name} \meta{ext}
@@ -697,9 +697,28 @@
 %     \item The \meta{ext}: everything after the last |.| (including the dot).
 %       The \meta{ext} is empty if there is no |.| after the last |/|.
 %   \end{itemize}
-%   This function does not expand the \meta{full name} before turning it
-%   to a string.  It assume that the \meta{full name} either contains no
-%   quote (|"|) characters or is surrounded by a pair of quotes.
+%
+%   Before parsing, the \meta{full name} is expanded until only non-expandable
+%   tokens remain, except that active characters are also not expanded.
+%   Quotes (|"|) are invalid in file names and are discarded from the input.
+% \end{function}
+%
+% \begin{function}[EXP, added = 2020-06-24]{\file_parse_full_name:n}
+%   \begin{syntax}
+%     \cs{file_parse_full_name:n} \Arg{full name}
+%   \end{syntax}
+%   Parses the \meta{full name} as described for \cs{file_parse_full_name:nNNN},
+%   and leaves \meta{dir}, \meta{name}, and \meta{ext} in the input stream,
+%   each inside a pair of braces.
+% \end{function}
+%
+% \begin{function}[EXP, added = 2020-06-24]{\file_parse_full_name_apply:nN}
+%   \begin{syntax}
+%     \cs{file_parse_full_name_apply:nN} \Arg{full name} \meta{function}
+%   \end{syntax}
+%   Parses the \meta{full name} as described for \cs{file_parse_full_name:nNNN},
+%   and passes \meta{dir}, \meta{name}, and \meta{ext} as arguments to \meta{function},
+%   as an \texttt{n}-type argument each, in this order.
 % \end{function}
 %
 % \begin{function}[rEXP, added = 2019-11-19]
@@ -3358,62 +3377,112 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\file_parse_full_name:nNNN, \file_parse_full_name:VNNN}
-% \begin{macro}
-%   {\@@_parse_full_name_auxi:w, \@@_parse_full_name_split:nNNNTF}
-%   Parsing starts by stripping off any surrounding quotes.  Then find
-%   the directory |#4| by splitting at the last~|/|.  (The auxiliary
-%   returns \texttt{true}/\texttt{false} depending on whether it found
-%   the delimiter.)  We correct for the case of a file in the root |/|,
-%   as in that case we wish to keep the trailing (and only) slash.  Then
-%   split the base name |#5| at the last dot.  If there was indeed a
-%   dot, |#5| contains the name and |#6| the extension without the dot,
-%   which we add back for convenience.  In the special case of no
-%   extension given, the auxiliary stored the name into |#6|, we just
-%   have to move it to |#5|.
+% \begin{macro}{\file_parse_full_name:n, \file_parse_full_name_apply:nN}
+%   The main parsing macro \cs{file_parse_full_name_apply:nN} passes the
+%   file name |#1| through \cs{__kernel_file_name_sanitize:n} so that we
+%   have a single normalised way to treat files internally.
+%   \cs{file_parse_full_name:n} uses the former, with
+%   \cs{prg_do_nothing:} to
+%   leave each part of the name within a pair of braces.
 %    \begin{macrocode}
-\cs_new_protected:Npn \file_parse_full_name:nNNN #1#2#3#4
+\cs_new:Npn \file_parse_full_name:n #1
   {
-    \exp_after:wN \@@_parse_full_name_auxi:w
-      \tl_to_str:n { #1 " #1 " } \s_@@_stop #2#3#4
+    \file_parse_full_name_apply:nN {#1}
+      \prg_do_nothing:
   }
-\cs_generate_variant:Nn \file_parse_full_name:nNNN { V }
-\cs_new_protected:Npn \@@_parse_full_name_auxi:w
-  #1 " #2 " #3 \s_@@_stop #4#5#6
+\cs_new:Npn \file_parse_full_name_apply:nN #1
   {
-    \@@_parse_full_name_split:nNNNTF {#2} / #4 #5
-      { \str_if_empty:NT #4 { \str_set:Nn #4 { / } } }
-      { }
-    \exp_args:No \@@_parse_full_name_split:nNNNTF {#5} . #5 #6
-      { \str_put_left:Nn #6 { . } }
-      {
-        \str_set_eq:NN #5 #6
-        \str_clear:N #6
-      }
+    \exp_args:Ne \@@_parse_full_name_auxi:nN
+      { \__kernel_file_name_sanitize:n {#1} }
   }
-\cs_new_protected:Npn \@@_parse_full_name_split:nNNNTF #1#2#3#4
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_parse_full_name_auxi:nN}
+% \begin{macro}{\@@_parse_full_name_area:nw}
+%   \cs{@@_parse_full_name_area:nw} splits the file name into chunks
+%   separated by |/|, until the last one is reached.  The last chunk is
+%   the file name plus the extension, and everything before that is the
+%   path.  When \cs{@@_parse_full_name_area:nw} is done, it leaves
+%   the path within braces after the scan mark \cs{s_@@_stop} and
+%   proceeds parsing the actual file name.
+%    \begin{macrocode}
+\cs_new:Npn \@@_parse_full_name_auxi:nN #1
   {
-    \cs_set_protected:Npn \@@_tmp:w ##1 ##2 #2 ##3 \s_@@_stop
+    \@@_parse_full_name_area:nw { } #1
+      / \s_@@_stop
+  }
+\cs_new:Npn \@@_parse_full_name_area:nw #1 #2 / #3 \s_@@_stop
+  {
+    \tl_if_empty:nTF {#3}
+      { \@@_parse_full_name_base:nw { } #2 . \s_@@_stop {#1} }
+      { \@@_parse_full_name_area:nw { #1 / #2 } #3 \s_@@_stop }
+  }
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_parse_full_name_base:nw}
+%   \cs{@@_parse_full_name_base:nw} does roughly the same as above, but
+%   it separates the chunks at each period.  However here there's some
+%   extra complications:  In case |#1| is empty, it is assumed that the
+%   extension is actually empty, and the file name is |#2|.  Besides, an
+%   extra |.| has to be added to |#2| because it is later removed in
+%   \cs{@@_parse_full_name_tidy:nnnN}.  In any case, if there's an
+%   extension, it is returned with a leading |.|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_parse_full_name_base:nw #1 #2 . #3 \s_@@_stop
+  {
+    \tl_if_empty:nTF {#3}
       {
-        \tl_if_empty:nTF {##3}
+        \tl_if_empty:nTF {#1}
           {
-            \str_set:Nn #4 {##2}
-            \tl_if_empty:nTF {##1}
-              {
-                \str_clear:N #3
-                \use_ii:nn
-              }
-              {
-                \str_set:Nx #3 { \str_tail:n {##1} }
-                \use_i:nn
-              }
+            \tl_if_empty:nTF {#2}
+              { \@@_parse_full_name_tidy:nnnN { } { } }
+              { \@@_parse_full_name_tidy:nnnN { .#2 } { } }
           }
-          { \@@_tmp:w { ##1 #2 ##2 } ##3 \s_@@_stop }
+          { \@@_parse_full_name_tidy:nnnN {#1} { .#2 } }
       }
-    \@@_tmp:w { } #1 #2 \s_@@_stop
+      { \@@_parse_full_name_base:nw { #1 . #2 } #3 \s_@@_stop }
+  }
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_parse_full_name_tidy:nnnN}
+%   Now we just need to tidy some bits left loose before.  The loop
+%   used in the two macros above start with a leading |/| and |.| in the
+%   file path an name, so here we need to remove them, except in the
+%   path, if it is a single |/|, in which case it's left as is.  After
+%   all's done, pass to |#4|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_parse_full_name_tidy:nnnN #1 #2 #3 #4
+  {
+    \exp_args:Nee #4
+      {
+        \str_if_eq:nnF {#3} { / } { \use_none:n }
+        #3 \prg_do_nothing:
+      }
+      { \use_none:n #1 \prg_do_nothing: }
+      {#2}
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\file_parse_full_name:nNNN, \file_parse_full_name:VNNN}
+%    \begin{macrocode}
+\cs_new_protected:Npn \file_parse_full_name:nNNN #1 #2 #3 #4
+  {
+    \file_parse_full_name_apply:nN {#1}
+      \@@_full_name_assign:nnnNNN #2 #3 #4
+  }
+\cs_new_protected:Npn \@@_full_name_assign:nnnNNN #1 #2 #3 #4 #5 #6
+  {
+    \str_set:Nn #4 {#1}
+    \str_set:Nn #5 {#2}
+    \str_set:Nn #6 {#3}
+  }
+\cs_generate_variant:Nn \file_parse_full_name:nNNN { V }
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\file_show_list:, \file_log_list:, \@@_list:N}

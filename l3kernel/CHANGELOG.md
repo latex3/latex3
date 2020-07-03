@@ -7,6 +7,34 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\file_parse_full_name:n` and `\file_parse_full_name_apply:nN`
+
+### Changed
+- Implementation of `\file_parse_full_name:nNNN` now uses
+  `\file_parse_full_name:n` internally
+
+## [2020-06-18]
+
+### Changed
+- Use `scn` operator for separations
+- Internal color model
+- Internal performance enhancements
+- Moved `\msg_expandable_error:nn(nnnn)` to stable.
+- Moved `\seq_indexed_map_inline:Nn` and `\seq_indexed_map_function:Nn`
+  to stable as `\seq_map_indexed_inline:Nn` and `\seq_map_indexed_function:Nn`.
+- Internal changes to `expl3` to allow loading earlier in LaTeX2e.
+
+## [2020-06-03]
+
+### Added
+- `\str_convert_pdfname:n`
+
+## [2020-05-15]
+
+### Changed
+- Make `\text_purify:n` `f`-type expandable
+
 ## [2020-05-14]
 
 ### Changed
@@ -683,7 +711,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-05-14...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-06-18...HEAD
+[2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18
+[2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-15...2020-06-03
+[2020-05-15]: https://github.com/latex3/latex3/compare/2020-05-14...2020-05-15
 [2020-05-14]: https://github.com/latex3/latex3/compare/2020-05-11...2020-05-14
 [2020-05-11]: https://github.com/latex3/latex3/compare/2020-05-05...2020-05-11
 [2020-05-05]: https://github.com/latex3/latex3/compare/2020-04-06...2020-05-05

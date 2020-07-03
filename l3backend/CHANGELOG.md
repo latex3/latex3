@@ -6,6 +6,33 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-06-29]
+
+### Fixed
+- Loading with `dvisvgm`
+
+## [2020-06-23]
+
+### Changed
+- Improved color support for drawings with `dvisvgm`
+
+### Fixed
+- Loading with `dvisvgm`
+
+## [2020-06-18]
+
+### Changed
+- Use `scn` operator for separations
+- Internal color model
+- Internal performance enhancements
+
+## [2020-06-03]
+
+### Fixed
+- Unneeded `[nobreak]` in `dvips` driver (issue #709)
+- `\__pdf_backend_object_write_fstream:nn` with `dvips` backend (issue #710)
+- Array writing in `dvips` mode
+
 ## [2020-05-05]
 
 ### Added
@@ -69,7 +96,11 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-05-05...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-06-29...HEAD
+[2020-06-29]: https://github.com/latex3/latex3/compare/2020-06-23...2020-06-29
+[2020-06-23]: https://github.com/latex3/latex3/compare/2020-06-18...2020-06-23
+[2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18
+[2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-05...2020-06-03
 [2020-05-05]: https://github.com/latex3/latex3/compare/2020-03-12...2020-05-05
 [2020-03-12]: https://github.com/latex3/latex3/compare/2020-02-23...2020-03-12
 [2020-02-23]: https://github.com/latex3/latex3/compare/2020-02-21...2020-02-23
