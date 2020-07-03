@@ -15,6 +15,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Implementation of `\file_parse_full_name:nNNN` now uses
   `\file_parse_full_name:n` internally
 
+### Removed
+- Functions deprecated at end of 2019
+
 ## [2020-06-18]
 
 ### Changed
