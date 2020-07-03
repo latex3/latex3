@@ -556,20 +556,58 @@
 %   we check that they are properly nested regarding \TeX{} groups.
 %   \cs{@@_chk_group_begin:n} stores the current group level in a stack,
 %   and locally defines a dummy control sequence
-%   \cs[no-index]{@@_group_\meta{group-level}_chk:}.
+%   \cs[no-index]{@@_group_\meta{cctab-level}_chk:}.
 %
 %   \cs{@@_chk_group_end:n} pops the stack, and compares the returned
 %   value with \cs{tex_currentgrouplevel:D}.  If they differ,
 %   \cs{cctab_end:} is in a different grouping level than the matching
 %   \cs{cctab_begin:N}.  If they are the same, both happened at the same
-%   level, but a group might have ended and another started between
-%   \cs{cctab_begin:N} and \cs{cctab_end:}, which is the case if
-%   \cs[no-index]{@@_group_\meta{group-level}_chk:} doesn't exist
-%   since it was locally defined.
+%   level, however a group might have ended and another started between
+%   \cs{cctab_begin:N} and \cs{cctab_end:}:
+% \begin{verbatim}
+%   \group_begin:
+%     \cctab_begin:N \c_document_cctab
+%   \group_end:
+%   \group_begin:
+%     \cctab_end:
+%   \group_end:
+% \end{verbatim}
+%   In this case checking \cs{tex_currentgrouplevel:D} is not enough, so
+%   we locally define \cs[no-index]{@@_group_\meta{cctab-level}_chk:},
+%   and then check if it exist in \cs{cctab_end:}.  If it doesn't,
+%   we know there was a group end where it shouldn't.
 %
-%   Any of these cases just raise an error, but no recovery is
+%   The \meta{cctab-level} in the sentinel macro above cannot be
+%   replaced by the more convenient \cs{tex_currentgrouplevel:D} because
+%   with the latter we might be tricked.  Suppose:
+% \begin{verbatim}
+%   \group_begin:
+%     \cctab_begin:N \c_code_cctab % A
+%   \group_end:
+%   \group_begin:
+%     \cctab_begin:N \c_code_cctab % B
+%     \cctab_end: % C
+%     \cctab_end: % D
+%   \group_end:
+% \end{verbatim}
+%   The line marked with |A| would start a |cctab| with a sentinel token
+%   named \cs[no-index]{@@_group_1_chk:}, which would disappear at the
+%   \cs{group_end:} that follows.  But |B| would create the same
+%   sentinel token, since both are at the same group level.  Line |C|
+%   would end the |cctab| from line |B| correctly, but so would line |D|
+%   because line |B| created the same sentinel token.  Using
+%   \meta{cctab-level} works correctly because it signals that certain
+%   |cctab| level was activated somewhere, but if it doesn't exist when
+%   the \cs{cctab_end:} is reached, we had a problem.
+%
+%   Unfortunately these tests only flag the wrong usage at the
+%   \cs{cctab_end:}, which might be farfrom the \cs{cctab_begin:N}.
+%   However it isn't possible to signal the wrong usage at the
+%   \cs{group_end:} without abusing \cs{tex_aftergroup:D}.
+%
+%   The three cases checked here just raise an error, and no recovery is
 %   attempted:  usually interleaving groups and catcode tables will work
-%   as expected.
+%   predictably.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_chk_group_begin:n #1
   {
@@ -599,6 +637,15 @@
           }
       }
   }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_nesting_number:N,\@@_nesting_number:w}
+%   This macro returns the numeric index of the current catcode table.
+%   In \LuaTeX{} this is just the argument, which is a count reference
+%   to a \tn{catcodetable} register.  In other engines, the number is
+%   extracted from the |cctab| variable.
+%    \begin{macrocode}
 \sys_if_engine_luatex:TF
   { \cs_new:Npn \@@_nesting_number:N #1 {#1} }
   {
