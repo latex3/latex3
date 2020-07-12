@@ -877,13 +877,14 @@
 % \begin{itemize}
 %   \item \cs{g_@@_state_active_intarray} holds the last \meta{step} in
 %     which each \meta{state} was active.
-%   \item \cs{g_@@_thread_state_intarray} maps each \meta{thread} (with
-%     $\texttt{min_thread} \leq \meta{thread} < \texttt{max_thread}$) to
-%     the \meta{state} in which the \meta{thread} currently is. The
+%   \item \cs{g_@@_thread_info_intarray} consists of blocks for each
+%     \meta{thread} (with $\texttt{min_thread} \leq \meta{thread} <
+%     \texttt{max_thread}$).  Each block has
+%     $1+2\cs{l_@@_capturing_group_int}$ entries: the \meta{state} in
+%     which the \meta{thread} currently is, followed by the beginnings
+%     of all submatches, and then the ends of all submatches. The
 %     \meta{threads} are ordered starting from the best to the least
 %     preferred.
-%   \item \tn{toks}\meta{thread} holds the submatch information for the
-%     \meta{thread}, as the contents of a property list.
 %   \item \cs{g_@@_charcode_intarray} and \cs{g_@@_catcode_intarray} hold the
 %     character codes and category codes of tokens at each
 %     \meta{position} in the query.
@@ -3826,19 +3827,14 @@
 %   The matching code relies on some global intarray variables, but only
 %   uses a range of their entries.  Specifically,
 %   \begin{itemize}
-%     \item \cs{g_@@_state_active_intarray} from \cs{l_@@_min_state_int}
-%       to $\cs{l_@@_max_state_int}-1$;
-%     \item \cs{g_@@_thread_state_intarray} from \cs{l_@@_min_thread_int}
-%       to $\cs{l_@@_max_thread_int}-1$.
+%   \item \cs{g_@@_state_active_intarray} from \cs{l_@@_min_state_int}
+%     to $\cs{l_@@_max_state_int}-1$;
 %   \end{itemize}
-%   In fact, some data is stored in \tn{toks} registers (local) in the
-%   same ranges so these ranges mustn't overlap.  This is done by
-%   setting \cs{l_@@_min_thread_int} to \cs{l_@@_max_state_int} after
-%   building the \textsc{nfa}.  Here, in this nested call to the
-%   matching code, we need the new versions of these ranges to involve
+%   Here, in this nested call to the
+%   matching code, we need the new versions of this range to involve
 %   completely new entries of the intarray variables, so we begin by
 %   setting (the new) \cs{l_@@_min_state_int} to (the old)
-%   \cs{l_@@_max_thread_int} to use higher entries.
+%   \cs{l_@@_max_state_int} to use higher entries.
 %
 %   When using a regex to match a cs, we don't insert a wildcard, we
 %   anchor at the end, and since we ignore submatches, there is no need
@@ -3848,8 +3844,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_build_for_cs:n #1
   {
-    \int_set_eq:NN \l_@@_min_state_int \l_@@_max_thread_int
-    \int_set_eq:NN \l_@@_max_state_int \l_@@_min_state_int
+    \int_set_eq:NN \l_@@_min_state_int \l_@@_max_state_int
     \@@_build_new_state:
     \@@_build_new_state:
     \@@_push_lr_states:
@@ -4423,7 +4418,8 @@
 % transitions, the instruction at the new state of the \textsc{nfa} is
 % performed immediately.  When a transition consumes a character, the
 % new state is appended to a list of \enquote{active states}, stored in
-% \cs{g_@@_thread_state_intarray}: this thread is made active again when the next
+% \cs{g_@@_thread_info_intarray} (together with submatch information):
+% this thread is made active again when the next
 % token is read from the query.  At every step (for each token in the
 % query), we unpack that list of active states and the corresponding
 % submatch props, and empty those.
@@ -4517,18 +4513,17 @@
 % \end{variable}
 %
 % \begin{variable}
-%   {\l_@@_curr_submatches_prop, \l_@@_success_submatches_prop}
+%   {\l_@@_curr_submatches_tl, \l_@@_success_submatches_tl}
 %   The submatches for the thread which is currently active are stored
-%   in the \texttt{curr_submatches} property list variable. This
-%   property list is stored by \cs{@@_action_cost:n} into the
-%   \tn{toks} register for the target state of the transition, to be
-%   retrieved when matching at the next position. When a thread
-%   succeeds, this property list is copied to
-%   \cs{l_@@_success_submatches_prop}: only the last successful thread
+%   in the \texttt{curr_submatches} list, which is almost a comma list,
+%   but ends with a comma. This list is stored by \cs{@@_store_state:n}
+%   into an intarray variable, to be retrieved when matching at the next
+%   position. When a thread succeeds, this list is copied to
+%   \cs{l_@@_success_submatches_tl}: only the last successful thread
 %   remains there.
 %    \begin{macrocode}
-\prop_new:N \l_@@_curr_submatches_prop
-\prop_new:N \l_@@_success_submatches_prop
+\tl_new:N \l_@@_curr_submatches_tl
+\tl_new:N \l_@@_success_submatches_tl
 %    \end{macrocode}
 % \end{variable}
 %
@@ -4553,26 +4548,27 @@
 %
 % \begin{variable}{\l_@@_min_thread_int, \l_@@_max_thread_int}
 %   All the currently active threads are kept in order of precedence in
-%   \cs{g_@@_thread_state_intarray}, and the corresponding submatches in the
-%   \tn{toks}. For our purposes, those serve as an array, indexed from
-%   \texttt{min_thread} (inclusive) to \texttt{max_thread} (excluded).
-%   At the start of every step, the whole array is unpacked, so that the
-%   space can immediately be reused, and \texttt{max_thread} is reset to
-%   \texttt{min_thread}, effectively clearing the array.
+%   \cs{g_@@_thread_info_intarray} together with the corresponding
+%   submatch information.  Data in this intarray is organized as blocks
+%   from \texttt{min_thread} (included) to \texttt{max_thread}
+%   (excluded).  At the start of every step, the whole array is
+%   unpacked, so that the space can immediately be reused, and
+%   \texttt{max_thread} is reset to \texttt{min_thread}, effectively
+%   clearing the array.
 %    \begin{macrocode}
 \int_new:N \l_@@_min_thread_int
 \int_new:N \l_@@_max_thread_int
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\g_@@_state_active_intarray, \g_@@_thread_state_intarray}
+% \begin{variable}{\g_@@_state_active_intarray, \g_@@_thread_info_intarray}
 %   \cs{g_@@_state_active_intarray} stores the last \meta{step} in which
-%   each \meta{state} was active.  \cs{g_@@_thread_state_intarray} stores
+%   each \meta{state} was active.  \cs{g_@@_thread_info_intarray} stores
 %   threads to be considered in the next step, more precisely the
 %   states in which these threads are.
 %    \begin{macrocode}
 \intarray_new:Nn \g_@@_state_active_intarray { 65536 }
-\intarray_new:Nn \g_@@_thread_state_intarray { 65536 }
+\intarray_new:Nn \g_@@_thread_info_intarray { 65536 }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -4661,7 +4657,7 @@
 \cs_new_protected:Npn \@@_match_cs:n #1
   {
     \int_zero:N \l_@@_balance_int
-    \int_set:Nn \l_@@_curr_pos_int
+    \int_set:Nn \l_@@_curr_pos_int % ^^A TODO: change
       {
         \int_max:nn { 2 * \l_@@_max_state_int - \l_@@_min_state_int }
         { \l_@@_max_pos_int }
@@ -4677,6 +4673,7 @@
       }
     \int_set_eq:NN \l_@@_max_pos_int \l_@@_curr_pos_int
     \@@_query_set:nnn { } { -1 } { -2 }
+    \int_set_eq:NN \l_@@_min_thread_int \l_@@_max_thread_int
     \@@_match_init:
     \@@_match_once:
   }
@@ -4689,11 +4686,9 @@
         \__kernel_intarray_gset:Nnn
           \g_@@_state_active_intarray {##1} { 1 }
       }
-    \int_set_eq:NN \l_@@_min_thread_int \l_@@_max_state_int
     \int_zero:N \l_@@_step_int
     \int_set_eq:NN \l_@@_success_pos_int \l_@@_min_pos_int
-    \int_set:Nn \l_@@_min_submatch_int
-      { 2 * \l_@@_max_state_int }
+    \int_set:Nn \l_@@_min_submatch_int { 1 }
     \int_set_eq:NN \l_@@_submatch_int \l_@@_min_submatch_int
     \bool_set_false:N \l_@@_empty_success_bool
   }
@@ -4728,7 +4723,8 @@
     \fi:
     \int_set_eq:NN \l_@@_start_pos_int \l_@@_success_pos_int
     \bool_set_false:N \l_@@_match_success_bool
-    \prop_clear:N \l_@@_curr_submatches_prop
+    \tl_set:Nx \l_@@_curr_submatches_tl
+      { \prg_replicate:nn { 2 * \l_@@_capturing_group_int } { 0 , } }
     \int_set_eq:NN \l_@@_max_thread_int \l_@@_min_thread_int
     \@@_store_state:n { \l_@@_min_state_int }
     \int_set:Nn \l_@@_curr_pos_int
@@ -4775,7 +4771,7 @@
 %   and category from the query. Then unpack the array of active
 %   threads, and clear it by resetting its length
 %   (\texttt{max_thread}). This results in a sequence of
-%   \cs{@@_use_state_and_submatches:nn} \Arg{state} \Arg{prop}, and
+%   \cs{@@_use_state_and_submatches:w} \meta{state}|,|\meta{submatch-clist}|;| and
 %   we consider those states one by one in order. As soon as a thread
 %   succeeds, exit the step, and, if there are threads to consider at the
 %   next position, and we have not reached the end of the string,
@@ -4808,9 +4804,12 @@
   }
 \cs_new:Npn \@@_match_one_active:n #1
   {
-    \@@_use_state_and_submatches:nn
-      { \__kernel_intarray_item:Nn \g_@@_thread_state_intarray {#1} }
-      { \@@_toks_use:w #1 }
+    \@@_use_state_and_submatches:w
+    \__kernel_intarray_range_to_clist:Nnn
+      \g_@@_thread_info_intarray
+      { 1 + #1 * (\l_@@_capturing_group_int * 2 + 1) }
+      { (1 + #1) * (\l_@@_capturing_group_int * 2 + 1) }
+    ;
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4879,20 +4878,20 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_use_state_and_submatches:nn}
+% \begin{macro}{\@@_use_state_and_submatches:w}
 %   This function is called as one item in the array of active threads
 %   after that array has been unpacked for a new step. Update the
 %   \texttt{curr_state} and \texttt{curr_submatches} and use the
 %   state if it has not yet been encountered at this step.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_use_state_and_submatches:nn #1 #2
+\cs_new_protected:Npn \@@_use_state_and_submatches:w #1 , #2 ;
   {
     \int_set:Nn \l_@@_curr_state_int {#1}
     \if_int_compare:w
         \__kernel_intarray_item:Nn \g_@@_state_active_intarray
           { \l_@@_curr_state_int }
                       < \l_@@_step_int
-      \tl_set:Nn \l_@@_curr_submatches_prop {#2}
+      \tl_set:Nn \l_@@_curr_submatches_tl { #2 , }
       \exp_after:wN \@@_use_state:
     \fi:
     \scan_stop:
@@ -4954,8 +4953,8 @@
           }
         \int_set:Nn \l_@@_curr_state_int
           { \int_use:N \l_@@_curr_state_int }
-        \tl_set:Nn \exp_not:N \l_@@_curr_submatches_prop
-          { \exp_not:o \l_@@_curr_submatches_prop }
+        \tl_set:Nn \exp_not:N \l_@@_curr_submatches_tl
+          { \exp_not:o \l_@@_curr_submatches_tl }
       }
   }
 %    \end{macrocode}
@@ -4978,21 +4977,26 @@
 %
 % \begin{macro}{\@@_store_state:n}
 % \begin{macro}{\@@_store_submatches:}
-%   Put the given state in \cs{g_@@_thread_state_intarray}, and increment
-%   the length of the array. Also store the current submatch in the
-%   appropriate \tn{toks}.
+%   Put the given state and current submatch information in
+%   \cs{g_@@_thread_info_intarray}, and increment the length of the
+%   array.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_store_state:n #1
   {
-    \@@_store_submatches:
-    \__kernel_intarray_gset:Nnn \g_@@_thread_state_intarray
-      { \l_@@_max_thread_int } {#1}
+    \exp_args:No \@@_store_submatches:nn
+      \l_@@_curr_submatches_tl {#1}
     \int_incr:N \l_@@_max_thread_int
   }
-\cs_new_protected:Npn \@@_store_submatches:
+\cs_new_protected:Npn \@@_store_submatches:nn #1#2
   {
-    \@@_toks_set:No \l_@@_max_thread_int
-      { \l_@@_curr_submatches_prop }
+    \__kernel_intarray_gset_range_from_clist:Nnn
+      \g_@@_thread_info_intarray
+      {
+        \@@_int_eval:w
+        1 + \l_@@_max_thread_int *
+        (\l_@@_capturing_group_int * 2 + 1)
+      }
+      { #2 , #1 }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -5006,21 +5010,37 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_disable_submatches:
   {
-    \cs_set_protected:Npn \@@_store_submatches: { }
+    \cs_set_protected:Npn \@@_store_submatches:n ##1 { }
     \cs_set_protected:Npn \@@_action_submatch:nN ##1##2 { }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_action_submatch:nN}
+% \begin{macro}{\@@_action_submatch:nN, \@@_action_submatch_aux:w, \@@_action_submatch_auxii:w, \@@_action_submatch_auxiii:w, \@@_action_submatch_auxiv:w}
 %   Update the current submatches with the information from the current
 %   position. Maybe a bottleneck.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_action_submatch:nN #1#2
   {
-    \prop_put:Nno \l_@@_curr_submatches_prop { #1 #2 }
-      { \int_use:N \l_@@_curr_pos_int }
+    \exp_after:wN \@@_action_submatch_aux:w
+    \l_@@_curr_submatches_tl ; {#1} #2
   }
+\cs_new_protected:Npn \@@_action_submatch_aux:w #1 ; #2#3
+  {
+    \tl_set:Nx \l_@@_curr_submatches_tl
+      {
+        \prg_replicate:nn
+          { #2 \if_meaning:w > #3 + \l_@@_capturing_group_int \fi: }
+          { \@@_action_submatch_auxii:w }
+        \@@_action_submatch_auxiii:w
+        #1
+      }
+  }
+\cs_new:Npn \@@_action_submatch_auxii:w
+    #1 \@@_action_submatch_auxiii:w #2 ,
+  { #2 , #1 \@@_action_submatch_auxiii:w }
+\cs_new:Npn \@@_action_submatch_auxiii:w #1 ,
+  { \int_use:N \l_@@_curr_pos_int , }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -5042,8 +5062,8 @@
         \bool_set_eq:NN \l_@@_empty_success_bool
           \l_@@_fresh_thread_bool
         \int_set_eq:NN \l_@@_success_pos_int \l_@@_curr_pos_int
-        \prop_set_eq:NN \l_@@_success_submatches_prop
-          \l_@@_curr_submatches_prop
+        \tl_set_eq:NN \l_@@_success_submatches_tl
+          \l_@@_curr_submatches_tl
         \prg_break:
       }
   }
@@ -6143,18 +6163,15 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}
-%   {\@@_extract:, \@@_extract_b:wn, \@@_extract_e:wn}
-%   Our task here is to extract from the property list
-%   \cs{l_@@_success_submatches_prop} the list of end-points of
-%   submatches, and store them in appropriate array entries, from
-%   \cs{l_@@_zeroth_submatch_int} upwards. We begin by emptying those
-%   entries. Then for each \meta{key}--\meta{value} pair in
-%   the property list update the appropriate entry. This
-%   is somewhat a hack: the \meta{key} is a non-negative integer
-%   followed by |<| or |>|, which we use in a comparison to $-1$. At the
-%   end, store the information about the position at which the match
-%   attempt started, in \cs{g_@@_submatch_prev_intarray}.
+% \begin{macro}{\@@_extract:}
+%   Our task here is to store the list of end-points of submatches, and
+%   store them in appropriate array entries, from
+%   \cs{l_@@_zeroth_submatch_int} upwards.  First, we store in
+%   \cs{g_@@_submatch_prev_intarray} the position at which the match
+%   attempt started.  We extract the rest from the comma list
+%   \cs{l_@@_success_submatches_tl}, which starts with entries to be
+%   stored in \cs{g_@@_submatch_begin_intarray} and continues with
+%   entries for \cs{g_@@_submatch_end_intarray}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_extract:
   {
@@ -6162,34 +6179,26 @@
       \int_set_eq:NN \l_@@_zeroth_submatch_int \l_@@_submatch_int
       \prg_replicate:nn \l_@@_capturing_group_int
         {
-          \__kernel_intarray_gset:Nnn \g_@@_submatch_begin_intarray
-            { \l_@@_submatch_int } { 0 }
-          \__kernel_intarray_gset:Nnn \g_@@_submatch_end_intarray
-            { \l_@@_submatch_int } { 0 }
           \__kernel_intarray_gset:Nnn \g_@@_submatch_prev_intarray
             { \l_@@_submatch_int } { 0 }
           \int_incr:N \l_@@_submatch_int
         }
-      \prop_map_inline:Nn \l_@@_success_submatches_prop
-        {
-          \if_int_compare:w ##1 - 1 \exp_stop_f:
-            \exp_after:wN \@@_extract_e:wn \int_value:w
-          \else:
-            \exp_after:wN \@@_extract_b:wn \int_value:w
-          \fi:
-          \@@_int_eval:w \l_@@_zeroth_submatch_int + ##1 {##2}
-        }
       \__kernel_intarray_gset:Nnn \g_@@_submatch_prev_intarray
         { \l_@@_zeroth_submatch_int } { \l_@@_start_pos_int }
+      \int_zero:N \l_@@_internal_a_int
+      \clist_map_inline:Nn \l_@@_success_submatches_tl
+        {
+          \if_int_compare:w \l_@@_internal_a_int < \l_@@_capturing_group_int
+            \__kernel_intarray_gset:Nnn \g_@@_submatch_begin_intarray
+              { \@@_int_eval:w \l_@@_zeroth_submatch_int + \l_@@_internal_a_int } {##1}
+          \else:
+            \__kernel_intarray_gset:Nnn \g_@@_submatch_end_intarray
+              { \@@_int_eval:w \l_@@_zeroth_submatch_int + \l_@@_internal_a_int - \l_@@_capturing_group_int } {##1}
+          \fi:
+          \int_incr:N \l_@@_internal_a_int
+        }
     \fi:
   }
-\cs_new_protected:Npn \@@_extract_b:wn #1 < #2
-  {
-    \__kernel_intarray_gset:Nnn
-      \g_@@_submatch_begin_intarray {#1} {#2}
-  }
-\cs_new_protected:Npn \@@_extract_e:wn #1 > #2
-  { \__kernel_intarray_gset:Nnn \g_@@_submatch_end_intarray {#1} {#2} }
 %    \end{macrocode}
 % \end{macro}
 %
