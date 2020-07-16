@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `l3cctab` module for using category code tables
 - `\file_parse_full_name:n` and `\file_parse_full_name_apply:nN`
 - Additional `\prop_put:Nnn` variants
+- `\seq_set_map_x:NNn`
 - `\msg_term:nn(nnnn)`
 
 ### Fixed
@@ -19,6 +20,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Implementation of `\file_parse_full_name:nNNN` now uses
   `\file_parse_full_name:n` internally
+- `\seq_set_map:NNn` no longer `x`-expands `<inline function>`
+  (`\seq_set_map_x:NNn` now does that).  Both moved to stable.
 
 ### Removed
 - Functions deprecated at end of 2019
