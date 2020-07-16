@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `l3cctab` module for using category code tables
 - `\file_parse_full_name:n` and `\file_parse_full_name_apply:nN`
 - Additional `\prop_put:Nnn` variants
+- `\msg_term:nn(nnnn)`
 
 ### Fixed
 - File lookup with `\input@path`
