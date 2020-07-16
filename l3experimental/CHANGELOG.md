@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\color_export:nn(n)N` (see #742)
+
 ### Removed
 
 - `l3cctab`: moved to `l3kernel`
