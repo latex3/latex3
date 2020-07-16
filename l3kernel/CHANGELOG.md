@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\file_parse_full_name:n` and `\file_parse_full_name_apply:nN`
 - Additional `\prop_put:Nnn` variants
 - `\seq_set_map_x:NNn`
+- `\msg_term:nn(nnnn)`
 
 ### Fixed
 - File lookup with `\input@path`
