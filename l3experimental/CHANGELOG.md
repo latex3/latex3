@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-07-17]
+
 ### Added
 - `\color_export:nn(n)N` (see #742)
 - Support for multiple color models (see #739)
@@ -147,7 +149,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-06-18...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-07-17...HEAD
+[2020-07-17]: https://github.com/latex3/latex3/compare/2020-06-18...2020-07-17
 [2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18
 [2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-18...2020-06-03
 [2020-05-18]: https://github.com/latex3/latex3/compare/2020-01-12...2020-05-18

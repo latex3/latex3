@@ -7,10 +7,14 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-07-17]
+
 ### Added
 - `l3cctab` module for using category code tables
 - `\file_parse_full_name:n` and `\file_parse_full_name_apply:nN`
 - Additional `\prop_put:Nnn` variants
+- `\seq_set_map_x:NNn`
+- `\msg_term:nn(nnnn)`
 
 ### Fixed
 - File lookup with `\input@path`
@@ -18,6 +22,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Implementation of `\file_parse_full_name:nNNN` now uses
   `\file_parse_full_name:n` internally
+- `\seq_set_map:NNn` no longer `x`-expands `<inline function>`
+  (`\seq_set_map_x:NNn` now does that).  Both moved to stable.
 
 ### Removed
 - Functions deprecated at end of 2019
@@ -719,7 +725,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-06-18...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-07-17...HEAD
+[2020-07-17]: https://github.com/latex3/latex3/compare/2020-06-18...2020-07-17
 [2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18
 [2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-15...2020-06-03
 [2020-05-15]: https://github.com/latex3/latex3/compare/2020-05-14...2020-05-15
