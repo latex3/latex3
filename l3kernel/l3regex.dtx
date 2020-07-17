@@ -1024,6 +1024,16 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\@@_maplike_break:}
+%   Analogous to \cs{tl_map_break:}, this correctly exits
+%   \cs{tl_map_inline:nn} and similar constructions and jumps to the
+%   matching \cs{prg_break_point:Nn} \cs{@@_maplike_break:} |{| |}|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_maplike_break:
+  { \prg_map_break:Nn \@@_maplike_break: { } }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Constants and variables}
 %
 % \begin{macro}{\@@_tmp:w}
@@ -4593,6 +4603,20 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_matched_analysis_tl, \l_@@_curr_analysis_tl}
+%   The list \cs{l_@@_curr_analysis_tl} consists of a brace group
+%   containing three brace groups corresponding to the current token,
+%   with the same syntax as \cs{tl_analysis_map_inline:nn}.  The list
+%   \cs{l_@@_matched_analysis_tl} has one item for each token that has
+%   already been treated so far in a given match attempt: each item
+%   consists of three brace groups with the same syntax as
+%   \cs{tl_analysis_map_inline:nn}.
+%    \begin{macrocode}
+\tl_new:N \l_@@_matched_analysis_tl
+\tl_new:N \l_@@_curr_analysis_tl
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_@@_every_match_tl}
 %   Every time a match is found, this token list is used.  For single
 %   matching, the token list is empty. For multiple matching, the token
@@ -4673,7 +4697,11 @@
     \int_set_eq:NN \l_@@_max_pos_int \l_@@_curr_pos_int
     \@@_query_set:nnn { } { -1 } { -2 }
     \@@_match_init:
-    \@@_match_once:
+    \@@_match_once_init:
+    \tl_analysis_map_inline:nn {#1}
+      { \@@_match_one_token:nnN {##1} {##2} ##3 }
+    \@@_match_one_token:nnN { } { -2 } 9
+    \prg_break_point:Nn \@@_maplike_break: { }
   }
 \cs_new_protected:Npn \@@_match_cs:n #1
   {
@@ -4692,7 +4720,15 @@
     \@@_query_set:nnn { } { -1 } { -2 }
     \int_set_eq:NN \l_@@_min_thread_int \l_@@_max_thread_int
     \@@_match_init:
-    \@@_match_once:
+    \@@_match_once_init:
+    \str_map_inline:nn {#1}
+      {
+        \tl_if_blank:nTF {##1}
+          { \@@_match_one_token:nnN {##1} {`##1} A }
+          { \@@_match_one_token:nnN {##1} {`##1} C }
+      }
+    \@@_match_one_token:nnN { } { -2 } 9
+    \prg_break_point:Nn \@@_maplike_break: { }
   }
 \cs_new_protected:Npn \@@_match_init:
   {
@@ -4705,6 +4741,8 @@
       }
     \int_zero:N \l_@@_step_int
     \int_set_eq:NN \l_@@_success_pos_int \l_@@_min_pos_int
+    \tl_clear:N \l_@@_matched_analysis_tl
+    \tl_clear:N \l_@@_curr_analysis_tl
     \int_set:Nn \l_@@_min_submatch_int { 1 }
     \int_set_eq:NN \l_@@_submatch_int \l_@@_min_submatch_int
     \bool_set_false:N \l_@@_empty_success_bool
@@ -4713,21 +4751,22 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\@@_match_once:}
-%   This function finds one match, then does some action defined by the
-%   \texttt{every_match} token list, which may recursively call
-%   \cs{@@_match_once:}. First initialize some variables: set the
+% \begin{macro}{\@@_match_once_init:}
+%   This function resets various variables used when finding one match.
+%   It is called before the loop through characters, and every time we
+%   find a match, before searching for another match (this is controlled
+%   by the \texttt{every_match} token list).
+%
+%   First initialize some variables: set the
 %   conditional which detects identical empty matches; this match
 %   attempt starts at the previous \texttt{success_pos}, is not yet
 %   successful, and has no submatches yet; clear the array of active
 %   threads, and put the starting state $0$ in it. We are then almost
 %   ready to read our first token in the query, but we actually start
 %   one position earlier than the start, and \texttt{get} that token, to
-%   set \texttt{last_char} properly for word
-%   boundaries. Then call \cs{@@_match_loop:}, which runs through the
-%   query until the end or until a successful match breaks early.
+%   set \texttt{last_char} properly for word boundaries.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_match_once:
+\cs_new_protected:Npn \@@_match_once_init:
   {
     \if_meaning:w \c_true_bool \l_@@_empty_success_bool
       \cs_set:Npn \@@_if_two_empty_matches:F
@@ -4747,8 +4786,15 @@
     \int_set:Nn \l_@@_curr_pos_int
       { \l_@@_start_pos_int - 1 }
     \@@_query_get:
-    \@@_match_loop:
-    \l_@@_every_match_tl
+    \exp_args:NNf \@@_match_once_init_aux:
+    \tl_map_inline:nn { \exp_after:wN \l_@@_matched_analysis_tl \l_@@_curr_analysis_tl }
+      { \@@_match_one_token:nnN ##1 }
+    \prg_break_point:Nn \@@_maplike_break: { }
+  }
+\cs_new_protected:Npn \@@_match_once_init_aux:
+  {
+    \tl_clear:N \l_@@_matched_analysis_tl
+    \tl_clear:N \l_@@_curr_analysis_tl
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4766,23 +4812,25 @@
         \bool_gset_eq:NN
           \g_@@_success_bool
           \l_@@_match_success_bool
+        \@@_maplike_break:
       }
   }
 \cs_new_protected:Npn \@@_multi_match:n #1
   {
     \tl_set:Nn \l_@@_every_match_tl
       {
-        \if_meaning:w \c_true_bool \l_@@_match_success_bool
-          \bool_gset_true:N \g_@@_success_bool
-          #1
-          \exp_after:wN \@@_match_once:
+        \if_meaning:w \c_false_bool \l_@@_match_success_bool
+          \exp_after:wN \@@_maplike_break:
         \fi:
+        \bool_gset_true:N \g_@@_success_bool
+        #1
+        \@@_match_once_init:
       }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_match_loop:}
+% \begin{macro}{\@@_match_one_token:nnN}
 % \begin{macro}[rEXP]{\@@_match_one_active:n}
 %   At each new position, set some variables and get the new character
 %   and category from the query. Then unpack the array of active
@@ -4792,17 +4840,24 @@
 %   we consider those states one by one in order. As soon as a thread
 %   succeeds, exit the step, and, if there are threads to consider at the
 %   next position, and we have not reached the end of the string,
-%   repeat the loop. Otherwise, the last thread that succeeded is what
-%   \cs{@@_match_once:} matches. We explain the \texttt{fresh_thread}
-%   business when describing \cs{@@_action_wildcard:}.
+%   repeat the loop. Otherwise, the last thread that succeeded is the
+%   match.  We explain the \texttt{fresh_thread} business when
+%   describing \cs{@@_action_wildcard:}.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_match_loop:
+\cs_new_protected:Npn \@@_match_one_token:nnN #1#2#3
   {
     \int_add:Nn \l_@@_step_int { 2 }
     \int_incr:N \l_@@_curr_pos_int
     \int_set_eq:NN \l_@@_last_char_int \l_@@_curr_char_int
     \int_set_eq:NN \l_@@_case_changed_char_int \c_max_int
-    \@@_query_get:
+    \tl_set:Nn \l_@@_curr_token_tl {#1}
+    \int_set:Nn \l_@@_curr_char_int {#2}
+    \int_set:Nn \l_@@_curr_catcode_int { "#3 }
+    \if_int_compare:w 9 = \l_@@_curr_catcode_int
+      \int_set:Nn \l_@@_curr_catcode_int { -1 } % ^^A todo
+    \fi:
+    \tl_put_right:No \l_@@_matched_analysis_tl { \l_@@_curr_analysis_tl }
+    \tl_set:Nn \l_@@_curr_analysis_tl { { {#1} {#2} #3 } }
     \use:x
       {
         \int_set_eq:NN \l_@@_max_thread_int \l_@@_min_thread_int
@@ -4815,9 +4870,10 @@
     \bool_set_false:N \l_@@_fresh_thread_bool
     \if_int_compare:w \l_@@_max_thread_int > \l_@@_min_thread_int
       \if_int_compare:w \l_@@_curr_pos_int < \l_@@_max_pos_int
-        \exp_after:wN \exp_after:wN \exp_after:wN \@@_match_loop:
+        \exp_after:wN \exp_after:wN \exp_after:wN \use_none:n
       \fi:
     \fi:
+    \l_@@_every_match_tl
   }
 \cs_new:Npn \@@_match_one_active:n #1
   {
@@ -4930,7 +4986,7 @@
 %   repeated identical empty matches, we need to know if a successful
 %   thread corresponds to an empty match. The instruction resetting
 %   \cs{l_@@_fresh_thread_bool} may be skipped by a successful
-%   thread, hence we had to add it to \cs{@@_match_loop:} too.
+%   thread, hence we had to add it to \cs{@@_match_one_token:nnN} too.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_action_start_wildcard:
   {
@@ -5085,6 +5141,7 @@
         \bool_set_eq:NN \l_@@_empty_success_bool
           \l_@@_fresh_thread_bool
         \int_set_eq:NN \l_@@_success_pos_int \l_@@_curr_pos_int
+        \tl_clear:N \l_@@_matched_analysis_tl
         \tl_set_eq:NN \l_@@_success_submatches_tl
           \l_@@_curr_submatches_tl
         \prg_break:
