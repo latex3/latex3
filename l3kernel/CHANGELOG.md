@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-07-17]
+
 ### Added
 - `l3cctab` module for using category code tables
 - `\file_parse_full_name:n` and `\file_parse_full_name_apply:nN`
@@ -723,7 +725,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-06-18...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-07-17...HEAD
+[2020-07-17]: https://github.com/latex3/latex3/compare/2020-06-18...2020-07-17
 [2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18
 [2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-15...2020-06-03
 [2020-05-15]: https://github.com/latex3/latex3/compare/2020-05-14...2020-05-15
