@@ -3728,8 +3728,9 @@
 % Each state of the \textsc{nfa} is stored in a \tn{toks}. The
 % operations which can appear in the \tn{toks} are
 % \begin{itemize}
-%   \item \cs{@@_action_start_wildcard:} inserted at the start
-%     of the regular expression to make it unanchored.
+%   \item \cs{@@_action_start_wildcard:N} \meta{boolean} inserted at the
+%     start of the regular expression, where a \texttt{true}
+%     \meta{boolean} makes it unanchored.
 %   \item \cs{@@_action_success:} marks the exit state of the
 %     \textsc{nfa}.
 %   \item \cs{@@_action_cost:n} \Arg{shift} is a transition from the
@@ -3765,20 +3766,26 @@
 %     corresponding end-points of nested groups.
 % \end{itemize}
 %
-% \begin{macro}{\@@_build:n, \@@_build:N}
+% \begin{macro}{\@@_build:n, \@@_build_aux:Nn, \@@_build:N, \@@_build_aux:NN}
 %   The \texttt{n}-type function first compiles its argument. Reset some
 %   variables. Allocate two states, and put a wildcard in state $0$
 %   (transitions to state $1$ and $0$ state). Then build the regex
 %   within a (capturing) group numbered $0$ (current
 %   value of \texttt{capturing_group}). Finally, if the match reaches the
-%   last state, it is successful.
+%   last state, it is successful.  A \texttt{false} boolean for argument
+%   |#1| for the auxiliaries will suppress the wildcard and make the
+%   match anchored: used for \cs{peek_regex:nTF} and similar.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_build:n #1
+\cs_new_protected:Npn \@@_build:n
+  { \@@_build_aux:Nn \c_true_bool }
+\cs_new_protected:Npn \@@_build:N
+  { \@@_build_aux:NN \c_true_bool }
+\cs_new_protected:Npn \@@_build_aux:Nn #1#2
   {
-    \@@_compile:n {#1}
-    \@@_build:N \l_@@_internal_regex
+    \@@_compile:n {#2}
+    \@@_build_aux:NN #1 \l_@@_internal_regex
   }
-\cs_new_protected:Npn \@@_build:N #1
+\cs_new_protected:Npn \@@_build_aux:NN #1#2
   {
     \@@_standard_escapechar:
     \int_zero:N \l_@@_capturing_group_int
@@ -3786,8 +3793,8 @@
     \@@_build_new_state:
     \@@_build_new_state:
     \@@_toks_put_right:Nn \l_@@_left_state_int
-      { \@@_action_start_wildcard: }
-    \@@_group:nnnN {#1} { 1 } { 0 } \c_false_bool
+      { \@@_action_start_wildcard:N #1 }
+    \@@_group:nnnN {#2} { 1 } { 0 } \c_false_bool
     \@@_toks_put_right:Nn \l_@@_right_state_int
       { \@@_action_success: }
   }
@@ -4871,7 +4878,7 @@
 %
 % \subsubsection{Actions when matching}
 %
-% \begin{macro}{\@@_action_start_wildcard:}
+% \begin{macro}{\@@_action_start_wildcard:N}
 %   For an unanchored match, state $0$ has a free transition to the next
 %   and a costly one to itself, to repeat at the next position. To catch
 %   repeated identical empty matches, we need to know if a successful
@@ -4879,12 +4886,12 @@
 %   \cs{l_@@_fresh_thread_bool} may be skipped by a successful
 %   thread, hence we had to add it to \cs{@@_match_one_token:nnN} too.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_action_start_wildcard:
+\cs_new_protected:Npn \@@_action_start_wildcard:N #1
   {
     \bool_set_true:N \l_@@_fresh_thread_bool
     \@@_action_free:n {1}
     \bool_set_false:N \l_@@_fresh_thread_bool
-    \@@_action_cost:n {0}
+    \bool_if:NT #1 { \@@_action_cost:n {0} }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -6324,6 +6331,117 @@
       }
   }
 %    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Peeking ahead}
+%
+% \begin{variable}{\l_@@_peek_true_tl, \l_@@_peek_false_tl}
+%   True/false code arguments of \cs{peek_regex:nTF} or similar.
+%    \begin{macrocode}
+\tl_new:N \l_@@_peek_true_tl
+\tl_new:N \l_@@_peek_false_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_reinsert_tl}
+% \begin{macro}[EXP]{\@@_reinsert:n}
+%   Token list such that hitting it with \cs{exp:w} will expand to all
+%   tokens we found.  It is constructed using the |tl_build| machinery
+%   and takes the form of one call to \cs{@@_reinsert:n} for each token
+%   to reinsert.  The argument is something that \texttt{o}-expands to
+%   the single token we wish to put back.
+%    \begin{macrocode}
+\tl_new:N \l_@@_reinsert_tl
+\cs_new:Npn \@@_reinsert:n #1
+  {
+    \exp_after:wN \exp_after:wN
+    \exp_after:wN \exp_end:
+    \exp_after:wN \exp_after:wN
+    #1
+    \exp:w
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{variable}
+%
+% \begin{macro}[TF]{\peek_regex:n, \peek_regex:N, \peek_regex_remove:n, \peek_regex_remove:N}
+% \begin{macro}{\@@_peek:nnTF, \@@_peek_end:, \@@_peek_end_aux:N, \@@_peek_remove_end:n}
+%    \begin{macrocode}
+\cs_new_protected:Npn \peek_regex:nTF #1
+  {
+    \@@_peek:nnTF { \@@_peek_end: }
+      { \@@_build_aux:Nn \c_false_bool {#1} }
+  }
+\cs_new_protected:Npn \peek_regex:nT #1#2
+  { \peek_regex:nTF {#1} {#2} { } }
+\cs_new_protected:Npn \peek_regex:nF #1 { \peek_regex:nTF {#1} { } }
+\cs_new_protected:Npn \peek_regex:NTF #1
+  {
+    \@@_peek:nnTF { \@@_peek_end: }
+      { \@@_build_aux:NN \c_false_bool #1 }
+  }
+\cs_new_protected:Npn \peek_regex:NT #1#2
+  { \peek_regex:NTF #1 {#2} { } }
+\cs_new_protected:Npn \peek_regex:NF #1 { \peek_regex:NTF {#1} { } }
+\cs_new_protected:Npn \peek_regex_remove:nTF #1
+  {
+    \@@_peek:nnTF { \@@_peek_remove_end:n {##1} }
+      { \@@_build_aux:Nn \c_false_bool {#1} }
+  }
+\cs_new_protected:Npn \peek_regex_remove:nT #1#2
+  { \peek_regex_remove:nTF {#1} {#2} { } }
+\cs_new_protected:Npn \peek_regex_remove:nF #1
+  { \peek_regex_remove:nTF {#1} { } }
+\cs_new_protected:Npn \peek_regex_remove:NTF #1
+  {
+    \@@_peek:nnTF { \@@_peek_remove_end:n {##1} }
+      { \@@_build_aux:NN \c_false_bool #1 }
+  }
+\cs_new_protected:Npn \peek_regex_remove:NT #1#2
+  { \peek_regex_remove:NTF #1 {#2} { } }
+\cs_new_protected:Npn \peek_regex_remove:NF #1
+  { \peek_regex_remove:NTF #1 { } }
+\cs_new_protected:Npn \@@_peek:nnTF #1#2#3#4
+  {
+    \group_begin:
+      \tl_set:Nn \l_@@_peek_true_tl { \group_end: #3 }
+      \tl_set:Nn \l_@@_peek_false_tl { \group_end: #4 }
+      \@@_disable_submatches:
+      \@@_single_match:
+      #2
+      \@@_match_init:
+      \tl_build_clear:N \l_@@_reinsert_tl
+      \@@_match_once_init:
+      \peek_analysis_map_inline:n
+        {
+          \tl_build_put_right:Nn \l_@@_reinsert_tl
+            { \@@_reinsert:n {##1} }
+          \@@_match_one_token:nnN {##1} {##2} ##3
+          \use_none:nnn
+          \prg_break_point:Nn \@@_maplike_break:
+            { \peek_analysis_map_break:n {#1} }
+        }
+  }
+\cs_new_protected:Npn \@@_peek_end:
+  {
+    \bool_if:NTF \g_@@_success_bool
+      { \@@_peek_end_aux:N \l_@@_peek_true_tl }
+      { \@@_peek_end_aux:N \l_@@_peek_false_tl }
+  }
+\cs_new_protected:Npn \@@_peek_end_aux:N #1
+  {
+    \tl_build_end:N \l_@@_reinsert_tl
+    \exp_after:wN #1
+    \exp:w \l_@@_reinsert_tl \exp_end:
+  }
+\cs_new_protected:Npn \@@_peek_remove_end:n #1
+  {
+    \bool_if:NTF \g_@@_success_bool
+      { \exp_after:wN \l_@@_peek_true_tl #1 }
+      { \@@_peek_end_aux:N \l_@@_peek_false_tl }
+  }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \subsection{Messages}
