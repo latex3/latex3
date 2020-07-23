@@ -9,8 +9,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\peek_analysis_map_inlione:n`
+- `\peek_regex:nTF`, `\peek_regex_remove_once:nTF`, and
   `\peek_regex_replace_once:nnTF`
-- `\peek_regex:nTF`, `\peek_regex_remove:nTF`, and
 
 ### Unchanged
 - Extend `\text_expand:n` to cover `\@protected@testopt`
