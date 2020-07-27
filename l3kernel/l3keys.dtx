@@ -1886,7 +1886,8 @@
       { \@@_execute_inherit: }
       {
         \str_clear:N \l_@@_inherit_str
-        \cs_if_exist_use:cT { \c_@@_code_root_str \l_keys_path_str } { {#1} }
+        \cs_if_exist:cT { \c_@@_code_root_str \l_keys_path_str }
+          { \@@_execute:nn { \l_keys_path_str } {#1} }
       }
   }
 %    \end{macrocode}
@@ -1951,7 +1952,6 @@
 %
 % \begin{macro}{\@@_value_requirement:nn}
 % \begin{macro}{\@@_validate_forbidden:, \@@_validate_required:}
-% \begin{macro}{\@@_validate_cleanup:w}
 %   Validating key input is done using a second function which runs before
 %   the main key code. Setting that up means setting it equal to a generic
 %   stub which does the check. This approach makes the lookup very fast at
@@ -1992,7 +1992,7 @@
       {
         \__kernel_msg_error:nnxx { kernel } { value-forbidden }
           { \l_keys_path_str } { \l_keys_value_tl }
-        \@@_validate_cleanup:w
+        \use_none:nnn
       }
   }
 \cs_new_protected:Npn \@@_validate_required:
@@ -2001,12 +2001,10 @@
       {
         \__kernel_msg_error:nnx { kernel } { value-required }
           { \l_keys_path_str }
-        \@@_validate_cleanup:w
+        \use_none:nnn
       }
   }
-\cs_new_protected:Npn \@@_validate_cleanup:w #1 \cs_end: #2#3 { }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -2765,7 +2763,7 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_execute:, \@@_execute_inherit:, \@@_execute_unknown:}
-% \begin{macro}[EXP]{\@@_execute:nn}
+% \begin{macro}[EXP]{\@@_execute:nn, \@@_execute:no}
 % \begin{macro}{\@@_store_unused:,\@@_store_unused_aux:}
 %   Actually executing a key is done in two parts. First, look for the
 %   key itself, then look for the \texttt{unknown} key with the same
@@ -2778,8 +2776,7 @@
     \cs_if_exist:cTF { \c_@@_code_root_str \l_keys_path_str }
       {
         \cs_if_exist_use:c { \c_@@_validate_root_str \l_keys_path_str }
-        \cs:w \c_@@_code_root_str \l_keys_path_str \exp_after:wN \cs_end:
-          \exp_after:wN { \l_keys_value_tl }
+        \@@_execute:no { \l_keys_path_str } { \l_keys_value_tl }
       }
       {
         \cs_if_exist:cTF
@@ -2803,9 +2800,7 @@
           {
             \str_set:Nn \l_@@_inherit_str {##1}
             \cs_if_exist_use:c { \c_@@_validate_root_str ##1 / \l_keys_key_str }
-            \cs:w \c_@@_code_root_str ##1 / \l_keys_key_str
-              \exp_after:wN \cs_end: \exp_after:wN
-              { \l_keys_value_tl }
+            \@@_execute:no { ##1 / \l_keys_key_str } { \l_keys_value_tl }
             \clist_map_break:n { \use_none:n }
           }
       }
@@ -2818,24 +2813,35 @@
       {
         \cs_if_exist:cTF
           { \c_@@_code_root_str \l_@@_module_str / unknown }
-          {
-            \cs:w \c_@@_code_root_str \l_@@_module_str / unknown
-              \exp_after:wN \cs_end: \exp_after:wN { \l_keys_value_tl }
-          }
+          { \@@_execute:no { \l_@@_module_str / unknown } { \l_keys_value_tl } }
           {
             \__kernel_msg_error:nnxx { kernel } { key-unknown }
               { \l_keys_path_str } { \l_@@_module_str }
           }
       }
   }
+%    \end{macrocode}
+%   A key's code is in the control sequence with csname
+%   \cs{c_@@_code_root_str} |#1|.  We expand it once to get the
+%   replacement text (with argument |#2|) and call \cs{use:n}
+%   with this replacement as its argument.  This ensures that any
+%   undefined control sequence error in the key's code will lead to an
+%   error message of the form |<argument>|\ldots{}\meta{control
+%   sequence} in which one can read the (undefined) \meta{control
+%   sequence} in full, rather than an error message that starts with the
+%   potentially very long key name, which would make the (undefined)
+%   \meta{control sequence} be truncated or sometimes completely hidden.
+%   See \url{https://github.com/latex3/latex2e/issues/351}.
+%    \begin{macrocode}
 \cs_new:Npn \@@_execute:nn #1#2
+  { \@@_execute:no {#1} { \prg_do_nothing: #2 } }
+\cs_new:Npn \@@_execute:no #1#2
   {
-    \cs_if_exist:cTF { \c_@@_code_root_str #1 }
+    \exp_args:NNo \exp_args:No \use:n
       {
         \cs:w \c_@@_code_root_str #1 \exp_after:wN \cs_end:
-          \exp_after:wN { \l_keys_value_tl }
+        \exp_after:wN {#2}
       }
-      {#2}
   }
 %    \end{macrocode}
 %   When there is no relative path, things here are easy: just save the key
@@ -2926,8 +2932,8 @@
 \cs_new:Npn \@@_choice_find:nn #1#2
   {
     \cs_if_exist:cTF { \c_@@_code_root_str #1 / \@@_trim_spaces:n {#2} }
-      { \use:c { \c_@@_code_root_str #1 / \@@_trim_spaces:n {#2} } {#2} }
-      { \use:c { \c_@@_code_root_str #1 / unknown } {#2} }
+      { \@@_execute:nn { #1 / \@@_trim_spaces:n {#2} } {#2} }
+      { \@@_execute:nn { #1 / unknown } {#2} }
   }
 \cs_new:Npn \@@_multichoice_find:n #1
   { \clist_map_function:nN {#1} \@@_choice_find:n }

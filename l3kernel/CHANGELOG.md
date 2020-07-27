@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Loading generically on ConTeXt (issue #783)
+
 ## [2020-07-17]
 
 ### Added
