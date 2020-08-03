@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Color selection implementation
+
 ### Fixed
 - Loading generically on ConTeXt (issue #783)
 

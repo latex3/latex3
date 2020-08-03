@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Move drawing color functions to `l3color`, generalising the approach
+  with better `dvips` support
+
 ## [2020-07-17]
 
 ### Added

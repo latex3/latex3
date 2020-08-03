@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Color selection implementation
+
 ## [2020-06-29]
 
 ### Fixed
