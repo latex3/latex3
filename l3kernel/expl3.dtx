@@ -798,16 +798,14 @@
 %
 % \section{The distribution}
 %
-% At present, the \pkg{expl3} modules are designed to be loaded on top
-% of \LaTeXe{}. In time, a \LaTeX3 format may be produced based on this
-% code.
+% The \pkg{expl3} modules are designed to be loaded on top of \LaTeXe{}.
 %
 % \begin{bfseries}
-%   While \pkg{expl3} is still experimental, the bundle is now regarded
-%   as broadly stable. The syntax conventions and functions provided
+%   The core \pkg{expl3} language is broadly stable, and thus
+%   the syntax conventions and functions provided
 %   are now ready for wider use. There may still be changes to some
 %   functions, but these will be minor when compared to the scope of
-%   \pkg{expl3}.
+%   \pkg{expl3}. A robust mechanism is in place for such deprecations.
 % \end{bfseries}
 %
 % The distribution of \pkg{expl3} is split up into three packages on
@@ -821,7 +819,9 @@
 % and any changes in this code are very limited. This material is
 % therefore suitable for use in third-party packages without concern
 % about changes in support. All of this code is documented in
-% \texttt{interface3.pdf}.
+% \texttt{interface3.pdf}. With an up-to-date \LaTeXe{} kernel, this
+% code is built into the format file and therefore can be used
+% without any further steps.
 %
 % The material in \pkg{l3packages} is also stable, but is not always
 % at a programming level: most notably, \pkg{xparse} is stable and
@@ -834,9 +834,9 @@
 % in terms of interface and functionality detail. Feedback on these
 % modules is extremely valuable.
 %
-% \section{Moving from \LaTeXe{} to \LaTeX3}
+% \section{Moving from \LaTeXe{} to \pkg{expl3}}
 %
-% To help programmers to use \LaTeX3 code in existing \LaTeXe{} package,
+% To help programmers to use \pkg{expl3} code in existing \LaTeXe{} package,
 % some short notes on making the change are probably desirable.
 % Suggestions for inclusion here are welcome! Some of the following
 % is concerned with code, and some with coding style.
@@ -845,11 +845,10 @@
 %   \item \pkg{expl3} is mainly focused on programming. This means that
 %     some areas still require the use of \LaTeXe{} internal macros.
 %     For example, you may well need \tn{@ifpackageloaded}, as there
-%     is currently no native \LaTeX3 package loading module.
+%     is currently no native \pkg{expl3} package loading module.
 %   \item User level macros should be generated using the mechanism
 %     available in the \pkg{xparse} package, which is part of the
-%     \texttt{l3package} bundle, available from CTAN or the \LaTeX3 SVN
-%     repository.
+%     \texttt{l3package} bundle.
 %   \item At an internal level, most functions should be generated
 %     \tn{long} (using \cs{cs_new:Npn}) rather than \enquote{short} (using
 %     \cs{cs_new_nopar:Npn}).
@@ -894,7 +893,7 @@
 % updated in time.
 %
 % \DescribeOption{check-declarations}
-% All variables used in \LaTeX3 code should be declared. This is enforced
+% All variables used in \pkg{expl3} code should be declared. This is enforced
 % by \TeX{} for variable types based on \TeX{} registers, but not for those
 % which are constructed using macros as the underlying storage system. The
 % \texttt{check-declarations} option enables checking for all variable
@@ -907,7 +906,7 @@
 % function name in the \texttt{.log} file. This is useful for debugging
 % purposes, as it means that there is a complete list of all functions
 % created by each module loaded (with the exceptions of a very small number
-% required by the bootstrap code for \LaTeX3).  See also \cs{debug_on:n}
+% required by the bootstrap code).  See also \cs{debug_on:n}
 % \texttt{\{log-functions\}} in \pkg{l3candidates} for finer control.
 %
 % \DescribeOption{enable-debug}
@@ -1050,6 +1049,24 @@
 %<*loader>
 \let\ExplLoaderFileDate\ExplFileDate
 %</loader>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\c__kernel_expl_date_tl}
+%   The \LaTeXe{} loader stores a private copy of \cs{ExplFileDate},
+%   which is fixed when the format is build and cannot be changed later.
+%   While \cs{ExplFileDate} ensures that the loader (either
+%   \texttt{2ekernel} or \texttt{package}) version matches the version
+%   of \file{expl3-code.tex}, this one ensures that the version of an
+%   eventual |\usepackage{expl3}| matches the version from the format.
+%   It seems to be common to have stray format files in the user tree
+%   which trigger errors due to mismatched versions (\emph{e.g.}
+%   \url{https://github.com/latex3/latex3/issues/781}).
+%    \begin{macrocode}
+%<*2ekernel>
+\global\expandafter\let\csname\detokenize
+  {c__kernel_expl_date_tl}\endcsname\ExplFileDate
+%</2ekernel>
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1224,6 +1241,88 @@
 %
 %    \begin{macrocode}
 %<@@=expl>
+%    \end{macrocode}
+%
+% Several times users reported this error when loading \pkg{expl3}:
+% \begin{verbatim}
+% ! Undefined control sequence.
+% l.67   \bool
+%             _new:N \g__expl_reload_bool
+% \end{verbatim}
+% raised in the reload block below.  This happens because the reload
+% check below assumes that if the boolean \cs{g_@@_reload_bool} doesn't
+% exist, this file is being loaded for the first time, and \pkg{expl3}
+% syntax is on.  This is a bit of a stretch for assumptions, but it's
+% valid as long as everything's in sync.  However the problem reported
+% happened because of a stray format file in the user tree which didn't
+% have the reload code defined here (commit \texttt{1d16336}), so the
+% \cs{g_@@_reload_bool} doesn't exist, but \pkg{expl3} syntax is off,
+% thus the error.
+%
+% At this point, if we have \cs{c__kernel_expl_date_tl} defined, the
+% situation is straightforward:  if it matches \cs{ExplLoaderFileDate},
+% then everything's as expected, so no need to worry.  If it doesn't,
+% then the current version of \pkg{expl3} differs from the one in the
+% format, so raise a fatal error:  the bahaviour is too unpredictable to
+% continue safely.  Also, if the error is to be raised, then we're
+% reloading, which means that \pkg{expl3} syntax is off, so we turn it
+% on for the message.
+%    \begin{macrocode}
+\ifcsname\detokenize{c__kernel_expl_date_tl}\endcsname
+  \expandafter\ifx\csname\detokenize
+      {c__kernel_expl_date_tl}\endcsname\ExplLoaderFileDate
+  \else
+    \ExplSyntaxOn
+    \__kernel_msg_set:nnn { kernel } { mismatched-expl3 }
+      {
+        Mismatched~expl3~detected!~Loading~expl3~will~abort.
+        \\ \\
+        The~version~of~expl3~preloaded~in~LaTeX~is~
+        \c__kernel_expl_date_tl,~but~the~version~of~expl3~you~are~
+        trying~to~load~is~dated~\ExplLoaderFileDate.~This~is~most~
+        likely~due~to~a~stray~format~file~in~the~user~tree.~Please~
+        make~sure~that~your~LaTeX~format~is~updated.
+      }
+    \exp_after:wN \ExplSyntaxOff \use:n
+      {
+        \__kernel_msg_critical:nn { kernel } { mismatched-expl3 }
+        \use:c { fi: } \use:c { fi: }
+      }
+  \fi
+%    \end{macrocode}
+% If \cs{c__kernel_expl_date_tl} does \emph{not} exist, then we're on
+% uncharted lands (that is, any time prior to the version that
+% introduced this token list :-).  Two cases might be here, depending
+% whether \pkg{expl3} is loaded into the kernel or not. If we're loading
+% \pkg{expl3} \enquote{normally} as a package, \pkg{expl3} syntax is on.
+% Otherwise it's already loaded in the kernel and we're reloading
+% \file{expl3.sty} so (\file{expl3-code.tex} doesn't load again and)
+% \pkg{expl3} syntax is off.
+%    \begin{macrocode}
+\else
+  \ifodd\csname\detokenize{l__kernel_expl_bool}\endcsname
+%    \end{macrocode}
+%   Package mode; all should be fine, since \file{expl3.sty} and
+%   \file{expl3-code.tex} are both loaded in one go, so versions should
+%   match (if they don't, it's detected above).
+%   Also, we've just tested that \pkg{expl3} syntax is on, so the reload
+%   test below will return false and \cs{bool_new:N} will run correctly.
+%    \begin{macrocode}
+  \else
+%    \end{macrocode}
+%   In this branch we're reloading, but there are still two cases to
+%   consider (sigh\ldots); whether the version preloaded in the format
+%   is recent enough to have \cs{g_@@_reload_bool} (2020-06-18 and
+%   later) or not.  If the boolean is there, we have to do nothing
+%   because right ahead we deal with this case.
+%   If it is not, we just have to create it:
+%    \begin{macrocode}
+    \ExplSyntaxOn
+    \bool_if_exist:NF \g_@@_reload_bool
+      { \bool_new:N \g_@@_reload_bool }
+    \ExplSyntaxOff
+  \fi
+\fi
 %    \end{macrocode}
 %
 % Here we can also detect whether we're reloading.  This code goes into
