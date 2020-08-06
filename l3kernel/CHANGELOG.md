@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Color selection implementation
+- Performance enhancements for `\keys_set:nn`
 
 ### Fixed
 - Loading generically on ConTeXt (issue #783)
