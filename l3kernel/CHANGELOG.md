@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-08-07]
+
 ### Changed
 - Color selection implementation
 - Performance enhancements for `\keys_set:nn`
@@ -732,7 +734,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-07-17...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-08-07...HEAD
+[2020-08-07]: https://github.com/latex3/latex3/compare/2020-07-17...2020-08-07
 [2020-07-17]: https://github.com/latex3/latex3/compare/2020-06-18...2020-07-17
 [2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18
 [2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-15...2020-06-03

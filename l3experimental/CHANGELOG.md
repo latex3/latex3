@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-08-07]
+
 ### Changed
 - Move drawing color functions to `l3color`, generalising the approach
   with better `dvips` support
@@ -153,7 +155,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-07-17...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-08-07...HEAD
+[2020-08-07]: https://github.com/latex3/latex3/compare/2020-07-17...2020-08-07
 [2020-07-17]: https://github.com/latex3/latex3/compare/2020-06-18...2020-07-17
 [2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18
 [2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-18...2020-06-03
