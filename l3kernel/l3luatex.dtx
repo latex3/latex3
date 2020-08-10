@@ -703,6 +703,85 @@ end
 %    \end{macrocode}
 % \end{macro}
 %
+% \subsection{Preserving iniTeX Lua data for runs}
+%
+%    \begin{macrocode}
+%<@@=lua>
+%    \end{macrocode}
+%
+% The Lua state is not dumped when a forat is written, therefore any Lua
+% variables filled doing format building need to be restored in order to
+% be accessible during normal runs.
+%
+% We provide some kernel-internal helpers for this. They will only be available if
+% \texttt{luatexbase} is available. This is not a big restriction though, because
+% Con\TeX{}t (which does not use \texttt{luatexbase}) does not load \pkg{expl3}
+% in the format.
+%
+%    \begin{macrocode}
+local register_luadata, get_luadata
+
+if luatexbase then
+  local register = token_create'@expl@luadata@bytecode'.index
+  if status.ini_version then
+%    \end{macrocode}
+%
+% \begin{macro}{register_luadata}
+% \texttt{register_luadata} is only available during format generation.
+% It accept a string which uniquely identifies the data object and has to be
+% provided to retrieve it later. Additionally it accepts a function which is
+% called in the \texttt{pre_dump} callback and which has to return a string that
+% evaluates to a valid Lua object to be preserved.
+%    \begin{macrocode}
+    local luadata, luadata_order = {}, {}
+
+    function register_luadata(name, func)
+      if luadata[name] then
+        error(format("LaTeX error: data name %q already in use", name))
+      end
+      luadata[name] = func
+      luadata_order[#luadata_order + 1] = func and name
+    end
+%    \end{macrocode}
+% \end{macro}
+% 
+% The actual work is done in \texttt{pre_dump}. The \texttt{luadata_order} is used
+% to ensure that the order is consistent over multiple runs.
+%    \begin{macrocode}
+    luatexbase.add_to_callback("pre_dump", function()
+      if next(luadata) then
+        local str = "return {"
+        for i=1, #luadata_order do
+          local name = luadata_order[i]
+          str = format('%s[%q]=%s,', str, name, luadata[name]())
+        end
+        lua.bytecode[register] = assert(load(str .. "}"))
+      end
+    end, "ltx.luadata")
+  else
+%    \end{macrocode}
+%
+% \begin{macro}{get_luadata}
+% \texttt{get_luadata} is only available if data should be restored.
+% It accept the identifier which was used when the data object was registered and
+% returns the associated object. Every object can only be retrieved once.
+%    \begin{macrocode}
+    local luadata = lua.bytecode[register]
+    if luadata then
+      lua.bytecode[register] = nil
+      luadata = luadata()
+    end
+    function get_luadata(name)
+      if not luadata then return end
+      local data = luadata[name]
+      luadata[name] = nil
+      return data
+    end
+  end
+end
+%    \end{macrocode}
+% \end{macro}
+%
 %    \begin{macrocode}
 %</lua>
 %    \end{macrocode}
