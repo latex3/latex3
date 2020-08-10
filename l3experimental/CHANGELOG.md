@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Support for `Gray` color model
 - Support for `hsb` color model
+- Support for `wave` color model
 
 ## [2020-08-07]
 
