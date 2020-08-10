@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- Support for `Gray` color model
 - Support for `hsb` color model
 
 ## [2020-08-07]
