@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- `\file_compare_timestamp:nNn(TF)` in LuaTeX (issue #792)
+
 ## [2020-08-07]
 
 ### Changed
