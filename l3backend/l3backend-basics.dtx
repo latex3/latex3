@@ -68,7 +68,6 @@
 % All the file identifiers are up-front so that they come out in the right
 % place in the files.
 %    \begin{macrocode}
-%<*package>
 \ProvidesExplFile
 %<*dvipdfmx>
   {l3backend-dvipdfmx.def}{2020-08-07}{}
@@ -83,14 +82,21 @@
   {L3 backend support: dvisvgm}
 %</dvisvgm>
 %<*pdfmode>
+%<*luatex>
+  {l3backend-pdfmode-lautex.def}{2020-08-07}{}
+%</luatex>
+%<*pdftex>
+  {l3backend-pdfmode-pdftex.def}{2020-08-07}{}
+%</pdftex>
+%<*shared>
   {l3backend-pdfmode.def}{2020-08-07}{}
+%</shared>
   {L3 backend support: PDF mode}
 %</pdfmode>
 %<*xdvipdfmx>
   {l3backend-xdvipdfmx.def}{2020-08-07}{}
   {L3 backend support: xdvipdfmx}
 %</xdvipdfmx>
-%</package>
 %    \end{macrocode}
 %
 % The order of the backend code here is such that we get somewhat logical
@@ -112,12 +118,15 @@
 %   }
 %  The one shared function for all backends is access to the basic
 %  \tn{special} primitive: it has slightly odd expansion behaviour
-%  so a wrapper is provided.
+%  so a wrapper is provided. We just have to exclude the subfiles for
+%  \texttt{pdfmode}.
 %    \begin{macrocode}
+%<*!pdftex&!luatex>
 \cs_new_eq:NN \__kernel_backend_literal:e \tex_special:D
 \cs_new_protected:Npn \__kernel_backend_literal:n #1
   { \__kernel_backend_literal:e { \exp_not:n {#1} } }
 \cs_generate_variant:Nn \__kernel_backend_literal:n { x }
+%</!pdftex&!luatex>
 %    \end{macrocode}
 % \end{macro}
 %
@@ -219,9 +228,27 @@
 %
 % The direct PDF backend covers both \pdfTeX{} and \LuaTeX{}. The latter
 % renames and restructures the backend primitives but this can be handled
-% at one level of abstraction. As such, we avoid using two separate backends
-% for this material at the cost of some \texttt{x}-type definitions to get
-% everything expanded up-front.
+% at one level of abstraction. As such, we use one backend but where necessary
+% split it into two parts: this is handled using DocStrip as over time we
+% will need more Lua for the \LuaTeX{} case. The top-level file therefore
+% just sets up to load one or other engine-specific version. We branch
+% based on the modern \LuaTeX{} backend approach: if someone tries to
+% use the more recent backend features with an ancient \LuaTeX{}, they
+% are on their own.
+%    \begin{macrocode}
+%<*shared>
+\cs_if_exist:NTF \tex_pdfextension:D
+  { \__kernel_sys_configuration_load:n { l3backend-pdfmode-luatex } }
+  { \__kernel_sys_configuration_load:n { l3backend-pdfmode-pdftex } }
+%</shared>
+%    \end{macrocode}
+%
+% Everything else here is split into two parts, as this makes life
+% easier overall.
+%
+%    \begin{macrocode}
+%<*!shared>
+%    \end{macrocode}
 %
 % \begin{macro}{\__kernel_backend_literal_pdf:n, \__kernel_backend_literal_pdf:x}
 %   This is equivalent to \verb|\special{pdf:}| but the engine can
@@ -230,12 +257,15 @@
 %   Note that this is still inside the text (\texttt{BT} \dots \texttt{ET}
 %   block).
 %    \begin{macrocode}
-\cs_new_protected:Npx \__kernel_backend_literal_pdf:n #1
+\cs_new_protected:Npn \__kernel_backend_literal_pdf:n #1
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D literal }
-      { \tex_pdfliteral:D }
-        { \exp_not:N \exp_not:n {#1} }
+%<*luatex>
+    \tex_pdfextension:D literal
+%</luatex>
+%<*pdftex>
+    \tex_pdfliteral:D
+%</pdftex>
+      { \exp_not:n {#1} }
   }
 \cs_generate_variant:Nn \__kernel_backend_literal_pdf:n { x }
 %    \end{macrocode}
@@ -245,13 +275,15 @@
 %  Page literals are pretty simple. To avoid an expansion, we write out
 %  by hand.
 %    \begin{macrocode}
-\cs_new_protected:Npx \__kernel_backend_literal_page:n #1
+\cs_new_protected:Npn \__kernel_backend_literal_page:n #1
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D literal ~ }
-      { \tex_pdfliteral:D }
-        page
-        { \exp_not:N \exp_not:n {#1} }
+%<*luatex>
+    \tex_pdfextension:D literal ~
+%</luatex>
+%<*pdftex>
+    \tex_pdfliteral:D
+%</pdftex>
+        page { \exp_not:n {#1} }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -259,17 +291,23 @@
 % \begin{macro}{\__kernel_backend_scope_begin:, \__kernel_backend_scope_end:}
 %  Higher-level interfaces for saving and restoring the graphic state.
 %    \begin{macrocode}
-\cs_new_protected:Npx \__kernel_backend_scope_begin:
+\cs_new_protected:Npn \__kernel_backend_scope_begin:
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D save \scan_stop: }
-      { \tex_pdfsave:D }
+%<*luatex>
+    \tex_pdfextension:D save \scan_stop:
+%</luatex>
+%<*pdftex>
+    \tex_pdfsave:D
+%</pdftex>
   }
-\cs_new_protected:Npx \__kernel_backend_scope_end:
+\cs_new_protected:Npn \__kernel_backend_scope_end:
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D restore \scan_stop: }
-      { \tex_pdfrestore:D }
+%<*luatex>
+    \tex_pdfextension:D restore \scan_stop:
+%</luatex>
+%<*pdftex>
+    \tex_pdfrestore:D
+%</pdftex>
   }
 %    \end{macrocode}
 % \end{macro}
@@ -279,16 +317,23 @@
 %   into the PDF. With \pdfTeX{} and \LuaTeX{} in direct PDF output mode there
 %   is a primitive for this, which only needs the rotation/scaling/skew part.
 %    \begin{macrocode}
-\cs_new_protected:Npx \__kernel_backend_matrix:n #1
+\cs_new_protected:Npn \__kernel_backend_matrix:n #1
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D setmatrix }
-      { \tex_pdfsetmatrix:D }
-        { \exp_not:N \exp_not:n {#1} }
+%<*luatex>
+    \tex_pdfextension:D setmatrix
+%</luatex>
+%<*pdftex>
+    \tex_pdfsetmatrix:D
+%</pdftex>
+        { \exp_not:n {#1} }
   }
 \cs_generate_variant:Nn \__kernel_backend_matrix:n { x }
 %    \end{macrocode}
 % \end{macro}
+%
+%    \begin{macrocode}
+%</!shared>
+%    \end{macrocode}
 %
 %    \begin{macrocode}
 %</pdfmode>
