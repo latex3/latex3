@@ -316,6 +316,9 @@
 %   Create a table for the kernel's own use.
 %    \begin{macrocode}
 l3kernel = l3kernel or { }
+local l3kernel = l3kernel
+ltxutil = ltxutil or { }
+local l3kernel = l3kernel
 %    \end{macrocode}
 % \end{macro}
 %
@@ -352,12 +355,8 @@ local sprint     = tex.sprint
 local cprint     = tex.cprint
 local write      = tex.write
 local write_nl   = texio.write_nl
-%    \end{macrocode}
-%
-%   Newer Con\TeX{}t releases replace the |unicode| library by |utf| and
-%   since Lua 5.3 we can even use the Lua standard |utf8| library.
-%    \begin{macrocode}
-local utf8_char = (utf8 and utf8.char) or (utf and utf.char) or unicode.utf8.char
+local scan_int   = token.scan_int or token.scan_integer
+local utf8_char  = utf8.char
 %    \end{macrocode}
 %
 %   Deal with Con\TeX{}t: doesn't use |kpse| library.
@@ -379,9 +378,10 @@ end
 %
 % \begin{macro}{l3kernel.charcat}
 %   Creating arbitrary chars using |tex.cprint|.
+%   The alternative approach using |token.put_next(token.create(...))|
+%   would be about 10\% slower.
 %    \begin{macrocode}
-local charcat
-function charcat(charcode, catcode)
+local function charcat(charcode, catcode)
   cprint(catcode, utf8_char(charcode))
 end
 l3kernel.charcat = charcat
@@ -526,7 +526,7 @@ l3kernel.filesize = filesize
 %   String comparison which gives the same results as \pdfTeX{}'s
 %   \tn{pdfstrcmp}, although the ordering should likely not be relied upon!
 %    \begin{macrocode}
-local function strcmp(A, B)
+function l3kernel.strcmp(A, B)
   if A == B then
     write("0")
   elseif A < B then
@@ -535,7 +535,6 @@ local function strcmp(A, B)
     write("1")
   end
 end
-l3kernel.strcmp = strcmp
 %    \end{macrocode}
 % \end{macro}
 %
@@ -553,6 +552,46 @@ local function shellescape(cmd)
   end
 end
 l3kernel.shellescape = shellescape
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[int]{luadef}
+% An internal function for defining control sequences form Lua which behave
+% like primitives. This acts as a wrapper around |token.set_lua| which accepts
+% a function instead of an index into the functions table.
+%    \begin{macrocode}
+local luacmd do
+  local token_create = token.create
+  local set_lua = token.set_lua
+  local undefined_cs = token.command_id'undefined_cs'
+
+  if luatexbase then
+    local new_luafunction = luatexbase.new_luafunction
+    local functions = lua.get_functions_table()
+    function luacmd(name, func, ...)
+      local id
+      local tok = token_create(name)
+      if tok.command == undefined_cs then
+        id = new_luafunction(name)
+        set_lua(name, id, ...)
+      else
+        id = tok.index or tok.mode
+      end
+      functions[id] = func
+    end
+  elseif context then
+    local register = context.functions.register
+    local functions = context.functions.known
+    function luacmd(name, func, ...)
+      local tok = token.create(name)
+      if tok.command == undefined_cs then
+        token.set_lua(name, register(func), ...)
+      else
+        functions[tok.index or tok.mode] = func
+      end
+    end
+  end
+end
 %    \end{macrocode}
 % \end{macro}
 %
