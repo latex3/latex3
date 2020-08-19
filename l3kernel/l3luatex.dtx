@@ -120,9 +120,15 @@
 % As well as interfaces for \TeX{}, there are a small number of Lua functions
 % provided here.
 %
-% \begin{function}{l3kernel}
-%   All public interfaces provided by the module are stored within the
-%   |l3kernel| table.
+% \begin{function}{ltxutils}
+%   Most public interfaces provided by the module are stored within the
+%   |ltxutils| table.
+% \end{function}
+%
+% \begin{function}[dep]{l3kernel}
+%   For compatibility reasons, there are also some interfaces provided in
+%   the |l3kernel| table. These do not return their result as Lua values but
+%   instead print them to \TeX.
 % \end{function}
 %
 % \begin{function}[dep]{l3kernel.charcat}
@@ -143,7 +149,11 @@
 %   for user input.
 % \end{function}
 %
-% \begin{function}{l3kernel.filedump}
+% \begin{function}{ltxutils.filedump}
+% \begin{function}[dep]{l3kernel.filedump}
+%   \begin{syntax}
+%     \meta{dump}| = ltxutils.filedump(|\meta{file}|,|\meta{offset}|,|\meta{length}|)|
+%   \end{syntax}
 %   \begin{syntax}
 %     |l3kernel.filedump(|\meta{file}|,|\meta{offset}|,|\meta{length}|)|
 %   \end{syntax}
@@ -154,7 +164,11 @@
 %   is read starting at the \meta{offset}.
 % \end{function}
 %
-% \begin{function}{l3kernel.filemdfivesum}
+% \begin{function}{ltxutils.filemd5sum}
+% \begin{function}[dep]{l3kernel.filemdfivesum}
+%   \begin{syntax}
+%     \meta{hash}| = ltxutils.filemd5sum(|\meta{file}|)|
+%   \end{syntax}
 %   \begin{syntax}
 %     |l3kernel.filemdfivesum(|\meta{file}|)|
 %   \end{syntax}
@@ -163,8 +177,13 @@
 %   in contrast to normal \TeX{} behaviour. If the \meta{file} is not found,
 %   nothing is returned with \emph{no error raised}.
 % \end{function}
+% \end{function}
 %
-% \begin{function}{l3kernel.filemoddate}
+% \begin{function}{ltxutils.filemoddate}
+% \begin{function}[dep]{l3kernel.filemoddate}
+%   \begin{syntax}
+%     \meta{date}| = ltxutils.filemoddate(|\meta{file}|)|
+%   \end{syntax}
 %   \begin{syntax}
 %     |l3kernel.filemoddate(|\meta{file}|)|
 %   \end{syntax}
@@ -179,12 +198,17 @@
 %   not found, nothing is returned with \emph{no error raised}.
 % \end{function}
 %
-% \begin{function}{l3kernel.filesize}
+% \begin{function}{ltxutils.filesize}
+% \begin{function}[dep]{l3kernel.filesize}
+%   \begin{syntax}
+%     |size = ltxutils.filesize(|\meta{file}|)|
+%   \end{syntax}
 %   \begin{syntax}
 %     |l3kernel.filesize(|\meta{file}|)|
 %   \end{syntax}
 %   Returns the size of the \meta{file} in bytes. If the \meta{file} is not
 %   found, nothing is returned with \emph{no error raised}.
+% \end{function}
 % \end{function}
 %
 % \begin{function}{l3kernel.resettimer}
@@ -313,13 +337,15 @@
 % \pkg{pdftexcmds} package.
 %
 % \begin{macro}{l3kernel}
+% \begin{macro}{ltxutils}
 %   Create a table for the kernel's own use.
 %    \begin{macrocode}
 l3kernel = l3kernel or { }
 local l3kernel = l3kernel
-ltxutil = ltxutil or { }
-local l3kernel = l3kernel
+ltxutils = ltxutils or { }
+local ltxutils = ltxutils
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 %   Local copies of global tables.
@@ -345,7 +371,6 @@ local floor      = math.floor
 local format     = string.format
 local gsub       = string.gsub
 local lfs_attr   = lfs.attributes
-local md5_sum    = md5.sum
 local open       = io.open
 local os_clock   = os.clock
 local os_date    = os.date
@@ -355,15 +380,17 @@ local sprint     = tex.sprint
 local cprint     = tex.cprint
 local write      = tex.write
 local write_nl   = texio.write_nl
-local scan_int   = token.scan_int or token.scan_integer
-local scan_string= token.scan_string
 local utf8_char  = utf8.char
+
+local scan_int     = token.scan_int or token.scan_integer
+local scan_string  = token.scan_string
+local scan_keyword = token.scan_keyword
 %    \end{macrocode}
 %
 %    \begin{macrocode}
 local function deprecated(table, name, func)
   table[name] = function(...)
-    write_nl("Calling deprecated Lua function %s", name)
+    write_nl(format("Calling deprecated Lua function %s", name))
     table[name] = func
     return func(...)
   end
@@ -381,8 +408,8 @@ local kpse_find = (resolvers and resolvers.findfile) or kpse.find_file
 %   covered in \pkg{pdftexcmds} but is not currently required here.
 %    \begin{macrocode}
 local function escapehex(str)
-  write((gsub(str, ".",
-    function (ch) return format("%02X", byte(ch)) end)))
+  return (gsub(str, ".",
+    function (ch) return format("%02X", byte(ch)) end))
 end
 %    \end{macrocode}
 % \end{macro}
@@ -418,58 +445,81 @@ l3kernel.resettimer = resettimer
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{l3kernel.filedump}
+% \begin{macro}{ltxutils.filedump}
+% \begin{macro}[dep]{l3kernel.filedump}
 %   Similar comments here to the next function: read the file in binary mode
 %   to avoid any line-end weirdness.
 %    \begin{macrocode}
 local function filedump(name,offset,length)
   local file = kpse_find(name,"tex",true)
-  if file then
-    local length = tonumber(length) or lfs_attr(file,"size")
-    local offset = tonumber(offset) or 0
-    local f = open(file,"rb")
-    if f then
-      if offset > 0 then
-        f:seek("set",offset)
-      end
-      local data = f:read(length)
-      escapehex(data)
-      f:close()
-    end
+  if not file then return end
+  local f = open(file,"rb")
+  if not f then return end
+  if offset and offset > 0 then
+    f:seek("set", offset)
   end
+  local data = f:read(length or 'a')
+  f:close()
+  return escapehex(data)
 end
-l3kernel.filedump = filedump
+ltxutils.filedump = filedump
+deprecated(l3kernel, "filedump", function(name, offset, length)
+local dump = filedump(name, tonumber(offset), tonumber(length))
+  if dump then
+    write(dump)
+  end
+end)
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
 %
-% \begin{macro}{l3kernel.filemdfivesum}
+% \begin{macro}{md5.HEX}
+% Hash a string and return the hash in uppercase hexadecimal format.
+% In some engines, this is build-in. For traditional LuaTeX, the conversion
+% to hexadecimal has to be done by us.
+%    \begin{macrocode}
+local md5_HEX = md5.HEX
+if not md5_HEX then
+  local md5_sum = md5.sum
+  function md5_HEX(data)
+    return escapehex(md5_sum(data))
+  end
+  md5.HEX = md5_HEX
+end
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}{ltxutils.filemd5sum}
+% \begin{macro}[dep]{l3kernel.filemdfivesum}
 %   Read an entire file and hash it: the hash function itself is a built-in.
 %   As Lua is byte-based there is no work needed here in terms of UTF-8
 %   (see \pkg{pdftexcmds} and how it handles strings that have passed through
 %   \LuaTeX{}). The file is read in binary mode so that no line ending
 %   normalisation occurs.
 %    \begin{macrocode}
-local function filemdfivesum(name)
-  local file =  kpse_find(name, "tex", true)
-  if file then
-    local f = open(file, "rb")
-    if f then
-      local data = f:read("*a")
-      escapehex(md5_sum(data))
-      f:close()
-    end
-  end
+local function filemd5sum(name)
+  local file = kpse_find(name, "tex", true) if not file then return end
+  local f = open(file, "rb") if not f then return end
+
+  local data = f:read("*a")
+  f:close()
+  return md5_HEX(data)
 end
-l3kernel.filemdfivesum = filemdfivesum
+ltxutils.filemd5sum = filemd5sum
+deprecated(l3kernel, "filemdfivesum", function(name)
+  local hash = filemd5sum(name)
+  if hash then
+    write(hash)
+  end
+end)
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{l3kernel.filemoddate}
+% \begin{macro}[dep]{l3kernel.filemoddate}
 %   See procedure \texttt{makepdftime} in \texttt{utils.c} of
 %   \pdfTeX{}.
 %    \begin{macrocode}
 local function filemoddate(name)
-  local file =  kpse_find(name, "tex", true)
+  local file = kpse_find(name, "tex", true)
   if file then
     local date = lfs_attr(file, "modification")
     if date then
@@ -501,35 +551,49 @@ local function filemoddate(name)
         timezone = format("%+03d", hours)
           .. "'" .. format("%02d", mins) .. "'"
       end
-      write("D:"
+      return "D:"
         .. format("%04d", d.year)
         .. format("%02d", d.month)
         .. format("%02d", d.day)
         .. format("%02d", d.hour)
         .. format("%02d", d.min)
         .. format("%02d", d.sec)
-        .. timezone)
+        .. timezone
     end
   end
 end
-l3kernel.filemoddate = filemoddate
+ltxutils.filemoddate = filemoddate
+deprecated(l3kernel, "filemoddate", function(name)
+  local hash = filemoddate(name)
+  if hash then
+    write(hash)
+  end
+end)
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{l3kernel.filesize}
+% \begin{macro}{ltxutils.filesize}
+% \begin{macro}[dep]{l3kernel.filesize}
 %   A simple disk lookup.
 %    \begin{macrocode}
 local function filesize(name)
-  local file =  kpse_find(name, "tex", true)
+  local file = kpse_find(name, "tex", true)
   if file then
     local size = lfs_attr(file, "size")
     if size then
-      write(size)
+      return size
     end
   end
 end
-l3kernel.filesize = filesize
+ltxutils.filesize = filesize
+deprecated(l3kernel, "filesize", function(name)
+  local size = filesize(name)
+  if size then
+    write(size)
+  end
+end)
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[dep]{l3kernel.strcmp}
