@@ -501,52 +501,68 @@ end)
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{ltxutils.filemoddate}
 % \begin{macro}{l3kernel.filemoddate}
+%   There are two cases: If the C standard library is C99 compliant,
+%   we can use |%z| to get the timezone in almost the right format.
+%   We only have to add primes and replace a zero or missing offset
+%   with |Z|.
+%
+%   Of course this would be boring, so Windows does things differently.
+%   There we have to manually calculate the offset.
 %   See procedure \texttt{makepdftime} in \texttt{utils.c} of
 %   \pdfTeX{}.
 %    \begin{macrocode}
-local function filemoddate(name)
-  local file = kpse_find(name, "tex", true)
-  if file then
+local filemoddate
+if os_date'%z':match'^[+-]%d%d%d%d$' then
+  local pattern = lpeg.Cs(16 *
+      (lpeg.Cg(lpeg.S'+-' * '0000' * lpeg.Cc'Z')
+    + 3 * lpeg.Cc"'" * 2 * lpeg.Cc"'"
+    + lpeg.Cc'Z')
+  * -1)
+  function filemoddate(name)
+    local file = kpse_find(name, "tex", true)
+    if not file then return end
     local date = lfs_attr(file, "modification")
-    if date then
-      local d = os_date("*t", date)
-      if d.sec >= 60 then
-        d.sec = 59
-      end
-      local u = os_date("!*t", date)
-      local off = 60 * (d.hour - u.hour) + d.min - u.min
-      if d.year ~= u.year then
-        if d.year > u.year then
-          off = off + 1440
-        else
-          off = off - 1440
-        end
-      elseif d.yday ~= u.yday then
-        if d.yday > u.yday then
-          off = off + 1440
-        else
-          off = off - 1440
-        end
-      end
-      local timezone
-      if off == 0 then
-        timezone = "Z"
+    if not date then return end
+    return pattern:match(os_date("D:%Y%m%d%H%M%S%z", date))
+  end
+else
+  local function filemoddate(name)
+    local file = kpse_find(name, "tex", true)
+    if not file then return end
+    local date = lfs_attr(file, "modification")
+    if not date then return end
+    local d = os_date("*t", date)
+    local u = os_date("!*t", date)
+    local off = 60 * (d.hour - u.hour) + d.min - u.min
+    if d.year ~= u.year then
+      if d.year > u.year then
+        off = off + 1440
       else
-        local hours = floor(off / 60)
-        local mins  = abs(off - hours * 60)
-        timezone = format("%+03d", hours)
-          .. "'" .. format("%02d", mins) .. "'"
+        off = off - 1440
       end
-      return "D:"
-        .. format("%04d", d.year)
-        .. format("%02d", d.month)
-        .. format("%02d", d.day)
-        .. format("%02d", d.hour)
-        .. format("%02d", d.min)
-        .. format("%02d", d.sec)
-        .. timezone
+    elseif d.yday ~= u.yday then
+      if d.yday > u.yday then
+        off = off + 1440
+      else
+        off = off - 1440
+      end
     end
+    local timezone
+    if off == 0 then
+      timezone = "Z"
+    else
+      if off < 0 then
+        timezone = "-"
+        off = -off
+      else
+        timezone = "+"
+      end
+      timezone = format("%s%02d'%02d'", timezone, hours // 60, hours % 60)
+    end
+    return format("D:%04d%02d%02d%02d%02d%02d%s",
+        d.year, d.month, d.day, d.hour, d.min, d.sec, timezone)
   end
 end
 ltxutils.filemoddate = filemoddate
@@ -557,6 +573,7 @@ deprecated(l3kernel, "filemoddate", function(name)
   end
 end)
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{ltxutils.filesize}
