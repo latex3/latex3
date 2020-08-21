@@ -7,6 +7,12 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Backend setting for direct PDF output
+
+### Deprecated
+- Backend setting `pdfmode`
+
 ### Fixed
 - `\file_compare_timestamp:nNn(TF)` in LuaTeX (issue #792)
 
