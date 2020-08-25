@@ -111,6 +111,36 @@
 %   and if neither are given is vertically centered.
 % \end{function}
 %
+% \begin{function}{\parbox}
+%   \begin{syntax}
+%     \cs{parbox}\oarg{position}\oarg{height}\oarg{inner position}\marg{width}\marg{content}
+%   \end{syntax}
+%   Typesets the \meta{content} in a vertial mode inserted at the current
+%   reference point. Line breaks will occur, and any \cs{par} tokens in
+%   the \meta{content} act in the normal way. The \meta{position} aligns the
+%   box in the following way
+%   \begin{itemize}
+%     \item[b] the baseline of the bottom line of the box lines up with the
+%       current reference point (\TeX{} \tn{vbox})
+%     \item[c] the middle of the box lines up with the math axis of the
+%       current line (\TeX{} \tn{vcenter}-like) (the standard setting)
+%     \item[t] the baseline of the top line of the box lines up with the
+%       current reference point (\TeX{} \tn{vtop})
+%   \end{itemize}
+%   In contrast to the \LaTeXe{} implementation, math mode is not used to
+%   insert vertically-centered material.
+%
+%   The \meta{height} sets the height of the box, within which the \meta{inner
+%   position} may be used to control text placement within the box
+%   \begin{itemize}
+%     \item[c] vertically centered (the standard setting),
+%     \item[b] flush to the bottom of the box,
+%     \item[t] flush to the top of the box,
+%     \item[s] interline space stretched or shrunk to fill the \meta{height}
+%       (if possible),
+%   \end{itemize}
+% \end{function}
+%
 % \begin{function}{\raisebox}
 %   \begin{syntax}
 %     \cs{raisebox}\marg{distance}\oarg{height}\oarg{depth}\marg{content}
@@ -749,6 +779,96 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\xbox_parbox_to_wd:nnn}
+% \begin{macro}{\xbox_parbox_to_wd_and_ht:nnnnn}
+% \begin{macro}{\@@_parbox_vcenter:n}
+% \begin{macro}{\@@_parbox_vcenter_to_ht:nn}
+% \begin{macro}{\@@_parbox_vcenter:nn}
+%   Here, using a coffin is the easiest way to pull off the alignment.
+%   We need to include the \LaTeXe{} command \tn{@parboxrestore} to get the
+%   documented behavior of the galley.
+%    \begin{macrocode}
+\cs_new_protected:Npn \xbox_parbox_to_wd:nnn #1#2#3
+  {
+    \@@_via_internal_box:Nnn \vbox_set:Nn
+      {
+        \dim_set:Nn \tex_hsize:D {#1}
+        \@parboxrestore
+        #3
+      }
+      {
+         \str_case:nnF {#2}
+           {
+             { b } { \vbox:n }
+             { t } { \vbox_top:n }
+           }
+           { \@@_parbox_vcenter:n }
+             { \vbox_unpack_drop:N \l_@@_internal_box }
+      }
+  }
+\cs_new_protected:Npn \xbox_parbox_to_wd_and_ht:nnnnn #1#2#3#4#5
+  {
+    \@@_via_internal_box:Nnn \vbox_set:Nn
+      {
+        \dim_set:Nn \tex_hsize:D {#1}
+        \@parboxrestore
+        #5
+      }
+      {
+         \str_case:nnF {#3}
+           {
+             { b } { \vbox_to_ht:nn }
+             { t } { \vbox_top_to_ht:nn }
+           }
+           { \@@_parbox_vcenter_to_ht:nn }
+             {#2}
+             {
+               \str_case:nnF {#4}
+                 {
+                   { b } { \xbox_position_bottom:n }
+                   { c } { \xbox_position_vcenter:n }
+                   { t } { \xbox_position_top:n }
+                 }
+                 { \use:n }
+                   { \vbox_unpack_drop:N \l_@@_internal_box }
+             }
+      }
+  }
+%    \end{macrocode}
+%   The aim here is to measure the effect of \tn{vcenter} without actually
+%   placing our material in math mode. So we need to check on the appropriate
+%   \tn{fontdimen} to find the math axis, then move material to fit. As
+%   \LaTeXe{} holds off initialising the math fonts as long as possible, we
+%   do have to force that here. The box nesting is needed to ensure we end up
+%   with an outer vertical box. Question: should this go into \pkg{l3box}
+%   as say \cs{vbox_center:n}? Or is that really crossing into coffin
+%   territory (normally, centering is easy enough: the issue here is we don't
+%   control the earlier material).
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_parbox_vcenter:n #1
+  { \@@_parbox_vcenter:nn { \vbox:n } {#1} }
+\cs_new_protected:Npn \@@_parbox_vcenter_to_ht:nn #1#2
+  { \@@_parbox_vcenter:nn { \vbox_to_ht:nn {#1} } {#2} }
+\cs_new_protected:Npn \@@_parbox_vcenter:nn #1#2
+  {
+    #1
+      {
+        \hbox:n
+          {
+            \check@mathfonts
+            \box_move_down:nn
+              { 0.5 \height - \tex_fontdimen:D 22 ~ \tex_textfont:D 2 ~ }
+              { #1  {#2} }
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}{\xbox_raise:nn}
 % \begin{macro}{\xbox_raise_with_ht:nnn}
 % \begin{macro}{\xbox_raise_with_ht_and_dp:nnnn}
@@ -911,6 +1031,17 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\vbox_top_to_ht:nn}
+%   A simple addition: could also have the other missing \enquote{top} cases.
+%    \begin{macrocode}
+\cs_new_protected:Npn \vbox_top_to_ht:nn #1#2
+  {
+    \tex_vtop:D to \@@_dim_eval:n {#1}
+      { \color_group_begin: #2 \par \color_group_end: }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Additions which may need a new module}
 %
 % Somewhere is needed for rules, kerns, leaders: where to put these?
@@ -1036,6 +1167,20 @@
           { \@wholewidth } { 0pt }
       }
    }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\parbox}
+%   At this level, a \cs{parbox} is quite easy to handle.
+%    \begin{macrocode}
+\RenewDocumentCommand \parbox { O { c } o O {#1} m +m }
+  {
+    \mode_leave_vertical:
+     \IfNoValueTF {#2}
+       { \xbox_parbox_to_wd:nnn {#4} {#1} {#5} }
+       { \xbox_parbox_to_wd_and_ht:nnnnn {#4} {#2} {#1} {#3} {#5} }
+
+  }
 %    \end{macrocode}
 % \end{macro}
 %
