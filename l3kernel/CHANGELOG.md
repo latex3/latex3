@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\hbox_overlap_center:n`
+
 ### Fixed
 - `\file_compare_timestamp:nNn(TF)` in LuaTeX (issue #792)
 
