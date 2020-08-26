@@ -12,6 +12,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Support for `hsb` color model
 - Support for `wave` color model
 
+### Changed
+- Better support for color separations
+
 ### Fixed
 - Integer range for `HSB` color model
 

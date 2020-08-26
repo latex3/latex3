@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Improved support for Separation colors
+
 ## [2020-08-07]
 
 ### Changed
