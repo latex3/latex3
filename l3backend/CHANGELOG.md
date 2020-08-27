@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Improved support for Separation colors
+- Updated approach to `(x)dvipdfmx` color support
 
 ## [2020-08-07]
 
