@@ -6,6 +6,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Split `pdfmode` driver into pdfTeX- and LuaTeX-specific  files
+- Renamed `xdvipdfmx` backend files to `xetex`
+
 ## [2020-08-07]
 
 ### Changed

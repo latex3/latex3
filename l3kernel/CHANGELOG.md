@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Backend setting for direct PDF output
+- Backend setting for XeTeX support
 
 ### Deprecated
 - Backend setting `pdfmode`
