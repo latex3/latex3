@@ -60,13 +60,57 @@
 %<@@=color>
 %    \end{macrocode}
 %
-% Color support is split into two parts: a \enquote{general} concept and
-% one directly linked to drawings (or rather the split between filling
-% and stroking). General color is relatively easy to handle: we have a color
-% stack available with all modern drivers, and can use that.
-% Whilst \texttt{dvipdfmx}/\XeTeX{} does have its own approach to color specials,
-% it is easier to use \texttt{dvips}-like ones for all cases except direct
-% PDF output.
+% Color support is split into parts: general color, separations, and color for
+% drawings. We have different approaches in each backend, and have some choices
+% to make about \texttt{dvipdfmx}/\XeTeX{} in particular. Whilst it is in some ways
+% convenient to use the same approach in multiple backends, the fact that
+% \texttt{dvipdfmx}/\XeTeX{} is PDF-based means it (largely) sticks closer to
+% direct PDF output.
+%
+% \subsection{\texttt{dvipmdfx}/\XeTeX{}}
+%
+%    \begin{macrocode}
+%<*dvipdfmx|xetex>
+%    \end{macrocode}
+%
+% These backends have the most possible approaches: it recognises both
+% \texttt{dvips}-based color specials and it's own format, plus one can
+% include PDF statements directly. The latter are not subject to the stack,
+% so are not suitable for general use. Of the two stack methods, the dedicated
+% one has been extended to cover color spaces, so it is used in preference to
+% the \texttt{dvips} one.
+%
+% The \LaTeXe{} backend code uses \texttt{dvips}-based code with
+% \texttt{dvipmdfx}/\XeTeX{}, and so we leave getting color from \LaTeXe{} to
+% a shared code path below.
+%
+% \begin{macro}
+%   {
+%     \@@_backend_select_cmyk:n  ,
+%     \@@_backend_select_gray:n  ,
+%     \@@_backend_select_rgb:n
+%   }
+% \begin{macro}{\@@_backend_reset:}
+% \begin{macro}{color.sc, color.fc}
+%    Push the data to the stack.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_select_cmyk:n #1
+  {
+    \__kernel_backend_literal:n { pdf: bc ~ [#1] }
+    \group_insert_after:N \@@_backend_reset:
+  }
+\cs_new_eq:NN \@@_backend_select_gray:n \@@_backend_select_cmyk:n
+\cs_new_eq:NN \@@_backend_select_rgb:n \@@_backend_select_cmyk:n
+\cs_new_protected:Npn \@@_backend_reset:
+  { \__kernel_backend_literal:n { pdf: ec } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|xetex>
+%    \end{macrocode}
 %
 % \subsection{\texttt{dvips}-style}
 %
@@ -106,6 +150,14 @@
 % \end{macro}
 % \end{macro}
 %
+%    \begin{macrocode}
+%</dvisvgm|dvipdfmx|dvips|xetex>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*dvisvgm|dvips>
+%    \end{macrocode}
+%
 % \begin{macro}
 %   {
 %     \@@_backend_select_cmyk:n  ,
@@ -140,15 +192,8 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\@@_backend_select_separation:nn}
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_select_separation:nn #1#2
-  { \@@_backend_select:n {#1} }
-%    \end{macrocode}
-% \end{macro}
-%
-%    \begin{macrocode}
-%</dvisvgm|dvipdfmx|dvips|xetex>
+%</dvisvgm|dvips>
 %    \end{macrocode}
 %
 % \subsection{\LuaTeX{} and \pdfTeX{}}
@@ -250,15 +295,216 @@
 % \end{macro}
 % \end{macro}
 %
+%    \begin{macrocode}
+%</luatex|pdftex>
+%    \end{macrocode}
+%
+% \subsection{Separations}
+%
+% Here, life gets interesting and we need essentially one approach per
+% backend.
+%
+%    \begin{macrocode}
+%<*dvips>
+%    \end{macrocode}
+%
 % \begin{macro}{\@@_backend_select_separation:nn}
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_backend_select_separation:nn #1#2
-  { \@@_backend_select:n { /#1 ~ cs ~ /#1 ~ CS ~ #2 ~ scn ~ #2 ~ SCN } }
+  { \@@_backend_select:n { setspotcolor ~ #1 ~ #2 } }
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\@@_backend_separation_init:nnnnn}
+% \begin{macro}{\@@_backend_separation_init:nnn}
+% \begin{macro}[EXP]{\@@_backend_separation_init:n}
+% \begin{macro}[EXP]{\@@_backend_separation_init:w}
+% \begin{macro}{\@@_backend_separation_init_cielab:nnnnn}
+% \begin{macro}{\@@_backend_separation_init_cielab:n}
+%   Initialising here means creating a small header set up plus massaging
+%   some data. This comes about as we have to deal with PDF-focussed data,
+%   which makes most sense \enquote{higher-up}. The approach is based on
+%   ideas from \url{https://tex.stackexchange.com/q/560093}.
 %    \begin{macrocode}
+\cs_new_protected:Npx \@@_backend_separation_init:nnnnn #1#2#3#4#5
+  {
+    \bool_if:NT \g__kernel_backend_header_bool
+      {
+        \cs_if_exist:NTF \AtBeginDvi
+          { \AtBeginDvi }
+          { \use:n }
+            {
+                \exp_not:N \@@_backend_separation_init:nnn
+                  {#1} {#2} {#5}
+            }
+      }
+  }
+\cs_new_protected:Npn \@@_backend_separation_init:nnn #1#2#3
+  {
+    \__kernel_backend_literal:e
+      {
+        !
+        TeXDict ~ begin ~
+        /color \int_use:N \g_@@_separation_int \c_space_tl
+        [#3] ~ aload ~ pop ~ ( \str_convert_pdfname:n {#1} ) ~ 
+        find \@@_backend_separation_init:n {#2} customcolor ~ def ~
+        end
+      }
+  }
+\cs_new:Npn \@@_backend_separation_init:n #1
+  {
+    \@@_backend_separation_init:w #1 /Device #1 /Device \s_@@_stop
+  }
+\cs_new:Npn \@@_backend_separation_init:w #1 /Device #2 /Device #3 \s_@@_stop
+  { \str_lowercase:n {#2} }
+%    \end{macrocode}
+%  Currently no CIELAB support.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_separation_init_cielab:nnnnn #1#2#3#4#5 { }
+\cs_new_protected:Npn \@@_backend_separation_init_cielab:n #1 { }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvips>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*dvisvgm>
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_backend_select_separation:nn}
+%   No support at present.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_select_separation:nn #1#2 { }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {\@@_backend_separation_init:nnnnn, \@@_backend_separation_init_cielab:nnnnn}
+% \begin{macro}{\@@_backend_separation_init_cielab:n}
+%   No support at present.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_separation_init:nnnnn #1#2#3#4#5 { }
+\cs_new_protected:Npn \@@_backend_separation_init_cielab:nnnnn #1#2#3#4#5 { }
+\cs_new_protected:Npn \@@_backend_separation_init_cielab:n #1 { }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvisvgm>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*dvipdfmx|luatex|pdftex|xetex>
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_backend_select_separation:nn}
+%   Different syntaxes here as the stacks are accessed very differently.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_select_separation:nn #1#2
+%<*dvipdfmx|xetex>
+  { \@@_backend_select:n { @#1 ~ [#2] } }
+%</dvipdfmx|xetex>
+%<*luatex|pdftex>
+  { \@@_backend_select:n { /#1 ~ cs ~ /#1 ~ CS ~ #2 ~ scn ~ #2 ~ SCN } }
 %</luatex|pdftex>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_separation_init:nnnnn}
+% \begin{macro}{\@@_backend_separation_init:n}
+% \begin{macro}{\@@_backend_separation_init_cielab:nnnnn}
+% \begin{macro}{\@@_backend_separation_init_cielab:n}
+%   Initialising the PDF structures needs two parts: creating an object
+%   containing the \enquote{real} name of the Separation, then adding a reference
+%   to that to each page. The latter uses the internal name of the \texttt{cs}.
+%   For \texttt{dvipdfmx}/\XeTeX{}, the backend does most of the work so we need a
+%   simplified version.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_separation_init:nnnnn #1#2#3#4#5
+  {
+    \@@_backend_separation_init:n
+      {
+        /Separation
+        / \str_convert_pdfname:n {#1} ~ #2 ~
+        <<
+          /FunctionType ~ 2
+          /Domain ~ [0 ~ 1]
+          \tl_if_blank:nF {#3} { /Range ~ [#3] }
+          /C0 ~ [#4] ~
+          /C1 ~ [#5] /N ~ 1
+        >>
+      }
+%<*luatex|pdftex>
+    \use:x
+      {
+        \pdfcoredict_gput:nnn
+          { Page / Resources / ColorSpace }
+          { color \int_use:N \g_@@_separation_int }
+          { \pdf_object_last: }
+      }
+%</luatex|pdftex>
+  }
+\cs_if_exist:NF \pdf_object_now:nn
+  { \cs_gset_protected:Npn \@@_backend_separation_init:nnnnn #1#2#3#4#5 { } }
+\cs_new_protected:Npn \@@_backend_separation_init:n #1
+  {
+%<*dvipdfmx|xetex>
+    \__kernel_backend_literal:x
+      {
+        pdf:obj ~ @ color \int_use:N \g_@@_separation_int \c_space_tl
+          [#1]
+      }
+%</dvipdfmx|xetex>
+%<*luatex|pdftex>
+    \pdf_object_now:nx { array } {#1}
+%</luatex|pdftex>  
+  }
+%    \end{macrocode}
+%   For CIELAB colors, we need one object per document for the illuminant,
+%   plus initialisation of the color space referencing that object.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_separation_init_cielab:nnnnn #1#2#3#4#5
+  {
+    \@@_backend_separation_init:nnnnn
+      {#2}
+      { \pdf_object_ref:n { @@_illuminant_cielab_ #1 } }
+      { \c_@@_model_range_lab_tl }
+      { 100 ~ 0 ~ 0 }
+      { #3 ~ #4 ~ #5 }
+  }
+\cs_if_exist:NF \pdf_object_now:nn
+  { \cs_gset_protected:Npn \@@_backend_separation_init_cielab:nnnnn #1#2#3#4#5 { } }
+\cs_new_protected:Npn \@@_backend_separation_init_cielab:n #1
+  {
+    \pdf_object_new:nn { @@_illuminant_cielab_ #1 } { array }
+    \pdf_object_write:nx { @@_illuminant_cielab_ #1 }
+      {
+        /Lab ~
+        <<
+         /WhitePoint ~
+           [ \tl_use:c { c_@@_model_whitepoint_cielab_ #1 _tl } ]
+         /Range ~ [ \c_@@_model_range_lab_tl ]
+        >>
+     }
+  }
+\cs_if_exist:NF \pdf_object_new:nn
+  { \cs_gset_protected:Npn \@@_backend_separation_init_cielab:n #1 { } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|luatex|pdftex|xetex>
 %    \end{macrocode}
 %
 % \subsection{Fill and stroke color}

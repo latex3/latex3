@@ -2868,12 +2868,10 @@
 % \end{macro}
 % \end{macro}
 % \begin{variable}{\g_@@_internal_ior}
-%   A reserved stream to test for file existence, if required.
+%   A reserved stream to test for file existence (if required), and for
+%   opening a shell.
 %    \begin{macrocode}
-\bool_lazy_or:nnF
-  { \cs_if_exist_p:N \tex_filesize:D }
-  { \sys_if_engine_luatex_p: }
-  { \ior_new:N \g_@@_internal_ior }
+\ior_new:N \g_@@_internal_ior
 %    \end{macrocode}
 % \end{variable}
 %
@@ -3471,7 +3469,7 @@
   }
 %    \end{macrocode}
 %
-% \subsection{GetIfInfo}
+% \subsection{GetIdInfo}
 %
 % \begin{macro}{\GetIdInfo}
 % \begin{macro}{\@@_id_info_auxi:w, \@@_id_info_auxii:w, \@@_id_info_auxiii:w}
@@ -3542,6 +3540,131 @@
 \cs_new_protected:Npn \@@_id_info_auxiii:w #1 - #2 - #3 - #4 \s_@@_stop
   { \tl_set:Nn \ExplFileDate { #1/#2/#3 } }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Checking the version of kernel dependencies}
+%
+% \begin{macro}{\__kernel_dependency_version_check:Nn}
+% \begin{macro}{\__kernel_dependency_version_check:nn}
+% \begin{macro}{\@@_kernel_dependency_compare:nnn,\@@_parse_version:w}
+%   This function is responsible for checking if dependencies of the
+%   \LaTeX3 kernel match the version preloaded in the \LaTeXe{} kernel.
+%   If versions don't match, the function attempts to tell why by
+%   searching for a possible stray format file.
+%
+%   The function starts by checking that the kernel date is defined, and
+%   if not zero is used to force the error route.  The kernel date is
+%   then compared with the argument requested date (ususally the
+%   packaging date of the dependency).  If the kernel date is less than
+%   the required date, it's an error and the loading should abort.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__kernel_dependency_version_check:Nn #1
+  { \exp_args:NV \__kernel_dependency_version_check:nn #1 }
+\cs_new_protected:Npn \__kernel_dependency_version_check:nn #1
+  {
+    \cs_if_exist:NTF \c__kernel_expl_date_tl
+      {
+        \exp_args:NV \@@_kernel_dependency_compare:nnn
+          \c__kernel_expl_date_tl {#1}
+       }
+       { \@@_kernel_dependency_compare:nnn { 0000-00-00 } {#1} }
+  }
+\cs_new_protected:Npn \@@_kernel_dependency_compare:nnn #1 #2 #3
+  {
+    \int_compare:nNnT
+        { \@@_parse_version:w #1 \s_@@_stop } <
+        { \@@_parse_version:w #2 \s_@@_stop }
+      { \@@_mismatched_dependency_error:nn {#2} {#3} }
+  }
+\cs_new:Npn \@@_parse_version:w #1 - #2 - #3 \s_@@_stop {#1#2#3}
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_mismatched_dependency_error:nn}
+%   If the versions differ, then we try to give the user some guidance.
+%   This function starts by taking the engine name \cs{c_sys_engine_str}
+%   and replacing |tex| by |latex|, then building a command of the form:
+%   \begin{texttt}
+%   kpsewhich --all --engine=\meta{engine} \meta{format}[-dev].fmt
+%   \end{texttt}
+%   to query the format files available.  A shell is opened and each
+%   line is read into a sequence.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_mismatched_dependency_error:nn #1 #2
+  {
+    \exp_args:NNx \ior_shell_open:Nn \g_@@_internal_ior
+      {
+        kpsewhich ~ --all ~
+          --engine = \c_sys_engine_exec_str
+          \c_space_tl \c_sys_engine_format_str
+            \tl_if_empty:NF \development@branch@name { -dev } .fmt
+      }
+    \seq_clear:N \l_@@_tmp_seq
+    \ior_map_inline:Nn \g_@@_internal_ior
+      { \seq_put_right:Nn \l_@@_tmp_seq {##1} }
+    \ior_close:N \g_@@_internal_ior
+%    \end{macrocode}
+%   Now define a some shorthands so that we can use \cs{@latex@error}
+%   (almost) easily:
+%    \begin{macrocode}
+    \group_begin:
+      \cs_set:Npn \\ { \MessageBreak }
+      \cs_set_eq:NN \  \c_space_tl
+      \@latex@error
+        {
+          Mismatched~LaTeX~support~files~detected. \\
+          Loading~'#2'~aborted!
+%    \end{macrocode}
+%   \cs{c__kernel_expl_date_tl} may not exist, due to an older format,
+%   so only print the dates when the sentinel token list exists:
+%    \begin{macrocode}
+          \tl_if_exist:NT \c__kernel_expl_date_tl
+            {
+              \\ \\
+              The~L3~programming~layer~in~the~LaTeX~format \\
+              is~dated~\c__kernel_expl_date_tl,~but~in~your~TeX~
+              tree~the~files~require \\ at~least~#1.
+            }
+          \use_none:n
+        }
+        {
+%    \end{macrocode}
+%   The sequence containing the format files should have exactly one
+%   item: the format file currently being run.  If that's the case, the
+%   cause of the error is not that, so print a generic help with some
+%   possible causes.  If more than one format file was found, then print
+%   the list to the user, with appropriate indications of what's in the
+%   system and what's in the user tree.
+%    \begin{macrocode}
+          \int_compare:nNnTF { \seq_count:N \l_@@_tmp_seq } > 1
+            {
+              The~cause~seems~to~be~an~old~format~file~in~the~user~tree. \\
+              LaTeX~found~these~files:
+              \seq_map_tokens:Nn \l_@@_tmp_seq { \\~-~\use:n } \\
+              Try~deleting~the~file~in~the~user~tree~then~run~LaTeX~again.
+            }
+            {
+              The~most~likely~causes~are:
+              \\~-~A~recent~format~generation~failed;
+              \\~-~A~stray~format~file~in~the~user~tree~which~needs~
+                   to~be~removed~or~rebuilt;
+              \\~-~You~are~running~a~manually~installed~version~of~#2 \\
+              \ \ \ which~is~incompatible~with~the~version~in~LaTeX. \\
+            }
+          \\
+          LaTeX~will~abort~loading~the~incompatible~support~files~
+          but~this~may~lead~to \\ later~errors.~Please~ensure~that~
+          your~LaTeX~format~is~correctly~regenerated.
+        }
+    \group_end:
+%    \end{macrocode}
+%   And finish by ending the current file.
+%    \begin{macrocode}
+    \tex_endinput:D
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %

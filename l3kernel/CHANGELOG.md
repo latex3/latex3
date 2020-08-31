@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\hbox_overlap_center:n`
+
 ### Changed
 - Backend setting for direct PDF output
 - Backend setting for XeTeX support
@@ -37,6 +40,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - File lookup with `\input@path`
+- 8-bit encodings in `\str_set_convert:Nnnn`
 
 ### Changed
 - Implementation of `\file_parse_full_name:nNNN` now uses
@@ -46,6 +50,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Removed
 - Functions deprecated at end of 2019
+
+### Deprecated
+- `\str_declare_eight_bit_encoding:nnn`
 
 ## [2020-06-18]
 
