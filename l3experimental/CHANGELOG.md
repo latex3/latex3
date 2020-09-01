@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-09-01]
+
 ### Added
 - Support for `Gray` color model
 - Support for `hsb` color model
@@ -166,7 +168,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-08-07...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-09-01...HEAD
+[2020-09-01]: https://github.com/latex3/latex3/compare/2020-08-07...2020-09-01
 [2020-08-07]: https://github.com/latex3/latex3/compare/2020-07-17...2020-08-07
 [2020-07-17]: https://github.com/latex3/latex3/compare/2020-06-18...2020-07-17
 [2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18

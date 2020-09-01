@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-09-01]
+
 ### Changed
 - Improved support for Separation colors
 - Updated approach to `dvipdfmx`/XeTeX color support
@@ -108,7 +110,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-08-07...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-09-01...HEAD
+[2020-09-01]: https://github.com/latex3/latex3/compare/2020-08-07...2020-09-01
 [2020-08-07]: https://github.com/latex3/latex3/compare/2020-06-29...2020-08-07
 [2020-06-29]: https://github.com/latex3/latex3/compare/2020-06-23...2020-06-29
 [2020-06-23]: https://github.com/latex3/latex3/compare/2020-06-18...2020-06-23
