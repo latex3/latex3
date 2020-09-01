@@ -19,6 +19,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - `\file_compare_timestamp:nNn(TF)` in LuaTeX (issue #792)
+- Text case changing and expansion where an excluded command is equivalent
+  to `\use:n`
 
 ## [2020-08-07]
 
