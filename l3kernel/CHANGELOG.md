@@ -10,6 +10,13 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\hbox_overlap_center:n`
 
+### Changed
+- Backend setting for direct PDF output
+- Backend setting for XeTeX support
+
+### Deprecated
+- Backend setting `pdfmode`
+
 ### Fixed
 - `\file_compare_timestamp:nNn(TF)` in LuaTeX (issue #792)
 

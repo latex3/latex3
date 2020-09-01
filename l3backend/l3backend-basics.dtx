@@ -68,7 +68,6 @@
 % All the file identifiers are up-front so that they come out in the right
 % place in the files.
 %    \begin{macrocode}
-%<*package>
 \ProvidesExplFile
 %<*dvipdfmx>
   {l3backend-dvipdfmx.def}{2020-08-07}{}
@@ -82,14 +81,18 @@
   {l3backend-dvisvgm.def}{2020-08-07}{}
   {L3 backend support: dvisvgm}
 %</dvisvgm>
-%<*pdfmode>
-  {l3backend-pdfmode.def}{2020-08-07}{}
-  {L3 backend support: PDF mode}
-%</pdfmode>
-%<*xdvipdfmx>
-  {l3backend-xdvipdfmx.def}{2020-08-07}{}
-  {L3 backend support: xdvipdfmx}
-%</xdvipdfmx>
+%<*luatex>
+  {l3backend-luatex.def}{2020-08-07}{}
+  {L3 backend support: PDF output (LuaTeX)}
+%</luatex>
+%<*pdftex>
+  {l3backend-pdftex.def}{2020-08-07}{}
+  {L3 backend support: PDF output (pdfTeX)}
+%</pdftex>
+%<*xetex>
+  {l3backend-xetex.def}{2020-08-07}{}
+  {L3 backend support: XeTeX}
+%</xetex>
 %    \end{macrocode}
 %
 %   Check if the loaded kernel is at least enough to load this file.
@@ -105,8 +108,9 @@
 %<dvipdfmx>      {l3backend-dvipdfmx.def}
 %<dvips>      {l3backend-dvips.def}
 %<dvisvgm>      {l3backend-dvisvgm.def}
-%<pdfmode>      {l3backend-pdfmode.def}
-%<xdvipdfmx>      {l3backend-xdvipdfmx.def}
+%<luatex>      {l3backend-luatex.def}
+%<pdftex>      {l3backend-pdftex.def}
+%<xetex>      {l3backend-xetex.def}
   }
   {
     \cs_if_exist_use:cF { @latex@error } { \errmessage }
@@ -117,7 +121,6 @@
       { \use:c { @ehd } }
     \tex_endinput:D
   }
-%</package>
 %    \end{macrocode}
 %
 % The order of the backend code here is such that we get somewhat logical
@@ -125,10 +128,10 @@
 % mix all of the code by concept is almost unmanageable.) The key parts which
 % are shared are
 % \begin{itemize}
-%   \item Color support is either \texttt{dvips}-like or \texttt{pdfmode}-like.
-%   \item \texttt{pdfmode} and \texttt{(x)dvipdfmx} share drawing routines.
-%   \item \texttt{xdvipdfmx} is largely the same as \texttt{dvipdfmx} so
-%     takes most of the same code.
+%   \item Color support is either \texttt{dvips}-like or \LuaTeX{}/pdfTeX{}-like.
+%   \item \LuaTeX{}/pdfTeX{} and \texttt{dvipdfmx}/\XeTeX{} share drawing routines.
+%   \item \XeTeX{} is the same as \texttt{dvipdfmx} other than image size
+%     extraction so takes most of the same code.
 % \end{itemize}
 %
 % \begin{macro}
@@ -236,17 +239,16 @@
 %</dvips>
 %    \end{macrocode}
 %
-% \subsection{\texttt{pdfmode} backend}
+% \subsection{\LuaTeX{} and \pdfTeX{} backends}
 %
 %    \begin{macrocode}
-%<*pdfmode>
+%<*luatex|pdftex>
 %    \end{macrocode}
 %
-% The direct PDF backend covers both \pdfTeX{} and \LuaTeX{}. The latter
-% renames and restructures the backend primitives but this can be handled
-% at one level of abstraction. As such, we avoid using two separate backends
-% for this material at the cost of some \texttt{x}-type definitions to get
-% everything expanded up-front.
+% Both \LuaTeX{} and \pdfTeX{} write PDFs directly rather than via an
+% intermediate file. Although there are similarities, the move of \LuaTeX{}
+% to have more code in Lua means we create two independent files using
+% shared DocStrip code.
 %
 % \begin{macro}{\__kernel_backend_literal_pdf:n, \__kernel_backend_literal_pdf:x}
 %   This is equivalent to \verb|\special{pdf:}| but the engine can
@@ -255,12 +257,15 @@
 %   Note that this is still inside the text (\texttt{BT} \dots \texttt{ET}
 %   block).
 %    \begin{macrocode}
-\cs_new_protected:Npx \__kernel_backend_literal_pdf:n #1
+\cs_new_protected:Npn \__kernel_backend_literal_pdf:n #1
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D literal }
-      { \tex_pdfliteral:D }
-        { \exp_not:N \exp_not:n {#1} }
+%<*luatex>
+    \tex_pdfextension:D literal
+%</luatex>
+%<*pdftex>
+    \tex_pdfliteral:D
+%</pdftex>
+      { \exp_not:n {#1} }
   }
 \cs_generate_variant:Nn \__kernel_backend_literal_pdf:n { x }
 %    \end{macrocode}
@@ -270,13 +275,15 @@
 %  Page literals are pretty simple. To avoid an expansion, we write out
 %  by hand.
 %    \begin{macrocode}
-\cs_new_protected:Npx \__kernel_backend_literal_page:n #1
+\cs_new_protected:Npn \__kernel_backend_literal_page:n #1
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D literal ~ }
-      { \tex_pdfliteral:D }
-        page
-        { \exp_not:N \exp_not:n {#1} }
+%<*luatex>
+    \tex_pdfextension:D literal ~
+%</luatex>
+%<*pdftex>
+    \tex_pdfliteral:D
+%</pdftex>
+        page { \exp_not:n {#1} }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -284,17 +291,23 @@
 % \begin{macro}{\__kernel_backend_scope_begin:, \__kernel_backend_scope_end:}
 %  Higher-level interfaces for saving and restoring the graphic state.
 %    \begin{macrocode}
-\cs_new_protected:Npx \__kernel_backend_scope_begin:
+\cs_new_protected:Npn \__kernel_backend_scope_begin:
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D save \scan_stop: }
-      { \tex_pdfsave:D }
+%<*luatex>
+    \tex_pdfextension:D save \scan_stop:
+%</luatex>
+%<*pdftex>
+    \tex_pdfsave:D
+%</pdftex>
   }
-\cs_new_protected:Npx \__kernel_backend_scope_end:
+\cs_new_protected:Npn \__kernel_backend_scope_end:
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D restore \scan_stop: }
-      { \tex_pdfrestore:D }
+%<*luatex>
+    \tex_pdfextension:D restore \scan_stop:
+%</luatex>
+%<*pdftex>
+    \tex_pdfrestore:D
+%</pdftex>
   }
 %    \end{macrocode}
 % \end{macro}
@@ -304,31 +317,34 @@
 %   into the PDF. With \pdfTeX{} and \LuaTeX{} in direct PDF output mode there
 %   is a primitive for this, which only needs the rotation/scaling/skew part.
 %    \begin{macrocode}
-\cs_new_protected:Npx \__kernel_backend_matrix:n #1
+\cs_new_protected:Npn \__kernel_backend_matrix:n #1
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D setmatrix }
-      { \tex_pdfsetmatrix:D }
-        { \exp_not:N \exp_not:n {#1} }
+%<*luatex>
+    \tex_pdfextension:D setmatrix
+%</luatex>
+%<*pdftex>
+    \tex_pdfsetmatrix:D
+%</pdftex>
+        { \exp_not:n {#1} }
   }
 \cs_generate_variant:Nn \__kernel_backend_matrix:n { x }
 %    \end{macrocode}
 % \end{macro}
 %
 %    \begin{macrocode}
-%</pdfmode>
+%</luatex|pdftex>
 %    \end{macrocode}
 %
 % \subsection{\texttt{dvipdfmx} backend}
 %
 %    \begin{macrocode}
-%<*dvipdfmx|xdvipdfmx>
+%<*dvipdfmx|xetex>
 %    \end{macrocode}
 %
 % The \texttt{dvipdfmx} shares code with the PDF mode one (using the common
-% section to this file) but also with \texttt{xdvipdfmx}. The latter is close
+% section to this file) but also with \XeTeX{}. The latter is close
 % to identical to \texttt{dvipdfmx} and so all of the code here is extracted
-% for both backends, with some \texttt{clean up} for \texttt{xdvipdfmx} as
+% for both backends, with some \texttt{clean up} for \XeTeX{} as
 % required.
 %
 % \begin{macro}{\__kernel_backend_literal_pdf:n, \__kernel_backend_literal_pdf:x}
@@ -361,7 +377,7 @@
 % \end{macro}
 %
 %    \begin{macrocode}
-%</dvipdfmx|xdvipdfmx>
+%</dvipdfmx|xetex>
 %    \end{macrocode}
 %
 % \subsection{\texttt{dvisvgm} backend}

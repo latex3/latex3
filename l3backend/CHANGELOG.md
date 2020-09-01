@@ -8,7 +8,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Improved support for Separation colors
-- Updated approach to `(x)dvipdfmx` color support
+- Updated approach to `dvipdfmx`/XeTeX color support
+- Split `pdfmode` driver into pdfTeX- and LuaTeX-specific  files
+- Renamed `xdvipdfmx` backend files to `xetex`
 
 ## [2020-08-07]
 
