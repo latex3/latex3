@@ -9,8 +9,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2020-09-03]
 
-## [2020-01-03]
-
 ### Fixed
 - Save primitive definition of `\pdfoutput` with CSLaTeX
 
@@ -763,8 +761,7 @@ this project uses date-based 'snapshot' version identifiers.
   e.g. `\dim_step_in­line:nnnn`
 
 [Unreleased]: https://github.com/latex3/latex3/compare/2020-09-03...HEAD
-[2020-09-03]: https://github.com/latex3/latex3/compare/2020-01-03...2020-09-03
-[2020-01-03]: https://github.com/latex3/latex3/compare/2020-09-01...2020-01-03
+[2020-09-03]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-03
 [2020-09-01]: https://github.com/latex3/latex3/compare/2020-08-07...2020-09-01
 [2020-08-07]: https://github.com/latex3/latex3/compare/2020-07-17...2020-08-07
 [2020-07-17]: https://github.com/latex3/latex3/compare/2020-06-18...2020-07-17
