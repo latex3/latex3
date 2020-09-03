@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Save primitive definition of `\pdfoutput` with CSLaTeX
+
 ## [2020-09-01]
 
 ### Added
