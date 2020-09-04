@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+###
+- Some PDF object functions
+
 ## [2020-09-01]
 
 ### Changed
