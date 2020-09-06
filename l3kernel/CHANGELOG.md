@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Loading in generic mode (issue #800)
+
 ## [2020-09-03]
 
 ### Fixed
