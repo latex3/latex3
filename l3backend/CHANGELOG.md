@@ -6,8 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-###
+### Fixed
 - Some PDF object functions
+- Separation color selection for `dvipdfmx`/XeTeX
 
 ## [2020-09-01]
 
