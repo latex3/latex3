@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Typos in CIELAB support
+
 ## [2020-09-01]
 
 ### Added
