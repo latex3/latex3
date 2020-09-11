@@ -1112,6 +1112,10 @@
 %    \end{macrocode}
 %
 %    \begin{macrocode}
+%<*tex>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
 %<@@=char>
 %    \end{macrocode}
 %
@@ -2358,7 +2362,8 @@
 %     \@@_if_primitive_nullfont:N,
 %     \@@_if_primitive_loop:N,
 %     \@@_if_primitive:Nw,
-%     \@@_if_primitive_undefined:N}
+%     \@@_if_primitive_undefined:N,
+%     \@@_if_primitive_lua:N}
 %^^A See http://groups.google.com/group/comp.text.tex/browse_thread/thread/0a72666873f8753d#
 %
 %   We filter out macros first, because they cause endless trouble later
@@ -2403,67 +2408,142 @@
 %   \cs{tex_undefined:D}, and if it is |"| or a digit, then the token
 %   is not a primitive.
 %
+%   For \LuaTeX{} we use a different implementation which just looks at the
+%   command code for the token and compaes it to a list of non-primitives.
+%   Again, \tn{nullfont} is a special case because it is the only primitive
+%   with the normally non-primitive |set_font| command code.
+%
 %    \begin{macrocode}
-\tex_chardef:D \c_@@_A_int = `A ~ %
-\use:x
+\sys_if_engine_luatex:TF
   {
-    \prg_new_conditional:Npnn \exp_not:N \token_if_primitive:N ##1
-      { p , T , F , TF }
+%</tex>
+%<*lua>
+do
+  local get_next = token.get_next
+  local get_command = token.get_command
+  local get_index = token.get_index
+  local get_mode = token.get_mode or token.get_index
+  local cmd = token.command_id
+  local set_font = cmd'get_font'
+  local biggest_char = token.biggest_char()
+
+  local mode_below_biggest_char = {}
+  local index_not_nil = {}
+  local mode_not_null = {}
+  local non_primitive = {
+    [cmd'left_brace'] = true,
+    [cmd'right_brace'] = true,
+    [cmd'math_shift'] = true,
+    [cmd'mac_param'] = mode_below_biggest_char,
+    [cmd'sup_mark'] = true,
+    [cmd'sub_mark'] = true,
+    [cmd'endv'] = true,
+    [cmd'spacer'] = true,
+    [cmd'letter'] = true,
+    [cmd'other_char'] = true,
+    [cmd'tab_mark'] = mode_below_biggest_char,
+    [cmd'char_given'] = true,
+    [cmd'math_given'] = true,
+    [cmd'xmath_given'] = true,
+    [cmd'set_font'] = mode_not_null,
+    [cmd'undefined_cs'] = true,
+    [cmd'call'] = true,
+    [cmd'long_call'] = true,
+    [cmd'outer_call'] = true,
+    [cmd'long_outer_call'] = true,
+    [cmd'assign_glue'] = index_not_nil,
+    [cmd'assign_mu_glue'] = index_not_nil,
+    [cmd'assign_toks'] = index_not_nil,
+    [cmd'assign_int'] = index_not_nil,
+    [cmd'assign_attr'] = true,
+    [cmd'assign_dimen'] = index_not_nil,
+  }
+
+  luacmd("@@_if_primitive_lua:N", function()
+    local tok = get_next()
+    local is_non_primitive = non_primitive[get_command(tok)]
+    return put_next(
+           is_non_primitive == true
+             and false_tok
+        or is_non_primitive == nil
+             and true_tok
+        or is_non_primitive == mode_not_null
+             and (get_mode(tok) == 0 and true_tok or false_tok)
+        or is_non_primitive == index_not_nil
+             and (get_index(tok) and false_tok or true_tok)
+        or is_non_primitive == mode_below_biggest_char
+             and (get_mode(tok) > biggest_char and true_tok or false_tok))
+  end, "global")
+end
+%</lua>
+%<*tex>
+    \prg_new_conditional:Npnn \token_if_primitive:N #1 { p , T , F , TF }
       {
-        \exp_not:N \token_if_macro:NTF ##1
-          \exp_not:N \prg_return_false:
+        \@@_if_primitive_lua:N #1
+      }
+  }
+  {
+    \tex_chardef:D \c_@@_A_int = `A ~ %
+    \use:x
+      {
+        \prg_new_conditional:Npnn \exp_not:N \token_if_primitive:N ##1
+          { p , T , F , TF }
           {
-            \exp_not:N \exp_after:wN \exp_not:N \@@_if_primitive:NNw
-            \exp_not:N \token_to_meaning:N ##1
-              \tl_to_str:n { : : : } \s_@@_stop ##1
+            \exp_not:N \token_if_macro:NTF ##1
+              \exp_not:N \prg_return_false:
+              {
+                \exp_not:N \exp_after:wN \exp_not:N \@@_if_primitive:NNw
+                \exp_not:N \token_to_meaning:N ##1
+                  \tl_to_str:n { : : : } \s_@@_stop ##1
+              }
+          }
+        \cs_new:Npn \exp_not:N \@@_if_primitive:NNw
+          ##1##2 ##3 \c_colon_str ##4 \s_@@_stop
+          {
+            \exp_not:N \tl_if_empty:oTF
+              { \exp_not:N \@@_if_primitive_space:w ##3 ~ }
+              {
+                \exp_not:N \@@_if_primitive_loop:N ##3
+                  \c_colon_str \s_@@_stop
+              }
+              { \exp_not:N \@@_if_primitive_nullfont:N }
           }
       }
-    \cs_new:Npn \exp_not:N \@@_if_primitive:NNw
-      ##1##2 ##3 \c_colon_str ##4 \s_@@_stop
+    \cs_new:Npn \@@_if_primitive_space:w #1 ~ { }
+    \cs_new:Npn \@@_if_primitive_nullfont:N #1
       {
-        \exp_not:N \tl_if_empty:oTF
-          { \exp_not:N \@@_if_primitive_space:w ##3 ~ }
-          {
-            \exp_not:N \@@_if_primitive_loop:N ##3
-              \c_colon_str \s_@@_stop
-          }
-          { \exp_not:N \@@_if_primitive_nullfont:N }
+        \if_meaning:w \tex_nullfont:D #1
+          \prg_return_true:
+        \else:
+          \prg_return_false:
+        \fi:
       }
-  }
-\cs_new:Npn \@@_if_primitive_space:w #1 ~ { }
-\cs_new:Npn \@@_if_primitive_nullfont:N #1
-  {
-    \if_meaning:w \tex_nullfont:D #1
-      \prg_return_true:
-    \else:
-      \prg_return_false:
-    \fi:
-  }
-\cs_new:Npn \@@_if_primitive_loop:N #1
-  {
-    \if_int_compare:w `#1 < \c_@@_A_int %
-      \exp_after:wN \@@_if_primitive:Nw
-      \exp_after:wN #1
-    \else:
-      \exp_after:wN \@@_if_primitive_loop:N
-    \fi:
-  }
-\cs_new:Npn \@@_if_primitive:Nw #1 #2 \s_@@_stop
-  {
-    \if:w : #1
-      \exp_after:wN \@@_if_primitive_undefined:N
-    \else:
-      \prg_return_false:
-      \exp_after:wN \use_none:n
-    \fi:
-  }
-\cs_new:Npn \@@_if_primitive_undefined:N #1
-  {
-    \if_cs_exist:N #1
-      \prg_return_true:
-    \else:
-      \prg_return_false:
-    \fi:
+    \cs_new:Npn \@@_if_primitive_loop:N #1
+      {
+        \if_int_compare:w `#1 < \c_@@_A_int %
+          \exp_after:wN \@@_if_primitive:Nw
+          \exp_after:wN #1
+        \else:
+          \exp_after:wN \@@_if_primitive_loop:N
+        \fi:
+      }
+    \cs_new:Npn \@@_if_primitive:Nw #1 #2 \s_@@_stop
+      {
+        \if:w : #1
+          \exp_after:wN \@@_if_primitive_undefined:N
+        \else:
+          \prg_return_false:
+          \exp_after:wN \use_none:n
+        \fi:
+      }
+    \cs_new:Npn \@@_if_primitive_undefined:N #1
+      {
+        \if_cs_exist:N #1
+          \prg_return_true:
+        \else:
+          \prg_return_false:
+        \fi:
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -2856,6 +2936,10 @@
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
+%
+%    \begin{macrocode}
+%</tex>
+%    \end{macrocode}
 %
 %    \begin{macrocode}
 %</package>
