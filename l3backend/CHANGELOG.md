@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for CIELAB separations with `dvips`
+
 ### Fixed
 - Some PDF object functions
 - Separation color selection for `dvipdfmx`/XeTeX
