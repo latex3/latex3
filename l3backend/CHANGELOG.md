@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Some PDF object functions
 - Separation color selection for `dvipdfmx`/XeTeX
+- Logic for some aspects of CIELAB Separation color
 
 ## [2020-09-01]
 
