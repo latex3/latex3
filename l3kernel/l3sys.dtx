@@ -317,6 +317,7 @@
 %
 %    \begin{macrocode}
 %<*package>
+%<*tex>
 %    \end{macrocode}
 %
 % \subsubsection{Detecting the engine}
@@ -391,23 +392,26 @@
 %   however, is reliable only if the user doesn't change
 %   \cs{tex_pdfoutput:D} before loading this code.
 %    \begin{macrocode}
-\str_const:Nx \c_sys_engine_exec_str
-  {
-    \sys_if_engine_pdftex:T { pdf }
-    \sys_if_engine_xetex:T  { xe  }
-    \sys_if_engine_ptex:T   { ep  }
-    \sys_if_engine_uptex:T  { eup }
-    \sys_if_engine_luatex:T
-      {
-        lua \lua_now:e
-          {
-            if (pcall(require, 'luaharfbuzz')) then ~
-              tex.print("hb") ~
-            end
-          }
-      }
-    tex
-  }
+\group_begin:
+  \cs_set_eq:NN \lua_now:e    \tex_directlua:D
+  \str_const:Nx \c_sys_engine_exec_str
+    {
+      \sys_if_engine_pdftex:T { pdf }
+      \sys_if_engine_xetex:T  { xe  }
+      \sys_if_engine_ptex:T   { ep  }
+      \sys_if_engine_uptex:T  { eup }
+      \sys_if_engine_luatex:T
+        {
+          lua \lua_now:e
+            {
+              if (pcall(require, 'luaharfbuzz')) then ~
+                tex.print("hb") ~
+              end
+            }
+        }
+      tex
+    }
+\group_end:
 \str_const:Nx \c_sys_engine_format_str
   {
     \cs_if_exist:NTF \fmtname
@@ -647,34 +651,78 @@
 % \end{variable}
 %
 % \begin{macro}{\sys_shell_now:n}
+% \begin{macro}{\@@_shell_now:e}
 %   Execute commands through shell escape immediately.
+%
+%   For \LuaTeX{}, we use a pseudo-primitive to do the actual work.
 %    \begin{macrocode}
+%</tex>
+%<*lua>
+do
+  local os_exec = os.execute
+
+  local function shellescape(cmd)
+    local status,msg = os_exec(cmd)
+    if status == nil then
+      write_nl("log","runsystem(" .. cmd .. ")...(" .. msg .. ")\n")
+    elseif status == 0 then
+      write_nl("log","runsystem(" .. cmd .. ")...executed\n")
+    else
+      write_nl("log","runsystem(" .. cmd .. ")...failed " .. (msg or "") .. "\n")
+    end
+  end
+  luacmd("@@_shell_now:e", function()
+    shellescape(scan_string())
+  end, "global", "protected")
+%</lua>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*tex>
 \sys_if_engine_luatex:TF
   {
     \cs_new_protected:Npn \sys_shell_now:n #1
-      {
-        \lua_now:e
-          { l3kernel.shellescape(" \lua_escape:e { \tl_to_str:n {#1} } ") }
-      }
+      { \@@_shell_now:e { \exp_not:n {#1} } }
   }
   {
     \cs_new_protected:Npn \sys_shell_now:n #1
       { \iow_now:Nn \c_@@_shell_stream_int {#1} }
   }
 \cs_generate_variant:Nn \sys_shell_now:n { x }
+%</tex>
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\sys_shell_shipout:n}
+% \begin{macro}{\@@_shell_shipout:e}
 %   Execute commands through shell escape at shipout.
+%
+%   For \LuaTeX, we use the same helper as above but delayed to using a late_lua whatsit.
 %    \begin{macrocode}
+%<*lua>
+  local whatsit_id = node.id'whatsit'
+  local latelua_sub = node.subtype'late_lua'
+  local node_new = node.direct.new
+  local setfield = node.direct.setwhatsitfield or node.direct.setfield
+  local node_write = node.direct.write
+
+  luacmd("@@_shell_shipout:e", function()
+    local cmd = scan_string()
+    local n = node_new(whatsit_id, latelua_sub)
+    setfield(n, 'data', function() shellescape(cmd) end)
+    node_write(n)
+  end, "global", "protected")
+end
+%</lua>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*tex>
 \sys_if_engine_luatex:TF
   {
     \cs_new_protected:Npn \sys_shell_shipout:n #1
-      {
-        \lua_shipout_e:n
-          { l3kernel.shellescape(" \lua_escape:e { \tl_to_str:n {#1} } ") }
-      }
+    { \@@_shell_shipout:e { \exp_not:n {#1} } }
   }
   {
     \cs_new_protected:Npn \sys_shell_shipout:n #1
@@ -682,6 +730,7 @@
   }
 \cs_generate_variant:Nn \sys_shell_shipout:n { x }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \subsection{Dynamic (every job) code}
@@ -969,6 +1018,7 @@
 % \end{variable}
 %
 %    \begin{macrocode}
+%</tex>
 %</package>
 %    \end{macrocode}
 %

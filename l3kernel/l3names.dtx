@@ -55,18 +55,19 @@
 % performs the following tasks:
 % \begin{itemize}
 %   \item defines new names for all \TeX{} primitives;
+%   \item emulate required primitives not provided by default in \LuaTeX;
 %   \item switches to the category code r{\'e}gime for programming;
 % \end{itemize}
 %
-% This module is entirely dedicated to primitives, which should not be
-% used directly within \LaTeX3 code (outside of \enquote{kernel-level}
-% code). As such, the primitives are not documented here: \emph{The
-% \TeX{}book}, \emph{\TeX{} by Topic} and the manuals for \pdfTeX{},
-% \XeTeX{}, \LuaTeX{}, \pTeX{} and \upTeX{} should be consulted for
-% details of the primitives. These are named
-% \cs[no-index]{tex_\meta{name}:D}, typically based on the primitive's
-% \meta{name} in \pdfTeX{} and omitting a leading |pdf| when the
-% primitive is not related to pdf output.
+% This module is entirely dedicated to primitives (and emulations of
+% these), which should not be used directly within \LaTeX3 code
+% (outside of \enquote{kernel-level} code). As such, the primitives
+% are not documented here: \emph{The \TeX{}book}, \emph{\TeX{} by
+% Topic} and the manuals for \pdfTeX{}, \XeTeX{}, \LuaTeX{}, \pTeX{}
+% and \upTeX{} should be consulted for details of the primitives.
+% These are named \cs[no-index]{tex_\meta{name}:D}, typically based
+% on the primitive's \meta{name} in \pdfTeX{} and omitting a leading
+% |pdf| when the primitive is not related to pdf output.
 %
 % \end{documentation}
 %
@@ -75,7 +76,7 @@
 % \section{\pkg{l3names} implementation}
 %
 %    \begin{macrocode}
-%<*package>
+%<*package&tex>
 %    \end{macrocode}
 %
 % The prefix here is \texttt{kernel}.  A few places need |@@| to be left
@@ -111,7 +112,8 @@
 %
 % To allow extracting \enquote{just the names}, a bit of DocStrip fiddling.
 %    \begin{macrocode}
-%</package>
+%</package&tex>
+%<*names|tex>
 %<*names|package>
 %    \end{macrocode}
 %
@@ -609,9 +611,6 @@
   \@@_primitive:NN \pdfeachlinedepth      \tex_eachlinedepth:D
   \@@_primitive:NN \pdfeachlineheight     \tex_eachlineheight:D
   \@@_primitive:NN \pdfelapsedtime        \tex_elapsedtime:D
-  \@@_primitive:NN \pdffiledump           \tex_filedump:D
-  \@@_primitive:NN \pdffilemoddate        \tex_filemoddate:D
-  \@@_primitive:NN \pdffilesize           \tex_filesize:D
   \@@_primitive:NN \pdffirstlineheight    \tex_firstlineheight:D
   \@@_primitive:NN \pdffontexpand         \tex_fontexpand:D
   \@@_primitive:NN \pdffontsize           \tex_fontsize:D
@@ -622,7 +621,6 @@
   \@@_primitive:NN \pdflastypos           \tex_lastypos:D
   \@@_primitive:NN \pdfmapfile            \tex_mapfile:D
   \@@_primitive:NN \pdfmapline            \tex_mapline:D
-  \@@_primitive:NN \pdfmdfivesum          \tex_mdfivesum:D
   \@@_primitive:NN \pdfnoligatures        \tex_noligatures:D
   \@@_primitive:NN \pdfnormaldeviate      \tex_normaldeviate:D
   \@@_primitive:NN \pdfpageheight         \tex_pageheight:D
@@ -635,7 +633,6 @@
   \@@_primitive:NN \pdfrandomseed         \tex_randomseed:D
   \@@_primitive:NN \pdfresettimer         \tex_resettimer:D
   \@@_primitive:NN \pdfsavepos            \tex_savepos:D
-  \@@_primitive:NN \pdfstrcmp             \tex_strcmp:D
   \@@_primitive:NN \pdfsetrandomseed      \tex_setrandomseed:D
   \@@_primitive:NN \pdfshellescape        \tex_shellescape:D
   \@@_primitive:NN \pdftracingfonts       \tex_tracingfonts:D
@@ -680,6 +677,16 @@
     }
 %</package>
 %<*names|package>
+%    \end{macrocode}
+% Some \pdfTeX{} primitives are handled here because they got dropped in
+% \LuaTeX{} but the corresponding internal names are emulated later. The
+% Lua code is already loaded at this point, so we shouldn't overwrite them.
+%    \begin{macrocode}
+  \@@_primitive:NN \pdfstrcmp             \tex_strcmp:D
+  \@@_primitive:NN \pdffilesize           \tex_filesize:D
+  \@@_primitive:NN \pdfmdfivesum          \tex_mdfivesum:D
+  \@@_primitive:NN \pdffilemoddate        \tex_filemoddate:D
+  \@@_primitive:NN \pdffiledump           \tex_filedump:D
 %    \end{macrocode}
 % \XeTeX{}-specific primitives. Note that \XeTeX{}'s \tn{strcmp} is
 % handled earlier and is \enquote{rolled up} into \tn{pdfstrcmp}.
@@ -1187,7 +1194,9 @@
 % End of the \enquote{just the names} part of the source.
 %    \begin{macrocode}
 %</names|package>
+%</names|tex>
 %<*package>
+%<*tex>
 %    \end{macrocode}
 %
 % The job is done: close the group (using the primitive renamed!).
@@ -1438,6 +1447,103 @@
   \tex_let:D \tex_middle:D \normalmiddle
   \tex_let:D \tex_right:D  \normalright
 \tex_fi:D
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</tex>
+%    \end{macrocode}
+%
+% In \LuaTeX{}, we additionally emulate some primitives using Lua code.
+%    \begin{macrocode}
+%<*lua>
+%    \end{macrocode}
+%
+% \begin{macro}{\tex_strcmp:D}
+%   Compare two strings, expanding to |0| if they are equal,
+%   |-1| if the first one is smaller and |1| if the second one is smaller.
+%   Here \enquote{smaller} refers to codepoint order which does not correspond to
+%   the user expected order for most non-ASCII strings.
+%    \begin{macrocode}
+luacmd('tex_strcmp:D', function()
+  local first = scan_string()
+  local second = scan_string()
+  write(first == second and '0'
+     or first < second and '-1'
+     or '1')
+end, 'global')
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\tex_Ucharcat:D}
+%   Creating arbitrary chars using |tex.cprint|.
+%   The alternative approach using |token.put_next(token.create(...))|
+%   would be about 10\% slower.
+%    \begin{macrocode}
+local cprint = tex.cprint
+luacmd('tex_Ucharcat:D', function()
+  local charcode = scan_int()
+  local catcode = scan_int()
+  cprint(catcode, utf8_char(charcode))
+end, 'global')
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\tex_filesize:D}
+%   Wrap the function from |ltxutils|.
+%    \begin{macrocode}
+luacmd('tex_filesize:D', function()
+  local size = filesize(scan_string())
+  if size then write(size) end
+end, 'global')
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\tex_mdfivesum:D}
+%   There are two cases: Either hash a file or a string.
+%   Both are already implemented in l3luatex or built-in.
+%    \begin{macrocode}
+luacmd('tex_mdfivesum:D', function()
+  local hash
+  if scan_keyword"file" then
+    hash = filemd5sum(scan_string())
+  else
+    hash = md5_HEX(scan_string())
+  end
+  if hash then write(hash) end
+end, 'global')
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\tex_filemoddate:D}
+%   A primitive for getting the modification date of a file.
+%    \begin{macrocode}
+luacmd('tex_filemoddate:D', function()
+  local date = filemoddate(scan_string())
+  if date then write(date) end
+end, 'global')
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\tex_filedump:D}
+%   An emulated primitive for getting a hexdump from a (partial) file.
+%   The length has a default of |0|. This is consistent with
+%   \pdfTeX, but it effectivly makes the primitive useless without an
+%   explicit |length|. Therefore we allow the keyword |whole| to be used
+%   instead of a length, indicating that the whole remaining file should
+%   be read.
+%    \begin{macrocode}
+luacmd('tex_filedump:D', function()
+  local offset = scan_keyword'offset' and scan_int() or nil
+  local length = scan_keyword'length' and scan_int()
+          or not scan_keyword'whole' and 0 or nil
+  local data = filedump(scan_string(), offset, length)
+  if data then write(data) end
+end, 'global')
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</lua>
 %    \end{macrocode}
 %
 %    \begin{macrocode}
