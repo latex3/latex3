@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Use Lua pseudo-primitives instead of \directlua
+
 ## [2020-09-24]
 
 ### Added
