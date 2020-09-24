@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
-- Use Lua pseudo-primitives instead of \directlua
+- Use Lua pseudo-primitives instead of `\directlua`
 
 ## [2020-09-24]
 
@@ -162,14 +162,14 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2018-05-12]
 
-### Changed 
-- Track changes in primitive naming in `l3kernel` 
+### Changed
+- Track changes in primitive naming in `l3kernel`
 
 ## [2018-04-30]
 
 ### Changed
-- Switch to ISO date format 
-- Improve cross-module use of internal functions 
+- Switch to ISO date format
+- Improve cross-module use of internal functions
 
 ## [2018-03-05]
 

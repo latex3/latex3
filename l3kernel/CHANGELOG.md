@@ -8,8 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
-- Use Lua pseudo-primitives instead of \directlua
-- \token_if_primitive:N(TF) now reports pseudo-primitives as primitives in LuaTeX
+- Use Lua pseudo-primitives instead of `\directlua`
+- `\token_if_primitive:N(TF)` now reports pseudo-primitives as primitives in LuaTeX
 
 ## [2020-09-06]
 
