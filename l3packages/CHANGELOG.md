@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Load generic code using `\input` not `\file_input:n` to avoid an issue
+  when `openin_any = p` is set
+
 ## [2020-05-15]
 
 ### Changed

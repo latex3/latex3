@@ -7,6 +7,39 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-09-24]
+
+### Changed
+- Use Lua pseudo-primitives instead of `\directlua`
+- `\token_if_primitive:N(TF)` now reports pseudo-primitives as primitives in LuaTeX
+
+## [2020-09-06]
+
+### Fixed
+- Loading in generic mode (issue #800)
+
+## [2020-09-03]
+
+### Fixed
+- Save primitive definition of `\pdfoutput` with CSLaTeX
+
+## [2020-09-01]
+
+### Added
+- `\hbox_overlap_center:n`
+
+### Changed
+- Backend setting for direct PDF output
+- Backend setting for XeTeX support
+
+### Deprecated
+- Backend setting `pdfmode`
+
+### Fixed
+- `\file_compare_timestamp:nNn(TF)` in LuaTeX (issue #792)
+- Text case changing and expansion where an excluded command is equivalent
+  to `\use:n`
+
 ## [2020-08-07]
 
 ### Changed
@@ -27,6 +60,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - File lookup with `\input@path`
+- 8-bit encodings in `\str_set_convert:Nnnn`
 
 ### Changed
 - Implementation of `\file_parse_full_name:nNNN` now uses
@@ -36,6 +70,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Removed
 - Functions deprecated at end of 2019
+
+### Deprecated
+- `\str_declare_eight_bit_encoding:nnn`
 
 ## [2020-06-18]
 
@@ -734,7 +771,11 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-08-07...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-09-24...HEAD
+[2020-09-24]: https://github.com/latex3/latex3/compare/2020-09-06...2020-09-24
+[2020-09-06]: https://github.com/latex3/latex3/compare/2020-09-03...2020-09-06
+[2020-09-03]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-03
+[2020-09-01]: https://github.com/latex3/latex3/compare/2020-08-07...2020-09-01
 [2020-08-07]: https://github.com/latex3/latex3/compare/2020-07-17...2020-08-07
 [2020-07-17]: https://github.com/latex3/latex3/compare/2020-06-18...2020-07-17
 [2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18

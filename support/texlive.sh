@@ -29,7 +29,7 @@ tlmgr install l3build
 tlmgr install latex-bin luahbtex platex uplatex tex xetex
 
 # Then get the rest of required LaTeX
-tlmgr install amsmath graphics tools 
+tlmgr install amsmath tools 
 
 # Assuming a 'basic' font set up, metafont is required to avoid
 # warnings with some packages and errors with others

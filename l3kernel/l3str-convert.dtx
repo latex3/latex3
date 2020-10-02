@@ -44,7 +44,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2020-08-07}
+% \date{Released 2020-09-24}
 %
 % \maketitle
 %
@@ -199,19 +199,6 @@
 %   basis with non-ASCII codepoints  escaped using hashes.
 % \end{function}
 %
-% \section[Creating 8-bit mappings]{Creating $8$-bit mappings}
-%
-% \begin{function}{\str_declare_eight_bit_encoding:nnn}
-%   \begin{syntax}
-%     \cs{str_declare_eight_bit_encoding:nnn} \Arg{name} \Arg{mapping} \Arg{missing}
-%   \end{syntax}
-%   Declares the encoding \meta{name} to map bytes to Unicode
-%   characters according to the \meta{mapping}, and map those bytes
-%   which are not mentioned in the \meta{mapping} either to the
-%   replacement character (if they appear in \meta{missing}), or to
-%   themselves.
-% \end{function}
-%
 % \section{Possibilities, and things to do}
 %
 % Encoding/escaping-related tasks.
@@ -261,15 +248,12 @@
 % \subsubsection{Variables and constants}
 %
 % \begin{macro}{\@@_tmp:w}
-% \begin{variable}{\l_@@_internal_int}
 % \begin{variable}{\l_@@_internal_tl}
 %   Internal scratch space for some functions.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_tmp:w { }
 \tl_new:N \l_@@_internal_tl
-\int_new:N \l_@@_internal_int
 %    \end{macrocode}
-% \end{variable}
 % \end{variable}
 % \end{macro}
 %
@@ -1093,157 +1077,191 @@
 %
 % \subsubsection{8-bit encodings}
 %
-% This section will be entirely rewritten: it is not yet clear in what
-% situations 8-bit encodings are used, hence I don't know what exactly
-% should be optimized. The current approach is reasonably efficient to
-% convert long strings, and it scales well when using many different
-% encodings. An approach based on csnames would have a smaller constant
-% load time for each individual conversion, but has a large hash table
-% cost. Using a range of \tn{count} registers works for decoding, but
-% not for encoding: one possibility there would be to use a binary tree
-% for the mapping of Unicode characters to bytes, stored as a box, one
-% per encoding.
+% It is not clear in what situations 8-bit encodings are used, hence it
+% is not clear what should be optimized.  The current approach is
+% reasonably efficient to convert long strings, and it scales well when
+% using many different encodings.
 %
-% Since the section is going to be rewritten, documentation lacks.
+% The data needed to support a given 8-bit encoding is stored in a file
+% that consists of a single function call
+% \begin{quote}\ttfamily
+%   \cs{@@_declare_eight_bit_encoding:nnnn} \Arg{name} \Arg{modulo}
+%   \Arg{mapping} \Arg{missing}
+% \end{quote}
+% This declares the encoding \meta{name} to map bytes to Unicode
+% characters according to the \meta{mapping}, and map those bytes which
+% are not mentioned in the \meta{mapping} either to the replacement
+% character (if they appear in \meta{missing}), or to themselves.  The
+% \meta{mapping} argument is a token list of pairs \Arg{byte}
+% \Arg{Unicode} expressed in uppercase hexadecimal notation.  The
+% \meta{missing} argument is a token list of \Arg{byte}.  Every
+% \meta{byte} which does not appear in the \meta{mapping} nor the
+% \meta{missing} lists maps to itself in Unicode, so for instance the
+% \texttt{latin1} encoding has empty \meta{mapping} and \meta{missing}
+% lists.  The \meta{modulo} is a (decimal) integer between $256$ and
+% $558$ inclusive, modulo which all Unicode code points supported by the
+% encodings must be different.
 %
-% All the 8-bit encodings which \pkg{l3str} supports rely on the same
-% internal functions.
+% We use two integer arrays per encoding.  When decoding we only use the
+% \texttt{decode} integer array, with entry $n+1$ (offset needed because
+% integer array indices start at~$1$) equal to the Unicode code point
+% that corresponds to the $n$-th byte in the encoding under
+% consideration, or $-1$ if the given byte is invalid in this encoding.
+% When encoding we use both arrays: upon seeing a code point~$n$, we
+% look up the entry ($1$~plus) $n$ modulo some number $M$ in the
+% \texttt{encode} array, which tells us the byte that might encode the
+% given Unicode code point, then we check in the \texttt{decode} array
+% that indeed this byte encodes the Unicode code point we want.  Here,
+% $M$ is an encoding-dependent integer between $256$ and $558$ (it turns
+% out), chosen so that among the Unicode code points that can be validly
+% represented in the given encoding, no pair of code points have the
+% same value modulo~$M$.
 %
-% \begin{macro}{\str_declare_eight_bit_encoding:nnn}
-%   All the 8-bit encoding definition file start with
-%   \cs{str_declare_eight_bit_encoding:nnn} \Arg{encoding name}
-%   \Arg{mapping} \Arg{missing bytes}.  The \meta{mapping} argument is a
-%   token list of pairs \Arg{byte} \Arg{Unicode} expressed in uppercase
-%   hexadecimal notation.  The \meta{missing} argument is a token list
-%   of \Arg{byte}. Every \meta{byte} which does not appear in the
-%   \meta{mapping} nor the \meta{missing} lists maps to the same code
-%   point in Unicode.
+% \begin{macro}
+%   {
+%     \@@_declare_eight_bit_encoding:nnnn,
+%     \@@_declare_eight_bit_aux:NNnnn,
+%     \@@_declare_eight_bit_loop:Nnn,
+%     \@@_declare_eight_bit_loop:Nn
+%   }
+%   Loop through both lists of bytes to fill in the \texttt{decode}
+%   integer array, then fill the \texttt{encode} array accordingly.
+%   For bytes that are invalid in the given encoding, store $-1$ in the
+%   \texttt{decode} array.
 %    \begin{macrocode}
-\cs_new_protected:Npn \str_declare_eight_bit_encoding:nnn #1#2#3
+\cs_new_protected:Npn \@@_declare_eight_bit_encoding:nnnn #1
   {
     \tl_set:Nn \l_@@_internal_tl {#1}
     \cs_new_protected:cpn { @@_convert_decode_#1: }
       { \@@_convert_decode_eight_bit:n {#1} }
     \cs_new_protected:cpn { @@_convert_encode_#1: }
       { \@@_convert_encode_eight_bit:n {#1} }
-    \tl_const:cn { c_@@_encoding_#1_tl } {#2}
-    \tl_const:cn { c_@@_encoding_#1_missing_tl } {#3}
+    \exp_args:Ncc \@@_declare_eight_bit_aux:NNnnn
+      { g_@@_decode_#1_intarray } { g_@@_encode_#1_intarray }
+  }
+\cs_new_protected:Npn \@@_declare_eight_bit_aux:NNnnn #1#2#3#4#5
+  {
+    \intarray_new:Nn #1 { 256 }
+    \int_step_inline:nnn { 0 } { 255 }
+      { \intarray_gset:Nnn #1 { 1 + ##1 } {##1} }
+    \@@_declare_eight_bit_loop:Nnn #1
+      #4 { \s_@@_stop \prg_break: } { }
+    \prg_break_point:
+    \@@_declare_eight_bit_loop:Nn #1
+      #5 { \s_@@_stop \prg_break: }
+    \prg_break_point:
+    \intarray_new:Nn #2 {#3}
+    \int_step_inline:nnn { 0 } { 255 }
+      {
+        \int_compare:nNnF { \intarray_item:Nn #1 { 1 + ##1 } } = { -1 }
+          {
+            \intarray_gset:Nnn #2
+              {
+                1 +
+                \int_mod:nn { \intarray_item:Nn #1 { 1 + ##1 } }
+                  { \intarray_count:N #2 }
+              }
+              {##1}
+          }
+      }
+  }
+\cs_new_protected:Npn \@@_declare_eight_bit_loop:Nnn #1#2#3
+  {
+    \@@_use_none_delimit_by_s_stop:w #2 \s_@@_stop
+    \intarray_gset:Nnn #1 { 1 + "#2 } { "#3 }
+    \@@_declare_eight_bit_loop:Nnn #1
+  }
+\cs_new_protected:Npn \@@_declare_eight_bit_loop:Nn #1#2
+  {
+    \@@_use_none_delimit_by_s_stop:w #2 \s_@@_stop
+    \intarray_gset:Nnn #1 { 1 + "#2 } { -1 }
+    \@@_declare_eight_bit_loop:Nn #1
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\@@_convert_decode_eight_bit:n}
-% \begin{macro}{\@@_decode_eight_bit_load:nn}
-% \begin{macro}{\@@_decode_eight_bit_load_missing:n}
-% \begin{macro}[EXP]{\@@_decode_eight_bit_char:N}
-%^^A todo: document
+% \begin{macro}[rEXP]{\@@_decode_eight_bit_aux:n, \@@_decode_eight_bit_aux:Nn}
+%   The map from bytes to Unicode code points is in the \texttt{decode}
+%   array corresponding to the given encoding.  Define \cs{@@_tmp:w} and
+%   pass it successively all bytes in the string.  It produces an
+%   internal representation with suitable \cs{s_@@} inserted, and the
+%   corresponding code point is obtained by looking it up in the integer
+%   array.  If the entry is $-1$ then issue a replacement character and
+%   raise the flag indicating that there was an error.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_convert_decode_eight_bit:n #1
   {
-    \group_begin:
-      \int_zero:N \l_@@_internal_int
-      \exp_last_unbraced:Nx \@@_decode_eight_bit_load:nn
-        { \tl_use:c { c_@@_encoding_#1_tl } }
-        { \s_@@_stop \prg_break: } { }
-      \prg_break_point:
-      \exp_last_unbraced:Nx \@@_decode_eight_bit_load_missing:n
-        { \tl_use:c { c_@@_encoding_#1_missing_tl } }
-        { \s_@@_stop \prg_break: }
-      \prg_break_point:
-      \flag_clear:n { str_error }
-      \@@_convert_gmap:N \@@_decode_eight_bit_char:N
-      \@@_if_flag_error:nnx { str_error } { decode-8-bit } {#1}
-    \group_end:
+    \cs_set:Npx \@@_tmp:w
+      {
+        \exp_not:N \@@_decode_eight_bit_aux:Nn
+        \exp_not:c { g_@@_decode_#1_intarray }
+      }
+    \flag_clear:n { str_error }
+    \@@_convert_gmap:N \@@_tmp:w
+    \@@_if_flag_error:nnx { str_error } { decode-8-bit } {#1}
   }
-\cs_new_protected:Npn \@@_decode_eight_bit_load:nn #1#2
+\cs_new:Npn \@@_decode_eight_bit_aux:Nn #1#2
   {
-    \@@_use_none_delimit_by_s_stop:w #1 \s_@@_stop
-    \tex_dimen:D "#1 = \l_@@_internal_int sp \scan_stop:
-    \tex_skip:D \l_@@_internal_int = "#1 sp \scan_stop:
-    \tex_toks:D \l_@@_internal_int \exp_after:wN { \int_value:w "#2 }
-    \int_incr:N \l_@@_internal_int
-    \@@_decode_eight_bit_load:nn
+    #2 \s_@@
+    \exp_args:Nf \@@_decode_eight_bit_aux:n
+      { \intarray_item:Nn #1 { 1 + `#2 } }
+    \s_@@
   }
-\cs_new_protected:Npn \@@_decode_eight_bit_load_missing:n #1
+\cs_new:Npn \@@_decode_eight_bit_aux:n #1
   {
-    \@@_use_none_delimit_by_s_stop:w #1 \s_@@_stop
-    \tex_dimen:D "#1 = \l_@@_internal_int sp \scan_stop:
-    \tex_skip:D \l_@@_internal_int = "#1 sp \scan_stop:
-    \tex_toks:D \l_@@_internal_int \exp_after:wN
-      { \int_use:N \c_@@_replacement_char_int }
-    \int_incr:N \l_@@_internal_int
-    \@@_decode_eight_bit_load_missing:n
-  }
-\cs_new:Npn \@@_decode_eight_bit_char:N #1
-  {
-    #1 \s_@@
-    \if_int_compare:w \tex_dimen:D `#1 < \l_@@_internal_int
-      \if_int_compare:w \tex_skip:D \tex_dimen:D `#1 = `#1 \exp_stop_f:
-        \tex_the:D \tex_toks:D \tex_dimen:D
-      \fi:
+    \if_int_compare:w #1 < \c_zero_int
+      \flag_raise:n { str_error }
+      \int_value:w \c_@@_replacement_char_int
+    \else:
+      #1
     \fi:
-    \int_value:w `#1 \s_@@
   }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\@@_convert_encode_eight_bit:n}
-% \begin{macro}{\@@_encode_eight_bit_load:nn}
-% \begin{macro}[rEXP]{\@@_encode_eight_bit_char:n}
-% \begin{macro}[rEXP]{\@@_encode_eight_bit_char_aux:n}
-%^^A todo: document
+% \begin{macro}[rEXP]{\@@_encode_eight_bit_aux:nnN, \@@_encode_eight_bit_aux:NNn}
+%   It is not practical to make an integer array with indices in the
+%   full Unicode range, so we work modulo some number, which is simply
+%   the size of the \texttt{encode} integer array for the given
+%   encoding.  This gives us a candidate byte for representing a given
+%   Unicode code point.  Of course taking the modulo leads to collisions
+%   so we check in the \texttt{decode} array that the byte we got is
+%   indeed correct.  Otherwise the Unicode code point we started from is
+%   simply not representable in the given encoding.
 %    \begin{macrocode}
+\int_new:N \l_@@_modulo_int
 \cs_new_protected:Npn \@@_convert_encode_eight_bit:n #1
   {
-    \group_begin:
-      \int_zero:N \l_@@_internal_int
-      \exp_last_unbraced:Nx \@@_encode_eight_bit_load:nn
-        { \tl_use:c { c_@@_encoding_#1_tl } }
-        { \s_@@_stop \prg_break: } { }
-      \prg_break_point:
-      \flag_clear:n { str_error }
-      \@@_convert_gmap_internal:N \@@_encode_eight_bit_char:n
-      \@@_if_flag_error:nnx { str_error } { encode-8-bit } {#1}
-    \group_end:
+    \cs_set:Npx \@@_tmp:w
+      {
+        \exp_not:N \@@_encode_eight_bit_aux:NNn
+        \exp_not:c { g_@@_encode_#1_intarray }
+        \exp_not:c { g_@@_decode_#1_intarray }
+      }
+    \flag_clear:n { str_error }
+    \@@_convert_gmap_internal:N \@@_tmp:w
+    \@@_if_flag_error:nnx { str_error } { encode-8-bit } {#1}
   }
-\cs_new_protected:Npn \@@_encode_eight_bit_load:nn #1#2
+\cs_new:Npn \@@_encode_eight_bit_aux:NNn #1#2#3
   {
-    \@@_use_none_delimit_by_s_stop:w #1 \s_@@_stop
-    \tex_dimen:D "#2 = \l_@@_internal_int sp \scan_stop:
-    \tex_skip:D \l_@@_internal_int = "#2 sp \scan_stop:
-    \exp_args:NNf \tex_toks:D \l_@@_internal_int
-      { \@@_output_byte:n { "#1 } }
-    \int_incr:N \l_@@_internal_int
-    \@@_encode_eight_bit_load:nn
+    \exp_args:Nf \@@_encode_eight_bit_aux:nnN
+      {
+        \intarray_item:Nn #1
+          { 1 + \int_mod:nn {#3} { \intarray_count:N #1 } }
+      }
+      {#3}
+      #2
   }
-\cs_new:Npn \@@_encode_eight_bit_char:n #1
+\cs_new:Npn \@@_encode_eight_bit_aux:nnN #1#2#3
   {
-    \if_int_compare:w #1 > \c_max_register_int
-      \flag_raise:n { str_error }
-    \else:
-      \if_int_compare:w \tex_dimen:D #1 < \l_@@_internal_int
-        \if_int_compare:w \tex_skip:D \tex_dimen:D #1 = #1 \exp_stop_f:
-          \tex_the:D \tex_toks:D \tex_dimen:D #1 \exp_stop_f:
-          \exp_after:wN \exp_after:wN \exp_after:wN \use_none:nn
-        \fi:
-      \fi:
-      \@@_encode_eight_bit_char_aux:n {#1}
-    \fi:
-  }
-\cs_new:Npn \@@_encode_eight_bit_char_aux:n #1
-  {
-    \if_int_compare:w #1 > \c_@@_max_byte_int
-      \flag_raise:n { str_error }
-    \else:
-      \@@_output_byte:n {#1}
-    \fi:
+    \int_compare:nNnTF { \intarray_item:Nn #3 { 1 + #1 } } = {#2}
+      { \@@_output_byte:n {#1} }
+      { \flag_raise:n { str_error } }
   }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -2664,7 +2682,7 @@
 % family, we keep track only of differences, and of unassigned bytes.
 %    \begin{macrocode}
 %<*iso88591>
-\str_declare_eight_bit_encoding:nnn { iso88591 }
+\@@_declare_eight_bit_encoding:nnnn { iso88591 } { 256 }
   {
   }
   {
@@ -2674,7 +2692,7 @@
 %
 %    \begin{macrocode}
 %<*iso88592>
-\str_declare_eight_bit_encoding:nnn { iso88592 }
+\@@_declare_eight_bit_encoding:nnnn { iso88592 } { 399 }
   {
     { A1 } { 0104 }
     { A2 } { 02D8 }
@@ -2741,7 +2759,7 @@
 %
 %    \begin{macrocode}
 %<*iso88593>
-\str_declare_eight_bit_encoding:nnn { iso88593 }
+\@@_declare_eight_bit_encoding:nnnn { iso88593 } { 384 }
   {
     { A1 } { 0126 }
     { A2 } { 02D8 }
@@ -2786,7 +2804,7 @@
 %
 %    \begin{macrocode}
 %<*iso88594>
-\str_declare_eight_bit_encoding:nnn { iso88594 }
+\@@_declare_eight_bit_encoding:nnnn { iso88594 } { 383 }
   {
     { A1 } { 0104 }
     { A2 } { 0138 }
@@ -2846,7 +2864,7 @@
 %
 %    \begin{macrocode}
 %<*iso88595>
-\str_declare_eight_bit_encoding:nnn { iso88595 }
+\@@_declare_eight_bit_encoding:nnnn { iso88595 } { 374 }
   {
     { A1 } { 0401 }
     { A2 } { 0402 }
@@ -2950,7 +2968,7 @@
 %
 %    \begin{macrocode}
 %<*iso88596>
-\str_declare_eight_bit_encoding:nnn { iso88596 }
+\@@_declare_eight_bit_encoding:nnnn { iso88596 } { 344 }
   {
     { AC } { 060C }
     { BB } { 061B }
@@ -3040,7 +3058,7 @@
 %
 %    \begin{macrocode}
 %<*iso88597>
-\str_declare_eight_bit_encoding:nnn { iso88597 }
+\@@_declare_eight_bit_encoding:nnnn { iso88597 } { 498 }
   {
     { A1 } { 2018 }
     { A2 } { 2019 }
@@ -3129,7 +3147,7 @@
 %
 %    \begin{macrocode}
 %<*iso88598>
-\str_declare_eight_bit_encoding:nnn { iso88598 }
+\@@_declare_eight_bit_encoding:nnnn { iso88598 } { 308 }
   {
     { AA } { 00D7 }
     { BA } { 00F7 }
@@ -3206,7 +3224,7 @@
 %
 %    \begin{macrocode}
 %<*iso88599>
-\str_declare_eight_bit_encoding:nnn { iso88599 }
+\@@_declare_eight_bit_encoding:nnnn { iso88599 } { 352 }
   {
     { D0 } { 011E }
     { DD } { 0130 }
@@ -3222,7 +3240,7 @@
 %
 %    \begin{macrocode}
 %<*iso885910>
-\str_declare_eight_bit_encoding:nnn { iso885910 }
+\@@_declare_eight_bit_encoding:nnnn { iso885910 } { 383 }
   {
     { A1 } { 0104 }
     { A2 } { 0112 }
@@ -3278,7 +3296,7 @@
 %
 %    \begin{macrocode}
 %<*iso885911>
-\str_declare_eight_bit_encoding:nnn { iso885911 }
+\@@_declare_eight_bit_encoding:nnnn { iso885911 } { 369 }
   {
     { A1 } { 0E01 }
     { A2 } { 0E02 }
@@ -3379,7 +3397,7 @@
 %
 %    \begin{macrocode}
 %<*iso885913>
-\str_declare_eight_bit_encoding:nnn { iso885913 }
+\@@_declare_eight_bit_encoding:nnnn { iso885913 } { 399 }
   {
     { A1 } { 201D }
     { A5 } { 201E }
@@ -3445,7 +3463,7 @@
 %
 %    \begin{macrocode}
 %<*iso885914>
-\str_declare_eight_bit_encoding:nnn { iso885914 }
+\@@_declare_eight_bit_encoding:nnnn { iso885914 } { 529 }
   {
     { A1 } { 1E02 }
     { A2 } { 1E03 }
@@ -3486,7 +3504,7 @@
 %
 %    \begin{macrocode}
 %<*iso885915>
-\str_declare_eight_bit_encoding:nnn { iso885915 }
+\@@_declare_eight_bit_encoding:nnnn { iso885915 } { 383 }
   {
     { A4 } { 20AC }
     { A6 } { 0160 }
@@ -3504,7 +3522,7 @@
 %
 %    \begin{macrocode}
 %<*iso885916>
-\str_declare_eight_bit_encoding:nnn { iso885916 }
+\@@_declare_eight_bit_encoding:nnnn { iso885916 } { 558 }
   {
     { A1 } { 0104 }
     { A2 } { 0105 }

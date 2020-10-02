@@ -6,6 +6,29 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-09-24]
+
+### Fixed
+- Documented source as PDF
+
+## [2020-09-11]
+
+### Added
+- Support for CIELAB separations with `dvips`
+
+### Fixed
+- Some PDF object functions
+- Separation color selection for `dvipdfmx`/XeTeX
+- Logic for some aspects of CIELAB Separation color
+
+## [2020-09-01]
+
+### Changed
+- Improved support for Separation colors
+- Updated approach to `dvipdfmx`/XeTeX color support
+- Split `pdfmode` driver into pdfTeX- and LuaTeX-specific  files
+- Renamed `xdvipdfmx` backend files to `xetex`
+
 ## [2020-08-07]
 
 ### Changed
@@ -102,7 +125,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-08-07...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-09-24...HEAD
+[2020-09-24]: https://github.com/latex3/latex3/compare/2020-09-11...2020-09-24
+[2020-09-11]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-11
+[2020-09-01]: https://github.com/latex3/latex3/compare/2020-08-07...2020-09-01
 [2020-08-07]: https://github.com/latex3/latex3/compare/2020-06-29...2020-08-07
 [2020-06-29]: https://github.com/latex3/latex3/compare/2020-06-23...2020-06-29
 [2020-06-23]: https://github.com/latex3/latex3/compare/2020-06-18...2020-06-23
