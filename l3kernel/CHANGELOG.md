@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Lua emulation of \strcmp (issue #813)
+
 ## [2020-09-24]
 
 ### Changed
