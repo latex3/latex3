@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-10-05]
+
 ### Fixed
 - Lua emulation of \strcmp (issue #813)
 
@@ -774,7 +776,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-09-24...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-10-05...HEAD
+[2020-10-05]: https://github.com/latex3/latex3/compare/2020-09-24...2020-10-05
 [2020-09-24]: https://github.com/latex3/latex3/compare/2020-09-06...2020-09-24
 [2020-09-06]: https://github.com/latex3/latex3/compare/2020-09-03...2020-09-06
 [2020-09-03]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-03

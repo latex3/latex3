@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-10-05]
+
 ### Changed
 - Load generic code using `\input` not `\file_input:n` to avoid an issue
   when `openin_any = p` is set
@@ -106,7 +108,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-05-15...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-10-05...HEAD
+[2020-10-05]: https://github.com/latex3/latex3/compare/2020-05-15...2020-10-05
 [2020-05-15]: https://github.com/latex3/latex3/compare/2020-05-14...2020-05-15
 [2020-05-14]: https://github.com/latex3/latex3/compare/2020-03-06...2020-05-14
 [2020-03-06]: https://github.com/latex3/latex3/compare/2020-03-03...2020-03-06
