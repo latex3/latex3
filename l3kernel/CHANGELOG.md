@@ -7,13 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-### Fixed
-- Correctly detect LaTeX when pre-loading expl3 and setting up
-  case changer
-
 ## [2020-10-05]
 
 ### Fixed
+- Correctly detect LaTeX when pre-loading expl3 and setting up
+  case changer
 - Lua emulation of \strcmp (issue #813)
 
 ## [2020-09-24]
