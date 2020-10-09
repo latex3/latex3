@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Some aspects of `cctab` setup with 8-bit engines(issue #814)
+
 ## [2020-10-05]
 
 ### Fixed
