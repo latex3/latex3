@@ -7,6 +7,66 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Use Lua pseudo-primitives instead of `\directlua`
+
+## [2020-09-24]
+
+### Added
+- Support for DeviceN color spaces
+
+## [2020-09-11]
+
+### Fixed
+- Typos in CIELAB support
+
+## [2020-09-01]
+
+### Added
+- Support for `Gray` color model
+- Support for `hsb` color model
+- Support for `wave` color model
+
+### Changed
+- Better support for color separations
+
+### Fixed
+- Integer range for `HSB` color model
+
+## [2020-08-07]
+
+### Changed
+- Move drawing color functions to `l3color`, generalising the approach
+  with better `dvips` support (viz. `\draw_color:n` becomes `\color_select:n`,
+  `\draw_color_[fill|stroke]:n` become `\color_[fill|stroke]:n`)
+
+## [2020-07-17]
+
+### Added
+- `\color_export:nn(n)N` (see #742)
+- Support for multiple color models (see #739)
+
+### Removed
+
+- `l3cctab`: moved to `l3kernel`
+
+## [2020-06-18]
+
+### Changed
+- Internal color model
+- Internal performance enhancements
+
+## [2020-06-03]
+
+### Added
+- `\cctab_select:N`
+- Support for `Hsb`, `HSB`, `HTML` and `RGB` color models
+
+## [2020-05-18]
+
+### Added
+- `\pdf_object_if_exist:n(TF)`
+
 ## [2020-01-12]
 
 ### Changed
@@ -102,14 +162,14 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2018-05-12]
 
-### Changed 
-- Track changes in primitive naming in `l3kernel` 
+### Changed
+- Track changes in primitive naming in `l3kernel`
 
 ## [2018-04-30]
 
 ### Changed
-- Switch to ISO date format 
-- Improve cross-module use of internal functions 
+- Switch to ISO date format
+- Improve cross-module use of internal functions
 
 ## [2018-03-05]
 
@@ -122,7 +182,15 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-01-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-09-24...HEAD
+[2020-09-24]: https://github.com/latex3/latex3/compare/2020-09-11...2020-09-24
+[2020-09-11]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-11
+[2020-09-01]: https://github.com/latex3/latex3/compare/2020-08-07...2020-09-01
+[2020-08-07]: https://github.com/latex3/latex3/compare/2020-07-17...2020-08-07
+[2020-07-17]: https://github.com/latex3/latex3/compare/2020-06-18...2020-07-17
+[2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18
+[2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-18...2020-06-03
+[2020-05-18]: https://github.com/latex3/latex3/compare/2020-01-12...2020-05-18
 [2020-01-12]: https://github.com/latex3/latex3/compare/2019-10-11...2020-01-12
 [2019-10-11]: https://github.com/latex3/latex3/compare/2019-09-28...2019-10-11
 [2019-09-28]: https://github.com/latex3/latex3/compare/2019-09-19...2019-09-28

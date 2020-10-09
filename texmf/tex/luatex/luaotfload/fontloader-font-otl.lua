@@ -52,11 +52,12 @@ local report_otf          = logs.reporter("fonts","otf loading")
 local fonts               = fonts
 local otf                 = fonts.handlers.otf
 
-otf.version               = 3.109 -- beware: also sync font-mis.lua and in mtx-fonts
+otf.version               = 3.111 -- beware: also sync font-mis.lua and in mtx-fonts
 otf.cache                 = containers.define("fonts", "otl", otf.version, true)
 otf.svgcache              = containers.define("fonts", "svg", otf.version, true)
 otf.pngcache              = containers.define("fonts", "png", otf.version, true)
 otf.pdfcache              = containers.define("fonts", "pdf", otf.version, true)
+otf.mpscache              = containers.define("fonts", "mps", otf.version, true)
 
 otf.svgenabled            = false
 otf.pngenabled            = false
@@ -532,6 +533,9 @@ local converters = {
         action    = otf.readers.woff2otf,
     }
 }
+
+-- We can get differences between daylight saving etc ... but it makes no sense to
+-- mess with trickery .. so be it when you use a different binary.
 
 local function checkconversion(specification)
     local filename  = specification.filename

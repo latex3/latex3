@@ -1,7 +1,7 @@
 Experimental LaTeX3 Concepts
 ============================
 
-Release 2020-01-12
+Release 2020-09-24
 
 Overview
 --------
@@ -22,7 +22,6 @@ updated at the same time.
 Currently included in the CTAN release of l3experimental are the following
 bundles:
 * `l3benchmark`
-* `l3cctab`
 * `l3color`
 * `l3draw`
 * `l3graphics`
@@ -37,12 +36,6 @@ bundles:
 
 This module provides support for benchmarking the performance of code.
 
-`l3cctab`
----------
-
-This module provides support for saving and restoring category codes
-_en masse_ in a table. This is supported for the 8-bit range for all engines,
-and for the entire Unicode range with LuaTeX.
 
 `l3color`
 ---------
@@ -142,6 +135,6 @@ the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
-<p>Copyright (C) 1998-2011,2015-2020 The LaTeX3 Project <br />
+<p>Copyright (C) 1998-2004,2008-2012,2014-2020 The LaTeX3 Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>

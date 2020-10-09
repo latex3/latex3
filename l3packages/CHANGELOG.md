@@ -7,6 +7,49 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-10-05]
+
+### Changed
+- Load generic code using `\input` not `\file_input:n` to avoid an issue
+  when `openin_any = p` is set
+
+## [2020-05-15]
+
+### Changed
+- Internal packaging of `xparse` in advance of changes to the LaTeX2e kernel
+
+## [2020-05-14]
+
+### Changed
+- Internal packaging of `xparse` in advance of changes to the LaTeX2e kernel
+
+## [2020-03-06]
+
+### Added
+- Pre-loader file `xparse.ltx`
+
+## [2020-03-03]
+
+### Changed
+- Delimited arguments (`DdRrEet`) now allow control sequence tokens
+  as delimiters (issues #367 and #368)
+
+## [2020-02-25]
+
+### Changed
+- Issue warnings for unsupported delimiters in `xparse`
+
+## [2020-02-14]
+
+### Fixed
+- Grabbing `r`-type arguments by expandable commands (issse #672)
+
+## [2020-02-08]
+
+### Changed
+- Document that `\CurrentOption` is available and should be used in
+  `l3keys2e`
+
 ## [2020-02-03]
 
 ### Fixed
@@ -65,7 +108,15 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-03...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-10-05...HEAD
+[2020-10-05]: https://github.com/latex3/latex3/compare/2020-05-15...2020-10-05
+[2020-05-15]: https://github.com/latex3/latex3/compare/2020-05-14...2020-05-15
+[2020-05-14]: https://github.com/latex3/latex3/compare/2020-03-06...2020-05-14
+[2020-03-06]: https://github.com/latex3/latex3/compare/2020-03-03...2020-03-06
+[2020-03-03]: https://github.com/latex3/latex3/compare/2020-02-25...2020-03-03
+[2020-02-25]: https://github.com/latex3/latex3/compare/2020-02-14...2020-02-25
+[2020-02-14]: https://github.com/latex3/latex3/compare/2020-02-08...2020-02-14
+[2020-02-08]: https://github.com/latex3/latex3/compare/2020-02-03...2020-02-08
 [2020-02-03]: https://github.com/latex3/latex3/compare/2020-01-12...2020-02-03
 [2020-01-12]: https://github.com/latex3/latex3/compare/2019-10-11...2020-01-12
 [2019-10-11]: https://github.com/latex3/latex3/compare/2019-05-28...2019-10-11

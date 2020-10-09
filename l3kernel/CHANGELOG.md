@@ -7,6 +7,198 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-10-05]
+
+### Fixed
+- Correctly detect LaTeX when pre-loading expl3 and setting up
+  case changer
+- Lua emulation of \strcmp (issue #813)
+
+## [2020-09-24]
+
+### Changed
+- Use Lua pseudo-primitives instead of `\directlua`
+- `\token_if_primitive:N(TF)` now reports pseudo-primitives as primitives in LuaTeX
+
+## [2020-09-06]
+
+### Fixed
+- Loading in generic mode (issue #800)
+
+## [2020-09-03]
+
+### Fixed
+- Save primitive definition of `\pdfoutput` with CSLaTeX
+
+## [2020-09-01]
+
+### Added
+- `\hbox_overlap_center:n`
+
+### Changed
+- Backend setting for direct PDF output
+- Backend setting for XeTeX support
+
+### Deprecated
+- Backend setting `pdfmode`
+
+### Fixed
+- `\file_compare_timestamp:nNn(TF)` in LuaTeX (issue #792)
+- Text case changing and expansion where an excluded command is equivalent
+  to `\use:n`
+
+## [2020-08-07]
+
+### Changed
+- Color selection implementation
+- Performance enhancements for `\keys_set:nn`
+
+### Fixed
+- Loading generically on ConTeXt (issue #783)
+
+## [2020-07-17]
+
+### Added
+- `l3cctab` module for using category code tables
+- `\file_parse_full_name:n` and `\file_parse_full_name_apply:nN`
+- Additional `\prop_put:Nnn` variants
+- `\seq_set_map_x:NNn`
+- `\msg_term:nn(nnnn)`
+
+### Fixed
+- File lookup with `\input@path`
+- 8-bit encodings in `\str_set_convert:Nnnn`
+
+### Changed
+- Implementation of `\file_parse_full_name:nNNN` now uses
+  `\file_parse_full_name:n` internally
+- `\seq_set_map:NNn` no longer `x`-expands `<inline function>`
+  (`\seq_set_map_x:NNn` now does that).  Both moved to stable.
+
+### Removed
+- Functions deprecated at end of 2019
+
+### Deprecated
+- `\str_declare_eight_bit_encoding:nnn`
+
+## [2020-06-18]
+
+### Changed
+- Use `scn` operator for separations
+- Internal color model
+- Internal performance enhancements
+- Moved `\msg_expandable_error:nn(nnnn)` to stable.
+- Moved `\seq_indexed_map_inline:Nn` and `\seq_indexed_map_function:Nn`
+  to stable as `\seq_map_indexed_inline:Nn` and `\seq_map_indexed_function:Nn`.
+- Internal changes to `expl3` to allow loading earlier in LaTeX2e.
+
+## [2020-06-03]
+
+### Added
+- `\str_convert_pdfname:n`
+
+## [2020-05-15]
+
+### Changed
+- Make `\text_purify:n` `f`-type expandable
+
+## [2020-05-14]
+
+### Changed
+- Performance improvements in keyval processing
+
+## [2020-05-11]
+
+### Changed
+- Internal changes to quark handling
+
+## [2020-05-05]
+
+### Added
+- Recognize the exponent marker `E` (same as `e`) in floating point numbers
+
+### Fixed
+- Leave active characters untouched when case-changing (see #715)
+
+## [2020-04-06]
+
+### Added
+- Control for start-of-titlecasing: see `\l_text_titlecase_check_letter_bool`
+
+### Fixed
+- Nesting of `\seq_shuffle:N` in another sequence mapping (issue #687)
+- `\ior_shell_open:Nn` in engines other than LuaTeX - shell commands didn't
+  execute, plus the command call would be left in the input stream.
+
+## [2020-03-06]
+
+### Added
+- `\text_purify:n`
+
+### Fixed
+- Issue with case-changing Turkish
+
+## [2020-03-03]
+
+### Added
+- `\tex...:D` coverage for TeX Live 2020 engine changes
+
+### Changed
+- New implementation for `\keyval_parse:NNn` - around 40% speed improvement,
+  also *expandable*
+
+### Fixed
+- Make `expl3` reload-safe for `latexrelease` (see latex3/latex2e#295)
+
+## [2020-02-25]
+
+### Changed
+- Extend case-changing encoding support to Cyrillic and Greek
+
+## [2020-02-21]
+
+### Added
+- Option `suppress-backend-headers` (see matching change in
+  `l3backend`)
+
+### Changed
+- Allow `dvisvgm` driver with XeTeX (issue #677)
+
+### Fixed
+- `undo-recent-deprecations` would not reload the deprecation code
+
+## [2020-02-14]
+
+### Fixed
+- Interaction with some `babel` languages at the start of the document
+
+## [2020-02-13]
+
+### Changed
+- Leave implicit tokens unchanged by `\text_expand:n`
+- Extend the `de-alt` case changing locale to 8-bit engines
+
+## [2020-02-11]
+
+### Added
+- Key property `.cs_set:Np` and variants
+
+### Changed
+- Support `\@uclclist` entries when case-changing
+
+### Fixed
+- Allow for full range of encodings when expanding text (issue #671)
+- Support `\begin`/`\end` in text expansion
+
+## [2020-02-08]
+
+### Added
+- `\l_keys_key_str` and `\l_keys_path_str`
+
+### Deprecated
+- `\l_keys_key_tl` and `\l_keys_path_tl`, replaced by `\l_keys_key_str` and
+  `\l_keys_path_str`, respectively
+
 ## [2020-02-03]
 
 ### Changed
@@ -130,7 +322,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-09-28]
 
 ### Changed
-- Speed up variants and reduce their \tracingall output
+- Speed up variants and reduce their `\tracingall` output
 - Debug and deprecation code are now loaded independently of expl3 core
 - `\file_compare_timestamp:nNn(TF)` now usable in expansion contexts
 - Moved to stable:
@@ -361,7 +553,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Deprecated
 - `\box_(g)set_eq_clear:NN`, replaced by `\box_(g)set_eq_drop:NN`
-- `\(h|v)box_unpack_clear:N`, replaced by `\(h|v)box_unpack_drop:N
+- `\(h|v)box_unpack_clear:N`, replaced by `\(h|v)box_unpack_drop:N`
 - `\tl_(g)set_from_file(_x):Nnn`, replaced by `\file_get:nnN`
 
 ### Fixed
@@ -397,7 +589,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Correct fp randint with zero argument (see #507)
-- Handling of `\current@color` with (x)dvipdfmx` (see #510)
+- Handling of `\current@color` with `(x)dvipdfmx` (see #510)
 
 ### Removed
 - Support for stand-alone `l3regex`, `l3sort`, `l3srt`, `l3tl-analysis`,
@@ -538,10 +730,10 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2018-04-30]
 
 ### Added
-- Implement \tl_analysis_map_inline:nn
-- Implement \exp_args_generate:n to define new \exp_args:N...
+- Implement `\tl_analysis_map_inline:nn`
+- Implement `\exp_args_generate:n` to define new `\exp_args:N...`
   functions
-- Low-level \int_value:w function
+- Low-level `\int_value:w` function
 - New experimental functions for
   - Building token lists piecewise
   - Fast manipulation of integer arrays
@@ -555,7 +747,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Better documentation of cross-module kernel-internal functions
 - Enable `\char_generate:nn` for active chars
 - Renamed `\tl_show_analysis:(N|n)n` as `\tl_analysis_show:(N|n)n`
-- Change \int_rand:nn (and rand_item functions) to better use
+- Change `\int_rand:nn` (and rand_item functions) to better use
   the RNG
 - Make prg break functions public
 - Make scan marks mechanism public
@@ -586,7 +778,29 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-02-03...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-10-05...HEAD
+[2020-10-05]: https://github.com/latex3/latex3/compare/2020-09-24...2020-10-05
+[2020-09-24]: https://github.com/latex3/latex3/compare/2020-09-06...2020-09-24
+[2020-09-06]: https://github.com/latex3/latex3/compare/2020-09-03...2020-09-06
+[2020-09-03]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-03
+[2020-09-01]: https://github.com/latex3/latex3/compare/2020-08-07...2020-09-01
+[2020-08-07]: https://github.com/latex3/latex3/compare/2020-07-17...2020-08-07
+[2020-07-17]: https://github.com/latex3/latex3/compare/2020-06-18...2020-07-17
+[2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18
+[2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-15...2020-06-03
+[2020-05-15]: https://github.com/latex3/latex3/compare/2020-05-14...2020-05-15
+[2020-05-14]: https://github.com/latex3/latex3/compare/2020-05-11...2020-05-14
+[2020-05-11]: https://github.com/latex3/latex3/compare/2020-05-05...2020-05-11
+[2020-05-05]: https://github.com/latex3/latex3/compare/2020-04-06...2020-05-05
+[2020-04-06]: https://github.com/latex3/latex3/compare/2020-03-06...2020-04-06
+[2020-03-06]: https://github.com/latex3/latex3/compare/2020-03-03...2020-03-06
+[2020-03-03]: https://github.com/latex3/latex3/compare/2020-02-25...2020-03-03
+[2020-02-25]: https://github.com/latex3/latex3/compare/2020-02-21...2020-02-25
+[2020-02-21]: https://github.com/latex3/latex3/compare/2020-02-14...2020-02-21
+[2020-02-14]: https://github.com/latex3/latex3/compare/2020-02-13...2020-02-14
+[2020-02-13]: https://github.com/latex3/latex3/compare/2020-02-11...2020-02-13
+[2020-02-11]: https://github.com/latex3/latex3/compare/2020-02-08...2020-02-11
+[2020-02-08]: https://github.com/latex3/latex3/compare/2020-02-03...2020-02-08
 [2020-02-03]: https://github.com/latex3/latex3/compare/2020-01-31...2020-02-03
 [2020-01-31]: https://github.com/latex3/latex3/compare/2020-01-22...2020-01-31
 [2020-01-22]: https://github.com/latex3/latex3/compare/2020-01-12...2020-01-22

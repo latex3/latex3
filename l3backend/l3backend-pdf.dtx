@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2020-02-03}
+% \date{Released 2020-09-24}
 %
 % \maketitle
 %
@@ -56,7 +56,7 @@
 % \section{\pkg{l3backend-pdf} Implementation}
 %
 %    \begin{macrocode}
-%<*initex|package>
+%<*package>
 %<@@=pdf>
 %    \end{macrocode}
 %
@@ -134,8 +134,9 @@
 % \begin{macro}{\@@_backend_object_write:nn, \@@_backend_object_write:nx}
 % \begin{macro}
 %   {
-%     \@@_backend_object_write_array:nn ,
-%     \@@_backend_object_write_dict:nn  ,
+%     \@@_backend_object_write_array:nn   ,
+%     \@@_backend_object_write_dict:nn    ,
+%     \@@_backend_object_write_fstream:nn ,
 %     \@@_backend_object_write_stream:nn
 %   }
 % \begin{macro}{\@@_backend_object_write_stream:nnn}
@@ -166,12 +167,27 @@
 \cs_new_protected:Npn \@@_backend_object_write_array:nn #1#2
   {
     \@@_backend_pdfmark:x
-      { #1 [ ~ \exp_not:n {#2} ~ ] ~ /PUTINTERVAL }
+      { #1 ~0~ [ ~ \exp_not:n {#2} ~ ] ~ /PUTINTERVAL }
   }
 \cs_new_protected:Npn \@@_backend_object_write_dict:nn #1#2
   {
     \@@_backend_pdfmark:x
       { #1 << \exp_not:n {#2} >> /PUT }
+  }
+\cs_new_protected:Npn \@@_backend_object_write_fstream:nn #1#2
+  {
+    \exp_args:Nx
+      \@@_backend_object_write_fstream:nnn {#1} #2
+  }
+\cs_new_protected:Npn \@@_backend_object_write_fstream:nnn #1#2#3
+  {
+    \__kernel_backend_postscript:n
+      {
+        SDict ~ begin ~
+        mark ~ #1 ~ << #2 >> /PUT ~ pdfmark ~
+        mark ~ #1 ~ ( #3 )~ ( r )~ file ~ /PUT ~ pdfmark ~
+        end
+      }
   }
 \cs_new_protected:Npn \@@_backend_object_write_stream:nn #1#2
   {
@@ -182,7 +198,6 @@
   {
     \__kernel_backend_postscript:n
       {
-        [nobreak]
         mark ~ #1 ~ ( #3 ) /PUT ~ pdfmark ~
         mark ~ #1 ~ << #2 >> /PUT ~ pdfmark
       }
@@ -227,6 +242,14 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[EXP]{\@@_backend_pageobject_ref:n}
+%   Page references are easy in \texttt{dvips}.
+%    \begin{macrocode}
+\cs_new:Npn \@@_backend_pageobject_ref:n #1
+  { { Page #1 } }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Annotations}
 %
 % In \texttt{dvips}, annotations have to be constructed manually. As such,
@@ -253,41 +276,30 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\@@_backend_annotation:nnnn, \@@_backend_annotation_aux:nnnn}
-% \begin{macro}{pdf.llx, pdf.lly, pdf.urx, pdf.ury}
+% \begin{macro}{\@@_backend_annotation:nnnn}
 %   Annotations are objects, but we track them separately. Notably, they are
 %   not in the object data lists. Here, to get the co-ordinates of the
 %   annotation, we need to have the data collected at the PostScript level.
 %   That requires a bit of box trickery (effectively a \LaTeXe{} |picture|
 %   of zero size). Once the data is collected, use it to set up the annotation
-%   border. There is a split into two parts here to allow an easy way of
-%   applying the Adobe Reader fix.
+%   border.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_backend_annotation:nnnn #1#2#3#4
   {
-    \@@_backend_annotation_aux:nnnn {#1} {#2} {#3} {#4}
-    \int_gincr:N \g_@@_backend_object_int
-    \int_gset_eq:NN \g_@@_backend_annotation_int \g_@@_backend_object_int
-    \@@_backend_pdfmark:x
-      {
-
-        /_objdef { pdf.obj \int_use:N \g_@@_backend_object_int }
-        pdf.rect ~
-        #4 ~
-        /ANN
-      }
+    \exp_args:Nf \@@_backend_annotation_aux:nnnn
+      { \dim_eval:n {#1} } {#2} {#3} {#4}
   }
 \cs_new_protected:Npn \@@_backend_annotation_aux:nnnn #1#2#3#4
   {
     \box_move_down:nn {#3}
       { \hbox:n { \__kernel_backend_postscript:n { pdf.save.ll } } }
-    \hbox:n {#4}
     \box_move_up:nn {#2}
       {
         \hbox:n
           {
-            \tex_kern:D \dim_eval:n {#1} \scan_stop:
+            \tex_kern:D #1 \scan_stop:
             \__kernel_backend_postscript:n { pdf.save.ur }
+            \tex_kern:D -#1 \scan_stop:
           }
       }
     \int_gincr:N \g_@@_backend_object_int
@@ -296,11 +308,11 @@
       {
         /_objdef { pdf.obj \int_use:N \g_@@_backend_object_int }
         pdf.rect
+        #4 ~
         /ANN
       }
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[EXP]{\@@_backend_annotation_last:}
@@ -446,14 +458,9 @@
     \hbox_set:Nn \l_@@_backend_model_box { Gg }
     \exp_args:Nx \@@_backend_link_outerbox:n
       {
-%<*initex>
-         \l_galley_total_left_margin_dim
-%</initex>
-%<*package>
          \int_if_odd:nTF { \value { page } }
            { \oddsidemargin }
            { \evensidemargin }
-%</package>
       }
     \box_move_down:nn { \box_dp:N \l_@@_backend_content_box }
       { \hbox:n { \__kernel_backend_postscript:n { pdf.save.linkll } } }
@@ -515,12 +522,7 @@
           [
             \dim_to_decimal:n {#1} ~
             \dim_to_decimal:n { -\box_dp:N \l_@@_backend_model_box } ~
-%<*initex>
-            \dim_to_decimal:n { #1 + \l_galley_text_width_dim } ~
-%</initex>
-%<*package>
             \dim_to_decimal:n { #1 + \textwidth } ~
-%</package>
             \dim_to_decimal:n { \box_ht:N \l_@@_backend_model_box }
           ]
           [ exch { pdf.pt.dvi } forall ] def
@@ -563,7 +565,6 @@
 %   question about the name of the hook: to be resolved at the \LaTeXe{}
 %   end.
 %    \begin{macrocode}
-%<*package>
 \use_none:n
   {
     \cs_if_exist:NT \@makecol@hook
@@ -591,7 +592,6 @@
         \cs_set_eq:NN \@@_breaklink_usebox:N \hbox_unpack:N
       }
   }
-%</package>
 %    \end{macrocode}
 % \end{macro}
 %
@@ -616,7 +616,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_rectangle:nn}
+% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_box:nn}
 %   Here, we need to turn the zoom into a scale. We also need to know where
 %   the current anchor point actually is: worked out in PostScript. For the
 %   rectangle version, we have a bit more PostScript: we need two points.
@@ -646,7 +646,7 @@
         /DEST
       }
   }
-\cs_new_protected:Npn \@@_backend_destination_rectangle:nn #1#2
+\cs_new_protected:Npn \@@_backend_destination_box:nn #1#2
   {
     \group_begin:
       \hbox_set:Nn \l_@@_internal_box {#2}
@@ -677,10 +677,32 @@
 %
 % \begin{macro}{\@@_backend_compresslevel:n}
 % \begin{macro}{\@@_backend_compress_objects:n}
-%   These are all no-ops.
+%   Doable for the usual \texttt{ps2pdf} method.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_compresslevel:n #1 { }
-\cs_new_protected:Npn \@@_backend_compress_objects:n #1 { }
+\cs_new_protected:Npn \@@_backend_compresslevel:n #1
+  {
+    \int_compare:nNnT {#1} = 0
+      {
+        \__kernel_backend_literal_postscript:n
+          {
+            /setdistillerparams ~ where
+             { pop << /CompressPages ~ false >> setdistillerparams }
+            if
+          }
+      }
+  }
+\cs_new_protected:Npn \@@_backend_compress_objects:n #1
+  {
+    \bool_if:nF {#1}
+      {
+        \__kernel_backend_literal_postscript:n
+          {
+            /setdistillerparams ~ where
+             { pop << /CompressStreams ~ false >> setdistillerparams }
+            if
+          }
+      }
+  }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -720,10 +742,10 @@
 %</dvips>
 %    \end{macrocode}
 %
-% \subsection{\texttt{pdfmode} backend}
+% \subsection{\LuaTeX{} and \pdfTeX{} backend}
 %
 %    \begin{macrocode}
-%<*pdfmode>
+%<*luatex|pdftex>
 %    \end{macrocode}
 %
 % \subsubsection{Annotations}
@@ -731,28 +753,37 @@
 % \begin{macro}{\@@_backend_annotation:nnnn}
 %   Simply pass the raw data through, just dealing with evaluation of dimensions.
 %    \begin{macrocode}
-\cs_new_protected:Npx \@@_backend_annotation:nnnn #1#2#3#4
+\cs_new_protected:Npn \@@_backend_annotation:nnnn #1#2#3#4
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D annot ~ }
-      { \tex_pdfannot:D }
-      width  ~ \exp_not:N \dim_eval:n {#1} ~
-      height ~ \exp_not:N \dim_eval:n {#2} ~
-      depth  ~ \exp_not:N \dim_eval:n {#3} ~
+%<*luatex>
+    \tex_pdfextension:D annot ~
+%</luatex>
+%<*pdftex>
+    \tex_pdfannot:D
+%</pdftex>
+      width  ~ \dim_eval:n {#1} ~
+      height ~ \dim_eval:n {#2} ~
+      depth  ~ \dim_eval:n {#3} ~
       {#4}
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[EXP]{\@@_backend_annotation_last:}
-%   A tiny amount of extra data gets added here.
+%   A tiny amount of extra data gets added here; we use \texttt{x}-type
+%   expansion to get the space in the right place and form. The \enquote{extra}
+%   space in the \LuaTeX{} version is \emph{required} as it is consumed in
+%   finding the end of the keyword.
 %    \begin{macrocode}
 \cs_new:Npx \@@_backend_annotation_last:
   {
     \exp_not:N \int_value:w
-    \cs_if_exist:NTF \tex_pdffeedback:D
-      { \exp_not:N \tex_pdffeedback:D lastannot ~ }
-      { \exp_not:N \tex_pdflastannot:D }
+%<*luatex>
+      \exp_not:N \tex_pdffeedback:D lastannot ~
+%</luatex>
+%<*pdftex>
+      \exp_not:N \tex_pdflastannot:D
+%</pdftex>
       \c_space_tl 0 ~ R
   }
 %    \end{macrocode}
@@ -768,19 +799,25 @@
   { \@@_backend_link_begin:nnnw {#1} { goto~name } {#2} }
 \cs_new_protected:Npn \@@_backend_link_begin_user:nnw #1#2
   { \@@_backend_link_begin:nnnw {#1} { user } {#2} }
-\cs_new_protected:Npx \@@_backend_link_begin:nnnw #1#2#3
+\cs_new_protected:Npn \@@_backend_link_begin:nnnw #1#2#3
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D startlink ~ }
-      { \tex_pdfstartlink:D }
-        attr {#1}
-        #2 {#3}
+%<*luatex>
+    \tex_pdfextension:D startlink ~
+%</luatex>
+%<*pdftex>
+    \tex_pdfstartlink:D
+%</pdftex>
+      attr {#1}
+      #2 {#3}
   }
-\cs_new_protected:Npx \@@_backend_link_end:
+\cs_new_protected:Npn \@@_backend_link_end:
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D endlink \scan_stop: }
-      { \tex_pdfendlink:D }
+%<*luatex>
+    \tex_pdfextension:D endlink \scan_stop:
+%</luatex>
+%<*pdftex>
+    \tex_pdfendlink:D
+%</pdftex>
   }
 %    \end{macrocode}
 % \end{macro}
@@ -793,9 +830,12 @@
 \cs_new:Npx \@@_backend_link_last:
   {
     \exp_not:N \int_value:w
-    \cs_if_exist:NTF \tex_pdffeedback:D
-      { \exp_not:N \tex_pdffeedback:D lastlink ~ }
-      { \exp_not:N \tex_pdflastlink:D }
+%<*luatex>
+      \exp_not:N \tex_pdffeedback:D lastlink ~
+%</luatex>
+%<*pdftex>
+      \exp_not:N \tex_pdflastlink:D
+%</pdftex>
       \c_space_tl 0 ~ R
   }
 %    \end{macrocode}
@@ -804,29 +844,35 @@
 % \begin{macro}{\@@_backend_link_margin:n}
 %   A simple task: pass the data to the primitive.
 %    \begin{macrocode}
-\cs_new_protected:Npx \@@_backend_link_margin:n #1
+\cs_new_protected:Npn \@@_backend_link_margin:n #1
   {
-    \cs_if_exist:NTF \tex_pdfvariable:D
-      { \exp_not:N \tex_pdfvariable:D linkmargin }
-      { \exp_not:N \tex_pdflinkmargin:D }
-        \exp_not:N \dim_eval:n {#1} \scan_stop:
+%<*luatex>
+    \tex_pdfvariable:D linkmargin
+%</luatex>
+%<*pdftex>
+    \tex_pdflinkmargin:D
+%</pdftex>
+      \dim_eval:n {#1} \scan_stop:
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_rectangle:nn}
+% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_box:nn}
 %   A simple task: pass the data to the primitive. The |\scan_stop:| deals
 %   with the danger of an unterminated keyword. The zoom given here is a
 %   percentage, but we need to pass it as \emph{per mille}. The rectangle
 %   version is also easy as everything is build in.
 %    \begin{macrocode}
-\cs_new_protected:Npx \@@_backend_destination:nn #1#2
+\cs_new_protected:Npn \@@_backend_destination:nn #1#2
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \exp_not:N \tex_pdfextension:D dest ~ }
-      { \exp_not:N \tex_pdfdest:D }
+%<*luatex>
+    \tex_pdfextension:D dest ~
+%</luatex>
+%<*pdftex>
+    \tex_pdfdest:D
+%</pdftex>
         name {#1}
-        \exp_not:N \str_case:nnF {#2}
+        \str_case:nnF {#2}
           {
             { xyz }   { xyz }
             { fit }   { fit }
@@ -836,21 +882,24 @@
             { fith }  { fith }
             { fitv }  { fitv }
           }
-          { xyz ~ zoom \exp_not:N \fp_eval:n { #2 * 10 } }
+          { xyz ~ zoom \fp_eval:n { #2 * 10 } }
         \scan_stop:
   }
-\cs_new_protected:Npx \@@_backend_destination_rectangle:nn #1#2
+\cs_new_protected:Npn \@@_backend_destination_box:nn #1#2
   {
     \group_begin:
       \hbox_set:Nn \l_@@_internal_box {#2}
-     \cs_if_exist:NTF \tex_pdfextension:D
-      { \exp_not:N \tex_pdfextension:D dest ~ }
-      { \exp_not:N \tex_pdfdest:D }
+%<*luatex>
+      \tex_pdfextension:D dest ~
+%</luatex>
+%<*pdftex>
+      \tex_pdfdest:D
+%</pdftex>
       name {#1}
       fitr ~
-        width  \exp_not:N \box_wd:N \l_@@_internal_box
-        height \exp_not:N \box_ht:N \l_@@_internal_box
-        depth  \exp_not:N \box_dp:N \l_@@_internal_box
+        width  \box_wd:N \l_@@_internal_box
+        height \box_ht:N \l_@@_internal_box
+        depth  \box_dp:N \l_@@_internal_box
       \box_use:N \l_@@_internal_box
     \group_end:
   }
@@ -861,19 +910,25 @@
 %
 % \begin{macro}{\@@_backend_catalog_gput:nn, \@@_backend_info_gput:nn}
 %    \begin{macrocode}
-\cs_new_protected:Npx \@@_backend_catalog_gput:nn #1#2
+\cs_new_protected:Npn \@@_backend_catalog_gput:nn #1#2
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D catalog }
-      { \tex_pdfcatalog:D }
-        { / #1 ~ #2 }
+%<*luatex>
+    \tex_pdfextension:D catalog
+%</luatex>
+%<*pdftex>
+    \tex_pdfcatalog:D
+%</pdftex>
+      { / #1 ~ #2 }
   }
-\cs_new_protected:Npx \@@_backend_info_gput:nn #1#2
+\cs_new_protected:Npn \@@_backend_info_gput:nn #1#2
   {
-    \cs_if_exist:NTF \tex_pdfextension:D
-      { \tex_pdfextension:D info }
-      { \tex_pdfinfo:D }
-        { / #1 ~ #2 }
+%<*luatex>
+    \tex_pdfextension:D info
+%</luatex>
+%<*pdftex>
+    \tex_pdfinfo:D
+%</pdftex>
+      { / #1 ~ #2 }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -892,26 +947,25 @@
 %   Declaring objects means reserving at the PDF level plus starting
 %   tracking.
 %    \begin{macrocode}
-\group_begin:
-  \cs_set_protected:Npn \@@_tmp:w #1#2
-    {
-      \cs_new_protected:Npx \@@_backend_object_new:nn ##1##2
-        {
-          #1 reserveobjnum ~
-          \int_const:cn
-            { c_@@_backend_object_ \exp_not:N \tl_to_str:n {##1} _int }
-            {#2}
-          \prop_gput:Nnn \exp_not:N \g_@@_backend_object_prop {##1} {##2}
-        }
-    }
-  \cs_if_exist:NTF \tex_pdfextension:D
-    {
-      \@@_tmp:w
-        { \tex_pdfextension:D obj ~ }
-        { \exp_not:N \tex_pdffeedback:D lastobj }
-    }
-    { \@@_tmp:w { \tex_pdfobj:D } { \tex_pdflastobj:D } }
-\group_end:
+\cs_new_protected:Npn \@@_backend_object_new:nn #1#2
+  {
+%<*luatex>
+    \tex_pdfextension:D obj ~
+%</luatex>
+%<*pdftex>
+    \tex_pdfobj:D
+%</pdftex>
+      reserveobjnum ~
+      \int_const:cn
+        { c_@@_backend_object_ \tl_to_str:n {#1} _int }
+%<*luatex>
+        { \tex_pdffeedback:D lastobj }
+%</luatex>
+%<*pdftex>
+        { \tex_pdflastobj:D }
+%</pdftex>
+    \prop_gput:Nnn \g_@@_backend_object_prop {#1} {#2}
+  }
 \cs_new:Npn \@@_backend_object_ref:n #1
   { \int_use:c { c_@@_backend_object_ \tl_to_str:n {#1} _int } ~ 0 ~ R }
 %    \end{macrocode}
@@ -923,36 +977,34 @@
 %   Writing the data needs a little information about the structure of the
 %   object.
 %    \begin{macrocode}
-\group_begin:
-  \cs_set_protected:Npn \@@_tmp:w #1
-    {
-      \cs_new_protected:Npn \@@_backend_object_write:nn ##1##2
+\cs_new_protected:Npn \@@_backend_object_write:nn #1#2
+  {
+%<*luatex>
+    \tex_immediate:D \tex_pdfextension:D obj ~
+%</luatex>
+%<*pdftex>
+    \tex_immediate:D \tex_pdfobj:D
+%</pdftex>
+      useobjnum ~
+      \int_use:c
+        { c_@@_backend_object_ \tl_to_str:n {#1} _int }
+      \str_case_e:nn
+        { \prop_item:Nn \g_@@_backend_object_prop {#1} }
         {
-          \tex_immediate:D #1 useobjnum ~
-          \int_use:c
-            { c_@@_backend_object_ \tl_to_str:n {##1} _int }
-            \str_case_e:nn
-              { \prop_item:Nn \g_@@_backend_object_prop {##1} }
-              {
-                { array } { { [ ~ \exp_not:n {##2} ~ ] } }
-                { dict }  { { << ~ \exp_not:n {##2} ~ >> } }
-                { fstream }
-                  {
-                    stream ~ attr ~ { \@@_exp_not_i:nn ##2 } ~
-                      file ~ { \@@_exp_not_ii:nn ##2 }
-                  }
-                { stream }
-                  {
-                    stream ~ attr ~ { \@@_exp_not_i:nn ##2 } ~
-                      { \@@_exp_not_ii:nn ##2 }
-                  }
-              }
+          { array } { { [ ~ \exp_not:n {#2} ~ ] } }
+          { dict }  { { << ~ \exp_not:n {#2} ~ >> } }
+          { fstream }
+            {
+              stream ~ attr ~ { \@@_exp_not_i:nn #2 } ~
+                file ~ { \@@_exp_not_ii:nn #2 }
+            }
+          { stream }
+            {
+              stream ~ attr ~ { \@@_exp_not_i:nn #2 } ~
+                { \@@_exp_not_ii:nn #2 }
+            }
         }
-    }
-  \cs_if_exist:NTF \tex_pdfextension:D
-    { \@@_tmp:w { \tex_pdfextension:D obj ~ } }
-    { \@@_tmp:w { \tex_pdfobj:D } }
-\group_end:
+  }
 \cs_generate_variant:Nn \@@_backend_object_write:nn { nx }
 \cs_new:Npn \@@_exp_not_i:nn #1#2 { \exp_not:n {#1} }
 \cs_new:Npn \@@_exp_not_ii:nn #1#2 { \exp_not:n {#2} }
@@ -963,34 +1015,31 @@
 % \begin{macro}{\@@_backend_object_now:nn, \@@_backend_object_now:nx}
 %   Much like writing, but direct creation.
 %    \begin{macrocode}
-\group_begin:
-  \cs_set_protected:Npn \@@_tmp:w #1
-    {
-      \cs_new_protected:Npn \@@_backend_object_now:nn ##1##2
+\cs_new_protected:Npn \@@_backend_object_now:nn #1#2
+  {
+%<*luatex>
+    \tex_immediate:D \tex_pdfextension:D obj ~
+%</luatex>
+%<*pdftex>
+    \tex_immediate:D \tex_pdfobj:D
+%</pdftex>
+      \str_case:nn
+        {#1}
         {
-          \tex_immediate:D #1
-            \str_case:nn
-              {##1}
-              {
-                { array } { { [ ~ \exp_not:n {##2} ~ ] } }
-                { dict }  { { << ~ \exp_not:n {##2} ~ >> } }
-                { fstream }
-                  {
-                    stream ~ attr ~ { \@@_exp_not_i:nn ##2 } ~
-                      file ~ { \@@_exp_not_ii:nn ##2 }
-                  }
-                { stream }
-                  {
-                    stream ~ attr ~ { \@@_exp_not_i:nn ##2 } ~
-                      { \@@_exp_not_ii:nn ##2 }
-                  }
-              }
+          { array } { { [ ~ \exp_not:n {#2} ~ ] } }
+          { dict }  { { << ~ \exp_not:n {#2} ~ >> } }
+          { fstream }
+            {
+              stream ~ attr ~ { \@@_exp_not_i:nn #2 } ~
+                file ~ { \@@_exp_not_ii:nn #2 }
+            }
+          { stream }
+            {
+              stream ~ attr ~ { \@@_exp_not_i:nn #2 } ~
+                { \@@_exp_not_ii:nn #2 }
+            }
         }
-    }
-  \cs_if_exist:NTF \tex_pdfextension:D
-    { \@@_tmp:w { \tex_pdfextension:D obj ~ } }
-    { \@@_tmp:w { \tex_pdfobj:D } }
-\group_end:
+  }
 \cs_generate_variant:Nn \@@_backend_object_now:nn { nx }
 %    \end{macrocode}
 % \end{macro}
@@ -1001,10 +1050,30 @@
 \cs_new:Npx \@@_backend_object_last:
   {
     \exp_not:N \int_value:w
-    \cs_if_exist:NTF \tex_pdffeedback:D
-      { \exp_not:N \tex_pdffeedback:D lastobj ~ }
-      { \exp_not:N \tex_pdflastobj:D }
+%<*luatex>
+      \exp_not:N \tex_pdffeedback:D lastobj ~
+%</luatex>
+%<*pdftex>
+      \exp_not:N \tex_pdflastobj:D
+%</pdftex>
       \c_space_tl 0 ~ R
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_backend_pageobject_ref:n}
+%   The usual wrapper situation; the three spaces here are essential.
+%    \begin{macrocode}
+\cs_new:Npx \@@_backend_pageobject_ref:n #1
+  {
+    \exp_not:N \int_value:w
+%<*luatex>
+      \exp_not:N \tex_pdffeedback:D pageref
+%</luatex>
+%<*pdftex>
+      \exp_not:N \tex_pdfpageref:D
+%</pdftex>
+          \c_space_tl #1 \c_space_tl \c_space_tl \c_space_tl 0 ~ R
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1016,13 +1085,16 @@
 % \begin{macro}{\@@_backend_objcompresslevel:n}
 %   Simply pass data to the engine.
 %    \begin{macrocode}
-\cs_new_protected:Npx \@@_backend_compresslevel:n #1
+\cs_new_protected:Npn \@@_backend_compresslevel:n #1
   {
-    \exp_not:N \tex_global:D
-    \cs_if_exist:NTF \tex_pdfcompresslevel:D
-      { \tex_pdfcompresslevel:D }
-      { \tex_pdfvariable:D compresslevel }
-      \exp_not:N \int_value:w \exp_not:N \int_eval:n {#1} \scan_stop:
+    \tex_global:D
+%<*luatex>
+      \tex_pdfvariable:D compresslevel
+%</luatex>
+%<*pdftex>
+      \tex_pdfcompresslevel:D
+%</pdftex>
+        \int_value:w \int_eval:n {#1} \scan_stop:
   }
 \cs_new_protected:Npn \@@_backend_compress_objects:n #1
   {
@@ -1030,13 +1102,16 @@
       { \@@_backend_objcompresslevel:n { 2 } }
       { \@@_backend_objcompresslevel:n { 0 } }
   }
-\cs_new_protected:Npx \@@_backend_objcompresslevel:n #1
+\cs_new_protected:Npn \@@_backend_objcompresslevel:n #1
   {
-    \exp_not:N \tex_global:D
-    \cs_if_exist:NTF \tex_pdfobjcompresslevel:D
-      { \tex_pdfobjcompresslevel:D }
-      { \tex_pdfvariable:D objcompresslevel }
-      #1 \scan_stop:
+    \tex_global:D
+%<*luatex>
+      \tex_pdfvariable:D objcompresslevel
+%</luatex>
+%<*pdftex>
+      \tex_pdfobjcompresslevel:D
+%</pdftex>
+        #1 \scan_stop:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1045,61 +1120,65 @@
 %
 % \begin{macro}
 %   {\@@_backend_version_major_gset:n, \@@_backend_version_minor_gset:n}
-%   At present, we don't have a primitive for the major version in \pdfTeX{},
-%   but we anticipate one \ldots
+%   The availability of the primitive is not universal, so we have to test
+%   at load time.
 %    \begin{macrocode}
 \cs_new_protected:Npx \@@_backend_version_major_gset:n #1
   {
-    \cs_if_exist:NTF \tex_pdfvariable:D
+%<*luatex>
+    \int_compare:nNnT \tex_luatexversion:D > { 106 }
       {
-        \int_compare:nNnT \tex_luatexversion:D > { 106 }
-          {
-            \exp_not:N \tex_global:D \tex_pdfvariable:D majorversion
-              \exp_not:N \int_eval:n {#1} \scan_stop:
-          }
+        \exp_not:N \tex_global:D \tex_pdfvariable:D majorversion
+          \exp_not:N \int_eval:n {#1} \scan_stop:
       }
+%</luatex>
+%<*pdftex>
+    \cs_if_exist:NT \tex_pdfmajorversion:D
       {
-        \cs_if_exist:NT \tex_pdfmajorversion:D
-          {
-            \exp_not:N \tex_global:D \tex_pdfmajorversion:D
-              \exp_not:N \int_eval:n {#1} \scan_stop:
-          }
+        \exp_not:N \tex_global:D \tex_pdfmajorversion:D
+          \exp_not:N \int_eval:n {#1} \scan_stop:
       }
+%</pdftex>
   }
-\cs_new_protected:Npx \@@_backend_version_minor_gset:n #1
+\cs_new_protected:Npn \@@_backend_version_minor_gset:n #1
   {
-    \exp_not:N \tex_global:D
-    \cs_if_exist:NTF \tex_pdfminorversion:D
-      { \exp_not:N \tex_pdfminorversion:D }
-      { \tex_pdfvariable:D minorversion }
-        \exp_not:N \int_eval:n {#1} \scan_stop:
+    \tex_global:D
+%<*luatex>
+      \tex_pdfvariable:D minorversion
+%</luatex>
+%<*pdftex>
+      \tex_pdfminorversion:D
+%</pdftex>
+        \int_eval:n {#1} \scan_stop:
   }
 %    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}[EXP]{\@@_backend_version_major:, \@@_backend_version_minor:}
-%   At present, we don't have a primitive for the major version!
+%   As above.
 %    \begin{macrocode}
 \cs_new:Npx \@@_backend_version_major:
   {
-    \cs_if_exist:NTF \tex_pdfvariable:D
-      {
-        \int_compare:nNnTF \tex_luatexversion:D > { 106 }
-          { \exp_not:N \tex_the:D \tex_pdfvariable:D majorversion }
-          { 1 }
-      }
-      {
-        \cs_if_exist:NTF \tex_pdfmajorversion:D
-          { \exp_not:N \tex_the:D \tex_pdfmajorversion:D }
-          { 1 }
-      }
+%<*luatex>
+    \int_compare:nNnTF \tex_luatexversion:D > { 106 }
+      { \exp_not:N \tex_the:D \tex_pdfvariable:D majorversion }
+      { 1 }
+%</luatex>
+%<*pdftex>
+    \cs_if_exist:NTF \tex_pdfmajorversion:D
+      { \exp_not:N \tex_the:D \tex_pdfmajorversion:D }
+      { 1 }
+%</pdftex>
   }
-\cs_new:Npx \@@_backend_version_minor:
+\cs_new:Npn \@@_backend_version_minor:
   {
-    \exp_not:N \tex_the:D
-    \cs_if_exist:NTF \tex_pdfminorversion:D
-      { \exp_not:N \tex_pdfminorversion:D }
-      { \tex_pdfvariable:D minorversion }
+    \tex_the:D
+%<*luatex>
+      \tex_pdfvariable:D minorversion
+%</luatex>
+%<*pdftex>
+      \tex_pdfminorversion:D
+%</pdftex>
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1120,13 +1199,13 @@
 % \end{macro}
 %
 %    \begin{macrocode}
-%</pdfmode>
+%</luatex|pdftex>
 %    \end{macrocode}
 %
 % \subsection{\texttt{dvipdfmx} backend}
 %
 %    \begin{macrocode}
-%<*dvipdfmx|xdvipdfmx>
+%<*dvipdfmx|xetex>
 %    \end{macrocode}
 %
 % \begin{macro}{\@@_backend:n, \@@_backend:x}
@@ -1251,25 +1330,28 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[EXP]{\@@_backend_pageobject_ref:n}
+%   Page references are easy in \texttt{dvipdfmx}/\XeTeX{}.
+%    \begin{macrocode}
+\cs_new:Npn \@@_backend_pageobject_ref:n #1
+  { @page #1 }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Annotations}
 %
 % \begin{variable}{\g_@@_landscape_bool}
-%   There is a bug in \texttt{(x)dvipdfmx} which means annotations do
+%   There is a bug in \texttt{dvipdfmx}/\XeTeX{} which means annotations do
 %   not rotate. As such, we need to know if landscape is active.
 %    \begin{macrocode}
 \bool_new:N \g_@@_landscape_bool
-%<*package>
-\AtBeginDocument
+\cs_if_exist:NT \landscape
   {
-    \cs_if_exist:NT \landscape
-      {
-        \tl_put_right:Nn \landscape
-          { \bool_gset_true:N \g_@@_landscape_bool }
-        \tl_put_left:Nn \endlandscape
-          { \bool_gset_false:N \g_@@_landscape_bool }
-      }
+    \tl_put_right:Nn \landscape
+      { \bool_gset_true:N \g_@@_landscape_bool }
+    \tl_put_left:Nn \endlandscape
+      { \bool_gset_false:N \g_@@_landscape_bool }
   }
-%</package>
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1365,7 +1447,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_rectangle:nn}
+% \begin{macro}{\@@_backend_destination:nn, \@@_backend_destination_box:nn}
 %   Here, we need to turn the zoom into a scale. The method for \texttt{FitR}
 %   is from Alexander Grahn: the idea is to avoid needing to do any calculations
 %   in \TeX{} by using the backend data for \texttt{@xpos} and \texttt{@ypos}.
@@ -1391,7 +1473,7 @@
         ]
       }
   }
-\cs_new_protected:Npn \@@_backend_destination_rectangle:nn #1#2
+\cs_new_protected:Npn \@@_backend_destination_box:nn #1#2
   {
     \group_begin:
       \hbox_set:Nn \l_@@_internal_box {#2}
@@ -1483,7 +1565,7 @@
 % \end{macro}
 %
 %    \begin{macrocode}
-%</dvipdfmx|xdvipdfmx>
+%</dvipdfmx|xetex>
 %    \end{macrocode}
 %
 % \subsection{\texttt{dvisvgm} backend}
@@ -1509,6 +1591,7 @@
 % \begin{macro}{\@@_backend_object_write:nn, , \@@_backend_object_write:nx}
 % \begin{macro}{\@@_backend_object_now:nn, , \@@_backend_object_now:nx}
 % \begin{macro}{\@@_backend_object_last:}
+% \begin{macro}[EXP]{\@@_backend_pageobject_ref:n}
 %   All no-ops here.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_backend_object_new:nn #1#2 { }
@@ -1518,7 +1601,9 @@
 \cs_new_protected:Npn \@@_backend_object_now:nn #1#2 { }
 \cs_new_protected:Npn \@@_backend_object_now:nx #1#2 { }
 \cs_new:Npn \@@_backend_object_last: { }
+\cs_new:Npn \@@_backend_pageobject_ref:n #1 { }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -1569,7 +1654,7 @@
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-%</initex|package>
+%</package>
 %    \end{macrocode}
 %
 % \end{implementation}

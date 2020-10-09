@@ -35,6 +35,12 @@ if LUAVERSION < 5.2 and jit then
     LUAVERSION   = 5.2
 end
 
+-- this is lmtx only:
+
+-- if lua and lua.openfile then
+--     io.open = lua.openfile
+-- end
+
 -- lpeg
 
 if not lpeg then

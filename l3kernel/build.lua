@@ -148,65 +148,11 @@ function cmdcheck()
   end
 end
 
-function format()
-  local engines = checkengines
-  if optengines then
-    engines = optengines
-  end
-  local errorlevel = unpack()
-  if errorlevel ~=0 then
-    return errorlevel
-  end
-  local localdir = abspath(localdir)
-  local localtexmf = ""
-  if texmfdir and texmfdir ~= "" then
-    localtexmf = os_pathsep .. abspath(texmfdir) .. "//"
-  end
-  errorlevel = run(
-    unpackdir,
-    os_setenv .. " TEXINPUTS=." .. localtexmf .. os_pathsep
-      .. localdir .. (unpacksearch and os_pathsep or "") ..
-    os_concat ..
-    unpackexe .. " " .. unpackopts .. " l3format.ins"
-  )
-  local function mkformat(engine)
-    local realengine = engine
-    -- Special casing for (u)pTeX
-    if string.match(engine, "^u?ptex$") then
-      realengine = "e" .. engine
-    end
-    local errorlevel = run(
-      unpackdir,
-      realengine .. " -etex -ini l3format.ltx"
-     )
-     if errorlevel ~=0 then
-       return errorlevel
-     end
-     local fmtname = "l3" .. engine .. ".fmt"
-     ren(unpackdir, "l3format.fmt", fmtname)
-     cp(fmtname, unpackdir, ".")
-     return 0
-  end
-  local engine
-  for _,engine in pairs(engines) do
-    errorlevel = mkformat(engine)
-    if errorlevel ~=0 then
-      return errorlevel
-    end
-  end
-  return 0
-end
-
 target_list = target_list or { }
 target_list.cmdcheck =
   {
     func = cmdcheck,
     desc = "Run cmd cover test"
-  }
-target_list.format =
-  {
-    func = format,
-    desc = "Create l3formats"
   }
 
 -- Find and run the build system
