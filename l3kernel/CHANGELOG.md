@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Extend case changer to cover all of Greek with pdfTeX
+
 ### Fixed
 - Some aspects of `cctab` setup with 8-bit engines(issue #814)
 
