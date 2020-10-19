@@ -49,6 +49,7 @@ tlmgr install lualatex-math
   
 # For the doc target
 tlmgr install \
+  alphalph    \
   bookmark    \
   booktabs    \
   colortbl    \
