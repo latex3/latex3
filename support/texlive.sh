@@ -52,6 +52,7 @@ tlmgr install \
   alphalph    \
   bookmark    \
   booktabs    \
+  catchfile   \
   colortbl    \
   csquotes    \
   dvips       \
