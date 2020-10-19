@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Avoid relying on braced `\input` primitive syntax
+
 ## [2020-10-05]
 
 ### Changed
