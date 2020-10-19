@@ -45,7 +45,7 @@ tlmgr install \
   unicode-math
 
 # Dependencies for tests that are not auto-resolved
-tlmgr install lualatex-math
+tlmgr install bibtex lualatex-math
   
 # For the doc target
 tlmgr install \
