@@ -36,7 +36,6 @@ tlmgr install amsmath tools
 tlmgr install metafont mfware
 
 # Contrib packages for testing
-# The deps here will include l3... but that's not worth worrying about
 tlmgr install \
   chemformula \
   ctex        \
