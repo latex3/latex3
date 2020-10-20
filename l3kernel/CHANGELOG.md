@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Avoid relying on braced `\input` primitive syntax
+- Correct expansion of environments in `\text_purify:n`
 
 ### Changed
 - Extend case changer to cover all of Greek with pdfTeX
