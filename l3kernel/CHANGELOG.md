@@ -7,8 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-###
-Avoid relying on braced `\input` primitive syntax
+### Fixed
+- Avoid relying on braced `\input` primitive syntax
 
 ### Changed
 - Extend case changer to cover all of Greek with pdfTeX
