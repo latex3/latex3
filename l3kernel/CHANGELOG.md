@@ -7,15 +7,18 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+-  `\tl_if_font_selection:N(TF)` (see #806)
+
 ### Fixed
 - Avoid relying on braced `\input` primitive syntax
 - Correct expansion of environments in `\text_purify:n`
+- Some aspects of `cctab` setup with 8-bit engines(issue #814)
 
 ### Changed
+- Improved performance for `tl` functions
 - Extend case changer to cover all of Greek with pdfTeX
-
-### Fixed
-- Some aspects of `cctab` setup with 8-bit engines(issue #814)
 
 ## [2020-10-05]
 
