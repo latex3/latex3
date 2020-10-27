@@ -11,7 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
--  `\tl_if_font_selection:N(TF)` (see #806)
+-  `\token_if_font_selection:N(TF)` (see #806)
 
 ### Fixed
 - Avoid relying on braced `\input` primitive syntax
