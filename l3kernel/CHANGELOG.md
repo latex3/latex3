@@ -7,6 +7,34 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-10-27]
+
+### Added
+
+-  `\token_if_font_selection:N(TF)` (see #806)
+
+### Fixed
+- Avoid relying on braced `\input` primitive syntax
+- Correct expansion of environments in `\text_purify:n`
+- Some aspects of `cctab` setup with 8-bit engines(issue #814)
+
+### Changed
+- Improved performance for `tl` functions
+- Extend case changer to cover all of Greek with pdfTeX
+
+## [2020-10-05]
+
+### Fixed
+- Correctly detect LaTeX when pre-loading expl3 and setting up
+  case changer
+- Lua emulation of \strcmp (issue #813)
+
+## [2020-09-24]
+
+### Changed
+- Use Lua pseudo-primitives instead of `\directlua`
+- `\token_if_primitive:N(TF)` now reports pseudo-primitives as primitives in LuaTeX
+
 ## [2020-09-06]
 
 ### Fixed
@@ -765,7 +793,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-09-06...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-10-27...HEAD
+[2020-10-27]: https://github.com/latex3/latex3/compare/2020-10-05...2020-10-27
+[2020-10-05]: https://github.com/latex3/latex3/compare/2020-09-24...2020-10-05
+[2020-09-24]: https://github.com/latex3/latex3/compare/2020-09-06...2020-09-24
 [2020-09-06]: https://github.com/latex3/latex3/compare/2020-09-03...2020-09-06
 [2020-09-03]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-03
 [2020-09-01]: https://github.com/latex3/latex3/compare/2020-08-07...2020-09-01

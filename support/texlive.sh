@@ -29,72 +29,35 @@ tlmgr install l3build
 tlmgr install latex-bin luahbtex platex uplatex tex xetex
 
 # Then get the rest of required LaTeX
-tlmgr install amsmath tools 
+tlmgr install amsmath tools
 
 # Assuming a 'basic' font set up, metafont is required to avoid
 # warnings with some packages and errors with others
-tlmgr install metafont mfware texlive-scripts
+tlmgr install metafont mfware
 
 # Contrib packages for testing
-# The deps here will include l3... but that's not worth worrying about
 tlmgr install \
   chemformula \
   ctex        \
   mhchem      \
   siunitx     \
   unicode-math
-# Dependencies for tests that are not auto-resolved:
-# a lot for CTeX as different engine need different stuff,
-# also fonts as they are not down as deps
-tlmgr install \
-  adobemapping  \
-  alphalph      \
-  amsfonts      \
-  bibtex        \
-  bitset        \
-  catchfile     \
-  cjk           \
-  cjkpunct      \
-  ctablestack   \
-  ec            \
-  epstopdf-pkg  \
-  fandol        \
-  lualatex-math \
-  ltxcmds       \
-  pdfescape     \
-  pdftexcmds    \
-  pgf           \
-  trimspaces    \
-  ucharcat      \
-  xcolor        \
-  xecjk         \
-  luatexja      \
-  xkeyval       \
-  zhmetrics
+
+# Dependencies for tests that are not auto-resolved
+tlmgr install bibtex lualatex-math
   
 # For the doc target
 tlmgr install \
-  atbegshi    \
-  atveryend   \
-  auxhook     \
-  bigintcalc  \
+  alphalph    \
   bookmark    \
   booktabs    \
+  catchfile   \
   colortbl    \
   csquotes    \
   dvips       \
   enumitem    \
-  etexcmds    \
   fancyvrb    \
-  gettitlestring \
   hologo      \
-  hycolor     \
-  hyperref    \
-  intcalc     \
-  kvdefinekeys \
-  kvoptions   \
-  kvsetkeys   \
-  letltxmacro \
   listings    \
   makeindex   \
   mathpazo    \
@@ -102,14 +65,11 @@ tlmgr install \
   oberdiek    \
   psnfss      \
   ragged2e    \
-  refcount    \
-  rerunfilecheck \
   times       \
-  underscore  \
-  uniquecounter
+  underscore
 
 # Keep no backups (not required, simply makes cache bigger)
 tlmgr option -- autobackup 0
 
 # Update the TL install but add nothing new
-tlmgr update --self --all --no-auto-install
+tlmgr update --all --no-auto-install

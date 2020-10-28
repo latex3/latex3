@@ -7,6 +7,13 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-10-27]
+
+### Changed
+- Use Lua pseudo-primitives instead of `\directlua`
+
+## [2020-09-24]
+
 ### Added
 - Support for DeviceN color spaces
 
@@ -157,14 +164,14 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2018-05-12]
 
-### Changed 
-- Track changes in primitive naming in `l3kernel` 
+### Changed
+- Track changes in primitive naming in `l3kernel`
 
 ## [2018-04-30]
 
 ### Changed
-- Switch to ISO date format 
-- Improve cross-module use of internal functions 
+- Switch to ISO date format
+- Improve cross-module use of internal functions
 
 ## [2018-03-05]
 
@@ -177,7 +184,9 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-09-11...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-10-27...HEAD
+[2020-10-27]: https://github.com/latex3/latex3/compare/2020-09-24...2020-10-27
+[2020-09-24]: https://github.com/latex3/latex3/compare/2020-09-11...2020-09-24
 [2020-09-11]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-11
 [2020-09-01]: https://github.com/latex3/latex3/compare/2020-08-07...2020-09-01
 [2020-08-07]: https://github.com/latex3/latex3/compare/2020-07-17...2020-08-07
