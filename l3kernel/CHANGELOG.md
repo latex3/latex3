@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Unchanged
 - Extend `\text_expand:n` to cover `\@protected@testopt`
+- Extend `\text_purify:n` to cover `\@protected@testopt`
 
 ## [2020-10-27]
 
