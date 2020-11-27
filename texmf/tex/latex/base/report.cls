@@ -13,7 +13,7 @@
 %% (but please observe conditions on bug reports sent to that address!)
 %% 
 %% 
-%% Copyright (C) 1993-2019
+%% Copyright (C) 1993-2020
 %% The LaTeX3 Project and any individual authors listed elsewhere
 %% in this file.
 %% 
@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}[1995/12/01]
 \ProvidesClass{report}
-              [2019/08/27 v1.4j
+              [2020/04/10 v1.4m
  Standard LaTeX document class]
 \newcommand\@ptsize{}
 \newif\if@restonecol
@@ -51,47 +51,47 @@
 \@titlepagetrue
 \newif\if@openright
 \if@compatibility\else
-\DeclareOption{a4paper}
-   {\setlength\paperheight {297mm}%
-    \setlength\paperwidth  {210mm}}
-\DeclareOption{a5paper}
-   {\setlength\paperheight {210mm}%
-    \setlength\paperwidth  {148mm}}
-\DeclareOption{b5paper}
-   {\setlength\paperheight {250mm}%
-    \setlength\paperwidth  {176mm}}
-\DeclareOption{letterpaper}
-   {\setlength\paperheight {11in}%
-    \setlength\paperwidth  {8.5in}}
-\DeclareOption{legalpaper}
-   {\setlength\paperheight {14in}%
-    \setlength\paperwidth  {8.5in}}
-\DeclareOption{executivepaper}
-   {\setlength\paperheight {10.5in}%
-    \setlength\paperwidth  {7.25in}}
-\DeclareOption{landscape}
-   {\setlength\@tempdima   {\paperheight}%
-    \setlength\paperheight {\paperwidth}%
-    \setlength\paperwidth  {\@tempdima}}
+  \DeclareOption{a4paper}
+     {\setlength\paperheight {297mm}%
+      \setlength\paperwidth  {210mm}}
+  \DeclareOption{a5paper}
+     {\setlength\paperheight {210mm}%
+      \setlength\paperwidth  {148mm}}
+  \DeclareOption{b5paper}
+     {\setlength\paperheight {250mm}%
+      \setlength\paperwidth  {176mm}}
+  \DeclareOption{letterpaper}
+     {\setlength\paperheight {11in}%
+      \setlength\paperwidth  {8.5in}}
+  \DeclareOption{legalpaper}
+     {\setlength\paperheight {14in}%
+      \setlength\paperwidth  {8.5in}}
+  \DeclareOption{executivepaper}
+     {\setlength\paperheight {10.5in}%
+      \setlength\paperwidth  {7.25in}}
+  \DeclareOption{landscape}
+     {\setlength\@tempdima   {\paperheight}%
+      \setlength\paperheight {\paperwidth}%
+      \setlength\paperwidth  {\@tempdima}}
 \fi
 \if@compatibility
   \renewcommand\@ptsize{0}
 \else
-\DeclareOption{10pt}{\renewcommand\@ptsize{0}}
+  \DeclareOption{10pt}{\renewcommand\@ptsize{0}}
 \fi
 \DeclareOption{11pt}{\renewcommand\@ptsize{1}}
 \DeclareOption{12pt}{\renewcommand\@ptsize{2}}
 \if@compatibility\else
-\DeclareOption{oneside}{\@twosidefalse \@mparswitchfalse}
+  \DeclareOption{oneside}{\@twosidefalse \@mparswitchfalse}
 \fi
 \DeclareOption{twoside}{\@twosidetrue  \@mparswitchtrue}
 \DeclareOption{draft}{\setlength\overfullrule{5pt}}
 \if@compatibility\else
-\DeclareOption{final}{\setlength\overfullrule{0pt}}
+  \DeclareOption{final}{\setlength\overfullrule{0pt}}
 \fi
 \DeclareOption{titlepage}{\@titlepagetrue}
 \if@compatibility\else
-\DeclareOption{notitlepage}{\@titlepagefalse}
+  \DeclareOption{notitlepage}{\@titlepagefalse}
 \fi
 \if@compatibility
 \else
@@ -99,20 +99,20 @@
 \DeclareOption{openany}{\@openrightfalse}
 \fi
 \if@compatibility\else
-\DeclareOption{onecolumn}{\@twocolumnfalse}
+  \DeclareOption{onecolumn}{\@twocolumnfalse}
 \fi
 \DeclareOption{twocolumn}{\@twocolumntrue}
 \DeclareOption{leqno}{\input{leqno.clo}}
 \DeclareOption{fleqn}{\input{fleqn.clo}}
 \DeclareOption{openbib}{%
   \AtEndOfPackage{%
-   \renewcommand\@openbib@code{%
+    \renewcommand\@openbib@code{%
       \advance\leftmargin\bibindent
       \itemindent -\bibindent
       \listparindent \itemindent
       \parsep \z@
       }%
-   \renewcommand\newblock{\par}}%
+    \renewcommand\newblock{\par}}%
 }
 \ExecuteOptions{letterpaper,10pt,oneside,onecolumn,final,openany}
 \ProcessOptions
@@ -172,7 +172,7 @@
     \let\chaptermark\@gobble
     \let\sectionmark\@gobble
     }
-  \if@titlepage
+\if@titlepage
   \newcommand\maketitle{\begin{titlepage}%
   \let\footnotesize\small
   \let\footnoterule\relax
@@ -204,41 +204,41 @@
   \global\let\author\relax
   \global\let\date\relax
   \global\let\and\relax
-}
+  }
 \else
-\newcommand\maketitle{\par
-  \begingroup
-    \renewcommand\thefootnote{\@fnsymbol\c@footnote}%
-    \def\@makefnmark{\rlap{\@textsuperscript{\normalfont\@thefnmark}}}%
-    \long\def\@makefntext##1{\parindent 1em\noindent
-            \hb@xt@1.8em{%
+  \newcommand\maketitle{\par
+    \begingroup
+      \renewcommand\thefootnote{\@fnsymbol\c@footnote}%
+      \def\@makefnmark{\rlap{\@textsuperscript{\normalfont\@thefnmark}}}%
+      \long\def\@makefntext##1{\parindent 1em\noindent
+              \hb@xt@1.8em{%
                 \hss\@textsuperscript{\normalfont\@thefnmark}}##1}%
-    \if@twocolumn
-      \ifnum \col@number=\@ne
-        \@maketitle
+      \if@twocolumn
+        \ifnum \col@number=\@ne
+          \@maketitle
+        \else
+          \twocolumn[\@maketitle]%
+        \fi
       \else
-        \twocolumn[\@maketitle]%
-      \fi
-    \else
       \newpage
-      \global\@topnum\z@   % Prevents figures from going at top of page.
-      \@maketitle
-    \fi
-    \thispagestyle{plain}\@thanks
-  \endgroup
-  \setcounter{footnote}{0}%
-  \global\let\thanks\relax
-  \global\let\maketitle\relax
-  \global\let\@maketitle\relax
-  \global\let\@thanks\@empty
-  \global\let\@author\@empty
-  \global\let\@date\@empty
-  \global\let\@title\@empty
-  \global\let\title\relax
-  \global\let\author\relax
-  \global\let\date\relax
-  \global\let\and\relax
-}
+        \global\@topnum\z@   % Prevents figures from going at top of page.
+        \@maketitle
+      \fi
+      \thispagestyle{plain}\@thanks
+    \endgroup
+    \setcounter{footnote}{0}%
+    \global\let\thanks\relax
+    \global\let\maketitle\relax
+    \global\let\@maketitle\relax
+    \global\let\@thanks\@empty
+    \global\let\@author\@empty
+    \global\let\@date\@empty
+    \global\let\@title\@empty
+    \global\let\title\relax
+    \global\let\author\relax
+    \global\let\date\relax
+    \global\let\and\relax
+  }
 \def\@maketitle{%
   \newpage
   \null
@@ -427,10 +427,11 @@
 \renewcommand\p@enumii{\theenumi}
 \renewcommand\p@enumiii{\theenumi(\theenumii)}
 \renewcommand\p@enumiv{\p@enumiii\theenumiii}
-\newcommand\labelitemi{\textbullet}
-\newcommand\labelitemii{\normalfont\bfseries \textendash}
-\newcommand\labelitemiii{\textasteriskcentered}
-\newcommand\labelitemiv{\textperiodcentered}
+\newcommand\labelitemi  {\labelitemfont \textbullet}
+\newcommand\labelitemii {\labelitemfont \bfseries \textendash}
+\newcommand\labelitemiii{\labelitemfont \textasteriskcentered}
+\newcommand\labelitemiv{ \labelitemfont \textperiodcentered}
+\newcommand\labelitemfont{\normalfont}
 \newenvironment{description}
                {\list{}{\labelwidth\z@ \itemindent-\leftmargin
                         \let\makelabel\descriptionlabel}}
@@ -481,7 +482,7 @@
                 \item\relax}
                {\endlist}
 \if@compatibility
-\newenvironment{titlepage}
+  \newenvironment{titlepage}
     {%
       \if@twocolumn
         \@restonecoltrue\onecolumn
@@ -494,7 +495,7 @@
     {\if@restonecol\twocolumn \else \newpage \fi
     }
 \else
-\newenvironment{titlepage}
+  \newenvironment{titlepage}
     {%
       \if@twocolumn
         \@restonecoltrue\onecolumn
