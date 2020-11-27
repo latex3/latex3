@@ -44,8 +44,8 @@ typesetskipfiles = {"source3-body.tex"}
 typesetruns      = 3
 unpackfiles      = {"l3.ins"}
 
-checkdeps   = {maindir .. "/l3backend"}
-typesetdeps = {maindir .. "/l3backend", maindir .. "/l3packages/xparse"}
+checkdeps   = {maindir .. "/l3backend", maindir .. "/l3packages/xparse"}
+typesetdeps = typesetdeps
 unpackdeps  = { }
 
 -- Load the common build code
