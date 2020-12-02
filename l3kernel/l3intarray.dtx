@@ -173,7 +173,478 @@
 %<@@=intarray>
 %    \end{macrocode}
 %
-% \subsection{Allocating arrays}
+% There are two implementations for this module: One \cs{fontdimen} based one
+% for more traditional \TeX\ engines and a Lua based one for engines with Lua support.
+%
+% \subsection{Lua implementation}
+% First, let's look at the Lua variant:
+%
+% We select the Lua version if the Lua helpers were defined. This can be detected by
+% the presence of \cs{@@_gset_count:Nw}.
+%
+%    \begin{macrocode}
+%<*tex>
+\cs_if_exist:NTF \@@_gset_count:Nw
+{
+%</tex>
+%    \end{macrocode}
+%
+% \subsubsection{Allocating arrays}
+%
+% \begin{variable}{\l_@@_loop_int}
+%   A loop index.
+%    \begin{macrocode}
+%<*tex>
+\int_new:N \l_@@_loop_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_table_int, \l_@@_bad_index_int}
+%   Used to differentiate intarrays in Lua and to record an invalid index.
+%    \begin{macrocode}
+\int_new:N \g_@@_table_int
+\int_new:N \l_@@_bad_index_int
+%    \end{macrocode}
+% \end{variable}
+%
+%    \begin{macrocode}
+\__kernel_msg_new:nnn { kernel } { negative-array-size }
+  { Size~of~array~may~not~be~negative:~#1 }
+%    \end{macrocode}
+%
+% \begin{macro}{\s_@@}
+%   Used as marker for intarrays in Lua. Followed by an unbraced number
+%   identifying the array and a single space. This format is used to make it
+%   easy to scan from Lua.
+%    \begin{macrocode}
+%</tex>
+%<*lua>
+luacmd('s_@@', function()
+  scan_int()
+  tex.error'Isolated intarray ignored'
+end, 'protected', 'global')
+%</lua>
+%<*tex>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\intarray_new:Nn, \intarray_new:cn}
+% \begin{macro}{\@@_new:N}
+%   Declare |#1| as a tokenlist with the scanmark and a unique number.
+%   Pass the array's size to the Lua helper.
+%   Every \texttt{intarray} must be global; it's enough to run this
+%   check in \cs{intarray_new:Nn}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_new:N #1
+  {
+    \__kernel_chk_if_free_cs:N #1
+    \int_gincr:N \g_@@_table_int
+    \cs_gset:Npx #1 { \s_@@ \int_use:N \g_@@_table_int \c_space_tl }
+  }
+\cs_new_protected:Npn \intarray_new:Nn #1#2
+  {
+    \@@_new:N #1
+    \@@_gset_count:Nw #1 \int_eval:n {#2} \scan_stop:
+    \int_compare:nNnT { \intarray_count:N #1 } < 0
+      {
+        \__kernel_msg_error:nnx { kernel } { negative-array-size }
+          { \intarray_count:N #1 }
+      }
+  }
+\cs_generate_variant:Nn \intarray_new:Nn { c }
+%</tex>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{@@_table}
+%   Internal helper to scan an intarray token, extract the associated
+%   Lua table and return an error if the input is invalid.
+%    \begin{macrocode}
+%<*lua>
+
+local scan_token = token.scan_token
+local scan_toks = token.scan_toks
+local get_csname = token.get_csname
+local put_next = token.put_next
+local s_@@ = token.create's_@@'
+local use_none
+
+local use_i = token.create'use:n'
+if use_i.cmdname == "undefined_cs" then
+  use_i = nil
+else
+  use_none = token.create'use_none:n'
+end
+
+local scan_argument = token.scan_argument
+local @@_table do
+  local tables = get_luadata and get_luadata'@@' or {[0] = {}}
+  function @@_table()
+    local t = scan_token()
+    if t ~= s_@@ then
+      token.put_next(t)
+      tex.error'intarray expected'
+      return tables[0]
+    end
+    local i = scan_int()
+    local table = tables[i]
+    if table then return table end
+    table = {}
+    tables[i] = table
+    return table
+  end
+  if register_luadata then
+    register_luadata('@@', function()
+      local t = "{[0]={},"
+      for i=1, #tables do
+        t = string.format("%s{%s},", t, table.concat(tables[i], ','))
+      end
+      return t .. "}"
+    end)
+  end
+end
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\intarray_count:N, \intarray_count:c}
+% \begin{macro}[EXP]{\@@_gset_count:Nw}
+%   Set and get the size of an array. ``Setting the size'' means in this context that
+%   we add zeros until we reach the desired size.
+%    \begin{macrocode}
+
+local write = tex.write
+
+luacmd('@@_gset_count:Nw', function()
+  if not use_i then
+    use_i = token.create'use:n'
+    use_none = token.create'use_none:n'
+  end
+  local t = @@_table()
+  local n = scan_int()
+  for i=#t+1, n do t[i] = 0 end
+end, 'protected', 'global')
+
+luacmd('intarray_count:N', function()
+  write(#@@_table())
+end, 'global')
+%</lua>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*tex>
+\cs_generate_variant:Nn \intarray_count:N { c }
+%</tex>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsubsection{Array items}
+%
+% \begin{macro}{\@@_gset:wNwF, \@@_gset:wNw}
+%   The setter provided by Lua. The argument order somewhat emulates the |\fontdimen|
+%   This has been chosen over a more conventional order to provide a delimiter for the numbers.
+%    \begin{macrocode}
+%<*lua>
+luacmd('@@_gset:wNwF', function()
+  local i = scan_int()
+  local t = @@_table()
+  if t[i] then
+    t[i] = scan_int()
+    put_next(use_none)
+  else
+    tex.l_@@_bad_index_int = i
+    scan_int()
+    put_next(use_i)
+  end
+end, 'protected', 'global')
+
+luacmd('@@_gset:wNw', function()
+  local i = scan_int()
+  local t = @@_table()
+  if t[i] then
+    t[i] = scan_int()
+    put_next(use_none)
+  else
+    scan_int()
+    put_next(use_i)
+  end
+end, 'protected', 'global')
+%</lua>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\intarray_gset:Nnn, \intarray_gset:cnn, \__kernel_intarray_gset:Nnn}
+%   Set the appropriate \tn{fontdimen}.  The
+%   \cs{__kernel_intarray_gset:Nnn} function does not use
+%   \cs{int_eval:n}, namely its arguments must be suitable for
+%   \cs{int_value:w}.  The user version checks the position and value
+%   are within bounds.
+%    \begin{macrocode}
+%<*tex>
+\cs_new_protected:Npn \__kernel_intarray_gset:Nnn #1#2#3
+{ \@@_gset:wNw #2 #1 #3 \scan_stop: }
+\cs_new_protected:Npn \intarray_gset:Nnn #1#2#3
+  {
+    \@@_gset:wNwF \int_eval:n {#2} #1 \int_eval:n{#3}
+      {
+        \__kernel_msg_error:nnxxx { kernel } { out-of-bounds }
+          { \token_to_str:N #1 } { \int_use:N \l_@@_bad_index_int } { \intarray_count:N #1 }
+      }
+  }
+\cs_generate_variant:Nn \intarray_gset:Nnn { c }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\intarray_gzero:N, \intarray_gzero:c}
+%   Set the appropriate \tn{fontdimen} to zero.  No bound checking
+%   needed.  The \cs{prg_replicate:nn} possibly uses quite a lot of
+%   memory, but this is somewhat comparable to the size of the array,
+%   and it is much faster than an \cs{int_step_inline:nn} loop.
+%    \begin{macrocode}
+\cs_new_protected:Npn \intarray_gzero:N #1
+  {
+    \int_zero:N \l_@@_loop_int
+    \prg_replicate:nn { \intarray_count:N #1 }
+      {
+        \int_incr:N \l_@@_loop_int
+        \@@_gset:wNwF \l_@@_loop_int #1 \c_zero_dim {}
+      }
+  }
+\cs_generate_variant:Nn \intarray_gzero:N { c }
+%</tex>
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\intarray_item:Nn, \intarray_item:cn, \__kernel_intarray_item:Nn}
+% \begin{macro}{\@@_item:wNF,\@@_item:wN}
+%   Get the appropriate \tn{fontdimen} and perform bound checks.  The
+%   \cs{__kernel_intarray_item:Nn} function omits bound checks and omits
+%   \cs{int_eval:n}, namely its argument must be a \TeX{} integer
+%   suitable for \cs{int_value:w}.
+%    \begin{macrocode}
+%<*lua>
+luacmd('@@_item:wNF', function()
+  local i = scan_int()
+  local t = @@_table()
+  local item = t[i]
+  if item then
+    put_next(use_none)
+  else
+    tex.l_@@_bad_index_int = i
+    put_next(use_i)
+  end
+  write(item or 0)
+end, 'global')
+
+luacmd('@@_item:wN', function()
+  local i = scan_int()
+  local t = @@_table()
+  write(t[i])
+end, 'global')
+%</lua>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*tex>
+\cs_new:Npn \__kernel_intarray_item:Nn #1#2
+  { \@@_item:wN #2 #1 }
+\cs_new:Npn \intarray_item:Nn #1#2
+  {
+    \@@_item:wNF \int_eval:n {#2} #1
+      {
+        \__kernel_msg_expandable_error:nnfff { kernel } { out-of-bounds }
+          { \token_to_str:N #1 } { \int_use:N \l_@@_bad_index_int } { \intarray_count:N #1 }
+      }
+  }
+\cs_generate_variant:Nn \intarray_item:Nn { c }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\intarray_rand_item:N, \intarray_rand_item:c}
+%   Importantly, \cs{intarray_item:Nn} only evaluates its argument once.
+%    \begin{macrocode}
+\cs_new:Npn \intarray_rand_item:N #1
+  { \intarray_item:Nn #1 { \int_rand:n { \intarray_count:N #1 } } }
+\cs_generate_variant:Nn \intarray_rand_item:N { c }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Working with contents of integer arrays}
+%
+% \begin{macro}{\intarray_const_from_clist:Nn, \intarray_const_from_clist:cn}
+%   The current Lua helpers do not allow to avoid bound checking, so we have
+%   to count the elements first. Otherwise it is basically the same as
+%   \cs{intarray_new:Nn} (which we don't use because it would complain about the
+%   wrong qualifier in debugging mode)
+%    \begin{macrocode}
+\cs_new_protected:Npn \intarray_const_from_clist:Nn #1#2
+  {
+    \@@_new:N #1
+    \@@_gset_count:Nw #1 \clist_count:n {#2} \scan_stop:
+    \int_zero:N \l_@@_loop_int
+    \clist_map_inline:nn {#2}
+      {
+        \int_incr:N \l_@@_loop_int
+        \__kernel_intarray_gset:Nnn #1 \l_@@_loop_int { \int_eval:n {##1} } }
+  }
+\cs_generate_variant:Nn \intarray_const_from_clist:Nn { c }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[rEXP]{\intarray_to_clist:N, \intarray_to_clist:c}
+% \begin{macro}[rEXP]{\@@_to_clist:Nn, \@@_to_clist:w}
+%   Loop through the array, putting a comma before each item.  Remove
+%   the leading comma with |f|-expansion.  We also use the auxiliary in
+%   \cs{intarray_show:N} with argument comma, space.
+%    \begin{macrocode}
+\cs_new:Npn \intarray_to_clist:N #1 { \@@_to_clist:Nn #1 { , } }
+\cs_generate_variant:Nn \intarray_to_clist:N { c }
+\cs_new:Npn \@@_to_clist:Nn #1#2
+  {
+    \int_compare:nNnF { \intarray_count:N #1 } = \c_zero_int
+      {
+        \exp_last_unbraced:Nf \use_none:n
+          { \@@_to_clist:w 1 ; #1 {#2} \prg_break_point: }
+      }
+  }
+\cs_new:Npn \@@_to_clist:w #1 ; #2#3
+  {
+    \if_int_compare:w #1 > \intarray_count:N #2 ~
+      \prg_break:n
+    \fi:
+    #3 \__kernel_intarray_item:Nn #2 {#1}
+    \exp_after:wN \@@_to_clist:w
+    \int_value:w \int_eval:w #1 + \c_one_int ; #2 {#3}
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\intarray_show:N, \intarray_show:c, \intarray_log:N, \intarray_log:c}
+%   Convert the list to a comma list (with spaces after each comma)
+%    \begin{macrocode}
+\cs_new_protected:Npn \intarray_show:N { \@@_show:NN \msg_show:nnxxxx }
+\cs_generate_variant:Nn \intarray_show:N { c }
+\cs_new_protected:Npn \intarray_log:N { \@@_show:NN \msg_log:nnxxxx }
+\cs_generate_variant:Nn \intarray_log:N { c }
+\cs_new_protected:Npn \@@_show:NN #1#2
+  {
+    \__kernel_chk_defined:NT #2
+      {
+        #1 { LaTeX/kernel } { show-intarray }
+          { \token_to_str:N #2 }
+          { \intarray_count:N #2 }
+          { >~ \@@_to_clist:Nn #2 { , ~ } }
+          { }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \subsubsection{Random arrays}
+%
+% \begin{macro}{\intarray_gset_rand:Nn, \intarray_gset_rand:cn}
+% \begin{macro}{\intarray_gset_rand:Nnn, \intarray_gset_rand:cnn}
+% \begin{macro}
+%   {
+%     \@@_gset_rand:Nnn,
+%     \@@_gset_rand:Nff,
+%     \@@_gset_rand_auxi:Nnnn,
+%     \@@_gset_rand_auxii:Nnnn,
+%     \@@_gset_rand_auxiii:Nnnn,
+%     \@@_gset_all_same:Nn,
+%   }
+%   We only perform the bounds checks once.  This is done by two
+%   \cs{@@_gset_overflow_test:nw}, with an appropriate empty argument to
+%   avoid a spurious \enquote{at position \texttt{\#1}} part in the
+%   error message.  Then calculate the number of choices: this is at
+%   most $(2^{30}-1)-(-(2^{30}-1))+1=2^{31}-1$, which just barely does
+%   not overflow.  For small ranges use \cs{__kernel_randint:n} (making
+%   sure to subtract~$1$ \emph{before} adding the random number to the
+%   \meta{min}, to avoid overflow when \meta{min} or \meta{max} are
+%   $\pm\cs{c_max_int}$), otherwise \cs{__kernel_randint:nn}.  Finally,
+%   if there are no random numbers do not define any of the auxiliaries.
+%    \begin{macrocode}
+\cs_new_protected:Npn \intarray_gset_rand:Nn #1
+  { \intarray_gset_rand:Nnn #1 { 1 } }
+\cs_generate_variant:Nn \intarray_gset_rand:Nn { c }
+\sys_if_rand_exist:TF
+  {
+    \cs_new_protected:Npn \intarray_gset_rand:Nnn #1#2#3
+      {
+        \@@_gset_rand:Nff #1
+          { \int_eval:n {#2} } { \int_eval:n {#3} }
+      }
+    \cs_new_protected:Npn \@@_gset_rand:Nnn #1#2#3
+      {
+        \int_compare:nNnTF {#2} > {#3}
+          {
+            \__kernel_msg_expandable_error:nnnn
+              { kernel } { randint-backward-range } {#2} {#3}
+            \@@_gset_rand:Nnn #1 {#3} {#2}
+          }
+          {
+            \@@_gset_rand_auxi:Nnnn #1 { } {#2} {#3}
+          }
+      }
+    \cs_generate_variant:Nn \@@_gset_rand:Nnn { Nff }
+    \cs_new_protected:Npn \@@_gset_rand_auxi:Nnnn #1#2#3#4
+      {
+        \@@_gset_rand_auxii:Nnnn #1 { } {#4} {#3}
+      }
+    \cs_new_protected:Npn \@@_gset_rand_auxii:Nnnn #1#2#3#4
+      {
+        \exp_args:NNf \@@_gset_rand_auxiii:Nnnn #1
+          { \int_eval:n { #3 - #4 + 1 } } {#4} {#3}
+      }
+    \cs_new_protected:Npn \@@_gset_rand_auxiii:Nnnn #1#2#3#4
+      {
+        \exp_args:NNf \@@_gset_all_same:Nn #1
+          {
+            \int_compare:nNnTF {#2} > \c__kernel_randint_max_int
+              {
+                \exp_stop_f:
+                \int_eval:n { \__kernel_randint:nn {#3} {#4} }
+              }
+              {
+                \exp_stop_f:
+                \int_eval:n { \__kernel_randint:n {#2} - 1 + #3 }
+              }
+          }
+      }
+    \cs_new_protected:Npn \@@_gset_all_same:Nn #1#2
+      {
+        \int_zero:N \l_@@_loop_int
+        \prg_replicate:nn { \intarray_count:N #1 }
+          {
+            \int_incr:N \l_@@_loop_int
+            \__kernel_intarray_gset:Nnn #1 \l_@@_loop_int {#2}
+          }
+      }
+  }
+  {
+    \cs_new_protected:Npn \intarray_gset_rand:Nnn #1#2#3
+      {
+        \__kernel_msg_error:nnn { kernel } { fp-no-random }
+          { \intarray_gset_rand:Nnn #1 {#2} {#3} }
+      }
+  }
+\cs_generate_variant:Nn \intarray_gset_rand:Nnn { c }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Font dimension based implementation}
+%
+% Go to the false branch of the conditional above.
+%    \begin{macrocode}
+}{
+%    \end{macrocode}
+%
+% \subsubsection{Allocating arrays}
 %
 % \begin{macro}{\@@_entry:w, \@@_count:w}
 %   We use these primitives quite a lot in this module.
@@ -255,7 +726,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsection{Array items}
+% \subsubsection{Array items}
 %
 % \begin{macro}[EXP]{\@@_signed_max_dim:n}
 %   Used when an item to be stored is larger than \cs{c_max_dim} in
@@ -400,7 +871,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsection{Working with contents of integer arrays}
+% \subsubsection{Working with contents of integer arrays}
 %
 % \begin{macro}{\intarray_const_from_clist:Nn, \intarray_const_from_clist:cn}
 % \begin{macro}{\@@_const_from_clist:nN}
@@ -482,7 +953,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \subsection{Random arrays}
+% \subsubsection{Random arrays}
 %
 % \begin{macro}{\intarray_gset_rand:Nn, \intarray_gset_rand:cn}
 % \begin{macro}{\intarray_gset_rand:Nnn, \intarray_gset_rand:cnn}
@@ -579,6 +1050,8 @@
 % \end{macro}
 %
 %    \begin{macrocode}
+}
+%</tex>
 %</package>
 %    \end{macrocode}
 %
