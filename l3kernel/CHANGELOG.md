@@ -19,7 +19,6 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2020-10-27]
 
 ### Added
-
 -  `\token_if_font_selection:N(TF)` (see #806)
 
 ### Fixed
