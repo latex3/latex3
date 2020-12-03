@@ -12,7 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\peek_regex:nTF`, `\peek_regex_remove_once:nTF`, and
   `\peek_regex_replace_once:nnTF`
 
-### Unchanged
+### Changed
 - Extend `\text_expand:n` to cover `\@protected@testopt`
 - Extend `\text_purify:n` to cover `\@protected@testopt`
 
