@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Setting of line width in vertical coffins in LaTeX
+
 ## [2020-12-03]
 
 ### Added
