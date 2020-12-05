@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-12-05]
+
 ### Fixed
 - Setting of line width in vertical coffins in LaTeX
 
@@ -808,7 +810,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-12-03...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-12-05...HEAD
+[2020-12-05]: https://github.com/latex3/latex3/compare/2020-12-03...2020-12-05
 [2020-12-03]: https://github.com/latex3/latex3/compare/2020-10-27...2020-12-03
 [2020-10-27]: https://github.com/latex3/latex3/compare/2020-10-05...2020-10-27
 [2020-10-05]: https://github.com/latex3/latex3/compare/2020-09-24...2020-10-05
