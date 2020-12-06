@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- `\peek_analysis_map_inline:n` with spaces and braces
+
 ## [2020-12-05]
 
 ### Fixed
