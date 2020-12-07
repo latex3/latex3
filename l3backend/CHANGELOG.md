@@ -6,6 +6,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for referencing last link with `(x)dvipdfmx` (requires an up-to-date
+  backend)
+
 ## [2020-09-24]
 
 ### Fixed
