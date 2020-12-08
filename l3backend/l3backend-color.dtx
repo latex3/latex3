@@ -315,12 +315,12 @@
 % \subsubsection{\LuaTeX{} and \pdfTeX{}}
 %
 %    \begin{macrocode}
-%<*luatex|pdftex>
+%<*dvipdfmx|luatex|pdftex|xetex>
 %    \end{macrocode}
 %
 % \begin{variable}{\l__kernel_color_stack_int}
-%   \pdfTeX{} and \LuaTeX{} have multiple stacks available, and to track
-%   which one is in use a variable is required.
+%   \pdfTeX{}, \LuaTeX{} and recent \texttt{(x)dvipdfmx} have multiple stacks
+%   available, and to track which one is in use a variable is required.
 %    \begin{macrocode}
 \int_new:N \l__kernel_color_stack_int
 %    \end{macrocode}
@@ -353,7 +353,7 @@
 % \end{macro}
 %
 %    \begin{macrocode}
-%</luatex|pdftex>
+%</dvipdfmx|luatex|pdftex|xetex>
 %    \end{macrocode}
 %
 % \subsubsection{\texttt{dvipmdfx}/\XeTeX{}}
@@ -364,14 +364,11 @@
 %
 % These backends have the most possible approaches: it recognises both
 % \texttt{dvips}-based color specials and it's own format, plus one can
-% include PDF statements directly. The latter are not subject to the stack,
-% so are not suitable for general use. Of the two stack methods, the dedicated
-% one has been extended to cover color spaces, so it is used in preference to
-% the \texttt{dvips} one.
-%
-% The \LaTeXe{} backend code uses \texttt{dvips}-based code with
-% \texttt{dvipmdfx}/\XeTeX{}, and so we leave getting color from \LaTeXe{} to
-% a shared code path below.
+% include PDF statements directly. Recent releases also have a color stack
+% approach similar to \pdfTeX{}. Of the stack methods, the dedicated
+% the most versatile is the latter as it can cover all of the use cases
+% we have. Thus it is used in preference to the \texttt{dvips}-style interface
+% or the \enquote{native} color specials (which have only one stack).
 %
 % \begin{macro}
 %   {
@@ -382,15 +379,18 @@
 % \begin{macro}{\@@_backend_reset:}
 %    Push the data to the stack.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_select_cmyk:n #1
+\int_compare:nNnT \c__kernel_sys_dvipdfmx_version_int < { 20201111 }
   {
-    \__kernel_backend_literal:n { pdf: bc ~ [#1] }
-    \group_insert_after:N \@@_backend_reset:
+    \cs_gset_protected:Npn \@@_backend_select_cmyk:n #1
+      {
+        \__kernel_backend_literal:n { pdf: bc ~ [#1] }
+        \group_insert_after:N \@@_backend_reset:
+      }
+    \cs_gset_eq:NN \@@_backend_select_gray:n \@@_backend_select_cmyk:n
+    \cs_gset_eq:NN \@@_backend_select_rgb:n \@@_backend_select_cmyk:n
+    \cs_gset_protected:Npn \@@_backend_reset:
+      { \__kernel_backend_literal:n { pdf: ec } }
   }
-\cs_new_eq:NN \@@_backend_select_gray:n \@@_backend_select_cmyk:n
-\cs_new_eq:NN \@@_backend_select_rgb:n \@@_backend_select_cmyk:n
-\cs_new_protected:Npn \@@_backend_reset:
-  { \__kernel_backend_literal:n { pdf: ec } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -701,22 +701,12 @@
 %
 % \begin{macro}{\@@_backend_select_separation:nn, \@@_backend_select_devicen:nn}
 % \begin{macro}{\@@_backend_select:n}
-%   Different syntaxes here as the stacks are accessed very differently.
+%   Although \texttt{(x)dvipdfmx} has a built-in approach to color spaces, that
+%   can't be used with the generic color stacks. So we take an approach in which
+%   we share the same code as for \pdfTeX{}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_backend_select_separation:nn #1#2
-%<*dvipdfmx|xetex>
-  { \@@_backend_select:n { @#1 ~ [#2] } }
-%</dvipdfmx|xetex>
-%<*luatex|pdftex>
   { \@@_backend_select:n { /#1 ~ cs ~ /#1 ~ CS ~ #2 ~ scn ~ #2 ~ SCN } }
-%</luatex|pdftex>
-%<*dvipdfmx|xetex>
-\cs_new_protected:Npn \@@_backend_select:n #1
-  {
-    \__kernel_backend_literal:n { pdf: bc ~ #1 }
-    \group_insert_after:N \@@_backend_reset:
-  }
-%</dvipdfmx|xetex>
 \cs_new_eq:NN \@@_backend_select_devicen:nn \@@_backend_select_separation:nn
 %    \end{macrocode}
 % \end{macro}
@@ -727,9 +717,7 @@
 % \begin{macro}{\@@_backend_separation_init_CIELAB:nnn}
 %   Initialising the PDF structures needs two parts: creating an object
 %   containing the \enquote{real} name of the Separation, then adding a reference
-%   to that to each page. The latter uses the internal name of the \texttt{cs}.
-%   For \texttt{dvipdfmx}/\XeTeX{}, the backend does most of the work so we need a
-%   simplified version. We use a separate object for the tint transformation
+%   to that to each page. We use a separate object for the tint transformation
 %   following the model in the PDF reference.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_backend_separation_init:nnnnn #1#2#3#4#5
@@ -748,7 +736,6 @@
         / \str_convert_pdfname:n {#1} ~ #2 ~
         \pdf_object_last:
       }
-%<*luatex|pdftex>
     \use:x
       {
         \pdfcoredict_gput:nnn
@@ -756,22 +743,12 @@
           { color \int_use:N \g_@@_model_int }
           { \pdf_object_last: }
       }
-%</luatex|pdftex>
   }
 \cs_if_exist:NF \pdf_object_now:nn
   { \cs_gset_protected:Npn \@@_backend_separation_init:nnnnn #1#2#3#4#5 { } }
 \cs_new_protected:Npn \@@_backend_separation_init:n #1
   {
-%<*dvipdfmx|xetex>
-    \__kernel_backend_literal:x
-      {
-        pdf:obj ~ @color \int_use:N \g_@@_model_int \c_space_tl
-          [#1]
-      }
-%</dvipdfmx|xetex>
-%<*luatex|pdftex>
     \pdf_object_now:nx { array } {#1}
-%</luatex|pdftex>  
   }
 %    \end{macrocode}
 %   For CIELAB colors, we need one object per document for the illuminant,
@@ -846,7 +823,6 @@
         #2 ~
         \pdf_object_last:
       }
-%<*luatex|pdftex>
     \use:x
       {
         \pdfcoredict_gput:nnn
@@ -854,7 +830,6 @@
           { color \int_use:N \g_@@_model_int }
           { \pdf_object_last: }
       }
-%</luatex|pdftex>
   }
 \cs_if_exist:NF \pdf_object_now:nn
   { \cs_gset_protected:Npn \@@_backend_devicen_init:nnn #1#2#3 { } }
