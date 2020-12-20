@@ -7,6 +7,14 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-12-19]
+
+### Added
+- `\keyval_parse:nnn`
+
+### Changed
+- `\keyval_parse:NNn` is set equal to `\keyval_parse:nnn`
+
 ## [2020-12-07]
 
 ### Fixed
