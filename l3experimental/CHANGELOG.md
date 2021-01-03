@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\pdf_destination:nn` and `\pdf_destination_box:nn` added to l3pdf
+
 ## [2020-10-27]
 
 ### Changed
