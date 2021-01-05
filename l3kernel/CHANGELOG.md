@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Handling of encoding-specfic commands in `\text_purify:n`
+
 ## [2021-01-01]
 
 ## [2020-12-19]
