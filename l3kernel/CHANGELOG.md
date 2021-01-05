@@ -12,8 +12,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2021-01-01]
 
-## [2020-12-19]
-
 ### Added
 - `\keyval_parse:nnn`
 
