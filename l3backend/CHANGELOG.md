@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Basic opacity support
+
 ## [2021-01-09]
 
 ### Added
