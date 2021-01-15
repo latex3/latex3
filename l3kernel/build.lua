@@ -55,11 +55,11 @@ dofile(maindir .. "/build-config.lua")
 function update_tag(file,content,tagname,tagdate)
   local iso = "%d%d%d%d%-%d%d%-%d%d"
   local url = "https://github.com/latex3/latex3/compare/"
-  if string.match(content,"%(C%)%s*[%d%-,]+ The LaTeX3 Project") then
+  if string.match(content,"%(C%)%s*[%d%-,]+ The LaTeX Project") then
     local year = os.date("%Y")
     content = string.gsub(content,
-      "%(C%)%s*([%d%-,]+) The LaTeX3 Project",
-      "(C) %1," .. year .. " The LaTeX3 Project")
+      "%(C%)%s*([%d%-,]+) The LaTeX Project",
+      "(C) %1," .. year .. " The LaTeX Project")
    content = string.gsub(content,year .. "," .. year,year)
    content = string.gsub(content,
      "%-" .. tonumber(year) - 1 .. "," .. year,

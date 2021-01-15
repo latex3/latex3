@@ -8,7 +8,7 @@ Overview
 
 The `l3packages` collection contains implementations for aspects of the
 LaTeX3 kernel, dealing with higher-level ideas such as the Designer Interface.
-The packages here are considered broadly stable (The LaTeX3 Project does not
+The packages here are considered broadly stable (The LaTeX Project does not
 expect the interfaces to alter radically). These packages are build on LaTeX2e
 conventions at the interface level, and so may not migrate in the current form
 to a stand-alone LaTeX3 format.
@@ -90,11 +90,11 @@ The issue tracker for LaTeX3 is currently located
 Please report specific issues with LaTeX3 code there; more general
 discussion should be directed to the [LaTeX-L list](#Discussion).
 
-The LaTeX3 Project
+The LaTeX Project
 ------------------
 
 Development of LaTeX3 is carried out by
-[The LaTeX3 Project](https://www.latex-project.org/latex3/).
+[The LaTeX Project](https://www.latex-project.org/latex3/).
 
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
@@ -102,6 +102,6 @@ the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
-<p>Copyright (C) 1998-2012,2015-2021 The LaTeX3 Project <br />
+<p>Copyright (C) 1998-2012,2015-2021 The LaTeX Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>
