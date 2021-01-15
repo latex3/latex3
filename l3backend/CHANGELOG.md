@@ -9,6 +9,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Basic opacity support
 
+### Fixed
+- Implementation of `filldraw` for `dvips`
+
 ## [2021-01-09]
 
 ### Added
