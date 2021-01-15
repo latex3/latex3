@@ -108,7 +108,20 @@ local function fmt(engines,dest)
       .. os_pathsep .. texmfdir .. "//"
       .. os_concat .. cmd .. " -etex -ini -output-directory=" .. unpackdir
       .. " " .. src .. " > " .. os_null)
-    if errorlevel ~= 0 then return errorlevel end
+    if errorlevel ~= 0 then
+      -- Remove file extension: https://stackoverflow.com/a/34326069/6015190
+      local basename = src:match("(.+)%..+$")
+      local f = io.open(unpackdir .. "/" .. basename .. '.log',"r")
+      local content = f:read("*all")
+      io.close(f)
+      print("-------------------------------------------------------------------------------")
+      print(content)
+      print("-------------------------------------------------------------------------------")
+      print("Failed building LaTeX format for " .. engine)
+      print("  Look for errors in the transcript above")
+      print("-------------------------------------------------------------------------------")
+      return errorlevel
+    end
 
     local engname = string.match(src,"^[^.]*") .. ".fmt"
     local fmtname = string.gsub(engine,"tex$","") .. "latex.fmt"
