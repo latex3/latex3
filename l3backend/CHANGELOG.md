@@ -9,6 +9,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Basic opacity support
 
+### Changed
+- Use color stack for fill color, and for stroke color if possible
+
 ### Fixed
 - Implementation of `filldraw` for `dvips`
 
