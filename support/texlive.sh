@@ -56,6 +56,7 @@ tlmgr install \
   csquotes    \
   dvips       \
   enumitem    \
+  everysel    \
   fancyvrb    \
   hologo      \
   listings    \
