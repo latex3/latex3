@@ -10,8 +10,15 @@ module = "xparse"
 installfiles = {
   "xparse.ltx",
   "xparse.sty",
-  "xparse-generic.tex",
   "xparse-????-??-??.sty",
+  "xparse-generic.tex" -- temporary
+}
+
+sourcefiles = {
+  "*.dtx",
+  "*.ins",
+  "*-????-??-??.sty",
+  "xparse-generic.tex" -- temporary
 }
 
 -- Location of main directory: use Unix-style path separators
