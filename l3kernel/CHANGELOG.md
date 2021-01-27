@@ -7,15 +7,16 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-## [2021-01-01]
-
-## [2020-12-19]
+## [2021-01-09]
 
 ### Added
 - `\keyval_parse:nnn`
 
 ### Changed
 - `\keyval_parse:NNn` is set equal to `\keyval_parse:nnn`
+
+### Fixed
+- Handling of encoding-specfic commands in `\text_purify:n`
 
 ## [2020-12-07]
 
@@ -825,8 +826,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-01-01...HEAD
-[2021-01-01]: https://github.com/latex3/latex3/compare/2020-12-07...2021-01-01
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-01-09...HEAD
+[2021-01-09]: https://github.com/latex3/latex3/compare/2020-12-07...2021-01-09
 [2020-12-07]: https://github.com/latex3/latex3/compare/2020-12-05...2020-12-07
 [2020-12-05]: https://github.com/latex3/latex3/compare/2020-12-03...2020-12-05
 [2020-12-03]: https://github.com/latex3/latex3/compare/2020-10-27...2020-12-03
