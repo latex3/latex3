@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\c_zero_str`
+
 ## [2021-01-09]
 
 ### Added
