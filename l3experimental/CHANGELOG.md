@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2020-01-29]
+
 ### Added
 - New `l3bitset` module
 - `\pdf_destination:nn` and `\pdf_destination_box:nn` added to l3pdf
@@ -188,7 +190,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-10-27...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2020-01-29...HEAD
+[2020-01-29]: https://github.com/latex3/latex3/compare/2020-10-27...2020-01-29
 [2020-10-27]: https://github.com/latex3/latex3/compare/2020-09-24...2020-10-27
 [2020-09-24]: https://github.com/latex3/latex3/compare/2020-09-11...2020-09-24
 [2020-09-11]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-11
