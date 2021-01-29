@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - New `l3bitset` module
+- `\pdf_destination:nn` and `\pdf_destination_box:nn` added to l3pdf
 
 ## [2020-10-27]
 
