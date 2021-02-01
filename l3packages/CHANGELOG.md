@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Freeze the `xparse` code, and move the development to the LaTeX2e
+  repository as `ltcmd`.
+
 ## [2020-10-27]
 
 ### Changed

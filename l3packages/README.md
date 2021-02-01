@@ -51,12 +51,17 @@ flexible split-level fractions _via_ the `\sfrac` macro. This is both a
 demonstration of the power of the template concept and also a useful addition
 to the available functionality in LaTeX2e.
 
-`xparse`
+`xparse` (deprecated)
 -------
 
 The `xparse` package provides a high-level interface for declaring document
 commands, e.g., a uniform way to define commands taking optional arguments,
 optional stars (and others), mandatory arguments and more.
+
+The development of `xparse` moved to the
+[LaTeX2e repository](https://github.com/latex3/latex2e) as `ltcmd`, which is
+preloaded in the LaTeX format, and the code for `xparse` in this repository
+contains only the deprecated argument types `G`, `l`, and `u`.
 
 `xtemplate`
 -----------
