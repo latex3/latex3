@@ -1,5 +1,6 @@
 if not modules then modules = { } end modules ['font-map'] = {
     version   = 1.001,
+    optimize  = true,
     comment   = "companion to font-ini.mkiv",
     author    = "Hans Hagen, PRAGMA-ADE, Hasselt NL",
     copyright = "PRAGMA ADE / ConTeXt Development Team",
@@ -103,6 +104,7 @@ local hash = { }
 local conc = { }
 
 table.setmetatableindex(hash,function(t,k)
+    local v
     if k < 0xD7FF or (k > 0xDFFF and k <= 0xFFFF) then
         v = f_single(k)
     else

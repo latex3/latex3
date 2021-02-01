@@ -9,18 +9,13 @@
 --- The bare fontloader uses a set of simplistic file name resolvers
 --- that must be overloaded by the user (i. e. us).
 
-local ProvidesLuaModule = { 
+assert(luaotfload_module, "This is a part of luaotfload and should not be loaded independently") { 
     name          = "luaotfload-resolvers",
-    version       = "3.13",       --TAGVERSION
-    date          = "2020-05-01", --TAGDATE
+    version       = "3.17",       --TAGVERSION
+    date          = "2021-01-08", --TAGDATE
     description   = "luaotfload submodule / resolvers",
     license       = "GPL v2.0"
 }
-
-if luatexbase and luatexbase.provides_module then
-  luatexbase.provides_module (ProvidesLuaModule)
-end  
-
 
 if not lualibs    then error "this module requires Luaotfload" end
 if not luaotfload then error "this module requires Luaotfload" end
@@ -233,7 +228,7 @@ local function resolve_kpse (specification)
     local name       = specification.name
     local suffix     = stringlower (filesuffix (name))
     if suffix and fonts.formats[suffix] then
-        local resolved = resolvers.findfile(name, suffix)
+        local resolved = resolvers_findfile(name, suffix)
         if resolved then return resolved end
     end
     for t, format in next, fonts.formats do --- brute force
@@ -292,7 +287,7 @@ return function()
     end
     logreport ("log", 5, "resolvers", "installing font resolvers", name)
     local request_resolvers = fonts.definers.resolvers
-    for k, _ in pairs(resolvers) do
+    for k, _ in pairs(request_resolvers) do
         request_resolvers[k] = nil
     end
     setmetatable(request_resolvers, {__index = function(t, n)

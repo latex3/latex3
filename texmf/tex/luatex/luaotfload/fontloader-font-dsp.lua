@@ -1,5 +1,6 @@
 if not modules then modules = { } end modules ['font-dsp'] = {
     version   = 1.001,
+    optimize  = true,
     comment   = "companion to font-ini.mkiv",
     author    = "Hans Hagen, PRAGMA-ADE, Hasselt NL",
     copyright = "PRAGMA ADE / ConTeXt Development Team",
@@ -302,7 +303,7 @@ end)
 -- values can be anything the min/max permits so we can either think of
 -- real values of a fraction along the axis (probably easier)
 
--- wght:400,wdth:100,ital:1
+-- wght=400,wdth=100,ital=1
 
 local function axistofactors(str)
     local t = settings_to_hash(str)
@@ -502,7 +503,7 @@ local function readvariationdata(f,storeoffset,factors) -- store
         regions[i] = t
     end
     -- deltas
-    if factors then
+ -- if factors then
         for i=1,nofdeltadata do
             setposition(f,storeoffset+deltadata[i])
             local nofdeltasets = readushort(f)
@@ -527,7 +528,7 @@ local function readvariationdata(f,storeoffset,factors) -- store
                 scales  = factors and getscales(usedregions,factors) or nil,
             }
         end
-    end
+ -- end
     setposition(f,position)
     return regions, deltadata
 end
@@ -822,7 +823,7 @@ end
 
 -- quite often 0, 1, 2
 
-function readarray(f,offset)
+local function readarray(f,offset)
     if offset then
         setposition(f,offset)
     end

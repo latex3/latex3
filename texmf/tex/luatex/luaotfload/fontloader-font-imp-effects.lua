@@ -215,62 +215,88 @@ local rules = {
 --     end
 -- end
 
-local function setmathparameters(tfmdata,characters,mathparameters,dx,dy,squeeze)
-    if delta ~= 0 then
-        for i=1,#rules do
-            local name  = rules[i]
-            local value = mathparameters[name]
-            if value then
-               mathparameters[name] = (squeeze or 1) * (value + dx)
-            end
-        end
-    end
-end
+-- radicals are not yet ok
 
-local function setmathcharacters(tfmdata,characters,mathparameters,dx,dy,squeeze,wdelta,hdelta,ddelta)
+local setmathparameters
+local setmathcharacters
 
-    local function wdpatch(char)
-        if wsnap ~= 0 then
-            char.width  = char.width + wdelta/2
-        end
-    end
+if CONTEXTLMTXMODE and CONTEXTLMTXMODE > 0 then
 
-    local function htpatch(char)
-        if hsnap ~= 0 then
-            local height = char.height
-            if height then
-                char.height = char.height + 2 * dy
-            end
-        end
-    end
-
-    local character = characters[0x221A]
-
-    if character and character.next then
--- print("base char",0x221A,table.sequenced(character))
-        local char = character
-        local next = character.next
-        wdpatch(char)
-        htpatch(char)
-        while next do
-            char = characters[next]
-            wdpatch(char)
-            htpatch(char)
--- print("next char",next,table.sequenced(char))
-            next = char.next
-        end
-        if char then
-            local v = char.vert_variants
-            if v then
-                local top = v[#v]
-                if top then
-                    local char = characters[top.glyph]
--- print("top char",top.glyph,table.sequenced(char))
-                    htpatch(char)
+    setmathparameters = function(tfmdata,characters,mathparameters,dx,dy,squeeze,multiplier)
+        if delta ~= 0 then
+            for i=1,#rules do
+                local name  = rules[i]
+                local value = mathparameters[name]
+                if value then
+                   mathparameters[name] = (squeeze or 1) * (value + dy)
                 end
             end
         end
     end
+
+    setmathcharacters = function()
+    end
+
+else
+
+    setmathparameters = function(tfmdata,characters,mathparameters,dx,dy,squeeze,multiplier)
+        if delta ~= 0 then
+            for i=1,#rules do
+                local name  = rules[i]
+                local value = mathparameters[name]
+                if value then
+                   mathparameters[name] = (squeeze or 1) * (value + dy)
+                end
+            end
+        end
+    end
+
+    setmathcharacters = function(tfmdata,characters,mathparameters,dx,dy,squeeze,wdelta,hdelta,ddelta)
+
+        -- still not the perfect rule
+
+        local function wdpatch(char)
+            if wsnap ~= 0 then
+                char.width  = char.width + wdelta/2
+            end
+        end
+
+        local function htpatch(char)
+            if hsnap ~= 0 then
+                local height = char.height
+                if height then
+                    char.height = char.height + 2 * dy
+                end
+            end
+        end
+
+        local character = characters[0x221A]
+
+        if character and character.next then
+            local char = character
+            local next = character.next
+            wdpatch(char)
+            htpatch(char)
+            while next do
+                char = characters[next]
+                wdpatch(char)
+                htpatch(char)
+                next = char.next
+            end
+            if char then
+                local v = char.vert_variants
+                if v then
+                    local top = v[#v]
+                    if top then
+                        local char = characters[top.glyph]
+                        htpatch(char)
+                    end
+                end
+            end
+        end
+
+    end
+
 end
 
 -- local show_effect = { "lua", function(f,c)
@@ -278,7 +304,7 @@ end
 --     inspect(fonts.hashes.characters[f][c])
 -- end }
 
--- local show_effect = { "lua", "print('!')" }
+local shiftmode = CONTEXTLMTXMODE and CONTEXTLMTXMODE > 0
 
 local function manipulateeffect(tfmdata)
     local effect = tfmdata.properties.effect
@@ -301,42 +327,49 @@ local function manipulateeffect(tfmdata)
         local factor         = (1 + effect.factor)  * factor
         local hfactor        = (1 + effect.hfactor) * hfactor
         local vfactor        = (1 + effect.vfactor) * vfactor
-        local vshift         = vshift ~= 0 and upcommand[vshift] or false
+        if shiftmode then
+            parameters.hshift = hshift
+            parameters.vshift = vshift
+        else
+            vshift = vshift ~= 0 and upcommand[vshift] or false
+            hshift = rightcommand[hshift]
+        end
         for unicode, character in next, characters do
             local oldwidth  = character.width
             local oldheight = character.height
             local olddepth  = character.depth
             if oldwidth and oldwidth > 0 then
                 character.width = oldwidth + wdelta
-                local commands = character.commands
-                local hshift   = rightcommand[hshift]
-                if vshift then
-                    if commands then
-                        prependcommands ( commands,
--- show_effect,
-                            hshift,
-                            vshift
-                        )
+                if not shiftmode then
+                    local commands = character.commands
+                    if vshift then
+                        if commands then
+                            prependcommands ( commands,
+                             -- show_effect,
+                                hshift,
+                                vshift
+                            )
+                        else
+                            character.commands = {
+                             -- show_effect,
+                                hshift,
+                                vshift,
+                                charcommand[unicode]
+                            }
+                        end
                     else
-                        character.commands = {
--- show_effect,
-                            hshift,
-                            vshift,
-                            charcommand[unicode]
-                        }
-                    end
-                else
-                    if commands then
-                        prependcommands ( commands,
--- show_effect,
-                            hshift
-                        )
-                    else
-                        character.commands = {
--- show_effect,
-                            hshift,
-                            charcommand[unicode]
-                        }
+                        if commands then
+                          prependcommands ( commands,
+                           -- show_effect,
+                              hshift
+                          )
+                        else
+                            character.commands = {
+                             -- show_effect,
+                                hshift,
+                                charcommand[unicode]
+                          }
+                        end
                     end
                 end
             end
@@ -348,7 +381,7 @@ local function manipulateeffect(tfmdata)
             end
         end
         if mathparameters then
-            setmathparameters(tfmdata,characters,mathparameters,dx,dy,squeeze)
+            setmathparameters(tfmdata,characters,mathparameters,dx,dy,squeeze,multiplier)
             setmathcharacters(tfmdata,characters,mathparameters,dx,dy,squeeze,wdelta,hdelta,ddelta)
         end
         parameters.factor  = factor

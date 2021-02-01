@@ -1,5 +1,6 @@
 if not modules then modules = { } end modules ['font-cff'] = {
     version   = 1.001,
+    optimize  = true,
     comment   = "companion to font-ini.mkiv",
     author    = "Hans Hagen, PRAGMA-ADE, Hasselt NL",
     copyright = "PRAGMA ADE / ConTeXt Development Team",
@@ -609,12 +610,15 @@ do
       + p_unsupported
     )^1
 
-    parsedictionaries = function(data,dictionaries,what)
+    parsedictionaries = function(data,dictionaries,version)
         stack   = { }
         strings = data.strings
+        if trace_charstrings then
+            report("charstring format %a",version)
+        end
         for i=1,#dictionaries do
             top    = 0
-            result = what == "cff" and {
+            result = version == "cff" and {
                 monospaced         = false,
                 italicangle        = 0,
                 underlineposition  = -100,
@@ -1421,13 +1425,15 @@ do
     -- to wrap my head around the rather complex variable font specification
     -- with regions and axis, the following approach kind of works but is more
     -- some trial and error trick. It's still not clear how much of the complex
-    -- truetype description applies to cff.
+    -- truetype description applies to cff. Once there are fonts out there we'll
+    -- get there. (Marcel and friends did some tests with recent cff2 fonts so
+    -- the code has been adapted accordingly.)
 
     local reginit = false
 
     local function updateregions(n) -- n + 1
         if regions then
-            local current = regions[n] or regions[1]
+            local current = regions[n+1] or regions[1]
             nofregions = #current
             if axis and n ~= reginit then
                 factors = { }
@@ -1517,7 +1523,7 @@ do
                 end
             end
         else
-            -- error
+            top = top - nofregions * n
         end
     end
 
@@ -2151,7 +2157,14 @@ do
         popped   = 3
         seacs    = { }
         if regions then
-            regions = { regions } -- needs checking
+            -- this was:
+         -- regions = { regions } -- needs checking
+            -- and is now (MFC):
+            regions = { }
+            local deltas = data.deltas
+            for i = 1, #deltas do
+                regions[i] = deltas[i].regions
+            end
             axis = data.factors or false
         end
     end
@@ -2261,8 +2274,8 @@ do
 
 end
 
-local function readglobals(f,data)
-    local routines = readlengths(f)
+local function readglobals(f,data,version)
+    local routines = readlengths(f,version == "cff2")
     for i=1,#routines do
         routines[i] = readbytetable(f,routines[i])
     end
@@ -2320,14 +2333,14 @@ local function readprivates(f,data)
     end
 end
 
-local function readlocals(f,data,dictionary)
+local function readlocals(f,data,dictionary,version)
     local header  = data.header
     local private = dictionary.private
     if private then
         local subroutineoffset = private.data.subroutines
         if subroutineoffset ~= 0 then
             setposition(f,header.offset+private.offset+subroutineoffset)
-            local subroutines = readlengths(f)
+            local subroutines = readlengths(f,version == "cff2")
             for i=1,#subroutines do
                 subroutines[i] = readbytetable(f,subroutines[i])
             end
@@ -2344,7 +2357,7 @@ end
 -- These charstrings are little programs and described in: Technical Note #5177. A truetype
 -- font has only one dictionary.
 
-local function readcharstrings(f,data,what)
+local function readcharstrings(f,data,version)
     local header       = data.header
     local dictionaries = data.dictionaries
     local dictionary   = dictionaries[1]
@@ -2355,7 +2368,7 @@ local function readcharstrings(f,data,what)
     elseif stringtype == 2 then
         setposition(f,header.offset+offset)
         -- could be a metatable .. delayed loading
-        local charstrings = readlengths(f,what=="cff2")
+        local charstrings = readlengths(f,version=="cff2")
         local nofglyphs   = #charstrings
         for i=1,nofglyphs do
             charstrings[i] = readstring(f,charstrings[i])
@@ -2390,7 +2403,8 @@ readers.parsecharstrings = parsecharstrings -- used in font-onr.lua (type 1)
 local function readnoselect(f,fontdata,data,glyphs,doshapes,version,streams)
     local dictionaries = data.dictionaries
     local dictionary   = dictionaries[1]
-    readglobals(f,data)
+    local cid          = not dictionary.private and dictionary.cid
+    readglobals(f,data,version)
     readcharstrings(f,data,version)
     if version == "cff2" then
         dictionary.charset = nil
@@ -2398,9 +2412,27 @@ local function readnoselect(f,fontdata,data,glyphs,doshapes,version,streams)
         readencodings(f,data)
         readcharsets(f,data,dictionary)
     end
+    if cid then
+        local fdarray = cid.fdarray
+        if fdarray then
+            setposition(f,data.header.offset + fdarray)
+            local dictionaries    = readlengths(f,version=="cff2")
+            local nofdictionaries = #dictionaries
+            if nofdictionaries > 0 then
+                for i=1,nofdictionaries do
+                    dictionaries[i] = readstring(f,dictionaries[i])
+                end
+                parsedictionaries(data,dictionaries)
+                dictionary.private = dictionaries[1].private
+                if nofdictionaries > 1 then
+                    report("ignoring dictionaries > 1 in cid font")
+                end
+            end
+        end
+    end
     readprivates(f,data)
     parseprivates(data,data.dictionaries)
-    readlocals(f,data,dictionary)
+    readlocals(f,data,dictionary,version)
     startparsing(fontdata,data,streams)
     parsecharstrings(fontdata,data,glyphs,doshapes,version,streams)
     stopparsing(fontdata,data)
@@ -2412,7 +2444,7 @@ local function readfdselect(f,fontdata,data,glyphs,doshapes,version,streams)
     local dictionary   = dictionaries[1]
     local cid          = dictionary.cid
     local cidselect    = cid and cid.fdselect
-    readglobals(f,data)
+    readglobals(f,data,version)
     readcharstrings(f,data,version)
     if version ~= "cff2" then
         readencodings(f,data)
@@ -2458,7 +2490,7 @@ local function readfdselect(f,fontdata,data,glyphs,doshapes,version,streams)
         local cidarray = cid.fdarray
         if cidarray then
             setposition(f,header.offset+cidarray)
-            local dictionaries = readlengths(f)
+            local dictionaries = readlengths(f,version == "cff2")
             for i=1,#dictionaries do
                 dictionaries[i] = readstring(f,dictionaries[i])
             end
@@ -2466,7 +2498,7 @@ local function readfdselect(f,fontdata,data,glyphs,doshapes,version,streams)
             cid.dictionaries = dictionaries
             readcidprivates(f,data)
             for i=1,#dictionaries do
-                readlocals(f,data,dictionaries[i])
+                readlocals(f,data,dictionaries[i],version)
             end
             startparsing(fontdata,data,streams)
             for i=1,#charstrings do

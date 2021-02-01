@@ -4,18 +4,13 @@
 --       AUTHOR:  Khaled Hosny, Élie Roux, Philipp Gesang
 -----------------------------------------------------------------------
 
-local ProvidesLuaModule = { 
+assert(luaotfload_module, "This is a part of luaotfload and should not be loaded independently") { 
     name          = "luaotfload-auxiliary",
-    version       = "3.13",       --TAGVERSION
-    date          = "2020-05-01", --TAGDATE
+    version       = "3.17",       --TAGVERSION
+    date          = "2021-01-08", --TAGDATE
     description   = "luaotfload submodule / auxiliary functions",
     license       = "GPL v2.0"
 }
-
-if luatexbase and luatexbase.provides_module then
-  luatexbase.provides_module (ProvidesLuaModule)
-end  
-
 
 luaotfload                  = luaotfload or { }
 local log                   = luaotfload.log
@@ -910,6 +905,53 @@ function aux.get_quad(font_id)
   end
   return false
 end
+
+-----------------------------------------------------------------------
+---                         Script/language fixup
+-----------------------------------------------------------------------
+local otftables = fonts.constructors.handlers.otf.tables
+local function setscript(tfmdata, value)
+  if value then
+    local cleanvalue = string.lower(value)
+    local scripts  = otftables and otftables.scripts
+    local properties = tfmdata.properties
+    if not scripts then
+      properties.script = cleanvalue
+    elseif scripts[value] then
+      properties.script = cleanvalue
+    else
+      properties.script = "dflt"
+    end
+  end
+  local resources = tfmdata.resources
+  local features = resources and resources.features
+  if features then
+    local properties = tfmdata.properties
+    local script, language = properties.script, properties.language
+    local script_found, language_found = false, false
+    for _, data in next, features do for _, feature_data in next, data do
+      local scr = feature_data[script]
+      if scr then
+        script_found = true
+        if scr[language] then
+          language_found = true
+          goto double_break
+        end
+      end
+    end end
+    ::double_break::
+    if not script_found then properties.script = "dflt" end
+    if not language_found then properties.language = "dflt" end
+  end
+end
+fonts.constructors.features.otf.register {
+  name         = "script",
+  initializers = {
+    base = setscript,
+    node = setscript,
+    plug = setscript,
+  },
+}
 
 -----------------------------------------------------------------------
 ---                         initialization

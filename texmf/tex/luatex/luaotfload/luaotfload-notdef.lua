@@ -3,18 +3,14 @@
 --  DESCRIPTION:  part of luaotfload / notdef
 -----------------------------------------------------------------------
 
-local ProvidesLuaModule = { 
+assert(luaotfload_module, "This is a part of luaotfload and should not be loaded independently") { 
     name          = "luaotfload-notdef",
-    version       = "3.13",       --TAGVERSION
-    date          = "2020-05-01", --TAGDATE
-    description   = "luaotfload submodule / color",
+    version       = "3.17",       --TAGVERSION
+    date          = "2021-01-08", --TAGDATE
+    description   = "luaotfload submodule / notdef",
     license       = "GPL v2.0",
     author        = "Marcel Krüger"
 }
-
-if luatexbase and luatexbase.provides_module then
-  luatexbase.provides_module (ProvidesLuaModule)
-end  
 
 local harfbuzz           = luaotfload.harfbuzz
 local flush_node         = node.direct.flush_node
@@ -34,6 +30,8 @@ local setfont            = node.direct.setfont
 local traverse_char      = node.direct.traverse_char
 local traverse_id        = node.direct.traverse_id
 local setchar            = node.direct.setchar
+local setdisc            = node.direct.setdisc
+local getdisc            = node.direct.getdisc
 local getwidth           = node.direct.getwidth
 local setkern            = node.direct.setkern
 local setattributelist   = node.direct.setattributelist
@@ -197,7 +195,7 @@ local push, pop do
         head = node.direct.remove(head, n)
         l[#l+1] = n
       elseif id == disc_id then
-        local pre, post, replace = node.direct.getdisc(n)
+        local pre, post, replace = getdisc(n)
         for nn in node.direct.traverse(pre) do
           if checkprop(nn) then
             local after
@@ -217,7 +215,7 @@ local push, pop do
             l[#l+1] = {nn, n, 'replace'}
           end
         end
-        node.direct.setdisc(n, pre, post, replace)
+        setdisc(n, pre, post, replace)
       end
     end
     return head
@@ -302,8 +300,6 @@ otfregister {
   },
 }
 
-ignorable_replacement = {}
-
 local delayed_remove do
   local delayed
   function delayed_remove(n)
@@ -335,7 +331,7 @@ local function ignorablehandler(head, fid, ...) -- FIXME: The arguments are prob
     end
   end end
   delayed_remove()
-  for n in traverse_id(head, disc_id) do
+  for n in traverse_id(disc_id, head) do
     local a, b, c = getdisc(n)
     setdisc(ignorablehandler(a, fid), ignorablehandler(b, fid), ignorablehandler(c, fid))
   end

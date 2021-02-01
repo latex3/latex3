@@ -9,21 +9,18 @@
 
 local ProvidesLuaModule = { 
     name          = "luaotfload-tool",
-    version       = "3.13",       --TAGVERSION
-    date          = "2020-05-01", --TAGDATE
+    version       = "3.17",       --TAGVERSION
+    date          = "2021-01-08", --TAGDATE
     description   = "luaotfload-tool / database functionality",
     license       = "GPL v2.0"
 }
 
-if luatexbase and luatexbase.provides_module then
-  luatexbase.provides_module (ProvidesLuaModule)
-end  
+function luaotfload_module(module) end -- We don't log module loading here
 
 
 luaotfload                     = luaotfload or { }
 local version                  = ProvidesLuaModule.version
 luaotfload.version             = ProvidesLuaModule.version
-luaotfload.min_luatex_version  = { 0, 95, 0 }
 luaotfload.self                = "luaotfload-tool"
 luaotfload.fontloader          = _G -- We don't isolate the fontloader here
 
@@ -65,32 +62,21 @@ local tonumber        = tonumber
 local type            = type
 
 do
-    local runtime         = _G.jit and { "jit"  , jit.version }
-                                    or { "stock", _VERSION }
-    local stats           = status and status.list ()
-    local minimum         = luaotfload.min_luatex_version
-    local actual          = { 0, 0, 0 }
-    if stats then
-        local major    = stats.luatex_version // 100
-        local minor    = stats.luatex_version % 100
-        local revision = stats.luatex_revision --[[ : string ]]
-        local revno    = tonumber (revision)
-        actual         = { major, minor, revno or 0 }
-    end
+    local runtime  = _G.jit and { "jit"  , jit.version }
+                             or { "stock", _VERSION }
+    local minimum  = {110, 0}
+    local revn     = tonumber (status.luatex_revision) or 0 --[[ : string ]]
 
-    if actual [1] < minimum [1]
-    or actual == minimum and actual [2] < minimum [2]
-    or actual == minimum and actual [2] == minimum [2] and actual [3] < minimum [3]
-    then
+    if status.luatex_version < minimum[1]
+       or status.luatex_version == minimum[1] and tonumber(status.luatex_revision) < minimum[2] then
         texio.write_nl ("term and log",
                         string.format ("\tFATAL ERROR\n\z
                                         \tLuaotfload requires a Luatex version >= %d.%d.%d.\n\z
                                         \tPlease update your TeX distribution!\n\n",
-                                       (unpack or table.unpack) (minimum)))
+                                       math.floor(minimum[1] / 100), minimum[1] % 100, minimum[2]))
         error "version check failed"
     end
     luaotfload.runtime        = runtime
-    luaotfload.luatex_version = actual
 end
 
 local C, Ct, P, S  = lpeg.C, lpeg.Ct, lpeg.P, lpeg.S
@@ -349,8 +335,7 @@ local function version_msg ( )
     local meta  = fonts.names.getmetadata ()
 
     local runtime = luaotfload.runtime
-    local actual  = luaotfload.luatex_version
-    local status  = config.luaotfload.status
+    local notes   = config.luaotfload.status
     local notes   = status and status.notes or { }
 
     out (about, luaotfload.self)
@@ -361,7 +346,7 @@ local function version_msg ( )
     out ("Revision: %q", notes.revision)
     out ("Lua interpreter: %s; version %q", runtime[1], runtime[2])
 --[[out ("Luatex SVN revision: %d", info.luatex_svn)]] --> SVN r5624
-    out ("Luatex version: %d.%d", actual [1], actual [2])
+    out ("Luatex version: %d.%d", math.floor(status.luatex_version / 100), status.luatex_version % 100)
     out ("Platform: type=%s name=%s", os.type, os.name)
 
     local uname_vars = tablesortedkeys (uname)
@@ -1334,7 +1319,6 @@ function actions.list (job)
     else
         criterion = stringexplode(criterion, ":") --> { field, value }
         local asked_value  = criterion[2]
-        local sane_asked_pattern = sane_pattern(criterion[2])
         criterion          = criterion[1]
         asked_fields       = set_primary_field(asked_fields, criterion)
 
@@ -1343,6 +1327,7 @@ function actions.list (job)
         --- firstly, build a list of fonts to operate on
         local targets = { }
         if asked_value then --- only those whose value matches
+            local sane_asked_pattern = sane_pattern(asked_value)
             logreport (false, 2, "list", "Restricting to value %s", asked_value)
             for i=1, nmappings do
                 local entry = mappings[i]

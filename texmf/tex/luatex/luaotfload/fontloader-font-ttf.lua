@@ -1,5 +1,6 @@
 if not modules then modules = { } end modules ['font-ttf'] = {
     version   = 1.001,
+    optimize  = true,
     comment   = "companion to font-ini.mkiv",
     author    = "Hans Hagen, PRAGMA-ADE, Hasselt NL",
     copyright = "PRAGMA ADE / ConTeXt Development Team",
@@ -162,8 +163,7 @@ local function mergecomposites(glyphs,shapes)
         return contours, points
     end
 
---     for index=1,#glyphs do
-    for index=0,#glyphs-1 do
+    for index=0,#glyphs do
         local shape = shapes[index]
         if shape then
             local components = shape.components
@@ -658,7 +658,7 @@ local function repackpoints(glyphs,shapes)
     local result        = { } -- reused
     local xpoints       = { } -- reused
     local ypoints       = { } -- reused
-    for index=0,#glyphs-1 do
+    for index=0,#glyphs do
         local shape = shapes[index]
         if shape then
             local r     = 0

@@ -44,9 +44,30 @@ if not modules then modules = { } end modules ['luatex-fonts'] = {
 -- and interferences between mechanisms between macro packages. We use the rendering in context
 -- and luatex-plain as reference for issues.
 
+-- I might as well remove some code that is not used in generic (or not used by generic users)
+-- like color fonts (emoji etc) and variable fonts thereby making the code base smaller. However
+-- I might keep ity just for the sake of testing the plain loader that comes with context. We'll
+-- see.
+
+-- As a side effect of cleaning up some context code, like code meant for older version of luatex,
+-- as well replacing code for more recent versions (post 1.12) there can be changes in the modules
+-- used here, especially where we check for 'context' being used. Hopefully there are no side
+-- effects. Because we can now assume that the the glyph injection callback is in recent texlive
+-- installations, the variable font code is now enabled in the generic version that comes with
+-- context (as unofficial bonus; when it was demonstrated at bachotex 2017 it worked ok for the
+-- generic loader but was kind of disabled there as no one needs it). I waited with adding the
+-- pending code for type 3 support till texlive 2020 was fozen but it will be in texlive 2021 (it
+-- is already tested in context back in 2019 and I wanted to release it at the canceled BT 2020
+-- meeting, so I consider it stable, read: this is it). To what extend and when I will adapt the
+-- generic code (for color support) to that is yet to be decided because in context we do things
+-- a bit differently. We anyway have to wait a few years till that callback is omnipresent so I'm
+-- not in that much of a hurry. (There will be a TB article about it first and after that I will
+-- add some examples to the manual.)
+
 utf = utf or (unicode and unicode.utf8) or { }
 
--- We have some (global) hooks (for latex):
+-- We have some (global) hooks (for latex). Maybe I'll use this signal to disable some of the
+-- more tricky features like variable fonts and emoji (because afaik latex uses hb for that).
 
 if not non_generic_context then
     non_generic_context = { }
@@ -262,20 +283,20 @@ if non_generic_context.luatex_fonts.skip_loading ~= true then
         -- outside context so in retrospect there was no need for it being generic.
 
         loadmodule('font-otr.lua')
-        loadmodule('font-oti.lua')
-        loadmodule('font-ott.lua')
         loadmodule('font-cff.lua')
         loadmodule('font-ttf.lua')
         loadmodule('font-dsp.lua')
-        loadmodule('font-oup.lua')
+        loadmodule('font-oti.lua')
+        loadmodule('font-ott.lua')
         loadmodule('font-otl.lua')
         loadmodule('font-oto.lua')
         loadmodule('font-otj.lua')
+        loadmodule('font-oup.lua')
         loadmodule('font-ota.lua')
         loadmodule('font-ots.lua')
+        loadmodule('font-otc.lua')
         loadmodule('font-osd.lua')
         loadmodule('font-ocl.lua')
-        loadmodule('font-otc.lua')
 
         -- The code for type one fonts.
 
@@ -291,6 +312,7 @@ if non_generic_context.luatex_fonts.skip_loading ~= true then
 
         loadmodule('font-lua.lua')
         loadmodule('font-def.lua')
+        loadmodule('font-shp.lua')
 
         -- We support xetex compatible specifiers (plain/latex only).
 

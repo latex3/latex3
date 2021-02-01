@@ -3,18 +3,14 @@
 --  DESCRIPTION:  part of luaotfload / unicode
 -----------------------------------------------------------------------
 
-local ProvidesLuaModule = { 
+assert(luaotfload_module, "This is a part of luaotfload and should not be loaded independently") {
     name          = "luaotfload-unicode",
-    version       = "3.13",       --TAGVERSION
-    date          = "2020-05-01", --TAGDATE
+    version       = "3.17",       --TAGVERSION
+    date          = "2021-01-08", --TAGDATE
     description   = "luaotfload submodule / Unicode helpers",
     license       = "CC0 1.0 Universal",
     author        = "Marcel Krüger"
 }
-
-if luatexbase and luatexbase.provides_module then
-  luatexbase.provides_module (ProvidesLuaModule)
-end  
 
 local utf8codes = utf8.codes
 local utf8char = utf8.char
@@ -103,7 +99,149 @@ local alphnum_only do
   end
 end
 
+local uppercase, lowercase, ccc, cased, case_ignorable, titlecase = {}, {}, {}, {}, {}, nil do
+  titlecase = nil -- Not implemented yet(?)
+  local ignored_field = (1-lpeg.P';')^0 * ';'
+  local cased_category = lpeg.P'Ll;' + 'Lu;' + 'Lt;'
+  local case_ignore_category = lpeg.P'Mn;' + 'Me;' + 'Cf;' + 'Lm;' + 'Sk;'
+
+  local simple_entry =
+      codepoint/0 * ';'
+    * ignored_field -- Name
+    * (ignored_field - cased_category - case_ignore_category) -- General_Category
+    * '0;' -- ccc
+    * ignored_field -- Bidi
+    * ignored_field -- Decomp
+    * ignored_field -- Numeric
+    * ignored_field -- Numeric
+    * ignored_field -- Numeric
+    * ignored_field -- Mirrored
+    * ignored_field -- Obsolete
+    * ignored_field -- Obsolete
+    * ';;\n'
+  local entry = simple_entry
+    + codepoint * ';'
+    * ignored_field -- Name
+    * (cased_category * lpeg.Cc(cased) + case_ignore_category * lpeg.Cc(case_ignorable) + ignored_field * lpeg.Cc(nil)) -- General_Category
+    * ('0;' * lpeg.Cc(nil) + lpeg.R'09'^1/tonumber * ';') -- ccc
+    * ignored_field -- Bidi
+    * ignored_field -- Decomp
+    * ignored_field -- Numeric
+    * ignored_field -- Numeric
+    * ignored_field -- Numeric
+    * ignored_field -- Mirrored
+    * ignored_field -- Obsolete
+    * ignored_field -- Obsolete
+    * (codepoint + lpeg.Cc(nil)) * ';' -- uppercase
+    * (codepoint + lpeg.Cc(nil)) * ';' -- lowercase
+    * (codepoint + lpeg.Cc(nil)) * '\n' -- titlecase
+    / function(codepoint, cased_flag, ccc_val, upper, lower, title)
+      if cased_flag then cased_flag[codepoint] = true end
+      ccc[codepoint] = ccc_val
+      uppercase[codepoint] = upper
+      lowercase[codepoint] = lower
+      -- if title then titlecase[codepoint] = title end -- Not implemented yet(?)
+    end
+  local file = entry^0 * -1
+
+  local f = io.open(kpse.find_file"UnicodeData.txt")
+  assert(file:match(f:read'*a'))
+  f:close()
+end
+
+local props do
+  local ws = lpeg.P' '^0
+  local nl = ws * ('#' * (1-lpeg.P'\n')^0)^-1 * '\n'
+  local entry = codepoint * (".." * codepoint + lpeg.Cc(false)) * ws * ";" * ws * lpeg.C(lpeg.R("AZ", "az", "__")^1) * nl
+  local file = lpeg.Cf(
+      lpeg.Ct(
+          lpeg.Cg(lpeg.Ct"", "Soft_Dotted")
+        * lpeg.Cg(lpeg.Cc(cased), "Other_Lowercase")
+        * lpeg.Cg(lpeg.Cc(cased), "Other_Uppercase"))
+    * (lpeg.Cg(entry) + nl)^0
+  , function(t, cp_start, cp_end, prop)
+    local prop_table = t[prop]
+    if prop_table then
+      for cp = cp_start, cp_end or cp_start do
+        prop_table[cp] = true
+      end
+    end
+    return t
+  end) * -1
+
+  local f = io.open(kpse.find_file"PropList.txt")
+  props = file:match(f:read'*a')
+  f:close()
+end
+
+do
+  local ws = lpeg.P' '^0
+  local nl = ws * ('#' * (1-lpeg.P'\n')^0)^-1 * '\n'
+  local file = (codepoint * (".." * codepoint + lpeg.Cc(false)) * ws * ";" * ws * (lpeg.P'Single_Quote' + 'MidLetter' + 'MidNumLet') * nl / function(cp_start, cp_end)
+    for cp = cp_start, cp_end or cp_start do
+      case_ignorable[cp] = true
+    end
+  end + (1-lpeg.P'\n')^0 * '\n')^0 * -1
+
+  local f = io.open(kpse.find_file"WordBreakProperty.txt")
+  assert(file:match(f:read'*a'))
+  f:close()
+end
+
+do
+  local ws = lpeg.P' '^0
+  local nl = ws * ('#' * (1-lpeg.P'\n')^0)^-1 * '\n'
+  local empty = {}
+  local function set(t, cp, condition, value)
+    local old = t[cp] or cp
+    if not condition then
+      if #value == 1 and tonumber(old) then
+        t[cp] = value[1]
+        return
+      end
+      condition = empty
+    end
+    if tonumber(old or cp) then
+      old = {_ = {old}}
+      t[cp] = old
+    end
+    for i=1, #condition do
+      local cond = condition[i]
+      local step = old[cond]
+      if not step then
+        step = {}
+        old[cond] = step
+      end
+      old = step
+    end
+    old._ = value
+  end
+  local entry = codepoint * ";"
+              * lpeg.Ct((ws * codepoint)^1 + ws) * ";"
+              * lpeg.Ct((ws * codepoint)^1 + ws) * ";"
+              * lpeg.Ct((ws * codepoint)^1 + ws) * ";"
+              * (lpeg.Ct((ws * lpeg.C(lpeg.R('AZ', 'az', '__')^1))^1) * ";")^-1
+              * ws * nl / function(cp, lower, title, upper, condition)
+                set(lowercase, cp, condition, lower)
+                set(uppercase, cp, condition, upper)
+              end
+  local file = (entry + nl)^0 * -1
+
+  local f = io.open(kpse.find_file"SpecialCasing.txt")
+  assert(file:match(f:read'*a'))
+  f:close()
+end
+
 return {
   casefold = casefold,
   alphnum_only = alphnum_only,
+  casemapping = {
+    uppercase = uppercase,
+    lowercase = lowercase,
+    cased = cased,
+    case_ignorable = case_ignorable,
+    -- titlecase = titlecase,
+  },
+  ccc = ccc,
+  soft_dotted = props.Soft_Dotted,
 }

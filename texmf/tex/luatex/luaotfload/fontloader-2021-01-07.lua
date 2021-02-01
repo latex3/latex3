@@ -1,14 +1,14 @@
 --[[info-----------------------------------------------------------------------
   Luaotfload fontloader package
-  build 2020-05-01 16:08:24
+  build 2021-01-07 23:19:37
 -------------------------------------------------------------------------------
 
-  © 2020 PRAGMA ADE / ConTeXt Development Team
+  © 2021 PRAGMA ADE / ConTeXt Development Team
 
   The code in this file is provided under the GPL v2.0 license. See the
   file COPYING in the Luaotfload repository for details.
 
-  Report bugs to github.com/u-fischer/luaotfload
+  Report bugs to https://github.com/latex3/luaotfload
 
   This file has been assembled from components taken from Context. See
   the Luaotfload documentation for details:
@@ -50,6 +50,7 @@
     · fontloader-fonts-tfm.lua
     · fontloader-font-lua.lua
     · fontloader-font-def.lua
+    · fontloader-font-shp.lua
     · fontloader-fonts-def.lua
     · fontloader-fonts-ext.lua
     · fontloader-font-imp-tex.lua
@@ -62,7 +63,7 @@
 --info]]-----------------------------------------------------------------------
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “data-con” de6ae0997b0e70a23bcc9afff5d8b072] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “data-con” 23a0f5386d46a1c157ae82a373e35fa0] ---
 
 if not modules then modules={} end modules ['data-con']={
  version=1.100,
@@ -183,10 +184,10 @@ function containers.cleanname(name)
  return (gsub(lower(name),"[^%w\128-\255]+","-")) 
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “data-con”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “data-con”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “basics-nod” 68226d7dadd241bca55171af9ce1f243] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “basics-nod” 4b5c3c63e19df1b3f37fae7f87c25bda] ---
 
 if not modules then modules={} end modules ['luatex-fonts-nod']={
  version=1.001,
@@ -239,6 +240,7 @@ end
 nodes.nodecodes=nodecodes
 nodes.glyphcodes=glyphcodes
 nodes.disccodes=disccodes
+nodes.dirvalues={ lefttoright=0,righttoleft=1 }
 nodes.handlers.protectglyphs=node.protect_glyphs   
 nodes.handlers.unprotectglyphs=node.unprotect_glyphs
 local direct=node.direct
@@ -263,6 +265,7 @@ nuts.getkern=direct.getkern
 nuts.getlist=direct.getlist
 nuts.getnext=direct.getnext
 nuts.getoffsets=direct.getoffsets
+nuts.getoptions=direct.getoptions or function() return 0 end
 nuts.getprev=direct.getprev
 nuts.getsubtype=direct.getsubtype
 nuts.getwidth=direct.getwidth
@@ -346,6 +349,15 @@ local traverse_id=nuts.traverse_id
 local copy_node=nuts.copy_node
 local glyph_code=nodes.nodecodes.glyph
 local ligature_code=nodes.glyphcodes.ligature
+do 
+ local p=nodecodes.localpar or nodecodes.local_par
+ if p then
+  nodecodes.par=p
+  nodecodes[p]="par"
+  nodecodes.localpar=p 
+  nodecodes.local_par=p 
+ end
+end
 do
  local get_components=node.direct.getcomponents
  local set_components=node.direct.setcomponents
@@ -398,11 +410,14 @@ do
   end
   return 0
  end
+ local function flush_components()
+ end
  nuts.set_components=set_components
  nuts.get_components=get_components
  nuts.copy_only_glyphs=copy_only_glyphs
  nuts.copy_no_components=copy_no_components
  nuts.count_components=count_components
+ nuts.flush_components=flush_components
 end
 nuts.uses_font=direct.uses_font
 do
@@ -435,10 +450,10 @@ do
  end
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “basics-nod”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “basics-nod”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “basics-chr” 58b7ef0c486e06090b362971b9f85e27] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “basics-chr” 64fafe4eaf55d64aead6513c1e74a024] ---
 
 
 characters=characters or {}
@@ -4048,10 +4063,10 @@ characters.indicgroups={
  },
 }
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “basics-chr”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “basics-chr”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ini” 4dee96e1e1474d324dd126bd5d375df8] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ini” 5343de60613adb24cdd7a8d2ee1d153c] ---
 
 if not modules then modules={} end modules ['font-ini']={
  version=1.001,
@@ -4092,10 +4107,10 @@ if node and not tex.getfontoffamily then
  tex.getfontoffamily=node.family_font 
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ini”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ini”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-mis” bc9eb43c27f63ce9d0fff67e104fe1c6] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-mis” 17e967c9ec4d001deefd43ddf25e98f7] ---
 
 if not modules then modules={} end modules ['luatex-font-mis']={
  version=1.001,
@@ -4127,10 +4142,10 @@ function font.each()
  return table.sortedhash(fonts.hashes.identifiers)
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-mis”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-mis”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-con” 40e3a857b2f31be1959dc6d445aaa9c4] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-con” 724e5dd14aec2d4d189f8619898004cf] ---
 
 if not modules then modules={} end modules ['font-con']={
  version=1.001,
@@ -4251,6 +4266,9 @@ function constructors.assignmathparameters(target,original)
   if not mathparameters.FractionDelimiterDisplayStyleSize then
    targetmathparameters.FractionDelimiterDisplayStyleSize=2.40*targetparameters.size
   end
+  if not targetmathparameters.SpaceBeforeScript then
+   targetmathparameters.SpaceBeforeScript=targetmathparameters.SpaceAfterScript
+  end
   target.mathparameters=targetmathparameters
  end
 end
@@ -4258,31 +4276,40 @@ function constructors.beforecopyingcharacters(target,original)
 end
 function constructors.aftercopyingcharacters(target,original)
 end
-constructors.sharefonts=false
-constructors.nofsharedfonts=0
-local sharednames={}
+local nofinstances=0
+local instances=setmetatableindex(function(t,k)
+ nofinstances=nofinstances+1
+ t[k]=nofinstances
+ return nofinstances
+end)
 function constructors.trytosharefont(target,tfmdata)
- if constructors.sharefonts then 
-  local characters=target.characters
-  local n=1
-  local t={ target.psname }
-  local u=sortedkeys(characters)
-  for i=1,#u do
-   local k=u[i]
-   n=n+1;t[n]=k
-   n=n+1;t[n]=characters[k].index or k
-  end
-  local h=md5.HEX(concat(t," "))
-  local s=sharednames[h]
-  if s then
-   if trace_defining then
-    report_defining("font %a uses backend resources of font %a",target.fullname,s)
-   end
-   target.fullname=s
-   constructors.nofsharedfonts=constructors.nofsharedfonts+1
-   target.properties.sharedwith=s
+ local properties=target.properties
+ local instance=properties.instance
+ if instance then
+  local fullname=target.fullname
+  local fontname=target.fontname
+  local psname=target.psname
+  local format=tfmdata.properties.format
+  if format=="opentype" then
+   target.streamprovider=1
+  elseif format=="truetype" then
+   target.streamprovider=2
   else
-   sharednames[h]=target.fullname
+   target.streamprovider=0
+  end
+  if target.streamprovider>0 then
+   if fullname then
+    fullname=fullname..":"..instances[instance]
+    target.fullname=fullname
+   end
+   if fontname then
+    fontname=fontname..":"..instances[instance]
+    target.fontname=fontname
+   end
+   if psname then
+    psname=psname..":"..instances[instance]
+    target.psname=psname
+   end
   end
  end
 end
@@ -4448,12 +4475,14 @@ function constructors.scale(tfmdata,specification)
  target.cidinfo=properties.cidinfo
  target.format=properties.format
  target.cache=constructors.cacheintex and "yes" or "renew"
+ local original=properties.original or tfmdata.original
  local fontname=properties.fontname or tfmdata.fontname
  local fullname=properties.fullname or tfmdata.fullname
  local filename=properties.filename or tfmdata.filename
  local psname=properties.psname   or tfmdata.psname
  local name=properties.name  or tfmdata.name
  local psname,psfixed=fixedpsname(psname,fontname or fullname or file.nameonly(filename))
+ target.original=original
  target.fontname=fontname
  target.fullname=fullname
  target.filename=filename
@@ -4543,6 +4572,14 @@ function constructors.scale(tfmdata,specification)
  targetparameters.x_height=targetx_height
  targetparameters.quad=targetquad
  targetparameters.extra_space=targetextra_space
+ local hshift=parameters.hshift
+ if hshift then
+  targetparameters.hshift=delta*hshift
+ end
+ local vshift=parameters.vshift
+ if vshift then
+  targetparameters.vshift=delta*vshift
+ end
  local ascender=parameters.ascender
  if ascender then
   targetparameters.ascender=delta*ascender
@@ -4562,6 +4599,9 @@ function constructors.scale(tfmdata,specification)
   properties.hasmath=true
   target.nomath=false
   target.MathConstants=target.mathparameters
+  local oldmath=properties.oldmath
+  targetproperties.oldmath=oldmath
+  target.oldmath=oldmath
  else
   properties.hasmath=false
   target.nomath=true
@@ -5473,10 +5513,10 @@ function constructors.addcoreunicodes(unicodes)
  return unicodes
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-con”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-con”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-enc” 3e71a54297e8f85a1ac438bb0f20dd79] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-enc” 5ff4ca50493d7c4ecea0e15c203099f0] ---
 
 if not modules then modules={} end modules ['luatex-font-enc']={
  version=1.001,
@@ -5545,10 +5585,10 @@ function encodings.load(filename)
  return containers.write(encodings.cache,name,data)
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-enc”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-enc”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-cid” 4d87988efa86020a14708ee03c23415f] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-cid” 22b0367742fb253deef84ef7ccf5e8de] ---
 
 if not modules then modules={} end modules ['font-cid']={
  version=1.001,
@@ -5699,13 +5739,14 @@ function cid.getmap(specification)
  return found
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-cid”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-cid”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-map” 51d0362c19d2d0f621e5cb750410a809] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-map” c4a39db5ad822b348aa61bca5f4a599a] ---
 
 if not modules then modules={} end modules ['font-map']={
  version=1.001,
+ optimize=true,
  comment="companion to font-ini.mkiv",
  author="Hans Hagen, PRAGMA-ADE, Hasselt NL",
  copyright="PRAGMA ADE / ConTeXt Development Team",
@@ -5790,6 +5831,7 @@ end
 local hash={}
 local conc={}
 table.setmetatableindex(hash,function(t,k)
+ local v
  if k<0xD7FF or (k>0xDFFF and k<=0xFFFF) then
   v=f_single(k)
  else
@@ -6108,10 +6150,10 @@ function mappings.addtounicode(data,filename,checklookups,forceligatures)
  end
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-map”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-map”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-vfc” 94937140f2c909e9c831ba021f1ab303] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-vfc” a81c29eda98cd62cbebdb6c93544b50d] ---
 
 if not modules then modules={} end modules ['font-vfc']={
  version=1.001,
@@ -6125,7 +6167,6 @@ local insert=table.insert
 local fonts=fonts
 local helpers=fonts.helpers
 local setmetatableindex=table.setmetatableindex
-local makeweak=table.makeweak
 local push={ "push" }
 local pop={ "pop" }
 local dummy={ "comment" }
@@ -6209,13 +6250,14 @@ helpers.commands=utilities.storage.allocate {
  dummy=dummy,
 }
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-vfc”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-vfc”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-otr” d96724dcb40c673ac294df7044a39925] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-otr” 64dcbbc7107538723990e1119a80a9f8] ---
 
 if not modules then modules={} end modules ['font-otr']={
  version=1.001,
+ optimize=true,
  comment="companion to font-ini.mkiv",
  author="Hans Hagen, PRAGMA-ADE, Hasselt NL",
  copyright="PRAGMA ADE / ConTeXt Development Team",
@@ -7657,16 +7699,10 @@ local function readtable(tag,f,fontdata,specification,...)
   reader(f,fontdata,specification,...)
  end
 end
-local variablefonts_supported=(context and true) or (logs and logs.application and true) or false
 local function readdata(f,offset,specification)
  local fontdata,tables=loadtables(f,specification,offset)
  if specification.glyphs then
   prepareglyps(fontdata)
- end
- if not variablefonts_supported then
-  specification.instance=nil
-  specification.variable=nil
-  specification.factors=nil
  end
  fontdata.temporary={}
  readtable("name",f,fontdata,specification)
@@ -7682,60 +7718,58 @@ local function readdata(f,offset,specification)
  readtable("stat",f,fontdata,specification)
  readtable("avar",f,fontdata,specification)
  readtable("fvar",f,fontdata,specification)
- if variablefonts_supported then
-  local variabledata=fontdata.variabledata
-  if variabledata then
-   local instances=variabledata.instances
-   local axis=variabledata.axis
-   if axis and (not instances or #instances==0) then
-    instances={}
-    variabledata.instances=instances
-    local function add(n,subfamily,value)
-     local values={}
-     for i=1,#axis do
-      local a=axis[i]
-      values[i]={
-       axis=a.tag,
-       value=i==n and value or a.default,
-      }
-     end
-     instances[#instances+1]={
-      subfamily=subfamily,
-      values=values,
-     }
-    end
+ local variabledata=fontdata.variabledata
+ if variabledata then
+  local instances=variabledata.instances
+  local axis=variabledata.axis
+  if axis and (not instances or #instances==0) then
+   instances={}
+   variabledata.instances=instances
+   local function add(n,subfamily,value)
+    local values={}
     for i=1,#axis do
      local a=axis[i]
-     local tag=a.tag
-     add(i,"default"..tag,a.default)
-     add(i,"minimum"..tag,a.minimum)
-     add(i,"maximum"..tag,a.maximum)
+     values[i]={
+      axis=a.tag,
+      value=i==n and value or a.default,
+     }
     end
+    instances[#instances+1]={
+     subfamily=subfamily,
+     values=values,
+    }
+   end
+   for i=1,#axis do
+    local a=axis[i]
+    local tag=a.tag
+    add(i,"default"..tag,a.default)
+    add(i,"minimum"..tag,a.minimum)
+    add(i,"maximum"..tag,a.maximum)
    end
   end
-  if not specification.factors then
-   local instance=specification.instance
-   if type(instance)=="string" then
-    local factors=helpers.getfactors(fontdata,instance)
-    if factors then
-     specification.factors=factors
-     fontdata.factors=factors
-     fontdata.instance=instance
-     report("user instance: %s, factors: % t",instance,factors)
-    else
-     report("user instance: %s, bad factors",instance)
-    end
-   end
-  end
-  if not fontdata.factors then
-   if fontdata.variabledata then
-    local factors=helpers.getfactors(fontdata,true)
-    if factors then
-     specification.factors=factors
-     fontdata.factors=factors
-    end
+ end
+ if not specification.factors then
+  local instance=specification.instance
+  if type(instance)=="string" then
+   local factors=helpers.getfactors(fontdata,instance)
+   if factors then
+    specification.factors=factors
+    fontdata.factors=factors
+    fontdata.instance=instance
+    report("user instance: %s, factors: % t",instance,factors)
    else
+    report("user instance: %s, bad factors",instance)
    end
+  end
+ end
+ if not fontdata.factors then
+  if fontdata.variabledata then
+   local factors=helpers.getfactors(fontdata,true)
+   if factors then
+    specification.factors=factors
+    fontdata.factors=factors
+   end
+  else
   end
  end
  readtable("os/2",f,fontdata,specification)
@@ -7959,6 +7993,7 @@ function readers.loadfont(filename,n,instance)
     hascolor=fontdata.hascolor or false,
     instance=fontdata.instance,
     factors=fontdata.factors,
+    nofsubfonts=fontdata.subfonts and #fontdata.subfonts or nil,
    },
    resources={
     filename=filename,
@@ -8062,10 +8097,10 @@ function readers.extend(fontdata)
  end
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-otr”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-otr”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-oti” dbae7722baae24d917a17176553825cf] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-oti” 309a75f9c14b77d87e94eba827dc4e71] ---
 
 if not modules then modules={} end modules ['font-oti']={
  version=1.001,
@@ -8208,10 +8243,10 @@ function otffeatures.checkeddefaultlanguage(featuretype,autolanguage,languages)
  end
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-oti”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-oti”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ott” aba6d8335a5f38a5a62d3631492f3392] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ott” 673ed11e1d159997f535bfec5fa73808] ---
 
 if not modules then modules={} end modules ["font-ott"]={
  version=1.001,
@@ -9288,9 +9323,6 @@ function otffeatures.normalize(features,wrap)
     h.script=rawget(verbosescripts,v) or (scripts[v] and v) or "dflt" 
    elseif k=="axis" then
     h[k]=normalizedaxis(value)
-    if not callbacks.supported.glyph_stream_provider then
-     h.variableshapes=true 
-    end
    else
     local uk=usedfeatures[key]
     local uv=uk[value]
@@ -9330,13 +9362,14 @@ function otffeatures.normalize(features,wrap)
  end
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ott”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ott”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-cff” 155821e11e84021437869ff973e75d93] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-cff” 2b677fad52d9999d0685e8525271a8cc] ---
 
 if not modules then modules={} end modules ['font-cff']={
  version=1.001,
+ optimize=true,
  comment="companion to font-ini.mkiv",
  author="Hans Hagen, PRAGMA-ADE, Hasselt NL",
  copyright="PRAGMA ADE / ConTeXt Development Team",
@@ -9784,12 +9817,15 @@ do
  local p_dictionary=(
   p_byte+p_positive+p_negative+p_short+p_long+p_nibbles+p_single+p_double+p_unsupported
  )^1
- parsedictionaries=function(data,dictionaries,what)
+ parsedictionaries=function(data,dictionaries,version)
   stack={}
   strings=data.strings
+  if trace_charstrings then
+   report("charstring format %a",version)
+  end
   for i=1,#dictionaries do
    top=0
-   result=what=="cff" and {
+   result=version=="cff" and {
     monospaced=false,
     italicangle=0,
     underlineposition=-100,
@@ -10507,7 +10543,7 @@ do
  local reginit=false
  local function updateregions(n) 
   if regions then
-   local current=regions[n] or regions[1]
+   local current=regions[n+1] or regions[1]
    nofregions=#current
    if axis and n~=reginit then
     factors={}
@@ -10588,6 +10624,7 @@ do
     end
    end
   else
+   top=top-nofregions*n
   end
  end
  local actions={ [0]=unsupported,
@@ -11075,7 +11112,11 @@ do
   popped=3
   seacs={}
   if regions then
-   regions={ regions } 
+   regions={}
+   local deltas=data.deltas
+   for i=1,#deltas do
+    regions[i]=deltas[i].regions
+   end
    axis=data.factors or false
   end
  end
@@ -11163,8 +11204,8 @@ do
   processshape(tab,index-1)
  end
 end
-local function readglobals(f,data)
- local routines=readlengths(f)
+local function readglobals(f,data,version)
+ local routines=readlengths(f,version=="cff2")
  for i=1,#routines do
   routines[i]=readbytetable(f,routines[i])
  end
@@ -11218,14 +11259,14 @@ local function readprivates(f,data)
   private.data=readstring(f,private.size)
  end
 end
-local function readlocals(f,data,dictionary)
+local function readlocals(f,data,dictionary,version)
  local header=data.header
  local private=dictionary.private
  if private then
   local subroutineoffset=private.data.subroutines
   if subroutineoffset~=0 then
    setposition(f,header.offset+private.offset+subroutineoffset)
-   local subroutines=readlengths(f)
+   local subroutines=readlengths(f,version=="cff2")
    for i=1,#subroutines do
     subroutines[i]=readbytetable(f,subroutines[i])
    end
@@ -11238,7 +11279,7 @@ local function readlocals(f,data,dictionary)
   dictionary.subroutines={}
  end
 end
-local function readcharstrings(f,data,what)
+local function readcharstrings(f,data,version)
  local header=data.header
  local dictionaries=data.dictionaries
  local dictionary=dictionaries[1]
@@ -11247,7 +11288,7 @@ local function readcharstrings(f,data,what)
  if type(offset)~="number" then
  elseif stringtype==2 then
   setposition(f,header.offset+offset)
-  local charstrings=readlengths(f,what=="cff2")
+  local charstrings=readlengths(f,version=="cff2")
   local nofglyphs=#charstrings
   for i=1,nofglyphs do
    charstrings[i]=readstring(f,charstrings[i])
@@ -11277,7 +11318,8 @@ readers.parsecharstrings=parsecharstrings
 local function readnoselect(f,fontdata,data,glyphs,doshapes,version,streams)
  local dictionaries=data.dictionaries
  local dictionary=dictionaries[1]
- readglobals(f,data)
+ local cid=not dictionary.private and dictionary.cid
+ readglobals(f,data,version)
  readcharstrings(f,data,version)
  if version=="cff2" then
   dictionary.charset=nil
@@ -11285,9 +11327,27 @@ local function readnoselect(f,fontdata,data,glyphs,doshapes,version,streams)
   readencodings(f,data)
   readcharsets(f,data,dictionary)
  end
+ if cid then
+  local fdarray=cid.fdarray
+  if fdarray then
+   setposition(f,data.header.offset+fdarray)
+   local dictionaries=readlengths(f,version=="cff2")
+   local nofdictionaries=#dictionaries
+   if nofdictionaries>0 then
+    for i=1,nofdictionaries do
+     dictionaries[i]=readstring(f,dictionaries[i])
+    end
+    parsedictionaries(data,dictionaries)
+    dictionary.private=dictionaries[1].private
+    if nofdictionaries>1 then
+     report("ignoring dictionaries > 1 in cid font")
+    end
+   end
+  end
+ end
  readprivates(f,data)
  parseprivates(data,data.dictionaries)
- readlocals(f,data,dictionary)
+ readlocals(f,data,dictionary,version)
  startparsing(fontdata,data,streams)
  parsecharstrings(fontdata,data,glyphs,doshapes,version,streams)
  stopparsing(fontdata,data)
@@ -11298,7 +11358,7 @@ local function readfdselect(f,fontdata,data,glyphs,doshapes,version,streams)
  local dictionary=dictionaries[1]
  local cid=dictionary.cid
  local cidselect=cid and cid.fdselect
- readglobals(f,data)
+ readglobals(f,data,version)
  readcharstrings(f,data,version)
  if version~="cff2" then
   readencodings(f,data)
@@ -11342,7 +11402,7 @@ local function readfdselect(f,fontdata,data,glyphs,doshapes,version,streams)
   local cidarray=cid.fdarray
   if cidarray then
    setposition(f,header.offset+cidarray)
-   local dictionaries=readlengths(f)
+   local dictionaries=readlengths(f,version=="cff2")
    for i=1,#dictionaries do
     dictionaries[i]=readstring(f,dictionaries[i])
    end
@@ -11350,7 +11410,7 @@ local function readfdselect(f,fontdata,data,glyphs,doshapes,version,streams)
    cid.dictionaries=dictionaries
    readcidprivates(f,data)
    for i=1,#dictionaries do
-    readlocals(f,data,dictionaries[i])
+    readlocals(f,data,dictionaries[i],version)
    end
    startparsing(fontdata,data,streams)
    for i=1,#charstrings do
@@ -11504,13 +11564,14 @@ function readers.cffcheck(filename)
  end
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-cff”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-cff”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ttf” 44e61cef50dab9b1aaf48130f9367c34] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ttf” ffffc827e1bcddc33a2b615340ecff7f] ---
 
 if not modules then modules={} end modules ['font-ttf']={
  version=1.001,
+ optimize=true,
  comment="companion to font-ini.mkiv",
  author="Hans Hagen, PRAGMA-ADE, Hasselt NL",
  copyright="PRAGMA ADE / ConTeXt Development Team",
@@ -11631,7 +11692,7 @@ local function mergecomposites(glyphs,shapes)
   shape.components=nil
   return contours,points
  end
- for index=0,#glyphs-1 do
+ for index=0,#glyphs do
   local shape=shapes[index]
   if shape then
    local components=shape.components
@@ -12061,7 +12122,7 @@ local function repackpoints(glyphs,shapes)
  local result={} 
  local xpoints={} 
  local ypoints={} 
- for index=0,#glyphs-1 do
+ for index=0,#glyphs do
   local shape=shapes[index]
   if shape then
    local r=0
@@ -12677,13 +12738,14 @@ function readers.gvar(f,fontdata,specification,glyphdata,shapedata)
  end
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ttf”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ttf”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-dsp” 618e5e760ec5dceb0c898a83816dbe61] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-dsp” 174ce11f3ba0bddf270f48d8d2addd56] ---
 
 if not modules then modules={} end modules ['font-dsp']={
  version=1.001,
+ optimize=true,
  comment="companion to font-ini.mkiv",
  author="Hans Hagen, PRAGMA-ADE, Hasselt NL",
  copyright="PRAGMA ADE / ConTeXt Development Team",
@@ -13041,7 +13103,6 @@ local function readvariationdata(f,storeoffset,factors)
   end
   regions[i]=t
  end
- if factors then
   for i=1,nofdeltadata do
    setposition(f,storeoffset+deltadata[i])
    local nofdeltasets=readushort(f)
@@ -13065,7 +13126,6 @@ local function readvariationdata(f,storeoffset,factors)
     scales=factors and getscales(usedregions,factors) or nil,
    }
   end
- end
  setposition(f,position)
  return regions,deltadata
 end
@@ -13324,7 +13384,7 @@ local function readfirst(f,offset)
  end
  return { readushort(f) }
 end
-function readarray(f,offset)
+local function readarray(f,offset)
  if offset then
   setposition(f,offset)
  end
@@ -15957,10 +16017,10 @@ function readers.mvar(f,fontdata,specification)
  end
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-dsp”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-dsp”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-oup” 1700a2dac4f8b105c187d4e5b84cecdf] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-oup” 6f46aa00ae1c20c43f8ffaf329dc8695] ---
 
 if not modules then modules={} end modules ['font-oup']={
  version=1.001,
@@ -18601,10 +18661,10 @@ function readers.expand(data)
  expandlookups(sublookups)
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-oup”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-oup”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-otl” f111f9ac18d24049fadeb8883e4e8da5] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-otl” f4e6652a191003493389de230b14cfb3] ---
 
 if not modules then modules={} end modules ['font-otl']={
  version=1.001,
@@ -18632,7 +18692,7 @@ local trace_defining=false  registertracker("fonts.defining",function(v) trace_d
 local report_otf=logs.reporter("fonts","otf loading")
 local fonts=fonts
 local otf=fonts.handlers.otf
-otf.version=3.111 
+otf.version=3.113 
 otf.cache=containers.define("fonts","otl",otf.version,true)
 otf.svgcache=containers.define("fonts","svg",otf.version,true)
 otf.pngcache=containers.define("fonts","png",otf.version,true)
@@ -18997,7 +19057,6 @@ local function copytotfm(data,cache_id)
   parameters.units=units
   parameters.vheight=metadata.defaultvheight
   properties.space=spacer
-  properties.encodingbytes=2
   properties.format=data.format or formats.otf
   properties.filename=filename
   properties.fontname=fontname
@@ -19005,6 +19064,9 @@ local function copytotfm(data,cache_id)
   properties.psname=psname
   properties.name=filename or fullname
   properties.subfont=subfont
+if not CONTEXTLMTXMODE or CONTEXTLMTXMODE==0 then
+  properties.encodingbytes=2
+end
   properties.private=properties.private or data.private or privateoffset
   return {
    characters=characters,
@@ -19308,10 +19370,10 @@ otf.coverup={
  end
 }
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-otl”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-otl”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-oto” 24238a7c600d090a8ee88312321dd9b3] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-oto” 2b1d6bc63b2ebf8f2655a15e1cda6541] ---
 
 if not modules then modules={} end modules ['font-oto']={ 
  version=1.001,
@@ -19769,13 +19831,14 @@ registerotffeature {
 }
 otf.basemodeinitializer=featuresinitializer
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-oto”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-oto”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-otj” c9ded1d935bfa43020657e1f408fb820] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-otj” 8de59cb9b043e5f73c6b9f7cc8f6978e] ---
 
 if not modules then modules={} end modules ['font-otj']={
  version=1.001,
+ optimize=true,
  comment="companion to font-lib.mkiv",
  author="Hans Hagen, PRAGMA-ADE, Hasselt NL",
  copyright="PRAGMA ADE / ConTeXt Development Team",
@@ -21266,10 +21329,10 @@ function injections.handler(head,where)
  end
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-otj”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-otj”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ota” dd5f1c8ba28abaf4505fd960d04a3a98] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ota” ad1d5de06400f88829509e1f3ff2b473] ---
 
 if not modules then modules={} end modules ['font-ota']={
  version=1.001,
@@ -21279,6 +21342,7 @@ if not modules then modules={} end modules ['font-ota']={
  license="see context related readme files"
 }
 local type=type
+local setmetatableindex=table.setmetatableindex
 if not trackers then trackers={ register=function() end } end
 local fonts,nodes,node=fonts,nodes,node
 local allocate=utilities.storage.allocate
@@ -21492,7 +21556,7 @@ if not classifiers then
  local f_mandiac,l_mandiac=characters.blockrange("mandiac")
  local f_nko,l_nko=characters.blockrange("nko")
  local f_ext_a,l_ext_a=characters.blockrange("arabicextendeda")
- classifiers=table.setmetatableindex(function(t,k)
+ classifiers=setmetatableindex(function(t,k)
   if type(k)=="number" then
    local c=chardata[k]
    local v=false
@@ -21658,17 +21722,118 @@ end
 methods.syrc=methods.arab
 methods.mand=methods.arab
 methods.nko=methods.arab
+do
+ local joining=setmetatableindex(function(t,k)
+  if type(k)=="number" then
+   local c=chardata[k]
+   local v=false
+   if c then
+    local mongolian=c.mongolian
+    v=mongolian
+   end
+   t[k]=v
+   return v
+  end
+ end)
+ function methods.mong(head,font,attr)
+  local first,last
+  local current=head
+  local done=false
+  local prevjoin=nil
+  local prestate=nil
+  current=tonut(current)
+  local function wrapup()
+   if last then
+    if last~=first then
+     local s=getstate(last)
+     if s==s_medi then
+      setstate(last,s_fina)
+     elseif s==s_init then
+      setstate(last,s_isol)
+     end
+    end
+    last=nil
+    first=nil
+    prevjoin=nil
+    prestate=nil
+   end
+  end
+  while current do
+   local char,id=ischar(current,font)
+   if char and not getstate(current) then
+    local currjoin=joining[char]
+    done=true
+    if not last then
+     setstate(current,s_isol)
+     prevjoin=currjoin
+     first=current
+     last=current
+     prevstate=s_isol
+    elseif currjoin=="t" then
+     last=current
+    elseif prevjoin=="d" or prevjoin=="jc" or prevjoin=="l" then
+     if currjoin=="d" or prevjoin=="jc" or prevjoin=="r" then
+      local s=getstate(last)
+      if s==s_isol then
+       setstate(last,s_init)
+      elseif s==s_fina then
+       setstate(last,s_medi)
+      end
+      setstate(current,s_fina)
+      prevstate=s_fina
+     elseif prevjoin=="nj" or prevjoin=="l" then
+      local s=getstate(last)
+      if s==s_medi then
+       setstate(last,s_fina)
+      elseif s==s_init then
+       setstate(last,s_isol)
+      end
+      setstate(current,s_isol)
+      prevstate=s_isol
+     end
+     prevjoin=currjoin
+     last=current
+    elseif prevjoin=="nj" or prevjoin=="r" then
+     if s==s_medi then
+      setstate(last,s_fina)
+     elseif s==s_init then
+      setstate(last,s_isol)
+     end
+     setstate(current,s_isol)
+     prevjoin=currjoin
+     prevstate=s_isol
+     last=current
+    elseif last then
+     wrapup()
+    end
+   else
+    if last then
+     wrapup()
+    end
+    if id==math_code then 
+     current=end_of_math(current)
+    end
+   end
+   current=getnext(current)
+  end
+  if last then
+   wrapup()
+  end
+  return head,done
+ end
+end
 directives.register("otf.analyze.useunicodemarks",function(v)
  analyzers.useunicodemarks=v
 end)
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ota”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ota”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ots” 113b7ad0c40d4786bb026706e479c3f3] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ots” c780a471147527f4ddc139e017927ffe] ---
 
 if not modules then modules={} end modules ['font-ots']={ 
  version=1.001,
+ optimize=true,
  comment="companion to font-ini.mkiv",
  author="Hans Hagen, PRAGMA-ADE, Hasselt NL",
  copyright="PRAGMA ADE / ConTeXt Development Team",
@@ -21748,6 +21913,7 @@ local copy_only_glyphs=nuts.copy_only_glyphs
 local count_components=nuts.count_components
 local set_components=nuts.set_components
 local get_components=nuts.get_components
+local flush_components=nuts.flush_components
 local ischar=nuts.ischar
 local usesfont=nuts.uses_font
 local insert_node_after=nuts.insert_after
@@ -21770,7 +21936,9 @@ local glue_code=nodecodes.glue
 local disc_code=nodecodes.disc
 local math_code=nodecodes.math
 local dir_code=nodecodes.dir
-local localpar_code=nodecodes.localpar
+local par_code=nodecodes.par
+local lefttoright_code=nodes.dirvalues.lefttoright
+local righttoleft_code=nodes.dirvalues.righttoleft
 local discretionarydisc_code=disccodes.discretionary
 local ligatureglyph_code=glyphcodes.ligature
 local a_noligature=attributes.private("noligature")
@@ -21950,11 +22118,23 @@ local function markstoligature(head,start,stop,char)
   setsubtype(base,ligatureglyph_code)
   set_components(base,start)
   setlink(prev,base,next)
+  flush_components(start)
   return head,base
  end
 end
+local no_left_ligature_code=1
+local no_right_ligature_code=2
+local no_left_kern_code=4
+local no_right_kern_code=8
+local has_glyph_option=node.direct.has_glyph_option or function(n,c)
+ if c==no_left_ligature_code or c==no_right_ligature_code then
+  return getattr(n,a_noligature)==1
+ else
+  return false
+ end
+end
 local function toligature(head,start,stop,char,dataset,sequence,skiphash,discfound,hasmarks) 
- if getattr(start,a_noligature)==1 then
+ if has_glyph_option(start,no_right_ligature_code) then
   return head,start
  end
  if start==stop and getchar(start)==char then
@@ -22018,6 +22198,7 @@ local function toligature(head,start,stop,char,dataset,sequence,skiphash,discfou
     break
    end
   end
+  flush_components(components)
  else
   local discprev,discnext=getboth(discfound)
   if discprev and discnext then
@@ -22304,78 +22485,86 @@ function handlers.gsub_ligature(head,start,dataset,sequence,ligature,rlmode,skip
  return head,start,false,false
 end
 function handlers.gpos_single(head,start,dataset,sequence,kerns,rlmode,skiphash,step,injection)
- local startchar=getchar(start)
- local format=step.format
- if format=="single" or type(kerns)=="table" then 
-  local dx,dy,w,h=setposition(0,start,factor,rlmode,kerns,injection)
-  if trace_kerns then
-   logprocess("%s: shifting single %s by %s xy (%p,%p) and wh (%p,%p)",pref(dataset,sequence),gref(startchar),format,dx,dy,w,h)
-  end
- else
-  local k=(format=="move" and setmove or setkern)(start,factor,rlmode,kerns,injection)
-  if trace_kerns then
-   logprocess("%s: shifting single %s by %s %p",pref(dataset,sequence),gref(startchar),format,k)
-  end
- end
- return head,start,true
-end
-function handlers.gpos_pair(head,start,dataset,sequence,kerns,rlmode,skiphash,step,injection)
- local snext=getnext(start)
- if not snext then
+ if has_glyph_option(start,no_right_kern_code) then
   return head,start,false
  else
-  local prev=start
-  while snext do
-   local nextchar=ischar(snext,currentfont)
-   if nextchar then
-    if skiphash and skiphash[nextchar] then 
-     prev=snext
-     snext=getnext(snext)
-    else
-     local krn=kerns[nextchar]
-     if not krn then
-      break
-     end
-     local format=step.format
-     if format=="pair" then
-      local a=krn[1]
-      local b=krn[2]
-      if a==true then
-      elseif a then 
-       local x,y,w,h=setposition(1,start,factor,rlmode,a,injection)
-       if trace_kerns then
-        local startchar=getchar(start)
-        logprocess("%s: shifting first of pair %s and %s by xy (%p,%p) and wh (%p,%p) as %s",pref(dataset,sequence),gref(startchar),gref(nextchar),x,y,w,h,injection or "injections")
-       end
-      end
-      if b==true then
-       start=snext 
-      elseif b then 
-       local x,y,w,h=setposition(2,snext,factor,rlmode,b,injection)
-       if trace_kerns then
-        local startchar=getchar(start)
-        logprocess("%s: shifting second of pair %s and %s by xy (%p,%p) and wh (%p,%p) as %s",pref(dataset,sequence),gref(startchar),gref(nextchar),x,y,w,h,injection or "injections")
-       end
-       start=snext 
-      elseif forcepairadvance then
-       start=snext 
-      end
-      return head,start,true
-     elseif krn~=0 then
-      local k=(format=="move" and setmove or setkern)(snext,factor,rlmode,krn,injection)
-      if trace_kerns then
-       logprocess("%s: inserting %s %p between %s and %s as %s",pref(dataset,sequence),format,k,gref(getchar(prev)),gref(nextchar),injection or "injections")
-      end
-      return head,start,true
-     else 
-      break
-     end
-    end
-   else
-    break
+  local startchar=getchar(start)
+  local format=step.format
+  if format=="single" or type(kerns)=="table" then 
+   local dx,dy,w,h=setposition(0,start,factor,rlmode,kerns,injection)
+   if trace_kerns then
+    logprocess("%s: shifting single %s by %s xy (%p,%p) and wh (%p,%p)",pref(dataset,sequence),gref(startchar),format,dx,dy,w,h)
+   end
+  else
+   local k=(format=="move" and setmove or setkern)(start,factor,rlmode,kerns,injection)
+   if trace_kerns then
+    logprocess("%s: shifting single %s by %s %p",pref(dataset,sequence),gref(startchar),format,k)
    end
   end
+  return head,start,true
+ end
+end
+function handlers.gpos_pair(head,start,dataset,sequence,kerns,rlmode,skiphash,step,injection)
+ if has_glyph_option(start,no_right_kern_code) then
   return head,start,false
+ else
+  local snext=getnext(start)
+  if not snext then
+   return head,start,false
+  else
+   local prev=start
+   while snext do
+    local nextchar=ischar(snext,currentfont)
+    if nextchar then
+     if skiphash and skiphash[nextchar] then 
+      prev=snext
+      snext=getnext(snext)
+     else
+      local krn=kerns[nextchar]
+      if not krn then
+       break
+      end
+      local format=step.format
+      if format=="pair" then
+       local a=krn[1]
+       local b=krn[2]
+       if a==true then
+       elseif a then 
+        local x,y,w,h=setposition(1,start,factor,rlmode,a,injection)
+        if trace_kerns then
+         local startchar=getchar(start)
+         logprocess("%s: shifting first of pair %s and %s by xy (%p,%p) and wh (%p,%p) as %s",pref(dataset,sequence),gref(startchar),gref(nextchar),x,y,w,h,injection or "injections")
+        end
+       end
+       if b==true then
+        start=snext 
+       elseif b then 
+        local x,y,w,h=setposition(2,snext,factor,rlmode,b,injection)
+        if trace_kerns then
+         local startchar=getchar(start)
+         logprocess("%s: shifting second of pair %s and %s by xy (%p,%p) and wh (%p,%p) as %s",pref(dataset,sequence),gref(startchar),gref(nextchar),x,y,w,h,injection or "injections")
+        end
+        start=snext 
+       elseif forcepairadvance then
+        start=snext 
+       end
+       return head,start,true
+      elseif krn~=0 then
+       local k=(format=="move" and setmove or setkern)(snext,factor,rlmode,krn,injection)
+       if trace_kerns then
+        logprocess("%s: inserting %s %p between %s and %s as %s",pref(dataset,sequence),format,k,gref(getchar(prev)),gref(nextchar),injection or "injections")
+       end
+       return head,start,true
+      else 
+       break
+      end
+     end
+    else
+     break
+    end
+   end
+   return head,start,false
+  end
  end
 end
 function handlers.gpos_mark2base(head,start,dataset,sequence,markanchors,rlmode,skiphash)
@@ -22805,89 +22994,93 @@ function chainprocs.gsub_ligature(head,start,stop,dataset,sequence,currentlookup
  return head,start,false,0,false
 end
 function chainprocs.gpos_single(head,start,stop,dataset,sequence,currentlookup,rlmode,skiphash,chainindex)
- local mapping=currentlookup.mapping
- if mapping==nil then
-  mapping=getmapping(dataset,sequence,currentlookup)
- end
- if mapping then
-  local startchar=getchar(start)
-  local kerns=mapping[startchar]
-  if kerns then
-   local format=currentlookup.format
-   if format=="single" then
-    local dx,dy,w,h=setposition(0,start,factor,rlmode,kerns) 
-    if trace_kerns then
-     logprocess("%s: shifting single %s by %s (%p,%p) and correction (%p,%p)",cref(dataset,sequence),gref(startchar),format,dx,dy,w,h)
+ if not has_glyph_option(start,no_right_kern_code) then
+  local mapping=currentlookup.mapping
+  if mapping==nil then
+   mapping=getmapping(dataset,sequence,currentlookup)
+  end
+  if mapping then
+   local startchar=getchar(start)
+   local kerns=mapping[startchar]
+   if kerns then
+    local format=currentlookup.format
+    if format=="single" then
+     local dx,dy,w,h=setposition(0,start,factor,rlmode,kerns) 
+     if trace_kerns then
+      logprocess("%s: shifting single %s by %s (%p,%p) and correction (%p,%p)",cref(dataset,sequence),gref(startchar),format,dx,dy,w,h)
+     end
+    else 
+     local k=(format=="move" and setmove or setkern)(start,factor,rlmode,kerns,injection)
+     if trace_kerns then
+      logprocess("%s: shifting single %s by %s %p",cref(dataset,sequence),gref(startchar),format,k)
+     end
     end
-   else 
-    local k=(format=="move" and setmove or setkern)(start,factor,rlmode,kerns,injection)
-    if trace_kerns then
-     logprocess("%s: shifting single %s by %s %p",cref(dataset,sequence),gref(startchar),format,k)
-    end
+    return head,start,true
    end
-   return head,start,true
   end
  end
  return head,start,false
 end
-function chainprocs.gpos_pair(head,start,stop,dataset,sequence,currentlookup,rlmode,skiphash,chainindex) 
- local mapping=currentlookup.mapping
- if mapping==nil then
-  mapping=getmapping(dataset,sequence,currentlookup)
- end
- if mapping then
-  local snext=getnext(start)
-  if snext then
-   local startchar=getchar(start)
-   local kerns=mapping[startchar] 
-   if kerns then
-    local prev=start
-    while snext do
-     local nextchar=ischar(snext,currentfont)
-     if not nextchar then
-      break
-     end
-     if skiphash and skiphash[nextchar] then
-      prev=snext
-      snext=getnext(snext)
-     else
-      local krn=kerns[nextchar]
-      if not krn then
+function chainprocs.gpos_pair(head,start,stop,dataset,sequence,currentlookup,rlmode,skiphash,chainindex)
+ if not has_glyph_option(start,no_right_kern_code) then
+  local mapping=currentlookup.mapping
+  if mapping==nil then
+   mapping=getmapping(dataset,sequence,currentlookup)
+  end
+  if mapping then
+   local snext=getnext(start)
+   if snext then
+    local startchar=getchar(start)
+    local kerns=mapping[startchar] 
+    if kerns then
+     local prev=start
+     while snext do
+      local nextchar=ischar(snext,currentfont)
+      if not nextchar then
        break
       end
-      local format=currentlookup.format
-      if format=="pair" then
-       local a=krn[1]
-       local b=krn[2]
-       if a==true then
-       elseif a then
-        local x,y,w,h=setposition(1,start,factor,rlmode,a,"injections") 
-        if trace_kerns then
-         local startchar=getchar(start)
-         logprocess("%s: shifting first of pair %s and %s by (%p,%p) and correction (%p,%p)",cref(dataset,sequence),gref(startchar),gref(nextchar),x,y,w,h)
-        end
-       end
-       if b==true then
-        start=snext 
-       elseif b then 
-        local x,y,w,h=setposition(2,snext,factor,rlmode,b,"injections")
-        if trace_kerns then
-         local startchar=getchar(start)
-         logprocess("%s: shifting second of pair %s and %s by (%p,%p) and correction (%p,%p)",cref(dataset,sequence),gref(startchar),gref(nextchar),x,y,w,h)
-        end
-        start=snext 
-       elseif forcepairadvance then
-        start=snext 
-       end
-       return head,start,true
-      elseif krn~=0 then
-       local k=(format=="move" and setmove or setkern)(snext,factor,rlmode,krn)
-       if trace_kerns then
-        logprocess("%s: inserting %s %p between %s and %s",cref(dataset,sequence),format,k,gref(getchar(prev)),gref(nextchar))
-       end
-       return head,start,true
+      if skiphash and skiphash[nextchar] then
+       prev=snext
+       snext=getnext(snext)
       else
-       break
+       local krn=kerns[nextchar]
+       if not krn then
+        break
+       end
+       local format=currentlookup.format
+       if format=="pair" then
+        local a=krn[1]
+        local b=krn[2]
+        if a==true then
+        elseif a then
+         local x,y,w,h=setposition(1,start,factor,rlmode,a,"injections") 
+         if trace_kerns then
+          local startchar=getchar(start)
+          logprocess("%s: shifting first of pair %s and %s by (%p,%p) and correction (%p,%p)",cref(dataset,sequence),gref(startchar),gref(nextchar),x,y,w,h)
+         end
+        end
+        if b==true then
+         start=snext 
+        elseif b then 
+         local x,y,w,h=setposition(2,snext,factor,rlmode,b,"injections")
+         if trace_kerns then
+          local startchar=getchar(start)
+          logprocess("%s: shifting second of pair %s and %s by (%p,%p) and correction (%p,%p)",cref(dataset,sequence),gref(startchar),gref(nextchar),x,y,w,h)
+         end
+         start=snext 
+        elseif forcepairadvance then
+         start=snext 
+        end
+        return head,start,true
+       elseif krn~=0 then
+        local k=(format=="move" and setmove or setkern)(snext,factor,rlmode,krn)
+        if trace_kerns then
+         logprocess("%s: inserting %s %p between %s and %s",cref(dataset,sequence),format,k,gref(getchar(prev)),gref(nextchar))
+        end
+        return head,start,true
+       else
+        break
+       end
       end
      end
     end
@@ -23274,6 +23467,7 @@ local function chaindisk(head,start,dataset,sequence,rlmode,skiphash,ck)
  local sweepnode=sweepnode
  local sweeptype=sweeptype
  local sweepoverflow=false
+ local checkdisc=getprev(head)
  local keepdisc=not sweepnode
  local lookaheaddisc=nil
  local backtrackdisc=nil
@@ -23397,7 +23591,7 @@ local function chaindisk(head,start,dataset,sequence,rlmode,skiphash,ck)
   local current=prev
   local i=f
   local t=sweeptype=="pre" or sweeptype=="replace"
-  if not current and t and current==checkdisk then
+  if not current and t and current==checkdisc then
    current=getprev(sweepnode)
   end
   while current and i>1 do 
@@ -23425,7 +23619,7 @@ local function chaindisk(head,start,dataset,sequence,rlmode,skiphash,ck)
     end
    end
    current=getprev(current)
-   if t and current==checkdisk then
+   if t and current==checkdisc then
     current=getprev(sweepnode)
    end
   end
@@ -23610,6 +23804,9 @@ local function handle_contextchain(head,start,dataset,sequence,contexts,rlmode,s
   local l=ck[5] 
   local current=start
   local last=start
+  if s==1 then
+   goto next
+  end
   if l>f then
    local discfound 
    local n=f+1
@@ -23674,6 +23871,9 @@ local function handle_contextchain(head,start,dataset,sequence,contexts,rlmode,s
          notmatchpre[last]=true
          break
         end
+       end
+       if n<=l then
+        notmatchpre[last]=true
        end
       else
        notmatchpre[last]=true
@@ -24620,8 +24820,6 @@ local function k_run_multiple(sub,injection,last,font,attr,steps,nofsteps,datase
 end
 local txtdirstate,pardirstate  do 
  local getdirection=nuts.getdirection
- local lefttoright=0
- local righttoleft=1
  txtdirstate=function(start,stack,top,rlparmode)
   local dir,pop=getdirection(start)
   if pop then
@@ -24629,19 +24827,19 @@ local txtdirstate,pardirstate  do
     return 0,rlparmode
    else
     top=top-1
-    if stack[top]==righttoleft then
+    if stack[top]==righttoleft_code then
      return top,-1
     else
      return top,1
     end
    end
-  elseif dir==lefttoright then
+  elseif dir==lefttoright_code then
    top=top+1
-   stack[top]=lefttoright
+   stack[top]=lefttoright_code
    return top,1
-  elseif dir==righttoleft then
+  elseif dir==righttoleft_code then
    top=top+1
-   stack[top]=righttoleft
+   stack[top]=righttoleft_code
    return top,-1
   else
    return top,rlparmode
@@ -24649,13 +24847,9 @@ local txtdirstate,pardirstate  do
  end
  pardirstate=function(start)
   local dir=getdirection(start)
-  if dir==lefttoright then
+  if dir==lefttoright_code then
    return 1,1
-  elseif dir==righttoleft then
-   return -1,-1
-  elseif dir=="TLT" then
-   return 1,1
-  elseif dir=="TRT" then
+  elseif dir==righttoleft_code then
    return -1,-1
   else
    return 0,0
@@ -24708,9 +24902,9 @@ do
    checkstep(head)
   end
   local initialrl=0
-  if getid(head)==localpar_code and start_of_par(head) then
+  if getid(head)==par_code and start_of_par(head) then
    initialrl=pardirstate(head)
-  elseif direction==1 or direction=="TRT" then
+  elseif direction==righttoleft_code then
    initialrl=-1
   end
   local datasets=otfdataset(tfmdata,font,attr)
@@ -24934,7 +25128,7 @@ do
   local done=false
   local dirstack={ nil } 
   local start=head
-  local initialrl=(direction==1 or direction=="TRT") and -1 or 0
+  local initialrl=(direction==righttoleft_code) and -1 or 0
   local rlmode=initialrl
   local rlparmode=initialrl
   local topstack=0
@@ -25253,10 +25447,10 @@ registerotffeature {
  },
 }
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ots”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ots”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-osd” 61f05fcf91add1aa5dac9bc8b235adc9] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-osd” 73c9531c79df5ada320cb20777f7ed49] ---
 
 if not modules then modules={} end modules ['font-osd']={ 
  version=1.001,
@@ -27689,10 +27883,10 @@ for i=1,nofscripts do
  methods[scripts_two[i]]=method_two
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-osd”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-osd”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ocl” e6b45379971219a6227e8655cda14aff] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ocl” 797b5c71bf819c5f4fb314a4d646e9a7] ---
 
 if not modules then modules={} end modules ['font-ocl']={
  version=1.001,
@@ -27701,9 +27895,6 @@ if not modules then modules={} end modules ['font-ocl']={
  copyright="PRAGMA ADE / ConTeXt Development Team",
  license="see context related readme files"
 }
-if CONTEXTLMTXMODE and CONTEXTLMTXMODE>0 then
- return
-end
 local tostring,tonumber,next=tostring,tonumber,next
 local round,max=math.round,math.round
 local gsub,find=string.gsub,string.find
@@ -27808,7 +27999,7 @@ local function convert(t,k)
  t[k]=v
  return v
 end
-local start={ "pdf","mode","font" }
+local mode={ "pdf","mode","font" }
 local push={ "pdf","page","q" }
 local pop={ "pdf","page","Q" }
 local function initializeoverlay(tfmdata,kind,value)
@@ -27853,10 +28044,11 @@ local function initializeoverlay(tfmdata,kind,value)
       local s=#colorlist
       local goback=w~=0 and leftcommand[w] or nil 
       local t={
+       mode,
        not u and actualb or { "pdf","page",(getactualtext(tounicode(u))) },
        push,
       }
-      local n=2
+      local n=3
       local l=nil
       for i=1,s do
        local entry=colorlist[i]
@@ -27976,7 +28168,7 @@ do
  local loaddata=io.loaddata
  local savedata=io.savedata
  local remove=os.remove
- if context and xml.convert then
+if context then
   local xmlconvert=xml.convert
   local xmlfirst=xml.first
   function otfsvg.filterglyph(entry,index)
@@ -27985,11 +28177,11 @@ do
    local data=root and tostring(root)
    return data
   end
- else
+else
   function otfsvg.filterglyph(entry,index) 
    return entry.data
   end
- end
+end
  local runner=sandbox and sandbox.registerrunner {
   name="otfsvg",
   program="inkscape",
@@ -28002,6 +28194,14 @@ do
    return io.popen("inkscape --export-area-drawing --shell > temp-otf-svg-shape.log","w")
   end
  end
+ local new=nil
+ local function inkscapeformat(suffix)
+  if new==nil then
+   new=os.resultof("inkscape --version") or ""
+   new=new=="" or not find(new,"Inkscape%s*0")
+  end
+  return new and "filename" or suffix
+ end
  function otfsvg.topdf(svgshapes,tfmdata)
   local pdfshapes={}
   local inkscape=runner()
@@ -28010,7 +28210,7 @@ do
    local nofshapes=#svgshapes
    local f_svgfile=formatters["temp-otf-svg-shape-%i.svg"]
    local f_pdffile=formatters["temp-otf-svg-shape-%i.pdf"]
-   local f_convert=formatters["%s --export-pdf=%s\n"]
+   local f_convert=formatters["%s --export-%s=%s\n"]
    local filterglyph=otfsvg.filterglyph
    local nofdone=0
    local processed={}
@@ -28024,7 +28224,7 @@ do
       local svgfile=f_svgfile(index)
       local pdffile=f_pdffile(index)
       savedata(svgfile,data)
-      inkscape:write(f_convert(svgfile,pdffile))
+      inkscape:write(f_convert(svgfile,inkscapeformat("pdf"),pdffile))
       processed[index]=true
       nofdone=nofdone+1
       if nofdone%25==0 then
@@ -28229,10 +28429,10 @@ if context then
  }
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-ocl”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-ocl”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-otc” 1204a2fdc436e644127c0aa38ab69607] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-otc” 0f12230ea07b5151f75d52726977e91f] ---
 
 if not modules then modules={} end modules ['font-otc']={
  version=1.001,
@@ -28989,13 +29189,14 @@ end
 otf.enhancers.enhance=enhance
 otf.enhancers.register("check extra features",enhance)
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-otc”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-otc”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-onr” 22572ec0f86f53631e14b6d1ed43ee51] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-onr” 6d161533f3437435e12a0ad64866df44] ---
 
 if not modules then modules={} end modules ['font-onr']={
  version=1.001,
+ optimize=true,
  comment="companion to font-ini.mkiv",
  author="Hans Hagen, PRAGMA-ADE, Hasselt NL",
  copyright="PRAGMA ADE / ConTeXt Development Team",
@@ -29364,13 +29565,14 @@ function readers.getinfo(filename)
  end
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-onr”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-onr”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-one” 987c5c5ed3754ad2feab80985067d59e] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-one” 53cd565030e919da984b50471cc3be37] ---
 
 if not modules then modules={} end modules ['font-one']={
  version=1.001,
+ optimize=true,
  comment="companion to font-ini.mkiv",
  author="Hans Hagen, PRAGMA-ADE, Hasselt NL",
  copyright="PRAGMA ADE / ConTeXt Development Team",
@@ -29865,7 +30067,6 @@ local function copytotfm(data)
   parameters.descender=abs(metadata.descender or 0)
   parameters.units=1000
   properties.spacer=spacer
-  properties.encodingbytes=2
   properties.format=fonts.formats[filename] or "type1"
   properties.filename=filename
   properties.fontname=fontname
@@ -29873,6 +30074,9 @@ local function copytotfm(data)
   properties.psname=fullname
   properties.name=filename or fullname or fontname
   properties.private=properties.private or data.private or privateoffset
+if not CONTEXTLMTXMODE or CONTEXTLMTXMODE==0 then
+  properties.encodingbytes=2
+end
   if next(characters) then
    return {
     characters=characters,
@@ -30078,10 +30282,10 @@ registerafmenhancer("normalize features",enhance_normalize_features)
 registerafmenhancer("check extra features",otfenhancers.enhance)
 registerafmenhancer("fix names",enhance_fix_names)
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-one”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-one”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-afk” 54d554530e75c57c56ee76234724e26d] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-afk” 9da14e0fb22129c053acc599d1312544] ---
 
 if not modules then modules={} end modules ['font-afk']={
  version=1.001,
@@ -30248,10 +30452,10 @@ fonts.handlers.afm.helpdata={
  }
 }
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-afk”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-afk”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-tfm” 3bbba3214fd0b8c6f35ad85592fc2917] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-tfm” f0eb5e2a8068b17ad401bb7efdba1630] ---
 
 if not modules then modules={} end modules ['luatex-fonts-tfm']={
  version=1.001,
@@ -30766,10 +30970,10 @@ registertfmfeature {
  }
 }
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-tfm”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-tfm”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-lua” 55b281fb98f7bd848fc19928f376f647] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-lua” 1fbfdf7b689b2bdfd0e3bb9bf74ce136] ---
 
 if not modules then modules={} end modules ['font-lua']={
  version=1.001,
@@ -30809,10 +31013,10 @@ function readers.lua(specification)
  return check_lua(specification,fullname)
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-lua”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-lua”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-def” c525b9f55da1c736a1f6939c0a6f8f00] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-def” b9d908c2338b7dc443ce9d1e9fcb7139] ---
 
 if not modules then modules={} end modules ['font-def']={
  version=1.001,
@@ -31177,8 +31381,9 @@ function definers.read(specification,size,id)
    report_defining("already hashed: %s",hash)
   end
  else
-  tfmdata=definers.loadfont(specification) 
+  tfmdata=definers.loadfont(specification)
   if tfmdata then
+   tfmdata.original=specification.specification
    if trace_defining then
     report_defining("loaded and hashed: %s",hash)
    end
@@ -31211,10 +31416,378 @@ if not context then
  callbacks.register('define_font',definers.read,"definition of fonts (tfmdata preparation)")
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-def”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-def”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-def” 5ad79120ebc5e60f4d322fb3ee13bffe] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-shp” 5ff497c993112d4fef4c148348d964eb] ---
+
+if not modules then modules={} end modules ['font-shp']={
+ version=1.001,
+ comment="companion to font-ini.mkiv",
+ author="Hans Hagen, PRAGMA-ADE, Hasselt NL",
+ copyright="PRAGMA ADE / ConTeXt Development Team",
+ license="see context related readme files"
+}
+local tonumber,next=tonumber,next
+local concat=table.concat
+local formatters,lower=string.formatters,string.lower
+local otf=fonts.handlers.otf
+local afm=fonts.handlers.afm
+local pfb=fonts.handlers.pfb
+local hashes=fonts.hashes
+local identifiers=hashes.identifiers
+local version=0.009
+local shapescache=containers.define("fonts","shapes",version,true)
+local streamscache=containers.define("fonts","streams",version,true)
+local compact_streams=false
+directives.register("fonts.streams.compact",function(v) compact_streams=v end)
+local function packoutlines(data,makesequence)
+ local subfonts=data.subfonts
+ if subfonts then
+  for i=1,#subfonts do
+   packoutlines(subfonts[i],makesequence)
+  end
+  return
+ end
+ local common=data.segments
+ if common then
+  return
+ end
+ local glyphs=data.glyphs
+ if not glyphs then
+  return
+ end
+ if makesequence then
+  for index=0,#glyphs do
+   local glyph=glyphs[index]
+   if glyph then
+    local segments=glyph.segments
+    if segments then
+     local sequence={}
+     local nofsequence=0
+     for i=1,#segments do
+      local segment=segments[i]
+      local nofsegment=#segment
+      nofsequence=nofsequence+1
+      sequence[nofsequence]=segment[nofsegment]
+      for i=1,nofsegment-1 do
+       nofsequence=nofsequence+1
+       sequence[nofsequence]=segment[i]
+      end
+     end
+     glyph.sequence=sequence
+     glyph.segments=nil
+    end
+   end
+  end
+ else
+  local hash={}
+  local common={}
+  local reverse={}
+  local last=0
+  for index=0,#glyphs do
+   local glyph=glyphs[index]
+   if glyph then
+    local segments=glyph.segments
+    if segments then
+     for i=1,#segments do
+      local h=concat(segments[i]," ")
+      hash[h]=(hash[h] or 0)+1
+     end
+    end
+   end
+  end
+  for index=0,#glyphs do
+   local glyph=glyphs[index]
+   if glyph then
+    local segments=glyph.segments
+    if segments then
+     for i=1,#segments do
+      local segment=segments[i]
+      local h=concat(segment," ")
+      if hash[h]>1 then 
+       local idx=reverse[h]
+       if not idx then
+        last=last+1
+        reverse[h]=last
+        common[last]=segment
+        idx=last
+       end
+       segments[i]=idx
+      end
+     end
+    end
+   end
+  end
+  if last>0 then
+   data.segments=common
+  end
+ end
+end
+local function unpackoutlines(data)
+ local subfonts=data.subfonts
+ if subfonts then
+  for i=1,#subfonts do
+   unpackoutlines(subfonts[i])
+  end
+  return
+ end
+ local common=data.segments
+ if not common then
+  return
+ end
+ local glyphs=data.glyphs
+ if not glyphs then
+  return
+ end
+ for index=0,#glyphs do
+  local glyph=glyphs[index]
+  if glyph then
+   local segments=glyph.segments
+   if segments then
+    for i=1,#segments do
+     local c=common[segments[i]]
+     if c then
+      segments[i]=c
+     end
+    end
+   end
+  end
+ end
+ data.segments=nil
+end
+local readers=otf.readers
+local cleanname=otf.readers.helpers.cleanname
+local function makehash(filename,sub,instance)
+ local name=cleanname(file.basename(filename))
+ if instance then
+  return formatters["%s-%s-%s"](name,sub or 0,cleanname(instance))
+ else
+  return formatters["%s-%s"]   (name,sub or 0)
+ end
+end
+local function loadoutlines(cache,filename,sub,instance)
+ local base=file.basename(filename)
+ local name=file.removesuffix(base)
+ local kind=file.suffix(filename)
+ local attr=lfs.attributes(filename)
+ local size=attr and attr.size or 0
+ local time=attr and attr.modification or 0
+ local sub=tonumber(sub)
+ if size>0 and (kind=="otf" or kind=="ttf" or kind=="tcc") then
+  local hash=makehash(filename,sub,instance)
+  data=containers.read(cache,hash)
+  if not data or data.time~=time or data.size~=size then
+   data=otf.readers.loadshapes(filename,sub,instance)
+   if data then
+    data.size=size
+    data.format=data.format or (kind=="otf" and "opentype") or "truetype"
+    data.time=time
+    packoutlines(data)
+    containers.write(cache,hash,data)
+    data=containers.read(cache,hash) 
+   end
+  end
+  unpackoutlines(data)
+ elseif size>0 and (kind=="pfb") then
+  local hash=containers.cleanname(base) 
+  data=containers.read(cache,hash)
+  if not data or data.time~=time or data.size~=size then
+   data=afm.readers.loadshapes(filename)
+   if data then
+    data.size=size
+    data.format="type1"
+    data.time=time
+    packoutlines(data)
+    containers.write(cache,hash,data)
+    data=containers.read(cache,hash) 
+   end
+  end
+  unpackoutlines(data)
+ else
+  data={
+   filename=filename,
+   size=0,
+   time=time,
+   format="unknown",
+   units=1000,
+   glyphs={}
+  }
+ end
+ return data
+end
+local function cachethem(cache,hash,data)
+ containers.write(cache,hash,data,compact_streams) 
+ return containers.read(cache,hash) 
+end
+local function loadstreams(cache,filename,sub,instance)
+ local base=file.basename(filename)
+ local name=file.removesuffix(base)
+ local kind=lower(file.suffix(filename))
+ local attr=lfs.attributes(filename)
+ local size=attr and attr.size or 0
+ local time=attr and attr.modification or 0
+ local sub=tonumber(sub)
+ if size>0 and (kind=="otf" or kind=="ttf" or kind=="ttc") then
+  local hash=makehash(filename,sub,instance)
+  data=containers.read(cache,hash)
+  if not data or data.time~=time or data.size~=size then
+   data=otf.readers.loadshapes(filename,sub,instance,true)
+   if data then
+    local glyphs=data.glyphs
+    local streams={}
+    if glyphs then
+     for i=0,#glyphs do
+      local glyph=glyphs[i]
+      if glyph then
+       streams[i]=glyph.stream or ""
+      else
+       streams[i]=""
+      end
+     end
+    end
+    data.streams=streams
+    data.glyphs=nil
+    data.size=size
+    data.format=data.format or (kind=="otf" and "opentype") or "truetype"
+    data.time=time
+    data=cachethem(cache,hash,data)
+   end
+  end
+ elseif size>0 and (kind=="pfb") then
+  local hash=makehash(filename,sub,instance)
+  data=containers.read(cache,hash)
+  if not data or data.time~=time or data.size~=size then
+   local names,encoding,streams,metadata=pfb.loadvector(filename,false,true)
+   if streams then
+    local fontbbox=metadata.fontbbox or { 0,0,0,0 }
+    for i=0,#streams do
+     streams[i]=streams[i].stream or "\14"
+    end
+    data={
+     filename=filename,
+     size=size,
+     time=time,
+     format="type1",
+     streams=streams,
+     fontheader={
+      fontversion=metadata.version,
+      units=1000,
+      xmin=fontbbox[1],
+      ymin=fontbbox[2],
+      xmax=fontbbox[3],
+      ymax=fontbbox[4],
+     },
+     horizontalheader={
+      ascender=0,
+      descender=0,
+     },
+     maximumprofile={
+      nofglyphs=#streams+1,
+     },
+     names={
+      copyright=metadata.copyright,
+      family=metadata.familyname,
+      fullname=metadata.fullname,
+      fontname=metadata.fontname,
+      subfamily=metadata.subfamilyname,
+      trademark=metadata.trademark,
+      notice=metadata.notice,
+      version=metadata.version,
+     },
+     cffinfo={
+      familyname=metadata.familyname,
+      fullname=metadata.fullname,
+      italicangle=metadata.italicangle,
+      monospaced=metadata.isfixedpitch and true or false,
+      underlineposition=metadata.underlineposition,
+      underlinethickness=metadata.underlinethickness,
+      weight=metadata.weight,
+     },
+    }
+    data=cachethem(cache,hash,data)
+   end
+  end
+ else
+  data={
+   filename=filename,
+   size=0,
+   time=time,
+   format="unknown",
+   streams={}
+  }
+ end
+ return data
+end
+local loadedshapes={}
+local loadedstreams={}
+local function loadoutlinedata(fontdata,streams)
+ local properties=fontdata.properties
+ local filename=properties.filename
+ local subindex=fontdata.subindex
+ local instance=properties.instance
+ local hash=makehash(filename,subindex,instance)
+ local loaded=loadedshapes[hash]
+ if not loaded then
+  loaded=loadoutlines(shapescache,filename,subindex,instance)
+  loadedshapes[hash]=loaded
+ end
+ return loaded
+end
+hashes.shapes=table.setmetatableindex(function(t,k)
+ local f=identifiers[k]
+ if f then
+  return loadoutlinedata(f)
+ end
+end)
+local function getstreamhash(fontid)
+ local fontdata=identifiers[fontid]
+ if fontdata then
+  local properties=fontdata.properties
+  return makehash(properties.filename,properties.subfont,properties.instance)
+ end
+end
+local function loadstreamdata(fontdata)
+ local properties=fontdata.properties
+ local shared=fontdata.shared
+ local rawdata=shared and shared.rawdata
+ local metadata=rawdata and rawdata.metadata
+ local filename=properties.filename
+ local subindex=metadata and metadata.subfontindex
+ local instance=properties.instance
+ local hash=makehash(filename,subindex,instance)
+ local loaded=loadedstreams[hash]
+ if not loaded then
+  loaded=loadstreams(streamscache,filename,subindex,instance)
+  loadedstreams[hash]=loaded
+ end
+ return loaded
+end
+hashes.streams=table.setmetatableindex(function(t,k)
+ local f=identifiers[k]
+ if f then
+  return loadstreamdata(f)
+ end
+end)
+otf.loadoutlinedata=loadoutlinedata 
+otf.loadstreamdata=loadstreamdata  
+otf.loadshapes=loadshapes
+otf.getstreamhash=getstreamhash   
+local streams=fonts.hashes.streams
+callback.register("glyph_stream_provider",function(id,index,mode)
+ if id>0 then
+  local streams=streams[id].streams
+  if streams then
+   return streams[index] or ""
+  end
+ end
+ return ""
+end)
+
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-shp”] ---
+
+
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-def” f435e0875f203f343157baeff876ec9c] ---
 
 if not modules then modules={} end modules ['luatex-fonts-def']={
  version=1.001,
@@ -31295,10 +31868,10 @@ function fonts.definers.applypostprocessors(tfmdata)
  return tfmdata
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-def”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-def”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-ext” 01015ab3758cdc2af29394e6d502a91a] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-ext” 32013cbc5d5d336be8b1d1e5879d86c4] ---
 
 if not modules then modules={} end modules ['luatex-fonts-ext']={
  version=1.001,
@@ -31484,10 +32057,10 @@ registerotffeature {
  }
 }
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-ext”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-ext”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-imp-tex” 77c374b0ef00c2fb12188ec42beb4257] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-imp-tex” ceb087ef6fa2f89aed7179f60ddf8f35] ---
 
 if not modules then modules={} end modules ['font-imp-tex']={
  version=1.001,
@@ -31586,10 +32159,10 @@ registerotffeature {
  description="arabic digits",
 }
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-imp-tex”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-imp-tex”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-imp-ligatures” 043daa4fcccf2560868da359d71d3a4a] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-imp-ligatures” 26ffcf089391445f7af59536c8814364] ---
 
 if not modules then modules={} end modules ['font-imp-ligatures']={
  version=1.001,
@@ -31703,10 +32276,10 @@ if context then
  }
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-imp-ligatures”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-imp-ligatures”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-imp-italics” fe1ca80fb5ea4a2f8d2d5c484e7ba913] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-imp-italics” defcb415bc1e0a0999b27773902adc18] ---
 
 if not modules then modules={} end modules ['font-imp-italics']={
  version=1.001,
@@ -31775,8 +32348,6 @@ if context then
  }
  registerotffeature(specification)
  registerafmfeature(specification)
-end
-if context then
  local letter=characters.is_letter
  local always=true
  local function collapseitalics(tfmdata,key,value)
@@ -31812,10 +32383,10 @@ if context then
  registerafmfeature(dimensions_specification)
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-imp-italics”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-imp-italics”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “font-imp-effects” 73a660359a0ec71e44cc2b7225a715ac] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “font-imp-effects” a2dde5e071fcb3fc7b90f2bcd5aa4f22] ---
 
 if not modules then modules={} end modules ['font-imp-effects']={
  version=1.001,
@@ -31999,55 +32570,74 @@ local rules={
  "FractionRuleThickness",
  "UnderbarRuleThickness",
 }
-local function setmathparameters(tfmdata,characters,mathparameters,dx,dy,squeeze)
- if delta~=0 then
-  for i=1,#rules do
-   local name=rules[i]
-   local value=mathparameters[name]
-   if value then
-      mathparameters[name]=(squeeze or 1)*(value+dx)
+local setmathparameters
+local setmathcharacters
+if CONTEXTLMTXMODE and CONTEXTLMTXMODE>0 then
+ setmathparameters=function(tfmdata,characters,mathparameters,dx,dy,squeeze,multiplier)
+  if delta~=0 then
+   for i=1,#rules do
+    local name=rules[i]
+    local value=mathparameters[name]
+    if value then
+       mathparameters[name]=(squeeze or 1)*(value+dy)
+    end
    end
   end
  end
-end
-local function setmathcharacters(tfmdata,characters,mathparameters,dx,dy,squeeze,wdelta,hdelta,ddelta)
- local function wdpatch(char)
-  if wsnap~=0 then
-   char.width=char.width+wdelta/2
-  end
+ setmathcharacters=function()
  end
- local function htpatch(char)
-  if hsnap~=0 then
-   local height=char.height
-   if height then
-    char.height=char.height+2*dy
+else
+ setmathparameters=function(tfmdata,characters,mathparameters,dx,dy,squeeze,multiplier)
+  if delta~=0 then
+   for i=1,#rules do
+    local name=rules[i]
+    local value=mathparameters[name]
+    if value then
+       mathparameters[name]=(squeeze or 1)*(value+dy)
+    end
    end
   end
  end
- local character=characters[0x221A]
- if character and character.next then
-  local char=character
-  local next=character.next
-  wdpatch(char)
-  htpatch(char)
-  while next do
-   char=characters[next]
+ setmathcharacters=function(tfmdata,characters,mathparameters,dx,dy,squeeze,wdelta,hdelta,ddelta)
+  local function wdpatch(char)
+   if wsnap~=0 then
+    char.width=char.width+wdelta/2
+   end
+  end
+  local function htpatch(char)
+   if hsnap~=0 then
+    local height=char.height
+    if height then
+     char.height=char.height+2*dy
+    end
+   end
+  end
+  local character=characters[0x221A]
+  if character and character.next then
+   local char=character
+   local next=character.next
    wdpatch(char)
    htpatch(char)
-   next=char.next
-  end
-  if char then
-   local v=char.vert_variants
-   if v then
-    local top=v[#v]
-    if top then
-     local char=characters[top.glyph]
-     htpatch(char)
+   while next do
+    char=characters[next]
+    wdpatch(char)
+    htpatch(char)
+    next=char.next
+   end
+   if char then
+    local v=char.vert_variants
+    if v then
+     local top=v[#v]
+     if top then
+      local char=characters[top.glyph]
+      htpatch(char)
+     end
     end
    end
   end
  end
 end
+local shiftmode=CONTEXTLMTXMODE and CONTEXTLMTXMODE>0
 local function manipulateeffect(tfmdata)
  local effect=tfmdata.properties.effect
  if effect then
@@ -32069,38 +32659,45 @@ local function manipulateeffect(tfmdata)
   local factor=(1+effect.factor)*factor
   local hfactor=(1+effect.hfactor)*hfactor
   local vfactor=(1+effect.vfactor)*vfactor
-  local vshift=vshift~=0 and upcommand[vshift] or false
+  if shiftmode then
+   parameters.hshift=hshift
+   parameters.vshift=vshift
+  else
+   vshift=vshift~=0 and upcommand[vshift] or false
+   hshift=rightcommand[hshift]
+  end
   for unicode,character in next,characters do
    local oldwidth=character.width
    local oldheight=character.height
    local olddepth=character.depth
    if oldwidth and oldwidth>0 then
     character.width=oldwidth+wdelta
-    local commands=character.commands
-    local hshift=rightcommand[hshift]
-    if vshift then
-     if commands then
-      prependcommands (commands,
-       hshift,
-       vshift
-      )
+    if not shiftmode then
+     local commands=character.commands
+     if vshift then
+      if commands then
+       prependcommands (commands,
+        hshift,
+        vshift
+       )
+      else
+       character.commands={
+        hshift,
+        vshift,
+        charcommand[unicode]
+       }
+      end
      else
-      character.commands={
-       hshift,
-       vshift,
-       charcommand[unicode]
-      }
-     end
-    else
-     if commands then
-      prependcommands (commands,
-       hshift
-      )
-     else
-      character.commands={
-       hshift,
-       charcommand[unicode]
-      }
+      if commands then
+        prependcommands (commands,
+         hshift
+        )
+      else
+       character.commands={
+        hshift,
+        charcommand[unicode]
+        }
+      end
      end
     end
    end
@@ -32112,7 +32709,7 @@ local function manipulateeffect(tfmdata)
    end
   end
   if mathparameters then
-   setmathparameters(tfmdata,characters,mathparameters,dx,dy,squeeze)
+   setmathparameters(tfmdata,characters,mathparameters,dx,dy,squeeze,multiplier)
    setmathcharacters(tfmdata,characters,mathparameters,dx,dy,squeeze,wdelta,hdelta,ddelta)
   end
   parameters.factor=factor
@@ -32172,10 +32769,10 @@ local specification={
 registerotffeature(specification)
 registerafmfeature(specification)
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “font-imp-effects”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “font-imp-effects”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-lig” b9dbe77ce747d4c35bb2a20ffbe5aa51] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-lig” fbd251eea3810a43a8d5542319361d68] ---
 
 
 fonts.handlers.otf.addfeature {
@@ -34244,10 +34841,10 @@ fonts.handlers.otf.addfeature {
  ["type"]="ligature",
 }
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-lig”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-lig”] ---
 
 
-do  --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-gbn” d25472d54c4841db43a745764a63533e] ---
+do  --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-gbn” 10ecdf01e7c926e5128ad8a9dff4d677] ---
 
 if not modules then modules={} end modules ['luatex-fonts-gbn']={
  version=1.001,
@@ -34512,7 +35109,7 @@ function nodes.simple_font_handler(head,groupcode,size,packtype,direction)
  return head
 end
 
-end --- [luaotfload, fontloader-2020-05-01.lua scope for “fonts-gbn”] ---
+end --- [luaotfload, fontloader-2021-01-07.lua scope for “fonts-gbn”] ---
 
 
 --- vim:ft=lua:sw=2:ts=8:et:tw=79

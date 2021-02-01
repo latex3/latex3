@@ -3,19 +3,15 @@
 --  DESCRIPTION:  part of luaotfload / HarfBuzz / font definition
 -----------------------------------------------------------------------
 do -- block to avoid to many local variables error
- local ProvidesLuaModule = { 
+ assert(luaotfload_module, "This is a part of luaotfload and should not be loaded independently") { 
      name          = "luaotfload-harf-define",
-     version       = "3.13",       --TAGVERSION
-     date          = "2020-05-01", --TAGDATE
-     description   = "luaotfload submodule / database",
+     version       = "3.17",       --TAGVERSION
+     date          = "2021-01-08", --TAGDATE
+     description   = "luaotfload submodule / HarfBuzz font loading",
      license       = "GPL v2.0",
      author        = "Khaled Hosny, Marcel Krüger",
      copyright     = "Luaotfload Development Team",     
  }
-
- if luatexbase and luatexbase.provides_module then
-  luatexbase.provides_module (ProvidesLuaModule)
- end  
 end
 
 local unpack = string.unpack

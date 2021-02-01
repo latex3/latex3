@@ -5,17 +5,13 @@
 --       AUTHOR:  Dohyun Kim <nomosnomos@gmail.com>
 -------------------------------------------------------------------------------
 
-local ProvidesLuaModule = { 
+assert(luaotfload_module, "This is a part of luaotfload and should not be loaded independently") { 
     name          = "luaotfload-configuration",
-    version       = "3.13",       --TAGVERSION
-    date          = "2020-05-01", --TAGDATE
+    version       = "3.17",       --TAGVERSION
+    date          = "2021-01-08", --TAGDATE
     description   = "luaotfload submodule / config file reader",
     license       = "GPL v2.0"
 }
-
-if luatexbase and luatexbase.provides_module then
-  luatexbase.provides_module (ProvidesLuaModule)
-end  
 
 ------------------------------
 
@@ -103,30 +99,31 @@ local valid_resolvers = tabletohash {
   "tex", "path", "name", "file", "my"
 }
 
+local base_features = tabletohash {
+  -- Adopt the generic default from HarfBuzz.
+  -- The first line is generally enabled there,
+  -- the second only for horizontal text.
+  -- The third line is luaotfload specific
+  "abvm", "blwm", "ccmp", "locl", "mark", "mkmk", "rlig",
+  "calt", "clig", "curs", "dist", "kern", "liga", "rclt",
+  "itlc",
+}
 local feature_presets = {
-  arab = tabletohash {
-    "ccmp", "locl", "isol", "fina", "fin2",
-    "fin3", "medi", "med2", "init", "rlig",
-    "calt", "liga", "cswh", "mset", "curs",
-    "kern", "mark", "mkmk",
-  },
-  deva = tabletohash {
-    "ccmp", "locl", "init", "nukt", "akhn",
-    "rphf", "blwf", "half", "pstf", "vatu",
-    "pres", "blws", "abvs", "psts", "haln",
-    "calt", "blwm", "abvm", "dist", "kern",
-    "mark", "mkmk",
-  },
-  khmr = tabletohash {
-    "ccmp", "locl", "pref", "blwf", "abvf",
-    "pstf", "pres", "blws", "abvs", "psts",
-    "clig", "calt", "blwm", "abvm", "dist",
-    "kern", "mark", "mkmk",
-  },
-  thai = tabletohash {
-    "ccmp", "locl", "liga", "kern", "mark",
-    "mkmk",
-  },
+  arab = table.merged( tabletohash {
+    "isol", "fina", "fin2", "fin3", "medi", "med2", "init",
+    "cswh", "mset",
+  }, base_features),
+  deva = table.merged( tabletohash {
+    "init", "nukt", "akhn", "rphf", "blwf", "half", "pstf",
+    "vatu", "pres", "blws", "abvs", "psts", "haln",
+  }, base_features),
+  khmr = table.merged( tabletohash {
+    "pref", "blwf", "abvf", "pstf", "pres", "blws", "abvs",
+    "psts",
+  }, base_features),
+  hang = table.merged( tabletohash {
+    "ccmp", "ljmo", "vjmo", "tjmo",
+  }, base_features),
 }
 
 --[[doc--
@@ -234,10 +231,7 @@ local default_config = {
   },
   default_features = {
     global = { mode = "node" },
-    dflt = tabletohash {
-      "ccmp", "locl", "rlig", "liga", "clig",
-      "kern", "mark", "mkmk", 'itlc',
-    },
+    dflt = base_features,
 
     arab = feature_presets.arab,
     syrc = feature_presets.arab,
@@ -260,7 +254,7 @@ local default_config = {
     thai = feature_presets.thai,
     lao  = feature_presets.thai,
 
-    hang = tabletohash { "ccmp", "ljmo", "vjmo", "tjmo", },
+    hang = feature_presets.hang,
   },
 }
 

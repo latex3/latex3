@@ -207,9 +207,6 @@ function resolvers.name(specification)
                     features.normal = normal
                 end
                 normal.instance = instance
-             -- if not callbacks.supported.glyph_stream_provider then
-             --     normal.variableshapes = true -- for the moment
-             -- end
             end
             --
             local suffix = lower(suffixonly(resolved))
@@ -492,7 +489,9 @@ function definers.read(specification,size,id) -- id can be optional, name can al
         end
     else
         tfmdata = definers.loadfont(specification) -- can be overloaded
+-- put in properties instead
         if tfmdata then
+            tfmdata.original = specification.specification
             if trace_defining then
                 report_defining("loaded and hashed: %s",hash)
             end

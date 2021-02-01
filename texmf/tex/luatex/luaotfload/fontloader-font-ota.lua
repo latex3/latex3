@@ -9,6 +9,7 @@ if not modules then modules = { } end modules ['font-ota'] = {
 -- context only
 
 local type = type
+local setmetatableindex = table.setmetatableindex
 
 if not trackers then trackers = { register = function() end } end
 
@@ -285,7 +286,7 @@ if not classifiers then
     local f_nko,     l_nko     = characters.blockrange("nko")
     local f_ext_a,   l_ext_a   = characters.blockrange("arabicextendeda")
 
-    classifiers = table.setmetatableindex(function(t,k)
+    classifiers = setmetatableindex(function(t,k)
         if type(k) == "number" then
             local c = chardata[k]
             local v = false
@@ -460,6 +461,119 @@ end
 methods.syrc = methods.arab
 methods.mand = methods.arab
 methods.nko  = methods.arab
+
+-- a quick first attemp .. more later
+
+do
+
+    -- https://github.com/n8willis/opentype-shaping-documents/blob/master/opentype-shaping-mongolian.md#joining-properties
+    -- todo syrc
+
+    local joining = setmetatableindex(function(t,k)
+        if type(k) == "number" then
+            local c = chardata[k]
+            local v = false
+            if c then
+                local mongolian = c.mongolian
+                --
+                v = mongolian
+            end
+            t[k] = v
+            return v
+        end
+    end)
+
+    function methods.mong(head,font,attr)
+        local first, last
+        local current  = head
+        local done     = false
+        local prevjoin = nil
+        local prestate = nil
+        current = tonut(current)
+
+        local function wrapup()
+            if last then
+                if last ~= first then
+                    local s = getstate(last)
+                    if s == s_medi then
+                        setstate(last,s_fina)
+                    elseif s == s_init then
+                        setstate(last,s_isol)
+                    end
+                end
+                last = nil
+                first = nil
+                prevjoin = nil
+                prestate = nil
+            end
+        end
+
+        while current do
+            local char, id = ischar(current,font)
+            if char and not getstate(current) then
+                local currjoin = joining[char]
+                done = true
+                if not last then
+                    setstate(current,s_isol)
+                    prevjoin  = currjoin
+                    first     = current
+                    last      = current
+                    prevstate = s_isol
+                elseif currjoin == "t" then -- transparent
+                    -- keep state
+                    last = current
+                elseif prevjoin == "d" or prevjoin == "jc" or prevjoin == "l" then
+                    if currjoin == "d" or prevjoin == "jc" or prevjoin == "r" then
+                        local s = getstate(last)
+                        if s == s_isol then
+                            setstate(last,s_init)
+                        elseif s == s_fina then
+                            setstate(last,s_medi)
+                        end
+                        setstate(current,s_fina)
+                        prevstate = s_fina
+                    elseif prevjoin == "nj" or prevjoin == "l" then
+                        local s = getstate(last)
+                        if s == s_medi then
+                            setstate(last,s_fina)
+                        elseif s == s_init then
+                            setstate(last,s_isol)
+                        end
+                        setstate(current,s_isol)
+                        prevstate = s_isol
+                    end
+                    prevjoin = currjoin
+                    last = current
+                elseif prevjoin == "nj" or prevjoin == "r" then
+                    if s == s_medi then
+                        setstate(last,s_fina)
+                    elseif s == s_init then
+                        setstate(last,s_isol)
+                    end
+                    setstate(current,s_isol)
+                    prevjoin = currjoin
+                    prevstate = s_isol
+                    last = current
+                elseif last then
+                    wrapup()
+                end
+            else
+                if last then
+                    wrapup()
+                end
+                if id == math_code then -- a bit duplicate as we test for glyphs twice
+                    current = end_of_math(current)
+                end
+            end
+            current = getnext(current)
+        end
+        if last then
+            wrapup()
+        end
+        return head, done
+    end
+
+end
 
 directives.register("otf.analyze.useunicodemarks",function(v)
     analyzers.useunicodemarks = v

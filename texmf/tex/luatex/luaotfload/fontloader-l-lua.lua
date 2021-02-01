@@ -195,12 +195,6 @@ function optionalrequire(...)
     end
 end
 
--- nice for non ascii scripts (this might move):
-
-if lua then
-    lua.mask = load([[τεχ = 1]]) and "utf" or "ascii"
-end
-
 local flush = io.flush
 
 if flush then

@@ -1,5 +1,6 @@
 if not modules then modules = { } end modules ['font-otj'] = {
     version   = 1.001,
+    optimize  = true,
     comment   = "companion to font-lib.mkiv",
     author    = "Hans Hagen, PRAGMA-ADE, Hasselt NL",
     copyright = "PRAGMA ADE / ConTeXt Development Team",

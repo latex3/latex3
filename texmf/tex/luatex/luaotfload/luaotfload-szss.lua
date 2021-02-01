@@ -3,18 +3,14 @@
 --  DESCRIPTION:  part of luaotfload / szss
 -----------------------------------------------------------------------
 
-local ProvidesLuaModule = { 
+assert(luaotfload_module, "This is a part of luaotfload and should not be loaded independently") { 
     name          = "luaotfload-szss",
-    version       = "3.13",       --TAGVERSION
-    date          = "2020-05-01", --TAGDATE
-    description   = "luaotfload submodule / color",
+    version       = "3.17",       --TAGVERSION
+    date          = "2021-01-08", --TAGDATE
+    description   = "luaotfload submodule / Special feature handling",
     license       = "GPL v2.0",
     author        = "Marcel Krüger"
 }
-
-if luatexbase and luatexbase.provides_module then
-  luatexbase.provides_module (ProvidesLuaModule)
-end  
 
 local direct       = node.direct
 local otfregister  = fonts.constructors.features.otf.register

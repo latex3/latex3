@@ -8,10 +8,6 @@ if not modules then modules = { } end modules ['font-ocl'] = {
 
 -- todo : user list of colors
 
-if CONTEXTLMTXMODE and CONTEXTLMTXMODE > 0 then
-    return
-end
-
 local tostring, tonumber, next = tostring, tonumber, next
 local round, max = math.round, math.round
 local gsub, find = string.gsub, string.find
@@ -151,85 +147,17 @@ local function convert(t,k)
     return v
 end
 
-local start = { "pdf", "mode", "font" } -- force text mode (so get q Q right)
------ stop  = { "pdf", "mode", "page" } -- force page mode (else overlap)
-local push  = { "pdf", "page", "q" }
-local pop   = { "pdf", "page", "Q" }
+-- At some point 'font' mode was added to the engine and we can assume that most distributions
+-- ship a luatex that has it; ancient versions are no longer supported anyway. Begin 2020 there
+-- was an actualtext related mail exchange with RM etc. that might result in similar mode keys
+-- in other tex->pdf programs because there is a bit of inconsistency in the way this is dealt
+-- with. Best is not to touch this code too much.
 
--- -- This one results in color directives inside BT ET but has less q Q pairs. It
--- -- only shows the first glyph in acrobat and nothing more. No problem with other
--- -- renderers.
---
--- local function initializeoverlay(tfmdata,kind,value) -- hm, always value
---     if value then
---         local resources = tfmdata.resources
---         local palettes  = resources.colorpalettes
---         if palettes then
---             --
---             local converted = resources.converted
---             if not converted then
---                 converted = setmetatableindex(convert)
---                 resources.converted = converted
---             end
---             local colorvalues = sharedpalettes[value] or converted[palettes[tonumber(value) or 1] or palettes[1]] or { }
---             local classes     = #colorvalues
---             if classes == 0 then
---                 return
---             end
---             --
---             local characters   = tfmdata.characters
---             local descriptions = tfmdata.descriptions
---             local properties   = tfmdata.properties
---             --
---             properties.virtualized = true
---             tfmdata.fonts = {
---                 { id = 0 }
---             }
---             --
---             local getactualtext = otf.getactualtext
---             local default       = colorvalues[#colorvalues]
---             local b, e          = getactualtext(tounicode(0xFFFD))
---             local actualb       = { "pdf", "page", b } -- saves tables
---             local actuale       = { "pdf", "page", e } -- saves tables
---             --
---             for unicode, character in next, characters do
---                 local description = descriptions[unicode]
---                 if description then
---                     local colorlist = description.colors
---                     if colorlist then
---                         local u = description.unicode or characters[unicode].unicode
---                         local w = character.width or 0
---                         local s = #colorlist
---                         local goback = w ~= 0 and leftcommand[w] or nil -- needs checking: are widths the same
---                         local t = {
---                             start,
---                             not u and actualb or { "pdf", "page", (getactualtext(tounicode(u))) },
---                             push,
---                         }
---                         local n = 3
---                         local l = nil
---                         for i=1,s do
---                             local entry = colorlist[i]
---                             local v = colorvalues[entry.class] or default
---                             if v and l ~= v then
---                                 n = n + 1 t[n] = v
---                                 l = v
---                             end
---                             n = n + 1 t[n] = charcommand[entry.slot]
---                             if s > 1 and i < s and goback then
---                                 n = n + 1 t[n] = goback
---                             end
---                         end
---                         n = n + 1 t[n] = pop
---                         n = n + 1 t[n] = actuale
---                         n = n + 1 t[n] = stop
---                         character.commands = t
---                     end
---                 end
---             end
---         end
---     end
--- end
+local mode = { "pdf", "mode", "font" }
+local push = { "pdf", "page", "q" }
+local pop  = { "pdf", "page", "Q" }
+
+-- see context git repository for older variant (pre 20200501 cleanup)
 
 local function initializeoverlay(tfmdata,kind,value)
     if value then
@@ -278,10 +206,11 @@ local function initializeoverlay(tfmdata,kind,value)
                         local s = #colorlist
                         local goback = w ~= 0 and leftcommand[w] or nil -- needs checking: are widths the same
                         local t = {
+                            mode,
                             not u and actualb or { "pdf", "page", (getactualtext(tounicode(u))) },
                             push,
                         }
-                        local n = 2
+                        local n = 3
                         local l = nil
                         for i=1,s do
                             local entry = colorlist[i]
@@ -436,7 +365,7 @@ do
     local savedata   = io.savedata
     local remove     = os.remove
 
-    if context and xml.convert then
+if context then
 
         local xmlconvert = xml.convert
         local xmlfirst   = xml.first
@@ -451,13 +380,13 @@ do
             return data
         end
 
-    else
+else
 
         function otfsvg.filterglyph(entry,index) -- can be overloaded
             return entry.data
         end
 
-    end
+end
 
     local runner = sandbox and sandbox.registerrunner {
         name     = "otfsvg",
@@ -484,6 +413,16 @@ do
     -- Because a generic setup can be flawed we need to catch bad inkscape runs which add a bit of
     -- ugly overhead. Bah.
 
+    local new = nil
+
+    local function inkscapeformat(suffix)
+        if new == nil then
+            new = os.resultof("inkscape --version") or ""
+            new = new == "" or not find(new,"Inkscape%s*0")
+        end
+        return new and "filename" or suffix
+    end
+
     function otfsvg.topdf(svgshapes,tfmdata)
         local pdfshapes = { }
         local inkscape  = runner()
@@ -493,7 +432,7 @@ do
             local nofshapes    = #svgshapes
             local f_svgfile    = formatters["temp-otf-svg-shape-%i.svg"]
             local f_pdffile    = formatters["temp-otf-svg-shape-%i.pdf"]
-            local f_convert    = formatters["%s --export-pdf=%s\n"]
+            local f_convert    = formatters["%s --export-%s=%s\n"]
             local filterglyph  = otfsvg.filterglyph
             local nofdone      = 0
             local processed    = { }
@@ -507,7 +446,7 @@ do
                         local svgfile = f_svgfile(index)
                         local pdffile = f_pdffile(index)
                         savedata(svgfile,data)
-                        inkscape:write(f_convert(svgfile,pdffile))
+                        inkscape:write(f_convert(svgfile,inkscapeformat("pdf"),pdffile))
                         processed[index] = true
                         nofdone = nofdone + 1
                         if nofdone % 25 == 0 then

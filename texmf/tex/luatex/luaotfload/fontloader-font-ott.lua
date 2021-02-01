@@ -1117,41 +1117,6 @@ local checkers = {
     end
 }
 
--- Keep this:
---
--- function otf.features.normalize(features)
---     if features then
---         local h = { }
---         for k, v in next, features do
---             k = lower(k)
---             if k == "language" then
---                 v = gsub(lower(v),"[^a-z0-9]","")
---                 h.language = rawget(verboselanguages,v) or (languages[v] and v) or "dflt" -- auto adds
---             elseif k == "script" then
---                 v = gsub(lower(v),"[^a-z0-9]","")
---                 h.script = rawget(verbosescripts,v) or (scripts[v] and v) or "dflt" -- auto adds
---             else
---                 if type(v) == "string" then
---                     local b = is_boolean(v)
---                     if type(b) == "nil" then
---                         v = tonumber(v) or lower(v)
---                     else
---                         v = b
---                     end
---                 end
---                 if not rawget(features,k) then
---                     k = rawget(verbosefeatures,k) or k
---                 end
---                 local c = checkers[k]
---                 h[k] = c and c(v) or v
---             end
---         end
---         return h
---     end
--- end
-
--- inspect(fonts.handlers.otf.statistics.usedfeatures)
-
 if not storage then
     return
 end
@@ -1178,9 +1143,6 @@ function otffeatures.normalize(features,wrap) -- wrap is for context
                 h.script = rawget(verbosescripts,v) or (scripts[v] and v) or "dflt" -- auto adds
             elseif k == "axis" then
                 h[k] = normalizedaxis(value)
-                if not callbacks.supported.glyph_stream_provider then
-                    h.variableshapes = true -- for the moment
-                end
             else
                 local uk = usedfeatures[key]
                 local uv = uk[value]

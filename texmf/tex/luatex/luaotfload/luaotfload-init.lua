@@ -5,17 +5,13 @@
 --       AUTHOR:  Philipp Gesang (Phg), <phg@phi-gamma.net>, Marcel Krüger
 -----------------------------------------------------------------------
 
-local ProvidesLuaModule = { 
+assert(luaotfload_module, "This is a part of luaotfload and should not be loaded independently") {
     name          = "luaotfload-init",
-    version       = "3.13",       --TAGVERSION
-    date          = "2020-05-01", --TAGDATE
+    version       = "3.17",       --TAGVERSION
+    date          = "2021-01-08", --TAGDATE
     description   = "luaotfload submodule / initialization",
     license       = "GPL v2.0"
 }
-
-if luatexbase and luatexbase.provides_module then
-  luatexbase.provides_module (ProvidesLuaModule)
-end  
 -----------------------------------------------------------------------
 
 
@@ -79,68 +75,73 @@ local logreport  --- filled in after loading the log module
 --doc]]--
 
 --- below paths are relative to the texmf-context
-local ltx = "tex/generic/context/luatex"
-local ctx = { "tex/context/base/mkiv", "tex/context/base" }
+
+local ignore, ltx, ctx = 0, 1, 2
+
+local context_module_paths = { -- [ltx] =
+  "tex/generic/context/luatex", -- [ctx] =
+  {"tex/context/base/mkiv", "tex/context/base" },
+}
 
 local context_modules = {
 
   --- Since 2.6 those are directly provided by the Lualibs package.
-  { false, "l-lua"      },
-  { false, "l-lpeg"     },
-  { false, "l-function" },
-  { false, "l-string"   },
-  { false, "l-table"    },
-  { false, "l-io"       },
-  { false, "l-file"     },
-  { false, "l-boolean"  },
-  { false, "l-math"     },
-  { false, "l-unicode"  }, -- NEW UF 19.09.2018
-  { false, "util-str"   },
-  { false, "util-fil"   },
+  { ignore, "l-lua"      },
+  { ignore, "l-lpeg"     },
+  { ignore, "l-function" },
+  { ignore, "l-string"   },
+  { ignore, "l-table"    },
+  { ignore, "l-io"       },
+  { ignore, "l-file"     },
+  { ignore, "l-boolean"  },
+  { ignore, "l-math"     },
+  { ignore, "l-unicode"  }, -- NEW UF 19.09.2018
+  { ignore, "util-str"   },
+  { ignore, "util-fil"   },
 
   --- These constitute the fontloader proper.
-  { ltx,   "luatex-basics-gen" },
+  { ltx,   "basics-gen" },
   { ctx,   "data-con"          },
-  { ltx,   "luatex-basics-nod" },
-  { ltx,   "luatex-basics-chr" }, -- NEW UF 14.12.2018
+  { ltx,   "basics-nod" },
+  { ltx,   "basics-chr" }, -- NEW UF 14.12.2018
   { ctx,   "font-ini"          },
-  { ltx,   "luatex-fonts-mis"  }, -- NEW UF 19.09.2018
+  { ltx,   "fonts-mis"  }, -- NEW UF 19.09.2018
   { ctx,   "font-con"          },
-  { ltx,   "luatex-fonts-enc"  },
+  { ltx,   "fonts-enc"  },
   { ctx,   "font-cid"          },
   { ctx,   "font-map"          },
---  { ltx,   "luatex-fonts-syn"  }, -- ignore??
+--  { ltx,   "fonts-syn"  }, -- ignore??
   { ctx,   "font-vfc"          }, -- NEW UF 19.09.2018
-  { ctx,   "font-oti"          },
   { ctx,   "font-otr"          },
-  { ctx,   "font-ott"          }, 
   { ctx,   "font-cff"          },
   { ctx,   "font-ttf"          },
   { ctx,   "font-dsp"          },
-  { ctx,   "font-oup"          },
+  { ctx,   "font-oti"          },
+  { ctx,   "font-ott"          },
   { ctx,   "font-otl"          },
   { ctx,   "font-oto"          },
   { ctx,   "font-otj"          },
+  { ctx,   "font-oup"          },
   { ctx,   "font-ota"          },
   { ctx,   "font-ots"          },
+  { ctx,   "font-otc"          },
   { ctx,   "font-osd"          },
   { ctx,   "font-ocl"          },
-  { ctx,   "font-otc"          },
   { ctx,   "font-onr"          },
   { ctx,   "font-one"          },
   { ctx,   "font-afk"          },
-  { ctx,   "luatex-fonts-tfm"  },
+  { ltx,   "fonts-tfm"  },
   { ctx,   "font-lua"          },
   { ctx,   "font-def"          },
-  { ltx,   "luatex-fonts-def"  },  
-  { ltx,   "luatex-fonts-ext"  },
+  { ctx,   "font-shp"          },
+  { ltx,   "fonts-def"  },
+  { ltx,   "fonts-ext"  },
   { ctx,   "font-imp-tex"      },
   { ctx,   "font-imp-ligatures"},
   { ctx,   "font-imp-italics"  },
   { ctx,   "font-imp-effects"  },
-  { ltx,   "luatex-fonts-lig"  },
-  { ltx,   "luatex-fonts-gbn"  },
-  
+  { ltx,   "fonts-lig"  },
+  { ltx,   "fonts-gbn"  },
 
 } --[[context_modules]]
 
@@ -151,12 +152,15 @@ local function load_context_modules (pth)
 
   logreport ("both", 2, "init",
              "Loading fontloader components from context.")
-  local n = #context_modules
-  for i = 1, n do
-    local sub, spec = unpack (context_modules [i])
-    if sub == false then
+  for i = 1, #context_modules do
+    local kind, spec = unpack (context_modules [i])
+    if kind == ignore then
       ignore_module (spec)
     else
+      if kind == ltx then
+        spec = 'luatex-' .. spec
+      end
+      local sub = context_module_paths[kind]
       local tsub = type (sub)
       if not pth then
         load_module (spec)
@@ -193,10 +197,10 @@ local function load_context_modules (pth)
 end
 
 local function verify_context_dir (pth)
-  if lfsisdir(file.join(pth, ltx)) then
+  if lfsisdir(file.join(pth, context_module_paths[ltx])) then
     return true
   end
-  for _, d in ipairs(ctx) do
+  for _, d in ipairs(context_module_paths[ctx]) do
     if lfsisdir(file.join(pth, d)) then
       return true
     end
@@ -265,6 +269,7 @@ local function init_main(early_hook)
   local the_attributes   = luatexbase.attributes
 
   local context_environment = luaotfload.fontloader
+  context_environment.CONTEXTLMTXMODE = 0
   context_environment.attributes = {
     private = function (name)
       local attr   = "luaotfload@" .. name --- used to be: “otfl@”
@@ -285,7 +290,20 @@ local function init_main(early_hook)
   local load_fontloader_module = luaotfload.loaders.fontloader
   local ignore_module          = luaotfload.loaders.ignore
 
-  load_fontloader_module "basics-gen"
+  do
+    local saved_reporter = texio.reporter
+    local saved_exit = os.exit
+    local errmsg
+    function texio.reporter(msg, ...)
+      errmsg = msg
+    end
+    function os.exit()
+      error(errmsg)
+    end
+    load_fontloader_module "basics-gen"
+    texio.reporter = saved_reporter
+    os.exit = saved_exit
+  end
 
   if early_hook then early_hook() end
 
@@ -324,66 +342,13 @@ local function init_main(early_hook)
     load_fontloader_module (luaotfload.fontloader_package)
 
   elseif fontloader == "unpackaged" then
+
     logreport ("log", 0, "init",
                "Loading fontloader components individually.")
-    --- The loading sequence is known to change, so this might have to be
-    --- updated with future updates. Do not modify it though unless there is
-    --- a change to the upstream package!
-
-    --- Since 2.6 those are directly provided by the Lualibs package.
-    ignore_module "l-lua"
-    ignore_module "l-lpeg"
-    ignore_module "l-function"
-    ignore_module "l-string"
-    ignore_module "l-table"
-    ignore_module "l-io"
-    ignore_module "l-file"
-    ignore_module "l-boolean"
-    ignore_module "l-math"
-    ignore_module "util-str"
-    ignore_module "util-fil"
-    ignore_module "luatex-basics-gen"
-
-    load_fontloader_module "data-con"
-    load_fontloader_module "basics-nod"
-    load_fontloader_module "basics-chr"
-    load_fontloader_module "font-ini"
-    load_fontloader_module "fonts-mis"
-    load_fontloader_module "font-con"
-    load_fontloader_module "fonts-enc"
-    load_fontloader_module "font-cid"
-    load_fontloader_module "font-map"
---    load_fontloader_module "fonts-syn" -- ignore?
-    load_fontloader_module "font-vfc"
-    load_fontloader_module "font-otr"
-    load_fontloader_module "font-oti"    
-    load_fontloader_module "font-ott"
-    load_fontloader_module "font-cff"
-    load_fontloader_module "font-ttf"
-    load_fontloader_module "font-dsp"
-    load_fontloader_module "font-oup"
-    load_fontloader_module "font-otl"
-    load_fontloader_module "font-oto"
-    load_fontloader_module "font-otj"
-    load_fontloader_module "font-ota"
-    load_fontloader_module "font-ots"
-    load_fontloader_module "font-osd"
-    load_fontloader_module "font-ocl"
-    load_fontloader_module "font-otc"
-    load_fontloader_module "font-onr"
-    load_fontloader_module "font-one"
-    load_fontloader_module "font-afk"
-    load_fontloader_module "fonts-tfm"
-    load_fontloader_module "font-lua"
-    load_fontloader_module "font-def"
-    load_fontloader_module "fonts-def"
-    load_fontloader_module "fonts-ext"
-    load_fontloader_module "font-imp-tex"
-    load_fontloader_module "font-imp-ligatures"
-    load_fontloader_module "font-imp-italics"
-    load_fontloader_module "font-imp-effects"
-    load_fontloader_module "fonts-lig"
-    load_fontloader_module "fonts-gbn"
+    for i = 1, #context_modules do
+      local mod = context_modules[i];
+      (mod[1] == ignore and ignore_module or load_fontloader_module)(mod[2])
+    end
 
   elseif fontloader == "context" then
     logreport ("log", 0, "init",
@@ -437,6 +402,11 @@ local function init_main(early_hook)
   -- fontloader
 end --- [init_main]
 
+if not luatexbase.callbacktypes.pre_shaping_filter then
+  luatexbase.create_callback('pre_shaping_filter', 'list')
+  luatexbase.create_callback('post_shaping_filter', 'reverselist')
+end
+
 local init_post_install_callbacks = function ()
   --[[doc--
 
@@ -453,15 +423,42 @@ local init_post_install_callbacks = function ()
   local fallback = luaotfload.loaders.luaotfload "fallback".process
   local multiscript = luaotfload.loaders.luaotfload "multiscript".process
 
-  -- MK Pass current text direction to simple_font_handler
+  local call_callback = luatexbase.call_callback
+  local tex_get = tex.get
+  local flush_list = node.flush_list
   local handler = luaotfload.fontloader.nodes.simple_font_handler
-  local callback = function(head, groupcode, _, _, direction)
+  local function callback(head, groupcode, _, _, direction)
     if not direction then
-      direction = tex.get'textdir'
+      direction = tex_get'textdirection'
+    else
+      direction = direction == "TRT" and 1 or 0
+    end
+    local result = call_callback("pre_shaping_filter", head, groupcode, direction)
+    if result == false then
+      return false
+    elseif result ~= true then
+      head = result
     end
     multiscript(head, nil, nil, nil, direction)
     fallback(head, nil, nil, nil, direction)
-    return handler(head, groupcode, nil, nil, direction)
+    result = handler(head, groupcode, nil, nil, direction)
+    -- handler never returns a boolean and only returns nil if it was passed in
+    -- We keep it general though for consistency
+    if result == false then
+      flush_list(head)
+      return nil
+    elseif result ~= true then
+      head = result
+    end
+    result = call_callback("post_shaping_filter", head, groupcode, direction)
+    if result == false then
+      flush_list(head)
+      return nil
+    elseif result == true then
+      return head
+    else
+      return result
+    end
   end
   luatexbase.add_to_callback("pre_linebreak_filter",
                              callback,
@@ -471,7 +468,14 @@ local init_post_install_callbacks = function ()
                              callback,
                              "luaotfload.node_processor",
                              1)
-  -- /MK
+
+  local streams = fonts.hashes.streams
+  luatexbase.add_to_callback("glyph_stream_provider",function(id,index,mode)
+    if id <= 0 then return "" end
+    local stream = streams[id].streams
+    if not stream then return "" end
+    return stream[index] or ""
+  end, "luaotfload.glyph_stream")
 end
 
 local function init_post_load_agl ()

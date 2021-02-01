@@ -1057,76 +1057,44 @@ local format_rest = function(s)
     return format("%q",s) -- catches " and \n and such
 end
 
--- local format_extension = function(extensions,f,name)
---     local extension = extensions[name] or "tostring(%s)"
---     local f = tonumber(f) or 1
---     local w = find(extension,"%.%.%.")
---     if f == 0 then
---         if w then
---             extension = gsub(extension,"%.%.%.","")
---         end
---         return extension
---     elseif f == 1 then
---         if w then
---             extension = gsub(extension,"%.%.%.","%%s")
---         end
---         n = n + 1
---         local a = "a" .. n
---         return format(extension,a,a) -- maybe more times?
---     elseif f < 0 then
---         local a = "a" .. (n + f + 1)
---         return format(extension,a,a)
---     else
---         if w then
---             extension = gsub(extension,"%.%.%.",rep("%%s,",f-1).."%%s")
---         end
---         -- we could fill an array and then n = n + 1 unpack(t,n,n+f) but as we
---         -- cache we don't save much and there are hardly any extensions anyway
---         local t = { }
---         for i=1,f do
---             n = n + 1
---          -- t[#t+1] = "a" .. n
---             t[i] = "a" .. n
---         end
---         return format(extension,unpack(t))
---     end
--- end
-
 local format_extension = function(extensions,f,name)
     local extension = extensions[name] or "tostring(%s)"
     local f = tonumber(f) or 1
     local w = find(extension,"%.%.%.")
-    if w then
-        -- we have a wildcard
-        if f == 0 then
+    if f == 0 then
+        if w then
+            extension = gsub(extension,"%.%.%.","")
+        end
+        return extension
+    elseif f == 1 then
+        if w then
+            extension = gsub(extension,"%.%.%.","%%s")
+        end
+        n = n + 1
+        local a = "a" .. n
+        return format(extension,a,a) -- maybe more times?
+    elseif f < 0 then
+        if w then
+            -- not supported
             extension = gsub(extension,"%.%.%.","")
             return extension
-        elseif f == 1 then
-            extension = gsub(extension,"%.%.%.","%%s")
-            n = n + 1
-            local a = "a" .. n
-            return format(extension,a,a) -- maybe more times?
-        elseif f < 0 then
+        else
             local a = "a" .. (n + f + 1)
             return format(extension,a,a)
-        else
-            extension = gsub(extension,"%.%.%.",rep("%%s,",f-1).."%%s")
-            -- we could fill an array and then n = n + 1 unpack(t,n,n+f) but as we
-            -- cache we don't save much and there are hardly any extensions anyway
-            local t = { }
-            for i=1,f do
-                n = n + 1
-             -- t[#t+1] = "a" .. n
-                t[i] = "a" .. n
-            end
-            return format(extension,unpack(t))
         end
     else
-        extension = gsub(extension,"%%s",function()
+        if w then
+            extension = gsub(extension,"%.%.%.",rep("%%s,",f-1).."%%s")
+        end
+        -- we could fill an array and then n = n + 1 unpack(t,n,n+f) but as we
+        -- cache we don't save much and there are hardly any extensions anyway
+        local t = { }
+        for i=1,f do
             n = n + 1
-            return "a" .. n
-        end)
-        return extension
+         -- t[#t+1] = "a" .. n
+            t[i] = "a" .. n
+        end
+        return format(extension,unpack(t))
     end
 end
 

@@ -5,18 +5,13 @@
 --       AUTHOR:  Philipp Gesang (Phg), <phg@phi-gamma.net>, Marcel Krüger
 -------------------------------------------------------------------------------
 
-local ProvidesLuaModule = { 
+assert(luaotfload_module, "This is a part of luaotfload and should not be loaded independently") { 
     name          = "luaotfload-parsers",
-    version       = "3.13",       --TAGVERSION
-    date          = "2020-05-01", --TAGDATE
-    description   = "luaotfload submodule / filelist",
+    version       = "3.17",       --TAGVERSION
+    date          = "2021-01-08", --TAGDATE
+    description   = "luaotfload submodule / parsers",
     license       = "GPL v2.0"
 }
-
-if luatexbase and luatexbase.provides_module then
-  luatexbase.provides_module (ProvidesLuaModule)
-end  
-
 
 local traversal_maxdepth  = 42 --- prevent stack overflows
 
@@ -779,19 +774,20 @@ local parse_config      = Ct (ini_sections)
 
 --doc]=]--
 
+luaotfload.parsers = {
+  --- parameters
+  traversal_maxdepth    = traversal_maxdepth,
+  --- main parsers
+  read_fonts_conf       = read_fonts_conf,
+  font_request          = font_request,
+  config                = parse_config,
+  --- common patterns
+  stripslashes          = stripslashes,
+  splitcomma            = splitcomma,
+}
+
 return function ()
   logreport = luaotfload.log.report
-  luaotfload.parsers = {
-    --- parameters
-    traversal_maxdepth    = traversal_maxdepth,
-    --- main parsers
-    read_fonts_conf       = read_fonts_conf,
-    font_request          = font_request,
-    config                = parse_config,
-    --- common patterns
-    stripslashes          = stripslashes,
-    splitcomma            = splitcomma,
-  }
   return true
 end
 
