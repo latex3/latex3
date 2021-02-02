@@ -67,11 +67,13 @@ tlmgr install \
   mathpazo    \
   metalogo    \
   oberdiek    \
+  pgf         \
   psnfss      \
   ragged2e    \
   siunitx     \
   times       \
-  underscore
+  underscore  \
+  units
 
 # Keep no backups (not required, simply makes cache bigger)
 tlmgr option -- autobackup 0
