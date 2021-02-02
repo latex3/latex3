@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-02-02]
+
 ### Changed
 - Freeze the `xparse` code, and move the development to the LaTeX2e
   repository as `ltcmd`.
@@ -117,7 +119,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-10-27...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-02-02...HEAD
+[2021-02-02]: https://github.com/latex3/latex3/compare/2020-10-27...2021-02-02
 [2020-10-27]: https://github.com/latex3/latex3/compare/2020-10-05...2020-10-27
 [2020-10-05]: https://github.com/latex3/latex3/compare/2020-05-15...2020-10-05
 [2020-05-15]: https://github.com/latex3/latex3/compare/2020-05-14...2020-05-15

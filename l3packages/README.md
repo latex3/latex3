@@ -1,7 +1,7 @@
 LaTeX3 High-Level Concepts
 ==========================
 
-Release 2020-10-27
+Release 2021-02-02
 
 Overview
 --------
