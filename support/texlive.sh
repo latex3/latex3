@@ -56,9 +56,12 @@ tlmgr install \
   csquotes    \
   dvips       \
   enumitem    \
+  epstopdf    \
+  epstopdf-pkg \
   everysel    \
   fancyvrb    \
   hologo      \
+  hyperref    \
   listings    \
   makeindex   \
   mathpazo    \
@@ -66,6 +69,7 @@ tlmgr install \
   oberdiek    \
   psnfss      \
   ragged2e    \
+  siunitx     \
   times       \
   underscore
 
