@@ -203,12 +203,14 @@ local collapser        = Cs(spacer^0/"" * nonspacer^0 * ((spacer^0/" " * nonspac
 local nospacer         = Cs((whitespace^1/"" + nonwhitespace^1)^0)
 
 local b_collapser      = Cs( whitespace^0              /"" * (nonwhitespace^1 + whitespace^1/" ")^0)
-local e_collapser      = Cs((whitespace^1 * endofstring/"" +  nonwhitespace^1 + whitespace^1/" ")^0)
 local m_collapser      = Cs(                                 (nonwhitespace^1 + whitespace^1/" ")^0)
+local e_collapser      = Cs((whitespace^1 * endofstring/"" +  nonwhitespace^1 + whitespace^1/" ")^0)
+local x_collapser      = Cs(                                 (nonwhitespace^1 + whitespace^1/"" )^0)
 
 local b_stripper       = Cs( spacer^0              /"" * (nonspacer^1 + spacer^1/" ")^0)
-local e_stripper       = Cs((spacer^1 * endofstring/"" +  nonspacer^1 + spacer^1/" ")^0)
 local m_stripper       = Cs(                             (nonspacer^1 + spacer^1/" ")^0)
+local e_stripper       = Cs((spacer^1 * endofstring/"" +  nonspacer^1 + spacer^1/" ")^0)
+local x_stripper       = Cs(                             (nonspacer^1 + spacer^1/"" )^0)
 
 patterns.stripper      = stripper
 patterns.fullstripper  = fullstripper
@@ -218,10 +220,12 @@ patterns.nospacer      = nospacer
 patterns.b_collapser   = b_collapser
 patterns.m_collapser   = m_collapser
 patterns.e_collapser   = e_collapser
+patterns.x_collapser   = x_collapser
 
 patterns.b_stripper    = b_stripper
 patterns.m_stripper    = m_stripper
 patterns.e_stripper    = e_stripper
+patterns.x_stripper    = x_stripper
 
 patterns.lowercase     = lowercase
 patterns.uppercase     = uppercase
@@ -295,7 +299,7 @@ patterns.longtostring  = Cs(whitespace^0/"" * ((patterns.quoted + nonwhitespace^
 --     return P { P(pattern) + 1 * V(1) }
 -- end
 
-function anywhere(pattern) -- faster
+local function anywhere(pattern) -- faster
     return (1-P(pattern))^0 * P(pattern)
 end
 

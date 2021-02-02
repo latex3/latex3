@@ -1,6 +1,6 @@
 -- merged file : lualibs-extended-merged.lua
 -- parent file : lualibs-extended.lua
--- merge date  : Tue Aug 13 20:12:59 2019
+-- merge date  : Wed Dec 30 17:55:44 2020
 
 do -- begin closure to overcome local limits and interference
 
@@ -366,7 +366,7 @@ local environment={
  stripzero=patterns.stripzero,
  stripzeros=patterns.stripzeros,
  escapedquotes=string.escapedquotes,
- FORMAT=string.f9,
+ FORMAT=string.f6,
 }
 local arguments={ "a1" } 
 setmetatable(arguments,{ __index=function(t,k)
@@ -417,9 +417,12 @@ local format_left=function(f)
   return format("a%s..utfpadding(a%s,%i)",n,n,-f)
  end
 end
-local format_q=function()
+local format_q=JITSUPPORTED and function()
  n=n+1
  return format("(a%s ~= nil and format('%%q',tostring(a%s)) or '')",n,n)
+end or function()
+ n=n+1
+ return format("(a%s ~= nil and format('%%q',a%s) or '')",n,n)
 end
 local format_Q=function() 
  n=n+1
@@ -574,12 +577,25 @@ local format_n=function()
  n=n+1
  return format("((a%s %% 1 == 0) and format('%%i',a%s) or tostring(a%s))",n,n,n)
 end
-local format_N=function(f) 
- n=n+1
- if not f or f=="" then
-  f=".9"
- end 
- return format("(((a%s %% 1 == 0) and format('%%i',a%s)) or lpegmatch(stripzero,format('%%%sf',a%s)))",n,n,f,n)
+local format_N  if environment.FORMAT then
+ format_N=function(f)
+  n=n+1
+  if not f or f=="" then
+   return format("FORMAT(a%s,'%%.9f')",n)
+  elseif f==".6" or f=="0.6" then
+   return format("FORMAT(a%s)",n)
+  else
+   return format("FORMAT(a%s,'%%%sf')",n,f)
+  end
+ end
+else
+ format_N=function(f) 
+  n=n+1
+  if not f or f=="" then
+   f=".9"
+  end 
+  return format("(((a%s %% 1 == 0) and format('%%i',a%s)) or lpegmatch(stripzero,format('%%%sf',a%s)))",n,n,f,n)
+ end
 end
 local format_a=function(f)
  n=n+1
@@ -642,33 +658,36 @@ local format_extension=function(extensions,f,name)
  local extension=extensions[name] or "tostring(%s)"
  local f=tonumber(f) or 1
  local w=find(extension,"%.%.%.")
- if w then
-  if f==0 then
+ if f==0 then
+  if w then
+   extension=gsub(extension,"%.%.%.","")
+  end
+  return extension
+ elseif f==1 then
+  if w then
+   extension=gsub(extension,"%.%.%.","%%s")
+  end
+  n=n+1
+  local a="a"..n
+  return format(extension,a,a) 
+ elseif f<0 then
+  if w then
    extension=gsub(extension,"%.%.%.","")
    return extension
-  elseif f==1 then
-   extension=gsub(extension,"%.%.%.","%%s")
-   n=n+1
-   local a="a"..n
-   return format(extension,a,a) 
-  elseif f<0 then
+  else
    local a="a"..(n+f+1)
    return format(extension,a,a)
-  else
-   extension=gsub(extension,"%.%.%.",rep("%%s,",f-1).."%%s")
-   local t={}
-   for i=1,f do
-    n=n+1
-    t[i]="a"..n
-   end
-   return format(extension,unpack(t))
   end
  else
-  extension=gsub(extension,"%%s",function()
+  if w then
+   extension=gsub(extension,"%.%.%.",rep("%%s,",f-1).."%%s")
+  end
+  local t={}
+  for i=1,f do
    n=n+1
-   return "a"..n
-  end)
-  return extension
+   t[i]="a"..n
+  end
+  return format(extension,unpack(t))
  end
 end
 local builder=Cs { "start",
@@ -1397,78 +1416,160 @@ function tables.encapsulate(core,capsule,protect)
   } )
  end
 end
-local f_hashed_string=formatters["[%Q]=%Q,"]
-local f_hashed_number=formatters["[%Q]=%s,"]
-local f_hashed_boolean=formatters["[%Q]=%l,"]
-local f_hashed_table=formatters["[%Q]="]
-local f_indexed_string=formatters["[%s]=%Q,"]
-local f_indexed_number=formatters["[%s]=%s,"]
-local f_indexed_boolean=formatters["[%s]=%l,"]
-local f_indexed_table=formatters["[%s]="]
-local f_ordered_string=formatters["%Q,"]
-local f_ordered_number=formatters["%s,"]
-local f_ordered_boolean=formatters["%l,"]
-function table.fastserialize(t,prefix)
- local r={ type(prefix)=="string" and prefix or "return" }
- local m=1
- local function fastserialize(t,outer) 
-  local n=#t
-  m=m+1
-  r[m]="{"
-  if n>0 then
-   for i=0,n do
-    local v=t[i]
-    local tv=type(v)
-    if tv=="string" then
-     m=m+1 r[m]=f_ordered_string(v)
-    elseif tv=="number" then
-     m=m+1 r[m]=f_ordered_number(v)
-    elseif tv=="table" then
-     fastserialize(v)
-    elseif tv=="boolean" then
-     m=m+1 r[m]=f_ordered_boolean(v)
-    end
-   end
-  end
-  for k,v in next,t do
-   local tk=type(k)
-   if tk=="number" then
-    if k>n or k<0 then
+if JITSUPPORTED then
+ local f_hashed_string=formatters["[%Q]=%Q,"]
+ local f_hashed_number=formatters["[%Q]=%s,"]
+ local f_hashed_boolean=formatters["[%Q]=%l,"]
+ local f_hashed_table=formatters["[%Q]="]
+ local f_indexed_string=formatters["[%s]=%Q,"]
+ local f_indexed_number=formatters["[%s]=%s,"]
+ local f_indexed_boolean=formatters["[%s]=%l,"]
+ local f_indexed_table=formatters["[%s]="]
+ local f_ordered_string=formatters["%Q,"]
+ local f_ordered_number=formatters["%s,"]
+ local f_ordered_boolean=formatters["%l,"]
+ function table.fastserialize(t,prefix)
+  local r={ type(prefix)=="string" and prefix or "return" }
+  local m=1
+  local function fastserialize(t,outer) 
+   local n=#t
+   m=m+1
+   r[m]="{"
+   if n>0 then
+    local v=t[0]
+    if v then
      local tv=type(v)
      if tv=="string" then
-      m=m+1 r[m]=f_indexed_string(k,v)
+      m=m+1 r[m]=f_indexed_string(0,v)
      elseif tv=="number" then
-      m=m+1 r[m]=f_indexed_number(k,v)
+      m=m+1 r[m]=f_indexed_number(0,v)
      elseif tv=="table" then
-      m=m+1 r[m]=f_indexed_table(k)
+      m=m+1 r[m]=f_indexed_table(0)
       fastserialize(v)
+      m=m+1 r[m]=f_indexed_table(0)
      elseif tv=="boolean" then
-      m=m+1 r[m]=f_indexed_boolean(k,v)
+      m=m+1 r[m]=f_indexed_boolean(0,v)
      end
     end
-   else
-    local tv=type(v)
-    if tv=="string" then
-     m=m+1 r[m]=f_hashed_string(k,v)
-    elseif tv=="number" then
-     m=m+1 r[m]=f_hashed_number(k,v)
-    elseif tv=="table" then
-     m=m+1 r[m]=f_hashed_table(k)
-     fastserialize(v)
-    elseif tv=="boolean" then
-     m=m+1 r[m]=f_hashed_boolean(k,v)
+    for i=1,n do
+     local v=t[i]
+     local tv=type(v)
+     if tv=="string" then
+      m=m+1 r[m]=f_ordered_string(v)
+     elseif tv=="number" then
+      m=m+1 r[m]=f_ordered_number(v)
+     elseif tv=="table" then
+      fastserialize(v)
+     elseif tv=="boolean" then
+      m=m+1 r[m]=f_ordered_boolean(v)
+     end
     end
    end
+   for k,v in next,t do
+    local tk=type(k)
+    if tk=="number" then
+     if k>n or k<0 then
+      local tv=type(v)
+      if tv=="string" then
+       m=m+1 r[m]=f_indexed_string(k,v)
+      elseif tv=="number" then
+       m=m+1 r[m]=f_indexed_number(k,v)
+      elseif tv=="table" then
+       m=m+1 r[m]=f_indexed_table(k)
+       fastserialize(v)
+      elseif tv=="boolean" then
+       m=m+1 r[m]=f_indexed_boolean(k,v)
+      end
+     end
+    else
+     local tv=type(v)
+     if tv=="string" then
+      m=m+1 r[m]=f_hashed_string(k,v)
+     elseif tv=="number" then
+      m=m+1 r[m]=f_hashed_number(k,v)
+     elseif tv=="table" then
+      m=m+1 r[m]=f_hashed_table(k)
+      fastserialize(v)
+     elseif tv=="boolean" then
+      m=m+1 r[m]=f_hashed_boolean(k,v)
+     end
+    end
+   end
+   m=m+1
+   if outer then
+    r[m]="}"
+   else
+    r[m]="},"
+   end
+   return r
   end
-  m=m+1
-  if outer then
-   r[m]="}"
-  else
-   r[m]="},"
-  end
-  return r
+  return concat(fastserialize(t,true))
  end
- return concat(fastserialize(t,true))
+else
+ local f_v=formatters["[%q]=%q,"]
+ local f_t=formatters["[%q]="]
+ local f_q=formatters["%q,"]
+ function table.fastserialize(t,prefix) 
+  local r={ type(prefix)=="string" and prefix or "return" }
+  local m=1
+  local function fastserialize(t,outer) 
+   local n=#t
+   m=m+1
+   r[m]="{"
+   if n>0 then
+    local v=t[0]
+    if v then
+     m=m+1
+     r[m]="[0]='"
+     if type(v)=="table" then
+      fastserialize(v)
+     else
+      r[m]=format("%q,",v)
+     end
+    end
+    for i=1,n do
+     local v=t[i]
+     m=m+1
+     if type(v)=="table" then
+      r[m]=format("[%i]=",i)
+      fastserialize(v)
+     else
+      r[m]=format("[%i]=%q,",i,v)
+     end
+    end
+   end
+   for k,v in next,t do
+    local tk=type(k)
+    if tk=="number" then
+     if k>n or k<0 then
+      m=m+1
+      if type(v)=="table" then
+       r[m]=format("[%i]=",k)
+       fastserialize(v)
+      else
+       r[m]=format("[%i]=%q,",k,v)
+      end
+     end
+    else
+     m=m+1
+     if type(v)=="table" then
+      r[m]=format("[%q]=",k)
+      fastserialize(v)
+     else
+      r[m]=format("[%q]=%q,",k,v)
+     end
+    end
+   end
+   m=m+1
+   if outer then
+    r[m]="}"
+   else
+    r[m]="},"
+   end
+   return r
+  end
+  return concat(fastserialize(t,true))
+ end
 end
 function table.deserialize(str)
  if not str or str=="" then
@@ -1562,27 +1663,27 @@ function table.twowaymapper(t)
  return t
 end
 local f_start_key_idx=formatters["%w{"]
-local f_start_key_num=formatters["%w[%s]={"]
+local f_start_key_num=JITSUPPORTED and formatters["%w[%s]={"] or formatters["%w[%q]={"]
 local f_start_key_str=formatters["%w[%q]={"]
 local f_start_key_boo=formatters["%w[%l]={"]
 local f_start_key_nop=formatters["%w{"]
 local f_stop=formatters["%w},"]
-local f_key_num_value_num=formatters["%w[%s]=%s,"]
-local f_key_str_value_num=formatters["%w[%Q]=%s,"]
-local f_key_boo_value_num=formatters["%w[%l]=%s,"]
-local f_key_num_value_str=formatters["%w[%s]=%Q,"]
+local f_key_num_value_num=JITSUPPORTED and formatters["%w[%s]=%s,"] or formatters["%w[%s]=%q,"]
+local f_key_str_value_num=JITSUPPORTED and formatters["%w[%Q]=%s,"] or formatters["%w[%Q]=%q,"]
+local f_key_boo_value_num=JITSUPPORTED and formatters["%w[%l]=%s,"] or formatters["%w[%l]=%q,"]
+local f_key_num_value_str=JITSUPPORTED and formatters["%w[%s]=%Q,"] or formatters["%w[%q]=%Q,"]
 local f_key_str_value_str=formatters["%w[%Q]=%Q,"]
 local f_key_boo_value_str=formatters["%w[%l]=%Q,"]
-local f_key_num_value_boo=formatters["%w[%s]=%l,"]
+local f_key_num_value_boo=JITSUPPORTED and formatters["%w[%s]=%l,"] or formatters["%w[%q]=%l,"]
 local f_key_str_value_boo=formatters["%w[%Q]=%l,"]
 local f_key_boo_value_boo=formatters["%w[%l]=%l,"]
-local f_key_num_value_not=formatters["%w[%s]={},"]
+local f_key_num_value_not=JITSUPPORTED and formatters["%w[%s]={},"] or formatters["%w[%q]={},"]
 local f_key_str_value_not=formatters["%w[%Q]={},"]
 local f_key_boo_value_not=formatters["%w[%l]={},"]
-local f_key_num_value_seq=formatters["%w[%s]={ %, t },"]
+local f_key_num_value_seq=JITSUPPORTED and formatters["%w[%s]={ %, t },"] or formatters["%w[%q]={ %, t },"]
 local f_key_str_value_seq=formatters["%w[%Q]={ %, t },"]
 local f_key_boo_value_seq=formatters["%w[%l]={ %, t },"]
-local f_val_num=formatters["%w%s,"]
+local f_val_num=JITSUPPORTED and formatters["%w%s,"] or formatters["%w%q,"]
 local f_val_str=formatters["%w%Q,"]
 local f_val_boo=formatters["%w%l,"]
 local f_val_not=formatters["%w{},"]
@@ -1998,7 +2099,7 @@ local lpeg,table,string=lpeg,table,string
 local P,R,V,S,C,Ct,Cs,Carg,Cc,Cg,Cf,Cp=lpeg.P,lpeg.R,lpeg.V,lpeg.S,lpeg.C,lpeg.Ct,lpeg.Cs,lpeg.Carg,lpeg.Cc,lpeg.Cg,lpeg.Cf,lpeg.Cp
 local lpegmatch,lpegpatterns=lpeg.match,lpeg.patterns
 local concat,gmatch,find=table.concat,string.gmatch,string.find
-local tostring,type,next,rawset=tostring,type,next,rawset
+local tonumber,tostring,type,next,rawset=tonumber,tostring,type,next,rawset
 local mod,div=math.mod,math.div
 utilities=utilities or {}
 local parsers=utilities.parsers or {}
@@ -2390,13 +2491,15 @@ function parsers.csvsplitter(specification)
  specification=specification and setmetatableindex(specification,defaultspecification) or defaultspecification
  local separator=specification.separator
  local quotechar=specification.quote
+ local numbers=specification.numbers
  local separator=S(separator~="" and separator or ",")
  local whatever=C((1-separator-newline)^0)
  if quotechar and quotechar~="" then
   local quotedata=nil
   for chr in gmatch(quotechar,".") do
    local quotechar=P(chr)
-   local quoteword=quotechar*C((1-quotechar)^0)*quotechar
+   local quoteitem=(1-quotechar)^0
+   local quoteword=quotechar*(numbers and (quoteitem/tonumber) or C(quoteitem))*quotechar
    if quotedata then
     quotedata=quotedata+quoteword
    else
@@ -2412,12 +2515,14 @@ function parsers.csvsplitter(specification)
 end
 function parsers.rfc4180splitter(specification)
  specification=specification and setmetatableindex(specification,defaultspecification) or defaultspecification
+ local numbers=specification.numbers
  local separator=specification.separator 
  local quotechar=P(specification.quote)  
  local dquotechar=quotechar*quotechar   
 /specification.quote
  local separator=S(separator~="" and separator or ",")
- local escaped=quotechar*Cs((dquotechar+(1-quotechar))^0)*quotechar
+ local whatever=(dquotechar+(1-quotechar))^0
+ local escaped=quotechar*(numbers and (whatever/tonumber) or Cs(whatever))*quotechar
  local non_escaped=C((1-quotechar-newline-separator)^1)
  local field=escaped+non_escaped+Cc("")
  local record=Ct(field*(separator*field)^1)
@@ -2595,8 +2700,6 @@ local dimenfactors=allocate {
  ["pc"]=(1/12)/65536,
  ["dd"]=(1157/1238)/65536,
  ["cc"]=(1157/14856)/65536,
- ["nd"]=(20320/21681)/65536,
- ["nc"]=(5080/65043)/65536
 }
 local f_none=formatters["%s%s"]
 local f_true=formatters["%0.5F%s"]
@@ -2628,8 +2731,6 @@ function number.tobasepoints  (n,fmt) return numbertodimen(n,"bp",fmt) end
 function number.topicas    (n,fmt) return numbertodimen(n "pc",fmt) end
 function number.todidots   (n,fmt) return numbertodimen(n,"dd",fmt) end
 function number.tociceros  (n,fmt) return numbertodimen(n,"cc",fmt) end
-function number.tonewdidots   (n,fmt) return numbertodimen(n,"nd",fmt) end
-function number.tonewciceros  (n,fmt) return numbertodimen(n,"nc",fmt) end
 local amount=(S("+-")^0*R("09")^0*P(".")^0*R("09")^0)+Cc("0")
 local unit=R("az")^1+P("%")
 local dimenpair=amount/tonumber*(unit^1/dimenfactors+Cc(1)) 
@@ -3151,6 +3252,37 @@ local function resettiming(instance)
 end
 local ticks=clock
 local seconds=function(n) return n or 0 end
+if os.type~="windows" then
+elseif lua.getpreciseticks then
+ ticks=lua.getpreciseticks
+ seconds=lua.getpreciseseconds
+elseif FFISUPPORTED then
+ local okay,kernel=pcall(ffi.load,"kernel32")
+ if kernel then
+  local tonumber=ffi.number or tonumber
+  ffi.cdef[[
+            int QueryPerformanceFrequency(int64_t *lpFrequency);
+            int QueryPerformanceCounter(int64_t *lpPerformanceCount);
+        ]]
+  local target=ffi.new("__int64[1]")
+  ticks=function()
+   if kernel.QueryPerformanceCounter(target)==1 then
+    return tonumber(target[0])
+   else
+    return 0
+   end
+  end
+  local target=ffi.new("__int64[1]")
+  seconds=function(ticks)
+   if kernel.QueryPerformanceFrequency(target)==1 then
+    return ticks/tonumber(target[0])
+   else
+    return 0
+   end
+  end
+ end
+else
+end
 local function starttiming(instance,reset)
  local timer=timers[instance or "notimer"]
  local it=timer.timing
@@ -3260,22 +3392,15 @@ function statistics.show()
    return format("%s, type: %s, binary subtree: %s",
     os.platform or "unknown",os.type or "unknown",environment.texos or "unknown")
   end)
-  if LUATEXENGINE=="luametatex" then
-   register("used engine",function()
-    return format("%s version %s, functionality level %s, format id %s",
-     LUATEXENGINE,LUATEXVERSION,LUATEXFUNCTIONALITY,LUATEXFORMATID)
-   end)
-  else
-   register("used engine",function()
-    return format("%s version %s with functionality level %s, banner: %s",
-     LUATEXENGINE,LUATEXVERSION,LUATEXFUNCTIONALITY,lower(status.banner))
-   end)
-  end
-  register("control sequences",function()
+  register("used engine",function()
+   return format("%s version: %s, functionality level: %s, banner: %s",
+    LUATEXENGINE,LUATEXVERSION,LUATEXFUNCTIONALITY,lower(status.banner))
+  end)
+  register("used hash slots",function()
    return format("%s of %s + %s",status.cs_count,status.hash_size,status.hash_extra)
   end)
   register("callbacks",statistics.callbacks)
-  if TEXENGINE=="luajittex" and JITSUPPORTED then
+  if JITSUPPORTED then
    local jitstatus=jit.status
    if jitstatus then
     local jitstatus={ jitstatus() }
@@ -3285,15 +3410,10 @@ function statistics.show()
    end
   end
   register("lua properties",function()
-   local hashchar=tonumber(status.luatex_hashchars)
-   local mask=lua.mask or "ascii"
+   local hash=2^status.luatex_hashchars
+   local mask=load([[τεχ = 1]]) and "utf" or "ascii"
    return format("engine: %s %s, used memory: %s, hash chars: min(%i,40), symbol mask: %s (%s)",
-    jit and "luajit" or "lua",
-    LUAVERSION,
-    statistics.memused(),
-    hashchar and 2^hashchar or "unknown",
-    mask,
-    mask=="utf" and "τεχ" or "tex")
+    jit and "luajit" or "lua",LUAVERSION,statistics.memused(),hash,mask,mask=="utf" and "τεχ" or "tex")
   end)
   register("runtime",statistics.runtime)
   logs.newline() 
@@ -3309,7 +3429,7 @@ function statistics.show()
 end
 function statistics.memused() 
  local round=math.round or math.floor
- return format("%s MB, ctx: %s MB, max: %s MB)",
+ return format("%s MB, ctx: %s MB, max: %s MB",
   round(collectgarbage("count")/1000),
   round(status.luastate_bytes/1000000),
   status.luastate_bytes_max and round(status.luastate_bytes_max/1000000) or "unknown"
@@ -3349,6 +3469,13 @@ function statistics.tracefunction(base,tag,...)
   statistics.register(formatters["%s.%s"](tag,name),function() return serialize(stat,"calls") end)
  end
 end
+function status.getreadstate()
+ return {
+  filename=status.filename   or "?",
+  linenumber=status.linenumber or 0,
+  iocode=status.inputid or 0,
+ }
+end
 
 end -- closure
 
@@ -3377,6 +3504,11 @@ luautilities.nofstrippedchunks=0
 luautilities.nofstrippedbytes=0
 local strippedchunks={} 
 luautilities.strippedchunks=strippedchunks
+if not LUATEXENGINE then
+ LUATEXENGINE=status.luatex_engine and string.lower(status.luatex_engine)
+ JITSUPPORTED=LUATEXENGINE=="luajittex" or jit
+ CONTEXTLMTXMODE=CONTEXTLMTXMODE or (LUATEXENGINE=="luametatex" and 1) or 0
+end
 luautilities.suffixes={
  tma="tma",
  tmc=(CONTEXTLMTXMODE and CONTEXTLMTXMODE>0 and "tmd") or (jit and "tmb") or "tmc",
@@ -3386,7 +3518,7 @@ luautilities.suffixes={
  luv="luv",
  luj="luj",
  tua="tua",
- tuc="tuc",
+ tuc=(CONTEXTLMTXMODE and CONTEXTLMTXMODE>0 and "tud") or (jit and "tub") or "tuc",
 }
 local function register(name) 
  if tracestripping then
@@ -3833,6 +3965,7 @@ local report_template=logs.reporter("template")
 local tostring,next=tostring,next
 local format,sub,byte=string.format,string.sub,string.byte
 local P,C,R,Cs,Cc,Carg,lpegmatch,lpegpatterns=lpeg.P,lpeg.C,lpeg.R,lpeg.Cs,lpeg.Cc,lpeg.Carg,lpeg.match,lpeg.patterns
+local formatters=string.formatters
 local replacer
 local function replacekey(k,t,how,recursive)
  local v=t[k]
@@ -3901,6 +4034,10 @@ local function replaceoptional(l,m,r,t,how,recurse)
  local v=t[l]
  return v and v~="" and lpegmatch(replacer,r,1,t,how or "lua",recurse or false) or ""
 end
+local function replaceformatted(l,m,r,t,how,recurse)
+ local v=t[r]
+ return v and formatters[l](v)
+end
 local single=P("%")  
 local double=P("%%") 
 local lquoted=P("%[") 
@@ -3914,16 +4051,19 @@ local nolquoted=lquoted/''
 local norquoted=rquoted/''
 local nolquotedq=lquotedq/''
 local norquotedq=rquotedq/''
+local nolformatted=P(":")/"%%"
+local norformatted=P(":")/""
 local noloptional=P("%?")/''
 local noroptional=P("?%")/''
 local nomoptional=P(":")/''
 local args=Carg(1)*Carg(2)*Carg(3)
-local key=nosingle*((C((1-nosingle   )^1)*args)/replacekey  )*nosingle
-local quoted=nolquotedq*((C((1-norquotedq )^1)*args)/replacekeyquoted  )*norquotedq
-local unquoted=nolquoted*((C((1-norquoted  )^1)*args)/replacekeyunquoted)*norquoted
+local key=nosingle*((C((1-nosingle)^1)*args)/replacekey)*nosingle
+local quoted=nolquotedq*((C((1-norquotedq)^1)*args)/replacekeyquoted)*norquotedq
+local unquoted=nolquoted*((C((1-norquoted)^1)*args)/replacekeyunquoted)*norquoted
 local optional=noloptional*((C((1-nomoptional)^1)*nomoptional*C((1-noroptional)^1)*args)/replaceoptional)*noroptional
+local formatted=nosingle*((Cs(nolformatted*(1-norformatted )^1)*norformatted*C((1-nosingle)^1)*args)/replaceformatted)*nosingle
 local any=P(1)
-   replacer=Cs((unquoted+quoted+escape+optional+key+any)^0)
+   replacer=Cs((unquoted+quoted+formatted+escape+optional+key+any)^0)
 local function replace(str,mapping,how,recurse)
  if mapping and str then
   return lpegmatch(replacer,str,1,mapping,how or "lua",recurse or false) or str
@@ -4094,8 +4234,11 @@ function stacker.new(name)
   insert(tops,top)
  end
  local function resolve_step(ti)
+  if not top then
+   return
+  end
   local result=nil
-  local noftop=top and #top or 0
+  local noftop=#top
   if ti>0 then
    local current=list[ti]
    if current then

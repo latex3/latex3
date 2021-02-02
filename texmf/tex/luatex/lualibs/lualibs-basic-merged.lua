@@ -1,6 +1,6 @@
 -- merged file : lualibs-basic-merged.lua
 -- parent file : lualibs-basic.lua
--- merge date  : Tue Aug 13 20:13:08 2019
+-- merge date  : Wed Dec 30 17:55:54 2020
 
 do -- begin closure to overcome local limits and interference
 
@@ -98,9 +98,6 @@ function optionalrequire(...)
  if ok then
   return result
  end
-end
-if lua then
- lua.mask=load([[τεχ = 1]]) and "utf" or "ascii"
 end
 local flush=io.flush
 if flush then
@@ -361,7 +358,10 @@ methods["already loaded"]=function(name)
  return package.loaded[name]
 end
 methods["preload table"]=function(name)
- return builtin["preload table"](name)
+ local f=builtin["preload table"]
+ if f then
+  return f(name)
+ end
 end
 methods["qualified path"]=function(name)
   return loadedbyname(addsuffix(lualibfile(name),"lua"),name)
@@ -373,15 +373,24 @@ methods["lib extra list"]=function(name)
  return loadedbypath(addsuffix(lualibfile(name),os.libsuffix),name,getextralibpaths(),true,"lib")
 end
 methods["path specification"]=function(name)
- getluapaths() 
- return builtin["path specification"](name)
+ local f=builtin["path specification"]
+ if f then
+  getluapaths() 
+  return f(name)
+ end
 end
 methods["cpath specification"]=function(name)
- getlibpaths() 
- return builtin["cpath specification"](name)
+ local f=builtin["cpath specification"]
+ if f then
+  getlibpaths() 
+  return f(name)
+ end
 end
 methods["all in one fallback"]=function(name)
- return builtin["all in one fallback"](name)
+ local f=builtin["all in one fallback"]
+ if f then
+  return f(name)
+ end
 end
 methods["not loaded"]=function(name)
  if helpers.trace then
@@ -397,19 +406,22 @@ function helpers.loaded(name)
  level=level+1
  for i=1,#sequence do
   local method=sequence[i]
-  if helpers.trace then
-   helpers.report("%s, level '%s', method '%s', name '%s'","locating",level,method,name)
-  end
-  local result,rest=methods[method](name)
-  if type(result)=="function" then
+  local lookup=method and methods[method]
+  if type(lookup)=="function" then
    if helpers.trace then
-    helpers.report("%s, level '%s', method '%s', name '%s'","found",level,method,name)
+    helpers.report("%s, level '%s', method '%s', name '%s'","locating",level,method,name)
    end
-   if helpers.traceused then
-    used[#used+1]={ level=level,name=name }
+   local result,rest=lookup(name)
+   if type(result)=="function" then
+    if helpers.trace then
+     helpers.report("%s, level '%s', method '%s', name '%s'","found",level,method,name)
+    end
+    if helpers.traceused then
+     used[#used+1]={ level=level,name=name }
+    end
+    level=level-1
+    return result,rest
    end
-   level=level-1
-   return result,rest
   end
  end
  level=level-1
@@ -542,11 +554,13 @@ local fullstripper=whitespace^0*C((whitespace^0*nonwhitespace^1)^0)
 local collapser=Cs(spacer^0/""*nonspacer^0*((spacer^0/" "*nonspacer^1)^0))
 local nospacer=Cs((whitespace^1/""+nonwhitespace^1)^0)
 local b_collapser=Cs(whitespace^0/""*(nonwhitespace^1+whitespace^1/" ")^0)
-local e_collapser=Cs((whitespace^1*endofstring/""+nonwhitespace^1+whitespace^1/" ")^0)
 local m_collapser=Cs((nonwhitespace^1+whitespace^1/" ")^0)
+local e_collapser=Cs((whitespace^1*endofstring/""+nonwhitespace^1+whitespace^1/" ")^0)
+local x_collapser=Cs((nonwhitespace^1+whitespace^1/"" )^0)
 local b_stripper=Cs(spacer^0/""*(nonspacer^1+spacer^1/" ")^0)
-local e_stripper=Cs((spacer^1*endofstring/""+nonspacer^1+spacer^1/" ")^0)
 local m_stripper=Cs((nonspacer^1+spacer^1/" ")^0)
+local e_stripper=Cs((spacer^1*endofstring/""+nonspacer^1+spacer^1/" ")^0)
+local x_stripper=Cs((nonspacer^1+spacer^1/"" )^0)
 patterns.stripper=stripper
 patterns.fullstripper=fullstripper
 patterns.collapser=collapser
@@ -554,9 +568,11 @@ patterns.nospacer=nospacer
 patterns.b_collapser=b_collapser
 patterns.m_collapser=m_collapser
 patterns.e_collapser=e_collapser
+patterns.x_collapser=x_collapser
 patterns.b_stripper=b_stripper
 patterns.m_stripper=m_stripper
 patterns.e_stripper=e_stripper
+patterns.x_stripper=x_stripper
 patterns.lowercase=lowercase
 patterns.uppercase=uppercase
 patterns.letter=patterns.lowercase+patterns.uppercase
@@ -613,7 +629,7 @@ patterns.propername=(uppercase+lowercase+underscore)*(uppercase+lowercase+unders
 patterns.somecontent=(anything-newline-space)^1 
 patterns.beginline=#(1-newline)
 patterns.longtostring=Cs(whitespace^0/""*((patterns.quoted+nonwhitespace^1+whitespace^1/""*(endofstring+Cc(" ")))^0))
-function anywhere(pattern) 
+local function anywhere(pattern) 
  return (1-P(pattern))^0*P(pattern)
 end
 lpeg.anywhere=anywhere
@@ -1366,7 +1382,7 @@ if not modules then modules={} end modules ['l-table']={
  copyright="PRAGMA ADE / ConTeXt Development Team",
  license="see context related readme files"
 }
-local type,next,tostring,tonumber,select=type,next,tostring,tonumber,select
+local type,next,tostring,tonumber,select,rawget=type,next,tostring,tonumber,select,rawget
 local table,string=table,string
 local concat,sort=table.concat,table.sort
 local format,lower,dump=string.format,string.lower,string.dump
@@ -1700,13 +1716,13 @@ function table.fromhash(t)
  end
  return hsh
 end
-local noquotes,hexify,handle,compact,inline,functions,metacheck
+local noquotes,hexify,handle,compact,inline,functions,metacheck,accurate
 local reserved=table.tohash { 
  'and','break','do','else','elseif','end','false','for','function','if',
  'in','local','nil','not','or','repeat','return','then','true','until','while',
- 'NaN','goto',
+ 'NaN','goto','const',
 }
-local function is_simple_table(t,hexify) 
+local function is_simple_table(t,hexify,accurate) 
  local nt=#t
  if nt>0 then
   local n=0
@@ -1725,6 +1741,8 @@ local function is_simple_table(t,hexify)
     if tv=="number" then
      if hexify then
       tt[i]=format("0x%X",v)
+     elseif accurate then
+      tt[i]=format("%q",v)
      else
       tt[i]=v 
      end
@@ -1745,6 +1763,8 @@ local function is_simple_table(t,hexify)
     if tv=="number" then
      if hexify then
       tt[i+1]=format("0x%X",v)
+     elseif accurate then
+      tt[i+1]=format("%q",v)
      else
       tt[i+1]=v 
      end
@@ -1816,6 +1836,8 @@ local function do_serialize(root,name,depth,level,indexed)
     if tv=="number" then
      if hexify then
       handle(format("%s 0x%X,",depth,v))
+     elseif accurate then
+      handle(format("%s %q,",depth,v))
      else
       handle(format("%s %s,",depth,v)) 
      end
@@ -1825,7 +1847,7 @@ local function do_serialize(root,name,depth,level,indexed)
      if next(v)==nil then
       handle(format("%s {},",depth))
      elseif inline then 
-      local st=is_simple_table(v,hexify)
+      local st=is_simple_table(v,hexify,accurate)
       if st then
        handle(format("%s { %s },",depth,concat(st,", ")))
       else
@@ -1853,12 +1875,16 @@ local function do_serialize(root,name,depth,level,indexed)
     if tk=="number" then
      if hexify then
       handle(format("%s [0x%X]=0x%X,",depth,k,v))
+     elseif accurate then
+      handle(format("%s [%s]=%q,",depth,k,v))
      else
       handle(format("%s [%s]=%s,",depth,k,v)) 
      end
     elseif tk=="boolean" then
      if hexify then
       handle(format("%s [%s]=0x%X,",depth,k and "true" or "false",v))
+     elseif accurate then
+      handle(format("%s [%s]=%q,",depth,k and "true" or "false",v))
      else
       handle(format("%s [%s]=%s,",depth,k and "true" or "false",v)) 
      end
@@ -1866,12 +1892,16 @@ local function do_serialize(root,name,depth,level,indexed)
     elseif noquotes and not reserved[k] and lpegmatch(propername,k) then
      if hexify then
       handle(format("%s %s=0x%X,",depth,k,v))
+     elseif accurate then
+      handle(format("%s %s=%q,",depth,k,v))
      else
       handle(format("%s %s=%s,",depth,k,v)) 
      end
     else
      if hexify then
       handle(format("%s [%q]=0x%X,",depth,k,v))
+     elseif accurate then
+      handle(format("%s [%q]=%q,",depth,k,v))
      else
       handle(format("%s [%q]=%s,",depth,k,v)) 
      end
@@ -1880,6 +1910,8 @@ local function do_serialize(root,name,depth,level,indexed)
     if tk=="number" then
      if hexify then
       handle(format("%s [0x%X]=%q,",depth,k,v))
+     elseif accurate then
+      handle(format("%s [%q]=%q,",depth,k,v))
      else
       handle(format("%s [%s]=%q,",depth,k,v))
      end
@@ -1896,6 +1928,8 @@ local function do_serialize(root,name,depth,level,indexed)
      if tk=="number" then
       if hexify then
        handle(format("%s [0x%X]={},",depth,k))
+      elseif accurate then
+       handle(format("%s [%q]={},",depth,k))
       else
        handle(format("%s [%s]={},",depth,k))
       end
@@ -1908,11 +1942,13 @@ local function do_serialize(root,name,depth,level,indexed)
       handle(format("%s [%q]={},",depth,k))
      end
     elseif inline then
-     local st=is_simple_table(v,hexify)
+     local st=is_simple_table(v,hexify,accurate)
      if st then
       if tk=="number" then
        if hexify then
         handle(format("%s [0x%X]={ %s },",depth,k,concat(st,", ")))
+       elseif accurate then
+        handle(format("%s [%q]={ %s },",depth,k,concat(st,", ")))
        else
         handle(format("%s [%s]={ %s },",depth,k,concat(st,", ")))
        end
@@ -1934,6 +1970,8 @@ local function do_serialize(root,name,depth,level,indexed)
     if tk=="number" then
      if hexify then
       handle(format("%s [0x%X]=%s,",depth,k,v and "true" or "false"))
+     elseif accurate then
+      handle(format("%s [%q]=%s,",depth,k,v and "true" or "false"))
      else
       handle(format("%s [%s]=%s,",depth,k,v and "true" or "false"))
      end
@@ -1953,6 +1991,8 @@ local function do_serialize(root,name,depth,level,indexed)
       if tk=="number" then
        if hexify then
         handle(format("%s [0x%X]=load(%q),",depth,k,f))
+       elseif accurate then
+        handle(format("%s [%q]=load(%q),",depth,k,f))
        else
         handle(format("%s [%s]=load(%q),",depth,k,f))
        end
@@ -1970,6 +2010,8 @@ local function do_serialize(root,name,depth,level,indexed)
     if tk=="number" then
      if hexify then
       handle(format("%s [0x%X]=%q,",depth,k,tostring(v)))
+     elseif accurate then
+      handle(format("%s [%q]=%q,",depth,k,tostring(v)))
      else
       handle(format("%s [%s]=%q,",depth,k,tostring(v)))
      end
@@ -1993,6 +2035,7 @@ local function serialize(_handle,root,name,specification)
  if type(specification)=="table" then
   noquotes=specification.noquotes
   hexify=specification.hexify
+  accurate=specification.accurate
   handle=_handle or specification.handle or print
   functions=specification.functions
   compact=specification.compact
@@ -2771,7 +2814,7 @@ local open,flush,write,read=io.open,io.flush,io.write,io.read
 local byte,find,gsub,format=string.byte,string.find,string.gsub,string.format
 local concat=table.concat
 local type=type
-if string.find(os.getenv("PATH"),";",1,true) then
+if string.find(os.getenv("PATH") or "",";",1,true) then
  io.fileseparator,io.pathseparator="\\",";"
 else
  io.fileseparator,io.pathseparator="/",":"
@@ -3118,7 +3161,7 @@ local date,time=os.date,os.time
 local find,format,gsub,upper,gmatch=string.find,string.format,string.gsub,string.upper,string.gmatch
 local concat=table.concat
 local random,ceil,randomseed=math.random,math.ceil,math.randomseed
-local rawget,rawset,type,getmetatable,setmetatable,tonumber,tostring=rawget,rawset,type,getmetatable,setmetatable,tonumber,tostring
+local type,setmetatable,tonumber,tostring=type,setmetatable,tonumber,tostring
 do
  local selfdir=os.selfdir
  if selfdir=="" then
@@ -3327,6 +3370,8 @@ elseif name=="macosx" then
    platform="osx-intel"
   elseif find(architecture,"x86_64",1,true) then
    platform="osx-64"
+  elseif find(architecture,"arm64",1,true) then
+   platform="osx-64"
   else
    platform="osx-ppc"
   end
@@ -3399,7 +3444,7 @@ function os.uuid()
 end
 local d
 function os.timezone(delta)
- d=d or tonumber(tonumber(date("%H")-date("!%H")))
+ d=d or ((tonumber(date("%H")) or 0)-(tonumber(date("!%H")) or 0))
  if delta then
   if d>0 then
    return format("+%02i:00",d)
@@ -3498,11 +3543,19 @@ local function isleapyear(year)
 end
 os.isleapyear=isleapyear
 local days={ 31,28,31,30,31,30,31,31,30,31,30,31 }
-local function nofdays(year,month)
+local function nofdays(year,month,day)
  if not month then
   return isleapyear(year) and 365 or 364
- else
+ elseif not day then
   return month==2 and isleapyear(year) and 29 or days[month]
+ else
+  for i=1,month-1 do
+   day=day+days[i]
+  end
+  if month>2 and isleapyear(year) then
+   day=day+1
+  end
+  return day
  end
 end
 os.nofdays=nofdays
@@ -3524,6 +3577,12 @@ function os.validdate(year,month,day)
   end
  end
  return year,month,day
+end
+function os.date(fmt,...)
+ if not fmt then
+  fmt="%Y-%m-%d %H:%M"
+ end
+ return date(fmt,...)
 end
 local osexit=os.exit
 local exitcode=nil
@@ -3564,15 +3623,24 @@ local checkedsplit=string.checkedsplit
 local P,R,S,C,Cs,Cp,Cc,Ct=lpeg.P,lpeg.R,lpeg.S,lpeg.C,lpeg.Cs,lpeg.Cp,lpeg.Cc,lpeg.Ct
 local attributes=lfs.attributes
 function lfs.isdir(name)
- return attributes(name,"mode")=="directory"
+ if name then
+  return attributes(name,"mode")=="directory"
+ end
 end
 function lfs.isfile(name)
- local a=attributes(name,"mode")
- return a=="file" or a=="link" or nil
+ if name then
+  local a=attributes(name,"mode")
+  return a=="file" or a=="link" or nil
+ end
 end
 function lfs.isfound(name)
- local a=attributes(name,"mode")
- return (a=="file" or a=="link") and name or nil
+ if name then
+  local a=attributes(name,"mode")
+  return (a=="file" or a=="link") and name or nil
+ end
+end
+function lfs.modification(name)
+ return name and attributes(name,"modification") or nil
 end
 if sandbox then
  sandbox.redefine(lfs.isfile,"lfs.isfile")
@@ -3954,43 +4022,75 @@ if not modules then modules={} end modules ['l-gzip']={
  copyright="PRAGMA ADE / ConTeXt Development Team",
  license="see context related readme files"
 }
-if not gzip then
- return
+gzip=gzip or {} 
+if not zlib then
+ zlib=xzip 
+elseif not xzip then
+ xzip=zlib
 end
-local suffix,suffixes=file.suffix,file.suffixes
-function gzip.load(filename)
- local f=io.open(filename,"rb")
- if not f then
- elseif suffix(filename)=="gz" then
-  f:close()
-  local g=gzip.open(filename,"rb")
-  if g then
-   local str=g:read("*all")
-   g:close()
-   return str
+if zlib then
+ local suffix=file.suffix
+ local suffixes=file.suffixes
+ local find=string.find
+ local openfile=io.open
+ local gzipwindow=15+16 
+ local gziplevel=3
+ local identifier="^\x1F\x8B\x08"
+ local compress=zlib.compress
+ local decompress=zlib.decompress
+ function gzip.load(filename)
+  local f=openfile(filename,"rb")
+  if not f then
+  else
+   local data=f:read("*all")
+   f:close()
+   if data and data~="" then
+    if suffix(filename)=="gz" then
+     data=decompress(data,gzipwindow)
+    end
+    return data
+   end
   end
- else
-  local str=f:read("*all")
-  f:close()
-  return str
  end
-end
-function gzip.save(filename,data)
- if suffix(filename)~="gz" then
-  filename=filename..".gz"
+ function gzip.save(filename,data,level)
+  if suffix(filename)~="gz" then
+   filename=filename..".gz"
+  end
+  local f=openfile(filename,"wb")
+  if f then
+   data=compress(data or "",level or gziplevel,nil,gzipwindow)
+   f:write(data)
+   f:close()
+   return #data
+  end
  end
- local f=io.open(filename,"wb")
- if f then
-  local s=zlib.compress(data or "",9,nil,15+16)
-  f:write(s)
-  f:close()
-  return #s
+ function gzip.suffix(filename)
+  local suffix,extra=suffixes(filename)
+  local gzipped=extra=="gz"
+  return suffix,gzipped
  end
-end
-function gzip.suffix(filename)
- local suffix,extra=suffixes(filename)
- local gzipped=extra=="gz"
- return suffix,gzipped
+ function gzip.compressed(s)
+  return s and find(s,identifier)
+ end
+ function gzip.compress(s,level)
+  if s and not find(s,identifier) then 
+   if not level then
+    level=gziplevel
+   elseif level<=0 then
+    return s
+   elseif level>9 then
+    level=9
+   end
+   return compress(s,level or gziplevel,nil,gzipwindow) or s
+  end
+ end
+ function gzip.decompress(s)
+  if s and find(s,identifier) then
+   return decompress(s,gzipwindow)
+  else
+   return s
+  end
+ end
 end
 
 end -- closure
@@ -4014,6 +4114,8 @@ if not md5 then
 end
 local md5,file=md5,file
 local gsub=string.gsub
+local modification,isfile,touch=lfs.modification,lfs.isfile,lfs.touch
+local loaddata,savedata=io.loaddata,io.savedata
 do
  local patterns=lpeg and lpeg.patterns
  if patterns then
@@ -4029,10 +4131,11 @@ do
   md5.sumHEXA=md5.HEX
  end
 end
+local md5HEX=md5.HEX
 function file.needsupdating(oldname,newname,threshold) 
- local oldtime=lfs.attributes(oldname,"modification")
+ local oldtime=modification(oldname)
  if oldtime then
-  local newtime=lfs.attributes(newname,"modification")
+  local newtime=modification(newname)
   if not newtime then
    return true 
   elseif newtime>=oldtime then
@@ -4048,31 +4151,32 @@ function file.needsupdating(oldname,newname,threshold)
 end
 file.needs_updating=file.needsupdating
 function file.syncmtimes(oldname,newname)
- local oldtime=lfs.attributes(oldname,"modification")
- if oldtime and lfs.isfile(newname) then
-  lfs.touch(newname,oldtime,oldtime)
+ local oldtime=modification(oldname)
+ if oldtime and isfile(newname) then
+  touch(newname,oldtime,oldtime)
  end
 end
-function file.checksum(name)
+local function checksum(name)
  if md5 then
-  local data=io.loaddata(name)
+  local data=loaddata(name)
   if data then
-   return md5.HEX(data)
+   return md5HEX(data)
   end
  end
  return nil
 end
+file.checksum=checksum
 function file.loadchecksum(name)
  if md5 then
-  local data=io.loaddata(name..".md5")
+  local data=loaddata(name..".md5")
   return data and (gsub(data,"%s",""))
  end
  return nil
 end
 function file.savechecksum(name,checksum)
- if not checksum then checksum=file.checksum(name) end
+ if not checksum then checksum=checksum(name) end
  if checksum then
-  io.savedata(name..".md5",checksum)
+  savedata(name..".md5",checksum)
   return checksum
  end
  return nil
@@ -4587,12 +4691,14 @@ do -- begin closure to overcome local limits and interference
 
 if not modules then modules={} end modules ['l-unicode']={
  version=1.001,
+ optimize=true,
  comment="companion to luat-lib.mkiv",
  author="Hans Hagen, PRAGMA-ADE, Hasselt NL",
  copyright="PRAGMA ADE / ConTeXt Development Team",
  license="see context related readme files"
 }
 utf=utf or {}
+-- unicode=nil
 if not string.utfcharacters then
  local gmatch=string.gmatch
  function string.characters(str)
@@ -5097,49 +5203,52 @@ end
 function utf.utf32_to_utf8_t(t,endian)
  return endian and utf32_to_utf8_be_t(t) or utf32_to_utf8_le_t(t) or t
 end
-local function little(b)
- if b<0x10000 then
-  return char(b%256,rshift(b,8))
- else
-  b=b-0x10000
-  local b1=rshift(b,10)+0xD800
-  local b2=b%1024+0xDC00
-  return char(b1%256,rshift(b1,8),b2%256,rshift(b2,8))
+if bit32 then
+ local rshift=bit32.rshift
+ local function little(b)
+  if b<0x10000 then
+   return char(b%256,rshift(b,8))
+  else
+   b=b-0x10000
+   local b1=rshift(b,10)+0xD800
+   local b2=b%1024+0xDC00
+   return char(b1%256,rshift(b1,8),b2%256,rshift(b2,8))
+  end
  end
-end
-local function big(b)
- if b<0x10000 then
-  return char(rshift(b,8),b%256)
- else
-  b=b-0x10000
-  local b1=rshift(b,10)+0xD800
-  local b2=b%1024+0xDC00
-  return char(rshift(b1,8),b1%256,rshift(b2,8),b2%256)
+ local function big(b)
+  if b<0x10000 then
+   return char(rshift(b,8),b%256)
+  else
+   b=b-0x10000
+   local b1=rshift(b,10)+0xD800
+   local b2=b%1024+0xDC00
+   return char(rshift(b1,8),b1%256,rshift(b2,8),b2%256)
+  end
  end
-end
-local l_remap=Cs((p_utf8byte/little+P(1)/"")^0)
-local b_remap=Cs((p_utf8byte/big+P(1)/"")^0)
-local function utf8_to_utf16_be(str,nobom)
- if nobom then
-  return lpegmatch(b_remap,str)
- else
-  return char(254,255)..lpegmatch(b_remap,str)
+ local l_remap=Cs((p_utf8byte/little+P(1)/"")^0)
+ local b_remap=Cs((p_utf8byte/big+P(1)/"")^0)
+ local function utf8_to_utf16_be(str,nobom)
+  if nobom then
+   return lpegmatch(b_remap,str)
+  else
+   return char(254,255)..lpegmatch(b_remap,str)
+  end
  end
-end
-local function utf8_to_utf16_le(str,nobom)
- if nobom then
-  return lpegmatch(l_remap,str)
- else
-  return char(255,254)..lpegmatch(l_remap,str)
+ local function utf8_to_utf16_le(str,nobom)
+  if nobom then
+   return lpegmatch(l_remap,str)
+  else
+   return char(255,254)..lpegmatch(l_remap,str)
+  end
  end
-end
-utf.utf8_to_utf16_be=utf8_to_utf16_be
-utf.utf8_to_utf16_le=utf8_to_utf16_le
-function utf.utf8_to_utf16(str,littleendian,nobom)
- if littleendian then
-  return utf8_to_utf16_le(str,nobom)
- else
-  return utf8_to_utf16_be(str,nobom)
+ utf.utf8_to_utf16_be=utf8_to_utf16_be
+ utf.utf8_to_utf16_le=utf8_to_utf16_le
+ function utf.utf8_to_utf16(str,littleendian,nobom)
+  if littleendian then
+   return utf8_to_utf16_le(str,nobom)
+  else
+   return utf8_to_utf16_be(str,nobom)
+  end
  end
 end
 local pattern=Cs (

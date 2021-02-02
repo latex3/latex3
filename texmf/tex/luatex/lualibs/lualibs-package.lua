@@ -54,7 +54,7 @@ local function lualibfile(name)
     return lpegmatch(pattern,name) or name
 end
 
-local offset = luarocks and 1 or 0 -- todo: also check other extras
+local offset = luarocks and 1 or 0 -- todo: also check other extras ... we'll drop this luarocks anyway
 
 local helpers = package.helpers or {
     cleanpath  = cleanpath,
@@ -300,7 +300,10 @@ methods["already loaded"] = function(name)
 end
 
 methods["preload table"] = function(name)
-    return builtin["preload table"](name)
+    local f = builtin["preload table"]
+    if f then
+        return f(name)
+    end
 end
 
 methods["qualified path"]=function(name)
@@ -316,17 +319,26 @@ methods["lib extra list"] = function(name)
 end
 
 methods["path specification"] = function(name)
-    getluapaths() -- triggers list building and tracing
-    return builtin["path specification"](name)
+    local f = builtin["path specification"]
+    if f then
+        getluapaths() -- triggers list building and tracing
+        return f(name)
+    end
 end
 
 methods["cpath specification"] = function(name)
-    getlibpaths() -- triggers list building and tracing
-    return builtin["cpath specification"](name)
+    local f = builtin["cpath specification"]
+    if f then
+        getlibpaths() -- triggers list building and tracing
+        return f(name)
+    end
 end
 
 methods["all in one fallback"] = function(name)
-    return builtin["all in one fallback"](name)
+    local f = builtin["all in one fallback"]
+    if f then
+        return f(name)
+    end
 end
 
 methods["not loaded"] = function(name)
@@ -346,19 +358,22 @@ function helpers.loaded(name)
     level = level + 1
     for i=1,#sequence do
         local method = sequence[i]
-        if helpers.trace then
-            helpers.report("%s, level '%s', method '%s', name '%s'","locating",level,method,name)
-        end
-        local result, rest = methods[method](name)
-        if type(result) == "function" then
+        local lookup = method and methods[method]
+        if type(lookup) == "function" then
             if helpers.trace then
-                helpers.report("%s, level '%s', method '%s', name '%s'","found",level,method,name)
+                helpers.report("%s, level '%s', method '%s', name '%s'","locating",level,method,name)
             end
-            if helpers.traceused then
-                used[#used+1] = { level = level, name = name }
+            local result, rest = lookup(name)
+            if type(result) == "function" then
+                if helpers.trace then
+                    helpers.report("%s, level '%s', method '%s', name '%s'","found",level,method,name)
+                end
+                if helpers.traceused then
+                    used[#used+1] = { level = level, name = name }
+                end
+                level = level - 1
+                return result, rest
             end
-            level = level - 1
-            return result, rest
         end
     end
     -- safeguard, we never come here

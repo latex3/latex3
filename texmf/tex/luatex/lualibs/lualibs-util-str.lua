@@ -633,7 +633,7 @@ local environment = {
     stripzeros      = patterns.stripzeros,
     escapedquotes   = string.escapedquotes,
 
-    FORMAT          = string.f9,
+    FORMAT          = string.f6,
 }
 
 -- -- --
@@ -701,13 +701,17 @@ local format_left = function(f)
     end
 end
 
-local format_q = function()
+local format_q = JITSUPPORTED and function()
     n = n + 1
     -- lua 5.3 has a different q than lua 5.2 (which does a tostring on numbers)
  -- return format("(a%s ~= nil and format('%%q',a%s) or '')",n,n)
     return format("(a%s ~= nil and format('%%q',tostring(a%s)) or '')",n,n)
  -- return format("(a%s ~= nil and escapedquotes(tostring(a%s)) or '')",n,n)
+end or function()
+    n = n + 1
+    return format("(a%s ~= nil and format('%%q',a%s) or '')",n,n)
 end
+
 
 local format_Q = function() -- fast escaping
     n = n + 1
@@ -908,7 +912,7 @@ local format_L = function()
     return format("(a%s and 'TRUE' or 'FALSE')",n)
 end
 
-local format_n = function() -- strips leading and trailing zeros and removes .0
+local format_n = function() -- strips leading and trailing zeros and removes .0, beware: can produce e notation
     n = n + 1
     return format("((a%s %% 1 == 0) and format('%%i',a%s) or tostring(a%s))",n,n,n)
 end
@@ -938,13 +942,30 @@ end
 --     end
 -- end
 
-local format_N = function(f) -- strips leading and trailing zeros
-    n = n + 1
-    -- stripzero (singular) as we only have a number
-    if not f or f == "" then
-        f = ".9"
-    end -- always a leading number !
-    return format("(((a%s %% 1 == 0) and format('%%i',a%s)) or lpegmatch(stripzero,format('%%%sf',a%s)))",n,n,f,n)
+local format_N  if environment.FORMAT then
+
+    format_N = function(f)
+        n = n + 1
+        if not f or f == "" then
+            return format("FORMAT(a%s,'%%.9f')",n)
+        elseif f == ".6" or f == "0.6" then
+            return format("FORMAT(a%s)",n)
+        else
+            return format("FORMAT(a%s,'%%%sf')",n,f)
+        end
+    end
+
+else
+
+    format_N = function(f) -- strips leading and trailing zeros
+        n = n + 1
+        -- stripzero (singular) as we only have a number
+        if not f or f == "" then
+            f = ".9"
+        end -- always a leading number !
+        return format("(((a%s %% 1 == 0) and format('%%i',a%s)) or lpegmatch(stripzero,format('%%%sf',a%s)))",n,n,f,n)
+    end
+
 end
 
 local format_a = function(f)
@@ -1036,76 +1057,44 @@ local format_rest = function(s)
     return format("%q",s) -- catches " and \n and such
 end
 
--- local format_extension = function(extensions,f,name)
---     local extension = extensions[name] or "tostring(%s)"
---     local f = tonumber(f) or 1
---     local w = find(extension,"%.%.%.")
---     if f == 0 then
---         if w then
---             extension = gsub(extension,"%.%.%.","")
---         end
---         return extension
---     elseif f == 1 then
---         if w then
---             extension = gsub(extension,"%.%.%.","%%s")
---         end
---         n = n + 1
---         local a = "a" .. n
---         return format(extension,a,a) -- maybe more times?
---     elseif f < 0 then
---         local a = "a" .. (n + f + 1)
---         return format(extension,a,a)
---     else
---         if w then
---             extension = gsub(extension,"%.%.%.",rep("%%s,",f-1).."%%s")
---         end
---         -- we could fill an array and then n = n + 1 unpack(t,n,n+f) but as we
---         -- cache we don't save much and there are hardly any extensions anyway
---         local t = { }
---         for i=1,f do
---             n = n + 1
---          -- t[#t+1] = "a" .. n
---             t[i] = "a" .. n
---         end
---         return format(extension,unpack(t))
---     end
--- end
-
 local format_extension = function(extensions,f,name)
     local extension = extensions[name] or "tostring(%s)"
     local f = tonumber(f) or 1
     local w = find(extension,"%.%.%.")
-    if w then
-        -- we have a wildcard
-        if f == 0 then
+    if f == 0 then
+        if w then
+            extension = gsub(extension,"%.%.%.","")
+        end
+        return extension
+    elseif f == 1 then
+        if w then
+            extension = gsub(extension,"%.%.%.","%%s")
+        end
+        n = n + 1
+        local a = "a" .. n
+        return format(extension,a,a) -- maybe more times?
+    elseif f < 0 then
+        if w then
+            -- not supported
             extension = gsub(extension,"%.%.%.","")
             return extension
-        elseif f == 1 then
-            extension = gsub(extension,"%.%.%.","%%s")
-            n = n + 1
-            local a = "a" .. n
-            return format(extension,a,a) -- maybe more times?
-        elseif f < 0 then
+        else
             local a = "a" .. (n + f + 1)
             return format(extension,a,a)
-        else
-            extension = gsub(extension,"%.%.%.",rep("%%s,",f-1).."%%s")
-            -- we could fill an array and then n = n + 1 unpack(t,n,n+f) but as we
-            -- cache we don't save much and there are hardly any extensions anyway
-            local t = { }
-            for i=1,f do
-                n = n + 1
-             -- t[#t+1] = "a" .. n
-                t[i] = "a" .. n
-            end
-            return format(extension,unpack(t))
         end
     else
-        extension = gsub(extension,"%%s",function()
+        if w then
+            extension = gsub(extension,"%.%.%.",rep("%%s,",f-1).."%%s")
+        end
+        -- we could fill an array and then n = n + 1 unpack(t,n,n+f) but as we
+        -- cache we don't save much and there are hardly any extensions anyway
+        local t = { }
+        for i=1,f do
             n = n + 1
-            return "a" .. n
-        end)
-        return extension
+         -- t[#t+1] = "a" .. n
+            t[i] = "a" .. n
+        end
+        return format(extension,unpack(t))
     end
 end
 
@@ -1252,7 +1241,6 @@ local function make(t,str)
             f = function() return str end
         end
     end
- -- if jit then jit.on(f,true) end
     t[str] = f
     return f
 end

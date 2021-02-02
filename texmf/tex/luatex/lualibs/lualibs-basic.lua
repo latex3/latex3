@@ -7,7 +7,7 @@
 --  lualibs.dtx  (with options: `basic')
 --  This is a generated file.
 --  
---  Copyright (C) 2009--2018 by
+--  Copyright (C) 2009--2019 by
 --          PRAGMA ADE / ConTeXt Development Team
 --          The LuaLaTeX Dev Team
 --  
@@ -29,8 +29,8 @@ local loadmodule        = lualibs.loadmodule
 
 local lualibs_basic_module = {
   name          = "lualibs-basic",
-  version       = "2.67",       --TAGVERSION
-  date          = "2019-08-11", --TAGDATE
+  version       = "2.73",       --TAGVERSION
+  date          = "2020-12-30", --TAGDATE
   description   = "ConTeXt Lua libraries -- basic collection.",
   author        = "Hans Hagen, PRAGMA-ADE, Hasselt NL & Elie Roux & Philipp Gesang",
   copyright     = "PRAGMA ADE / ConTeXt Development Team",
@@ -40,11 +40,11 @@ local lualibs_basic_module = {
 local loaded = false --- track success of package loading
 
 if lualibs.prefer_merged then
-  info"Loading merged package for collection ^^e2^^80^^9cbasic^^e2^^80^^9d."
+  info"Loading merged package for collection “basic”."
   loaded = loadmodule('lualibs-basic-merged.lua')
 else
   info"Ignoring merged packages."
-  info"Falling back to individual libraries from collection ^^e2^^80^^9cbasic^^e2^^80^^9d."
+  info"Falling back to individual libraries from collection “basic”."
 end
 
 

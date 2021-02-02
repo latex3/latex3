@@ -7,7 +7,7 @@
 --  lualibs.dtx  (with options: `extended')
 --  This is a generated file.
 --  
---  Copyright (C) 2009--2018 by
+--  Copyright (C) 2009--2019 by
 --          PRAGMA ADE / ConTeXt Development Team
 --          The LuaLaTeX Dev Team
 --  
@@ -30,8 +30,8 @@ lualibs = lualibs or { }
 
 local lualibs_extended_module = {
   name          = "lualibs-extended",
-  version       = "2.67",       --TAGVERSION
-  date          = "2019-08-11", --TAGDATE
+  version       = "2.73",       --TAGVERSION
+  date          = "2020-12-30", --TAGDATE
   description   = "ConTeXt Lua libraries -- extended collection.",
   author        = "Hans Hagen, PRAGMA-ADE, Hasselt NL & Elie Roux & Philipp Gesang",
   copyright     = "PRAGMA ADE / ConTeXt Development Team",
@@ -111,11 +111,11 @@ fake_context()
 
 local loaded = false
 if lualibs.prefer_merged then
-  info"Loading merged package for collection ^^e2^^80^^9cextended^^e2^^80^^9d."
+  info"Loading merged package for collection “extended”."
   loaded = loadmodule('lualibs-extended-merged.lua')
 else
   info"Ignoring merged packages."
-  info"Falling back to individual libraries from collection ^^e2^^80^^9cextended^^e2^^80^^9d."
+  info"Falling back to individual libraries from collection “extended”."
 end
 
 if loaded == false then

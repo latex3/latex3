@@ -10,7 +10,7 @@ local lpeg, table, string = lpeg, table, string
 local P, R, V, S, C, Ct, Cs, Carg, Cc, Cg, Cf, Cp = lpeg.P, lpeg.R, lpeg.V, lpeg.S, lpeg.C, lpeg.Ct, lpeg.Cs, lpeg.Carg, lpeg.Cc, lpeg.Cg, lpeg.Cf, lpeg.Cp
 local lpegmatch, lpegpatterns = lpeg.match, lpeg.patterns
 local concat, gmatch, find = table.concat, string.gmatch, string.find
-local tostring, type, next, rawset = tostring, type, next, rawset
+local tonumber, tostring, type, next, rawset = tonumber, tostring, type, next, rawset
 local mod, div = math.mod, math.div
 
 utilities         = utilities or {}
@@ -373,6 +373,8 @@ hashes.settings_to_set =  table.setmetatableindex(function(t,k) -- experiment, n
     return v
 end)
 
+-- as we use a next, we are not sure when the gc kicks in
+
 getmetatable(hashes.settings_to_set).__mode = "kv" -- could be an option (maybe sharing makes sense)
 
 function parsers.simple_hash_to_string(h, separator)
@@ -538,13 +540,15 @@ function parsers.csvsplitter(specification)
     specification   = specification and setmetatableindex(specification,defaultspecification) or defaultspecification
     local separator = specification.separator
     local quotechar = specification.quote
+    local numbers   = specification.numbers
     local separator = S(separator ~= "" and separator or ",")
     local whatever  = C((1 - separator - newline)^0)
     if quotechar and quotechar ~= "" then
         local quotedata = nil
         for chr in gmatch(quotechar,".") do
             local quotechar = P(chr)
-            local quoteword = quotechar * C((1 - quotechar)^0) * quotechar
+            local quoteitem = (1 - quotechar)^0
+            local quoteword = quotechar * (numbers and (quoteitem/tonumber) or C(quoteitem)) * quotechar
             if quotedata then
                 quotedata = quotedata + quoteword
             else
@@ -559,29 +563,29 @@ function parsers.csvsplitter(specification)
     end
 end
 
--- and this is a slightly patched version of a version posted by Philipp Gesang
-
--- local mycsvsplitter = parsers.rfc4180splitter()
-
 -- local crap = [[
 -- first,second,third,fourth
 -- "1","2","3","4"
--- "a","b","c","d"
--- "foo","bar""baz","boogie","xyzzy"
+-- "5","6","7","8"
 -- ]]
+--
+-- local mycsvsplitter = parsers.csvsplitter { numbers = true }
+--
+-- local list = mycsvsplitter(crap) inspect(list)
 
--- local list, names = mycsvsplitter(crap,true)   inspect(list) inspect(names)
--- local list, names = mycsvsplitter(crap)        inspect(list) inspect(names)
+-- and this is a slightly patched version of a version posted by Philipp Gesang
 
 function parsers.rfc4180splitter(specification)
     specification     = specification and setmetatableindex(specification,defaultspecification) or defaultspecification
+    local numbers     = specification.numbers
     local separator   = specification.separator --> rfc: COMMA
     local quotechar   = P(specification.quote)  -->      DQUOTE
     local dquotechar  = quotechar * quotechar   -->      2DQUOTE
                       / specification.quote
     local separator   = S(separator ~= "" and separator or ",")
+    local whatever    = (dquotechar + (1 - quotechar))^0
     local escaped     = quotechar
-                      * Cs((dquotechar + (1 - quotechar))^0)
+                      * (numbers and (whatever/tonumber) or Cs(whatever))
                       * quotechar
     local non_escaped = C((1 - quotechar - newline - separator)^1)
     local field       = escaped + non_escaped + Cc("")
@@ -600,6 +604,18 @@ function parsers.rfc4180splitter(specification)
         end
     end
 end
+
+-- local mycsvsplitter = parsers.rfc4180splitter { numbers = true }
+--
+-- local crap = [[
+-- first,second,third,fourth
+-- "1","2","3","4"
+-- "a","b","c","d"
+-- "foo","bar""baz","boogie","xyzzy"
+-- ]]
+--
+-- local list, names = mycsvsplitter(crap,true)   inspect(list) inspect(names)
+-- local list, names = mycsvsplitter(crap)        inspect(list) inspect(names)
 
 -- parsers.stepper("1,7-",9,function(i) print(">>>",i) end)
 -- parsers.stepper("1-3,7,8,9")

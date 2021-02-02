@@ -30,7 +30,7 @@ local date, time = os.date, os.time
 local find, format, gsub, upper, gmatch = string.find, string.format, string.gsub, string.upper, string.gmatch
 local concat = table.concat
 local random, ceil, randomseed = math.random, math.ceil, math.randomseed
-local rawget, rawset, type, getmetatable, setmetatable, tonumber, tostring = rawget, rawset, type, getmetatable, setmetatable, tonumber, tostring
+local type, setmetatable, tonumber, tostring = type, setmetatable, tonumber, tostring
 
 -- This check needs to happen real early on. Todo: we can pick it up from the commandline
 -- if we pass --binpath= (which is useful anyway)
@@ -358,6 +358,8 @@ elseif name == "macosx" then
             platform = "osx-intel"
         elseif find(architecture,"x86_64",1,true) then
             platform = "osx-64"
+        elseif find(architecture,"arm64",1,true) then
+            platform = "osx-64"
         else
             platform = "osx-ppc"
         end
@@ -459,7 +461,7 @@ end
 local d
 
 function os.timezone(delta)
-    d = d or tonumber(tonumber(date("%H")-date("!%H")))
+    d = d or ((tonumber(date("%H")) or 0) - (tonumber(date("!%H")) or 0))
     if delta then
         if d > 0 then
             return format("+%02i:00",d)
@@ -604,11 +606,19 @@ os.isleapyear = isleapyear
 
 local days = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 
-local function nofdays(year,month)
+local function nofdays(year,month,day)
     if not month then
         return isleapyear(year) and 365 or 364
-    else
+    elseif not day then
         return month == 2 and isleapyear(year) and 29 or days[month]
+    else
+        for i=1,month-1 do
+            day = day + days[i]
+        end
+        if month > 2 and isleapyear(year) then
+            day = day + 1
+        end
+        return day
     end
 end
 
@@ -635,6 +645,14 @@ function os.validdate(year,month,day)
         end
     end
     return year, month, day
+end
+
+function os.date(fmt,...)
+    if not fmt then
+        -- otherwise differences between unix, mingw and msvc
+        fmt = "%Y-%m-%d %H:%M"
+    end
+    return date(fmt,...)
 end
 
 local osexit   = os.exit
