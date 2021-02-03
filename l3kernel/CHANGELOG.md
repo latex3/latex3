@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `dflt` alias to str_convert
+
 ## [2021-02-02]
 
 ### Added
