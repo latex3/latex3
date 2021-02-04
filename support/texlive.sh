@@ -35,14 +35,6 @@ tlmgr install amsmath tools
 # warnings with some packages and errors with others
 tlmgr install metafont mfware
 
-# Contrib packages for testing
-tlmgr install \
-  chemformula \
-  ctex        \
-  mhchem      \
-  siunitx     \
-  unicode-math
-
 # Dependencies for tests that are not auto-resolved
 tlmgr install bibtex lualatex-math
   
