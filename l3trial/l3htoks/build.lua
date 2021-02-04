@@ -11,7 +11,6 @@ module = "l3htoks"
 maindir = "../.."
 
 -- Non-standard settings
-checkdeps    = {maindir .. "/l3kernel", maindir .. "/l3packages/xparse"}
 checkengines = {"pdftex", "xetex", "luatex"}
 checkruns    = 2
 checksearch  = true

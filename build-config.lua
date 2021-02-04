@@ -1,6 +1,6 @@
 -- Common settings for LaTeX3 development repo, used by l3build script
 
-checkdeps   = checkdeps   or {maindir .. "/l3backend", maindir .. "/l3kernel", maindir .. "/l3packages/xparse"}
+checkdeps   = checkdeps   or {maindir .. "/l3backend", maindir .. "/l3kernel"}
 typesetdeps = typesetdeps or checkdeps
 unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 

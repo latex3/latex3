@@ -15,7 +15,7 @@ installfiles = {"*.cfg", "*.ltx", "*.sty"}
 sourcefiles  = {"*.dtx", "*.ins", "*.ltx"}
 typesetfiles = {}
 
-checkdeps   = {maindir .. "/l3kernel", maindir .. "/l3packages/xparse", "../l3hooks"}
+checkdeps   = {maindir .. "/l3kernel", "../l3hooks"}
 typesetdeps = {maindir .. "/l3kernel", "../l3hooks"}
 
 checksearch = true
