@@ -13,8 +13,8 @@
 -- (but please observe conditions on bug reports sent to that address!)
 -- 
 -- 
--- Copyright 2015
--- The LaTeX3 Project and any individual authors listed elsewhere
+-- Copyright (C) 2015-2021
+-- The LaTeX Project and any individual authors listed elsewhere
 -- in this file.
 -- 
 -- This file was generated from file(s) of the LaTeX base system.

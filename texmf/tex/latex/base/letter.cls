@@ -13,8 +13,8 @@
 %% (but please observe conditions on bug reports sent to that address!)
 %% 
 %% 
-%% Copyright (C) 1993-2020
-%% The LaTeX3 Project and any individual authors listed elsewhere
+%% Copyright (C) 1993-2021
+%% The LaTeX Project and any individual authors listed elsewhere
 %% in this file.
 %% 
 %% This file was generated from file(s) of the LaTeX base system.
@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}[1996/06/01]
 \ProvidesClass{letter}
-              [2020/03/11 v1.3b
+              [2021/01/07 v1.3c
                Standard LaTeX document class]
 \newcommand\@ptsize{}
 \DeclareOption{a4paper}
@@ -228,7 +228,7 @@
       \@date \end{tabular}\par}%
   \fi
   \vspace{2\parskip}%
-  {\raggedright \toname \\ \toaddress \par}%
+  {\raggedright \toname \expandafter\\\toaddress \par}%
   \vspace{2\parskip}%
   #1\par\nobreak}
 \newcommand\closing[1]{\par\nobreak\vspace{\parskip}%

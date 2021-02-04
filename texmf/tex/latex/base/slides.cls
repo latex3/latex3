@@ -13,8 +13,8 @@
 %% (but please observe conditions on bug reports sent to that address!)
 %% 
 %% 
-%% Copyright (C) 1993-2020
-%% The LaTeX3 Project and any individual authors listed elsewhere
+%% Copyright (C) 1993-2021
+%% The LaTeX Project and any individual authors listed elsewhere
 %% in this file.
 %% 
 %% This file was generated from file(s) of the LaTeX base system.
@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}[1997/06/01]
 \ProvidesClass{slides}
-              [2020/02/20 v2.4b
+              [2020/11/23 v2.4b
                Standard LaTeX document class]
 \input{slides.def}
 \InputIfFileExists{sfonts.cfg}
