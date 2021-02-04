@@ -14,7 +14,6 @@ checkbundles =
     "l3packages",
     "l3experimental",
     "l3trial",
-    "contrib"
   }
 ctanbundles  = {"l3backend", "l3kernel", "l3packages", "l3experimental"}
 
