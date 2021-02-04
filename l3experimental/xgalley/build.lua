@@ -11,7 +11,7 @@ module = "xgalley"
 maindir = "../.."
 
 -- Non-standard settings
-checkdeps = {maindir .. "/l3packages/xparse", maindir .. "/l3packages/xtemplate"}
+checkdeps = {maindir .. "/l3packages/xtemplate"}
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")

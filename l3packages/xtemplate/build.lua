@@ -10,10 +10,6 @@ module = "xtemplate"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
--- Non-standard settings
-checkdeps   = {maindir .. "/l3packages/xparse"}
-typesetdeps = {maindir .. "/l3packages/xparse"}
-
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 

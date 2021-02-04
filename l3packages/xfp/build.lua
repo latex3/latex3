@@ -10,9 +10,6 @@ module = "xfp"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
--- Need xparse
-checkdeps = {maindir .. "/l3packages/xparse"}
-
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
