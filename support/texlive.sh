@@ -41,12 +41,14 @@ tlmgr install bibtex lualatex-math
 # For the doc target
 tlmgr install \
   alphalph    \
+  amsfonts    \
   bookmark    \
   booktabs    \
   catchfile   \
   colortbl    \
   csquotes    \
   dvips       \
+  ec          \
   enumitem    \
   epstopdf    \
   epstopdf-pkg \
