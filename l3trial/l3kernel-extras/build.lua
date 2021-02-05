@@ -12,6 +12,3 @@ maindir = "../.."
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
-
--- Non-standard settings (have to be after build-config)
--- checkengines = {"pdftex", "xetex", "luatex"}
