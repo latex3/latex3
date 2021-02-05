@@ -61,10 +61,3 @@ function main(target)
     os.exit(1)
   end
 end
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
-

@@ -110,7 +110,7 @@ The l3k­er­nel bun­dle pro­vides an im­ple­men­ta­tion of the LaTeX3 pro
 in­ter­face, as a set of pack­ages that run un­der LaTeX2e. The in­ter­face
 pro­vides the foun­da­tion on which the LaTeX3 ker­nel and other fu­ture code
 are built: it is an API for TeX pro­gram­mers. The pack­ages are set up so that
-the LaTeX3 con­ven­tions can be used with reg­u­lar LaTeX2e pack­ages. 
+the LaTeX3 con­ven­tions can be used with reg­u­lar LaTeX2e pack­ages.
   ]]
 }
 
@@ -154,10 +154,3 @@ target_list.cmdcheck =
     func = cmdcheck,
     desc = "Run cmd cover test"
   }
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
-
