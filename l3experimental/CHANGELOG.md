@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Use new (internal) interface for kerns
+
 ## [2021-01-29]
 
 ### Added
