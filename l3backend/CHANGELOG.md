@@ -6,7 +6,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-## [2020-01-29]
+## [2021-01-29]
 
 ### Added
 - Basic opacity support
@@ -146,8 +146,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-01-29...HEAD
-[2020-01-29]: https://github.com/latex3/latex3/compare/2021-01-09...2020-01-29
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-01-29...HEAD
+[2021-01-29]: https://github.com/latex3/latex3/compare/2021-01-09...2021-01-29
 [2021-01-09]: https://github.com/latex3/latex3/compare/2020-09-24...2021-01-09
 [2020-09-24]: https://github.com/latex3/latex3/compare/2020-09-11...2020-09-24
 [2020-09-11]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-11
