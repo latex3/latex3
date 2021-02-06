@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-02-06]
+
 ### Changed
 - Use new (internal) interface for kerns
 
@@ -834,7 +836,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step func­tions have been added for dim vari­ables,
   e.g. `\dim_step_in­line:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-02-02...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-02-06...HEAD
+[2021-02-06]: https://github.com/latex3/latex3/compare/2021-02-02...2021-02-06
 [2021-02-02]: https://github.com/latex3/latex3/compare/2021-01-09...2021-02-02
 [2021-01-09]: https://github.com/latex3/latex3/compare/2020-12-07...2021-01-09
 [2020-12-07]: https://github.com/latex3/latex3/compare/2020-12-05...2020-12-07
