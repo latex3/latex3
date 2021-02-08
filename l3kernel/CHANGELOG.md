@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Re-ordered `interface3` documentation
+
 ## [2021-02-06]
 
 ### Changed
