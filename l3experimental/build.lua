@@ -30,7 +30,6 @@ The present re­lease in­cludes:
 - `l3bench­mark` for mea­sur­ing the time taken by TeX to run cer­tain code;
 - `l3c­ctab`, sup­port for sav­ing and restor­ing cat­e­gory codes en masse in a
   ta­ble;
-- `l3­color`, sup­port for set­ting col­ors us­ing a range of color mod­els;
 - `l3­draw`, a code-level in­ter­face for con­struct­ing draw­ings;
 - `l3­graph­ics`, an in­ter­faces for the in­clu­sion of graph­ics files;
 - `l3pdf`, sup­port for core PDF con­cepts like com­pres­sion, ob­jects, PDF

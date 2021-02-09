@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Removed
+- `l3color`: moved to `l3kernel`
+
 ## [2021-02-06]
 
 ### Changed
