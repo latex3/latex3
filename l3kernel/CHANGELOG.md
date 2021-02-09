@@ -758,35 +758,35 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2018-05-13]
 
 ### Fixed
-- Cor­rect date string in `ex­pl3.dtx`
-- Cor­rect `\c_sys_en­gine_ver­sion_str` when using XeTeX
+- Correct date string in `expl3.dtx`
+- Correct `\c_sys_engine_version_str` when using XeTeX
 
 ## [2018-05-12]
 
 ### Added
 - Define `\c_zero_int` and `\c_one_int`
-- Im­ple­ment `\c_sys_en­gine_ver­sion_str`
-- Im­ple­ment `\seq_in­dexed_map_func­tion/in­line`
-- Im­ple­ment `\in­tar­ray_gzero:N`
-- Im­ple­ment `\in­tar­ray_const_from_clist:Nn`
-- Im­ple­ment `\bool_set_in­verse:N`
-- Im­ple­ment `\bool_xor:nnTF` in­stead of just `\bool_xor_p:nn`
-- Im­ple­ment can­di­date `\int_rand:n`
-- Im­ple­ment `\in­tar­ray_gset_rand:Nnn`
-- Im­ple­ment can­di­date `l3f­par­ray` mod­ule
+- Implement `\c_sys_engine_version_str`
+- Implement `\seq_indexed_map_function/inline`
+- Implement `\intarray_gzero:N`
+- Implement `\intarray_const_from_clist:Nn`
+- Implement `\bool_set_inverse:N`
+- Implement `\bool_xor:nnTF` instead of just `\bool_xor_p:nn`
+- Implement candidate `\int_rand:n`
+- Implement `\intarray_gset_rand:Nnn`
+- Implement candidate `l3fparray` module
 
 ## Changed
-- Up­date min­i­mal re­quired ver­sions of XeTeX and LuaTeX
-- Dep­re­cate named in­te­ger con­stants `\c_zero`. etc.
-- Move all prim­i­tives to `\tex_...:D names­pace`,
-  dep­re­cat­ing older en­gine-de­pen­dent pre­fixes
+- Update minimal required versions of XeTeX and LuaTeX
+- Deprecate named integer constants `\c_zero`. etc.
+- Move all primitives to `\tex_...:D namespace`,
+  deprecating older engine-dependent prefixes
 - Several internal optimisations
 
 ### Fixed
-- Ex­pand boolean ex­pres­sion be­fore call­ing `\chardef` (fixes #461)
+- Expand boolean expression before calling `\chardef` (fixes #461)
 
 ### Removed
-- Re­move un­doc­u­mented `\fp_func­tion:Nw` and `\fp_new_func­tion:Npn`
+- Remove undocumented `\fp_function:Nw` and `\fp_new_function:Npn`
 
 ## [2018-04-30]
 
@@ -836,8 +836,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Tuple support in fp expressions
-- Step func­tions have been added for dim vari­ables,
-  e.g. `\dim_step_in­line:nnnn`
+- Step functions have been added for dim variables,
+  e.g. `\dim_step_inline:nnnn`
 
 [Unreleased]: https://github.com/latex3/latex3/compare/2021-02-06...HEAD
 [2021-02-06]: https://github.com/latex3/latex3/compare/2021-02-02...2021-02-06
