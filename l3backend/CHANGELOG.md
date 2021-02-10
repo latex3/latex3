@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Opacity support for pdfTeX/LuaTeX
+
 ## [2021-02-06]
 
 ### Changed

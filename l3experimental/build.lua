@@ -20,28 +20,28 @@ uploadconfig = {
   bugtracker  = "https://github.com/latex3/latex3/issues",
   update      = true,
   description = [[
-The `l3­ex­per­i­men­tal` pack­ages are a col­lec­tion of ex­per­i­men­tal
-im­ple­men­ta­tions for as­pects of the LaTeX3 ker­nel, deal­ing with
-higher-level ideas such as the De­signer In­ter­face. Some of them work as
-stand alone pack­ages, pro­vid­ing new func­tion­al­ity, and can be used on
-top of LaTeX2e with no changes to the ex­ist­ing ker­nel.
+The `l3experimental` packages are a collection of experimental
+implementations for aspects of the LaTeX3 kernel, dealing with
+higher-level ideas such as the Designer Interface. Some of them work as
+stand alone packages, providing new functionality, and can be used on
+top of LaTeX2e with no changes to the existing kernel.
 
-The present re­lease in­cludes:
-- `l3bench­mark` for mea­sur­ing the time taken by TeX to run cer­tain code;
-- `l3c­ctab`, sup­port for sav­ing and restor­ing cat­e­gory codes en masse in a
-  ta­ble;
-- `l3­draw`, a code-level in­ter­face for con­struct­ing draw­ings;
-- `l3­graph­ics`, an in­ter­faces for the in­clu­sion of graph­ics files;
-- `l3pdf`, sup­port for core PDF con­cepts like com­pres­sion, ob­jects, PDF
-  ver­sion and so on;
-- `l3str`, sup­port for string ma­nip­u­la­tion;
-- `l3sys-shell`, which pro­vides ab­strac­tions for com­mon shell func­tions like
-  file dele­tion and copy­ing;
-- [`xcoffins`](https://ctan.org/pkg/xcoffins), which al­lows the align­ment of
-  boxes us­ing a se­ries of 'han­dle' po­si­tions, sup­ple­ment­ing the sim­ple TeX
-  ref­er­ence point;
-- [`xgal­ley`](https://ctan.org/pkg/xgalley), which con­trols boxes re­ceiv­ing
-  text for type­set­ting.
+The present release includes:
+- `l3benchmark` for measuring the time taken by TeX to run certain code;
+- `l3cctab`, support for saving and restoring category codes en masse in a
+  table;
+- `l3draw`, a code-level interface for constructing drawings;
+- `l3graphics`, an interfaces for the inclusion of graphics files;
+- `l3pdf`, support for core PDF concepts like compression, objects, PDF
+  version and so on;
+- `l3str`, support for string manipulation;
+- `l3sys-shell`, which provides abstractions for common shell functions like
+  file deletion and copying;
+- [`xcoffins`](https://ctan.org/pkg/xcoffins), which allows the alignment of
+  boxes using a series of 'handle' positions, supplementing the simple TeX
+  reference point;
+- [`xgalley`](https://ctan.org/pkg/xgalley), which controls boxes receiving
+  text for typesetting.
   ]]
 }
 
