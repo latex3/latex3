@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Update tracking of PDF management functions
+
 ### Fixed
 - Opacity support for pdfTeX/LuaTeX
 

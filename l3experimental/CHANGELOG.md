@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Removed
 - `l3color`: moved to `l3kernel`
+- `l3pdf`: moved to `l3kernel`
 
 ## [2021-02-06]
 
