@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `l3color`: Moved from `l3experimental`
+- `l3pdf`: Moved from `l3experimental`
 
 ### Changed
 - Re-ordered `interface3` documentation
