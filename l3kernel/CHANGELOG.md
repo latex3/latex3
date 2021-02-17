@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Re-ordered `interface3` documentation
+- Moved `msg_show:nn(nnnn)` to stable
 
 ## [2021-02-06]
 
