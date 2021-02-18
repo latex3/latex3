@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-02-18]
+
 ### Added
 - `l3color`: Moved from `l3experimental`
 - `l3pdf`: Moved from `l3experimental`
@@ -845,7 +847,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-02-06...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-02-18...HEAD
+[2021-02-18]: https://github.com/latex3/latex3/compare/2021-02-06...2021-02-18
 [2021-02-06]: https://github.com/latex3/latex3/compare/2021-02-02...2021-02-06
 [2021-02-02]: https://github.com/latex3/latex3/compare/2021-01-09...2021-02-02
 [2021-01-09]: https://github.com/latex3/latex3/compare/2020-12-07...2021-01-09

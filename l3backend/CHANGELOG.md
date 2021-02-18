@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-02-18]
+
 ### Changed
 - Update tracking of PDF management functions
 
@@ -157,7 +159,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-02-06...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-02-18...HEAD
+[2021-02-18]: https://github.com/latex3/latex3/compare/2021-02-06...2021-02-18
 [2021-02-06]: https://github.com/latex3/latex3/compare/2021-01-29...2021-02-06
 [2021-01-29]: https://github.com/latex3/latex3/compare/2021-01-09...2021-01-29
 [2021-01-09]: https://github.com/latex3/latex3/compare/2020-09-24...2021-01-09
