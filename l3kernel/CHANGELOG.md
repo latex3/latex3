@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for ICC-based color profiles
+
 ## [2021-02-18]
 
 ### Added
