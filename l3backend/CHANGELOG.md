@@ -6,9 +6,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-### Changed
-- Add scope surrounding PDF graphics
-
 ## [2021-02-18]
 
 ### Changed
