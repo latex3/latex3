@@ -8,7 +8,8 @@ checkengines    = checkengines
 checksuppfiles  = checksuppfiles  or
   {
     "regression-test.cfg",
-    "regression-test.tex"
+    "regression-test.tex",
+    "sRGB_v4_ICC_preference.icc"
   }
 tagfiles = tagfiles or {"*.dtx", "README.md", "CHANGELOG.md", "*.ins"}
 unpacksuppfiles = unpacksuppfiles or
