@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\color_iccprofile_apply:nn`
+
 ## [2021-02-18]
 
 ### Added
