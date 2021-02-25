@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Deprecated
+- `l3docstrip` converted to a stub which simply loads DocStrip: use
+   the latter directly 
+
 ## [2021-02-18]
 
 ### Added
