@@ -46,7 +46,6 @@ unpackfiles      = {"l3.ins"}
 
 checkdeps   = {maindir .. "/l3backend"}
 typesetdeps = typesetdeps
-unpackdeps  = { }
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")

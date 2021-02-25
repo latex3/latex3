@@ -2,7 +2,6 @@
 
 checkdeps   = checkdeps   or {maindir .. "/l3backend", maindir .. "/l3kernel"}
 typesetdeps = typesetdeps or checkdeps
-unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 
 checkengines    = checkengines
   or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
@@ -96,7 +95,7 @@ local function fmt(engines,dest)
     -- Use .ini files if available
     local src = "latex.ltx"
     local ini = string.gsub(engine,"tex","") .. "latex.ini"
-    if fileexists(maindir .. "/support/" .. ini) then
+    if fileexists(supportdir .. "/" .. ini) then
       src = ini
     end
     print("Building format for " .. engine)
