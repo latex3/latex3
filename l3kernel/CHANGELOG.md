@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Evalutate integer constants only once (issue#861)
+
 ### Deprecated
 - `l3docstrip` converted to a stub which simply loads DocStrip: use
    the latter directly 
