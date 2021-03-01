@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Drop 'correction' for link placement in `(x)dvidpfmx`: no longer required
+
 ## [2021-02-18]
 
 ### Changed
