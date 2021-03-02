@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-03-02]
+
 ### Changed
 - Drop 'correction' for link placement in `(x)dvidpfmx`: no longer required
 - Define `\main@pdfcolorstack` for `(x)dvipdfmx` if it does not exist
@@ -166,7 +168,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-02-18...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-03-02...HEAD
+[2021-03-02]: https://github.com/latex3/latex3/compare/2021-02-18...2021-03-02
 [2021-02-18]: https://github.com/latex3/latex3/compare/2021-02-06...2021-02-18
 [2021-02-06]: https://github.com/latex3/latex3/compare/2021-01-29...2021-02-06
 [2021-01-29]: https://github.com/latex3/latex3/compare/2021-01-09...2021-01-29
