@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Drop 'correction' for link placement in `(x)dvidpfmx`: no longer required
+- Define `\main@pdfcolorstack` for `(x)dvipdfmx` if it does not exist
 
 ## [2021-02-18]
 
