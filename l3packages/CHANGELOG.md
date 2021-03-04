@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Pass options to frozen `xparse`
+
 ## [2021-02-02]
 
 ### Changed
