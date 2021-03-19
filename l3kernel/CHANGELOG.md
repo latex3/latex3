@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\tracingstacklevels`
+- Color export in comma-separated format
 
 ### Fixed
 - Evalutate integer constants only once (issue#861)
