@@ -7,12 +7,15 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\tracingstacklevels`
+
 ### Fixed
 - Evalutate integer constants only once (issue#861)
 
 ### Deprecated
 - `l3docstrip` converted to a stub which simply loads DocStrip: use
-   the latter directly 
+   the latter directly
 
 ## [2021-02-18]
 
