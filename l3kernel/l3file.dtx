@@ -2437,68 +2437,81 @@
 % \begin{macro}[EXP]{\__kernel_file_name_trim_spaces:nw}
 % \begin{macro}[EXP]{\__kernel_file_name_trim_spaces_aux:n}
 % \begin{macro}[EXP]{\__kernel_file_name_trim_spaces_aux:w}
-%   Expanding the file name without expanding active characters is done
-%   using the same token-by-token approach as for example case changing.
-%   The finale outcome only need be \texttt{e}-type expandable, so there
-%   is no need for the shuffling that is seen in other locations.
+%   Expanding the file name uses a \tn{csname}-based approach, and
+%   relies on active characters (for example from UTF-8 characters)
+%   being properly set up to expand to a expansion-safe version using
+%   \cs{ifcsname}.  This is less conservative than the token-by-token
+%   approach used before, but it is much faster.
 %    \begin{macrocode}
 \cs_new:Npn \__kernel_file_name_sanitize:n #1
   {
     \exp_args:Ne \__kernel_file_name_trim_spaces:n
       {
         \exp_args:Ne \__kernel_file_name_strip_quotes:n
-          {
-            \__kernel_file_name_expand_loop:w #1
-              \q_@@_recursion_tail \q_@@_recursion_stop
-          }
+          { \@@_name_expand:n {#1} }
       }
   }
-\cs_new:Npn \__kernel_file_name_expand_loop:w #1 \q_@@_recursion_stop
+%    \end{macrocode}
+%
+%   We'll use \cs{cs:w} to start expanding the file name, and to avoid
+%   creating csnames equal to \tn{relax} with \enquote{common} names,
+%   there's a prefix |__file_name=| to the csname.  There's also a guard
+%   token at the end so we can check if there was an error during the
+%   process and (try to) clean up gracefully.
+%    \begin{macrocode}
+\cs_new:Npn \@@_name_expand:n #1
   {
-    \tl_if_head_is_N_type:nTF {#1}
-      { \__kernel_file_name_expand_N_type:Nw }
-      {
-        \tl_if_head_is_group:nTF {#1}
-          { \__kernel_file_name_expand_group:nw }
-          { \__kernel_file_name_expand_space:w }
-      }
-    #1 \q_@@_recursion_stop
+    \exp_after:wN \@@_name_expand_cleanup:Nw
+      \cs:w @@_name = #1 \cs_end:
+        \@@_name_expand_end:
   }
-\cs_new:Npn \__kernel_file_name_expand_N_type:Nw #1
+%    \end{macrocode}
+%   With the csname built, we grab it, and grab the remaining tokens
+%   delimited by \cs{@@_name_expand_end:}.  If there are any remaining
+%   tokens, something bad happened, so we'll call the error procedure
+%   \cs{@@_name_expand_error:Nw}.
+%   If everything went according to plan, then use \cs{token_to_str:N}
+%   on the csname built, and call \cs{@@_name_expand_cleanup:w} to
+%   remove the prefix we added a while back.
+%   \cs{@@_name_expand_cleanup:w} takes a leading argument so we don't
+%   have to bother about the value of \cs{tex_escapechar:D}.
+%    \begin{macrocode}
+\cs_new:Npn \@@_name_expand_cleanup:Nw #1 #2 \@@_name_expand_end:
   {
-    \@@_if_recursion_tail_stop:N #1
-    \bool_lazy_and:nnTF
-      { \token_if_expandable_p:N #1 }
-      {
-        \bool_not_p:n
-          {
-            \bool_lazy_any_p:n
-              {
-                { \token_if_protected_macro_p:N #1 }
-                { \token_if_protected_long_macro_p:N #1 }
-                { \token_if_active_p:N #1 }
-              }
-          }
-      }
-      { \exp_after:wN \__kernel_file_name_expand_loop:w #1 }
-      {
-        \token_to_str:N #1
-        \__kernel_file_name_expand_loop:w
-      }
+    \tl_if_empty:nF {#2}
+      { \@@_name_expand_error:Nw #2 \@@_name_expand_end: }
+    \exp_after:wN \@@_name_expand_cleanup:w \token_to_str:N #1
   }
-\cs_new:Npx \__kernel_file_name_expand_group:nw #1
+\exp_last_unbraced:NNNNo
+\cs_new:Npn \@@_name_expand_cleanup:w #1 \tl_to_str:n { @@_name = } { }
+%    \end{macrocode}
+%   In non-error cases \cs{@@_name_expand_end:} should not expand.  It
+%   will only do so in case there is a \cs{csname} too much in the file
+%   name, so it will throw an error (while expanding), then insert the
+%   missing \cs{cs_end:} and yet another \cs{@@_name_expand_end:} that
+%   will be used as a delimiter by \cs{@@_name_expand_cleanup:Nw} (or
+%   that will expand again if yet another \cs{endcsname} is missing).
+%    \begin{macrocode}
+\cs_new:Npn \@@_name_expand_end:
   {
-    \c_left_brace_str
-    \exp_not:N \__kernel_file_name_expand_loop:w
-     #1
-     \c_right_brace_str
+    \__kernel_msg_expandable_error:nn
+      { kernel } { filename-missing-endcsname }
+    \cs_end: \@@_name_expand_end:
   }
-\exp_last_unbraced:NNo
-  \cs_new:Npx \__kernel_file_name_expand_space:w \c_space_tl
-    {
-      \c_space_tl
-      \exp_not:N \__kernel_file_name_expand_loop:w
-    }
+%    \end{macrocode}
+%   Now to the error case.  \cs{@@_name_expand_error:Nw} adds an extra
+%   \cs{cs_end:} so that in case there was an extra \tn{csname} in the
+%   file name, then \cs{@@_name_expand_error_aux:Nw} throws the error.
+%    \begin{macrocode}
+\cs_new:Npn \@@_name_expand_error:Nw #1 #2 \@@_name_expand_end:
+  { \@@_name_expand_error_aux:Nw #1 #2 \cs_end: \@@_name_expand_end: }
+\cs_new:Npn \@@_name_expand_error_aux:Nw #1 #2 \cs_end: #3
+    \@@_name_expand_end:
+  {
+    \__kernel_msg_expandable_error:nnff
+      { kernel } { filename-chars-lost }
+        { \token_to_str:N #1 } { \exp_stop_f: #2 }
+  }
 %    \end{macrocode}
 %   Quoting file name uses basically the same approach as for
 %   \texttt{luaquotejobname}: count the |"| tokens and remove them.
@@ -3613,6 +3626,19 @@
     >~File~List~<
     #1 \\
     .............
+  }
+\__kernel_msg_new:nnnn { kernel } { filename-chars-lost }
+  { #1~invalid~in~file~name.~Lost:~#2. }
+  {
+    There~was~an~invalid~token~in~the~file~name~that~caused~
+    the~characters~following~it~to~be~lost.
+  }
+\__kernel_msg_new:nnnn { kernel } { filename-missing-endcsname }
+  { Missing~\iow_char:N\\endcsname~inserted~in~filename. }
+  {
+    The~file~name~had~more~\iow_char:N\\csname~commands~than~
+    \iow_char:N\\endcsname~ones.~LaTeX~will~add~the~missing~
+    \iow_char:N\\endcsname~and~try~to~continue~as~best~as~it~can.
   }
 \__kernel_msg_new:nnnn { kernel } { unbalanced-quote-in-filename }
   { Unbalanced~quotes~in~file~name~'#1'. }
