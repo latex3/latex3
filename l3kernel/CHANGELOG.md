@@ -15,6 +15,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - `\__kernel_file_name_sanitize:n` now uses a faster `\csname`-based
   approach to expand the file name.
+- \pdf_version_gset:n for dvips.  
 
 ### Fixed
 - Evalutate integer constants only once (issue#861)
