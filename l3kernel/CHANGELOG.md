@@ -12,6 +12,10 @@ this project uses date-based 'snapshot' version identifiers.
 - `\tracingstacklevels`
 - Color export in comma-separated format
 
+### Changed
+- `\__kernel_file_name_sanitize:n` now uses a faster `\csname`-based
+  approach to expand the file name.
+
 ### Fixed
 - Evalutate integer constants only once (issue#861)
 
