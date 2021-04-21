@@ -7,9 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
-- \pdf_version_gset:n in dvips now sets \pdf_version_minor: and \pdf_version_major:.
-  This doesn't set the pdf version but allows to test which version the user intents
-  to create.
+- `\pdf_version_gset:n` in `dvips` now sets `\pdf_version_minor:` and
+  `\pdf_version_major:`. This doesn't set the PDF version but allows to test
+  which version the user intents to create.
 
 ## [2021-03-18]
 
