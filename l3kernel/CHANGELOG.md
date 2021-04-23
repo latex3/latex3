@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\seq_set_split_keep_spaces:Nnn` (see #784)
 - `\tracingstacklevels`
 - Color export in comma-separated format
+- `\ur{...}` escape in `l3regex` to compose regexes
 
 ### Changed
 - Use prevailing catcodes instead of string in regex replacement (issue #621)

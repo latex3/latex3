@@ -337,6 +337,12 @@
 % not supported directly: use a group, for instance as in
 % |(?:\u|\Arg{var~name}|){2,4}|.
 %
+% The |\ur| escape sequence allows to insert the contents of a |regex|
+% variable into a larger regular expression.  For instance,
+% |A\ur{l_tmpa_regex}B| matches the tokens |A| and |B| separated by
+% something that matches the regular expression
+% \cs[no-index]{l_tmpa_regex}.
+%
 % The option |(?i)| makes the match case insensitive (identifying
 % \texttt{A}--\texttt{Z} with \texttt{a}--\texttt{z}; no Unicode support
 % yet). This applies until the end of the group in which it appears, and
@@ -451,8 +457,8 @@
 %   submatches |\0|, |\1|, and so on, as in the example for |\u| below.
 % \end{l3regex-syntax}
 %
-% The escape sequence |\u|\Arg{tl~var~name} allows to insert the
-% contents of the token list with name \meta{tl~var~name} directly into
+% The escape sequence |\u|\Arg{var~name} allows to insert the
+% contents of the variable with name \meta{var~name} directly into
 % the replacement, giving an easier control of category codes.  When
 % nested in |\c{|\ldots{}|}| and |\u{|\ldots{}|}| constructions, the
 % |\u| and |\c|~escape sequences perform \cs{tl_to_str:v}, namely
@@ -763,9 +769,6 @@
 %   \item Unicode properties: |\p{..}| and |\P{..}|;
 %     |\X| which should match any \enquote{extended} Unicode sequence.
 %     This requires to manipulate a lot of data, probably using tree-boxes.
-%   \item Provide a syntax such as |\ur{l_my_regex}| to use an
-%     already-compiled regex in a more complicated regex.  This makes
-%     regexes more easily composable.
 % \end{itemize}
 %
 % The following features of \textsc{pcre} or Perl may or may not be
@@ -3331,10 +3334,48 @@
 % \subsubsection{Raw token lists with \cs{u}}
 %
 % \begin{macro}{\@@_compile_/u:}
-% \begin{macro}[EXP]{\@@_compile_u_loop:NN}
 %   The |\u| escape is invalid in classes and directly following a
-%   catcode test. Otherwise, it must be followed by a left brace. We
-%   then collect the characters for the argument of |\u| within an
+%   catcode test. Otherwise test for a following |r| (for |\ur|), and
+%   call an auxiliary responsible for finding the variable name.
+%    \begin{macrocode}
+\cs_new_protected:cpn { @@_compile_/u: } #1#2
+  {
+    \@@_if_in_class_or_catcode:TF
+      { \@@_compile_raw_error:N u #1 #2 }
+      {
+        \@@_two_if_eq:NNNNTF #1 #2 \@@_compile_raw:N r
+          { \@@_compile_u_brace:NNN \@@_compile_ur_end: }
+          { \@@_compile_u_brace:NNN \@@_compile_u_end: #1 #2 }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_compile_u_brace:NNN}
+%   This enforces the presence of a left brace, then starts a loop to
+%   find the variable name.
+%    \begin{macrocode}
+\cs_new:Npn \@@_compile_u_brace:NNN #1#2#3
+  {
+    \@@_two_if_eq:NNNNTF #2 #3 \@@_compile_special:N \c_left_brace_str
+      {
+        \tl_set:Nn \l_@@_internal_b_tl {#1}
+        \__kernel_tl_set:Nx \l_@@_internal_a_tl { \if_false: } \fi:
+        \@@_compile_u_loop:NN
+      }
+      {
+        \__kernel_msg_error:nn { regex } { u-missing-lbrace }
+        \token_if_eq_meaning:NNTF #1 \@@_compile_ur_end:
+          { \@@_compile_raw:N u \@@_compile_raw:N r }
+          { \@@_compile_raw:N u }
+        #2 #3
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_compile_u_loop:NN}
+%   We collect the characters for the argument of |\u| within an
 %   \texttt{x}-expanding assignment. In principle we could just wait to
 %   encounter a right brace, but this is unsafe: if the right brace was
 %   missing, then we would reach the end-markers of the regex, and
@@ -3342,22 +3383,6 @@
 %   raw and special characters, and stop when encountering a special
 %   right brace, any escaped character, or the end-marker.
 %    \begin{macrocode}
-\cs_new_protected:cpn { @@_compile_/u: } #1#2
-  {
-    \@@_if_in_class_or_catcode:TF
-      { \@@_compile_raw_error:N u #1 #2 }
-      {
-        \@@_two_if_eq:NNNNTF #1 #2 \@@_compile_special:N \c_left_brace_str
-          {
-            \__kernel_tl_set:Nx \l_@@_internal_a_tl { \if_false: } \fi:
-            \@@_compile_u_loop:NN
-          }
-          {
-            \__kernel_msg_error:nn { regex } { u-missing-lbrace }
-            \@@_compile_raw:N u #1 #2
-          }
-      }
-  }
 \cs_new:Npn \@@_compile_u_loop:NN #1#2
   {
     \token_if_eq_meaning:NNTF #1 \@@_compile_raw:N
@@ -3366,19 +3391,37 @@
         \token_if_eq_meaning:NNTF #1 \@@_compile_special:N
           {
             \exp_after:wN \token_if_eq_charcode:NNTF \c_right_brace_str #2
-              { \if_false: { \fi: } \@@_compile_u_end: }
+              { \if_false: { \fi: } \l_@@_internal_b_tl }
               { #2 \@@_compile_u_loop:NN }
           }
           {
             \if_false: { \fi: }
             \__kernel_msg_error:nnx { regex } { u-missing-rbrace } {#2}
-            \@@_compile_u_end:
+            \l_@@_internal_b_tl
             #1 #2
           }
       }
   }
 %    \end{macrocode}
 % \end{macro}
+%
+% \begin{macro}{\@@_compile_ur_end:}
+%   For the |\ur{...}| construction, once we have extracted the
+%   variable's name, we simply insert the compiled regex (which the
+%   variable should be) into a non-capturing group (with no repetition)
+%   to respect the structure of regexes.  It might be possible to omit
+%   this group perhaps.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_compile_ur_end:
+  {
+    \tl_build_put_right:Nx \l_@@_build_tl
+      {
+        \exp_not:N \@@_group_no_capture:nnnN
+          { \exp_not:v { \l_@@_internal_a_tl } }
+          { 1 } { 0 } \exp_not:N \c_false_bool
+      }
+  }
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\@@_compile_u_end:}
