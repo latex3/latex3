@@ -19,6 +19,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Evalutate integer constants only once (issue#861)
+- Detect `\ior_map_inline:Nn` calls on undefined streams (issue#194)
 
 ### Deprecated
 - `l3docstrip` converted to a stub which simply loads DocStrip: use
