@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Color export in comma-separated format
 
 ### Changed
+- Use prevailing catcodes instead of string in regex replacement (issue #621)
 - `\__kernel_file_name_sanitize:n` now uses a faster `\csname`-based
   approach to expand the file name.
 - `\pdf_version_gset:n` for `dvips`.  

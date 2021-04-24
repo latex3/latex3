@@ -426,10 +426,17 @@
 % the last match is used in the replacement text. Submatches always keep
 % the same category codes as in the original token list.
 %
-% The characters inserted by the replacement have category code $12$
-% (other) by default, with the exception of space characters.  Spaces
-% inserted through \verb*|\ | have category code $10$, while spaces
-% inserted through |\x20| or |\x{20}| have category code $12$.
+% By default, the category code of characters inserted by the
+% replacement are determined by the prevailing category code regime at
+% the time where the replacement is made, with two exceptions:
+% \begin{itemize}
+% \item space characters (with character code $32$) inserted with
+%   \verb*|\ | or |\x20| or |\x{20}| have category code~$10$ regardless
+%   of the prevailing category code regime;
+% \item if the category code would be $0$~(escape), $5$~(newline),
+%   $9$~(ignore), $14$~(comment) or $15$~(invalid), it is replaced by
+%   $12$~(other) instead.
+% \end{itemize}
 % The escape sequence |\c| allows to insert characters
 % with arbitrary category codes, as well as control sequences.
 % \begin{l3regex-syntax}
@@ -5304,7 +5311,7 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_replacement_normal:n}
+% \begin{macro}{\@@_replacement_normal:n, \@@_replacement_normal_aux:N}
 %   Most characters are simply sent to the output by
 %   \cs{tl_build_put_right:Nn}, unless a particular category code has been
 %   requested: then \cs{@@_replacement_c_A:w} or a similar auxiliary is
@@ -5313,13 +5320,16 @@
 %   sequence is non-empty there: it contains an empty entry
 %   corresponding to the initial value of
 %   \cs{l_@@_replacement_category_tl}.
-%   The argument |#1| can be a space, otherwise it is a single
-%   character.
+%   The argument |#1| is a single character (including the case of a catcode-other space).
+%   In case no specific catcode is requested, we taked into account the
+%   current catcode regime (at the time the replacement is performed)
+%   as much as reasonable, with all impossible catcodes (escape,
+%   newline, etc.) being mapped to \enquote{other}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_replacement_normal:n #1
   {
     \tl_if_empty:NTF \l_@@_replacement_category_tl
-      { \@@_replacement_put:n {#1} }
+      { \@@_replacement_normal_aux:N #1 }
       { % (
         \token_if_eq_charcode:NNTF #1 )
           {
@@ -5327,14 +5337,36 @@
               \l_@@_replacement_category_tl
           }
           {
-            \use:c
-              {
-                @@_replacement_c_
-                \l_@@_replacement_category_tl :w
-              }
-              \@@_replacement_normal:n {#1}
+            \use:c { @@_replacement_c_ \l_@@_replacement_category_tl :w }
+            ? #1
           }
       }
+  }
+\cs_new_protected:Npn \@@_replacement_normal_aux:N #1
+  {
+    \token_if_eq_charcode:NNTF #1 \c_space_token
+      { \@@_replacement_c_S:w }
+      {
+        \exp_after:wN \exp_after:wN
+        \if_case:w \tex_catcode:D `#1 \exp_stop_f:
+             \@@_replacement_c_O:w
+        \or: \@@_replacement_c_B:w
+        \or: \@@_replacement_c_E:w
+        \or: \@@_replacement_c_M:w
+        \or: \@@_replacement_c_T:w
+        \or: \@@_replacement_c_O:w
+        \or: \@@_replacement_c_P:w
+        \or: \@@_replacement_c_U:w
+        \or: \@@_replacement_c_D:w
+        \or: \@@_replacement_c_O:w
+        \or: \@@_replacement_c_S:w
+        \or: \@@_replacement_c_L:w
+        \or: \@@_replacement_c_O:w
+        \or: \@@_replacement_c_A:w
+        \else: \@@_replacement_c_O:w
+        \fi:
+      }
+    ? #1
   }
 %    \end{macrocode}
 % \end{macro}
@@ -5343,7 +5375,6 @@
 %   As in parsing a regular expression, we use an auxiliary built from
 %   |#1| if defined. Otherwise, check for escaped digits (standing from
 %   submatches from $0$ to $9$): anything else is a raw character.
-%   We use \cs{token_to_str:N} to give spaces the right category code.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_replacement_escaped:N #1
   {
@@ -5352,8 +5383,7 @@
         \if_int_compare:w 1 < 1#1 \exp_stop_f:
           \@@_replacement_put_submatch:n {#1}
         \else:
-          \exp_args:No \@@_replacement_normal:n
-            { \token_to_str:N #1 }
+          \@@_replacement_normal:n {#1}
         \fi:
       }
   }
