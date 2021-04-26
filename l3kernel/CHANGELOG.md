@@ -18,6 +18,7 @@ this project uses date-based 'snapshot' version identifiers.
   approach to expand the file name.
 - `\pdf_version_gset:n` for `dvips`.
 - Improve handling of `\exp_not:n` in `\text_expand:n` (issue #875)
+- `\file_full_name:n` now avoids calling `\pdffilesize` multiple times on the same file.
 
 ### Fixed
 - Evalutate integer constants only once (issue#861)
