@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\tracingstacklevels`
 - Color export in comma-separated format
 - `\ur{...}` escape in `l3regex` to compose regexes
+- `\seq_put_item:Nnn(TF)` to change an entry of a sequence
 
 ### Changed
 - Breaking change: use prevailing catcodes instead of string in
