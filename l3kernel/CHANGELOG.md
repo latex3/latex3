@@ -21,6 +21,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Improve handling of `\exp_not:n` in `\text_expand:n` (issue #875)
 - `\file_full_name:n` now avoids calling `\pdffilesize` multiple times on the same file.
 - Show printable characters explicitly in `\regex_show:n`
+- Regex replacement now errors when using a submatch (`\1` etc) for which
+  the regex has too few groups
 
 ### Fixed
 - Evalutate integer constants only once (issue#861)
