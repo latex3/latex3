@@ -324,7 +324,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2020-01-12]
 
 ### Added
-- `bool_case_true:n(TF)` and `\bool_case_false:n(TF)`
+- `\bool_case_true:n(TF)` and `\bool_case_false:n(TF)`
 - `\file_hex_dump:n(nn)` and `\file_get_hex_dump:n(nn)N(TF)`
 - `\str_<type>case:n`
 - `\text_<type>case:n(n)`
