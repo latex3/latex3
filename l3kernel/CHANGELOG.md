@@ -14,7 +14,8 @@ this project uses date-based 'snapshot' version identifiers.
 - `\ur{...}` escape in `l3regex` to compose regexes
 
 ### Changed
-- Use prevailing catcodes instead of string in regex replacement (issue #621)
+- Breaking change: use prevailing catcodes instead of string in
+  regex replacement (issue #621)
 - `\__kernel_file_name_sanitize:n` now uses a faster `\csname`-based
   approach to expand the file name.
 - `\pdf_version_gset:n` for `dvips`.
