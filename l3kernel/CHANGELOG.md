@@ -25,6 +25,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Show printable characters explicitly in `\regex_show:n`
 - Regex replacement now errors when using a submatch (`\1` etc) for which
   the regex has too few groups
+- Showing complex datatypes now validates their internal structure (issue #884)
 
 ### Fixed
 - Evalutate integer constants only once (issue #861)
