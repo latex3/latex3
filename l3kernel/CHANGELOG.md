@@ -8,27 +8,27 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
-- `\seq_set_split_keep_spaces:Nnn` (see #784)
-- `\tracingstacklevels`
 - Color export in comma-separated format
 - `\ur{...}` escape in `l3regex` to compose regexes
+- `\seq_set_split_keep_spaces:Nnn` (see #784)
 - `\seq_set_item:Nnn(TF)` and `\seq_pop_item:NnN(TF)`
 
 ### Changed
-- Breaking change: use prevailing catcodes instead of string in
-  regex replacement (issue #621)
+- Use prevailing catcodes instead of string in regex replacement (issue #621)
+  (*Breaking change*)
 - `\__kernel_file_name_sanitize:n` now uses a faster `\csname`-based
-  approach to expand the file name.
-- `\pdf_version_gset:n` for `dvips`.
+  approach to expand the file name
+- `\pdf_version_gset:n` support for `dvips`
 - Improve handling of `\exp_not:n` in `\text_expand:n` (issue #875)
-- `\file_full_name:n` now avoids calling `\pdffilesize` multiple times on the same file.
+- `\file_full_name:n` now avoids calling `\pdffilesize` primitive multiple times
+  on the same file
 - Show printable characters explicitly in `\regex_show:n`
 - Regex replacement now errors when using a submatch (`\1` etc) for which
   the regex has too few groups
 
 ### Fixed
-- Evalutate integer constants only once (issue#861)
-- Detect `\ior_map_inline:Nn` calls on undefined streams (issue#194)
+- Evalutate integer constants only once (issue #861)
+- Detect `\ior_map_inline:Nn` calls on undefined streams (issue #194)
 
 ### Deprecated
 - `l3docstrip` converted to a stub which simply loads DocStrip: use
