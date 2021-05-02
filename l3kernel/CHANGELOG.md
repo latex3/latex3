@@ -26,6 +26,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Regex replacement now errors when using a submatch (`\1` etc) for which
   the regex has too few groups
 - Showing complex datatypes now validates their internal structure (issue #884)
+- Indexing in l3doc: all page references before codeline references,
+  improve target placement, solve pdfTeX and makeindex warnings
 
 ### Fixed
 - Evalutate integer constants only once (issue #861)
