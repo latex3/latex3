@@ -18,6 +18,7 @@ this project uses date-based 'snapshot' version identifiers.
   (*Breaking change*)
 - `\__kernel_file_name_sanitize:n` now uses a faster `\csname`-based
   approach to expand the file name
+- Improved performance for basic conditionals
 - `\pdf_version_gset:n` support for `dvips`
 - Improve handling of `\exp_not:n` in `\text_expand:n` (issue #875)
 - `\file_full_name:n` now avoids calling `\pdffilesize` primitive multiple times
