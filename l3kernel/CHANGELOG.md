@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\ur{...}` escape in `l3regex` to compose regexes
 - `\seq_set_split_keep_spaces:Nnn` (see #784)
 - `\seq_set_item:Nnn(TF)` and `\seq_pop_item:NnN(TF)`
+- `\box_ht_plus_dp:N` (issue #899)
 
 ### Changed
 - Use prevailing catcodes instead of string in regex replacement (issue #621)
