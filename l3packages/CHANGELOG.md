@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Implmentation of `\DeclareRestrictedTemplate`
+
 ## [2021-03-12]
 
 ### Fixed
