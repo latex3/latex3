@@ -38,7 +38,7 @@ tlmgr install metafont mfware
 # Dependencies for tests that are not auto-resolved
 tlmgr install bibtex lualatex-math
   
-# For the doc target
+# For the doc target and testing l3doc
 tlmgr install \
   alphalph    \
   amsfonts    \
@@ -56,6 +56,7 @@ tlmgr install \
   fancyvrb    \
   hologo      \
   hyperref    \
+  lipsum      \
   listings    \
   makeindex   \
   mathpazo    \
