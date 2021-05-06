@@ -99,7 +99,7 @@
 %
 % \section{Syntax of regular expressions}
 %
-% \subsection{Regex examples}
+% \subsection{Regular expression examples}
 %
 % We start with a few examples, and encourage the reader to apply
 % \cs{regex_show:n} to these regular expressions.
@@ -620,6 +620,43 @@
 %   results in \cs[no-index]{l_foo_int} taking the value $5$.
 % \end{function}
 %
+% \begin{function}[noTF, added = 2021-05-15]{\regex_case_match:nn}
+%   \begin{syntax}
+%     \cs{regex_case_match:nnTF}
+%     ~~|{| \\
+%     ~~~~\Arg{regex_1} \Arg{code case_1} \\
+%     ~~~~\Arg{regex_2} \Arg{code case_2} \\
+%     ~~~~\ldots \\
+%     ~~~~\Arg{regex_n} \Arg{code case_n} \\
+%     ~~|}| \Arg{token list}
+%     ~~\Arg{true code} \Arg{false code}
+%   \end{syntax}
+%   Determines which of the \meta{regular expressions} matches at the
+%   earliest point in the \meta{token list}, and leaves the
+%   corresponding \meta{code_i} followed by the \meta{true code} in the
+%   input stream.  If several \meta{regex} match starting at the same
+%   point, then the first one in the list is selected and the others are
+%   discarded.  If none of the \meta{regex} match, the \meta{false code}
+%   is left in the input stream.
+%
+%   In detail, for each starting position in the \meta{token list}, each
+%   of the \meta{regex} is searched in turn.  If one of them matches
+%   then the corresponding \meta{code} is used and everything else is
+%   discarded, while if none of the \meta{regex} match at a given
+%   position then the next starting position is attempted.  If none of
+%   the \meta{regex} match anywhere in the \meta{token list} then
+%   nothing is left in the input stream.  Note that this differs from
+%   nested \cs{regex_match:nnTF} statements since all \meta{regex} are
+%   attempted at each position rather than attempting to match
+%   \meta{regex_1} at every position before moving on to \meta{regex_2}.
+%
+%   Each \meta{regex} can either be given as a regex variable or as an
+%   explicit regular expression.  It may be useful to include as the
+%   last case \meta{regex_n} the regex |{\Z}|, which always matches at
+%   the very end of the \meta{token list}, so as to include fall-back
+%   code \meta{code case_n} used when no other case matches.
+% \end{function}
+%
 % \section{Submatch extraction}
 %
 % \begin{function}[noTF, added = 2017-05-26]
@@ -1100,6 +1137,27 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\@@_tl_pairs_map:nNF, \@@_tl_pairs_map:Nnn}
+%   Map through a token list one pair at a time, with a two-argument
+%   function.
+%    \begin{macrocode}
+\cs_new:Npn \@@_tl_pairs_map:nNF #1#2
+  {
+    \@@_tl_pairs_map:Nnn #2 #1 \q_@@_nil \q_@@_nil
+    \prg_break_point:
+  }
+\cs_new:Npn \@@_tl_pairs_map:Nnn #1#2#3
+  {
+    \@@_use_none_delimit_by_q_nil:w
+      #2 \prg_break:n \use_none:n
+      #3 \prg_break:n \use:n
+    \q_@@_nil
+    #1 {#2} {#3}
+    \@@_tl_pairs_map:Nnn #1
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Constants and variables}
 %
 % \begin{macro}{\@@_tmp:w}
@@ -1186,9 +1244,17 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\q_@@_nil}
+%   Internal quarks.
+%    \begin{macrocode}
+\quark_new:N \q_@@_nil
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{macro}[EXP]{
 %     \@@_use_none_delimit_by_q_recursion_stop:w,
-%     \@@_use_i_delimit_by_q_recursion_stop:nw
+%     \@@_use_i_delimit_by_q_recursion_stop:nw,
+%     \@@_use_none_delimit_by_q_nil:w,
 %   }
 %   Functions to gobble up to a quark.
 %    \begin{macrocode}
@@ -1196,15 +1262,9 @@
   #1 \q_@@_recursion_stop { }
 \cs_new:Npn \@@_use_i_delimit_by_q_recursion_stop:nw
   #1 #2 \q_@@_recursion_stop {#1}
+\cs_new:Npn \@@_use_none_delimit_by_q_nil:w #1 \q_@@_nil { }
 %    \end{macrocode}
 % \end{macro}
-%
-% \begin{variable}{\q_@@_nil}
-%   Internal quarks.
-%    \begin{macrocode}
-\quark_new:N \q_@@_nil
-%    \end{macrocode}
-% \end{variable}
 %
 % \begin{macro}[pTF]{\@@_quark_if_nil:n}
 %   Branching quark conditional.
@@ -2339,6 +2399,24 @@
           \prg_do_nothing: \prg_do_nothing:
         }
     \@@_compile_end:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_compile_use:n}
+%   Use a regex, regardless of whether it is given as a string (in which
+%   case we need to compile) or as a regex variable.  This is used for
+%   \cs{regex_case_match:nn} and related functions to allow a mixture of
+%   explicit regex and regex variables.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_compile_use:n #1
+  {
+    \tl_if_single_token:nT {#1}
+      {
+        \exp_args:No \tl_if_head_eq_meaning:nNT #1 \@@_branch:n
+          { \use_ii:nnn }
+      }
+    \@@_compile:n {#1} \l_@@_internal_regex
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4154,6 +4232,76 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{variable}{\g_@@_case_int}
+%   Case number that was successfully matched in
+%   \cs{regex_case_match:nn} and related functions.
+%    \begin{macrocode}
+\int_new:N \g_@@_case_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_case_max_group_int}
+%   The largest group number appearing in any of the \meta{regex} in the
+%   argument of \cs{regex_case_match:nn} and related functions.
+%    \begin{macrocode}
+\int_new:N \l_@@_case_max_group_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\@@_case_build:n, \@@_case_build_aux:Nn, \@@_case_build_loop:n}
+%   See \cs{@@_build:n}, but with a loop.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_case_build:n
+  { \@@_case_build_aux:Nn \c_true_bool }
+\cs_new_protected:Npn \@@_case_build_aux:Nn #1#2
+  {
+    \@@_standard_escapechar:
+    \int_set_eq:NN \l_@@_max_state_int \l_@@_min_state_int
+    \@@_build_new_state:
+    \@@_build_new_state:
+    \@@_toks_put_right:Nn \l_@@_left_state_int
+      { \@@_action_start_wildcard:N #1 }
+    %
+    \@@_build_new_state:
+    \@@_toks_put_left:Nx \l_@@_left_state_int
+      { \@@_action_submatch:nN { 0 } < }
+    \@@_push_lr_states:
+    \int_zero:N \l_@@_case_max_group_int
+    \int_gzero:N \g_@@_case_int
+    \tl_map_inline:nn {#2}
+      {
+        \int_gincr:N \g_@@_case_int
+        \@@_case_build_loop:n {##1}
+      }
+    \int_set_eq:NN \l_@@_capturing_group_int \l_@@_case_max_group_int
+    \@@_pop_lr_states:
+  }
+\cs_new_protected:Npn \@@_case_build_loop:n #1
+  {
+    \int_set:Nn \l_@@_capturing_group_int { 1 }
+    \@@_compile_use:n {#1}
+    \int_set:Nn \l_@@_case_max_group_int
+      {
+        \int_max:nn { \l_@@_case_max_group_int }
+          { \l_@@_capturing_group_int }
+      }
+    \seq_pop:NN \l_@@_right_state_seq \l_@@_internal_a_tl
+    \int_set:Nn \l_@@_right_state_int \l_@@_internal_a_tl
+    \@@_toks_put_left:Nx \l_@@_right_state_int
+      {
+        \@@_action_submatch:nN { 0 } >
+        \int_gset:Nn \g_@@_case_int
+          { \int_use:N \g_@@_case_int }
+        \@@_action_success:
+      }
+    \@@_toks_clear:N \l_@@_max_state_int
+    \seq_push:No \l_@@_right_state_seq
+      { \int_use:N \l_@@_max_state_int }
+    \int_incr:N \l_@@_max_state_int
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\@@_build_for_cs:n}
 %   The matching code relies on some global intarray variables, but only
 %   uses a range of their entries.  Specifically,
@@ -4495,7 +4643,7 @@
 %   the group, and leaves \texttt{internal_a} pointing to the left end
 %   of the last repetition. We only record the submatch information at
 %   the last repetition. Finally, add a state at the end (the transition
-%   to it has been taken care of by the replicating auxiliary.
+%   to it has been taken care of by the replicating auxiliary).
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_group_repeat:nn #1#2
   {
@@ -6269,6 +6417,34 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[noTF]{\regex_case_match:nn}
+%   The auxiliary errors if |#1| has an odd number of items, and
+%   otherwise it sets \cs{g_@@_case_int} according to which case was
+%   found (zero if not found).  Overall, the \texttt{false} branch is
+%   taken either if the cases |#1| were nonsense (odd number of items)
+%   or if there was no match.  The \texttt{true} branch is taken
+%   otherwise, and we leave the corresponding code in the input stream.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_case_match:nnTF #1#2#3#4
+  {
+    \int_gzero:N \g_@@_case_int
+    \@@_case_match:nn {#1} {#2}
+    \int_compare:nNnTF \g_@@_case_int = 0
+      {#4}
+      {
+        \tl_item:nn {#1} { 2 * \g_@@_case_int }
+        #3
+      }
+  }
+\cs_new_protected:Npn \regex_case_match:nn #1#2
+  { \regex_case_match:nnTF {#1} {#2} { } { } }
+\cs_new_protected:Npn \regex_case_match:nnT #1#2#3
+  { \regex_case_match:nnTF {#1} {#2} {#3} { } }
+\cs_new_protected:Npn \regex_case_match:nnF #1#2#3
+  { \regex_case_match:nnTF {#1} {#2} { } {#3} }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[noTF]
 %   {
 %     \regex_extract_once:nnN, \regex_extract_once:NnN,
@@ -6431,6 +6607,37 @@
     \group_end:
   }
 %    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_case_match:nn}
+% \begin{macro}[EXP]{\@@_case_match_aux:nn}
+%   The code would get badly messed up if the number of items in |#1|
+%   were not even, so we catch this case, then follow the same code as
+%   \cs{regex_match:nnTF} but using \cs{@@_case_build:n} and without
+%   returning a result.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_case_match:nn #1#2
+  {
+    \int_if_odd:nTF { \tl_count:n {#1} }
+      {
+        \__kernel_msg_error:nnxxxx { regex } { case-odd }
+          { \token_to_str:N \regex_case_match:nn } { code }
+          { \tl_count:n {#1} } { \tl_to_str:n {#1} }
+      }
+      {
+        \group_begin:
+          \@@_disable_submatches:
+          \@@_single_match:
+          \exp_args:Nx \@@_case_build:n
+            { \@@_tl_pairs_map:nNF {#1} \@@_case_match_aux:nn { } }
+          \int_gzero:N \g_@@_case_int
+          \@@_match:n {#2}
+        \group_end:
+      }
+  }
+\cs_new:Npn \@@_case_match_aux:nn #1#2 { \exp_not:n { {#1} } }
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\@@_count:nnN}
@@ -7617,8 +7824,15 @@
   { The~values~given~in~a~quantifier~must~be~in~order. }
 %    \end{macrocode}
 %
-% Used when showing a regex.
+% Used in user commands, and when showing a regex.
 %    \begin{macrocode}
+\msg_new:nnnn { regex } { case-odd }
+  { #1~with~odd~number~of~items }
+  {
+    There~must~be~a~#2~part~for~each~regex:~
+    found~odd~number~of~items~(#3)~in\\
+    \iow_indent:n {#4}
+  }
 \msg_new:nnn { regex } { show }
   {
     >~Compiled~regex~
