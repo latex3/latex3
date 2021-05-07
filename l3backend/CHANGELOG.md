@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-05-07]
+
 ### Changed
 - `\pdf_version_gset:n` in `dvips` now sets `\pdf_version_minor:` and
   `\pdf_version_major:`. This doesn't set the PDF version but allows to test
@@ -178,7 +180,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-03-18...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-05-07...HEAD
+[2021-05-07]: https://github.com/latex3/latex3/compare/2021-03-18...2021-05-07
 [2021-03-18]: https://github.com/latex3/latex3/compare/2021-03-02...2021-03-18
 [2021-03-02]: https://github.com/latex3/latex3/compare/2021-02-18...2021-03-02
 [2021-02-18]: https://github.com/latex3/latex3/compare/2021-02-06...2021-02-18
