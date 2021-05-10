@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Loading of backend in generic DVI mode (issue #905)
+
 ## [2021-05-07]
 
 ### Added
