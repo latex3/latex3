@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\cctab_item:Nn` (issue #880)
+
 ### Fixed
 - Loading of backend in generic DVI mode (issue #905)
 - Make `\keyval_parse:nnn` alignment-safe (issue #896)
