@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Loading of backend in generic DVI mode (issue #905)
 
+### Changed
+- Speed up \group_align_safe_begin: (pull #906)
+
 ## [2021-05-07]
 
 ### Added
