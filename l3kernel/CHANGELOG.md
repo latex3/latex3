@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\cctab_item:Nn` (issue #880)
+- `\clist_use:nnnn` and `\clist_use:nn` (issue #561)
 
 ### Fixed
 - Loading of backend in generic DVI mode (issue #905)
