@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\sys_timer:`
 - `\color_log:n`, `\tl_log_analysis:N`, `\tl_log_analysis:n` (issue #241)
+- `\coffin_show:Nnn` and related functions (issue #241)
 
 ## [2021-05-11]
 
