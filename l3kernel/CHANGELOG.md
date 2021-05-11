@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\sys_timer:`
 - `\color_log:n`, `\tl_log_analysis:N`, `\tl_log_analysis:n` (issue #241)
 - `\coffin_show:Nnn` and related functions (issue #241)
+- `\ior_show:N`, `\iow_show:N` and log functions (issue #241)
 
 ## [2021-05-11]
 
