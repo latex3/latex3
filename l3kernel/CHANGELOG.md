@@ -14,6 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Loading of backend in generic DVI mode (issue #905)
 - Make `\keyval_parse:nnn` alignment-safe (issue #896)
+- Control sequences and category codes in regex replacements (issue #909)
 
 ### Changed
 - Speed up \group_align_safe_begin: (pull #906)
