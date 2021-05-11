@@ -9,10 +9,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\sys_timer:`
-- `\color_log:n`, `\tl_log_analysis:N`, `\tl_log_analysis:n` (issue #241)
-- `\coffin_show:Nnn` and related functions (issue #241)
-- `\ior_show:N`, `\iow_show:N` and log functions (issue #241)
-- `\group_show_list:` and log function (issue #241)
+- Functions to show and log various datatypes (issue #241):
+  `\coffin_show:Nnn`, `\coffin_show:N`, `\coffin_log:Nnn`, `\coffin_log:N`,
+  `\color_log:n`, `\group_show_list:`, `\group_log_list:`,
+  `\ior_show:N`, `\ior_log:N`, `\iow_show:N`, `\iow_log:N`,
+  `\tl_log_analysis:N`, `\tl_log_analysis:n`
 
 ## [2021-05-11]
 
