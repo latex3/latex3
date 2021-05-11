@@ -9,7 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\sys_timer:`
-- `\tl_log_analysis:N`, `\tl_log_analysis:n` (issue #241)
+- `\color_log:n`, `\tl_log_analysis:N`, `\tl_log_analysis:n` (issue #241)
 
 ## [2021-05-11]
 
