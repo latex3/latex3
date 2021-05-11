@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-05-11]
+
 ### Added
 - `\cctab_item:Nn` (issue #880)
 - `\clist_use:nnnn` and `\clist_use:nn` (issue #561)
@@ -895,7 +897,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-05-07...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-05-11...HEAD
+[2021-05-11]: https://github.com/latex3/latex3/compare/2021-05-07...2021-05-11
 [2021-05-07]: https://github.com/latex3/latex3/compare/2021-02-18...2021-05-07
 [2021-02-18]: https://github.com/latex3/latex3/compare/2021-02-06...2021-02-18
 [2021-02-06]: https://github.com/latex3/latex3/compare/2021-02-02...2021-02-06
