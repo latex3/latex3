@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\sys_timer:`
+
 ## [2021-05-11]
 
 ### Added
