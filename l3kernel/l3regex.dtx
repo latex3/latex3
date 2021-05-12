@@ -6349,6 +6349,15 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_added_begin_int, \l_@@_added_end_int}
+%   Keep track of the number of left/right braces to add when performing
+%   a regex operation such as a replacement.
+%    \begin{macrocode}
+\int_new:N \l_@@_added_begin_int
+\int_new:N \l_@@_added_end_int
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{macro}{\@@_return:}
 %   This function triggers either \cs{prg_return_false:} or
 %   \cs{prg_return_true:} as appropriate to whether a match was found or
@@ -6717,36 +6726,65 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_group_end_replace:N}
-%   If the brace balance is not $0$, raise an error. Then set the user's
-%   variable |#1| to the \texttt{x}-expansion of
-%   \cs{l_@@_internal_a_tl}, adding the appropriate braces to produce
-%   a balanced result. And end the group.
+% \begin{macro}
+%   {
+%     \@@_group_end_replace:N, \@@_group_end_replace_try:,
+%     \@@_group_end_replace_check:w, \@@_group_end_replace_check:n
+%   }
+%   At this stage \cs{l_@@_internal_a_tl} (|x|-expands to the desired
+%   result).  Guess from \cs{l_@@_balance_int} the number of braces to
+%   add before or after the result then try expanding.  The simplest
+%   case is when \cs{l_@@_internal_a_tl} together with the braces we
+%   insert via \cs{prg_replicate:nn} give a balanced result, and the
+%   assignment ends at the \cs{if_false:} |{| \cs{fi:} |}| construction:
+%   then \cs{@@_group_end_replace_check:w} sees that there is no
+%   material left and we successfully found the result.  The harder case
+%   is that expanding \cs{l_@@_internal_a_tl} may produce extra closing
+%   braces and end the assignment early.  Then we grab the remaining code
+%   using; importantly, what follows has not yet been expanded so that
+%   \cs{@@_group_end_replace_check:n} grabs everything until the last
+%   brace in \cs{@@_group_end_replace_try:}, letting us try again with
+%   an extra surrounding pair of braces.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_group_end_replace:N #1
   {
-    \if_int_compare:w \l_@@_balance_int = 0 \exp_stop_f:
-    \else:
-      \__kernel_msg_error:nnxxx { regex } { result-unbalanced }
-        { replacing }
-        { \int_max:nn { - \l_@@_balance_int } { 0 } }
-        { \int_max:nn { \l_@@_balance_int } { 0 } }
-    \fi:
-    \use:x
+    \int_set:Nn \l_@@_added_begin_int
+      { \int_max:nn { - \l_@@_balance_int } { 0 } }
+    \int_set:Nn \l_@@_added_end_int
+      { \int_max:nn { \l_@@_balance_int } { 0 } }
+    \@@_group_end_replace_try:
+    \int_compare:nNnT { \l_@@_added_begin_int + \l_@@_added_end_int } > 0
       {
-        \group_end:
-        \tl_set:Nn \exp_not:N #1
-          {
-            \if_int_compare:w \l_@@_balance_int < 0 \exp_stop_f:
-              \prg_replicate:nn { - \l_@@_balance_int }
-                { { \if_false: } \fi: }
-            \fi:
-            \l_@@_internal_a_tl
-            \if_int_compare:w \l_@@_balance_int > 0 \exp_stop_f:
-              \prg_replicate:nn { \l_@@_balance_int }
-                { \if_false: { \fi: } }
-            \fi:
-          }
+        \__kernel_msg_error:nnxxx { regex } { result-unbalanced }
+          { replacing } { \int_use:N \l_@@_added_begin_int }
+          { \int_use:N \l_@@_added_end_int }
+      }
+    \group_end:
+    \tl_set_eq:NN #1 \g_@@_internal_tl
+  }
+\cs_new_protected:Npn \@@_group_end_replace_try:
+  {
+    \tex_afterassignment:D \@@_group_end_replace_check:w
+    \__kernel_tl_gset:Nx \g_@@_internal_tl
+      {
+        \prg_replicate:nn { \l_@@_added_begin_int } { { \if_false: } \fi: }
+        \l_@@_internal_a_tl
+        \prg_replicate:nn { \l_@@_added_end_int } { \if_false: { \fi: } }
+        \if_false: { \fi: }
+      }
+  }
+\cs_new_protected:Npn \@@_group_end_replace_check:w
+  {
+    \exp_after:wN \@@_group_end_replace_check:n
+    \exp_after:wN { \if_false: } \fi:
+  }
+\cs_new_protected:Npn \@@_group_end_replace_check:n #1
+  {
+    \tl_if_empty:nF {#1}
+      {
+        \int_incr:N \l_@@_added_begin_int
+        \int_incr:N \l_@@_added_end_int
+        \@@_group_end_replace_try:
       }
   }
 %    \end{macrocode}
