@@ -30,7 +30,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Control sequences and category codes in regex replacements (issue #909)
 
 ### Changed
-- Speed up \group_align_safe_begin: (pull #906)
+- Speed up `\group_align_safe_begin:` (pull #906)
 
 ## [2021-05-07]
 
