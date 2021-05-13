@@ -6530,27 +6530,35 @@
 %
 % \begin{macro}{\@@_group_end_extract_seq:N}
 %   The end-points of submatches are stored as entries of two arrays
-%   from \cs{l_@@_min_submatch_int} to
-%   \cs{l_@@_submatch_int} (exclusive). Extract the relevant ranges
-%   into \cs{l_@@_internal_a_tl}. We detect unbalanced results using
-%   the two flags \texttt{__regex_begin} and \texttt{__regex_end}, raised
-%   whenever we see too many begin-group or end-group tokens in a
-%   submatch.
+%   from \cs{l_@@_min_submatch_int} to \cs{l_@@_submatch_int}
+%   (exclusive). Extract the relevant ranges into \cs{g_@@_internal_tl},
+%   separated by \cs{@@_tmp:w} |{}|. We keep track in the two flags
+%   \texttt{__regex_begin} and \texttt{__regex_end} of the number of
+%   begin-group or end-group tokens added to make each of these items
+%   overall balanced.  At this step, |}{| is counted as being balanced
+%   (same number of begin-group and end-group tokens).  This problem is
+%   caught by \cs{@@_extract_check:w}, explained later.  After
+%   complaining about any begin-group or end-group tokens we had to add,
+%   we are ready to construct the user's sequence outside the group.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_group_end_extract_seq:N #1
   {
       \flag_clear:n { @@_begin }
       \flag_clear:n { @@_end }
-      \seq_set_from_function:NnN \l_@@_internal_seq
+      \cs_set_eq:NN \@@_tmp:w \scan_stop:
+      \__kernel_tl_gset:Nx \g_@@_internal_tl
         {
           \int_step_function:nnN { \l_@@_min_submatch_int }
-            { \l_@@_submatch_int - 1 }
+            { \l_@@_submatch_int - 1 } \@@_extract_seq_aux:n
+          \@@_tmp:w
         }
-        \@@_extract_seq_aux:n
       \int_set:Nn \l_@@_added_begin_int
         { \flag_height:n { @@_begin } }
       \int_set:Nn \l_@@_added_end_int
         { \flag_height:n { @@_end } }
+      \tex_afterassignment:D \@@_extract_check:w
+      \__kernel_tl_gset:Nx \g_@@_internal_tl
+        { \g_@@_internal_tl \if_false: { \fi: } }
       \int_compare:nNnT
         { \l_@@_added_begin_int + \l_@@_added_end_int } > 0
         {
@@ -6559,10 +6567,10 @@
             { \int_use:N \l_@@_added_begin_int }
             { \int_use:N \l_@@_added_end_int }
         }
-      \seq_set_map_x:NNn \l_@@_internal_seq \l_@@_internal_seq {##1}
-      \exp_args:NNNo
-      \group_end:
-      \tl_set:Nn #1 { \l_@@_internal_seq }
+    \group_end:
+    \cs_set_eq:NN \@@_tmp:w \@@_extract_map_loop:w
+    \seq_set_from_function:NnN #1
+      { \@@_extract_map:N } \exp_not:n
   }
 %    \end{macrocode}
 % \end{macro}
@@ -6575,6 +6583,7 @@
 %    \begin{macrocode}
 \cs_new:Npn \@@_extract_seq_aux:n #1
   {
+    \@@_tmp:w { }
     \exp_after:wN \@@_extract_seq_aux:ww
     \int_value:w \@@_submatch_balance:n {#1} ; #1;
   }
@@ -6595,6 +6604,108 @@
           \exp_not:n { \if_false: { \fi: } }
         }
     \fi:
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     \@@_extract_check:w, \@@_extract_check:n,
+%     \@@_extract_check_loop:w, \@@_extract_check_end:w
+%   }
+%   In \cs{@@_group_end_extract_seq:N} we had to expand
+%   \cs{g_@@_internal_tl} to turn \cs{if_false:} constructions into
+%   actual begin-group and end-group tokens.  This is done with a
+%   \cs{__kernel_tl_gset:Nx} assignment, and \cs{@@_extract_check:w} is
+%   run immediately after this assignment ends, thanks to the
+%   \tn{afterassignment} primitive.  If all of the items were properly
+%   balanced (enough begin-group tokens before end-group tokens, so |}{|
+%   is not) then \cs{@@_extract_check:w} is called just before the
+%   closing brace of the \cs{__kernel_tl_gset:Nx} (thanks to our sneaky
+%   \cs{if_false:} |{| \cs{fi:} |}| construction), and finds that there
+%   is nothing left to expand.  If any of the items is unbalanced, the
+%   assignment gets ended early by an extra end-group token, and our
+%   check finds more tokens needing to be expanded in a new
+%   \cs{__kernel_tl_gset:Nx} assignment.  We need to add a begin-group
+%   and an end-group tokens to the unbalanced item, namely to the last
+%   item found so far, which we reach through a loop.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_extract_check:w
+  {
+    \exp_after:wN \@@_extract_check:n
+    \exp_after:wN { \if_false: } \fi:
+  }
+\cs_new_protected:Npn \@@_extract_check:n #1
+  {
+    \tl_if_empty:nF {#1}
+      {
+        \int_incr:N \l_@@_added_begin_int
+        \int_incr:N \l_@@_added_end_int
+        \tex_afterassignment:D \@@_extract_check:w
+        \__kernel_tl_gset:Nx \g_@@_internal_tl
+          {
+            \exp_after:wN \@@_extract_check_loop:w
+            \g_@@_internal_tl
+            \@@_tmp:w \@@_extract_check_end:w
+            #1
+          }
+      }
+  }
+\cs_new:Npn \@@_extract_check_loop:w #1 \@@_tmp:w #2
+  {
+    #2
+    \exp_not:o {#1}
+    \@@_tmp:w { }
+    \@@_extract_check_loop:w \prg_do_nothing:
+  }
+%    \end{macrocode}
+%   Arguments of \cs{@@_extract_check_end:w} are: |#1| is the part of
+%   the item before the extra end-group token; |#2| is junk; |#3| is
+%   \cs{prg_do_nothing:} followed by the not-yet-expanded part of the
+%   item after the extra end-group token.  In the replacement text, the
+%   first brace and the \cs{if_false:} |{| \cs{fi:} |}| construction are
+%   the added begin-group and end-group tokens (the latter being not-yet
+%   expanded, just like~|#3|), while the closing brace after
+%   \cs{exp_not:o} |{#1}| replaces the extra end-group token that had
+%   ended the assignment early.  In particular this means that the
+%   character code of that end-group token is lost.
+%    \begin{macrocode}
+\cs_new:Npn \@@_extract_check_end:w
+    \exp_not:o #1#2 \@@_extract_check_loop:w #3 \@@_tmp:w
+  {
+    { \exp_not:o {#1} }
+    #3
+    \if_false: { \fi: }
+    \@@_tmp:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]
+%   {
+%     \@@_extract_map:N,
+%     \@@_extract_map_aux:NNn,
+%     \@@_extract_map_loop:w
+%   }
+%   This receives a |seq| internal function and maps it over all items
+%   in \cs{g_@@_internal_tl}.  This token list takes the form
+%   \cs{@@_tmp:w} |{}| \meta{item_1} \cs{@@_tmp:w} |{}| \meta{item_2}
+%   \ldots{} \cs{@@_tmp:w}, and the calling code has set \cs{@@_tmp:w}
+%   equal to \cs{@@_extract_map_loop:w}.  The loop is otherwise pretty
+%   standard, with \cs{prg_do_nothing:} to avoid losing braces.
+%    \begin{macrocode}
+\cs_new:Npn \@@_extract_map:N #1
+  {
+    \exp_after:wN \@@_extract_map_aux:NNn
+    \exp_after:wN #1
+    \g_@@_internal_tl \use_none:nnn
+  }
+\cs_new:Npn \@@_extract_map_aux:NNn #1#2#3
+  { #3 #2 #1 \prg_do_nothing: }
+\cs_new:Npn \@@_extract_map_loop:w #1#2 \@@_tmp:w #3
+  {
+    \exp_after:wN #1 \exp_after:wN {#2}
+    #3 \@@_extract_map_loop:w #1 \prg_do_nothing:
   }
 %    \end{macrocode}
 % \end{macro}

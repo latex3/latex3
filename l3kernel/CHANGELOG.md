@@ -15,6 +15,9 @@ this project uses date-based 'snapshot' version identifiers.
   `\ior_show:N`, `\ior_log:N`, `\iow_show:N`, `\iow_log:N`,
   `\tl_log_analysis:N`, `\tl_log_analysis:n`
 
+### Fixed
+- Checking brace balance in all regex functions (issue #377)
+
 ## [2021-05-11]
 
 ### Added
