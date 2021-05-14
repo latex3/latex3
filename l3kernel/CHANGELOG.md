@@ -20,7 +20,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Checking brace balance in all regex functions (issue #377)
 
 ### Changed
-- Speed up mapping functions in l3tl
+- Speed up mapping functions in l3tl, l3seq
 
 ## [2021-05-11]
 
