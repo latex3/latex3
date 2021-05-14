@@ -19,6 +19,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Checking brace balance in all regex functions (issue #377)
 
+### Changed
+- Speed up mapping functions in l3tl
+
 ## [2021-05-11]
 
 ### Added
