@@ -18,6 +18,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Checking brace balance in all regex functions (issue #377)
+- Removing duplicates in clists when items contain commas (issue #917)
 
 ### Changed
 - Speed up mapping functions in l3clist, l3prop, l3seq, l3tl
