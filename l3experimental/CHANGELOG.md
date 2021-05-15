@@ -7,12 +7,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-### Added
-- added `\g_benchmark_silent_bool` to suppress terminal output of `l3benchmark`
-
-### Changed
-- `l3benchmark` stores the results in user-level instead of internal variables
-
 ## [2021-02-18]
 
 ### Removed
