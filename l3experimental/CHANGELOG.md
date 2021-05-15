@@ -7,6 +7,13 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\benchmark_silent:n` and `\benchmark_once_silent:n` added to `l3benchmark`
+
+### Changed
+- store results of `l3benchmark` in documented user-level instead of private
+  variables
+
 ## [2021-02-18]
 
 ### Removed
