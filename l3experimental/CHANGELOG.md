@@ -7,12 +7,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-## [2021-05-15]
-
-### Added
-- `\benchmark_get_results:nNN`, `\benchmark_get_time:nN`, and
-    `\benchmark_get_ops:nN` added to l3benchmark
-
 ## [2021-02-18]
 
 ### Removed
