@@ -9,7 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\sys_timer:`
-- `\prop_concat:NNN`
+- `\prop_concat:NNN`, `\prop_put_from_keyval:Nn` (issue #924)
 - Functions to show and log various datatypes (issue #241):
   `\coffin_show:Nnn`, `\coffin_show:N`, `\coffin_log:Nnn`, `\coffin_log:N`,
   `\color_log:n`, `\group_show_list:`, `\group_log_list:`,
