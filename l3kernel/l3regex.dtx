@@ -794,6 +794,46 @@
 %   then performing the replacement with \cs{regex_replace_once:nnN}.
 % \end{function}
 %
+% \begin{function}[noTF, added = 2021-05-15]{\regex_case_replace_all:nN}
+%   \begin{syntax}
+%     \cs{regex_case_replace_all:nNTF}
+%     ~~|{| \\
+%     ~~~~\Arg{regex_1} \Arg{replacement_1} \\
+%     ~~~~\Arg{regex_2} \Arg{replacement_2} \\
+%     ~~~~\ldots \\
+%     ~~~~\Arg{regex_n} \Arg{replacement_n} \\
+%     ~~|}| \meta{tl~var}
+%     ~~\Arg{true code} \Arg{false code}
+%   \end{syntax}
+%   Replaces all occurrences of all \meta{regex} in the \meta{token
+%   list} by the corresponding \meta{replacement}.  Every match is
+%   treated independently, and matches cannot overlap.  The result is
+%   assigned locally to \meta{tl~var}, and the \meta{true code} or
+%   \meta{false code} is left in the input stream depending on whether
+%   any replacement was made or not.
+%
+%   In detail, for each starting position in the \meta{token list}, each
+%   of the \meta{regex} is searched in turn.  If one of them matches
+%   then it is replaced by the corresponding \meta{replacement}, and the
+%   search resumes at the position that follows this match (and
+%   replacement).  For instance
+% \begin{verbatim}
+% \tl_set:Nn \l_tmpa_tl { Hello,~world! }
+% \regex_case_replace_all:nN
+%   {
+%     { [A-Za-z]+ } { ``\0'' }
+%     { \b } { --- }
+%     { . } { [\0] }
+%   } \l_tmpa_tl
+% \end{verbatim}
+%   results in \cs{l_tmpa_tl} having the contents
+%   \verb*|``Hello''---[,][ ]``world''---[!]|.  Note in particular that
+%   the word-boundary assertion |\b| did not match at the start of words
+%   because the case |[A-Za-z]+| matched at these positions.  To change
+%   this, one could simply swap the order of the two cases in the
+%   argument of \cs{regex_case_replace_all:nN}.
+% \end{function}
+%
 % \section{Scratch regular expressions}
 %
 % \begin{variable}[added = 2017-12-11]{\l_tmpa_regex, \l_tmpb_regex}
@@ -1160,21 +1200,22 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_tl_odd_items:n, \@@_tl_odd_items_loop:nn}
-%   Map through a token list one pair at a time, leaving the odd items
-%   (including the last one if the token list has an odd number of
-%   items).
+% \begin{macro}{\@@_tl_odd_items:n, \@@_tl_even_items:n, \@@_tl_even_items_loop:nn}
+%   Map through a token list one pair at a time, leaving the
+%   odd-numbered or even-numbered items (the first item is
+%   numbered~$1$).
 %    \begin{macrocode}
-\cs_new:Npn \@@_tl_odd_items:n #1
+\cs_new:Npn \@@_tl_odd_items:n #1 { \@@_tl_even_items:n { ? #1 } }
+\cs_new:Npn \@@_tl_even_items:n #1
   {
-    \@@_tl_odd_items_loop:nn #1 \q_@@_nil \q_@@_nil \q_@@_nil
+    \@@_tl_even_items_loop:nn #1 \q_@@_nil \q_@@_nil
     \prg_break_point:
   }
-\cs_new:Npn \@@_tl_odd_items_loop:nn #1#2
+\cs_new:Npn \@@_tl_even_items_loop:nn #1#2
   {
-    \@@_use_none_delimit_by_q_nil:w #1 \prg_break: \q_@@_nil
-    { \exp_not:n {#1} }
-    \@@_tl_odd_items_loop:nn
+    \@@_use_none_delimit_by_q_nil:w #2 \prg_break: \q_@@_nil
+    { \exp_not:n {#2} }
+    \@@_tl_even_items_loop:nn
   }
 %    \end{macrocode}
 % \end{macro}
@@ -5747,7 +5788,7 @@
 % \subsubsection{Framework}
 %
 % \begin{macro}{\@@_replacement:n, \@@_replacement:x}
-% \begin{macro}{\@@_replacement_aux:n}
+% \begin{macro}{\@@_replacement_apply:Nn, \@@_replacement_set:n}
 %   The replacement text is built incrementally. We keep track in
 %   \cs{l_@@_balance_int} of the balance of explicit begin- and
 %   end-group tokens and we store in \cs{l_@@_balance_tl} some
@@ -5758,7 +5799,9 @@
 %   parsed, make sure that there is no open csname. Finally, define the
 %   \texttt{balance_one_match} and \texttt{do_one_match} functions.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_replacement:n #1
+\cs_new_protected:Npn \@@_replacement:n
+  { \@@_replacement_apply:Nn \@@_replacement_set:n }
+\cs_new_protected:Npn \@@_replacement_apply:Nn #1#2
   {
     \group_begin:
       \tl_build_begin:N \l_@@_build_tl
@@ -5779,7 +5822,7 @@
         }
         { \@@_replacement_escaped:N ##1 }
         { \@@_replacement_normal:n ##1 }
-        {#1}
+        {#2}
       \prg_do_nothing: \prg_do_nothing:
       \if_int_compare:w \l_@@_replacement_csnames_int > \c_zero_int
         \msg_error:nnx { regex } { replacement-missing-rbrace }
@@ -5802,10 +5845,10 @@
       \tl_build_end:N \l_@@_build_tl
       \exp_args:NNo
     \group_end:
-    \@@_replacement_aux:n \l_@@_build_tl
+    #1 \l_@@_build_tl
   }
 \cs_generate_variant:Nn \@@_replacement:n { x }
-\cs_new_protected:Npn \@@_replacement_aux:n #1
+\cs_new_protected:Npn \@@_replacement_set:n #1
   {
     \cs_set:Npn \@@_replacement_do_one_match:n ##1
       {
@@ -5823,6 +5866,28 @@
   }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_case_replacement:n, \@@_case_replacement:x}
+%    \begin{macrocode}
+\tl_new:N \g_@@_case_replacement_tl
+\cs_new_protected:Npn \@@_case_replacement:n #1
+  {
+    \tl_gset:Nn \g_@@_case_replacement_tl
+      {
+        \if_case:w
+          \__kernel_intarray_item:Nn
+            \g_@@_submatch_case_intarray {##1}
+      }
+    \tl_map_tokens:nn {#1}
+      { \@@_replacement_apply:Nn \@@_case_replacement_aux:n }
+    \exp_args:No \@@_replacement_set:n
+      { \g_@@_case_replacement_tl \fi: }
+  }
+\cs_generate_variant:Nn \@@_case_replacement:n { x }
+\cs_new_protected:Npn \@@_case_replacement_aux:n #1
+  { \tl_gput_right:Nn \g_@@_case_replacement_tl { \or: #1 } }
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\@@_replacement_put:n}
@@ -6537,6 +6602,38 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[noTF]{\regex_case_replace_all:nN}
+%   If the input is bad (odd number of items) then take the false
+%   branch.  Otherwise, use the same auxiliary as
+%   \cs{regex_replace_all:nnN}, but with more complicated code to build
+%   the automaton, and to find what replacement text to use.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_case_replace_all:nNTF #1#2
+  {
+    \int_if_odd:nTF { \tl_count:n {#1} }
+      {
+        \__kernel_msg_error:nnxxxx { regex } { case-odd }
+          { \token_to_str:N \regex_case_replace_all:nN(TF) } { code }
+          { \tl_count:n {#1} } { \tl_to_str:n {#1} }
+        \use_ii:nn
+      }
+      {
+        \@@_replace_all_aux:nnN
+          { \@@_case_build:x { \@@_tl_odd_items:n {#1} } }
+          { \@@_case_replacement:x { \@@_tl_even_items:n {#1} } }
+          #2
+        \bool_if:NTF \g_@@_success_bool
+      }
+  }
+\cs_new_protected:Npn \regex_case_replace_all:nN #1#2
+  { \regex_case_replace_all:nNTF {#1} {#2} { } { } }
+\cs_new_protected:Npn \regex_case_replace_all:nNT #1#2#3
+  { \regex_case_replace_all:nNTF {#1} {#2} {#3} { } }
+\cs_new_protected:Npn \regex_case_replace_all:nNF #1#2
+  { \regex_case_replace_all:nNTF {#1} {#2} { } }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Variables and helpers for user functions}
 %
 % \begin{variable}{\l_@@_match_count_int}
@@ -6574,12 +6671,14 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\g_@@_submatch_prev_intarray, \g_@@_submatch_begin_intarray, \g_@@_submatch_end_intarray}
-%   Hold the place where the match attempt begun and the end-points of each submatch.
+% \begin{variable}{\g_@@_submatch_prev_intarray, \g_@@_submatch_begin_intarray, \g_@@_submatch_end_intarray, \g_@@_submatch_case_intarray}
+%   Hold the place where the match attempt begun, the end-points of each
+%   submatch, and which regex case the match corresponds to, respectively.
 %    \begin{macrocode}
 \intarray_new:Nn \g_@@_submatch_prev_intarray { 65536 }
 \intarray_new:Nn \g_@@_submatch_begin_intarray { 65536 }
 \intarray_new:Nn \g_@@_submatch_end_intarray { 65536 }
+\intarray_new:Nn \g_@@_submatch_case_intarray { 65536 }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -6998,10 +7097,14 @@
         {
           \__kernel_intarray_gset:Nnn \g_@@_submatch_prev_intarray
             { \l_@@_submatch_int } { 0 }
+          \__kernel_intarray_gset:Nnn \g_@@_submatch_case_intarray
+            { \l_@@_submatch_int } { 0 }
           \int_incr:N \l_@@_submatch_int
         }
       \__kernel_intarray_gset:Nnn \g_@@_submatch_prev_intarray
         { \l_@@_zeroth_submatch_int } { \l_@@_start_pos_int }
+      \__kernel_intarray_gset:Nnn \g_@@_submatch_case_intarray
+        { \l_@@_zeroth_submatch_int } { \g_@@_case_int }
       \int_zero:N \l_@@_internal_a_int
       \exp_after:wN \@@_extract_aux:w \l_@@_success_submatches_tl
         \prg_break_point: \@@_use_none_delimit_by_q_recursion_stop:w ,
@@ -7088,14 +7191,16 @@
 %   match. Join together the replacement texts for each match (including
 %   the part of the query before the match), and the end of the query.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_replace_all:nnN #1#2#3
+\cs_new_protected:Npn \@@_replace_all:nnN #1#2
+  { \@@_replace_all_aux:nnN {#1} { \@@_replacement:n {#2} } }
+\cs_new_protected:Npn \@@_replace_all_aux:nnN #1#2#3
   {
     \group_begin:
       \@@_multi_match:n { \@@_extract: }
       #1
       \exp_args:No \@@_match:n {#3}
       \exp_args:No \@@_query_set:n {#3}
-      \@@_replacement:n {#2}
+      #2
       \int_set:Nn \l_@@_balance_int
         {
           0
