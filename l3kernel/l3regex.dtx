@@ -886,7 +886,7 @@
 %     \texttt{curr_state} and \texttt{curr_submatches}.
 %   \item If possible, when a state is reused by the same thread, kill
 %     other subthreads.
-%   \item Use an array rather than \cs[no-index]{l__regex_balance_tl}
+%   \item Use an array rather than \cs[no-index]{g__regex_balance_tl}
 %     to build the function \cs[no-index]{__regex_replacement_balance_one_match:n}.
 %   \item Reduce the number of epsilon-transitions in alternatives.
 %   \item Optimize simple strings: use less states (|abcade| should give
@@ -5639,12 +5639,12 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{variable}{\l_@@_balance_tl}
+% \begin{variable}{\g_@@_balance_tl}
 %   This token list holds the replacement text for
 %   \cs{@@_replacement_balance_one_match:n} while it is being built
 %   incrementally.
 %    \begin{macrocode}
-\tl_new:N \l_@@_balance_tl
+\tl_new:N \g_@@_balance_tl
 %    \end{macrocode}
 % \end{variable}
 %
@@ -5791,7 +5791,7 @@
 % \begin{macro}{\@@_replacement_apply:Nn, \@@_replacement_set:n}
 %   The replacement text is built incrementally. We keep track in
 %   \cs{l_@@_balance_int} of the balance of explicit begin- and
-%   end-group tokens and we store in \cs{l_@@_balance_tl} some
+%   end-group tokens and we store in \cs{g_@@_balance_tl} some
 %   code to compute the brace balance from submatches (see its
 %   description). Detect unescaped right braces, and escaped characters,
 %   with trailing \cs{prg_do_nothing:} because some of the later
@@ -5806,7 +5806,7 @@
     \group_begin:
       \tl_build_begin:N \l_@@_build_tl
       \int_zero:N \l_@@_balance_int
-      \tl_clear:N \l_@@_balance_tl
+      \tl_gclear:N \g_@@_balance_tl
       \@@_escape_use:nnnn
         {
           \if_charcode:w \c_right_brace_str ##1
@@ -5836,12 +5836,8 @@
             { \seq_count:N \l_@@_replacement_category_seq }
           \seq_clear:N \l_@@_replacement_category_seq
         }
-      \cs_gset:Npx \@@_replacement_balance_one_match:n ##1
-        {
-          + \int_use:N \l_@@_balance_int
-          \l_@@_balance_tl
-          - \@@_submatch_balance:n {##1}
-        }
+      \tl_gput_right:Nx \g_@@_balance_tl
+        { + \int_use:N \l_@@_balance_int }
       \tl_build_end:N \l_@@_build_tl
       \exp_args:NNo
     \group_end:
@@ -5863,6 +5859,12 @@
           }
         #1
       }
+    \exp_args:Nno \use:n
+      { \cs_gset:Npn \@@_replacement_balance_one_match:n ##1 }
+      {
+        \g_@@_balance_tl
+        - \@@_submatch_balance:n {##1}
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -5871,22 +5873,30 @@
 % \begin{macro}{\@@_case_replacement:n, \@@_case_replacement:x}
 %    \begin{macrocode}
 \tl_new:N \g_@@_case_replacement_tl
+\tl_new:N \g_@@_case_balance_tl
 \cs_new_protected:Npn \@@_case_replacement:n #1
   {
-    \tl_gset:Nn \g_@@_case_replacement_tl
+    \tl_gset:Nn \g_@@_case_balance_tl
       {
         \if_case:w
           \__kernel_intarray_item:Nn
             \g_@@_submatch_case_intarray {##1}
       }
+    \tl_gset_eq:NN \g_@@_case_replacement_tl \g_@@_case_balance_tl
     \tl_map_tokens:nn {#1}
       { \@@_replacement_apply:Nn \@@_case_replacement_aux:n }
+    \tl_gset:No \g_@@_balance_tl
+      { \g_@@_case_balance_tl \fi: }
     \exp_args:No \@@_replacement_set:n
       { \g_@@_case_replacement_tl \fi: }
   }
 \cs_generate_variant:Nn \@@_case_replacement:n { x }
 \cs_new_protected:Npn \@@_case_replacement_aux:n #1
-  { \tl_gput_right:Nn \g_@@_case_replacement_tl { \or: #1 } }
+  {
+    \tl_gput_right:Nn \g_@@_case_replacement_tl { \or: #1 }
+    \tl_gput_right:No \g_@@_case_balance_tl
+      { \exp_after:wN \or: \g_@@_balance_tl }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -5990,7 +6000,7 @@
 %   construction, it must be taken into account in the brace balance.
 %   Later on, |##1| will be replaced by a pointer to the $0$-th submatch for a
 %   given match.  There is an \cs{exp_not:N} here as at the point-of-use
-%   of \cs{l_@@_balance_tl} there is an \texttt{x}-type expansion which is needed
+%   of \cs{g_@@_balance_tl} there is an \texttt{x}-type expansion which is needed
 %   to get |##1| in correctly.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_replacement_put_submatch:n #1
@@ -6007,11 +6017,8 @@
     \tl_build_put_right:Nn \l_@@_build_tl
       { \@@_query_submatch:n { \int_eval:n { #1 + ##1 } } }
     \if_int_compare:w \l_@@_replacement_csnames_int = \c_zero_int
-      \tl_put_right:Nn \l_@@_balance_tl
-        {
-          + \@@_submatch_balance:n
-            { \exp_not:N \int_eval:n { #1 + ##1 } }
-        }
+      \tl_gput_right:Nn \g_@@_balance_tl
+        { + \@@_submatch_balance:n { \int_eval:n { #1 + ##1 } } }
     \fi:
   }
 %    \end{macrocode}
