@@ -637,7 +637,8 @@
 %   input stream.  If several \meta{regex} match starting at the same
 %   point, then the first one in the list is selected and the others are
 %   discarded.  If none of the \meta{regex} match, the \meta{false code}
-%   is left in the input stream.
+%   is left in the input stream.  Each \meta{regex} can either be given
+%   as a regex variable or as an explicit regular expression.
 %
 %   In detail, for each starting position in the \meta{token list}, each
 %   of the \meta{regex} is searched in turn.  If one of them matches
@@ -649,12 +650,6 @@
 %   nested \cs{regex_match:nnTF} statements since all \meta{regex} are
 %   attempted at each position rather than attempting to match
 %   \meta{regex_1} at every position before moving on to \meta{regex_2}.
-%
-%   Each \meta{regex} can either be given as a regex variable or as an
-%   explicit regular expression.  It may be useful to include as the
-%   last case \meta{regex_n} the regex |{\Z}|, which always matches at
-%   the very end of the \meta{token list}, so as to include fall-back
-%   code \meta{code case_n} used when no other case matches.
 % \end{function}
 %
 % \section{Submatch extraction}
@@ -1137,23 +1132,21 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_tl_pairs_map:nNF, \@@_tl_pairs_map:Nnn}
-%   Map through a token list one pair at a time, with a two-argument
-%   function.
+% \begin{macro}{\@@_tl_odd_items:n, \@@_tl_odd_items_loop:nn}
+%   Map through a token list one pair at a time, leaving the odd items
+%   (including the last one if the token list has an odd number of
+%   items).
 %    \begin{macrocode}
-\cs_new:Npn \@@_tl_pairs_map:nNF #1#2
+\cs_new:Npn \@@_tl_odd_items:n #1
   {
-    \@@_tl_pairs_map:Nnn #2 #1 \q_@@_nil \q_@@_nil
+    \@@_tl_odd_items_loop:nn #1 \q_@@_nil \q_@@_nil \q_@@_nil
     \prg_break_point:
   }
-\cs_new:Npn \@@_tl_pairs_map:Nnn #1#2#3
+\cs_new:Npn \@@_tl_odd_items_loop:nn #1#2
   {
-    \@@_use_none_delimit_by_q_nil:w
-      #2 \prg_break:n \use_none:n
-      #3 \prg_break:n \use:n
-    \q_@@_nil
-    #1 {#2} {#3}
-    \@@_tl_pairs_map:Nnn #1
+    \@@_use_none_delimit_by_q_nil:w #1 \prg_break: \q_@@_nil
+    { \exp_not:n {#1} }
+    \@@_tl_odd_items_loop:nn
   }
 %    \end{macrocode}
 % \end{macro}
@@ -4248,11 +4241,15 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\@@_case_build:n, \@@_case_build_aux:Nn, \@@_case_build_loop:n}
+% \begin{macro}{\@@_case_build:n, \@@_case_build:x, \@@_case_build_aux:Nn, \@@_case_build_loop:n}
 %   See \cs{@@_build:n}, but with a loop.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_case_build:n
-  { \@@_case_build_aux:Nn \c_true_bool }
+\cs_new_protected:Npn \@@_case_build:n #1
+  {
+    \@@_case_build_aux:Nn \c_true_bool {#1}
+    \int_gzero:N \g_@@_case_int
+  }
+\cs_generate_variant:Nn \@@_case_build:n { x }
 \cs_new_protected:Npn \@@_case_build_aux:Nn #1#2
   {
     \@@_standard_escapechar:
@@ -6420,17 +6417,12 @@
 % \begin{macro}[noTF]{\regex_case_match:nn}
 %   The auxiliary errors if |#1| has an odd number of items, and
 %   otherwise it sets \cs{g_@@_case_int} according to which case was
-%   found (zero if not found).  Overall, the \texttt{false} branch is
-%   taken either if the cases |#1| were nonsense (odd number of items)
-%   or if there was no match.  The \texttt{true} branch is taken
-%   otherwise, and we leave the corresponding code in the input stream.
+%   found (zero if not found).  The \texttt{true} branch leaves the
+%   corresponding code in the input stream.
 %    \begin{macrocode}
-\cs_new_protected:Npn \regex_case_match:nnTF #1#2#3#4
+\cs_new_protected:Npn \regex_case_match:nnTF #1#2#3
   {
-    \int_gzero:N \g_@@_case_int
-    \@@_case_match:nn {#1} {#2}
-    \int_compare:nNnTF \g_@@_case_int = 0
-      {#4}
+    \@@_case_match:nnTF {#1} {#2}
       {
         \tl_item:nn {#1} { 2 * \g_@@_case_int }
         #3
@@ -6440,8 +6432,8 @@
   { \regex_case_match:nnTF {#1} {#2} { } { } }
 \cs_new_protected:Npn \regex_case_match:nnT #1#2#3
   { \regex_case_match:nnTF {#1} {#2} {#3} { } }
-\cs_new_protected:Npn \regex_case_match:nnF #1#2#3
-  { \regex_case_match:nnTF {#1} {#2} { } {#3} }
+\cs_new_protected:Npn \regex_case_match:nnF #1#2
+  { \regex_case_match:nnTF {#1} {#2} { } }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -6609,30 +6601,27 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_case_match:nn}
+% \begin{macro}{\@@_case_match:nnTF}
 % \begin{macro}[EXP]{\@@_case_match_aux:nn}
 %   The code would get badly messed up if the number of items in |#1|
 %   were not even, so we catch this case, then follow the same code as
 %   \cs{regex_match:nnTF} but using \cs{@@_case_build:n} and without
 %   returning a result.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_case_match:nn #1#2
+\cs_new_protected:Npn \@@_case_match:nnTF #1#2
   {
     \int_if_odd:nTF { \tl_count:n {#1} }
       {
         \__kernel_msg_error:nnxxxx { regex } { case-odd }
-          { \token_to_str:N \regex_case_match:nn } { code }
+          { \token_to_str:N \regex_case_match:nn(TF) } { code }
           { \tl_count:n {#1} } { \tl_to_str:n {#1} }
+        \use_ii:nn
       }
       {
-        \group_begin:
-          \@@_disable_submatches:
-          \@@_single_match:
-          \exp_args:Nx \@@_case_build:n
-            { \@@_tl_pairs_map:nNF {#1} \@@_case_match_aux:nn { } }
-          \int_gzero:N \g_@@_case_int
-          \@@_match:n {#2}
-        \group_end:
+        \@@_if_match:nn
+          { \@@_case_build:x { \@@_tl_odd_items:n {#1} } }
+          {#2}
+        \bool_if:NTF \g_@@_success_bool
       }
   }
 \cs_new:Npn \@@_case_match_aux:nn #1#2 { \exp_not:n { {#1} } }
