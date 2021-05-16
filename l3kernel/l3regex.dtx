@@ -766,6 +766,34 @@
 %   locally to \meta{tl~var}.
 % \end{function}
 %
+% \begin{function}[noTF, added = 2021-05-15]{\regex_case_replace_once:nN}
+%   \begin{syntax}
+%     \cs{regex_case_replace_once:nNTF}
+%     ~~|{| \\
+%     ~~~~\Arg{regex_1} \Arg{replacement_1} \\
+%     ~~~~\Arg{regex_2} \Arg{replacement_2} \\
+%     ~~~~\ldots \\
+%     ~~~~\Arg{regex_n} \Arg{replacement_n} \\
+%     ~~|}| \meta{tl~var}
+%     ~~\Arg{true code} \Arg{false code}
+%   \end{syntax}
+%   Replaces the earliest match of the regular expression
+%   "(?|"\meta{regex_1}"|"\dots"|"\meta{regex_n}")" in the \meta{token
+%   list variable} by the \meta{replacement} corresponding to which
+%   \meta{regex_i} matched, then leaves the \meta{true code} in the
+%   input stream.  If none of the \meta{regex} match, then the
+%   \meta{tl~var} is not modified, and the \meta{false code} is left in
+%   the input stream.  Each \meta{regex} can either be given as a regex
+%   variable or as an explicit regular expression.
+%
+%   In detail, for each starting position in the \meta{token list}, each
+%   of the \meta{regex} is searched in turn.  If one of them matches
+%   then it is replaced by the corresponding \meta{replacement} as
+%   described for \cs{regex_replace_once:nnN}.  This is equivalent to
+%   checking with \cs{regex_case_match:nn} which \meta{regex} matches,
+%   then performing the replacement with \cs{regex_replace_once:nnN}.
+% \end{function}
+%
 % \section{Scratch regular expressions}
 %
 % \begin{variable}[added = 2017-12-11]{\l_tmpa_regex, \l_tmpb_regex}
@@ -5718,7 +5746,7 @@
 %
 % \subsubsection{Framework}
 %
-% \begin{macro}{\@@_replacement:n}
+% \begin{macro}{\@@_replacement:n, \@@_replacement:x}
 % \begin{macro}{\@@_replacement_aux:n}
 %   The replacement text is built incrementally. We keep track in
 %   \cs{l_@@_balance_int} of the balance of explicit begin- and
@@ -5776,6 +5804,7 @@
     \group_end:
     \@@_replacement_aux:n \l_@@_build_tl
   }
+\cs_generate_variant:Nn \@@_replacement:n { x }
 \cs_new_protected:Npn \@@_replacement_aux:n #1
   {
     \cs_set:Npn \@@_replacement_do_one_match:n ##1
@@ -6474,6 +6503,40 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[noTF]{\regex_case_replace_once:nN}
+%   If the input is bad (odd number of items) then take the false
+%   branch.  Otherwise, use the same auxiliary as
+%   \cs{regex_replace_once:nnN}, but with more complicated code to build
+%   the automaton, and to find what replacement text to use.  The
+%   \cs{tl_item:nn} is only expanded once we know the value of
+%   \cs{g_@@_case_int}, namely which case matched.
+%    \begin{macrocode}
+\cs_new_protected:Npn \regex_case_replace_once:nNTF #1#2
+  {
+    \int_if_odd:nTF { \tl_count:n {#1} }
+      {
+        \__kernel_msg_error:nnxxxx { regex } { case-odd }
+          { \token_to_str:N \regex_case_replace_once:nN(TF) } { code }
+          { \tl_count:n {#1} } { \tl_to_str:n {#1} }
+        \use_ii:nn
+      }
+      {
+        \@@_replace_once_aux:nnN
+          { \@@_case_build:x { \@@_tl_odd_items:n {#1} } }
+          { \@@_replacement:x { \tl_item:nn {#1} { 2 * \g_@@_case_int } } }
+          #2
+        \bool_if:NTF \g_@@_success_bool
+      }
+  }
+\cs_new_protected:Npn \regex_case_replace_once:nN #1#2
+  { \regex_case_replace_once:nNTF {#1} {#2} { } { } }
+\cs_new_protected:Npn \regex_case_replace_once:nNT #1#2#3
+  { \regex_case_replace_once:nNTF {#1} {#2} {#3} { } }
+\cs_new_protected:Npn \regex_case_replace_once:nNF #1#2
+  { \regex_case_replace_once:nNTF {#1} {#2} { } }
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsubsection{Variables and helpers for user functions}
 %
 % \begin{variable}{\l_@@_match_count_int}
@@ -6963,7 +7026,7 @@
 %
 % \subsubsection{Replacement}
 %
-% \begin{macro}{\@@_replace_once:nnN}
+% \begin{macro}{\@@_replace_once:nnN, \@@_replace_once_aux:nnN}
 %   Build the \textsc{nfa} and the replacement functions, then find a
 %   single match.  If the match failed, simply exit the
 %   group. Otherwise, we do the replacement. Extract submatches. Compute
@@ -6977,18 +7040,19 @@
 %   \texttt{x}-expansion, and checks that braces are balanced in the
 %   final result.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_replace_once:nnN #1#2#3
+\cs_new_protected:Npn \@@_replace_once:nnN #1#2
+  { \@@_replace_once_aux:nnN {#1} { \@@_replacement:n {#2} } }
+\cs_new_protected:Npn \@@_replace_once_aux:nnN #1#2#3
   {
     \group_begin:
       \@@_single_match:
       #1
       \exp_args:No \@@_match:n {#3}
-      \if_meaning:w \c_false_bool \g_@@_success_bool
-        \group_end:
-      \else:
+    \bool_if:NTF \g_@@_success_bool
+      {
         \@@_extract:
         \exp_args:No \@@_query_set:n {#3}
-        \@@_replacement:n {#2}
+        #2
         \int_set:Nn \l_@@_balance_int
           {
             \@@_replacement_balance_one_match:n
@@ -7006,7 +7070,8 @@
               { \l_@@_max_pos_int }
           }
         \@@_group_end_replace:N #3
-      \fi:
+      }
+      { \group_end: }
   }
 %    \end{macrocode}
 % \end{macro}
