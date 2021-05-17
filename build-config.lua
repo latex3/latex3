@@ -144,7 +144,7 @@ function checkinit_hook()
   local engines = options.engine
   if not engines then
     local target = options.target
-    if target == 'check' then
+    if target == 'check' or target == 'bundlecheck' then
       engines = checkengines
     elseif target == 'save' then
       engines = {stdengine}
