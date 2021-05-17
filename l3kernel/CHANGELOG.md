@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\str_compare:nNnTF` (issue #927)
 - `\sys_timer:`
 - `\prop_concat:NNN`, `\prop_put_from_keyval:Nn` (issue #924)
 - Functions to show and log various datatypes (issue #241):
