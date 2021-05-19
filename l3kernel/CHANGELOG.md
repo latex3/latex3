@@ -24,6 +24,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Removing duplicates in clists when items contain commas (issue #917)
 
 ### Changed
+- Formatting of expandable errors (issue #931)
 - Speed up mapping functions in l3clist, l3prop, l3seq, l3tl
 
 ## [2021-05-11]
