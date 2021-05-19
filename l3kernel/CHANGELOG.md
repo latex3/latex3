@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
-- `\msg_info_term:nnnnnn` (issue #911)
+- `\msg_note:nnnnnn` (issue #911)
 - `\str_compare:nNnTF` (issue #927)
 - `\sys_timer:`
 - `\prop_concat:NNN`, `\prop_put_from_keyval:Nn` (issue #924)
