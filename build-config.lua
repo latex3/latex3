@@ -1,8 +1,7 @@
 -- Common settings for LaTeX3 development repo, used by l3build script
 
 checkdeps   = checkdeps   or {maindir .. "/l3backend", maindir .. "/l3kernel"}
-typesetdeps = typesetdeps or {maindir .. "/l3backend", maindir .. "/l3kernel"}
-unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
+typesetdeps = typesetdeps or checkdeps
 
 checkengines    = checkengines
   or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
@@ -42,11 +41,11 @@ end
 function update_tag(file,content,tagname,tagdate)
   local iso = "%d%d%d%d%-%d%d%-%d%d"
   local url = "https://github.com/latex3/latex3/compare/"
-  if string.match(content,"%(C%)%s*[%d%-,]+ The LaTeX3 Project") then
+  if string.match(content,"%(C%)%s*[%d%-,]+ The LaTeX Project") then
     local year = os.date("%Y")
     content = string.gsub(content,
-      "%(C%)%s*([%d%-,]+) The LaTeX3 Project",
-      "(C) %1," .. year .. " The LaTeX3 Project")
+      "%(C%)%s*([%d%-,]+) The LaTeX Project",
+      "(C) %1," .. year .. " The LaTeX Project")
    content = string.gsub(content,year .. "," .. year,year)
    content = string.gsub(content,
      "%-" .. math.tointeger(year - 1) .. "," .. year,
@@ -108,7 +107,20 @@ local function fmt(engines,dest)
       .. os_pathsep .. texmfdir .. "//"
       .. os_concat .. cmd .. " -etex -ini -output-directory=" .. unpackdir
       .. " " .. src .. " > " .. os_null)
-    if errorlevel ~= 0 then return errorlevel end
+    if errorlevel ~= 0 then
+      -- Remove file extension: https://stackoverflow.com/a/34326069/6015190
+      local basename = src:match("(.+)%..+$")
+      local f = io.open(unpackdir .. "/" .. basename .. '.log',"r")
+      local content = f:read("*all")
+      io.close(f)
+      print("-------------------------------------------------------------------------------")
+      print(content)
+      print("-------------------------------------------------------------------------------")
+      print("Failed building LaTeX format for " .. engine)
+      print("  Look for errors in the transcript above")
+      print("-------------------------------------------------------------------------------")
+      return errorlevel
+    end
 
     local engname = string.match(src,"^[^.]*") .. ".fmt"
     local fmtname = string.gsub(engine,"tex$","") .. "latex.fmt"

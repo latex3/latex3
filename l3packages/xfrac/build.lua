@@ -12,15 +12,8 @@ maindir = "../.."
 
 -- Non-standard settings
 checksearch  = true
-checkdeps   = {maindir .. "/l3packages/xparse", maindir .. "/l3packages/xtemplate", maindir .. "/l3packages/l3keys2e"}
-typesetdeps = {maindir .. "/l3packages/xparse", maindir .. "/l3packages/xtemplate", maindir .. "/l3packages/l3keys2e"}
+checkdeps   = {maindir .. "/l3packages/xtemplate", maindir .. "/l3packages/l3keys2e"}
+typesetdeps = checkdeps
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
-

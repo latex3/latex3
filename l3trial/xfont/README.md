@@ -8,7 +8,7 @@ for memory consumption and speed. As such, it's not been written in a style
 that's necessarily the most clear; abstraction to improve code clarity
 would have required memory usage that simply was not possible at the time.
 
-As an off-shoot of the LaTeX3 project, I've been translating the NFSS into
+As an off-shoot of The LaTeX Project, I've been translating the NFSS into
 the expl3 programming language, which we're using for our new work.
 There are some fantastic examples of how expl3 makes life much easier for
 quite a large number of cases.

@@ -1,5 +1,5 @@
 Thanks for considering contributing to LaTeX3: feedback, fixes and ideas are
-all useful. Here, we ([The LaTeX3 Project](https://www.latex-project.org)) have
+all useful. Here, we ([The LaTeX Project](https://www.latex-project.org)) have
 collected together a few pointers to help things along.
 
 ## Bugs

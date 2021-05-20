@@ -13,8 +13,8 @@
 %% (but please observe conditions on bug reports sent to that address!)
 %% 
 %% 
-%% Copyright (C) 1993-2019
-%% The LaTeX3 Project and any individual authors listed elsewhere
+%% Copyright (C) 1993-2021
+%% The LaTeX Project and any individual authors listed elsewhere
 %% in this file.
 %% 
 %% This file was generated from file(s) of the LaTeX base system.
@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{ltxdoc}
-         [2019/09/16 v2.0y Standard LaTeX documentation class]
+         [2020/12/05 v2.1b Standard LaTeX documentation class]
 \DeclareOption{a5paper}{\@latexerr{Option not supported}%
    {}}
 \DeclareOption*{%
@@ -158,14 +158,19 @@
     {\def\currentfile{#1.dtx}}%
   \ifnum\@auxout=\@partaux
     \@latexerr{\string\include\space cannot be nested}\@eha
-  \else \@docinclude#1 \fi}
+  \else
+    \set@curr@file{#1}%
+    \edef\@curr@file{\@strip@tex@ext\@curr@file}%
+    \expandafter\@docinclude\expandafter{\@curr@file}
+ \fi}
 \def\@docinclude#1 {\clearpage
 \if@filesw \immediate\write\@mainaux{\string\@input{#1.aux}}\fi
 \@tempswatrue\if@partsw \@tempswafalse\edef\@tempb{#1}\@for
 \@tempa:=\@partlist\do{\ifx\@tempa\@tempb\@tempswatrue\fi}\fi
 \if@tempswa \let\@auxout\@partaux \if@filesw
-\immediate\openout\@partaux #1.aux
+\immediate\openout\@partaux "#1.aux"
 \immediate\write\@partaux{\relax}\fi
+\@filehook@set@CurrentFile
 \let\@ltxdoc@PrintIndex\PrintIndex
 \let\PrintIndex\relax
 \let\@ltxdoc@PrintChanges\PrintChanges

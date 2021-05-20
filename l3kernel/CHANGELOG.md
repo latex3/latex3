@@ -7,8 +7,186 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\sys_timer:`
+- Functions to show and log various datatypes (issue #241):
+  `\coffin_show:Nnn`, `\coffin_show:N`, `\coffin_log:Nnn`, `\coffin_log:N`,
+  `\color_log:n`, `\group_show_list:`, `\group_log_list:`,
+  `\ior_show:N`, `\ior_log:N`, `\iow_show:N`, `\iow_log:N`,
+  `\tl_log_analysis:N`, `\tl_log_analysis:n`
+- `\legacy_if_set_true:n`, `\legacy_if_set_false:n`, `\legacy_if_set:nn`
+
+### Fixed
+- Checking brace balance in all regex functions (issue #377)
+- Removing duplicates in clists when items contain commas (issue #917)
+
+### Changed
+- Speed up mapping functions in l3clist, l3prop, l3seq, l3tl
+
+## [2021-05-11]
+
+### Added
+- `\cctab_item:Nn` (issue #880)
+- `\clist_use:nnnn` and `\clist_use:nn` (issue #561)
+
+### Fixed
+- Loading of backend in generic DVI mode (issue #905)
+- Make `\keyval_parse:nnn` alignment-safe (issue #896)
+- Control sequences and category codes in regex replacements (issue #909)
+
+### Changed
+- Speed up `\group_align_safe_begin:` (pull #906)
+
+## [2021-05-07]
+
+### Added
+- Color export in comma-separated format
+- `\ur{...}` escape in `l3regex` to compose regexes
+- `\seq_set_split_keep_spaces:Nnn` (see #784)
+- `\seq_set_item:Nnn(TF)` and `\seq_pop_item:NnN(TF)`
+- `\box_ht_plus_dp:N` (issue #899)
+- `\clist_map_tokens:nn`, `\clist_map_tokens:Nn`,
+  `\str_map_tokens:nn`, `\str_map_tokens:Nn`
+
+### Changed
+- Use prevailing catcodes instead of string in regex replacement (issue #621)
+  (*Breaking change*)
+- `\__kernel_file_name_sanitize:n` now uses a faster `\csname`-based
+  approach to expand the file name
+- Improved performance for basic conditionals
+- `\pdf_version_gset:n` support for `dvips`
+- Improve handling of `\exp_not:n` in `\text_expand:n` (issue #875)
+- `\file_full_name:n` now avoids calling `\pdffilesize` primitive multiple times
+  on the same file
+- Show printable characters explicitly in `\regex_show:n`
+- Regex replacement now errors when using a submatch (`\1` etc) for which
+  the regex has too few groups
+- Showing complex datatypes now validates their internal structure (issue #884)
+- Indexing in l3doc: all page references before codeline references,
+  improve target placement, solve pdfTeX and makeindex warnings
+
+### Fixed
+- Evalutate integer constants only once (issue #861)
+- Detect `\ior_map_inline:Nn` calls on undefined streams (issue #194)
+
+### Deprecated
+- `l3docstrip` converted to a stub which simply loads DocStrip: use
+   the latter directly
+
+## [2021-02-18]
+
+### Added
+- `l3color`: Moved from `l3experimental`
+- `l3pdf`: Moved from `l3experimental`
+- `default` alias to str_convert
+
+### Changed
+- Re-ordered `interface3` documentation
+- Moved `msg_show:nn(nnnn)` to stable
+
+## [2021-02-06]
+
+### Changed
+- Use new (internal) interface for kerns
+
+## [2021-02-02]
+
+### Added
+- `\c_zero_str`
+
+## [2021-01-09]
+
+### Added
+- `\keyval_parse:nnn`
+
+### Changed
+- `\keyval_parse:NNn` is set equal to `\keyval_parse:nnn`
+
+### Fixed
+- Handling of encoding-specfic commands in `\text_purify:n`
+
+## [2020-12-07]
+
+### Fixed
+- `\peek_analysis_map_inline:n` with spaces and braces
+
+## [2020-12-05]
+
+### Fixed
+- Setting of line width in vertical coffins in LaTeX
+
+## [2020-12-03]
+
+### Added
+- `\peek_analysis_map_inline:n`
+- `\peek_regex:nTF`, `\peek_regex_remove_once:nTF`, and
+  `\peek_regex_replace_once:nnTF`
+- `\token_case_catcode:NnTF`, `\token_case_charcode:NnTF`, and
+  `\token_case_meaning:NnTF`
+
+### Changed
+- Extend `\text_expand:n` to cover `\@protected@testopt`
+- Extend `\text_purify:n` to cover `\@protected@testopt`
+
+## [2020-10-27]
+
+### Added
+-  `\token_if_font_selection:N(TF)` (see #806)
+
+### Fixed
+- Avoid relying on braced `\input` primitive syntax
+- Correct expansion of environments in `\text_purify:n`
+- Some aspects of `cctab` setup with 8-bit engines(issue #814)
+
+### Changed
+- Improved performance for `tl` functions
+- Extend case changer to cover all of Greek with pdfTeX
+
+## [2020-10-05]
+
+### Fixed
+- Correctly detect LaTeX when pre-loading expl3 and setting up
+  case changer
+- Lua emulation of \strcmp (issue #813)
+
+## [2020-09-24]
+
+### Changed
+- Use Lua pseudo-primitives instead of `\directlua`
+- `\token_if_primitive:N(TF)` now reports pseudo-primitives as primitives in LuaTeX
+
+## [2020-09-06]
+
+### Fixed
+- Loading in generic mode (issue #800)
+
+## [2020-09-03]
+
+### Fixed
+- Save primitive definition of `\pdfoutput` with CSLaTeX
+
+## [2020-09-01]
+
+### Added
+- `\hbox_overlap_center:n`
+
+### Changed
+- Backend setting for direct PDF output
+- Backend setting for XeTeX support
+
+### Deprecated
+- Backend setting `pdfmode`
+
+### Fixed
+- `\file_compare_timestamp:nNn(TF)` in LuaTeX (issue #792)
+- Text case changing and expansion where an excluded command is equivalent
+  to `\use:n`
+
+## [2020-08-07]
+
 ### Changed
 - Color selection implementation
+- Performance enhancements for `\keys_set:nn`
 
 ### Fixed
 - Loading generically on ConTeXt (issue #783)
@@ -24,6 +202,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - File lookup with `\input@path`
+- 8-bit encodings in `\str_set_convert:Nnnn`
 
 ### Changed
 - Implementation of `\file_parse_full_name:nNNN` now uses
@@ -33,6 +212,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Removed
 - Functions deprecated at end of 2019
+
+### Deprecated
+- `\str_declare_eight_bit_encoding:nnn`
 
 ## [2020-06-18]
 
@@ -182,7 +364,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2020-01-12]
 
 ### Added
-- `bool_case_true:n(TF)` and `\bool_case_false:n(TF)`
+- `\bool_case_true:n(TF)` and `\bool_case_false:n(TF)`
 - `\file_hex_dump:n(nn)` and `\file_get_hex_dump:n(nn)N(TF)`
 - `\str_<type>case:n`
 - `\text_<type>case:n(n)`
@@ -650,35 +832,35 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2018-05-13]
 
 ### Fixed
-- Cor­rect date string in `ex­pl3.dtx`
-- Cor­rect `\c_sys_en­gine_ver­sion_str` when using XeTeX
+- Correct date string in `expl3.dtx`
+- Correct `\c_sys_engine_version_str` when using XeTeX
 
 ## [2018-05-12]
 
 ### Added
 - Define `\c_zero_int` and `\c_one_int`
-- Im­ple­ment `\c_sys_en­gine_ver­sion_str`
-- Im­ple­ment `\seq_in­dexed_map_func­tion/in­line`
-- Im­ple­ment `\in­tar­ray_gzero:N`
-- Im­ple­ment `\in­tar­ray_const_from_clist:Nn`
-- Im­ple­ment `\bool_set_in­verse:N`
-- Im­ple­ment `\bool_xor:nnTF` in­stead of just `\bool_xor_p:nn`
-- Im­ple­ment can­di­date `\int_rand:n`
-- Im­ple­ment `\in­tar­ray_gset_rand:Nnn`
-- Im­ple­ment can­di­date `l3f­par­ray` mod­ule
+- Implement `\c_sys_engine_version_str`
+- Implement `\seq_indexed_map_function/inline`
+- Implement `\intarray_gzero:N`
+- Implement `\intarray_const_from_clist:Nn`
+- Implement `\bool_set_inverse:N`
+- Implement `\bool_xor:nnTF` instead of just `\bool_xor_p:nn`
+- Implement candidate `\int_rand:n`
+- Implement `\intarray_gset_rand:Nnn`
+- Implement candidate `l3fparray` module
 
 ## Changed
-- Up­date min­i­mal re­quired ver­sions of XeTeX and LuaTeX
-- Dep­re­cate named in­te­ger con­stants `\c_zero`. etc.
-- Move all prim­i­tives to `\tex_...:D names­pace`,
-  dep­re­cat­ing older en­gine-de­pen­dent pre­fixes
+- Update minimal required versions of XeTeX and LuaTeX
+- Deprecate named integer constants `\c_zero`. etc.
+- Move all primitives to `\tex_...:D namespace`,
+  deprecating older engine-dependent prefixes
 - Several internal optimisations
 
 ### Fixed
-- Ex­pand boolean ex­pres­sion be­fore call­ing `\chardef` (fixes #461)
+- Expand boolean expression before calling `\chardef` (fixes #461)
 
 ### Removed
-- Re­move un­doc­u­mented `\fp_func­tion:Nw` and `\fp_new_func­tion:Npn`
+- Remove undocumented `\fp_function:Nw` and `\fp_new_function:Npn`
 
 ## [2018-04-30]
 
@@ -728,10 +910,26 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Tuple support in fp expressions
-- Step func­tions have been added for dim vari­ables,
-  e.g. `\dim_step_in­line:nnnn`
+- Step functions have been added for dim variables,
+  e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-07-17...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-05-11...HEAD
+[2021-05-11]: https://github.com/latex3/latex3/compare/2021-05-07...2021-05-11
+[2021-05-07]: https://github.com/latex3/latex3/compare/2021-02-18...2021-05-07
+[2021-02-18]: https://github.com/latex3/latex3/compare/2021-02-06...2021-02-18
+[2021-02-06]: https://github.com/latex3/latex3/compare/2021-02-02...2021-02-06
+[2021-02-02]: https://github.com/latex3/latex3/compare/2021-01-09...2021-02-02
+[2021-01-09]: https://github.com/latex3/latex3/compare/2020-12-07...2021-01-09
+[2020-12-07]: https://github.com/latex3/latex3/compare/2020-12-05...2020-12-07
+[2020-12-05]: https://github.com/latex3/latex3/compare/2020-12-03...2020-12-05
+[2020-12-03]: https://github.com/latex3/latex3/compare/2020-10-27...2020-12-03
+[2020-10-27]: https://github.com/latex3/latex3/compare/2020-10-05...2020-10-27
+[2020-10-05]: https://github.com/latex3/latex3/compare/2020-09-24...2020-10-05
+[2020-09-24]: https://github.com/latex3/latex3/compare/2020-09-06...2020-09-24
+[2020-09-06]: https://github.com/latex3/latex3/compare/2020-09-03...2020-09-06
+[2020-09-03]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-03
+[2020-09-01]: https://github.com/latex3/latex3/compare/2020-08-07...2020-09-01
+[2020-08-07]: https://github.com/latex3/latex3/compare/2020-07-17...2020-08-07
 [2020-07-17]: https://github.com/latex3/latex3/compare/2020-06-18...2020-07-17
 [2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18
 [2020-06-03]: https://github.com/latex3/latex3/compare/2020-05-15...2020-06-03

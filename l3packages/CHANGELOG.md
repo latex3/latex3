@@ -7,6 +7,34 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-05-07]
+
+### Fixed
+- Implmentation of `\DeclareRestrictedTemplate`
+- Incorrect use of restricted template in `xfrac`
+
+## [2021-03-12]
+
+### Fixed
+- Pass options to frozen `xparse`
+
+## [2021-02-02]
+
+### Changed
+- Freeze the `xparse` code, and move the development to the LaTeX2e
+  repository as `ltcmd`.
+
+## [2020-10-27]
+
+### Changed
+- Avoid relying on braced `\input` primitive syntax
+
+## [2020-10-05]
+
+### Changed
+- Load generic code using `\input` not `\file_input:n` to avoid an issue
+  when `openin_any = p` is set
+
 ## [2020-05-15]
 
 ### Changed
@@ -102,7 +130,12 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-05-15...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-05-07...HEAD
+[2021-05-07]: https://github.com/latex3/latex3/compare/2021-03-12...2021-05-07
+[2021-03-12]: https://github.com/latex3/latex3/compare/2021-02-02...2021-03-12
+[2021-02-02]: https://github.com/latex3/latex3/compare/2020-10-27...2021-02-02
+[2020-10-27]: https://github.com/latex3/latex3/compare/2020-10-05...2020-10-27
+[2020-10-05]: https://github.com/latex3/latex3/compare/2020-05-15...2020-10-05
 [2020-05-15]: https://github.com/latex3/latex3/compare/2020-05-14...2020-05-15
 [2020-05-14]: https://github.com/latex3/latex3/compare/2020-03-06...2020-05-14
 [2020-03-06]: https://github.com/latex3/latex3/compare/2020-03-03...2020-03-06

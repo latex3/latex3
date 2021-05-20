@@ -81,8 +81,8 @@ _Current build status:_
 
 ## Development team
 
-LaTeX3 is developed by [The LaTeX3 Project](https://latex-project.org).
+LaTeX3 is developed by [The LaTeX Project](https://latex-project.org).
 
 ## Copyright
 
-This README file is copyright 2019 The LaTeX3 Project.
+This README file is copyright 2021 The LaTeX Project.

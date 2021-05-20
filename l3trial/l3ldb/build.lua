@@ -24,10 +24,3 @@ checksuppfiles  =
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
-
