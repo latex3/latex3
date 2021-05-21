@@ -24,6 +24,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Removing duplicates in clists when items contain commas (issue #917)
 
 ### Changed
+- Slight speed up in some elementary int/dim/skip/muskip operations and
+  in setting tl or clist variables equal.
 - Speed up mapping functions in l3clist, l3prop, l3seq, l3tl
 
 ## [2021-05-11]
