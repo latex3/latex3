@@ -28,7 +28,6 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Slight speed up in some elementary int/dim/skip/muskip operations and
   in setting tl or clist variables equal.
-- Formatting of expandable errors (issue #931)
 - Speed up mapping functions in l3clist, l3prop, l3seq, l3tl
 
 ## [2021-05-11]
