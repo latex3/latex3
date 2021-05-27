@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Internal changes to message naming
+
 ## [2021-05-07]
 
 ### Fixed
