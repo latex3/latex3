@@ -10,7 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2021-05-27]
 
 ### Fixed
-- Correctly detect local formats in “Mismatched LaTeX support files” error.
+- Correctly detect local formats in `Mismatched LaTeX support files` error.
 
 ## [2021-05-25]
 
