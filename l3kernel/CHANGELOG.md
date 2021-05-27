@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-05-27]
+
 ### Fixed
 - Correctly detect local formats in “Mismatched LaTeX support files” error.
 
@@ -923,7 +925,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-05-25...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-05-27...HEAD
+[2021-05-27]: https://github.com/latex3/latex3/compare/2021-05-25...2021-05-27
 [2021-05-25]: https://github.com/latex3/latex3/compare/2021-05-11...2021-05-25
 [2021-05-11]: https://github.com/latex3/latex3/compare/2021-05-07...2021-05-11
 [2021-05-07]: https://github.com/latex3/latex3/compare/2021-02-18...2021-05-07

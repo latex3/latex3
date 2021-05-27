@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-05-27]
+
 ### Added
 - `\benchmark_silent:n` and `\benchmark_once_silent:n` added to `l3benchmark`
 
@@ -208,7 +210,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-02-18...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-05-27...HEAD
+[2021-05-27]: https://github.com/latex3/latex3/compare/2021-02-18...2021-05-27
 [2021-02-18]: https://github.com/latex3/latex3/compare/2021-02-06...2021-02-18
 [2021-02-06]: https://github.com/latex3/latex3/compare/2021-01-29...2021-02-06
 [2021-01-29]: https://github.com/latex3/latex3/compare/2021-10-27...2021-01-29
