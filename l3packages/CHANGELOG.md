@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Restore one parameter in `xfrac`
+
 ## [2021-05-27]
 
 ### Changed
