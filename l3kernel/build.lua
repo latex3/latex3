@@ -11,6 +11,7 @@ maindir = ".."
 docfiledir = "./doc"
 
 -- Non-standard settings
+checkconfigs = {"build", "config-l3doc"}
 checkfiles   = {"l3names.def"}
 cleanfiles   = {"*.fmt", "*.log", "*.pdf", "*.zip"}
 docfiles     = {"source3body.tex", "l3prefixes.csv"}
@@ -45,8 +46,7 @@ typesetruns      = 3
 unpackfiles      = {"l3.ins"}
 
 checkdeps   = {maindir .. "/l3backend"}
-typesetdeps = {maindir .. "/l3backend", maindir .. "/l3packages/xparse"}
-unpackdeps  = { }
+typesetdeps = typesetdeps
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
@@ -55,11 +55,11 @@ dofile(maindir .. "/build-config.lua")
 function update_tag(file,content,tagname,tagdate)
   local iso = "%d%d%d%d%-%d%d%-%d%d"
   local url = "https://github.com/latex3/latex3/compare/"
-  if string.match(content,"%(C%)%s*[%d%-,]+ The LaTeX3 Project") then
+  if string.match(content,"%(C%)%s*[%d%-,]+ The LaTeX Project") then
     local year = os.date("%Y")
     content = string.gsub(content,
-      "%(C%)%s*([%d%-,]+) The LaTeX3 Project",
-      "(C) %1," .. year .. " The LaTeX3 Project")
+      "%(C%)%s*([%d%-,]+) The LaTeX Project",
+      "(C) %1," .. year .. " The LaTeX Project")
    content = string.gsub(content,year .. "," .. year,year)
    content = string.gsub(content,
      "%-" .. tonumber(year) - 1 .. "," .. year,
@@ -106,11 +106,11 @@ uploadconfig = {
   bugtracker  = "https://github.com/latex3/latex3/issues",
   update      = true,
   description = [[
-The l3k­er­nel bun­dle pro­vides an im­ple­men­ta­tion of the LaTeX3 pro­gram­mers'
-in­ter­face, as a set of pack­ages that run un­der LaTeX2e. The in­ter­face
-pro­vides the foun­da­tion on which the LaTeX3 ker­nel and other fu­ture code
-are built: it is an API for TeX pro­gram­mers. The pack­ages are set up so that
-the LaTeX3 con­ven­tions can be used with reg­u­lar LaTeX2e pack­ages. 
+The l3kernel bundle provides an implementation of the LaTeX3 programmers'
+interface, as a set of packages that run under LaTeX2e. The interface
+provides the foundation on which the LaTeX3 kernel and other future code
+are built: it is an API for TeX programmers. The packages are set up so that
+the LaTeX3 conventions can be used with regular LaTeX2e packages.
   ]]
 }
 
@@ -148,70 +148,9 @@ function cmdcheck()
   end
 end
 
-function format()
-  local engines = checkengines
-  if optengines then
-    engines = optengines
-  end
-  local errorlevel = unpack()
-  if errorlevel ~=0 then
-    return errorlevel
-  end
-  local localdir = abspath(localdir)
-  local localtexmf = ""
-  if texmfdir and texmfdir ~= "" then
-    localtexmf = os_pathsep .. abspath(texmfdir) .. "//"
-  end
-  errorlevel = run(
-    unpackdir,
-    os_setenv .. " TEXINPUTS=." .. localtexmf .. os_pathsep
-      .. localdir .. (unpacksearch and os_pathsep or "") ..
-    os_concat ..
-    unpackexe .. " " .. unpackopts .. " l3format.ins"
-  )
-  local function mkformat(engine)
-    local realengine = engine
-    -- Special casing for (u)pTeX
-    if string.match(engine, "^u?ptex$") then
-      realengine = "e" .. engine
-    end
-    local errorlevel = run(
-      unpackdir,
-      realengine .. " -etex -ini l3format.ltx"
-     )
-     if errorlevel ~=0 then
-       return errorlevel
-     end
-     local fmtname = "l3" .. engine .. ".fmt"
-     ren(unpackdir, "l3format.fmt", fmtname)
-     cp(fmtname, unpackdir, ".")
-     return 0
-  end
-  local engine
-  for _,engine in pairs(engines) do
-    errorlevel = mkformat(engine)
-    if errorlevel ~=0 then
-      return errorlevel
-    end
-  end
-  return 0
-end
-
 target_list = target_list or { }
 target_list.cmdcheck =
   {
     func = cmdcheck,
     desc = "Run cmd cover test"
   }
-target_list.format =
-  {
-    func = format,
-    desc = "Create l3formats"
-  }
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
-

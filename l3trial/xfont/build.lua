@@ -15,17 +15,10 @@ installfiles = {"*.cfg", "*.ltx", "*.sty"}
 sourcefiles  = {"*.dtx", "*.ins", "*.ltx"}
 typesetfiles = {}
 
-checkdeps   = {maindir .. "/l3kernel", maindir .. "/l3packages/xparse", "../l3hooks"}
+checkdeps   = {maindir .. "/l3kernel", "../l3hooks"}
 typesetdeps = {maindir .. "/l3kernel", "../l3hooks"}
 
 checksearch = true
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
-

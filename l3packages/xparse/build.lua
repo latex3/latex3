@@ -7,17 +7,22 @@
 bundle = "l3packages"
 module = "xparse"
 
-installfiles = {"xparse.ltx", "xparse.sty", "xparse-generic.tex"}
+installfiles = {
+  "xparse.ltx",
+  "xparse.sty",
+  "xparse-????-??-??.sty",
+  "xparse-generic.tex" -- temporary
+}
+
+sourcefiles = {
+  "*.dtx",
+  "*.ins",
+  "*-????-??-??.sty",
+  "xparse-generic.tex" -- temporary
+}
 
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
-

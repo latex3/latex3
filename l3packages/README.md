@@ -1,14 +1,14 @@
 LaTeX3 High-Level Concepts
 ==========================
 
-Release 2020-05-15
+Release 2021-05-27
 
 Overview
 --------
 
 The `l3packages` collection contains implementations for aspects of the
 LaTeX3 kernel, dealing with higher-level ideas such as the Designer Interface.
-The packages here are considered broadly stable (The LaTeX3 Project does not
+The packages here are considered broadly stable (The LaTeX Project does not
 expect the interfaces to alter radically). These packages are build on LaTeX2e
 conventions at the interface level, and so may not migrate in the current form
 to a stand-alone LaTeX3 format.
@@ -51,12 +51,17 @@ flexible split-level fractions _via_ the `\sfrac` macro. This is both a
 demonstration of the power of the template concept and also a useful addition
 to the available functionality in LaTeX2e.
 
-`xparse`
+`xparse` (deprecated)
 -------
 
 The `xparse` package provides a high-level interface for declaring document
 commands, e.g., a uniform way to define commands taking optional arguments,
 optional stars (and others), mandatory arguments and more.
+
+The development of `xparse` moved to the
+[LaTeX2e repository](https://github.com/latex3/latex2e) as `ltcmd`, which is
+preloaded in the LaTeX format, and the code for `xparse` in this repository
+contains only the deprecated argument types `G`, `l`, and `u`.
 
 `xtemplate`
 -----------
@@ -90,11 +95,11 @@ The issue tracker for LaTeX3 is currently located
 Please report specific issues with LaTeX3 code there; more general
 discussion should be directed to the [LaTeX-L list](#Discussion).
 
-The LaTeX3 Project
+The LaTeX Project
 ------------------
 
 Development of LaTeX3 is carried out by
-[The LaTeX3 Project](https://www.latex-project.org/latex3/).
+[The LaTeX Project](https://www.latex-project.org/latex3/).
 
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
@@ -102,6 +107,6 @@ the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
-<p>Copyright (C) 1998-2012,2015-2020 The LaTeX3 Project <br />
+<p>Copyright (C) 1998-2012,2015-2021 The LaTeX Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>

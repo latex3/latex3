@@ -22,7 +22,7 @@ uploadconfig = {
   description = [[
 This collection contains implementations for aspects of the LaTeX3 kernel,
 dealing with higher-level ideas such as the Designer Interface. The packages
-here are considered broadly stable (The LaTeX3 Project does not expect the
+here are considered broadly stable (The LaTeX Project does not expect the
 interfaces to alter radically). These packages are built on LaTeX2e
 conventions at the interface level, and so may not migrate in the current
 form to a stand-alone LaTeX3 format.
@@ -43,10 +43,3 @@ Packages provided:
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
-

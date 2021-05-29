@@ -13,8 +13,8 @@
 -- (but please observe conditions on bug reports sent to that address!)
 -- 
 -- 
--- Copyright 2015
--- The LaTeX3 Project and any individual authors listed elsewhere
+-- Copyright (C) 2015-2021
+-- The LaTeX Project and any individual authors listed elsewhere
 -- in this file.
 -- 
 -- This file was generated from file(s) of the LaTeX base system.
@@ -240,12 +240,13 @@ local function new_luafunction(name)
 end
 luatexbase.new_luafunction = new_luafunction
 local callbacklist = callbacklist or { }
-local list, data, exclusive, simple = 1, 2, 3, 4
-local types = {
-  list      = list,
-  data      = data,
-  exclusive = exclusive,
-  simple    = simple,
+local list, data, exclusive, simple, reverselist = 1, 2, 3, 4, 5
+local types   = {
+  list        = list,
+  data        = data,
+  exclusive   = exclusive,
+  simple      = simple,
+  reverselist = reverselist,
 }
 local callbacktypes = callbacktypes or {
   find_read_file     = exclusive,
@@ -283,7 +284,7 @@ local callbacktypes = callbacktypes or {
   pre_linebreak_filter   = list,
   linebreak_filter       = exclusive,
   append_to_vlist_filter = exclusive,
-  post_linebreak_filter  = list,
+  post_linebreak_filter  = reverselist,
   hpack_filter           = list,
   vpack_filter           = list,
   hpack_quality          = list,
@@ -294,8 +295,10 @@ local callbacktypes = callbacktypes or {
   ligaturing             = simple,
   kerning                = simple,
   insert_local_par       = simple,
+  pre_mlist_to_hlist_filter = list,
   mlist_to_hlist         = exclusive,
-  new_graf               = simple,
+  post_mlist_to_hlist_filter = reverselist,
+  new_graf               = exclusive,
   pre_dump             = simple,
   start_run            = simple,
   stop_run             = simple,
@@ -312,9 +315,11 @@ local callbacktypes = callbacktypes or {
   wrapup_run           = simple,
   finish_pdffile            = data,
   finish_pdfpage            = data,
-  page_objnum_provider      = simple,
-  process_pdf_image_content = simple,
+  page_objnum_provider      = data,
+  page_order_index          = data,
+  process_pdf_image_content = data,
   define_font                     = exclusive,
+  glyph_info                      = exclusive,
   glyph_not_found                 = exclusive,
   glyph_stream_provider           = exclusive,
   make_extensible                 = exclusive,
@@ -333,6 +338,9 @@ local function data_handler(name)
     return data
   end
 end
+local function data_handler_default(value)
+  return value
+end
 local function exclusive_handler(name)
   return function(...)
     return callbacklist[name][1].func(...)
@@ -349,7 +357,33 @@ local function list_handler(name)
           "Function `" .. i.description .. "' returned false\n"
             .. "in callback `" .. name .."'"
          )
-         break
+        return false
+      end
+      if ret ~= true then
+        alltrue = false
+        head = ret
+      end
+    end
+    return alltrue and true or head
+  end
+end
+local function list_handler_default()
+  return true
+end
+local function reverselist_handler(name)
+  return function(head, ...)
+    local ret
+    local alltrue = true
+    local callbacks = callbacklist[name]
+    for i = #callbacks, 1, -1 do
+      local cb = callbacks[i]
+      ret = cb.func(head, ...)
+      if ret == false then
+        luatexbase_warning(
+          "Function `" .. cb.description .. "' returned false\n"
+            .. "in callback `" .. name .."'"
+         )
+        return false
       end
       if ret ~= true then
         alltrue = false
@@ -366,16 +400,31 @@ local function simple_handler(name)
     end
   end
 end
-local handlers = {
-  [data]      = data_handler,
-  [exclusive] = exclusive_handler,
-  [list]      = list_handler,
-  [simple]    = simple_handler,
+local function simple_handler_default()
+end
+local handlers  = {
+  [data]        = data_handler,
+  [exclusive]   = exclusive_handler,
+  [list]        = list_handler,
+  [reverselist] = reverselist_handler,
+  [simple]      = simple_handler,
 }
-local user_callbacks_defaults = { }
+local defaults = {
+  [data]        = data_handler_default,
+  [exclusive]   = nil,
+  [list]        = list_handler_default,
+  [reverselist] = list_handler_default,
+  [simple]      = simple_handler_default,
+}
+local user_callbacks_defaults = {
+  pre_mlist_to_hlist_filter = list_handler_default,
+  mlist_to_hlist = node.mlist_to_hlist,
+  post_mlist_to_hlist_filter = list_handler_default,
+}
 local function create_callback(name, ctype, default)
+  local ctype_id = types[ctype]
   if not name  or name  == ""
-  or not ctype or ctype == ""
+  or not ctype_id
   then
     luatexbase_error("Unable to create callback:\n" ..
                      "valid callback name and type required")
@@ -384,12 +433,17 @@ local function create_callback(name, ctype, default)
     luatexbase_error("Unable to create callback `" .. name ..
                      "':\ncallback is already defined")
   end
-  if default ~= false and type (default) ~= "function" then
+  default = default or defaults[ctype_id]
+  if not default then
     luatexbase_error("Unable to create callback `" .. name ..
-                     ":\ndefault is not a function")
-   end
+                     "':\ndefault is required for `" .. ctype ..
+                     "' callbacks")
+  elseif type (default) ~= "function" then
+    luatexbase_error("Unable to create callback `" .. name ..
+                     "':\ndefault is not a function")
+  end
   user_callbacks_defaults[name] = default
-  callbacktypes[name] = types[ctype]
+  callbacktypes[name] = ctype_id
 end
 luatexbase.create_callback = create_callback
 local function call_callback(name,...)
@@ -405,9 +459,6 @@ local function call_callback(name,...)
   local f
   if not l then
     f = user_callbacks_defaults[name]
-    if l == false then
-   return nil
- end
   else
     f = handlers[callbacktypes[name]](name)
   end
@@ -494,7 +545,9 @@ local function remove_from_callback(name, description)
   )
   if #l == 0 then
     callbacklist[name] = nil
-    callback_register(name, nil)
+    if user_callbacks_defaults[name] == nil then
+      callback_register(name, nil)
+    end
   end
   return cb.func,cb.description
 end
@@ -548,3 +601,21 @@ local function uninstall()
   luatexbase = nil
 end
 luatexbase.uninstall = uninstall
+callback_register("mlist_to_hlist", function(head, display_type, need_penalties)
+  local current = call_callback("pre_mlist_to_hlist_filter", head, display_type, need_penalties)
+  if current == false then
+    flush_list(head)
+    return nil
+  elseif current == true then
+    current = head
+  end
+  current = call_callback("mlist_to_hlist", current, display_type, need_penalties)
+  local post = call_callback("post_mlist_to_hlist_filter", current, display_type, need_penalties)
+  if post == true then
+    return current
+  elseif post == false then
+    flush_list(current)
+    return nil
+  end
+  return post
+end)

@@ -6,8 +6,89 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-05-07]
+
+### Changed
+- `\pdf_version_gset:n` in `dvips` now sets `\pdf_version_minor:` and
+  `\pdf_version_major:`. This doesn't set the PDF version but allows to test
+  which version the user intents to create.
+
+## [2021-03-18]
+
+### Fixed
+- Maintain stack color correctly with `(x)dvipdfmx`
+
+## [2021-03-02]
+
+### Changed
+- Drop 'correction' for link placement in `(x)dvidpfmx`: no longer required
+- Define `\main@pdfcolorstack` for `(x)dvipdfmx` if it does not exist
+
+### Fixed
+- Initialisation of color stacks for `(x)dvipdfmx`
+
+## [2021-02-18]
+
+### Changed
+- Update tracking of PDF management functions
+
+### Fixed
+- Opacity support for pdfTeX/LuaTeX
+
+## [2021-02-06]
+
+### Changed
+- Use new (internal) interface for kerns
+
+## [2021-01-29]
+
+### Added
+- Basic opacity support
+
+### Changed
+- Use color stack for fill color, and for stroke color if possible
+
+### Fixed
+- Implementation of `filldraw` for `dvips`
+
+## [2021-01-09]
+
+### Added
+- Support for referencing last link with `(x)dvipdfmx` (requires an up-to-date
+  backend)
+
+### Changed
+- Implementation of color wtih (x)dvipdfmx (requires an up-to-date
+  backend)
+
+## [2020-09-24]
+
+### Fixed
+- Documented source as PDF
+
+## [2020-09-11]
+
+### Added
+- Support for CIELAB separations with `dvips`
+
+### Fixed
+- Some PDF object functions
+- Separation color selection for `dvipdfmx`/XeTeX
+- Logic for some aspects of CIELAB Separation color
+
+## [2020-09-01]
+
+### Changed
+- Improved support for Separation colors
+- Updated approach to `dvipdfmx`/XeTeX color support
+- Split `pdfmode` driver into pdfTeX- and LuaTeX-specific  files
+- Renamed `xdvipdfmx` backend files to `xetex`
+
+## [2020-08-07]
+
 ### Changed
 - Color selection implementation
+- Improved support for Separation colors
 
 ## [2020-06-29]
 
@@ -99,7 +180,18 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2020-06-29...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-05-07...HEAD
+[2021-05-07]: https://github.com/latex3/latex3/compare/2021-03-18...2021-05-07
+[2021-03-18]: https://github.com/latex3/latex3/compare/2021-03-02...2021-03-18
+[2021-03-02]: https://github.com/latex3/latex3/compare/2021-02-18...2021-03-02
+[2021-02-18]: https://github.com/latex3/latex3/compare/2021-02-06...2021-02-18
+[2021-02-06]: https://github.com/latex3/latex3/compare/2021-01-29...2021-02-06
+[2021-01-29]: https://github.com/latex3/latex3/compare/2021-01-09...2021-01-29
+[2021-01-09]: https://github.com/latex3/latex3/compare/2020-09-24...2021-01-09
+[2020-09-24]: https://github.com/latex3/latex3/compare/2020-09-11...2020-09-24
+[2020-09-11]: https://github.com/latex3/latex3/compare/2020-09-01...2020-09-11
+[2020-09-01]: https://github.com/latex3/latex3/compare/2020-08-07...2020-09-01
+[2020-08-07]: https://github.com/latex3/latex3/compare/2020-06-29...2020-08-07
 [2020-06-29]: https://github.com/latex3/latex3/compare/2020-06-23...2020-06-29
 [2020-06-23]: https://github.com/latex3/latex3/compare/2020-06-18...2020-06-23
 [2020-06-18]: https://github.com/latex3/latex3/compare/2020-06-03...2020-06-18

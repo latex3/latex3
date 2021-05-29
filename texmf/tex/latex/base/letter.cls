@@ -13,8 +13,8 @@
 %% (but please observe conditions on bug reports sent to that address!)
 %% 
 %% 
-%% Copyright (C) 1993-2019
-%% The LaTeX3 Project and any individual authors listed elsewhere
+%% Copyright (C) 1993-2021
+%% The LaTeX Project and any individual authors listed elsewhere
 %% in this file.
 %% 
 %% This file was generated from file(s) of the LaTeX base system.
@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}[1996/06/01]
 \ProvidesClass{letter}
-              [2014/09/29 v1.2z
+              [2021/01/07 v1.3c
                Standard LaTeX document class]
 \newcommand\@ptsize{}
 \DeclareOption{a4paper}
@@ -150,17 +150,17 @@
       \let\@oddhead\@empty
       \def\@oddfoot{\normalfont\hfil\thepage\hfil}%
       \def\@evenfoot{\normalfont\hfil\thepage\hfil}}
-\newcommand*{\name}[1]{\def\fromname{#1}}
-\newcommand*{\signature}[1]{\def\fromsig{#1}}
-\newcommand*{\address}[1]{\def\fromaddress{#1}}
-\newcommand*{\location}[1]{\def\fromlocation{#1}}
-\newcommand*{\telephone}[1]{\def\telephonenum{#1}}
+\newcommand*\name[1]{\def\fromname{#1}}
+\newcommand*\signature[1]{\def\fromsig{#1}}
+\newcommand*\address[1]{\def\fromaddress{#1}}
+\newcommand*\location[1]{\def\fromlocation{#1}}
+\newcommand*\telephone[1]{\def\telephonenum{#1}}
 \name{}
 \signature{}
 \address{}
 \location{}
 \telephone{}
-\newcommand*{\makelabels}{%
+\newcommand*\makelabels{%
   \AtBeginDocument{%
      \let\@startlabels\startlabels
      \let\@mlabel\mlabel
@@ -195,7 +195,7 @@
   \fi}
 \long\def\@xproc #1\\#2@@@{\def\toname{#1}\def\toaddress{#2}}
 \long\def\@yproc #1\\#2@@@{\def\toaddress{#2}}
-\newcommand*{\stopbreaks}{%
+\newcommand*\stopbreaks{%
   \interlinepenalty\@M
   \def\par{\@@par\nobreak}%
   \let\\\@nobreakcr
@@ -209,7 +209,7 @@
     \@bsphack\vadjust{\nobreak\vskip #1}\@esphack
   \fi}
 \def\@nobreakcr{\@ifstar{\@normalcr*}{\@normalcr*}}
-\newcommand*{\startbreaks}{%
+\newcommand*\startbreaks{%
   \let\\\@normalcr
   \interlinepenalty 200%
   \def\par{\@@par\penalty 200\relax}}
@@ -218,7 +218,7 @@
 \newdimen\indentedwidth
 \indentedwidth=\textwidth
 \advance\indentedwidth -\longindentation
-\newcommand*{\opening}[1]{\ifx\@empty\fromaddress
+\newcommand*\opening[1]{\ifx\@empty\fromaddress
   \thispagestyle{firstpage}%
     {\raggedleft\@date\par}%
   \else  % home address
@@ -228,10 +228,10 @@
       \@date \end{tabular}\par}%
   \fi
   \vspace{2\parskip}%
-  {\raggedright \toname \\ \toaddress \par}%
+  {\raggedright \toname \expandafter\\\toaddress \par}%
   \vspace{2\parskip}%
   #1\par\nobreak}
-\newcommand{\closing}[1]{\par\nobreak\vspace{\parskip}%
+\newcommand\closing[1]{\par\nobreak\vspace{\parskip}%
   \stopbreaks
   \noindent
   \ifx\@empty\fromaddress\else
@@ -243,21 +243,21 @@
        \else \fromsig \fi\strut}%
    \par}
 \medskipamount=\parskip
-\newcommand*{\cc}[1]{%
+\newcommand*\cc[1]{%
   \par\noindent
   \parbox[t]{\textwidth}{%
     \@hangfrom{\normalfont\ccname: }%
     \ignorespaces #1\strut}\par}
-\newcommand*{\encl}[1]{%
+\newcommand*\encl[1]{%
   \par\noindent
   \parbox[t]{\textwidth}{%
     \@hangfrom{\normalfont\enclname: }%
     \ignorespaces #1\strut}\par}
-\newcommand*{\ps}{\par\startbreaks}
-\newcommand*{\stopletter}{}
-\newcommand*{\returnaddress}{}
+\newcommand*\ps{\par\startbreaks}
+\newcommand*\stopletter{}
+\newcommand*\returnaddress{}
 \newcount\labelcount
-\newcommand*{\startlabels}{\labelcount\z@
+\newcommand*\startlabels{\labelcount\z@
   \pagestyle{empty}%
   \let\@texttop\relax
   \topmargin -50\p@
@@ -281,16 +281,16 @@
   \parindent \z@
   \twocolumn\relax}
 \let\@startlabels=\relax
-\newcommand*{\mlabel}[2]{%
+\newcommand*\mlabel[2]{%
   \parbox[b][2in][c]{262\p@}{\strut\ignorespaces #2}%
   }
 \let\@mlabel=\@gobbletwo
-\setlength\leftmargini  {2.5em}
+\setlength\leftmargini   {2.5em}
 \setlength\leftmarginii  {2.2em}
 \setlength\leftmarginiii {1.87em}
 \setlength\leftmarginiv  {1.7em}
-\setlength\leftmarginv  {1em}
-\setlength\leftmarginvi {1em}
+\setlength\leftmarginv   {1em}
+\setlength\leftmarginvi  {1em}
 \setlength\leftmargin    {\leftmargini}
 \setlength  \labelsep  {5\p@}
 \setlength  \labelwidth{\leftmargini}
@@ -333,16 +333,17 @@
 \renewcommand\p@enumii{\theenumi}
 \renewcommand\p@enumiii{\theenumi(\theenumii)}
 \renewcommand\p@enumiv{\p@enumiii\theenumiii}
-\newcommand\labelitemi{\textbullet}
-\newcommand\labelitemii{\normalfont\bfseries \textendash}
-\newcommand\labelitemiii{\textasteriskcentered}
-\newcommand\labelitemiv{\textperiodcentered}
+\newcommand\labelitemi  {\labelitemfont \textbullet}
+\newcommand\labelitemii {\labelitemfont \bfseries \textendash}
+\newcommand\labelitemiii{\labelitemfont \textasteriskcentered}
+\newcommand\labelitemiv {\labelitemfont \textperiodcentered}
+\newcommand\labelitemfont{\normalfont}
 \newenvironment{description}
                {\list{}{\labelwidth\z@ \itemindent-\leftmargin
                         \let\makelabel\descriptionlabel}}
                {\endlist}
-\newcommand*{\descriptionlabel}[1]{\hspace\labelsep
-                                \normalfont\bfseries #1}
+\newcommand*\descriptionlabel[1]{\hspace\labelsep
+                                 \normalfont\bfseries #1}
 \newenvironment{verse}
                {\let\\=\@centercr
                 \list{}{\setlength\itemsep{\z@}%
@@ -384,15 +385,15 @@
   \kern-\p@
   \hrule \@width .4\columnwidth
   \kern .6\p@}
-\long\def\@makefntext#1{%
+\newcommand\@makefntext[1]{%
     \noindent
     \hangindent 5\p@
     \hb@xt@5\p@{\hss\@makefnmark}#1}
-\newcommand*{\ccname}{cc}
-\newcommand*{\enclname}{encl}
-\newcommand*{\pagename}{Page}
-\newcommand*{\headtoname}{To}
-\newcommand*{\today}{\ifcase\month\or
+\newcommand*\ccname{cc}
+\newcommand*\enclname{encl}
+\newcommand*\pagename{Page}
+\newcommand*\headtoname{To}
+\newcommand*\today{\ifcase\month\or
   January\or February\or March\or April\or May\or June\or
   July\or August\or September\or October\or November\or December\fi
   \space\number\day, \number\year}

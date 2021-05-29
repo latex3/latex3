@@ -15,13 +15,8 @@ tagfiles     = {"*.dtx", "CHANGELOG.md", "README.md", "*.ins"}
 typesetfiles = {"l3backend-code.tex"}
 unpackfiles  = {"l3backend.ins"}
 
--- As we need l3docstrip, a bit of 'fun'
-supportdir = maindir
-unpacksuppfiles = {"/support/docstrip.tex","/l3kernel/l3docstrip.dtx"}
-
--- No deps other than the test system
-unpackdeps  = { }
-typesetdeps = {maindir .. "/l3packages/xparse"}
+-- Avoid a circular ref.
+typesetdeps = {maindir .. "/l3kernel"}
 
 -- Get the .pro files in the right place
 tdslocations = {"dvips/l3backend/*.pro"}
@@ -33,11 +28,11 @@ dofile(maindir .. "/build-config.lua")
 function update_tag(file,content,tagname,tagdate)
   local iso = "%d%d%d%d%-%d%d%-%d%d"
   local url = "https://github.com/latex3/latex3/compare/"
-  if string.match(content,"%(C%)%s*[%d%-,]+ The LaTeX3 Project") then
+  if string.match(content,"%(C%)%s*[%d%-,]+ The LaTeX Project") then
     local year = os.date("%Y")
     content = string.gsub(content,
-      "%(C%)%s*([%d%-,]+) The LaTeX3 Project",
-      "(C) %1," .. year .. " The LaTeX3 Project")
+      "%(C%)%s*([%d%-,]+) The LaTeX Project",
+      "(C) %1," .. year .. " The LaTeX Project")
    content = string.gsub(content,year .. "," .. year,year)
    content = string.gsub(content,
      "%-" .. math.tointeger(year - 1) .. "," .. year,
@@ -94,9 +89,3 @@ such, these are distributed separately from
 an independent schedule.
   ]]
 }
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
