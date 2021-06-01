@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Loading when `\expanded` is not available
+
 ## [2021-05-27]
 
 ### Fixed
