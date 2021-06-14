@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Incorrect internal function name (issue #939)
+
 ## [2021-06-01]
 
 ### Fixed
