@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Local assignment to `\g__sys_backend_tl`
+
 ## [2021-01-09]
 
 ### Added
