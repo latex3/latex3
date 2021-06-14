@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Incorrect internal function name (issue #939)
+- Case-changing exceptions for (u)pTeX (issue #939)
 
 ## [2021-06-01]
 
