@@ -1,7 +1,7 @@
 Experimental LaTeX3 Concepts
 ============================
 
-Release 2020-10-27
+Release 2021-05-27
 
 Overview
 --------
@@ -22,7 +22,6 @@ updated at the same time.
 Currently included in the CTAN release of l3experimental are the following
 bundles:
 * `l3benchmark`
-* `l3color`
 * `l3draw`
 * `l3graphics`
 * `l3pdf`
@@ -35,15 +34,6 @@ bundles:
 -------------
 
 This module provides support for benchmarking the performance of code.
-
-
-`l3color`
----------
-
-This module provides support for setting colors using a range of color models.
-It also allows the construction of 'color expressions', in which multiple colors
-are mixed together at the macro level. There is also support for spot colors:
-the latter is highly experimental.
 
 `l3draw`
 --------
@@ -127,7 +117,7 @@ The LaTeX Project
 ------------------
 
 Development of LaTeX3 is carried out by
-[The LaTeX Project](https://www.latex-project.org/latex3/). 
+[The LaTeX Project](https://www.latex-project.org/latex3/).
 
 The development team can be contacted
 by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion

@@ -9,7 +9,7 @@
 export PATH=/tmp/texlive/bin/x86_64-linux:$PATH
 if ! command -v texlua > /dev/null; then
   # Obtain TeX Live
-  wget http://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
+  wget https://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz
   tar -xzf install-tl-unx.tar.gz
   cd install-tl-20*
 
@@ -35,38 +35,40 @@ tlmgr install amsmath tools
 # warnings with some packages and errors with others
 tlmgr install metafont mfware
 
-# Contrib packages for testing
-tlmgr install \
-  chemformula \
-  ctex        \
-  mhchem      \
-  siunitx     \
-  unicode-math
-
 # Dependencies for tests that are not auto-resolved
 tlmgr install bibtex lualatex-math
   
-# For the doc target
+# For the doc target and testing l3doc
 tlmgr install \
   alphalph    \
+  amsfonts    \
   bookmark    \
   booktabs    \
   catchfile   \
   colortbl    \
   csquotes    \
   dvips       \
+  ec          \
   enumitem    \
+  epstopdf    \
+  epstopdf-pkg \
+  everysel    \
   fancyvrb    \
   hologo      \
+  hyperref    \
+  lipsum      \
   listings    \
   makeindex   \
   mathpazo    \
   metalogo    \
   oberdiek    \
+  pgf         \
   psnfss      \
   ragged2e    \
+  siunitx     \
   times       \
-  underscore
+  underscore  \
+  units
 
 # Keep no backups (not required, simply makes cache bigger)
 tlmgr option -- autobackup 0

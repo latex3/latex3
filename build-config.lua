@@ -1,8 +1,7 @@
 -- Common settings for LaTeX3 development repo, used by l3build script
 
-checkdeps   = checkdeps   or {maindir .. "/l3backend", maindir .. "/l3kernel", maindir .. "/l3packages/xparse"}
+checkdeps   = checkdeps   or {maindir .. "/l3backend", maindir .. "/l3kernel"}
 typesetdeps = typesetdeps or checkdeps
-unpackdeps  = unpackdeps  or {maindir .. "/l3kernel"}
 
 checkengines    = checkengines
   or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
@@ -30,6 +29,8 @@ typesetcmds = typesetcmds or "\\AtBeginDocument{\\csname DisableImplementation\\
 
 typesetexe = "pdftex"
 typesetopts = "--fmt=pdflatex -interaction=nonstopmode"
+
+maxprintline = 9999
 
 if checksearch == nil then
   checksearch = false
@@ -96,7 +97,7 @@ local function fmt(engines,dest)
     -- Use .ini files if available
     local src = "latex.ltx"
     local ini = string.gsub(engine,"tex","") .. "latex.ini"
-    if fileexists(maindir .. "/support/" .. ini) then
+    if fileexists(supportdir .. "/" .. ini) then
       src = ini
     end
     print("Building format for " .. engine)
@@ -142,7 +143,18 @@ local function fmt(engines,dest)
 end
 
 function checkinit_hook()
-  return fmt(options["engine"] or checkengines,testdir)
+  local engines = options.engine
+  if not engines then
+    local target = options.target
+    if target == 'check' or target == 'bundlecheck' then
+      engines = checkengines
+    elseif target == 'save' then
+      engines = {stdengine}
+    else
+      error'Unexpected target in call to checkinit_hook'
+    end
+  end
+  return fmt(engines,testdir)
 end
 
 function docinit_hook()

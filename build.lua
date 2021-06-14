@@ -14,7 +14,6 @@ checkbundles =
     "l3packages",
     "l3experimental",
     "l3trial",
-    "contrib"
   }
 ctanbundles  = {"l3backend", "l3kernel", "l3packages", "l3experimental"}
 
@@ -62,10 +61,3 @@ function main(target)
     os.exit(1)
   end
 end
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
-

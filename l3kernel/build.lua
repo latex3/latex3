@@ -11,6 +11,7 @@ maindir = ".."
 docfiledir = "./doc"
 
 -- Non-standard settings
+checkconfigs = {"build", "config-l3doc"}
 checkfiles   = {"l3names.def"}
 cleanfiles   = {"*.fmt", "*.log", "*.pdf", "*.zip"}
 docfiles     = {"source3body.tex", "l3prefixes.csv"}
@@ -44,9 +45,8 @@ typesetskipfiles = {"source3-body.tex"}
 typesetruns      = 3
 unpackfiles      = {"l3.ins"}
 
-checkdeps   = {maindir .. "/l3backend", maindir .. "/l3packages/xparse"}
+checkdeps   = {maindir .. "/l3backend"}
 typesetdeps = typesetdeps
-unpackdeps  = { }
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
@@ -106,11 +106,11 @@ uploadconfig = {
   bugtracker  = "https://github.com/latex3/latex3/issues",
   update      = true,
   description = [[
-The l3k­er­nel bun­dle pro­vides an im­ple­men­ta­tion of the LaTeX3 pro­gram­mers'
-in­ter­face, as a set of pack­ages that run un­der LaTeX2e. The in­ter­face
-pro­vides the foun­da­tion on which the LaTeX3 ker­nel and other fu­ture code
-are built: it is an API for TeX pro­gram­mers. The pack­ages are set up so that
-the LaTeX3 con­ven­tions can be used with reg­u­lar LaTeX2e pack­ages. 
+The l3kernel bundle provides an implementation of the LaTeX3 programmers'
+interface, as a set of packages that run under LaTeX2e. The interface
+provides the foundation on which the LaTeX3 kernel and other future code
+are built: it is an API for TeX programmers. The packages are set up so that
+the LaTeX3 conventions can be used with regular LaTeX2e packages.
   ]]
 }
 
@@ -154,10 +154,3 @@ target_list.cmdcheck =
     func = cmdcheck,
     desc = "Run cmd cover test"
   }
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
-

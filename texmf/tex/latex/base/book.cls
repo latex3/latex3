@@ -13,8 +13,8 @@
 %% (but please observe conditions on bug reports sent to that address!)
 %% 
 %% 
-%% Copyright (C) 1993-2020
-%% The LaTeX3 Project and any individual authors listed elsewhere
+%% Copyright (C) 1993-2021
+%% The LaTeX Project and any individual authors listed elsewhere
 %% in this file.
 %% 
 %% This file was generated from file(s) of the LaTeX base system.
@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}[1995/12/01]
 \ProvidesClass{book}
-              [2020/04/10 v1.4m
+              [2021/02/12 v1.4n
  Standard LaTeX document class]
 \newcommand\@ptsize{}
 \newif\if@restonecol
@@ -457,7 +457,7 @@
 \newcommand\labelitemi  {\labelitemfont \textbullet}
 \newcommand\labelitemii {\labelitemfont \bfseries \textendash}
 \newcommand\labelitemiii{\labelitemfont \textasteriskcentered}
-\newcommand\labelitemiv{ \labelitemfont \textperiodcentered}
+\newcommand\labelitemiv {\labelitemfont \textperiodcentered}
 \newcommand\labelitemfont{\normalfont}
 \newenvironment{description}
                {\list{}{\labelwidth\z@ \itemindent-\leftmargin

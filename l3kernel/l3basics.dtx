@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2021-01-09}
+% \date{Released 2021-06-01}
 %
 % \maketitle
 %
@@ -106,6 +106,18 @@
 %   level may be closed by a \cs{group_end:} function or by a token
 %   with category code $2$ (close-group), namely a ^^A{
 %   |}| if standard category codes apply.
+% \end{function}
+%
+% \begin{function}[added = 2021-05-11]{\group_show_list:, \group_log_list:}
+%   \begin{syntax}
+%     \cs{group_show_list:}
+%     \cs{group_log_list:}
+%   \end{syntax}
+%   Display (to the terminal or log file) a list of the groups that are
+%   currently opened.  This is intended for tracking down problems.
+%   \begin{texnote}
+%     This is a wrapper around the \tn{showgroups} primitive.
+%   \end{texnote}
 % \end{function}
 %
 % \section{Control sequences and functions}
@@ -1510,7 +1522,7 @@
 %   This is here as this particular integer is needed both in package
 %   mode and to bootstrap \pkg{l3alloc}, and is documented in \pkg{l3int}.
 %   \LuaTeX{} and those which contain parts of the Omega extensions have
-%   more registers available than \eTeX{}. 
+%   more registers available than \eTeX{}.
 %    \begin{macrocode}
 \tex_ifdefined:D \tex_luatexversion:D
   \tex_chardef:D \c_max_register_int = 65 535 ~
@@ -1765,12 +1777,12 @@
 %    \begin{macrocode}
 \cs_set_protected:Npn \debug_on:n #1
   {
-    \__kernel_msg_error:nnx { kernel } { enable-debug }
+    \__kernel_msg_error:nnx { debug } { enable-debug }
       { \tl_to_str:n { \debug_on:n {#1} } }
   }
 \cs_set_protected:Npn \debug_off:n #1
   {
-    \__kernel_msg_error:nnx { kernel } { enable-debug }
+    \__kernel_msg_error:nnx { debug } { enable-debug }
        { \tl_to_str:n { \debug_off:n {#1} } }
   }
 %    \end{macrocode}
@@ -2085,7 +2097,7 @@
     #8
       { \exp_args:Nc #2 { #4 : #5 T } #6 }
       { { #7 \exp_end: \use:n \use_none:n } }
-      { #7 \exp_after:wN \use_ii:nn \fi: \use_none:n }
+      { #7 \@@_T_true:w \fi: \use_none:n }
   }
 \cs_set_protected:Npn \@@_generate_F_form:wNNnnnnN
     #1 \s_@@_stop #2#3#4#5#6#7#8
@@ -2093,7 +2105,7 @@
     #8
       { \exp_args:Nc #2 { #4 : #5 F } #6 }
       { { #7 \exp_end: { } } }
-      { #7 \exp_after:wN \use_none:nn \fi: \use:n }
+      { #7 \@@_F_true:w \fi: \use:n }
   }
 \cs_set_protected:Npn \@@_generate_TF_form:wNNnnnnN
     #1 \s_@@_stop #2#3#4#5#6#7#8
@@ -2101,9 +2113,12 @@
     #8
       { \exp_args:Nc #2 { #4 : #5 TF } #6 }
       { { #7 \exp_end: } }
-      { #7 \exp_after:wN \use_ii:nnn \fi: \use_ii:nn }
+      { #7 \@@_TF_true:w \fi: \use_ii:nn }
   }
-\cs_set:Npn \@@_p_true:w \fi: \c_false_bool { \fi: \c_true_bool }
+\cs_set:Npn \@@_p_true:w  \fi: \c_false_bool { \fi: \c_true_bool }
+\cs_set:Npn \@@_T_true:w  \fi: \use_none:n   { \fi: \use:n }
+\cs_set:Npn \@@_F_true:w  \fi: \use:n        { \fi: \use_none:n }
+\cs_set:Npn \@@_TF_true:w \fi: \use_ii:nn    { \fi: \use_i:nn }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -2938,11 +2953,12 @@
   {
     \bool_if:NTF #3
       {
-        \str_if_eq:eeF { }
+        \cs_set_nopar:Npx \@@_tmp:w
           { \tl_map_function:nN {#2} \@@_generate_from_signature:n }
+        \tl_if_empty:oF \@@_tmp:w
           {
-            \__kernel_msg_error:nnx { kernel } { non-base-function }
-              { \token_to_str:N #5 }
+            \__kernel_msg_error:nnxxx { kernel } { non-base-function }
+              { \token_to_str:N #5 } {#2} { \@@_tmp:w }
           }
         \cs_generate_from_arg_count:NNnn
           #5 #4 { \tl_count:n {#2} } {#6}
@@ -3145,6 +3161,35 @@
       \exp_args:NNx
     \group_end:
     #1 { \token_to_str:N #2 = \cs_meaning:N #2 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\group_show_list:, \group_log_list:, \@@_group_show:NN}
+%   Wrapper around \tn{showgroups}.  Getting \TeX{} to write to the log
+%   without interruption the run is done by altering the interaction
+%   mode.
+%    \begin{macrocode}
+\cs_new_protected:Npn \group_show_list:
+  { \@@_group_show:NN \use_none:n 1 }
+\cs_new_protected:Npn \group_log_list:
+  { \@@_group_show:NN \int_zero:N 0 }
+\cs_new_protected:Npn \@@_group_show:NN #1#2
+  {
+    \use:x
+      {
+        #1 \tex_interactionmode:D
+        \int_set:Nn \tex_tracingonline:D  {#2}
+        \int_set:Nn \tex_errorcontextlines:D { -1 }
+        \exp_not:N \exp_after:wN \scan_stop:
+        \tex_showgroups:D
+        \int_set:Nn \tex_interactionmode:D
+          { \int_use:N \tex_interactionmode:D }
+        \int_set:Nn \tex_tracingonline:D
+          { \int_use:N \tex_tracingonline:D }
+        \int_set:Nn \tex_errorcontextlines:D
+          { \int_use:N \tex_errorcontextlines:D }
+      }
   }
 %    \end{macrocode}
 % \end{macro}

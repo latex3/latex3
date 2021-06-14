@@ -11,17 +11,9 @@ module = "l3htoks"
 maindir = "../.."
 
 -- Non-standard settings
-checkdeps    = {maindir .. "/l3kernel", maindir .. "/l3packages/xparse"}
 checkengines = {"pdftex", "xetex", "luatex"}
 checkruns    = 2
 checksearch  = true
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
-
--- Find and run the build system
-kpse.set_program_name("kpsewhich")
-if not release_date then
-  dofile(kpse.lookup("l3build.lua"))
-end
-

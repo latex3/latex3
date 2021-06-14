@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2021-01-09}
+% \date{Released 2021-06-01}
 %
 % \maketitle
 %
@@ -350,6 +350,11 @@
 %     Otherwise, spaces (and tabs) are retained at both ends of the
 %     single-line string, as if it appeared in the middle of a line
 %     read from a file.
+%
+%     Contrarily to the \tn{scantokens} primitive, \cs{tl_rescan:nn}
+%     tokenizes the whole string in the same category code regime rather
+%     than one token at a time, so that directives such as \tn{verb}
+%     that rely on changing category codes will not function properly.
 %   \end{texnote}
 % \end{function}
 %
@@ -521,7 +526,7 @@
 %   available.
 % \end{function}
 %
-% \section{Mapping to token lists}
+% \section{Mapping over token lists}
 %
 % All mappings are done at the current group level, \emph{i.e.}~any
 % local assignments made by the \meta{function} or \meta{code} discussed
@@ -583,7 +588,7 @@
 %     \tl_map_tokens:Nn \l_my_tl { \prg_replicate:nn { 2 } }
 %   \end{verbatim}
 %   expands to twice each item in the \meta{tl~var}: for each item in
-%   |\l_my_tl| the function \cs{prg_replicate:nn} receives |2| and
+%   \cs[no-index]{l_my_tl} the function \cs{prg_replicate:nn} receives |2| and
 %   \meta{item} as its two arguments.  The function
 %   \cs{tl_map_inline:Nn} is typically faster but is not expandable.
 % \end{function}
@@ -1169,7 +1174,7 @@
 %
 % \section{Viewing token lists}
 %
-% \begin{function}[updated = 2015-08-01]{\tl_show:N, \tl_show:c}
+% \begin{function}[updated = 2021-04-29]{\tl_show:N, \tl_show:c}
 %   \begin{syntax}
 %     \cs{tl_show:N} \meta{tl~var}
 %   \end{syntax}
@@ -1191,7 +1196,7 @@
 %   \end{texnote}
 % \end{function}
 %
-% \begin{function}[added = 2014-08-22, updated = 2015-08-01]{\tl_log:N, \tl_log:c}
+% \begin{function}[added = 2014-08-22, updated = 2021-04-29]{\tl_log:N, \tl_log:c}
 %   \begin{syntax}
 %     \cs{tl_log:N} \meta{tl~var}
 %   \end{syntax}
@@ -1317,9 +1322,9 @@
 %   Error checking is sorted out by the parent function.
 %    \begin{macrocode}
 \cs_new_protected:Npn \tl_clear:N  #1
-  { \tl_set_eq:NN #1 \c_empty_tl }
+  { \tex_let:D #1 = ~ \c_empty_tl }
 \cs_new_protected:Npn \tl_gclear:N #1
-  { \tl_gset_eq:NN #1 \c_empty_tl }
+  { \tex_global:D \tex_let:D #1 ~ \c_empty_tl }
 \cs_generate_variant:Nn \tl_clear:N  { c }
 \cs_generate_variant:Nn \tl_gclear:N { c }
 %    \end{macrocode}
@@ -1344,10 +1349,13 @@
 % \begin{macro}{\tl_set_eq:NN, \tl_set_eq:Nc, \tl_set_eq:cN, \tl_set_eq:cc}
 % \begin{macro}{\tl_gset_eq:NN, \tl_gset_eq:Nc, \tl_gset_eq:cN, \tl_gset_eq:cc}
 %   For setting token list variables equal to each other.  To allow for
-%   patching, the arguments have to be explicit.
+%   patching, the arguments have to be explicit.  In addition this
+%   ensures that a braced second argument will not cause problems.
 %    \begin{macrocode}
-\cs_new_protected:Npn \tl_set_eq:NN  #1#2 { \cs_set_eq:NN #1 #2 }
-\cs_new_protected:Npn \tl_gset_eq:NN #1#2 { \cs_gset_eq:NN #1 #2 }
+\cs_new_protected:Npn \tl_set_eq:NN  #1#2
+  { \tex_let:D #1 = ~ #2 }
+\cs_new_protected:Npn \tl_gset_eq:NN #1#2
+  { \tex_global:D \tex_let:D #1 = ~ #2 }
 \cs_generate_variant:Nn \tl_set_eq:NN { cN, Nc, cc }
 \cs_generate_variant:Nn \tl_gset_eq:NN { cN, Nc, cc }
 %    \end{macrocode}
@@ -1404,14 +1412,9 @@
 %   created the old-fashioned way.
 %    \begin{macrocode}
 \group_begin:
-\tex_lccode:D `A = `-
-\tex_lccode:D `N = `N
-\tex_lccode:D `V = `V
-\tex_lowercase:D
-  {
-    \group_end:
-    \tl_const:Nn \c_novalue_tl { ANoValue- }
-  }
+\tex_catcode:D `- = 11 ~
+\tl_const:Nx \c_novalue_tl { - NoValue \token_to_str:N - }
+\group_end:
 %    \end{macrocode}
 % \end{variable}
 %
@@ -2304,22 +2307,27 @@
 %
 % \begin{macro}[pTF, EXP]{\tl_if_novalue:n}
 % \begin{macro}[EXP]{\@@_if_novalue:w}
-%   Tests for |-NoValue-|: this is similar to \cs{tl_if_in:nn} but set
-%   up to be expandable and to check the value exactly.  The question
-%   mark prevents the auxiliary from losing braces.
+%   Tests whether |##1| matches |-NoValue-| exactly (with suitable
+%   catcodes): this is similar to \cs{quark_if_nil:nTF}.  The first
+%   argument of \cs{@@_if_novalue:w} is empty if and only if |##1|
+%   starts with |-NoValue-|, while the second argument is empty if |##1|
+%   is exactly |-NoValue-| or if it has a question mark just following
+%   |-NoValue-|.  In this second case, however, the material after the
+%   first |?!| remains and makes the emptyness test return
+%   \texttt{false}.
 %    \begin{macrocode}
 \cs_set_protected:Npn \@@_tmp:w #1
   {
     \prg_new_conditional:Npnn \tl_if_novalue:n ##1
       { p , T ,  F , TF }
       {
-        \str_if_eq:onTF
-          { \@@_if_novalue:w ? ##1 { } #1 }
-          { ? { } #1 }
-          { \prg_return_true: }
-          { \prg_return_false: }
+        \@@_if_empty_if:o { \@@_if_novalue:w {} ##1 {} ? ! #1 ? ? ! }
+          \prg_return_true:
+        \else:
+          \prg_return_false:
+        \fi:
       }
-    \cs_new:Npn \@@_if_novalue:w ##1 #1 {##1}
+    \cs_new:Npn \@@_if_novalue:w ##1 #1 ##2 ? ##3 ? ! { ##1 ##2 }
   }
 \exp_args:No \@@_tmp:w { \c_novalue_tl }
 %    \end{macrocode}
@@ -2458,39 +2466,58 @@
 % \end{macro}
 % \end{macro}
 %
-% \subsection{Mapping to token lists}
+% \subsection{Mapping over token lists}
 %
-% \begin{macro}{\tl_map_function:nN}
-% \begin{macro}{\tl_map_function:NN, \tl_map_function:cN}
-% \begin{macro}{\@@_map_function:Nn}
-%   Expandable loop macro for token lists. These have the advantage of not
-%   needing to test if the argument is empty, because if it is, the stop
-%   marker is read immediately and the loop terminated.
+% \begin{macro}
+%   {
+%     \tl_map_function:nN, \tl_map_function:NN, \tl_map_function:cN,
+%     \@@_map_function:Nnnnnnnnn, \@@_map_function_end:w,
+%     \@@_use_none_delimit_by_s_stop:w
+%   }
+%   Expandable loop macro for token lists.  We use the internal scan
+%   mark \cs{s_@@_stop} (defined later), which is not allowed to show up
+%   in the token list |#1| since it is internal to \pkg{l3tl}.  This
+%   allows us a very fast test of whether some \meta{item} is the
+%   end-marker \cs{s_@@_stop}, namely call
+%   \cs{@@_use_none_delimit_by_s_stop:w} \meta{item} \meta{function}
+%   \cs{s_@@_stop}, which calls \meta{function} if the \meta{item} is
+%   the end-marker.  To speed up the loop even more, only test one out
+%   of eight items, and once we hit one of the eight end-markers,
+%   go more slowly through the last few items of the list using
+%   \cs{@@_map_function_end:w}.
 %    \begin{macrocode}
 \cs_new:Npn \tl_map_function:nN #1#2
   {
-    \@@_map_function:Nn #2 #1
-      \q_@@_recursion_tail
+    \@@_map_function:Nnnnnnnnn #2 #1
+      \s_@@_stop \s_@@_stop \s_@@_stop \s_@@_stop
+      \s_@@_stop \s_@@_stop \s_@@_stop \s_@@_stop
     \prg_break_point:Nn \tl_map_break: { }
   }
 \cs_new:Npn \tl_map_function:NN
   { \exp_args:No \tl_map_function:nN }
-\cs_new:Npn \@@_map_function:Nn #1#2
-  {
-    \@@_if_recursion_tail_break:nN {#2} \tl_map_break:
-    #1 {#2} \@@_map_function:Nn #1
-  }
 \cs_generate_variant:Nn \tl_map_function:NN { c }
+\cs_new:Npn \@@_map_function:Nnnnnnnnn #1#2#3#4#5#6#7#8#9
+  {
+    \@@_use_none_delimit_by_s_stop:w
+      #9 \@@_map_function_end:w \s_@@_stop
+    #1 {#2} #1 {#3} #1 {#4} #1 {#5} #1 {#6} #1 {#7} #1 {#8} #1 {#9}
+    \@@_map_function:Nnnnnnnnn #1
+  }
+\cs_new:Npn \@@_map_function_end:w \s_@@_stop #1#2
+  {
+    \@@_use_none_delimit_by_s_stop:w #2 \tl_map_break: \s_@@_stop
+    #1 {#2}
+    \@@_map_function_end:w \s_@@_stop
+  }
+\cs_new:Npn \@@_use_none_delimit_by_s_stop:w #1 \s_@@_stop { }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\tl_map_inline:nn}
 % \begin{macro}{\tl_map_inline:Nn, \tl_map_inline:cn}
 %   The inline functions are straight forward by now. We use a little
 %   trick with the counter \cs{g__kernel_prg_map_int} to make
-%   them nestable. We can also make use of \cs{@@_map_function:Nn}
+%   them nestable. We can also make use of \cs{@@_map_function:Nnnnnnnnn}
 %   from before.
 %    \begin{macrocode}
 \cs_new_protected:Npn \tl_map_inline:nn #1#2
@@ -2498,9 +2525,11 @@
     \int_gincr:N \g__kernel_prg_map_int
     \cs_gset_protected:cpn
       { @@_map_ \int_use:N \g__kernel_prg_map_int :w } ##1 {#2}
-    \exp_args:Nc \@@_map_function:Nn
+    \exp_args:Nc \@@_map_function:Nnnnnnnnn
       { @@_map_ \int_use:N \g__kernel_prg_map_int :w }
-      #1 \q_@@_recursion_tail
+      #1
+      \s_@@_stop \s_@@_stop \s_@@_stop \s_@@_stop
+      \s_@@_stop \s_@@_stop \s_@@_stop \s_@@_stop
     \prg_break_point:Nn \tl_map_break:
       { \int_gdecr:N \g__kernel_prg_map_int }
   }
@@ -2511,54 +2540,54 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\tl_map_tokens:nn}
-% \begin{macro}{\tl_map_tokens:Nn, \tl_map_tokens:cn}
-% \begin{macro}{\@@_map_tokens:nn}
+% \begin{macro}
+%   {
+%     \tl_map_tokens:nn, \tl_map_tokens:Nn, \tl_map_tokens:cn,
+%     \@@_map_tokens:nnnnnnnnn, \@@_map_tokens_end:w
+%   }
 %   Much like the function mapping.
 %    \begin{macrocode}
 \cs_new:Npn \tl_map_tokens:nn #1#2
   {
-    \@@_map_tokens:nn {#2} #1
-      \q_@@_recursion_tail
+    \@@_map_tokens:nnnnnnnnn {#2} #1
+      \s_@@_stop \s_@@_stop \s_@@_stop \s_@@_stop
+      \s_@@_stop \s_@@_stop \s_@@_stop \s_@@_stop
     \prg_break_point:Nn \tl_map_break: { }
   }
 \cs_new:Npn \tl_map_tokens:Nn
   { \exp_args:No \tl_map_tokens:nn }
 \cs_generate_variant:Nn \tl_map_tokens:Nn { c }
-\cs_new:Npn \@@_map_tokens:nn #1#2
+\cs_new:Npn \@@_map_tokens:nnnnnnnnn #1#2#3#4#5#6#7#8#9
   {
-    \@@_if_recursion_tail_break:nN {#2} \tl_map_break:
-    \use:n {#1} {#2}
-    \@@_map_tokens:nn {#1}
+    \@@_use_none_delimit_by_s_stop:w
+      #9 \@@_map_tokens_end:w \s_@@_stop
+    \use:n {#1} {#2} \use:n {#1} {#3} \use:n {#1} {#4} \use:n {#1} {#5}
+    \use:n {#1} {#6} \use:n {#1} {#7} \use:n {#1} {#8} \use:n {#1} {#9}
+    \@@_map_tokens:nnnnnnnnn {#1}
+  }
+\cs_new:Npn \@@_map_tokens_end:w \s_@@_stop \use:n #1#2
+  {
+    \@@_use_none_delimit_by_s_stop:w #2 \tl_map_break: \s_@@_stop
+    #1 {#2}
+    \@@_map_tokens_end:w \s_@@_stop
   }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\tl_map_variable:nNn}
 % \begin{macro}{\tl_map_variable:NNn, \tl_map_variable:cNn}
 % \begin{macro}{\@@_map_variable:Nnn}
-%   \cs{tl_map_variable:nNn} \meta{token list} \meta{tl~var}
-%   \meta{action} assigns \meta{tl~var} to each element and executes
+%   \cs{tl_map_variable:nNn} \Arg{token list} \meta{tl~var}
+%   \Arg{action} assigns \meta{tl~var} to each element and executes
 %   \meta{action}.  The assignment to \meta{tl~var} is done after the
 %   quark test so that this variable does not get set to a quark.
 %    \begin{macrocode}
 \cs_new_protected:Npn \tl_map_variable:nNn #1#2#3
-  {
-    \@@_map_variable:Nnn #2 {#3} #1
-      \q_@@_recursion_tail
-    \prg_break_point:Nn \tl_map_break: { }
-  }
+  { \tl_map_tokens:nn {#1} { \@@_map_variable:Nnn #2 {#3} } }
+\cs_new_protected:Npn \@@_map_variable:Nnn #1#2#3
+  { \tl_set:Nn #1 {#3} #2 }
 \cs_new_protected:Npn \tl_map_variable:NNn
   { \exp_args:No \tl_map_variable:nNn }
-\cs_new_protected:Npn \@@_map_variable:Nnn #1#2#3
-  {
-    \@@_if_recursion_tail_break:nN {#3} \tl_map_break:
-    \tl_set:Nn #1 {#3}
-    \use:n {#2}
-    \@@_map_variable:Nnn #1 {#2}
-  }
 \cs_generate_variant:Nn \tl_map_variable:NNn { c }
 %    \end{macrocode}
 % \end{macro}
@@ -2814,7 +2843,7 @@
 % \begin{macro}{\tl_head:w,\@@_tl_head:w}
 % \begin{macro}{\tl_tail:N, \tl_tail:n, \tl_tail:V, \tl_tail:v, \tl_tail:f}
 %   Finding the head of a token list expandably always strips braces, which
-%   is fine as this is consistent with for example mapping to a list. The
+%   is fine as this is consistent with for example mapping over a list. The
 %   empty brace groups in \cs{tl_head:n} ensure that a blank argument gives an
 %   empty result. The result is returned within the \tn{unexpanded} primitive.
 %   The approach here is to use \cs{if_false:} to allow us to use |}| as
@@ -3439,7 +3468,7 @@
   }
 \cs_new:Npn \@@_range_skip:w #1 ; #2
   {
-    \if_int_compare:w #1 > 0 \exp_stop_f:
+    \if_int_compare:w #1 > \c_zero_int
       \exp_after:wN \@@_range_skip:w
       \int_value:w \int_eval:n { #1 - 1 } \exp_after:wN ;
     \else:
@@ -3499,7 +3528,7 @@
   {
     \int_eval:n
       {
-        \if_int_compare:w #1 < 0 \exp_stop_f:
+        \if_int_compare:w #1 < \c_zero_int
           \if_int_compare:w #1 < -#2 \exp_stop_f:
             0
           \else:
@@ -3531,8 +3560,16 @@
   {
     \__kernel_chk_defined:NT #2
       {
-        \exp_args:Ne #1
-          { \token_to_str:N #2 = \__kernel_exp_not:w \exp_after:wN {#2} }
+        \exp_args:Nf \tl_if_empty:nTF
+          { \cs_prefix_spec:N #2 \cs_argument_spec:N #2 }
+          {
+            \exp_args:Ne #1
+              { \token_to_str:N #2 = \__kernel_exp_not:w \exp_after:wN {#2} }
+          }
+          {
+            \__kernel_msg_error:nnxxx { kernel } { bad-type }
+              { \token_to_str:N #2 } { \token_to_meaning:N #2 } { tl }
+          }
       }
   }
 %    \end{macrocode}
@@ -3581,6 +3618,40 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \tl_log:n #1
   { \iow_wrap:nnnN { > ~ \tl_to_str:n {#1} . } { } { } \iow_log:n }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\__kernel_chk_tl_type:NnnT}
+%   Helper for checking that |#1| has the correct internal structure to
+%   be of a certain type.  Make sure that it is defined and that it is a
+%   token list, namely a macro with no \tn{long} nor \tn{protected}
+%   prefix.  Then compare |#1| to an attempt at reconstructing a valid
+%   structure of the given type using |#2| (see implementation of
+%   \cs{seq_show:N} for instance).  If that is successful run the
+%   requested code~|#4|.
+%    \begin{macrocode}
+\cs_new_protected:Npn \__kernel_chk_tl_type:NnnT #1#2#3#4
+  {
+    \__kernel_chk_defined:NT #1
+      {
+        \exp_args:Nf \tl_if_empty:nTF
+          { \cs_prefix_spec:N #1 \cs_argument_spec:N #1 }
+          {
+            \tl_set:Nx \l_@@_internal_a_tl {#3}
+            \tl_if_eq:NNTF #1 \l_@@_internal_a_tl
+              {#4}
+              {
+                \__kernel_msg_error:nnxxxx { kernel } { bad-type }
+                  { \token_to_str:N #1 } { \tl_to_str:N #1 }
+                  {#2} { \tl_to_str:N \l_@@_internal_a_tl }
+              }
+          }
+          {
+            \__kernel_msg_error:nnxxx { kernel } { bad-type }
+              { \token_to_str:N #1 } { \token_to_meaning:N #1 } {#2}
+          }
+      }
+  }
 %    \end{macrocode}
 % \end{macro}
 %
