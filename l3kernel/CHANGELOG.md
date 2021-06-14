@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Fixed
+- Local assignment to `\g__sys_backend_tl`
 - Incorrect internal function name (issue #939)
 - Case-changing exceptions for (u)pTeX (issue #939)
 
