@@ -11,6 +11,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Local assignment to `\g__sys_backend_tl`
 - Incorrect internal function name (issue #939)
 - Case-changing exceptions for (u)pTeX (issue #939)
+- Low-level error if accent commands are not followed by
+  letter when case changing (see #946)
 
 ## [2021-06-01]
 
