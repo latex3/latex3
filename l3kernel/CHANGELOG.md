@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-06-18]
+
 ### Fixed
 - Local assignment to `\g__sys_backend_tl`
 - Incorrect internal function name (issue #939)
@@ -937,7 +939,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-06-01...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-06-18...HEAD
+[2021-06-18]: https://github.com/latex3/latex3/compare/2021-06-01...2021-06-18
 [2021-06-01]: https://github.com/latex3/latex3/compare/2021-05-27...2021-06-01
 [2021-05-27]: https://github.com/latex3/latex3/compare/2021-05-25...2021-05-27
 [2021-05-25]: https://github.com/latex3/latex3/compare/2021-05-11...2021-05-25
