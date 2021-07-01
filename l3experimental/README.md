@@ -52,7 +52,7 @@ in documents, similar to the `graphics` package.
 
 A 'string' in TeX terms is a token list in which all of the tokens have
 category code 12 ('other'), with the exception of spaces which have the
-category code 10 ('space'). The `l3strf-format` module provides methods
+category code 10 ('space'). The `l3str-format` module provides methods
 for formatting such strings.
 
 `l3sys-shell`
