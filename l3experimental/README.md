@@ -24,6 +24,7 @@ bundles:
 * `l3benchmark`
 * `l3draw`
 * `l3graphics`
+* `l3opacity`
 * `l3str`
 * `l3sys-shell`
 * `xcoffins`
@@ -46,6 +47,11 @@ TikZ system.
 
 This module provides interfaces for the inclusion of graphics files
 in documents, similar to the `graphics` package.
+
+`l3opacity`
+-------
+
+This module provides support for opacity in PDF output.
 
 `l3str`
 -------

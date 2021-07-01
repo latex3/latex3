@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Module `l3opacity`
+
 ## [2021-05-27]
 
 ### Added
