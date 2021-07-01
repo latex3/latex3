@@ -24,7 +24,6 @@ bundles:
 * `l3benchmark`
 * `l3draw`
 * `l3graphics`
-* `l3pdf`
 * `l3str`
 * `l3sys-shell`
 * `xcoffins`
@@ -47,12 +46,6 @@ TikZ system.
 
 This module provides interfaces for the inclusion of graphics files
 in documents, similar to the `graphics` package.
-
-`l3pdf`
--------
-
-This module provides support for core PDF concepts such compression, objects,
-PDF version and so on.
 
 `l3str`
 -------
