@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Handling of multiple color models (issue #962)
+
 ## [2021-06-18]
 
 ### Fixed
