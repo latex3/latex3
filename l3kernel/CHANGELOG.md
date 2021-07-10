@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Handling of multiple color models (issue #962)
 
+### Removed
+- Functions marked for removal end-2020
+
 ## [2021-06-18]
 
 ### Fixed
