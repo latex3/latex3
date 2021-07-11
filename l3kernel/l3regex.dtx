@@ -407,6 +407,17 @@
 %     |\regex_count:nnN { \G a } { aaba } \l_tmpa_int| yields $2$, but
 %     replacing |\G| by |^| would result in \cs{l_tmpa_int} holding the
 %     value $1$.
+%   \item[(?C\{\meta{csname}\})] Callout to the user-defined
+%     \char`\\\meta{csname}, which should be a conditional with
+%     signature~|TF|.  It may consult the following public variables:
+%     position (in numbers of tokens) \cs{l_regex_curr_pos_int} of the
+%     next token and position \cs{l_regex_start_pos_int} at which the
+%     current match attempt started, and information about the next
+%     token as \cs{l_regex_curr_token_tl} (\texttt{o}-expanding and
+%     \texttt{x}-expanding to the token), \cs{l_regex_curr_char_int}
+%     (character code) and \cs{l_regex_curr_catcode_int} (category
+%     code).  The latter two integers are $-1$ and $0$ for control
+%     sequences, and $-2$ and $15$ for the end of the input.
 % \end{l3regex-syntax}
 %
 % The option |(?i)| makes the match case insensitive (identifying
@@ -1886,6 +1897,7 @@
 %   \item \cs{@@_assertion:Nn} \meta{boolean} \Arg{assertion test},
 %     where the \meta{assertion test} is \cs{@@_b_test:} or
 %     \cs{@@_Z_test:} or \cs{@@_A_test:} or \cs{@@_G_test:}
+%     or \cs{@@_C_group:c} \Arg{csname}
 % \end{itemize}
 % Tests can be the following:
 % \begin{itemize}
@@ -2321,7 +2333,8 @@
         { \__kernel_msg_error:nn { regex } { c-trailing } }
       \int_compare:nNnT \l_@@_mode_int < \c_@@_outer_mode_int
         {
-          \__kernel_msg_error:nn { regex } { c-missing-rbrace }
+          \__kernel_msg_error:nnx { regex } { missing-rbrace }
+            { \iow_char:N \\c }
           \@@_compile_end_cs:
           \prg_do_nothing: \prg_do_nothing:
           \prg_do_nothing: \prg_do_nothing:
@@ -2597,7 +2610,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_compile_raw_error:N #1
   {
-    \__kernel_msg_error:nnx { regex } { bad-escape } {#1}
+    \__kernel_msg_error:nnx { regex } { bad-escape } { \iow_char:N\\ #1 }
     \@@_compile_raw:N #1
   }
 %    \end{macrocode}
@@ -3121,6 +3134,75 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\@@_compile_special_group_C:w, \@@_compile_C_end:NN}
+% \begin{macro}[rEXP]{\@@_compile_C_loop:NN}
+%   We support syntax such as |(?C{mypkg_do:TF})| for assertions based
+%   on calling the function \cs[no-index]{mypkg_do:TF}.  During
+%   compilation we simply need to catch the control sequence name, with
+%   suitable (mandatory) braces.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_compile_special_group_C:w #1#2
+  {
+    \@@_if_in_class_or_catcode:TF
+      {
+        \__kernel_msg_error:nnn { regex } { bad-escape } { (?C }
+        \@@_compile_raw:N (
+        \@@_compile_raw:N ?
+        \@@_compile_raw:N C
+        #1 #2
+      }
+      {
+        \@@_two_if_eq:NNNNTF #1 #2 \@@_compile_special:N \c_left_brace_str
+          {
+            \tl_set:Nx \l_@@_internal_a_tl { \if_false: } \fi:
+            \@@_compile_C_loop:NN
+          }
+          {
+            \__kernel_msg_error:nnn { regex } { missing-lbrace } { (?C }
+            \@@_compile_raw:N (
+            \@@_compile_raw:N ?
+            \@@_compile_raw:N C
+            #1 #2
+          }
+      }
+  }
+\cs_new:Npn \@@_compile_C_loop:NN #1#2
+  {
+    \token_if_eq_meaning:NNTF #1 \@@_compile_raw:N
+      { #2 \@@_compile_C_loop:NN }
+      {
+        \token_if_eq_meaning:NNTF #1 \@@_compile_special:N
+          {
+            \exp_after:wN \token_if_eq_charcode:NNTF \c_right_brace_str #2
+              { \if_false: { \fi: } \@@_compile_C_end:NN }
+              { #2 \@@_compile_C_loop:NN }
+          }
+          {
+            \if_false: { \fi: }
+            \__kernel_msg_error:nnx { regex } { missing-rbrace } { (?C }
+            \@@_compile_C_end:NN
+            #1 #2
+          }
+      }
+  }
+\cs_new_protected:Npn \@@_compile_C_end:NN #1#2
+  {
+    \tl_build_put_right:Nx \l_@@_build_tl
+      {
+        \@@_assertion:Nn \c_true_bool
+          { \@@_C_group:c { \l_@@_internal_a_tl } }
+      }
+    \@@_two_if_eq:NNNNTF #1 #2 \@@_compile_special:N )
+      { }
+      {
+        \__kernel_msg_error:nnx { regex } { missing-rparen } { 1 }
+        #1 #2
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}
 %   {\@@_compile_special_group_i:w, \@@_compile_special_group_-:w}
 %   The match can be made case-insensitive by setting the option with
@@ -3442,7 +3524,8 @@
         \@@_compile_u_loop:NN
       }
       {
-        \__kernel_msg_error:nn { regex } { u-missing-lbrace }
+        \__kernel_msg_error:nnx { regex } { missing-lbrace }
+          { \iow_char:N \\u }
         \token_if_eq_meaning:NNTF #1 \@@_compile_ur_end:
           { \@@_compile_raw:N u \@@_compile_raw:N r }
           { \@@_compile_raw:N u }
@@ -3826,6 +3909,8 @@
           \@@_show_one:n
             { \bool_if:NF ##1 { negative~ } assertion:~##2 }
         }
+      \cs_set:Npn \@@_C_group:c ##1
+        { callout~to~\iow_char:N\\##1 }
       \cs_set:Npn \@@_b_test: { word~boundary }
       \cs_set:Npn \@@_Z_test: { anchor~at~end~(\iow_char:N\\Z) }
       \cs_set:Npn \@@_A_test: { anchor~at~start~(\iow_char:N\\A) }
@@ -3842,7 +3927,7 @@
       \cs_set_protected:Npn \@@_item_caseless_range:nn ##1##2
         {
           \@@_show_one:n
-            { Range~[\@@_show_char:n{##1}, \@@_show_char:n{##2}]~(caseless) }
+            { range~[\@@_show_char:n{##1}, \@@_show_char:n{##2}]~(caseless) }
         }
       \cs_set_protected:Npn \@@_item_catcode:nT
         { \@@_show_item_catcode:NnT \c_true_bool }
@@ -4715,6 +4800,24 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{\@@_C_group:c}
+%   The user code expects some public variables.
+%   The code has signature |TF| and we return as appropriate.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_C_group:c #1
+  {
+    \int_set:Nn \l_regex_curr_pos_int
+      { \l_@@_curr_pos_int - \l_@@_min_pos_int + 1 }
+    \int_set:Nn \l_regex_start_pos_int
+      { \l_@@_start_pos_int - \l_@@_min_pos_int + 1 }
+    \int_set_eq:NN \l_regex_curr_char_int \l_@@_curr_char_int
+    \int_set_eq:NN \l_regex_curr_catcode_int \l_@@_curr_catcode_int
+    \tl_set_eq:NN \l_regex_curr_token_tl \l_@@_curr_token_tl
+    \use:c {#1} { \@@_break_true:w } { }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\@@_command_K:}
 %   Change the starting point of the $0$-th submatch (full match), and
 %   transition to a new state, pretending that this is a fresh thread.
@@ -4780,6 +4883,22 @@
 % prevents going back to a state visited by the current thread.
 %
 % \subsubsection{Variables used when matching}
+%
+% \begin{variable}
+%   {
+%     \l_regex_curr_pos_int, \l_regex_start_pos_int,
+%     \l_regex_curr_char_int, \l_regex_curr_catcode_int,
+%     \l_regex_curr_token_tl
+%   }
+%   Public-facing versions of internal variables, for use in callouts.
+%    \begin{macrocode}
+\int_new:N \l_regex_curr_pos_int
+\int_new:N \l_regex_start_pos_int
+\int_new:N \l_regex_curr_char_int
+\int_new:N \l_regex_curr_catcode_int
+\tl_new:N \l_regex_curr_token_tl
+%    \end{macrocode}
+% \end{variable}
 %
 % \begin{variable}
 %   {
@@ -7344,7 +7463,7 @@
 %    \begin{macrocode}
 \__kernel_msg_new:nnnn { regex } { bad-escape }
   {
-    Invalid~escape~'\iow_char:N\\#1'~
+    Invalid~escape~'#1'~
     \@@_if_in_cs:TF { within~a~control~sequence. }
       {
         \@@_if_in_class:TF
@@ -7353,7 +7472,7 @@
       }
   }
   {
-    The~escape~sequence~'\iow_char:N\\#1'~may~not~appear~
+    The~escape~sequence~'#1'~may~not~appear~
     \@@_if_in_cs:TF
       {
         within~a~control~sequence~test~introduced~by~
@@ -7387,7 +7506,7 @@
   }
 %    \end{macrocode}
 %
-% Errors related to |\c| and |\u|.
+% Errors related to |\c| and |\u| and |(?C{...})|
 %    \begin{macrocode}
 \__kernel_msg_new:nnnn { regex } { c-bad-mode }
   { Invalid~nested~'\iow_char:N\\c'~escape~in~regular~expression. }
@@ -7417,11 +7536,11 @@
     Construction~such~as~'\iow_char:N\\cL(abc)'~are~not~allowed~inside~a~
     class~'[...]'~because~classes~do~not~match~multiple~characters~at~once.
   }
-\__kernel_msg_new:nnnn { regex } { c-missing-rbrace }
-  { Missing~right~brace~inserted~for~'\iow_char:N\\c'~escape. }
+\__kernel_msg_new:nnnn { regex } { missing-rbrace }
+  { Missing~right~brace~inserted~for~'#1'~escape. }
   {
     LaTeX~was~given~a~regular~expression~where~a~
-    '\iow_char:N\\c\iow_char:N\{...'~construction~was~not~ended~
+    '#1\{...'~construction~was~not~ended~
     with~a~closing~brace~'\iow_char:N\}'.
   }
 \__kernel_msg_new:nnnn { regex } { c-missing-rbrack }
@@ -7444,11 +7563,17 @@
     A~regular~expression~ends~with~'\iow_char:N\\c'~followed~
     by~a~letter.~It~will~be~ignored.
   }
-\__kernel_msg_new:nnnn { regex } { u-missing-lbrace }
-  { Missing~left~brace~following~'\iow_char:N\\u'~escape. }
+\__kernel_msg_new:nnnn { regex } { missing-lbrace }
+  { Missing~left~brace~following~'#1'~escape. }
   {
-    The~'\iow_char:N\\u'~escape~sequence~must~be~followed~by~
-    a~brace~group~with~the~name~of~the~variable~to~use.
+    The~'#1'~escape~sequence~must~be~followed~by~
+    a~brace~group~with~the~name~of~the~
+    \str_case_e:nn {#1}
+      {
+        { \iow_char:N \\u } { variable~ }
+        { (?C } { function~ }
+      }
+    to~use.
   }
 \__kernel_msg_new:nnnn { regex } { u-missing-rbrace }
   { Missing~right~brace~inserted~for~'\iow_char:N\\u'~escape. }
@@ -7511,7 +7636,8 @@
   { Unknown~special~group~'#1~...'~in~a~regular~expression. }
   {
     The~only~valid~constructions~starting~with~'(?'~are~
-    '(?:~...~)',~'(?|~...~)',~'(?i)',~and~'(?-i)'.
+    '(?:~...~)',~'(?|~...~)',~'(?i)',~'(?-i)',~and
+    '(?C{...})'.
   }
 %    \end{macrocode}
 %
@@ -7528,7 +7654,7 @@
   { Misused~'\iow_char:N\\u'~command~in~a~replacement~text. }
   {
     In~a~replacement~text,~the~'\iow_char:N\\u'~escape~sequence~
-    must~be~~followed~by~a~brace~group~holding~the~name~of~the~
+    must~be~followed~by~a~brace~group~holding~the~name~of~the~
     variable~to~use.
   }
 \__kernel_msg_new:nnnn { regex } { replacement-g }
