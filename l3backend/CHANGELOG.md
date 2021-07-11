@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- GoTo link formation for Distiller-based workflows (issue #957)
+
 ## [2021-05-07]
 
 ### Changed
