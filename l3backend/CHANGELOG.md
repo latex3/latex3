@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-07-12]
+
 ### Fixed
 - GoTo link formation for Distiller-based workflows (issue #957)
 - Support transparency with Distiller
@@ -184,7 +186,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-05-07...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-07-12...HEAD
+[2021-07-12]: https://github.com/latex3/latex3/compare/2021-05-07...2021-07-12
 [2021-05-07]: https://github.com/latex3/latex3/compare/2021-03-18...2021-05-07
 [2021-03-18]: https://github.com/latex3/latex3/compare/2021-03-02...2021-03-18
 [2021-03-02]: https://github.com/latex3/latex3/compare/2021-02-18...2021-03-02
