@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - GoTo link formation for Distiller-based workflows (issue #957)
+- Support transparency with Distiller
 
 ## [2021-05-07]
 
