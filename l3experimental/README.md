@@ -16,12 +16,13 @@ are under active development and the interfaces may change.
 
 All of the material in the collection requires the LaTeX3 base layer package
 [`l3kernel`](http://ctan.org/pkg/l3kernel). The two packages must be installed
-in matching versions: if you update `l3experimental`, make sure that `l3kernel` is
-updated at the same time.
+in matching versions: if you update `l3experimental`, make sure that `l3kernel`
+is updated at the same time.
 
 Currently included in the CTAN release of l3experimental are the following
 bundles:
 * `l3benchmark`
+* `l3bitset`
 * `l3draw`
 * `l3graphics`
 * `l3opacity`
@@ -34,6 +35,14 @@ bundles:
 -------------
 
 This module provides support for benchmarking the performance of code.
+
+`l3bitset`
+-------------
+
+This module provides a `bitset` data type, a vector of bits, which can be set
+and unset using their individual index in the vector, or using names assigned to
+each position in the vector.  The bitset can be returned as a string of bits or
+as a decimal integer.
 
 `l3draw`
 --------
