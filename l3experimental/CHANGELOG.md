@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\draw_baseline:n`
+- `\draw_point:n`
 
 ## [2021-07-12]
 
