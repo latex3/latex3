@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Adjust `l3keys2e` to allow for future kernel provision of
+  same ideas
+
 ## [2021-06-18]
 
 ### Fixed
