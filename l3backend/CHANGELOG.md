@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## Changed
+- Only use `pdfmanagement` module if active
+
 ## [2021-07-12]
 
 ### Fixed
