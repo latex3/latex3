@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-08-04]
+
 ### Added
 - `\draw_baseline:n`
 - `\draw_point:n`
@@ -219,7 +221,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-07-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-08-04...HEAD
+[2021-08-04]: https://github.com/latex3/latex3/compare/2021-07-12...2021-08-04
 [2021-07-12]: https://github.com/latex3/latex3/compare/2021-05-27...2021-07-12
 [2021-05-27]: https://github.com/latex3/latex3/compare/2021-02-18...2021-05-27
 [2021-02-18]: https://github.com/latex3/latex3/compare/2021-02-06...2021-02-18
