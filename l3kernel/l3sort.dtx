@@ -199,11 +199,26 @@
 % \end{variable}
 % \end{variable}
 %
-% \begin{variable}{\s_@@_mark,\s_@@_stop}
+% \begin{variable}
+%   {
+%     \s_@@_mark,
+%     \s_@@_stop,
+%     \s_@@_merge_exp_mark,
+%     \s_@@_merge_exp_stop,
+%     \s_@@_merge_exp_tail,
+%     \s_@@_merge_exp_list,
+%   }
 %   Internal scan marks.
 %    \begin{macrocode}
 \scan_new:N \s_@@_mark
 \scan_new:N \s_@@_stop
+\cs_if_exist:NT \tex_expanded:D
+  {
+    \scan_new:N \s_@@_merge_exp_mark
+    \scan_new:N \s_@@_merge_exp_stop
+    \scan_new:N \s_@@_merge_exp_tail
+    \scan_new:N \s_@@_merge_exp_list
+  }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -820,14 +835,20 @@
 % sorting lists of more than a few thousand items would exhaust a
 % typical \TeX{}'s memory.
 %
-% \begin{macro}[EXP]{\tl_sort:nN}
+% If the primitive \cs{expanded} is available we can make use of it to propagate
+% expansion without the need to read the entire list at each step. In this case
+% we can use a merge sort implementation which is typically faster than the
+% quicksort implementation discussed above.
+%
+% \begin{macro}[EXP]{\tl_sort:nN,\tl_sort:oN,\tl_sort:NN}
 % \begin{macro}[EXP]
 %   {
 %     \@@_quick_prepare:Nnnn,
 %     \@@_quick_prepare_end:NNNnw,
 %     \@@_quick_cleanup:w
 %   }
-%   The code within the \cs{exp_not:f} sorts the list, leaving in most
+%   If \cs{expanded} is not available,
+%   the code within the \cs{exp_not:f} sorts the list, leaving in most
 %   cases a leading \cs{exp_not:f}, which stops the expansion, letting
 %   the result be return within \cs{exp_not:n}.  We filter out the case
 %   of a list with no item, which would otherwise cause problems.  Then
@@ -842,32 +863,64 @@
 %   after \cs{s_@@_mark}, namely removing the trailing \cs{s_@@_stop} and
 %   \cs{s_@@_stop} and leaving \cs{exp_stop_f:} to stop
 %   \texttt{f}-expansion.
+%
+%   In the case that \cs{expanded} is available the expansion is started by
+%   \cs{__kernel_exp_not:w} directly and we use \cs{tex_expanded:D} for the
+%   merge sort iterations. The first bottom up pass differs from the others as
+%   this pass introduces limiters marking the end of each sublist. 
 %    \begin{macrocode}
-\cs_new:Npn \tl_sort:nN #1#2
+\cs_if_exist:NTF \tex_expanded:D
   {
-    \exp_not:f
+    \cs_new:Npn \tl_sort:nN #1#2
       {
-        \tl_if_blank:nF {#1}
+        \__kernel_exp_not:w
+          \exp_after:wN \@@_merge_exp_after_bottom_up_tl:Nw \exp_after:wN #2
+          \tex_expanded:D
+            {
+              \@@_merge_exp_bottom_up_tl:Nnn
+                #2 #1 \s_@@_merge_exp_mark \s_@@_merge_exp_stop
+            }
+      }
+    \cs_new:Npn \tl_sort:oN #1#2
+      {
+        \__kernel_exp_not:w
+          \exp_after:wN \@@_merge_exp_after_bottom_up_tl:Nw \exp_after:wN #2
+          \tex_expanded:D
+            {
+              \exp_after:wN \@@_merge_exp_bottom_up_tl:Nnn \exp_after:wN
+                #2 #1 \s_@@_merge_exp_mark \s_@@_merge_exp_stop
+            }
+      }
+    \cs_new_eq:NN \tl_sort:NN \tl_sort:oN
+  }
+  {
+    \cs_new:Npn \tl_sort:nN #1#2
+      {
+        \exp_not:f
           {
-            \@@_quick_prepare:Nnnn #2 { } { }
-              #1
-              { \prg_break_point: \@@_quick_prepare_end:NNNnw }
-            \s_@@_stop
+            \tl_if_blank:nF {#1}
+              {
+                \@@_quick_prepare:Nnnn #2 { } { }
+                  #1
+                  { \prg_break_point: \@@_quick_prepare_end:NNNnw }
+                \s_@@_stop
+              }
           }
       }
-  }
-\cs_new:Npn \@@_quick_prepare:Nnnn #1#2#3#4
-  {
-    \prg_break: #4 \prg_break_point:
-    \@@_quick_prepare:Nnnn #1 { #2 #3 } { #1 {#4} }
-  }
-\cs_new:Npn \@@_quick_prepare_end:NNNnw #1#2#3#4#5 \s_@@_stop
-  {
-    \@@_quick_split:NnNn #4 \@@_quick_end:nnTFNn { }
-    \s_@@_mark { \@@_quick_cleanup:w \exp_stop_f: }
-    \s_@@_mark \s_@@_stop
-  }
-\cs_new:Npn \@@_quick_cleanup:w #1 \s_@@_mark \s_@@_stop {#1}
+    \cs_generate_variant:Nn \tl_sort:nN { oN }
+    \cs_new_eq:NN \tl_sort:NN \tl_sort:oN
+    \cs_new:Npn \@@_quick_prepare:Nnnn #1#2#3#4
+      {
+        \prg_break: #4 \prg_break_point:
+        \@@_quick_prepare:Nnnn #1 { #2 #3 } { #1 {#4} }
+      }
+    \cs_new:Npn \@@_quick_prepare_end:NNNnw #1#2#3#4#5 \s_@@_stop
+      {
+        \@@_quick_split:NnNn #4 \@@_quick_end:nnTFNn { }
+        \s_@@_mark { \@@_quick_cleanup:w \exp_stop_f: }
+        \s_@@_mark \s_@@_stop
+      }
+    \cs_new:Npn \@@_quick_cleanup:w #1 \s_@@_mark \s_@@_stop {#1}
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -901,41 +954,41 @@
 %   argument is always the user's \meta{conditional} rather than an
 %   ending function.
 %    \begin{macrocode}
-\cs_new:Npn \@@_quick_split:NnNn #1#2#3#4
-  {
-    #3 {#2} {#4} \@@_quick_only_ii:NnnnnNn
-      \@@_quick_only_i:NnnnnNn
-      \@@_quick_single_end:nnnwnw
-      { #3 {#4} } { } { } {#2}
-  }
-\cs_new:Npn \@@_quick_only_i:NnnnnNn #1#2#3#4#5#6#7
-  {
-    #6 {#5} {#7} \@@_quick_split_ii:NnnnnNn
-      \@@_quick_only_i:NnnnnNn
-      \@@_quick_only_i_end:nnnwnw
-      { #6 {#7} } { #3 #2 } { } {#5}
-  }
-\cs_new:Npn \@@_quick_only_ii:NnnnnNn #1#2#3#4#5#6#7
-  {
-    #6 {#5} {#7} \@@_quick_only_ii:NnnnnNn
-      \@@_quick_split_i:NnnnnNn
-      \@@_quick_only_ii_end:nnnwnw
-      { #6 {#7} } { } { #4 #2 } {#5}
-  }
-\cs_new:Npn \@@_quick_split_i:NnnnnNn #1#2#3#4#5#6#7
-  {
-    #6 {#5} {#7} \@@_quick_split_ii:NnnnnNn
-      \@@_quick_split_i:NnnnnNn
-      \@@_quick_split_end:nnnwnw
-      { #6 {#7} } { #3 #2 } {#4} {#5}
-  }
-\cs_new:Npn \@@_quick_split_ii:NnnnnNn #1#2#3#4#5#6#7
-  {
-    #6 {#5} {#7} \@@_quick_split_ii:NnnnnNn
-      \@@_quick_split_i:NnnnnNn
-      \@@_quick_split_end:nnnwnw
-      { #6 {#7} } {#3} { #4 #2 } {#5}
-  }
+    \cs_new:Npn \@@_quick_split:NnNn #1#2#3#4
+      {
+        #3 {#2} {#4} \@@_quick_only_ii:NnnnnNn
+          \@@_quick_only_i:NnnnnNn
+          \@@_quick_single_end:nnnwnw
+          { #3 {#4} } { } { } {#2}
+      }
+    \cs_new:Npn \@@_quick_only_i:NnnnnNn #1#2#3#4#5#6#7
+      {
+        #6 {#5} {#7} \@@_quick_split_ii:NnnnnNn
+          \@@_quick_only_i:NnnnnNn
+          \@@_quick_only_i_end:nnnwnw
+          { #6 {#7} } { #3 #2 } { } {#5}
+      }
+    \cs_new:Npn \@@_quick_only_ii:NnnnnNn #1#2#3#4#5#6#7
+      {
+        #6 {#5} {#7} \@@_quick_only_ii:NnnnnNn
+          \@@_quick_split_i:NnnnnNn
+          \@@_quick_only_ii_end:nnnwnw
+          { #6 {#7} } { } { #4 #2 } {#5}
+      }
+    \cs_new:Npn \@@_quick_split_i:NnnnnNn #1#2#3#4#5#6#7
+      {
+        #6 {#5} {#7} \@@_quick_split_ii:NnnnnNn
+          \@@_quick_split_i:NnnnnNn
+          \@@_quick_split_end:nnnwnw
+          { #6 {#7} } { #3 #2 } {#4} {#5}
+      }
+    \cs_new:Npn \@@_quick_split_ii:NnnnnNn #1#2#3#4#5#6#7
+      {
+        #6 {#5} {#7} \@@_quick_split_ii:NnnnnNn
+          \@@_quick_split_i:NnnnnNn
+          \@@_quick_split_end:nnnwnw
+          { #6 {#7} } {#3} { #4 #2 } {#5}
+      }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -968,31 +1021,641 @@
 %   the pivot are sorted, then items less than the pivot, and the
 %   continuations are done in such a way to place the pivot in between.
 %    \begin{macrocode}
-\cs_new:Npn \@@_quick_end:nnTFNn #1#2#3#4#5#6 {#5}
-\cs_new:Npn \@@_quick_single_end:nnnwnw #1#2#3#4 \s_@@_mark #5#6 \s_@@_stop
-  { #5 {#3} #6 \s_@@_stop }
-\cs_new:Npn \@@_quick_only_i_end:nnnwnw #1#2#3#4 \s_@@_mark #5#6 \s_@@_stop
-  {
-    \@@_quick_split:NnNn #1
-      \@@_quick_end:nnTFNn { } \s_@@_mark {#5}
-    {#3}
-    #6 \s_@@_stop
-  }
-\cs_new:Npn \@@_quick_only_ii_end:nnnwnw #1#2#3#4 \s_@@_mark #5#6 \s_@@_stop
-  {
-    \@@_quick_split:NnNn #2
-      \@@_quick_end:nnTFNn { } \s_@@_mark { #5 {#3} }
-    #6 \s_@@_stop
-  }
-\cs_new:Npn \@@_quick_split_end:nnnwnw #1#2#3#4 \s_@@_mark #5#6 \s_@@_stop
-  {
-    \@@_quick_split:NnNn #2 \@@_quick_end:nnTFNn { } \s_@@_mark
+    \cs_new:Npn \@@_quick_end:nnTFNn #1#2#3#4#5#6 {#5}
+    \cs_new:Npn \@@_quick_single_end:nnnwnw #1#2#3#4 \s_@@_mark #5#6 \s_@@_stop
+      { #5 {#3} #6 \s_@@_stop }
+    \cs_new:Npn \@@_quick_only_i_end:nnnwnw #1#2#3#4 \s_@@_mark #5#6 \s_@@_stop
       {
         \@@_quick_split:NnNn #1
           \@@_quick_end:nnTFNn { } \s_@@_mark {#5}
         {#3}
+        #6 \s_@@_stop
       }
-    #6 \s_@@_stop
+    \cs_new:Npn \@@_quick_only_ii_end:nnnwnw #1#2#3#4 \s_@@_mark #5#6 \s_@@_stop
+      {
+        \@@_quick_split:NnNn #2
+          \@@_quick_end:nnTFNn { } \s_@@_mark { #5 {#3} }
+        #6 \s_@@_stop
+      }
+    \cs_new:Npn \@@_quick_split_end:nnnwnw #1#2#3#4 \s_@@_mark #5#6 \s_@@_stop
+      {
+        \@@_quick_split:NnNn #2 \@@_quick_end:nnTFNn { } \s_@@_mark
+          {
+            \@@_quick_split:NnNn #1
+              \@@_quick_end:nnTFNn { } \s_@@_mark {#5}
+            {#3}
+          }
+        #6 \s_@@_stop
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+\cs_if_exist:NT \tex_expanded:D
+  {
+%    \end{macrocode}
+%
+% \begin{macro}[EXP]
+%   {\@@_if_stop:w, \@@_if_mark:w, \@@_if_tail:w}
+%   Since the three scan marks are forbidden to appear in the lists we can setup
+%   quick tests by just gobbling everything up until that marker.
+%    \begin{macrocode}
+    \cs_new:Npn \@@_if_stop:w #1 \s_@@_merge_exp_stop {}
+    \cs_new:Npn \@@_if_mark:w #1 \s_@@_merge_exp_mark {}
+    \cs_new:Npn \@@_if_tail:w #1 \s_@@_merge_exp_tail {}
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[rEXP]
+%   {
+%     \@@_merge_exp_bottom_up_tl:Nnn,
+%     \@@_merge_exp_bottom_up_tl_mark:w
+%     \@@_merge_exp_bottom_up_tl_stop:w
+%   }
+%   The first bottom up pass grabs two items and sorts them. Markers are placed
+%   to indicate the end of each sublist. Since we grab two items in each
+%   recursion step we have to check both of these values for the end of list
+%   markers. If the input token list has an odd number of elements, |#3| will be
+%   \cs{s_@@_merge_exp_mark} in the last recursion. In this case |#2| will be
+%   the last element and form a sublist with just one element. If the input
+%   token list has an even number of elements, |#3| will be
+%   \cs{s_@@_merge_exp_stop} in the last recursion and we just leave the markers
+%   for the end of sublists.
+%
+%   After the first bottom up pass every sublist will be sorted and followed by
+%   \cs{s_@@_merge_exp_tail}. The sublists are separated by
+%   \cs{s_@@_merge_exp_list}, and the end of sublists is indicated by a sublist
+%   containing only \cs{s_@@_merge_exp_mark} and another one containing
+%   \cs{s_@@_merge_exp_stop}.
+%    \begin{macrocode}
+    \cs_new:Npn \@@_merge_exp_bottom_up_tl:Nnn #1#2#3
+      {
+        \@@_if_stop:w #3 \@@_merge_exp_bottom_up_tl_stop:w \s_@@_merge_exp_stop
+        \@@_if_mark:w #3 \@@_merge_exp_bottom_up_tl_mark:w \s_@@_merge_exp_mark
+        #1 {#2} {#3}
+          { \__kernel_exp_not:w { {#2} {#3} } }
+          { \__kernel_exp_not:w { {#3} {#2} } }
+        \s_@@_merge_exp_tail \s_@@_merge_exp_list
+        \@@_merge_exp_bottom_up_tl:Nnn #1
+      }
+    \cs_new:Npn \@@_merge_exp_bottom_up_tl_stop:w
+        \s_@@_merge_exp_stop
+        \@@_if_mark:w \s_@@_merge_exp_stop \@@_merge_exp_bottom_up_tl_mark:w
+        \s_@@_merge_exp_mark
+        #1
+        \s_@@_merge_exp_tail \s_@@_merge_exp_list
+        \@@_merge_exp_bottom_up_tl:Nnn #2
+      {
+        \s_@@_merge_exp_mark \s_@@_merge_exp_list
+        \s_@@_merge_exp_stop \s_@@_merge_exp_list
+      }
+    \cs_new:Npn \@@_merge_exp_bottom_up_tl_mark:w
+        \s_@@_merge_exp_mark
+        #1#2#3
+        \s_@@_merge_exp_tail \s_@@_merge_exp_list
+        \@@_merge_exp_bottom_up_tl:Nnn #4
+        \s_@@_merge_exp_stop
+      {
+        { \__kernel_exp_not:w {#2} }
+        \s_@@_merge_exp_tail \s_@@_merge_exp_list
+        \s_@@_merge_exp_mark \s_@@_merge_exp_list
+        \s_@@_merge_exp_stop \s_@@_merge_exp_list
+      }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]
+%   {
+%     \@@_merge_exp_after_bottom_up_tl:Nw,
+%     \@@_merge_exp_after_merge_tl:Nw,
+%     \@@_merge_exp_after_stop:w,
+%     \@@_merge_exp_after_mark_tl:w
+%   }
+%   After the first bottom up pass there can be two special cases for which we
+%   have to test. If the input list was empty the argument |#3| of
+%   \cs{@@_merge_exp_after_bottom_up_tl:Nw} will only contain
+%   \cs{s_@@_merge_exp_stop} in which case the remainder of the sorting macro is
+%   gobbled and an empty group (|{}|) will be left in the input stream for
+%   \cs{__kernel_exp_not:w}. The next special case which is tested in both
+%   \cs{@@_merge_exp_after_bottom_up_tl:Nw} and
+%   \cs{@@_merge_exp_after_merge_tl:Nw} is if we're done and only a single
+%   sublist is remaining, in which case |#3| will be \cs{s_@@_merge_exp_mark}.
+%   When this is encountered the now sorted list is grabbed with the user
+%   provided sorting function infront of it (to prevent any accidental brace
+%   stripping). The remainder of the current recursion is removed and the sorted
+%   list is left in the input stream for \cs{__kernel_exp_not:w} using
+%   \cs{use_none:n} to remove the leading sorting function.
+%
+%   If we're not yet done we call the next merging recursion inside
+%   \cs{tex_expanded:D}.
+%    \begin{macrocode}
+    \cs_new:Npn \@@_merge_exp_after_bottom_up_tl:Nw
+        #1#2 \s_@@_merge_exp_list #3
+      {
+        \@@_if_stop:w #3 \@@_merge_exp_after_stop:w \s_@@_merge_exp_stop
+        \@@_if_mark:w #3 \@@_merge_exp_after_mark_tl:w \s_@@_merge_exp_mark
+        \exp_after:wN \@@_merge_exp_after_merge_tl:Nw \exp_after:wN #1
+        \tex_expanded:D { \if_false: } \fi:
+          \@@_merge_exp_merge:Nw #1#2 \s_@@_merge_exp_list {#3}
+      }
+    \cs_new:Npn \@@_merge_exp_after_merge_tl:Nw
+        #1#2 \s_@@_merge_exp_list #3
+      {
+        \@@_if_mark:w #3 \@@_merge_exp_after_mark_tl:w \s_@@_merge_exp_mark
+        \exp_after:wN \@@_merge_exp_after_merge_tl:Nw \exp_after:wN #1
+        \tex_expanded:D { \if_false: } \fi:
+          \@@_merge_exp_merge:Nw #1#2 \s_@@_merge_exp_list {#3}
+      }
+    \cs_new:Npn \@@_merge_exp_after_stop:w
+        \s_@@_merge_exp_stop
+        \@@_if_mark:w \s_@@_merge_exp_stop #1 \s_@@_merge_exp_mark
+        \exp_after:wN #2 \exp_after:wN #3
+        \tex_expanded:D #4 \fi:
+        \@@_merge_exp_merge:Nw #5 \s_@@_merge_exp_mark \s_@@_merge_exp_list #6
+        \s_@@_merge_exp_list
+      {{}}
+    \cs_new:Npn \@@_merge_exp_after_mark_tl:w
+        \s_@@_merge_exp_mark
+        \exp_after:wN \@@_merge_exp_after_merge_tl:Nw \exp_after:wN #1
+        \tex_expanded:D #2 \fi:
+        \@@_merge_exp_merge:Nw #3 \s_@@_merge_exp_tail \s_@@_merge_exp_list
+        #4 \s_@@_merge_exp_list
+        \s_@@_merge_exp_stop \s_@@_merge_exp_list
+      { \exp_after:wN { \use_none:n #3 } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[rEXP]{\@@_merge_exp_merge:Nw}
+%   Two sublists are merged by taking the first elements from both sublist and
+%   comparing them. \cs{@@_merge_exp_merge:Nw} is only called on two sublists
+%   which are known to be non-empty, so the first step doesn't have to check for
+%   any markers. The first elements of each sublist are compared with the
+%   provided function, \cs{@@_merge_exp_merge_i:Nnnn} and
+%   \cs{@@_merge_exp_merge_ii:Nw} do the branching and grab the next element
+%   from the list. No accidental brace-stripping can happen for |#3| because of
+%   the trailing \cs{s_@@_merge_exp_tail}. The user test in |#1| and the list
+%   elements which were just compared are placed a second time after the test so
+%   that the next steps can use them as arguments.
+%    \begin{macrocode}
+    \cs_new:Npn \@@_merge_exp_merge:Nw #1#2#3 \s_@@_merge_exp_list #4
+      {
+        #1 {#2} {#4}
+          \@@_merge_exp_merge_i:Nnnn
+          \@@_merge_exp_merge_ii:Nw
+        #1 {#2} {#4}
+        #3 \s_@@_merge_exp_list
+      }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[rEXP]
+%   {
+%     \@@_merge_exp_merge_i:Nnnn,
+%     \@@_merge_exp_merge_i_tail:w,
+%     \@@_merge_exp_merge_ii:Nw,
+%     \@@_merge_exp_merge_ii_tail:w
+%   }
+%   \cs{@@_merge_exp_merge_i:Nnnn} is called when the element of the first
+%   sublist should be placed next. After that is done we have to check whether
+%   the first sublist is completely processed in which case
+%   \cs{@@_merge_exp_merge_i_tail:w} is called. Else we just do the next
+%   comparison.
+%
+%   \cs{@@_merge_exp_merge_i_tail:w} places the remainder of the second sublist
+%   after the now completely sorted merged list. Then the next two sublists
+%   should be merged by \cs{@@_merge_exp_merge_next:Nw}.
+%
+%   \cs{@@_merge_exp_merge_ii:Nw} and \cs{@@_merge_exp_merge_ii_tail:w} work
+%   pretty similar. The big difference is that \cs{@@_merge_exp_merge_ii:Nw}
+%   needs to grab the entire first sublist to get the next element from the
+%   second.
+%    \begin{macrocode}
+    \cs_new:Npn \@@_merge_exp_merge_i:Nnnn #1#2#3#4
+      {
+        { \__kernel_exp_not:w {#2} }
+        \@@_if_tail:w #4 \@@_merge_exp_merge_i_tail:w \s_@@_merge_exp_tail
+        #1 {#4} {#3}
+          \@@_merge_exp_merge_i:Nnnn
+          \@@_merge_exp_merge_ii:Nw
+        #1 {#4} {#3}
+      }
+    \cs_new:Npn \@@_merge_exp_merge_i_tail:w
+        \s_@@_merge_exp_tail
+        #1#2#3 \@@_merge_exp_merge_i:Nnnn \@@_merge_exp_merge_ii:Nw
+        #4
+        \s_@@_merge_exp_list
+        #5 \s_@@_merge_exp_list
+      {
+        \__kernel_exp_not:w { {#3} #5 } \s_@@_merge_exp_list
+        \@@_merge_exp_merge_next:Nw #1
+      }
+    \cs_new:Npn \@@_merge_exp_merge_ii:Nw #1#2#3#4 \s_@@_merge_exp_list #5
+      {
+        { \__kernel_exp_not:w {#3} }
+        \@@_if_tail:w #5 \@@_merge_exp_merge_ii_tail:w \s_@@_merge_exp_tail
+        #1 {#2} {#5}
+          \@@_merge_exp_merge_i:Nnnn
+          \@@_merge_exp_merge_ii:Nw
+        #1 {#2} {#5}
+        #4 \s_@@_merge_exp_list
+      }
+    \cs_new:Npn \@@_merge_exp_merge_ii_tail:w
+        \s_@@_merge_exp_tail
+        #1#2#3 \@@_merge_exp_merge_i:Nnnn \@@_merge_exp_merge_ii:Nw
+        #4#5#6
+        #7 \s_@@_merge_exp_list
+        \s_@@_merge_exp_list
+      {
+        \__kernel_exp_not:w { {#2} #7 } \s_@@_merge_exp_list
+        \@@_merge_exp_merge_next:Nw #1
+      }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[rEXP]
+%   {
+%     \@@_merge_exp_merge_next:Nw,
+%     \@@_merge_exp_merge_next_stop:w,
+%     \@@_merge_exp_merge_next_mark:w,
+%   }
+%   \cs{@@_merge_exp_merge_next:Nw} is pretty much the same as
+%   \cs{@@_merge_exp_merge:Nw} but it has to check whether we're done with the
+%   current merging iteration. There are two cases, either the number of
+%   sublists was even, in which case |#4| will be \cs{s_@@_merge_exp_stop} and
+%   we're completely done, so we're ending the \cs{tex_expanded:D} expansion
+%   by leaving a closing brace and place the markers we just gobbled back at the
+%   end of the sublists. If the number of sublists was odd |#4| will be
+%   \cs{s_@@_merge_exp_mark} and |{#2}#3| will be the last sublist. The macro
+%   \cs{@@_merge_exp_merge_next_mark:w} will put this last sublist back and end
+%   the \cs{tex_expanded:D} expansion.
+%    \begin{macrocode}
+    \cs_new:Npn \@@_merge_exp_merge_next:Nw #1#2#3 \s_@@_merge_exp_list #4
+      {
+        \@@_if_stop:w #4 \@@_merge_exp_merge_next_stop:w \s_@@_merge_exp_stop
+        \@@_if_mark:w #4 \@@_merge_exp_merge_next_mark:w \s_@@_merge_exp_mark
+        #1 {#2} {#4}
+          \@@_merge_exp_merge_i:Nnnn
+          \@@_merge_exp_merge_ii:Nw
+        #1 {#2} {#4}
+        #3 \s_@@_merge_exp_list
+      }
+    \cs_new:Npn \@@_merge_exp_merge_next_stop:w
+        \s_@@_merge_exp_stop
+        \@@_if_mark:w \s_@@_merge_exp_stop \@@_merge_exp_merge_next_mark:w
+        \s_@@_merge_exp_mark
+        #1 \@@_merge_exp_merge_i:Nnnn \@@_merge_exp_merge_ii:Nw
+        #2 \s_@@_merge_exp_list
+      {
+        \if_false: { \fi: }
+        \s_@@_merge_exp_mark \s_@@_merge_exp_list \s_@@_merge_exp_stop
+      }
+    \cs_new:Npn \@@_merge_exp_merge_next_mark:w
+        \s_@@_merge_exp_mark
+        #1#2#3 \@@_merge_exp_merge_i:Nnnn \@@_merge_exp_merge_ii:Nw
+        #4#5#6
+        #7 \s_@@_merge_exp_list
+      {
+        \if_false: { \fi: }
+        {#2} #7 \s_@@_merge_exp_list \s_@@_merge_exp_mark
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\clist_sort:nN,\clist_sort:NN}
+%   Sorting a |clist| can be done in the same way we sort a |tl|, we just have
+%   to convert the |clist| into the same representation used by \cs{tl_sort:nN}
+%   internally during our first bottom up pass and convert back to a |clist|
+%   after we're done. The \cs{clist_sort:NN} variant can take a shortcut in
+%   the bottom up pass as a |clist| variable would already be sanitized. For the
+%   |n| variant we place \cs{prg_do_nothing:} infront of the list to avoid
+%   accidental brace stripping.
+%
+%   In the case that \cs{tex_expanded:D} isn't available we fall back by
+%   converting the |clist| into a token list and using the same sorting function
+%   inside an |f|-expansion. The result is then turned into a |clist|. For the
+%   conversion to a token list we use \cs{clist_map_function:NN} for the
+%   |N|-type and \cs{clist_map_function:nN} for the |n|-type variant.
+%    \begin{macrocode}
+\cs_if_exist:NTF \tex_expanded:D
+  {
+    \cs_new:Npn \clist_sort:nN #1#2
+      {
+        \__kernel_exp_not:w
+          \exp_after:wN \@@_merge_exp_after_bottom_up_clist:Nw \exp_after:wN #2
+          \tex_expanded:D
+            {
+              \@@_merge_exp_bottom_up_clist_n:Nw
+                #2 \prg_do_nothing: #1 , \s_@@_merge_exp_mark ,
+              \s_@@_merge_exp_stop
+            }
+      }
+    \cs_new:Npn \clist_sort:NN #1#2
+      {
+        \__kernel_exp_not:w
+          \clist_if_empty:NTF #1
+            { {} }
+            {
+              \exp_after:wN \@@_merge_exp_after_bottom_up_clist:Nw
+              \exp_after:wN #2
+              \tex_expanded:D
+                {
+                  \exp_after:wN \@@_merge_exp_bottom_up_clist_N:Nw \exp_after:wN
+                    #2 #1 , \s_@@_merge_exp_mark , \s_@@_merge_exp_stop ,
+                }
+            }
+      }
+  }
+  {
+    \cs_new:Npn \clist_sort:nN #1#2
+      {
+        \exp_not:f
+          {
+            \clist_map_function:nN {#1} \@@_quick_prepare_clist:nw
+            \@@_quick_prepare_clist_result:nN {} #2
+          }
+      }
+    \cs_new:Npn \clist_sort:NN #1#2
+      {
+        \exp_not:f
+          {
+            \clist_map_function:NN #1 \@@_quick_prepare_clist:nw
+            \@@_quick_prepare_clist_result:nN { } #2
+          }
+      }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_quick_prepare_clist:nw}
+%    \begin{macrocode}
+    \cs_new:Npn \@@_quick_prepare_clist:nw
+        #1#2 \@@_quick_prepare_clist_result:nN #3
+      {
+        #2 \@@_quick_prepare_clist_result:nN { #3 {#1} }
+      }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_quick_prepare_clist_result:nN}
+%    \begin{macrocode}
+    \cs_new:Npn \@@_quick_prepare_clist_result:nN #1#2
+      {
+        \tl_if_empty:nF {#1}
+          {
+            \exp_after:wN \@@_quick_to_clist:n \exp:w \exp_end_continue_f:w
+              \@@_quick_prepare:Nnnn #2 { } { }
+                #1
+                { \prg_break_point: \@@_quick_prepare_end:NNNnw }
+              \s_@@_stop
+              { \prg_break_point: \@@_quick_to_clist_end:w }
+            \@@_quick_to_clist_result:n { }
+          }
+      }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_quick_to_clist:n}
+%    \begin{macrocode}
+    \cs_new:Npn \@@_quick_to_clist:n #1
+      {
+        \prg_break: #1 \prg_break_point:
+        \__clist_if_wrap:nTF {#1}
+          \@@_quick_to_clist_out_wrap:nw
+          \@@_quick_to_clist_out:nw
+          {#1}
+        \@@_quick_to_clist:n
+      }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_quick_to_clist_out:nw, \@@_quick_to_clist_out_wrap:nw}
+%    \begin{macrocode}
+    \cs_new:Npn \@@_quick_to_clist_out:nw #1#2 \@@_quick_to_clist_result:n #3
+      { #2 \@@_quick_to_clist_result:n { #3 , #1 } }
+    \cs_new:Npn \@@_quick_to_clist_out_wrap:nw
+        #1#2 \@@_quick_to_clist_result:n #3
+      { #2 \@@_quick_to_clist_result:n { #3 , {#1} } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_quick_to_clist_end:w}
+%    \begin{macrocode}
+    \cs_new:Npn \@@_quick_to_clist_end:w #1 \@@_quick_to_clist_result:n #2
+      { \exp_after:wN \exp_stop_f: \use_none:n #2 }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]
+%   {
+%     \@@_merge_exp_after_bottom_up_clist:Nw,
+%     \@@_merge_exp_after_merge_clist:Nw,
+%     \@@_merge_exp_after_mark_clist:w
+%   }
+%   These macros are the same as in the |tl| sorting variant, except that they
+%   will use \cs{@@_merge_exp_to_clist:n} on the sorted list.
+%    \begin{macrocode}
+\cs_if_exist:NT \tex_expanded:D
+  {
+    \cs_new:Npn \@@_merge_exp_after_bottom_up_clist:Nw
+        #1#2 \s_@@_merge_exp_list #3
+      {
+        \@@_if_stop:w #3 \@@_merge_exp_after_stop:w \s_@@_merge_exp_stop
+        \@@_if_mark:w #3 \@@_merge_exp_after_mark_clist:w \s_@@_merge_exp_mark
+        \exp_after:wN \@@_merge_exp_after_merge_clist:Nw \exp_after:wN #1
+        \tex_expanded:D { \if_false: } \fi:
+          \@@_merge_exp_merge:Nw #1#2 \s_@@_merge_exp_list {#3}
+      }
+    \cs_new:Npn \@@_merge_exp_after_merge_clist:Nw
+        #1#2 \s_@@_merge_exp_list #3
+      {
+        \@@_if_mark:w #3 \@@_merge_exp_after_mark_clist:w \s_@@_merge_exp_mark
+        \exp_after:wN \@@_merge_exp_after_merge_clist:Nw \exp_after:wN #1
+        \tex_expanded:D { \if_false: } \fi:
+          \@@_merge_exp_merge:Nw #1#2 \s_@@_merge_exp_list {#3}
+      }
+    \cs_new:Npn \@@_merge_exp_after_mark_clist:w
+        \s_@@_merge_exp_mark
+        \exp_after:wN \@@_merge_exp_after_merge_clist:Nw \exp_after:wN #1
+        \tex_expanded:D #2 \fi:
+        \@@_merge_exp_merge:Nw #3#4 \s_@@_merge_exp_list
+        #5 \s_@@_merge_exp_list
+        \s_@@_merge_exp_stop \s_@@_merge_exp_list
+      { \tex_expanded:D { { \@@_merge_exp_to_clist:n #4 } } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[rEXP]
+%   {
+%     \@@_merge_exp_bottom_up_clist_n:Nw,
+%     \@@_merge_exp_bottom_up_clist_n:n,
+%     \@@_merge_exp_bottom_up_clist_n_auxi:n,
+%     \@@_merge_exp_bottom_up_clist_n:wNw,
+%     \@@_merge_exp_bottom_up_clist_n:nNw,
+%     \@@_merge_exp_bottom_up_clist_n_auxii:n,
+%     \@@_merge_exp_bottom_up_clist_n_auxiii:n,
+%     \@@_merge_exp_bottom_up_clist_n:wnN,
+%     \@@_merge_exp_bottom_up_clist_n:w,
+%     \@@_merge_exp_bottom_up_clist_n_mark_i:w,
+%     \@@_merge_exp_bottom_up_clist_n_mark_ii:w
+%   }
+%   These macros do the bottom up pass for a |clist|. Elements are stripped at
+%   commas. For each element we have to test whether it's blank, in which case
+%   it is skipped. Next we need to trim spaces from both ends, after which we
+%   remove exactly one set of possible braces. All this takes several steps
+%   which is why we need a lot of auxiliaries.
+%    \begin{macrocode}
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_n:Nw #1#2,
+      {
+        \@@_if_mark:w
+          #2 \@@_merge_exp_bottom_up_clist_n_mark_i:w \s_@@_merge_exp_mark
+        \exp_after:wN \@@_merge_exp_bottom_up_clist_n:n \exp_after:wN {#2}
+        #1 \prg_do_nothing:
+      }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_n:n #1
+      {
+        \tl_if_blank:nTF {#1}
+          { \@@_merge_exp_bottom_up_clist_n:Nw }
+          {
+            \tl_trim_spaces_apply:nN {#1} \@@_merge_exp_bottom_up_clist_n_auxi:n
+          }
+      }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_n_auxi:n #1
+      { \@@_merge_exp_bottom_up_clist_n:wNw #1 , }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_n:wNw #1,
+      { \@@_merge_exp_bottom_up_clist_n:nNw {#1} }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_n:nNw #1#2#3,
+      {
+        \@@_if_mark:w
+          #3 \@@_merge_exp_bottom_up_clist_n_mark_ii:w \s_@@_merge_exp_mark
+        \exp_after:wN \@@_merge_exp_bottom_up_clist_n_auxii:n \exp_after:wN
+          {#3} {#1} #2
+      }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_n_auxii:n #1
+      {
+        \tl_if_blank:nT {#1} \@@_merge_exp_bottom_up_clist_n:w
+        \tl_trim_spaces_apply:nN {#1} \@@_merge_exp_bottom_up_clist_n_auxiii:n
+      }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_n_auxiii:n #1
+      { \@@_merge_exp_bottom_up_clist_n:wnN #1 , }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_n:wnN #1,#2#3
+      {
+        #3 {#2} {#1}
+          { \__kernel_exp_not:w { {#2} {#1} } }
+          { \__kernel_exp_not:w { {#1} {#2} } }
+        \s_@@_merge_exp_tail \s_@@_merge_exp_list
+        \@@_merge_exp_bottom_up_clist_n:Nw #3 \prg_do_nothing:
+      }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_n:w
+        \tl_trim_spaces_apply:nN #1 \@@_merge_exp_bottom_up_clist_n_auxiii:n
+        #2#3
+      { \@@_merge_exp_bottom_up_clist_n:nNw {#2} #3 \prg_do_nothing: }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_n_mark_i:w
+        \s_@@_merge_exp_mark
+        \exp_after:wN \@@_merge_exp_bottom_up_clist_n:n \exp_after:wN #1
+        \prg_do_nothing:
+        \s_@@_merge_exp_stop
+      {
+        \s_@@_merge_exp_mark \s_@@_merge_exp_list
+        \s_@@_merge_exp_stop \s_@@_merge_exp_list
+      }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_n_mark_ii:w
+        \s_@@_merge_exp_mark
+        \exp_after:wN \@@_merge_exp_bottom_up_clist_n_auxii:n \exp_after:wN
+        #1#2#3
+        \s_@@_merge_exp_stop
+      {
+        { \__kernel_exp_not:w {#2} }
+        \s_@@_merge_exp_tail \s_@@_merge_exp_list
+        \s_@@_merge_exp_mark \s_@@_merge_exp_list
+        \s_@@_merge_exp_stop \s_@@_merge_exp_list
+      }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[rEXP]
+%   {
+%     \@@_merge_exp_bottom_up_clist_N:Nw,
+%     \@@_merge_exp_bottom_up_clist_N_stop:w,
+%     \@@_merge_exp_bottom_up_clist_N_mark:w
+%   }
+%   If the input is a |clist| variable the sanitizing is already done and we
+%   just need to grab two list elements and else do the same as for the |tl|
+%   bottom up variant.
+%    \begin{macrocode}
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_N:Nw #1#2,#3,
+      {
+        \@@_if_stop:w
+          #3 \@@_merge_exp_bottom_up_clist_N_stop:w \s_@@_merge_exp_stop
+        \@@_if_mark:w
+          #3 \@@_merge_exp_bottom_up_clist_N_mark:w \s_@@_merge_exp_mark
+        #1 {#2} {#3}
+          { \__kernel_exp_not:w { {#2} {#3} } }
+          { \__kernel_exp_not:w { {#3} {#2} } }
+        \s_@@_merge_exp_tail \s_@@_merge_exp_list
+        \@@_merge_exp_bottom_up_clist_N:Nw #1
+      }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_N_stop:w
+        \s_@@_merge_exp_stop
+        \@@_if_mark:w \s_@@_merge_exp_stop
+        \@@_merge_exp_bottom_up_clist_N_mark:w \s_@@_merge_exp_mark
+        #1
+        \s_@@_merge_exp_tail \s_@@_merge_exp_list
+        \@@_merge_exp_bottom_up_clist_N:Nw #2
+      {
+        \s_@@_merge_exp_mark \s_@@_merge_exp_list
+        \s_@@_merge_exp_stop \s_@@_merge_exp_list
+      }
+    \cs_new:Npn \@@_merge_exp_bottom_up_clist_N_mark:w
+        \s_@@_merge_exp_mark
+        #1#2#3
+        \s_@@_merge_exp_tail \s_@@_merge_exp_list
+        \@@_merge_exp_bottom_up_clist_N:Nw #4
+        \s_@@_merge_exp_stop ,
+      {
+        { \__kernel_exp_not:w {#2} }
+        \s_@@_merge_exp_tail \s_@@_merge_exp_list
+        \s_@@_merge_exp_mark \s_@@_merge_exp_list
+        \s_@@_merge_exp_stop \s_@@_merge_exp_list
+      }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[rEXP]
+%   {
+%     \@@_merge_exp_to_clist:n,
+%     \@@_merge_exp_to_clist_next:n,
+%     \@@_merge_exp_to_clist_done:w
+%   }
+%   The first recursion of this loop doesn't need to check whether the end is
+%   reached, as it is never used on an empty list. The next recursions all need
+%   to check whether the end is reached and put a comma before each output
+%   element. We use \cs{__clist_if_wrap:nTF} to decide whether an additional set
+%   of braces is necessary.
+%    \begin{macrocode}
+    \cs_new:Npn \@@_merge_exp_to_clist:n #1
+      {
+        \__clist_if_wrap:nTF {#1}
+          { { \__kernel_exp_not:w {#1} } }
+          { \__kernel_exp_not:w {#1} }
+        \@@_merge_exp_to_clist_next:n
+      }
+    \cs_new:Npn \@@_merge_exp_to_clist_next:n #1
+      {
+        \@@_if_tail:w #1 \@@_merge_exp_to_clist_done:w \s_@@_merge_exp_tail
+        ,
+        \__clist_if_wrap:nTF {#1}
+          { { \__kernel_exp_not:w {#1} } }
+          { \__kernel_exp_not:w {#1} }
+        \@@_merge_exp_to_clist_next:n
+      }
+    \cs_new:Npn \@@_merge_exp_to_clist_done:w
+        \s_@@_merge_exp_tail
+        ,
+        \__clist_if_wrap:nTF #1
+        \@@_merge_exp_to_clist_next:n
+      {}
   }
 %    \end{macrocode}
 % \end{macro}
