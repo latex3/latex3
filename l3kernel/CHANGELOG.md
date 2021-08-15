@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Formatting of expandable errors (issue #931)
+
 ## [2021-07-12]
 
 ### Fixed
