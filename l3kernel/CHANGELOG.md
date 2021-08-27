@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Formatting of expandable errors (issue #931)
+- Internal code for kernel messages
 
 ## [2021-07-12]
 
