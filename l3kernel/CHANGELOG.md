@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-08-27]
+
 ### Changed
 - Formatting of expandable errors (issue #931)
 - Internal code for kernel messages
@@ -951,7 +953,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-07-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-08-27...HEAD
+[2021-08-27]: https://github.com/latex3/latex3/compare/2021-07-12...2021-08-27
 [2021-07-12]: https://github.com/latex3/latex3/compare/2021-06-18...2021-07-12
 [2021-06-18]: https://github.com/latex3/latex3/compare/2021-06-01...2021-06-18
 [2021-06-01]: https://github.com/latex3/latex3/compare/2021-05-27...2021-06-01
