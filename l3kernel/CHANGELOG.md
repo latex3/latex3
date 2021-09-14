@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Fix `\box_gresize_to_ht_plust_dp:Nn` to do a global assignment
+
 ## [2021-08-27]
 
 ### Changed
