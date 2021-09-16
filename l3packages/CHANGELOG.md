@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Added `\NewCommandCopy` support for deprecated argument types.
+
 ## [2021-08-27]
 
 ### Changed
