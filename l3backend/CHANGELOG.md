@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Issues with creating DeviceN color spaces
+
 ## [2021-08-04]
 
 ## Changed
