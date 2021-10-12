@@ -8,11 +8,9 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Fixed
-- Fix `\box_gresize_to_ht_plus_dp:Nn` to do a global assignment
-- Fix `\coffin_gattach:NnnNnnnn` to do a global assignment
-
-### Fixed
-- Missing braces in creating DeviceN color spaces
+- Global assignments for `\box_gresize_to_ht_plus_dp:Nn`
+  and `\coffin_gattach:NnnNnnnn`
+- Conversion of DeviceN colors to device fallback
 
 ## [2021-08-27]
 
