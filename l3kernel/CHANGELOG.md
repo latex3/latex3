@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-10-17]
+
 ### Changed
 - Better DeviceN support
 
@@ -963,7 +965,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-10-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-10-17...HEAD
+[2021-10-17]: https://github.com/latex3/latex3/compare/2021-10-12...2021-10-17
 [2021-10-12]: https://github.com/latex3/latex3/compare/2021-08-27...2021-10-12
 [2021-08-27]: https://github.com/latex3/latex3/compare/2021-07-12...2021-08-27
 [2021-07-12]: https://github.com/latex3/latex3/compare/2021-06-18...2021-07-12
