@@ -9,7 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Support for ICC-based color profiles
-- `\color_iccprofile_apply:nn`
+- `\color_profile_apply:nn`
 
 ## [2021-10-17]
 
