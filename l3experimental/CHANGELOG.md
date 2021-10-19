@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\draw_point_intersect_line_circle:nnnnn`
+
 ## [2021-08-27]
 
 ### Changed
