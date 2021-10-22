@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- DeviceN colorspace conversions with alternative model RGB
+
 ## [2021-10-18]
 
 ### Added
