@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
+- Allow indirect conversions between colorspaces though fallback models
 - Move some color functions from `l3backend`
 
 ### Removed
