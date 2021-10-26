@@ -637,31 +637,61 @@
 % \begin{macro}{\@@_convert:nnnN, \@@_convert:nVnN, \@@_convert:nnVN}
 % \begin{macro}[aux, EXP]
 %   {
+%     \@@_convert_gray_gray:w
 %     \@@_convert_gray_rgb:w
 %     \@@_convert_gray_cmyk:w
 %     \@@_convert_cmyk_gray:w
 %     \@@_convert_cmyk_rgb:w
+%     \@@_convert_cmyk_cmyk:w
 %     \@@_convert_rgb_gray:w
+%     \@@_convert_rgb_rgb:w
 %     \@@_convert_rgb_cmyk:w
 %   }
 %  \begin{macro}[aux, EXP]{\@@_convert_rgb_cmyk:nnnn}
-%    Model conversion is carried out using standard formulae, as described in
-%    the manual for \pkg{xcolor} (see also the \emph{PostScript Language
-%    Reference Manual}).
+%    Model conversion is carried out using standard formulae for base models,
+%    as described in the manual for \pkg{xcolor} (see also the \emph{PostScript
+%    Language Reference Manual}). For other models direct conversion might not
+%    be defined, so we go throught the fallback models if necessary.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_convert:nnN #1#2#3
   { \@@_convert:nnVN {#1} {#2} #3 #3 }
 \cs_generate_variant:Nn \@@_convert:nnN { VV }
+\cs_generate_variant:Nn \exp_last_unbraced:Nf { c }
 \cs_new_protected:Npn \@@_convert:nnnN #1#2#3#4
   {
     \tl_set:Nx #4
       {
         \cs_if_exist_use:cTF { @@_convert_ #1 _ #2 :w }
           { #3 \s_@@_stop }
-          { \use:c { c_@@_fallback_ #2 _tl } }
+          {
+            \cs_if_exist:cTF { @@_convert_ \use:c { c_@@_fallback_ #1 _tl } _ #2 :w }
+              {
+                \exp_last_unbraced:cf
+                  { @@_convert_ \use:c { c_@@_fallback_ #1 _tl } _ #2 :w }
+                  { \use:c { @@_convert_ #1 _ \use:c { c_@@_fallback_ #1 _tl } :w } #3 \s_@@_stop }
+                  \s_@@_stop
+              }
+              {
+                \exp_last_unbraced:cf
+                  { @@_convert_ \use:c { c_@@_fallback_ #2 _tl } _ #2 :w }
+                  {
+                    \cs_if_exist_use:cTF { @@_convert_ #1 _ \use:c { c_@@_fallback_ #2 _tl } :w }
+                      { #3 \s_@@_stop }
+                      {
+                        \exp_last_unbraced:cf
+                          { @@_convert_ \use:c { c_@@_fallback_ #1 _tl } _ \use:c { c_@@_fallback_ #2 _tl } :w }
+                          { \use:c { @@_convert_ #1 _ \use:c { c_@@_fallback_ #1 _tl } :w } #3 \s_@@_stop }
+                          \s_@@_stop
+                      }
+                  }
+                  \s_@@_stop
+              }
+          }
       }
   }
 \cs_generate_variant:Nn \@@_convert:nnnN { nV , nnV }
+\cs_new:Npn \@@_convert_gray_gray:w #1 \s_@@_stop
+  { #1 }
 \cs_new:Npn \@@_convert_gray_rgb:w #1 \s_@@_stop
   { #1 ~ #1 ~ #1 }
 \cs_new:Npn \@@_convert_gray_cmyk:w #1 \s_@@_stop
@@ -672,6 +702,8 @@
 %    \begin{macrocode}
 \cs_new:Npn \@@_convert_rgb_gray:w #1 ~ #2 ~ #3 \s_@@_stop
   { \fp_eval:n { 0.3 * #1 + 0.59 * #2 + 0.11 * #3 } }
+\cs_new:Npn \@@_convert_rgb_rgb:w #1 \s_@@_stop
+  { #1 }
 %    \end{macrocode}
 %   The conversion from |rgb| to |cmyk| is the most complex: a two-step
 %   procedure which requires \emph{black generation} and \emph{undercolor
@@ -700,6 +732,8 @@
     \fp_eval:n { 1 - min ( 1 , #2 + #4 ) } \c_space_tl
     \fp_eval:n { 1 - min ( 1 , #3 + #4 ) }
   }
+\cs_new:Npn \@@_convert_cmyk_cmyk:w #1 \s_@@_stop
+  { #1 }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -1696,12 +1730,12 @@
 %
 % \begin{variable}
 %   {\c_@@_fallback_cmyk_tl, \c_@@_fallback_gray_tl, \c_@@_fallback_rgb_tl}
-%   Conversion from Separation or DeviceN spaces may not be possible; have
-%   a fallback to black.
+%   For every colorspace, we define one of the base colorspaces as a fallback.
+%   The base colorspaces themselves are their own fallback.
 %    \begin{macrocode}
-\tl_const:Nn \c_@@_fallback_cmyk_tl { 0 ~ 0 ~ 0 ~ 1 }
-\tl_const:Nn \c_@@_fallback_gray_tl { 1 }
-\tl_const:Nn \c_@@_fallback_rgb_tl { 1 ~ 1 ~ 1 }
+\tl_const:Nn \c_@@_fallback_cmyk_tl { cmyk }
+\tl_const:Nn \c_@@_fallback_gray_tl { gray }
+\tl_const:Nn \c_@@_fallback_rgb_tl { rgb }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1809,12 +1843,11 @@
 %
 % \begin{macro}{\@@_model_init:nn}
 %   A shared auxiliary to do the basics of setting up a new model: reserve a
-%   number, create a fallback and white-equivalent, set up links to the backend.
+%   number, create a white-equivalent, set up links to the backend.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_model_init:nnnnn #1#2#3#4#5
+\cs_new_protected:Npn \@@_model_init:nnnn #1#2#3#4
   {
     \int_gincr:N \g_@@_model_int
-    \tl_const:cn { c_@@_fallback_ #1 _tl } { #4 }
     \clist_map_inline:nn { fill , stroke , select }
       {
         \cs_new_protected:cpx { @@_backend_ ##1 _ #1 :n } ####1
@@ -1826,13 +1859,13 @@
     \cs_new_protected:cpx { @@_model_ #1 _white: }
       {
         \prop_put:Nnn \exp_not:N \l_@@_named_white_prop {#1}
-        { \exp_not:n {#5} }
+        { \exp_not:n {#4} }
         \exp_not:N \int_compare:nNnF { \tex_currentgrouplevel:D } = 0
           { \group_insert_after:N \exp_not:c { @@_model_ #1 _ white: } }
       }
     \use:c { @@_model_ #1 _white: }
   }
-\cs_generate_variant:Nn \@@_model_init:nnnnn { nnnxx }
+\cs_generate_variant:Nn \@@_model_init:nnnn { nnnx }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1915,7 +1948,7 @@
 \cs_new_protected:Npn \@@_model_separation:w
   #1 , #2 , #3 , #4 , #5 \s_@@_stop #6#7#8
   {
-    \@@_model_init:nnnnn {#6} { 1 } { separation } { 1 } { 0 }
+    \@@_model_init:nnnn {#6} { 1 } { separation } { 0 }
     \cs_new_eq:cN { @@_parse_mix_ #6 :nw } \@@_parse_mix_gray:nw
     \cs_new:cpn { @@_parse_model_ #6 :w } ##1 , ##2 \s_@@_stop
       { {#6} { \@@_parse_number:n {##1} } }
@@ -1927,6 +1960,7 @@
   }
 \cs_new_protected:Npn \@@_model_separation_cmyk:nnnnnn #1#2#3#4#5#6
   {
+    \tl_const:cn { c_@@_fallback_ #1 _tl } { cmyk }
     \cs_new:cpn { @@_convert_ #1 _cmyk:w } ##1 \s_@@_stop
       {
          \fp_eval:n {##1 * #3} ~
@@ -1934,43 +1968,31 @@
          \fp_eval:n {##1 * #5} ~
          \fp_eval:n {##1 * #6}
       }
-    \@@_model_convert:nnn {#1} { cmyk } { rgb }
-    \@@_model_convert:nnn {#1} { cmyk } { gray }
+    \cs_new:cpn { @@_convert_cmyk_ #1 :w } ##1 \s_@@_stop { 1 }
     \prop_gput:Nnn \g_@@_alternative_values_prop {#1} { #3 , #4 , #5 , #6 }
     \@@_backend_separation_init:nnnnn {#2} { /DeviceCMYK } { }
       { 0 ~ 0 ~ 0 ~ 0 } { #3 ~ #4 ~ #5 ~ #6 }
   }
 \cs_new_protected:Npn \@@_model_separation_rgb:nnnnnn #1#2#3#4#5#6
   {
+    \tl_const:cn { c_@@_fallback_ #1 _tl } { rgb }
     \cs_new:cpn { @@_convert_ #1 _rgb:w } ##1 \s_@@_stop
       {
          \fp_eval:n {##1 * #3} ~
          \fp_eval:n {##1 * #4} ~
          \fp_eval:n {##1 * #5}
       }
-    \@@_model_convert:nnn {#1} { rgb } { cmyk }
-    \@@_model_convert:nnn {#1} { rgb } { gray }
+    \cs_new:cpn { @@_convert_rgb_ #1 :w } ##1 \s_@@_stop { 1 }
     \prop_gput:Nnn \g_@@_alternative_values_prop {#1} { #3 , #4 , #5 }
     \@@_backend_separation_init:nnnnn {#2} { /DeviceRGB } { }
       { 0 ~ 0 ~ 0 } { #3 ~ #4 ~ #5 }
   }
 \cs_new_protected:Npn \@@_model_separation_gray:nnnnnn #1#2#3#4#5#6
   {
-    \cs_new:cpn { @@_convert_ #1 _cmyk:w } ##1 \s_@@_stop
-      {
-        \fp_eval:n {##1 * #3} ~
-        \fp_eval:n {##1 * #3} ~
-        \fp_eval:n {##1 * #3} ~
-        \fp_eval:n {##1 * #3}
-      }
+    \tl_const:cn { c_@@_fallback_ #1 _tl } { gray }
     \cs_new:cpn { @@_convert_ #1 _gray:w } ##1 \s_@@_stop
       { \fp_eval:n {##1 * #3} }
-    \cs_new:cpn { @@_convert_ #1 _rgb:w } ##1 \s_@@_stop
-      {
-        \fp_eval:n {##1 * #3} ~
-        \fp_eval:n {##1 * #3} ~
-        \fp_eval:n {##1 * #3}
-      }
+    \cs_new:cpn { @@_convert_gray_ #1 :w } ##1 \s_@@_stop { 1 }
     \prop_gput:Nnn \g_@@_alternative_values_prop {#1} {#3}
     \@@_backend_separation_init:nnnnn {#2} { /DeviceGray } { } { 0 } {#3}
   }
@@ -2015,11 +2037,10 @@
     \tl_if_exist:cTF { c_@@_model_whitepoint_CIELAB_ #1 _tl }
       {
         \@@_backend_separation_init_CIELAB:nnn {#1} {#3} { #4 ~ #5 ~ #6 }
-        \cs_new:cpn { @@_convert_ #2 _cmyk:w } ##1 \s_@@_stop
-          { 0 ~ 0 ~ 0 ~ 1 }
-        \cs_new:cpn { @@_convert_ #2 _rgb:w } ##1 \s_@@_stop
-          { 1 ~ 1 ~ 1 }
+        \tl_const:cn { c_@@_fallback_ #2 _tl } { gray }
         \cs_new:cpn { @@_convert_ #2 _gray:w } ##1 \s_@@_stop
+          { 0 }
+        \cs_new:cpn { @@_convert_gray_ #2 :w } ##1 \s_@@_stop
           { 1 }
       }
       {
@@ -2156,10 +2177,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_model_devicen:nnnn #1#2#3#4
   {
-    \@@_model_init:nnnxx {#4} {#1} { devicen }
-      {
-        1 \prg_replicate:nn { #1 - 1 } { ~ 1 }
-      }
+    \@@_model_init:nnnx {#4} {#1} { devicen }
       {
         0 \prg_replicate:nn { #1 - 1 } { ~ 0 }
       }
@@ -2167,7 +2185,10 @@
       { \@@_model_devicen_parse_generic:nn }
         {#4} {#1}
     \@@_model_devicen_init:nnn {#1} {#2} {#3}
-    \@@_model_devicen_convert:nnn {#4} {#2} {#3}
+    \@@_model_devicen_convert:nnnx {#4} {#2} {#3}
+      {
+        1 \prg_replicate:nn { #1 - 1 } { ~ 1 }
+      }
   }
 %    \end{macrocode}
 %   For short lists of DeviceN colors, we can use hand-tuned parsing. This
@@ -2382,30 +2403,29 @@
 %   to other parameter-based spaces. Essentially the approach is exactly the same
 %   as the PostScript, just expressed in \TeX{} terms.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_model_devicen_convert:nnn #1#2#3
+\cs_new_protected:Npn \@@_model_devicen_convert:nnnn #1#2#3
   {
-    \use:c { @@_model_devicen_convert_ #2 :nn } {#1} {#3}
+    \use:c { @@_model_devicen_convert_ #2 :nnn } {#1} {#3}
   }
-\cs_new_protected:Npn \@@_model_devicen_convert_cmyk:nn #1#2
+\cs_generate_variant:Nn \@@_model_devicen_convert:nnnn { nnnx }
+\cs_new_protected:Npn \@@_model_devicen_convert_cmyk:nnn #1#2
   {
-    \@@_model_convert:nnn {#1} { cmyk } { gray }
-    \@@_model_convert:nnn {#1} { cmyk } { rgb }
-    \@@_model_devicen_convert:nnnn {#1} { cmyk } { 4 } {#2}
+    \tl_const:cn { c_@@_fallback_ #1 _tl } { cmyk }
+    \@@_model_devicen_convert:nnnnn {#1} { cmyk } { 4 } {#2}
   }
-\cs_new_protected:Npn \@@_model_devicen_convert_gray:nn #1#2
+\cs_new_protected:Npn \@@_model_devicen_convert_gray:nnn #1#2
   {
-    \@@_model_convert:nnn {#1} { gray } { cmyk }
-    \@@_model_convert:nnn {#1} { gray } { rgb }
-    \@@_model_devicen_convert:nnnn {#1} { gray } { 1 } {#2}
+    \tl_const:cn { c_@@_fallback_ #1 _tl } { gray }
+    \@@_model_devicen_convert:nnnnn {#1} { gray } { 1 } {#2}
   }
-\cs_new_protected:Npn \@@_model_devicen_convert_rgb:nn #1#2
+\cs_new_protected:Npn \@@_model_devicen_convert_rgb:nnn #1#2
   {
-    \@@_model_convert:nnn {#1} { rgb } { cmyk }
-    \@@_model_convert:nnn {#1} { rgb } { gray }
-    \@@_model_devicen_convert:nnnn {#1} { rgb } { 3 } {#2}
+    \tl_const:cn { c_@@_fallback_ #1 _tl } { rgb }
+    \@@_model_devicen_convert:nnnnn {#1} { rgb } { 3 } {#2}
   }
-\cs_new_protected:Npn \@@_model_devicen_convert:nnnn #1#2#3#4
+\cs_new_protected:Npn \@@_model_devicen_convert:nnnnn #1#2#3#4#5
   {
+    \cs_new:cpn { @@_convert_ #2 _ #1 :w } ##1 \s_@@_stop {#5}
     \cs_new:cpx { @@_convert_ #1 _ #2 :w } ##1 \s_@@_stop
       {
         \exp_not:c { @@_convert_devicen_ #2 : \prg_replicate:nn {#3} { n } w }
@@ -2607,7 +2627,10 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_model_iccbased_aux:nnnnnn #1#2#3#4#5#6
   {
-    \@@_model_init:nnnnn {#5} {#1} { iccbased } {#2} {#3}
+    \@@_model_init:nnnn {#5} {#1} { iccbased } {#3}
+    \tl_const:cn { c_@@_fallback_ #5 _tl } { gray }
+    \cs_new:cpn { @@_convert_ #5 _gray:w } ##1 \s_@@_stop { 0 }
+    \cs_new:cpn { @@_convert_gray_ #5 :w } ##1 \s_@@_stop { #2 }
     \use:c { @@_model_devicen_parse_ #1 :nn } {#5} {#1}
     \exp_args:Nx \@@_backend_iccbased_init:nnn
       { \file_full_name:n {#6} } {#1} {#4}
