@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\prop_to_keyval:N`
 
 ### Changed
+- Allow indirect conversions between colorspaces though fallback models
 - Move some color functions from `l3backend`
 
 ### Removed
