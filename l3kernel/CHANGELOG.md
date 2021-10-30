@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - DeviceN colorspace conversions with alternative model RGB
 
+### Added
+- `.str_set:N`, etc., key properties (issue #1007)
+
 ## [2021-10-18]
 
 ### Added
