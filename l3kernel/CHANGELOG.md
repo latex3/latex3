@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `.str_set:N`, etc., key properties (issue #1007)
+- `\bool_to_str:n` (issue #1010)
 
 ## [2021-10-18]
 
