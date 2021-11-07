@@ -14,6 +14,10 @@ this project uses date-based 'snapshot' version identifiers.
 - `.str_set:N`, etc., key properties (issue #1007)
 - `\bool_to_str:n` (issue #1010)
 
+### Changed
+- `\prop_..._from_keyval:Nn` functions now support active comma or
+  equal sign (pull #1012)
+
 ## [2021-10-18]
 
 ### Added
