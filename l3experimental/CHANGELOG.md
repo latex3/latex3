@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-11-12]
+
 ### Added
 - `\draw_point_intersect_line_circle:nnnnn`
 
@@ -229,7 +231,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-08-27...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-11-12...HEAD
+[2021-11-12]: https://github.com/latex3/latex3/compare/2021-08-27...2021-11-12
 [2021-08-27]: https://github.com/latex3/latex3/compare/2021-08-04...2021-08-27
 [2021-08-04]: https://github.com/latex3/latex3/compare/2021-07-12...2021-08-04
 [2021-07-12]: https://github.com/latex3/latex3/compare/2021-05-27...2021-07-12
