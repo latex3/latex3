@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}[1996/06/01]
 \ProvidesClass{letter}
-              [2021/01/07 v1.3c
+              [2021/03/05 v1.3c
                Standard LaTeX document class]
 \newcommand\@ptsize{}
 \DeclareOption{a4paper}

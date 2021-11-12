@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}[1997/06/01]
 \ProvidesClass{slides}
-              [2020/11/23 v2.4b
+              [2021/10/04 v2.4b
                Standard LaTeX document class]
 \input{slides.def}
 \InputIfFileExists{sfonts.cfg}

@@ -48,6 +48,7 @@ local tex_count        = tex.count
 local tex_setattribute = tex.setattribute
 local tex_setcount     = tex.setcount
 local texio_write_nl   = texio.write_nl
+local flush_list       = node.flush_list
 local luatexbase_warning
 local luatexbase_error
 local modules = modules or { }
@@ -324,6 +325,8 @@ local callbacktypes = callbacktypes or {
   glyph_stream_provider           = exclusive,
   make_extensible                 = exclusive,
   font_descriptor_objnum_provider = exclusive,
+  input_level_string              = exclusive,
+  provide_charproc_data           = exclusive,
 }
 luatexbase.callbacktypes=callbacktypes
 local callback_register = callback_register or callback.register
