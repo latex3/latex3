@@ -70,12 +70,12 @@ discussion should be directed to the [LaTeX-L list](#Discussion).
 
 ## Build status
 
-LaTeX3 uses [Travis CI](https://travis-ci.org/) as a hosted continuous
-integration service. For each commit, the build status is tested using
-the current release of TeX Live.
+We use [GitHub Actions](https://github.com/features/actions) as a hosted
+continuous integration service. For each commit, the build status is tested
+using the current release of TeX Live.
 
 _Current build status:_
-![build status](https://github.com/latex3/latex3/actions/workflows/main.yml/badge.svg?branch=main)
+![build status](https://github.com/latex3/latex3/actions/workflows/main.yaml/badge.svg?branch=main)
 
 ## Development team
 
