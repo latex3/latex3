@@ -1,52 +1,50 @@
-# The LaTeX3 Development Repository
+# The `expl3` (LaTeX3) Development Repository
 
 ## Overview
 
-The repository contains development material for LaTeX3. This includes
-not only code to be developed into the LaTeX3 kernel, but also a variety
-of test, documentation and more experimental material. A great deal of
-the experimental LaTeX3 code can be loaded within LaTeX2e to allow
-development and testing to occur.
+The repository contains development material for `expl3`. This includes
+not only code to be developed into the `expl3` kernel, but also a variety
+of test, documentation and more experimental material. All of this code works
+on top of LaTeX2e.
 
-The following directories contain experimental LaTeX3 code:
+The following directories are present in the repository:
 
-* `l3kernel`: code which is intended to eventually appear in a
-  stand-alone LaTeX3 format. Most of this material is also
-  usable on top of LaTeX2e when loading the `expl3` package.
-* `l3backend`: code for backend (driver) level interaces across
-  the `expl3` codebase.
+* `l3kernel`: code forms the `expl3` kernel and with the exception of the
+  contents of `l3candidates`, all stable code. With a modern LaTeX2e kernel,
+  this code is loaded during format creation; when using an older LaTeX2e
+  kernel, this material is accessible using the `expl3` package.
+* `l3backend`: code for backend (driver) level interfaces across
+  the `expl3` codebase; none of this code has public interfaces, and so
+  no distinction is made between stable and experimental code.
 * `l3packages`: code which is written to be used on top of
-  LaTeX2e to experiment with LaTeX3 concepts. The interfaces to these
-  higher-level packages are 'stable'.
+  LaTeX2e to explore interfaces; these higher-level packages are 'stable'.
+  It is unlikely that any new packages will be added to this area.
 * `l3experimental`: code which is written to be used on top of
-  LaTeX2e to experiment with LaTeX3 concepts. The interfaces
+  LaTeX2e to experiment with code and interface concepts. The interfaces
   for these packages are still under active discussion. Parts of this code may
-  eventually be migrated to `l3kernel`, while other parts are tied closely
-  to LaTeX2e and are intended to support mixing LaTeX2e and LaTeX3 concepts.
+  eventually be migrated to `l3kernel`.
 * `l3trial`: material which is under very active development, for potential
   addition to `l3kernel` or `l3experimental`. Material in this directory
   may include potential replacements for existing modules, where large-scale
-  changes are under-way.
-* `l3leftovers`: code which has been developed in the past by The
-  LaTeX3 Project but is not suitable for use in its current form.
-  Parts of this code may be used as the basis for new developments
-  in `l3kernel` or `l3experimental` over time.
+  changes are under-way. This code is _not_ released to CTAN.
+* `l3leftovers`: code which has been developed in the past by The LaTeX Project
+  but is not suitable for use in its current form. Parts of this code may be
+  used as the basis for new developments in `l3kernel` or `l3experimental` over
+  time.
 
 Support material for development is found in:
 
 * `support`, which contains files for the automated test suite which are
-  'local' to the LaTeX3 repository.
+  'local' to the repository.
 
 Documentation is found in:
 
-* `articles`: discussion of LaTeX3 concepts by team members for
+* `articles`: discussion of concepts by team members for
   publication in [_TUGBoat_](http://www.tug.org/tugboat) or elsewhere.
 
-The repository also contains the directory `xpackages`. This
-contain code which is being moved (broadly) `l3experimental`.
-Over time, `xpackages` is expected to be removed from the repository.
-The directory `contrib` is used to test the interaction of LaTeX3
-code with selected contributed packages.
+The repository also contains the directory `xpackages`. This contain code which
+is being moved (broadly) `l3experimental`. Over time, `xpackages` is expected to
+be removed from the repository.
 
 ## Discussion
 
@@ -64,10 +62,10 @@ with the body containing
 
 ## Issues
 
-The issue tracker for LaTeX3 is currently located
+The issue tracker for `expl3` is currently located
 [on GitHub](https://github.com/latex3/latex3/issues).
 
-Please report specific issues with LaTeX3 code there; more general
+Please report specific issues with `expl3` code there; more general
 discussion should be directed to the [LaTeX-L list](#Discussion).
 
 ## Build status
@@ -77,11 +75,11 @@ integration service. For each commit, the build status is tested using
 the current release of TeX Live.
 
 _Current build status:_
-[![Build Status](https://travis-ci.org/latex3/latex3.svg?branch=master)](https://travis-ci.org/latex3/latex3)
+![build status](https://github.com/latex3/latex3/actions/workflows/main.yml/badge.svg?branch=main)
 
 ## Development team
 
-LaTeX3 is developed by [The LaTeX Project](https://latex-project.org).
+This code is developed by [The LaTeX Project](https://latex-project.org).
 
 ## Copyright
 
