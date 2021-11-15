@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Documentation improvements
+- Implementation of `intarray` data tyep with LuaTeX
+
 ## [2021-11-12]
 
 ### Fixed
