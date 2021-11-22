@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2021-11-22]
+
 ### Added
 - Support for legacy `if` switches in `l3keys`
 
@@ -991,7 +993,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-11-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2021-11-22...HEAD
+[2021-11-22]: https://github.com/latex3/latex3/compare/2021-11-12...2021-11-22
 [2021-11-12]: https://github.com/latex3/latex3/compare/2021-10-18...2021-11-12
 [2021-10-18]: https://github.com/latex3/latex3/compare/2021-10-17...2021-10-18
 [2021-10-17]: https://github.com/latex3/latex3/compare/2021-10-12...2021-10-17
