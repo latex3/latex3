@@ -14,7 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Documentation improvements
-- Implementation of `intarray` data tyep with LuaTeX
+- Implementation of `intarray` data type with LuaTeX
 
 ## [2021-11-12]
 
