@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\prop_to_keyval:N`
+- Support for validity scope for keys
 
 ### Changed
 - Allow indirect conversions between colorspaces though fallback models
