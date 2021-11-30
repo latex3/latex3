@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Use `\ProvideExp...` in `xfp` because the package will soon no longer be needed
+  and just remains so that old documents still compile correctly.
+
 ## [2021-11-12]
 
 ### Added

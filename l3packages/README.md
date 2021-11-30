@@ -21,7 +21,7 @@ updated at the same time.
 Currently included in the CTAN release of `l3packages` are the following
 bundles:
 * `l3keys2e`
-* `xfp`
+* `xfp`     (from 2022-06-01 part of the LaTeX format)
 * `xfrac`
 * `xparse`
 * `xtemplate`
@@ -42,6 +42,8 @@ FPU. As such, it is a wrapper around the core `\fp_eval:n` function
 but does not require code syntax. It provides the expandable command
 `\fpeval`, which can be used inside for example `\edef` or contexts
 where TeX requires a number.
+From 2022-06-01 release if LaTeX this will be included in the format
+so that the package  doesn't need loading any longer.
 
 `xfrac`
 -------
