@@ -14,9 +14,12 @@ typesetfiles = {"l3draw.dtx", "l3draw-code.tex"}
 
 -- Set up to allow testing dvips, etc.
 specialformats = specialformats or {}
-specialformats["latex"] = specialformats["latex"] or
+specialformats.latex =
   {
-    ["etex-dvips"] = {binary = "etex", format = "latex"},
+    luatex = {binary = "luahbtex",format = "lualatex"},
+    ptex  = {binary = "eptex"},
+    uptex = {binary = "euptex"},
+    ["etex-dvips"] = {binary = "etex", format = "latex"}
   }
 checkengines = {"pdftex", "luatex", "xetex", "etex-dvips", "ptex", "uptex"}
 
