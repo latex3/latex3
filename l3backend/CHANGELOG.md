@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Scoping issues for `dvisvgm`
+- An incorrect mapping function in the drawing backend
 
 ## [2021-10-17]
 
