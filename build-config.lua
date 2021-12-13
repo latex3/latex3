@@ -137,6 +137,9 @@ local function fmt(engines,dest)
 
   local errorlevel
   for _,engine in pairs(engines) do
+    if specialformats.latex[engine] then
+      engine = specialformats.latex[engine].binary
+    end
     errorlevel = mkfmt(engine)
     if errorlevel ~= 0 then return errorlevel end
   end
