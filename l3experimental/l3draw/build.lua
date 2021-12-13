@@ -12,5 +12,13 @@ maindir = "../.."
 
 typesetfiles = {"l3draw.dtx", "l3draw-code.tex"}
 
+-- Set up to allow testing dvips, etc.
+specialformats = specialformats or {}
+specialformats["latex"] = specialformats["latex"] or
+  {
+    ["etex-dvips"] = {binary = "etex", format = "latex"},
+  }
+checkengines = {"pdftex", "luatex", "xetex", "etex-dvips", "ptex", "uptex"}
+
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
