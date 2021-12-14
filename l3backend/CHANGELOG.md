@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Scoping issues for `dvisvgm`
 - An incorrect mapping function in the drawing backend
 - Dash pattern intialisation for `dvisvgm`
+- Drawing scope for `dvisvgm`
 
 ## [2021-10-17]
 
