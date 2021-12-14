@@ -8,9 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Scoping issues for `dvisvgm`
-- An incorrect mapping function in the drawing backend
-- Dash pattern intialisation for `dvisvgm`
-- Drawing scope for `dvisvgm`
+- Some incorrect functions in `l3draw` backend for `dvisvgm`
 
 ## [2021-10-17]
 
