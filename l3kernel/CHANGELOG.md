@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Removed
+- Lua functions in `l3kernel` table
+
 ## [2021-11-22]
 
 ### Added
