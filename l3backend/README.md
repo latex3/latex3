@@ -11,6 +11,6 @@ on an independent schedule.
 
 -----
 
-<p>Copyright (C) 2019-2021 The LaTeX Project <br />
+<p>Copyright (C) 2019-2022 The LaTeX Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>
