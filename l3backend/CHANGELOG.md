@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Move some functions to `l3color`
+
 ## [2021-12-14]
 
 ### Fixed

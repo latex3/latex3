@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Move some color functions from `l3backend`
+
 ### Removed
 - Lua functions in `l3kernel` table
 
