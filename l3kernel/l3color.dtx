@@ -304,6 +304,34 @@
 %   When using \texttt{dvips}, this PostScript variables hold the stroke color.
 % \end{variable}
 %
+% \subsection{Coloring math mode material}
+%
+% Coloring math mode material using \cs{color_select:nn(n)} has some restrictions
+% and often leads to spacing issues and/or poor input syntax. Avoiding generating
+% \tn{mathord} atoms whilst coloring only those parts of the input which are
+% required needs careful handling. The functionality here covers this important
+% use case.
+%
+% \begin{function}[added = 2022-01-26]{\color_math:nn, \color_math:nnn}
+%   \begin{syntax}
+%     \cs{color_math:nn} \Arg{color expression}\Arg{content}
+%     \cs{color_math:nnn} \Arg{model(s)} \Arg{value(s)} \Arg{content}
+%   \end{syntax}
+%   Works as for \cs{color_select:n(n)} but applies color only to the math mode
+%   \meta{content}. The function does not generate a group and the \meta{content}
+%   therefore retains its math atom states. Sub/superscripts are also properly
+%   handled.
+% \end{function}
+%
+% \begin{variable}[added = 2022-01-26]
+%   {\l_color_math_limits_tl, \l_color_math_active_tl}
+%   These token list control some aspects of \cs{color_math:nn(n)}. The
+%   \texttt{limits} list holds tokens which act in the same way as
+%   \cs{limits}. The \texttt{active} list holds tokens which are math active
+%   and should be replaced by their definition during searching for
+%   sub/superscripts.
+% \end{variable}
+%
 % \section{Multiple color models}
 %
 % When selecting or setting a color with an explicit model, it is possible
@@ -534,19 +562,21 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\@@_select:N}
+% \begin{macro}{\@@_select:N, \@@_select_math:N}
 % \begin{macro}{\@@_select:nn}
 %    Take an internal color specification and pass it to the driver. This code
 %    is needed to ensure the current color but will also be used by the
 %    higher-level material.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_select:N #1
-  { \exp_after:wN \@@_select:nn #1 }
-\cs_new_protected:Npn \@@_select:nn #1#2
   {
-    \use:c { @@_backend_select_ #1 :n } {#2}
+    \exp_after:wN \@@_select:nn #1
     \group_insert_after:N \@@_backend_reset:
   }
+\cs_new_protected:Npn \@@_select_math:N #1
+  { \exp_after:wN \@@_select:nn #1 }
+\cs_new_protected:Npn \@@_select:nn #1#2
+  { \use:c { @@_backend_select_ #1 :n } {#2} }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -1354,6 +1384,201 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Math color}
+%
+% The approach here is the same as for the \LaTeXe{} \cs{mathcolor} command,
+% but as we are working at the \pkg{expl3} level we can make some minor
+% changes.
+%
+% \begin{macro}{\l_color_math_active_tl}
+%   Tokens representing active sub/superscripts.
+%    \begin{macrocode}
+\tl_new:N \l_color_math_active_tl
+\tl_set:Nn \l_color_math_active_tl { ' }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\l_color_math_limits_tl}
+%   Tokens representing limits.
+%    \begin{macrocode}
+\tl_new:N \l_color_math_limits_tl
+\tl_set:Nn \l_color_math_limits_tl { \limits \nolimits \displaylimits }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\g_@@_math_seq}
+%   Not all engines have multiple color stacks, and at the same time we are
+%   not expecting breaking within a colored math fragment. So we track the
+%   color stack ourselves.
+%    \begin{macrocode}
+\seq_new:N \g_@@_math_seq
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\color_math:nn}
+% \begin{macro}{\color_math:nnn}
+% \begin{macro}{\@@_math:n}
+%   The basic set up here is relatively simple: store the current color,
+%   parse the new color as-normal, then switch color before inserting the
+%   tokens we are asked to change. The tricky part is right at the end,
+%   handling the reset.
+%    \begin{macrocode}
+\cs_new_protected:Npn \color_math:nn #1#2
+  {
+    \seq_gpush:NV \g_@@_math_seq \l_@@_current_tl
+    \@@_parse:nN {#1} \l_@@_current_tl
+    \@@_math:n {#2}
+  }
+\cs_new_protected:Npn \color_math:nnn #1#2#3
+  {
+    \seq_gpush:NV \g_@@_math_seq \l_@@_current_tl
+    \@@_select_main:Nw \l_@@_current_tl
+      #1 / / \s_@@_mark #2 / / \s_@@_stop
+    \@@_math:n {#3}
+  }
+\cs_new_protected:Npn \@@_math:n #1
+  {
+    \@@_select_math:N \l_@@_current_tl
+    #1
+    \@@_math_scan:w
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}
+%   {
+%     \@@_math_scan:w      ,
+%     \@@_math_scan_auxi:  ,
+%     \@@_math_scan_auxii: ,
+%     \@@_math_scan_end:
+%   }
+%   The complication when changing the color back is due to the fact
+%   that the \cs{color_math:nn(n)} may be followed by \verb=^= or \verb=_=
+%   or the hidden superscript (for example \texttt{'}) and its argument may
+%   end in a \tn{mathop} in which case the sub- and superscripts may be
+%   attached as \cs{limits} instead of after the material. All cases
+%   need separate treatment. To avoid repeatedly collecting the same
+%   token, we first check for an alignment tab: assuming we don't have
+%   one of those, we can \enquote{recycle} \cs{l_peek_token} safely.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_math_scan:w
+  {
+    \peek_remove_filler:n
+      {
+        \peek_catcode:NTF \c_alignment_token
+          { \@@_math_scan_end: }
+          { \@@_math_scan_auxi: }
+      }
+  }
+%    \end{macrocode}
+%   Dealing with literal |_| and |^| is easy, and as we have exactly two cases,
+%   we can hard-code this. Finding limits is a bit more fun, as the list
+%   could grow: here we use a mapping. The end of that code cleans up 
+%   the dangling \cs{@@_math_scan_auxii:}, then also removes the test token
+%   (using \cs{use_none:n}).
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_math_scan_auxi:
+  {
+    \token_case_meaning:NnTF \l_peek_token
+      {
+        \c_math_subscript_token   { }
+        \c_math_superscript_token { }
+      }
+      { \@@_math_scripts:Nw }
+      {
+        \tl_map_inline:Nn \l_color_math_limits_tl
+          {
+            \token_if_eq_meaning:NNT \l_peek_token ##1
+              {
+                \tl_map_break:n
+                  { \use_i:nn { ##1 \@@_math_scan:w \use_none:n } }
+               }
+          }
+        \@@_math_scan_auxii:
+      }
+  }
+%    \end{macrocode}
+%   The one final case to handle is math-active tokens, most obviously
+%   \texttt{'}, as these won't be covered earlier.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_math_scan_auxii:
+  {
+    \tl_map_inline:Nn \l_color_math_active_tl
+      {
+        \token_if_eq_meaning:NNT \l_peek_token ##1
+          {
+            \tl_map_break:n
+              {
+                \use_i:nn
+                  { \@@_math_scan_auxiii:N ##1 }
+              }
+          }
+        \@@_math_scan_end:
+      }
+  }
+\cs_new_protected:Npn \@@_math_scan_auxiii:N #1
+  {
+    \exp_after:wN \exp_after:wN \exp_after:wN \@@_math_scan:w
+      \char_generate:nn { `#1 } { 13 }
+  }
+\cs_new_protected:Npn \@@_math_scan_end:
+  {
+    \@@_backend_reset:
+    \seq_gpop:NN \g_@@_math_seq \l_@@_current_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_math_scripts:Nw}
+% \begin{macro}{\@@_math_script_aux:N}
+%   The tricky part of handling sub and superscripts is that we have
+%   to reset color to the one that is on the stack but reset it back
+%   to what it was before to allow for cases like
+% \begin{verbatim}
+%   \[  \color_math:n { red } { a + \sum } _ { i = 1 } ^ { n }  \]
+% \end{verbatim}
+%   Here, \TeX{} constructs a \cs{vbox} stacking subscript, summation
+%   sign, and superscript. So technically the superscript comes first
+%   and the \cs{sum} that should get colored red is the middle.
+%
+%  The approach here is to set up a brace group immediately after the 
+%  script token, then to set the color appropriately in that argument.
+%  We need an extra group to keep the color contained, and as we
+%  need to allow for an explicit closing brace in the source, the
+%  inner group also is a brace one rather than \cs{group_begin:}-based.
+%  At the end of the outer group we need to insert \cs{@@_math_scan:w}
+%  to continue the search for a second script token.
+%
+%  Notice that here we \emph{don't} need to use the math-specific
+%  color selector as we can allow the
+%  |\group_insert_after:N \@@_backend_reset:| to operate normally.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_math_scripts:Nw #1
+  {
+    #1 
+    \c_group_begin_token
+      \c_group_begin_token
+        \seq_get:NN \g_@@_math_seq \l_@@_current_tl
+        \@@_select:N \l_@@_current_tl
+        \group_insert_after:N \c_group_end_token
+        \group_insert_after:N \@@_math_scan:w
+    \peek_remove_filler:n
+      {
+        \peek_catcode_remove:NF \c_group_begin_token
+          { \@@_math_script_aux:N }
+      }
+  }
+%    \end{macrocode}
+%   Deal with the case where we do not have an explicit brace pair in the
+%   source.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_math_script_aux:N #1 { #1 \c_group_end_token }
+%    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %

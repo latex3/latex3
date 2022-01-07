@@ -9,7 +9,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Distribute `l3doc.pdf` with a prominent warning about future changes
-
+- `\color_math:nn(n)` as a functional equivalent of the new `\mathcolor`
+  command in LaTeX2e
 ## [2022-01-21]
 
 ### Changed
