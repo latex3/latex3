@@ -120,11 +120,19 @@ local function fmt(engines,dest)
       return errorlevel
     end
 
-    local engname = string.match(src,"^[^.]*") .. ".fmt"
-    local fmtname = string.gsub(engine,"tex$","") .. "latex.fmt"
-    if engname ~= fmtname then
-      ren(unpackdir,engname,fmtname)
+    local fmtname = jobname(src) .. ".fmt"
+    local newname
+    if specialformats.latex[engine] and specialformats.latex[engine].format then
+      newname = specialformats.latex[engine].format .. ".fmt"
+    else
+      newname = string.gsub(engine,"tex$","latex.fmt")
     end
+    if fmtname ~= newname then
+      print(fmtname,newname)
+      ren(unpackdir,fmtname,newname)
+      fmtname = newname
+    end
+
     cp(fmtname,unpackdir,dest)
 
     return 0
