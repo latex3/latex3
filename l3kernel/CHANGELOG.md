@@ -14,7 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
   `\regex_replace_case_all:nN(TF)`
 
 ### Changed
-- Allow indirect conversions between colorspaces though fallback models
+- Allow indirect conversions between colorspaces through fallback models
 - Move some color functions from `l3backend`
 
 ### Removed
