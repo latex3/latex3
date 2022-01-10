@@ -679,6 +679,31 @@
 % \cs{l_keys_choice_tl} and \cs{l_keys_choice_int} in exactly
 % the same way as described for \texttt{.choices:nn}.
 %
+% \subsection{Key usage scope}
+%
+% Some keys will be used as settings which have a strictly limited scope
+% of usage. Some will be only available once, others will only be valid
+% until typesetting begins. To allow formats to support this in a structured
+% way, \pkg{l3keys} allows this information to be specified using the
+% \texttt{.usage:n} property.
+%
+% \begin{function}[added = 2022-01-10]{.usage:n}
+%   \begin{syntax}
+%     \meta{key} .usage:n = \meta{scope}
+%   \end{syntax}
+%   Defines the \meta{key} to have usage within the \meta{scope}, which
+%   should be one of \texttt{general}, \texttt{preamble} or \texttt{load}.
+% \end{function}
+%
+% \begin{variable}[added = 2022-01-10]
+%   {\l_keys_usage_load_prop, \l_keys_usage_preamble_prop}
+%   \pkg{l3keys} itself does \emph{not} attempt to redefine keys based on the
+%   usage scope. Rather, this information is made available with these
+%   two property lists. These hold an entry for each module (prefix); the
+%   value of each entry is a comma-separated list of the usage-restricted
+%   key(s).
+% \end{variable}
+%
 % \section{Setting keys}
 %
 % \begin{function}[updated = 2017-11-14]
@@ -849,7 +874,8 @@
 %
 % \section{Utility functions for keys}
 %
-% \begin{function}[EXP, pTF, updated = 2017-11-14]{\keys_if_exist:nn}
+% \begin{function}[EXP, pTF, updated = 2022-01-10]
+%   {\keys_if_exist:nn, \keys_if_exist:ne}
 %   \begin{syntax}
 %     \cs{keys_if_exist_p:nn} \Arg{module} \Arg{key} \\
 %     \cs{keys_if_exist:nnTF} \Arg{module} \Arg{key} \Arg{true code} \Arg{false code}
@@ -1625,6 +1651,14 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_keys_usage_load_prop, \l_keys_usage_preamble_prop}
+%   Global data for document-level information.
+%    \begin{macrocode}
+\prop_new:N \l_keys_usage_load_prop
+\prop_new:N \l_keys_usage_preamble_prop
+%    \end{macrocode}
+% \end{variable}
+%
 % \subsubsection{Internal auxiliaries}
 %
 % \begin{variable}{\s_@@_nil,\s_@@_mark,\s_@@_stop}
@@ -2146,6 +2180,62 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\@@_usage:n}
+% \begin{macro}{\@@_usage:NN}
+% \begin{macro}{\@@_usage:w}
+%   Save the relevant data.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_usage:n #1
+  {
+    \str_case:nnF {#1}
+      {
+        { general }
+          {
+            \@@_usage:NN \l_keys_usage_load_prop
+              \c_false_bool
+            \@@_usage:NN \l_keys_usage_preamble_prop
+              \c_false_bool
+          }
+        { load }
+          {
+            \@@_usage:NN \l_keys_usage_load_prop
+              \c_true_bool
+            \@@_usage:NN \l_keys_usage_preamble_prop
+              \c_false_bool
+          }
+        { preamble }
+          {
+            \@@_usage:NN \l_keys_usage_load_prop
+              \c_false_bool
+            \@@_usage:NN \l_keys_usage_preamble_prop
+              \c_true_bool
+          }
+      }
+      {
+        \msg_error:nnnn { keys }
+          { choice-unknown }
+          { .usage:n }
+          {#1}
+      }
+  }
+\cs_new_protected:Npn \@@_usage:NN #1#2
+  {
+    \prop_get:NVNF #1 \l_@@_module_str \l_@@_tmpa_tl
+      { \tl_clear:N \l_@@_tmpa_tl }
+    \tl_set:Nx \l_@@_tmpb_tl
+      { \exp_after:wN \@@_usage:w \l_keys_path_str \s_@@_stop }
+    \bool_if:NTF #2
+      { \clist_put_right:NV \l_@@_tmpa_tl \l_@@_tmpb_tl }
+      { \clist_remove_all:NV \l_@@_tmpa_tl \l_@@_tmpb_tl }
+    \prop_put:NVV #1 \l_@@_module_str
+      \l_@@_tmpa_tl
+  }
+\cs_new:Npn \@@_usage:w #1 / #2 \s_@@_stop {#2}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}{\@@_variable_set:NnnN, \@@_variable_set:cnnN}
 % \begin{macro}{\@@_variable_set_required:NnnN, \@@_variable_set_required:cnnN}
 %   Setting a variable takes the type and scope separately so that
@@ -2547,6 +2637,13 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}{.usage:n}
+%    \begin{macrocode}
+\cs_new_protected:cpn { \c_@@_props_root_str .usage:n } #1
+  { \@@_usage:n {#1} }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{.value_forbidden:n}
 % \begin{macro}{.value_required:n}
 %   These are very similar, so both call the same function.
@@ -2557,6 +2654,29 @@
   { \@@_value_requirement:nn { required } {#1} }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+% \subsection{Key properties for \LaTeXe{} options}
+%
+% \begin{macro}{.if, .store, .usage}
+%    \begin{macrocode}
+\group_begin:
+  \cs_set_protected:Npn \@@_tmp:nn #1#2
+    {
+      \quark_if_recursion_tail_stop:n {#1}
+      \cs_new_eq:cc
+        { \c_@@_props_root_str . #2 }
+        { \c_@@_props_root_str . #1 }
+      \@@_tmp:nn
+    }
+  \@@_tmp:nn
+    { legacy_if:n } { if }
+    { tl_set:N }    { store }
+    { usage:n }     { usage }
+    { \q_recursion_tail } { }
+    \q_recursion_stop
+\group_end:
+%    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Setting keys}
@@ -3249,6 +3369,7 @@
       { \prg_return_true: }
       { \prg_return_false: }
   }
+\prg_generate_conditional_variant:Nnn \keys_if_exist:nn { ne } { T , F , TF }
 %    \end{macrocode}
 % \end{macro}
 %
