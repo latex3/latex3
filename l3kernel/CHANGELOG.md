@@ -104,6 +104,7 @@ this project uses date-based 'snapshot' version identifiers.
   `\ior_show:N`, `\ior_log:N`, `\iow_show:N`, `\iow_log:N`,
   `\tl_log_analysis:N`, `\tl_log_analysis:n`
 - `\legacy_if_set_true:n`, `\legacy_if_set_false:n`, `\legacy_if_set:nn`
+- `\vbox_set_top_to_ht:Nnn`, `\vbox_set_top:Nw`, `\vbox_set_top_to_ht:Nnw` (issue #922)
 
 ### Fixed
 - Checking brace balance in all regex functions (issue #377)
