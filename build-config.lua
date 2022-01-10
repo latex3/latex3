@@ -130,9 +130,8 @@ local function fmt(engines,dest)
     return 0
   end
 
-  local errorlevel
   for _,engine in pairs(engines) do
-    errorlevel = mkfmt(engine)
+    local errorlevel = mkfmt(engine)
     if errorlevel ~= 0 then return errorlevel end
   end
   return 0
