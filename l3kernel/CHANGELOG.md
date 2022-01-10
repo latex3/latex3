@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+###
+- `\prop_to_keyval:N`
+
 ### Changed
 - Move some color functions from `l3backend`
 
