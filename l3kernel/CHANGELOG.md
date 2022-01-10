@@ -10,6 +10,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\prop_to_keyval:N`
 - Support for validity scope for keys
+- `\regex_match_case:nn(TF)`, `\regex_replace_case_once:nN(TF)`,
+  `\regex_replace_case_all:nN(TF)`
 
 ### Changed
 - Allow indirect conversions between colorspaces though fallback models
