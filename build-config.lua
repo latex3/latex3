@@ -128,7 +128,6 @@ local function fmt(engines,dest)
       newname = string.gsub(engine,"tex$","latex.fmt")
     end
     if fmtname ~= newname then
-      print(fmtname,newname)
       ren(unpackdir,fmtname,newname)
       fmtname = newname
     end
