@@ -18,6 +18,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Allow indirect conversions between colorspaces through fallback models
 - Move some color functions from `l3backend`
 
+### Deprecated
+- `\peek_..._ignore_spaces:N(TF)` functions
+
 ### Removed
 - Lua functions in `l3kernel` table
 
