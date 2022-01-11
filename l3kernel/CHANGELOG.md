@@ -15,11 +15,15 @@ this project uses date-based 'snapshot' version identifiers.
   `\regex_replace_case_all:nN(TF)`
 
 ### Changed
+- Policy change: functions will no longer be removed after deprecation,
+  thus the Lua functions noted below are the *last* 'stable' code to be
+  removed from `l3kernel` after deprecation
 - Allow indirect conversions between colorspaces through fallback models
 - Move some color functions from `l3backend`
 
 ### Deprecated
 - `\peek_..._ignore_spaces:N(TF)` functions
+- `\sys_load_deprecation:`
 
 ### Removed
 - Lua functions in `l3kernel` table
