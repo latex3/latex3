@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Support for validity scope for keys
+- `\peek_remove_filler:n`
 - `\prop_to_keyval:N`
 - `\regex_match_case:nn(TF)`, `\regex_replace_case_once:nN(TF)`,
   `\regex_replace_case_all:nN(TF)`
