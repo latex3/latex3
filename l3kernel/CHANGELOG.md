@@ -24,6 +24,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Deprecated
 - `\peek_..._ignore_spaces:N(TF)` functions
 - `\sys_load_deprecation:`
+- Option `undo-recent-deprecations`
 
 ### Removed
 - Lua functions in `l3kernel` table
