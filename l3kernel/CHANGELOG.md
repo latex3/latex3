@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-01-12]
+
 ### Added
 - Support for validity scope for keys
 - `\peek_remove_filler:n`
@@ -1020,7 +1022,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-11-22...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-01-12...HEAD
+[2022-01-12]: https://github.com/latex3/latex3/compare/2021-11-22...2022-01-12
 [2021-11-22]: https://github.com/latex3/latex3/compare/2021-11-12...2021-11-22
 [2021-11-12]: https://github.com/latex3/latex3/compare/2021-10-18...2021-11-12
 [2021-10-18]: https://github.com/latex3/latex3/compare/2021-10-17...2021-10-18
