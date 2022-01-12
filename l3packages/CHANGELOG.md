@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-01-12]
+
 ### Changed
 - Use `\ProvideExp...` in `xfp` because the package will soon no longer be needed
   and just remains so that old documents still compile correctly.
@@ -168,7 +170,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-11-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-01-12...HEAD
+[2022-01-12]: https://github.com/latex3/latex3/compare/2021-11-12...2022-01-12
 [2021-11-12]: https://github.com/latex3/latex3/compare/2021-08-27...2021-11-12
 [2021-08-27]: https://github.com/latex3/latex3/compare/2021-08-04...2021-08-27
 [2021-08-04]: https://github.com/latex3/latex3/compare/2021-06-18...2021-08-04
