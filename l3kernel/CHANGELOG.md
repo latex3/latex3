@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Correct creation of `.if` property
+
 ## [2022-01-12]
 
 ### Added
