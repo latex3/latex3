@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Auto-generate legacy switch if required in .legacy_set_if:n
+  key property
+
 ### Fixed
 - Correct creation of `.if` property
 
