@@ -7,8 +7,13 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Auto-generate legacy switch if required in .legacy_set_if:n
+  key property
+
 ### Fixed
 - Correct creation of `.if` property
+- Handling of colors created in a group once they go out-of-scope
 
 ## [2022-01-12]
 
