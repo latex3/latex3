@@ -10,7 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2022-01-21]
 
 ### Changed
-- Auto-generate legacy switch if required in .legacy_set_if:n
+- Auto-generate legacy switch if required in `.legacy_set_if:n`
   key property
 
 ### Fixed
