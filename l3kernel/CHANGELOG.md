@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Distribute `l3doc.pdf` with a prominent warning about future changes
+
 ## [2022-01-21]
 
 ### Changed
