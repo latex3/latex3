@@ -11,6 +11,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Distribute `l3doc.pdf` with a prominent warning about future changes
 - `\color_math:nn(n)` as a functional equivalent of the new `\mathcolor`
   command in LaTeX2e
+
+### Changed
+- Documentation for horizontal coffin poles (see issue #1041)
+
 ## [2022-01-21]
 
 ### Changed
