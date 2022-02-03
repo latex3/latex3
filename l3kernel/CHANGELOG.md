@@ -14,6 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Documentation for horizontal coffin poles (see issue #1041)
+- Update primitive requirements to enable loading with Prote/HINT
 
 ## [2022-01-21]
 
