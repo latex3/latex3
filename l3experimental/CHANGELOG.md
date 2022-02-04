@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Documentation for horizontal coffin poles (see issue #1041)
+
 ## [2021-11-12]
 
 ### Added
