@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-01-05]
+
 ### Changed
 - Documentation for horizontal coffin poles (see issue #1041)
 
@@ -234,7 +236,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2021-11-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-01-05...HEAD
+[2022-01-05]: https://github.com/latex3/latex3/compare/2021-11-12...2022-01-05
 [2021-11-12]: https://github.com/latex3/latex3/compare/2021-08-27...2021-11-12
 [2021-08-27]: https://github.com/latex3/latex3/compare/2021-08-04...2021-08-27
 [2021-08-04]: https://github.com/latex3/latex3/compare/2021-07-12...2021-08-04
