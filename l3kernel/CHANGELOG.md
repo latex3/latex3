@@ -7,7 +7,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-## [2022-01-05]
+## [2022-02-05]
 
 ### Added
 - Distribute `l3doc.pdf` with a prominent warning about future changes
@@ -1043,8 +1043,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-01-05...HEAD
-[2022-01-05]: https://github.com/latex3/latex3/compare/2022-01-21...2022-01-05
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-02-05...HEAD
+[2022-02-05]: https://github.com/latex3/latex3/compare/2022-01-21...2022-02-05
 [2022-01-21]: https://github.com/latex3/latex3/compare/2022-01-12...2022-01-21
 [2022-01-12]: https://github.com/latex3/latex3/compare/2021-11-22...2022-01-12
 [2021-11-22]: https://github.com/latex3/latex3/compare/2021-11-12...2021-11-22
