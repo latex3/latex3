@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Use of color stack int in scope end for `(x)dvipdfmx`
+
 ## [2022-01-12]
 
 ### Changed
