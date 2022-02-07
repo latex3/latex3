@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-02-07]
+
 ### Fixed
 - Use of color stack int in scope end for `(x)dvipdfmx`
 
@@ -215,7 +217,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-01-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-02-07...HEAD
+[2022-02-07]: https://github.com/latex3/latex3/compare/2022-01-12...2022-02-07
 [2022-01-12]: https://github.com/latex3/latex3/compare/2021-12-14...2022-01-12
 [2021-12-14]: https://github.com/latex3/latex3/compare/2021-10-17...2021-12-14
 [2021-10-17]: https://github.com/latex3/latex3/compare/2021-10-12...2021-10-17
