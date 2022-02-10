@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Expand key names using `f`-type expansion
+
 ## [2022-02-05]
 
 ### Added

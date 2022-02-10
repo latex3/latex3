@@ -102,21 +102,10 @@
 %     }
 % \end{verbatim}
 %
-% Key names may contain any tokens, as they are handled internally
-% using \cs{tl_to_str:n}. As discussed in
+% As discussed in
 % section~\ref{sec:l3keys:subdivision}, it is suggested that the character
 % |/| is reserved for sub-division of keys into logical
-% groups. Functions and variables are \emph{not} expanded when creating
-% key names, and so
-% \begin{verbatim}
-%   \tl_set:Nn \l_mymodule_tmp_tl { key }
-%   \keys_define:nn { mymodule }
-%     {
-%       \l_mymodule_tmp_tl .code:n = code
-%     }
-% \end{verbatim}
-% creates a key called |\l_mymodule_tmp_tl|, and not one called
-% \texttt{key}.
+% groups.
 %
 % \section{Creating keys}
 %
@@ -953,9 +942,10 @@
 % \begin{verbatim}
 %   key = value here,
 % \end{verbatim}
-% are treated identically.
+% are treated identically. Key \emph{names} are subject to expansion such that
+% they must start with a non-expandable non-space token.
 %
-% \begin{function}[rEXP, added=2020-12-19, updated = 2021-05-10]{\keyval_parse:nnn}
+% \begin{function}[rEXP, added=2020-12-19, updated = 2022-02-10]{\keyval_parse:nnn}
 %   \begin{syntax}
 %     \cs{keyval_parse:nnn} \Arg{code_1} \Arg{code_2} \Arg{key--value list}
 %   \end{syntax}
@@ -993,7 +983,7 @@
 %   \end{texnote}
 % \end{function}
 %
-% \begin{function}[rEXP, updated = 2021-05-10]{\keyval_parse:NNn}
+% \begin{function}[rEXP, updated = 2022-02-10]{\keyval_parse:NNn}
 %   \begin{syntax}
 %     \cs{keyval_parse:NNn} \meta{function_1} \meta{function_2} \Arg{key--value list}
 %   \end{syntax}
@@ -1075,6 +1065,90 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{macro}[EXP]{\keyval_parse:nnn, \keyval_parse:NNn}
+%   The main function starts the loop: there is only one outer loop although
+%   there is additional processing. The use of \cs{s_@@_mark} here prevents
+%   loss of braces from the key argument.
+%    \begin{macrocode}
+\cs_if_exist:NTF \tex_expanded:D
+  {
+    \cs_new:Npn \keyval_parse:nnn #1#2#3
+      {
+        \__kernel_exp_not:w \tex_expanded:D
+          {
+            {
+              \@@_loop:Nw \s_@@_mark #3
+                , \s_@@_tail , {#1} {#2}
+            }
+          }
+     }
+  }
+  {
+    \cs_new:Npn \keyval_parse:nnn #1#2#3
+      {
+        \group_align_safe_begin:
+        \@@_loop:w \s_@@_mark #3
+          , \s_@@_tail , {#1} {#2}
+        \group_align_safe_end:
+      }
+  }
+\cs_new_eq:NN \keyval_parse:NNn \keyval_parse:nnn
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_loop:w, \@@_loop_space:w}
+% \begin{macro}[EXP]{\@@_loop_space:Nw}
+%   Before expansion, we need to remove any leading spaces: we have to
+%   ensure that the \texttt{f}-type expansion will expand the first
+%   non-space. We use a private copy of the \cs{tl_if_head_is_space:n(TF)}
+%   code.
+%    \begin{macrocode}
+\cs_new:Npn \@@_loop:w #1 \s_@@_tail ,
+  {
+    \if:w
+      \if_false: { \fi:
+        \exp_after:wN \@@_loop_space:w
+          \exp_after:wN \prg_do_nothing: \use_none:n #1 ? ~
+      }
+      \scan_stop: \scan_stop:
+      \exp_after:wN \@@_loop_space:Nw
+    \else:
+      \exp_after:wN \@@_loop:Nw
+    \fi:
+    #1 \s_@@_tail ,
+  }
+\cs_new:Npn \@@_loop_space:w #1 ~
+  {
+    \if:w \scan_stop: \__kernel_tl_to_str:w \exp_after:wN {#1} \scan_stop:
+    \else:
+      f
+    \fi:
+    \exp_after:wN \use_none:n \exp_after:wN { \if_false: } \fi:
+  }
+\use:n { \cs_new:Npn \@@_loop_space:Nw \s_@@_mark } ~
+  { \@@_loop:w \s_@@_mark }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_loop:Nw}
+%   The next step of the loop here uses a trick. We need to be able to expand the
+%   key but \emph{not} the value. To do that we need to \texttt{f}-type expand
+%   the input. However, we do not want to expand active characters, most
+%   importantly those set up by \pkg{inputenc}. That can be achieved by using
+%   a bit of trickery: we use \cs{cs:w} so that the \texttt{f}-type expansion
+%   is \enquote{inside} a \texttt{c}-type one, but arrange that the result is
+%   actually used after the control sequence. That matches with the use of
+%   \tn{ifincsname} inside the UTF-8 setup.
+%    \begin{macrocode}
+\cs_new:Npn \@@_loop:Nw #1
+  {
+    \cs:w @@_loop_aux:w \exp_after:wN \cs_end:
+    \exp_after:wN #1 \exp:w \exp_end_continue_f:w
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 %   This temporary macro will be used since some of the definitions will need an
 %   active comma or equals sign. Inside of this macro |#1| will be the active
 %   comma and |#2| will be the active equals sign.
@@ -1084,77 +1158,47 @@
     {
 %    \end{macrocode}
 %
-% \begin{macro}[EXP]{\keyval_parse:nnn, \keyval_parse:NNn}
-%   The main function starts the first of two loops. The outer loop splits the
-%   key--value list at active commas, the inner loop will do so at other commas.
-%   The use of \cs{s_@@_mark} here prevents loss of braces from the key
-%   argument.
+% \begin{macro}[EXP]{\@@_loop_aux:w, \@@_loop_active:w}
+% \begin{macro}[EXP]{\@@_loop_active:nw}
+% \begin{macro}[EXP]{\@@_loop_active:nn}
+%   Before we can deal with finding an entry, we need to remove any catcode
+%   $13$ commas in the input. That is handled by an inner loop, set up such
+%   that we do keep the total number of commas the same.
 %    \begin{macrocode}
-      \cs_if_exist:NTF \tex_expanded:D
+      \cs_new:Npn \@@_loop_aux:w ##1 \s_@@_tail ,
         {
-          \cs_new:Npn \keyval_parse:nnn ##1 ##2 ##3
-            {
-              \__kernel_exp_not:w \tex_expanded:D
-                {
-                  {
-                    \@@_loop_active:nnw {##1} {##2}
-                      \s_@@_mark ##3 #1 \s_@@_tail #1
-                  }
-                }
-            }
+           \@@_loop_active:w ##1
+           #1 \s_@@_tail #1
+           \s_@@_tail ,
         }
+      \cs_new:Npn \@@_loop_active:w ##1 #1
+        { \@@_loop_active:nw {##1} }
+      \cs_new:Npn \@@_loop_active:nw ##1##2 #1
         {
-          \cs_new:Npn \keyval_parse:nnn ##1 ##2 ##3
-            {
-              \group_align_safe_begin:
-              \@@_loop_active:nnw {##1} {##2}
-                \s_@@_mark ##3 #1 \s_@@_tail #1
-              \group_align_safe_end:
-            }
+          \@@_if_recursion_tail:w ##1##2
+          \@@_end_loop_active:w \s_@@_tail
+          \@@_loop_active:nn {##1} {##2}
         }
-      \cs_new_eq:NN \keyval_parse:NNn \keyval_parse:nnn
+      \cs_new:Npn \@@_loop_active:nn ##1##2
+        { \@@_loop_active:nw { ##1 , ##2 } }
 %    \end{macrocode}
 % \end{macro}
-%
-% \begin{macro}[EXP]{\@@_loop_active:nnw}
-%   First a fast test for the end of the loop is done, it'll gobble everything
-%   up to a \cs{s_@@_tail}. The loop ending macro will gobble everything to the
-%   last comma in this definition.
-%   If the end isn't reached yet, start the second loop splitting at other
-%   commas, the next iteration of this first loop will be inserted by the end of
-%   \cs{@@_loop_other:nnw}.
-%    \begin{macrocode}
-      \cs_new:Npn \@@_loop_active:nnw ##1 ##2 ##3 #1
-        {
-          \@@_if_recursion_tail:w ##3
-            \@@_end_loop_active:w \s_@@_tail
-          \@@_loop_other:nnw {##1} {##2} ##3 , \s_@@_tail ,
-        }
-%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_split_other:w, \@@_split_active:w}
-%   These two macros allow to split at the first equals sign of category 12 or
-%   13. At the same time they also execute branching by inserting the first
-%   token following \cs{s_@@_mark} that followed the equals sign. Hence they
-%   also test for the presence of such an equals sign simultaneously.
-%    \begin{macrocode}
-      \cs_new:Npn \@@_split_other:w ##1 = ##2 \s_@@_mark ##3
-        { ##3 ##1 \s_@@_stop \s_@@_mark ##2 }
-      \cs_new:Npn \@@_split_active:w ##1 #2 ##2 \s_@@_mark ##3
-        { ##3 ##1 \s_@@_stop \s_@@_mark ##2 }
-%    \end{macrocode}
-% \end{macro}
-%
+% \begin{macro}[EXP]{\@@_loop_other:w}
 % \begin{macro}[EXP]{\@@_loop_other:nnw}
-%   The second loop uses the same test for its end as the first loop, next it
-%   splits at the first active equals sign using \cs{@@_split_active:w}.  The
-%   \cs{s_@@_nil} prevents accidental brace stripping and acts as a delimiter in
-%   the next steps. First testing for an active equals sign will reduce the
-%   number of necessary expansion steps for the expected average use case of
-%   other equals signs and hence perform better on average.
+%   After a bit of argument shuffling, the main loop uses a fast test for the
+%   end, next it splits at the first active equals sign using
+%   \cs{@@_split_active:w}.  The \cs{s_@@_nil} prevents accidental brace
+%   stripping and acts as a delimiter in the next steps. First testing for
+%   an active equals sign will reduce the%   number of necessary expansion
+%   steps for the expected average use case of other equals signs and hence
+%   perform better on average.
 %    \begin{macrocode}
-      \cs_new:Npn \@@_loop_other:nnw ##1 ##2 ##3 ,
+      \cs_new:Npn \@@_loop_other:w ##1 \s_@@_tail , ##2##3
+        { \@@_loop_other:nnw {##2} {##3} ##1 \s_@@_tail , }
+      \cs_new:Npn \@@_loop_other:nnw ##1##2##3 ,
         {
           \@@_if_recursion_tail:w ##3
             \@@_end_loop_other:w \s_@@_tail
@@ -1164,6 +1208,20 @@
           {##1} {##2}
           \s_@@_mark
         }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_split_other:w, \@@_split_active:w}
+%   These two macros allow to split at the first equals sign of category $12$ or
+%   $13$. At the same time they also execute branching by inserting the first
+%   token following \cs{s_@@_mark} that followed the equals sign. Hence they
+%   also test for the presence of such an equals sign simultaneously.
+%    \begin{macrocode}
+      \cs_new:Npn \@@_split_other:w ##1 = ##2 \s_@@_mark ##3
+        { ##3 ##1 \s_@@_stop \s_@@_mark ##2 }
+      \cs_new:Npn \@@_split_active:w ##1 #2 ##2 \s_@@_mark ##3
+        { ##3 ##1 \s_@@_stop \s_@@_mark ##2 }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1332,27 +1390,6 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_end_loop_other:w, \@@_end_loop_active:w}
-%   All that's left for the parsing loops are the macros which end the
-%   recursion. Both just gobble the remaining tokens of the respective loop
-%   including the next recursion call. \cs{@@_end_loop_other:w} also has to
-%   insert the next iteration of the active loop.
-%    \begin{macrocode}
-      \cs_new:Npn \@@_end_loop_other:w
-          \s_@@_tail
-          \@@_split_active:w
-          \s_@@_mark \s_@@_tail
-          \s_@@_nil \s_@@_mark
-          \@@_split_active_auxi:w
-          #2 \s_@@_mark \@@_clean_up_active:w
-        { \@@_loop_active:nnw }
-      \cs_new:Npn \@@_end_loop_active:w
-          \s_@@_tail
-          \@@_loop_other:nnw ##1 \s_@@_mark \s_@@_tail , \s_@@_tail ,
-        { }
-%    \end{macrocode}
-% \end{macro}
-%
 % The parsing loops are done, so here ends the definition of \cs{@@_tmp:w},
 % which will finally set up the macros.
 %    \begin{macrocode}
@@ -1363,12 +1400,25 @@
 \group_end:
 %    \end{macrocode}
 %
+% \begin{macro}[EXP]{\@@_end_loop_other:w, \@@_end_loop_active:w}
+%   Fast methods to clean up the two comma search loops.
+%    \begin{macrocode}
+\cs_new:Npn \@@_end_loop_other:w
+  #1 \@@_clean_up_active:w #2#3 \s_@@_mark
+  { }
+\cs_new:Npn \@@_end_loop_active:w
+  \s_@@_tail \@@_loop_active:nn #1#2
+  { \@@_loop_other:w #1 }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}[EXP]{\@@_pair:nnnn, \@@_key:nn}
+% \begin{macro}[EXP]{\@@_loop_next:nnw}
 %   These macros will be called on the parsed keys and values of the key--value
 %   list. All arguments are completely trimmed. They test for blank key names
 %   and call the functions passed to \cs{keyval_parse:nnn} inside of
 %   \cs{exp_not:n} with the correct arguments. Afterwards they insert the next
-%   iteration of the other loop.
+%   iteration of the other loop, with a rearrangement.
 %    \begin{macrocode}
 \group_begin:
   \cs_set_protected:Npn \@@_tmp:w #1#2
@@ -1380,7 +1430,7 @@
           #1
           \exp_not:n { ##4 {##2} {##1} }
           #2
-          \@@_loop_other:nnw {##3} {##4}
+          \@@_loop_next:nnw {##3} {##4}
         }
       \cs_new:Npn \@@_key:nn ##1 ##2
         {
@@ -1389,14 +1439,19 @@
           #1
           \exp_not:n { ##2 {##1} }
           #2
-          \@@_loop_other:nnw {##2}
+          \@@_loop_next:nnw {##2}
         }
     }
   \cs_if_exist:NTF \tex_expanded:D
     { \@@_tmp:w { } { } }
     { \@@_tmp:w \group_align_safe_end: \group_align_safe_begin: }
 \group_end:
+\cs_new:Npn \@@_loop_next:nnw #1#2#3 \s_@@_tail ,
+  {
+    \@@_loop:w #3 \s_@@_tail , {#1} {#2}
+  }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[EXP]{\@@_if_empty:w,\@@_if_blank:w,\@@_if_recursion_tail:w}
@@ -1416,13 +1471,13 @@
 %   execute the branching.
 %    \begin{macrocode}
 \cs_new:Npn \@@_blank_true:w \s_@@_mark \s_@@_stop \@@_trim:nN #1 \@@_key:nn
-  { \@@_loop_other:nnw }
-\cs_new:Npn \@@_blank_key_error:w \s_@@_mark \s_@@_stop #1 \@@_loop_other:nnw
+  { \@@_loop_next:nnw }
+\cs_new:Npn \@@_blank_key_error:w \s_@@_mark \s_@@_stop #1 \@@_loop_next:nnw
   {
     \bool_if:NTF \l__kernel_keyval_allow_blank_keys_bool
       { #1 }
       { \msg_expandable_error:nn { keyval } { blank-key-name } }
-    \@@_loop_other:nnw
+    \@@_loop_next:nnw
   }
 %    \end{macrocode}
 % \end{macro}
