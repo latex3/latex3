@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Use of `\@uclclist` for case changing
+
 ## [2022-02-05]
 
 ### Added
