@@ -76,7 +76,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - `\prop_..._from_keyval:Nn` functions now support active comma or
-  equal sign (pull #1012)
+  equal sign (pull \#1012)
 
 ## [2021-10-18]
 
@@ -168,7 +168,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Control sequences and category codes in regex replacements (issue \#909)
 
 ### Changed
-- Speed up `\group_align_safe_begin:` (pull #906)
+- Speed up `\group_align_safe_begin:` (pull \#906)
 
 ## [2021-05-07]
 
