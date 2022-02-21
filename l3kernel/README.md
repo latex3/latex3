@@ -6,19 +6,20 @@ Release 2022-02-05
 Overview
 --------
 
-The files of the `l3kernel` bundle provide a low-level API for TeX programmers
-with special syntax conventions, completely separating it from document level
+The files of the `l3kernel` bundle provide an API for TeX programmers
+with defined syntax conventions, completely separating it from document level
 syntax. Hence, the commands provided are not intended for use at the document
 level nor for use in describing design layouts in document class files.
 
-This API provides the foundation on which the LaTeX3 kernel and other advanced
-extensions are built. Special care has been taken so that they can be used
-within a LaTeX2e context as regular packages.
+This API provides the foundation on which new additions to the LaTeX kernel and
+other advanced extensions are built. The programming layer is designed to be
+loaded as part of LaTeX2e format building or as a loaded package with plain TeX
+or other formats.
 
-While `l3kernel` is still experimental, the bundle is now regarded as broadly
-stable. The syntax conventions and functions provided are now ready for wider
-use. There may still be changes to some functions, but these will be minor when
-compared to the scope of `l3kernel`.
+The syntax and functionality provided by `l3kernel` is regarded by the LaTeX
+team as stable. There may still be changes to some functions, but these will be
+very minor when compared to the scope of `l3kernel`. In particular, no functions
+will be removed, although some may be deprecated.
 
 Programmers making use of `l3kernel` are *strongly* encouraged to subscribe to
 the LaTeX-L mailing list (see below): announcements concerning the deprecation
@@ -59,11 +60,11 @@ since the release of version 1.40.0 in 2007; `\expanded` was added for TeX Live
 2019. Similarly, the full set of these utility primitives has been available in
 XeTeX from the 2019 TeX Live release, and has always been available in LuaTeX
 (some by Lua emulation). The Japanese pTeX and upTeX gained all of the above
-(except `\ifincsname`) for TeX Live 2019 `\ifincsnme` for TeX Live 2020.
+(except `\ifincsname`) for TeX Live 2019 `\ifincsname` for TeX Live 2020.
 
 At present, the `\expanded` primitive is emulated if unavailable. This code is
 slow and imposes some coding restrictions. As such, it will be *removed* for TeX
-Live 2022
+Live 2022.
 
 In addition to the above, engines which are fully Unicode-compatible
 must provde the functionality of the following primitives, documented in the
