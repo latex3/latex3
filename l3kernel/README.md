@@ -27,22 +27,54 @@ or modification of functions are made on the list.
 Requirements
 ------------
 
-The `l3kernel` bundle requires the e-TeX extensions and additional functionality
-to support string comparisons, expandable character generation with arbitrary
-category codes (for Unicode engines) and PDF support primitives (where direct
-PDF generation is used). The bundle only works with the following engines:
-* pdfTeX v1.40 or later
-* XeTeX v0.99992 or later
-* LuaTeX v1.10 or later
-* e-(u)pTeX from mid-2012 onward
+The `l3kernel` bundle requires the e-TeX extensions and a number of additional
+'utility' primitives, almost all of which were first added to pdfTeX. In
+particular, the functionality equivalent to the following pdfTeX primitives must
+be available
 
-pdfTeX v1.40 was released in 2007, and so any recent TeX distribution
-supports `l3kernel`. Both XeTeX and LuaTeX have developed more
-actively over the past few years, and for this reason only recent
-releases of these engines are supported.
+- `\ifpdfprimitive`
+- `\pdfcreationdate`
+- `\pdfelapsedtime`
+- `\pdffiledump`
+- `\pdffilemoddate`
+- `\pdffilesize`
+- `\pdflastxpos`
+- `\pdflastypos`
+- `\pdfmdfivesum`
+- `\pdfnormaldeviate`
+- `\pdfpageheight`
+- `\pdfpagewidth`
+- `\pdfprimitive`
+- `\pdfrandomseed`
+- `\pdfresettimer`
+- `\pdfsavepos`
+- `\pdfsetrandomseed`
+- `\pdfshellescape`
+- `\pdfstrcmp`
+- `\pdfuniformdeviate`
 
-(Engine developers should contact the team for detailed discussion about
-primitive requirements.)
+For ease of reference, these primitives will be referred to as the 'pdfTeX
+utilities'. With the exception of `\expanded`, these have been present in pdfTeX
+since the release of version 1.40.0 in 2007; `\expanded` was added for TeX Live
+2019. Similarly, the full set of these utility primitives has been available in
+XeTeX from the 2019 TeX Live release, and has always been available in LuaTeX
+(some by Lua emulation). The Japanese pTeX and upTeX gained all of the above
+(except `\ifincsname`) for TeX Live 2019 `\ifincsnme` for TeX Live 2020.
+
+At present, the `\expanded` primitive is emulated if unavailable. This code is
+slow and imposes some coding restrictions. As such, it will be *removed* for TeX
+Live 2022
+
+In addition to the above, engines which are fully Unicode-compatible
+must provde the functionality of the following primitives, documented in the
+LuaTeX manual
+
+- `\Uchar`
+- `\Ucharcat`
+- `\Umathcode`
+
+The existence of the primitive `\Umathcode` is used as the marker for Unicode
+support.
 
 Discussion
 ----------
