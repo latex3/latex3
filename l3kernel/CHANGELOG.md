@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Better support for `\cite`, _etc._, in case changing
+
 ## [2022-02-21]
 
 ### Fixed
