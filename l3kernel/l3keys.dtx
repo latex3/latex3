@@ -1069,6 +1069,20 @@
 %   The main function starts the loop: there is only one outer loop although
 %   there is additional processing. The use of \cs{s_@@_mark} here prevents
 %   loss of braces from the key argument.
+%   We start by expanding ahead with |\exp:w \exp_end_continue_f:w|:
+%   this covers the most common case of a macro storing a key-value and
+%   should be enough in most cases.  Unfortunately later we have to
+%   explicitly test the cases of leading spaces and leading brace
+%   groups, even for the simplest case.
+%
+%   A few times in the code we use a trick. We need to be able to expand the
+%   key but \emph{not} the value. To do that we need to \texttt{f}-type expand
+%   the input. However, we do not want to expand active characters, most
+%   importantly those set up by \pkg{inputenc}. That can be achieved by using
+%   a bit of trickery: we use \cs{cs:w} so that the \texttt{f}-type expansion
+%   is \enquote{inside} a \texttt{c}-type one, but arrange that the result is
+%   actually used after the control sequence. That matches with the use of
+%   \tn{ifincsname} inside the UTF-8 setup.
 %    \begin{macrocode}
 \cs_if_exist:NTF \tex_expanded:D
   {
@@ -1077,7 +1091,8 @@
         \__kernel_exp_not:w \tex_expanded:D
           {
             {
-              \@@_loop:Nw \s_@@_mark #3
+              \cs:w @@_expand_loop:wnn \exp_after:wN \cs_end:
+              \exp:w \exp_end_continue_f:w #3
                 , \s_@@_tail , {#1} {#2}
             }
           }
@@ -1087,7 +1102,8 @@
     \cs_new:Npn \keyval_parse:nnn #1#2#3
       {
         \group_align_safe_begin:
-        \@@_loop:w \s_@@_mark #3
+        \cs:w @@_expand_loop:wnn \exp_after:wN \cs_end:
+        \exp:w \exp_end_continue_f:w #3
           , \s_@@_tail , {#1} {#2}
         \group_align_safe_end:
       }
@@ -1096,55 +1112,90 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_loop:w, \@@_loop_space:w}
-% \begin{macro}[EXP]{\@@_loop_space:Nw}
-%   Before expansion, we need to remove any leading spaces: we have to
-%   ensure that the \texttt{f}-type expansion will expand the first
-%   non-space. We use a private copy of the \cs{tl_if_head_is_space:n(TF)}
-%   code.
+% \begin{macro}[EXP]{\@@_expand_loop:wnn}
+%   \cs{@@_expand_loop:wnn} will look at the first token of |#1| to
+%   figure out what to do next.  We differentiate as usual the three
+%   cases of space, explicit begin-group character token, and otherwise.
+%   The last line in the definition of \cs{@@_expand_loop:wnn} is its
+%   argument, as-is, to be processed later depending on what the first
+%   token is.
 %    \begin{macrocode}
-\cs_new:Npn \@@_loop:w #1 \s_@@_tail ,
+\cs_new:Npn \@@_expand_loop:wnn #1 \s_@@_tail ,
   {
-    \if:w
-      \if_false: { \fi:
-        \exp_after:wN \@@_loop_space:w
-          \exp_after:wN \prg_do_nothing: \use_none:n #1 ? ~
-      }
-      \scan_stop: \scan_stop:
-      \exp_after:wN \@@_loop_space:Nw
-    \else:
-      \exp_after:wN \@@_loop:Nw
-    \fi:
-    #1 \s_@@_tail ,
+    \if_false: { \fi: \@@_case_space:w \prg_do_nothing: #1 ? ~ }
+      #1 \s_@@_tail ,
   }
-\cs_new:Npn \@@_loop_space:w #1 ~
-  {
-    \if:w \scan_stop: \__kernel_tl_to_str:w \exp_after:wN {#1} \scan_stop:
-    \else:
-      f
-    \fi:
-    \exp_after:wN \use_none:n \exp_after:wN { \if_false: } \fi:
-  }
-\use:n { \cs_new:Npn \@@_loop_space:Nw \s_@@_mark } ~
-  { \@@_loop:w \s_@@_mark }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 %
-% \begin{macro}[EXP]{\@@_loop:Nw}
-%   The next step of the loop here uses a trick. We need to be able to expand the
-%   key but \emph{not} the value. To do that we need to \texttt{f}-type expand
-%   the input. However, we do not want to expand active characters, most
-%   importantly those set up by \pkg{inputenc}. That can be achieved by using
-%   a bit of trickery: we use \cs{cs:w} so that the \texttt{f}-type expansion
-%   is \enquote{inside} a \texttt{c}-type one, but arrange that the result is
-%   actually used after the control sequence. That matches with the use of
-%   \tn{ifincsname} inside the UTF-8 setup.
+%   \cs{@@_case_space:w} will check for a leading space in the same way
+%   \cs{tl_if_head_is_space:nTF} does, and call \cs{@@_gobble_space:w}
+%   in that case.  The \cs{exp_after:wN} chain makes sure to remove the
+%   |}|, so the remaining of the token list can be grabbed and discarded
+%   by \cs{@@_gobble_space:w} or collected and analysed further
+%   by \cs{@@_case_group:nw}.
 %    \begin{macrocode}
-\cs_new:Npn \@@_loop:Nw #1
+\cs_new:Npn \@@_case_space:w #1 ~
   {
-    \cs:w @@_loop_aux:w \exp_after:wN \cs_end:
-    \exp_after:wN #1 \exp:w \exp_end_continue_f:w
+    \if:w \scan_stop: \__kernel_tl_to_str:w \exp_after:wN {#1}
+          \scan_stop:
+      \exp_after:wN \@@_gobble_space:w \exp_after:wN
+    \fi:
+      \exp_after:wN \@@_case_group:nw \exp_after:wN {
+        \exp:w \if_false: } \fi: \exp_after:wN \exp_end: #1
+  }
+%    \end{macrocode}
+%
+%   \cs{@@_gobble_space:w} consumes a space, and calls
+%   \cs{@@_expand_loop:wnn} to figure out what to do next.  Another
+%   option would be to use an |f|-expansion to remove another possible
+%   space, or expand tokens, and only then return to
+%   \cs{@@_expand_loop:wnn}.  I'm not sure what's fastest (it depends on
+%   what people actually feed to the keyval parser).
+%    \begin{macrocode}
+\cs_new:Npn \@@_gobble_space:w \fi: \@@_case_group:nw #1 ~
+  { \fi: \@@_expand_loop:wnn }
+%    \end{macrocode}
+%
+%   \cs{@@_case_group:nw} tests for a leading explicit begin-group
+%   character token, and in that case calls \cs{@@_case_group:w}, which
+%   just calls the actual keyval parser to do its job.  We don't remove
+%   braces at this point.  In the case of an |N|-type token or an empty
+%   token list, \cs{@@_loop_chk_expandable:Nw} is called to check if the
+%   next token is expandable or should just be parsed. This is
+%   definitely the most common case, but can't be easily tested, so it
+%   goes by elimination (the whole contraption described here is almost
+%   as fast as \cs{tl_if_head_is_N_type:nTF}, so just testing that first
+%   would not be productive).
+%    \begin{macrocode}
+\cs_new:Npn \@@_case_group:nw #1
+  {
+    \exp_after:wN \use_none:n
+      \exp_after:wN { \exp_after:wN { \token_to_str:N #1 ? }
+      \exp_after:wN \@@_case_group:w \token_to_str:N }
+    \@@_loop_chk_expandable:Nw
+  }
+\cs_set:Npn \@@_case_group:w #1
+    \@@_loop_chk_expandable:Nw
+  { \@@_loop_aux:w \s_@@_mark }
+%    \end{macrocode}
+%
+%   Here the trivial case of a normal token.  Check if it's expandable,
+%   and if so calls \cs{@@_loop_expand:w} to |f|-expand, otherwise call
+%   the keyval parser normally (the latter should be the most common
+%   case, so it's very slightly optimised).
+%    \begin{macrocode}
+\cs_new:Npn \@@_loop_chk_expandable:Nw #1
+  {
+    \exp_after:wN \if_meaning:w \exp_not:N #1 #1
+    \else: \@@_loop_expand:w
+    \fi:
+    \@@_loop_aux:w \s_@@_mark #1
+  }
+\cs_new:Npn \@@_loop_expand:w \fi: \@@_loop_aux:w \s_@@_mark
+  {
+    \fi:
+    \cs:w @@_expand_loop:wnn \exp_after:wN \cs_end:
+    \exp:w \exp_end_continue_f:w
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1446,9 +1497,10 @@
     { \@@_tmp:w { } { } }
     { \@@_tmp:w \group_align_safe_end: \group_align_safe_begin: }
 \group_end:
-\cs_new:Npn \@@_loop_next:nnw #1#2#3 \s_@@_tail ,
+\cs_new:Npn \@@_loop_next:nnw #1#2 \s_@@_mark #3 \s_@@_tail ,
   {
-    \@@_loop:w #3 \s_@@_tail , {#1} {#2}
+    \@@_expand_loop:wnn #3
+      \s_@@_tail , {#1} {#2}
   }
 %    \end{macrocode}
 % \end{macro}
