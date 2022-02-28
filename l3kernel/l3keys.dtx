@@ -882,6 +882,18 @@
 %   group and are thus never set.
 % \end{function}
 %
+% \section{Digesting keys}
+%
+% \begin{function}[added = 2022-02-28]{\keys_digest:nnN}
+%   \begin{syntax}
+%     \cs{keys_digest:nnN} \Arg{module} \Arg{keyval list} \meta{tl}
+%   \end{syntax}
+%   Parses the \meta{keyval list} as for \cs{keys_set:nn}, placing the
+%   resulting code for those which set variables or functions into the
+%   \meta{tl}. Thus this function \enquote{digests} the keyval list into
+%   a set of results which can be applied rapidly.
+% \end{function}
+%
 % \section{Utility functions for keys}
 %
 % \begin{function}[EXP, pTF, updated = 2022-01-10]
@@ -1661,6 +1673,14 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_digest_bool, \l_@@_digest_tl}
+%   For digesting keys.
+%    \begin{macrocode}
+\bool_new:N \l_@@_digest_bool
+\tl_new:N \l_@@_digest_tl
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_keys_usage_load_prop, \l_keys_usage_preamble_prop}
 %   Global data for document-level information.
 %    \begin{macrocode}
@@ -1866,7 +1886,7 @@
       { \exp_not:c { bool_ #2 set_ #3 :N } \exp_not:N #1 }
     \@@_cmd_set:nx { \l_keys_path_str / false }
       { \exp_not:c { bool_ #2 set_ #4 :N } \exp_not:N #1 }
-    \@@_cmd_set:nn { \l_keys_path_str / unknown }
+    \@@_cmd_set_direct:nn { \l_keys_path_str / unknown }
       {
         \msg_error:nnx { keys } { boolean-values-only }
           \l_keys_key_str
@@ -1909,8 +1929,8 @@
   {
     \cs_set_nopar:cpn { \c_@@_type_root_str \l_keys_path_str }
       { choice }
-    \@@_cmd_set:nn \l_keys_path_str { #1 {##1} }
-    \@@_cmd_set:nn { \l_keys_path_str / unknown }
+    \@@_cmd_set_direct:nn \l_keys_path_str { #1 {##1} }
+    \@@_cmd_set_direct:nn { \l_keys_path_str / unknown }
       {
         \msg_error:nnxx { keys } { choice-unknown }
           \l_keys_path_str {##1}
@@ -1952,13 +1972,26 @@
 % \end{macro}
 %
 % \begin{macro}
-%   {\@@_cmd_set:nn, \@@_cmd_set:nx, \@@_cmd_set:Vn, \@@_cmd_set:Vo}
+%   {
+%     \@@_cmd_set:nn, \@@_cmd_set:nx, \@@_cmd_set:Vn, \@@_cmd_set:Vo,
+%     \@@_cmd_set_direct:nn
+%   }
 %   Setting the code for a key first logs if appropriate that we are
 %   defining a new key, then saves the code.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_cmd_set:nn #1#2
-  { \cs_set_protected:cpn { \c_@@_code_root_str #1 } ##1 {#2} }
+  {
+    \@@_cmd_set_direct:nn {#1}
+      {
+        \bool_if:NTF \l_@@_digest_bool
+          { \tl_put_right:Nn \l_@@_digest_tl }
+          { \use:n }
+            {#2}
+      }
+  }
 \cs_generate_variant:Nn \@@_cmd_set:nn { nx , Vn , Vo }
+\cs_new_protected:Npn \@@_cmd_set_direct:nn #1#2
+  { \cs_set_protected:cpn { \c_@@_code_root_str #1 } ##1 {#2} }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1970,7 +2003,12 @@
 \cs_new_protected:Npn \@@_cs_set:NNpn #1#2#3#
   {
     \cs_set_protected:cpx { \c_@@_code_root_str \l_keys_path_str } ##1
-      { #1 \exp_not:N #2 \exp_not:n {#3} {##1} }
+      {
+        \exp_not:N \bool_if:NTF \exp_not:N \l_@@_digest_bool
+          { \tl_put_right:Nn \exp_not:N \l_@@_digest_tl }
+          { \exp_not:N \use:n }
+            { #1 \exp_not:N #2 \exp_not:n {#3} {##1} }
+      }
     \use_none:n
   }
 \cs_generate_variant:Nn \@@_cs_set:NNpn { Nc }
@@ -2089,13 +2127,17 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_meta_make:n #1
   {
-    \@@_cmd_set:Vo \l_keys_path_str
+    \exp_args:NVo \@@_cmd_set_direct:nn \l_keys_path_str
       {
-        \exp_after:wN \keys_set:nn \exp_after:wN { \l_@@_module_str } {#1}
+        \exp_after:wN \keys_set:nn \exp_after:wN 
+          { \l_@@_module_str } {#1}
       }
   }
 \cs_new_protected:Npn \@@_meta_make:nn #1#2
-  { \@@_cmd_set:Vn \l_keys_path_str { \keys_set:nn {#1} {#2} } }
+  {
+    \exp_args:NV \@@_cmd_set_direct:nn
+      \l_keys_path_str { \keys_set:nn {#1} {#2} }
+  }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -2893,6 +2935,20 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\keys_digest:nnN}
+%   A simple wrapper.
+%    \begin{macrocode}
+\cs_new_protected:Npn \keys_digest:nnN #1#2#3
+  {
+    \bool_set_true:N \l_@@_digest_bool
+    \tl_clear:N \l_@@_digest_tl
+    \keys_set:nn {#1} {#2}
+    \bool_set_false:N \l_@@_digest_bool
+    \tl_set_eq:NN #3 \l_@@_digest_tl
+  }
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}{\@@_set_keyval:n, \@@_set_keyval:nn}
