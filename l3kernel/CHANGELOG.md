@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
-- `\keys_digiest:nnN` for conversion of keyvals to fast-to-apply token
+- `\keys_precompile:Nnn` for conversion of keyvals to fast-to-apply token
   lists
 
 ## [2022-02-24]
