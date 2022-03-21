@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\keys_precompile:nnN` for conversion of keyvals to fast-to-apply token
   lists
 - Missing `\str_if_empty:n(TF)` (see issue \#1071)
+- Missing `\str_case:Nn(TF)` (see issue \#1071)
 
 ## [2022-02-24]
 
