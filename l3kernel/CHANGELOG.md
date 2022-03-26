@@ -17,6 +17,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Definition of `\legacy_if:n(TF)` to support primitive conditionals
 - `\str_<type>case:n` now case changes codepoints above 127 with all engines
 
+### Fixed
+- Nesting of `\tl_analysis_map_inline:nn`
+
 ## [2022-02-24]
 
 ### Changed
