@@ -16,6 +16,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Definition of `\legacy_if:n(TF)` to support primitive conditionals
 - `\str_<type>case:n` now case changes codepoints above 127 with all engines
+- `\char_generate:nn` now also allows to generate category 10 tokens (spaces)
+  except for char code 0
 
 ### Fixed
 - Nesting of `\tl_analysis_map_inline:nn`
