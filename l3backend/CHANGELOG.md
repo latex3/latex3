@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Removed
+- Support for pre-2020-11-11 `dvipdfmx`
+
 ## [2022-02-07]
 
 ### Fixed
