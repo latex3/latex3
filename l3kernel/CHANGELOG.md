@@ -12,7 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
   lists
 - Missing `\str_if_empty:n(TF)` (see issue \#1071)
 - Missing `\str_case:Nn(TF)` (see issue \#1071)
-- `\tex_...:D` names for primitives added in TeX Live 2022 
+- `\tex_...:D` names for primitives added in TeX Live 2022
 
 ### Changed
 - Definition of `\legacy_if:n(TF)` to support primitive conditionals
@@ -22,6 +22,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Nesting of `\tl_analysis_map_inline:nn`
+- Naming of an error message
 
 ## [2022-02-24]
 
