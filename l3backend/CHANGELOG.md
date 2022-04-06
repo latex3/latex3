@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for graphics (PDF) page count extraction
+
 ### Fixed
 - Setup for graphics extension searching
 - Various internal issues in graphics inclusion
