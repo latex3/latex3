@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Return an empty `seq` when `\sys_shell_split_ls:nN` is applied with a
   glob which matched no entries
+- Heavily revise `l3graphics` to provide only necessary public interfaces
 
 ## [2022-02-05]
 
