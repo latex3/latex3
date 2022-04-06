@@ -12,3 +12,5 @@ maindir = "../.."
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
+
+dynamicfiles = {"*-eps-converted-to.pdf"}
