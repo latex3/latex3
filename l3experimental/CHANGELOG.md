@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Return an empty `seq` when `\sys_shell_split_ls:nN` is applied with a
+  glob which matched no entries
+
 ## [2022-02-05]
 
 ### Changed
