@@ -21,6 +21,7 @@ this project uses date-based 'snapshot' version identifiers.
   except for char code 0
 
 ### Fixed
+- Handling of 'misplaced' `\protect` by `\text_expand:n`
 - Nesting of `\tl_analysis_map_inline:nn`
 - Naming of an error message
 
