@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-04-10]
+
 ### Added
 - `\keys_precompile:nnN` for conversion of keyvals to fast-to-apply token
   lists
@@ -1071,7 +1073,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-02-24...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-04-10...HEAD
+[2022-04-10]: https://github.com/latex3/latex3/compare/2022-02-24...2022-04-10
 [2022-02-24]: https://github.com/latex3/latex3/compare/2022-02-21...2022-02-24
 [2022-02-21]: https://github.com/latex3/latex3/compare/2022-02-05...2022-02-21
 [2022-02-05]: https://github.com/latex3/latex3/compare/2022-01-21...2022-02-05
