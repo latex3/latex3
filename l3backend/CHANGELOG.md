@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for SVG graphic inclusion by `dvisvgm`
+
 ## [2022-04-10]
 
 ### Added
