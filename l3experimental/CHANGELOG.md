@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Finding graphics files with multiple extensions
+
 ## [2022-04-10]
 
 ### Added
