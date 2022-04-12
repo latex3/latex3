@@ -8,7 +8,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Support for SVG graphic inclusion by `dvisvgm`
-- Support for .mps files with all backends
 
 ## [2022-04-10]
 
