@@ -9,6 +9,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Support for SVG graphic inclusion by `dvisvgm`
 
+### Fixed
+- `\color_ensure_current:` backend with DVI-based routes (issue \#1085)
+
 ## [2022-04-10]
 
 ### Added
