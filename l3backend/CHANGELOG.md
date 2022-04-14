@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-04-14]
+
 ### Added
 - Support for SVG graphic inclusion by `dvisvgm`
 
@@ -236,7 +238,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-04-10...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-04-14...HEAD
+[2022-04-14]: https://github.com/latex3/latex3/compare/2022-04-10...2022-04-14
 [2022-04-10]: https://github.com/latex3/latex3/compare/2022-02-07...2022-04-10
 [2022-02-07]: https://github.com/latex3/latex3/compare/2022-01-12...2022-02-07
 [2022-01-12]: https://github.com/latex3/latex3/compare/2021-12-14...2022-01-12
