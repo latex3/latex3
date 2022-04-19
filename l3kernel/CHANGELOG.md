@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Collect some common code from `l3backend-color`
+
 ## [2022-04-10]
 
 ### Added

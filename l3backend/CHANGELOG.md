@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Adjust `(x)dvipdfmx` backend approach to color following issues with
   multiple color stacks in `xetex.def`
+- Move some functions to `l3color`
 
 ## [2022-04-14]
 
