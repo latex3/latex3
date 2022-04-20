@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-04-20]
+
 ### Fixed
 - Finding graphics files with multiple extensions
 
@@ -249,7 +251,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-04-10...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-04-20...HEAD
+[2022-04-20]: https://github.com/latex3/latex3/compare/2022-04-10...2022-04-20
 [2022-04-10]: https://github.com/latex3/latex3/compare/2022-02-05...2022-04-10
 [2022-02-05]: https://github.com/latex3/latex3/compare/2021-11-12...2022-02-05
 [2021-11-12]: https://github.com/latex3/latex3/compare/2021-08-27...2021-11-12
