@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Allow for `\lccode`/`\uccode` changes in `\char_str_...case:n` functions
 
+### Fixed
+- Avoid expansion of macros 'late' in \text_...case:n
+
 ## [2022-04-20]
 
 ### Changed
