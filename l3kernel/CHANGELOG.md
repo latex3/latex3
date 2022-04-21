@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Allow for `\lccode`/`\uccode` changes in `\char_str_...case:n` functions
+
 ## [2022-04-20]
 
 ### Changed
