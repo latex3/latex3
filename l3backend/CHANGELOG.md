@@ -6,6 +6,39 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-04-20]
+
+### Changed
+- Adjust `(x)dvipdfmx` backend approach to color following issues with
+  multiple color stacks in `xetex.def`
+- Move some functions to `l3color`
+
+## [2022-04-14]
+
+### Added
+- Support for SVG graphic inclusion by `dvisvgm`
+
+### Fixed
+- `\color_ensure_current:` backend with DVI-based routes (issue \#1085)
+
+## [2022-04-10]
+
+### Added
+- Support for graphics (PDF) page count extraction
+
+### Fixed
+- Setup for graphics extension searching
+- Various internal issues in graphics inclusion
+- Some missing functions for `dvisvgm` color support added
+
+### Removed
+- Support for pre-2020-11-11 `dvipdfmx`
+
+## [2022-02-07]
+
+### Fixed
+- Use of color stack int in scope end for `(x)dvipdfmx`
+
 ## [2022-01-12]
 
 ### Changed
@@ -212,7 +245,11 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-01-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-04-20...HEAD
+[2022-04-20]: https://github.com/latex3/latex3/compare/2022-04-14...2022-04-20
+[2022-04-14]: https://github.com/latex3/latex3/compare/2022-04-10...2022-04-14
+[2022-04-10]: https://github.com/latex3/latex3/compare/2022-02-07...2022-04-10
+[2022-02-07]: https://github.com/latex3/latex3/compare/2022-01-12...2022-02-07
 [2022-01-12]: https://github.com/latex3/latex3/compare/2021-12-14...2022-01-12
 [2021-12-14]: https://github.com/latex3/latex3/compare/2021-10-17...2021-12-14
 [2021-10-17]: https://github.com/latex3/latex3/compare/2021-10-12...2021-10-17

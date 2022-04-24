@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2022-01-05}
+% \date{Released 2022-04-20}
 %
 % \maketitle
 %
@@ -249,11 +249,13 @@
 % \end{variable}
 %
 % \begin{variable}{\l_text_case_exclude_arg_tl}
-%   Lists commands which are excluded from case changing.
+%   Lists commands which are excluded from case changing. This protection
+%   includes everything up to and including their first braced argument.
 % \end{variable}
 %
 % \begin{variable}{\l_text_expand_exclude_tl}
-%   Lists commands which are excluded from expansion.
+%   Lists commands which are excluded from expansion. This protection
+%   includes everything up to and including their first braced argument.
 % \end{variable}
 %
 % \begin{variable}{\l_text_titlecase_check_letter_bool}
@@ -560,11 +562,45 @@
 % \end{variable}
 %
 % \begin{variable}{\l_text_expand_exclude_tl}
-%   Commands which need not to expand.
+%   Commands which need not to expand. We start with a somewhat historical
+%   list, and tidy up if possible.
 %    \begin{macrocode}
 \tl_new:N \l_text_expand_exclude_tl
 \tl_set:Nn \l_text_expand_exclude_tl
   { \begin \cite \end \label \ref }
+\bool_lazy_and:nnT
+  { \str_if_eq_p:Vn \fmtname { LaTeX2e } }
+  { \tl_if_exist_p:N \@expl@finalise@setup@@@@ }
+  {
+    \tl_gput_right:Nn \@expl@finalise@setup@@@@
+      {
+        \tl_gput_right:Nn \@kernel@after@begindocument
+          {
+            \group_begin:
+              \cs_set_protected:Npn \@@_tmp:w #1
+                {
+                  \tl_clear:N \l_text_expand_exclude_tl
+                  \tl_map_inline:nn {#1}
+                    {
+                      \bool_lazy_any:nF
+                        {
+                          { \token_if_protected_macro_p:N ##1 }
+                          { \token_if_protected_long_macro_p:N ##1 }
+                          {
+                            \str_if_eq_p:ee
+                              { \cs_replacement_spec:N ##1 }
+                              { \exp_not:n { \protect ##1 } \c_space_tl }
+                          }
+                        }
+                        { \tl_put_right:Nn \l_text_expand_exclude_tl {##1} }
+                    }
+                }
+              \exp_args:NV \@@_tmp:w \l_text_expand_exclude_tl
+            \exp_args:NNNV \group_end:
+            \tl_set:Nn \l_text_expand_exclude_tl \l_text_expand_exclude_tl
+          }
+      }
+  }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -624,18 +660,20 @@
 %   }
 % \begin{macro}[EXP]{\@@_expand_exclude:nN}
 % \begin{macro}[EXP]{\@@_expand_exclude:NN}
-% \begin{macro}[EXP]{\@@_expand_exclude:Nn}
+% \begin{macro}[EXP]{\@@_expand_exclude:Nw}
+% \begin{macro}[EXP]{\@@_expand_exclude:Nnn}
 % \begin{macro}[EXP]{\@@_expand_accent:N}
 % \begin{macro}[EXP]{\@@_expand_accent:NN}
 % \begin{macro}[EXP]{\@@_expand_letterlike:N}
 % \begin{macro}[EXP]{\@@_expand_letterlike:NN}
-% \begin{macro}[EXP]{\@@_expand_cs:N, \@@_expand_encoding:N}
-% \begin{macro}[EXP]{\@@_expand_encoding_escape:N}
+% \begin{macro}[EXP]{\@@_expand_cs:N}
+% \begin{macro}[EXP]{\@@_expand_protect:w}
 % \begin{macro}[EXP]{\@@_expand_protect:N}
 % \begin{macro}[EXP]{\@@_expand_protect:nN}
 % \begin{macro}[EXP]{\@@_expand_protect:Nw}
 % \begin{macro}[EXP]{\@@_expand_testopt:N}
 % \begin{macro}[EXP]{\@@_expand_testopt:NNn}
+% \begin{macro}[EXP]{\@@_expand_encoding:N, \@@_expand_encoding_escape:N}
 % \begin{macro}[EXP]{\@@_expand_replace:N}
 % \begin{macro}[EXP]{\@@_expand_replace:n}
 % \begin{macro}[EXP]{\@@_expand_cs_expand:N}
@@ -883,13 +921,15 @@
     \str_if_eq:nnTF {#1} {#2}
       {
         \@@_use_i_delimit_by_q_recursion_stop:nw
-          { \@@_expand_exclude:Nn #1 }
+          { \@@_expand_exclude:Nw #1 }
       }
       { \@@_expand_exclude:NN #1 }
   }
-\cs_new:Npn \@@_expand_exclude:Nn #1#2
+\cs_new:Npn \@@_expand_exclude:Nw #1#2#
+  { \@@_expand_exclude:Nnn #1 {#2} }
+\cs_new:Npn \@@_expand_exclude:Nnn #1#2#3
   {
-    \@@_expand_store:n { #1 {#2} }
+    \@@_expand_store:n { #1#2 {#3} }
     \@@_expand_loop:w
   }
 %    \end{macrocode}
@@ -942,14 +982,15 @@
 %    \end{macrocode}
 %   \LaTeXe{}'s \cs{protect} makes life interesting. Where possible, we
 %   simply remove it and replace with the \enquote{parent} command; of course,
-%   the \cs{protect} might be explicit, in which case we need to leave it alone
-%   if it's required. There is also the case of a straight \tn{@protected@testopt}
-%   to cover.
+%   the \cs{protect} might be explicit, in which case we need to leave it alone.
+%   That includes the case where it's not even followed by an \texttt{N}-type
+%   token. There is also the case of a straight \tn{@protected@testopt} to
+%   cover.
 %    \begin{macrocode}
 \cs_new:Npx \@@_expand_cs:N #1
   {
     \exp_not:N \str_if_eq:nnTF {#1} { \exp_not:N \protect }
-      { \exp_not:N \@@_expand_protect:N }
+      { \exp_not:N \@@_expand_protect:w }
       {
         \bool_lazy_and:nnTF
           { \cs_if_exist_p:N \fmtname }
@@ -958,8 +999,23 @@
           { \exp_not:N \@@_expand_replace:N #1 }
       }
   }
+\cs_new:Npn \@@_expand_protect:w #1 \q_@@_recursion_stop
+  {
+    \tl_if_head_is_N_type:nTF {#1}
+      { \@@_expand_protect:N }
+      {
+        \@@_expand_store:n { \protect }
+        \@@_expand_loop:w
+      }
+        #1 \q_@@_recursion_stop
+  }
 \cs_new:Npn \@@_expand_protect:N #1
   {
+    \@@_if_recursion_tail_stop_do:Nn #1
+      {
+        \@@_expand_store:n { \protect }
+        \@@_expand_end:w
+      }
     \exp_args:Ne \@@_expand_protect:nN
       { \cs_to_str:N #1 } #1
   }
@@ -1080,6 +1136,8 @@
     \@@_expand_loop:w
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}

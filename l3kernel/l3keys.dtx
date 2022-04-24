@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2022-01-05}
+% \date{Released 2022-04-20}
 %
 % \maketitle
 %
@@ -87,6 +87,10 @@
 %       key-two = value two
 %     }
 % \end{verbatim}
+% As illustrated, keys are created inside a \meta{module}: a set of related
+% keys, typically those for a single module/\LaTeXe{} package. See
+% Section~\label{sec:l3keys:subdivision} for suggestions on how to divide
+% large numbers of keys for a single module.
 %
 % At a document level, \cs{keys_set:nn} is used within a
 % document function, for example
@@ -321,7 +325,8 @@
 %     \meta{key} .inherit:n = \Arg{parents}
 %   \end{syntax}
 %   Specifies that the \meta{key} path should inherit the keys listed
-%   as \meta{parents}. For example, after setting
+%   as any of the \meta{parents} (a comma list), which can be a module
+%   or a subgroup. For example, after setting
 %   \begin{verbatim}
 %     \keys_define:nn { foo } { test .code:n = \tl_show:n {#1} }
 %     \keys_define:nn { } { bar .inherit:n = foo }
@@ -334,6 +339,12 @@
 %   \begin{verbatim}
 %     \keys_set:nn { foo } { test = a }
 %   \end{verbatim}
+%   Inheritance applies at point of use, not at definition, thus keys may
+%   be added to the \meta{parent} after the use of \texttt{.inherit:n}
+%   and will be active.
+%   If more than one \meta{parent} is specified, the presence of the
+%   \meta{key} will be tested for each in turn, with the first successful
+%   hit taking priority.
 % \end{function}
 %
 % \begin{function}[updated = 2013-07-09]
@@ -869,6 +880,18 @@
 %   one or more of the \meta{groups} specified are set. The \meta{groups} are
 %   given as a comma-separated list. Unknown keys are not assigned to any
 %   group and are thus never set.
+% \end{function}
+%
+% \section{Digesting keys}
+%
+% \begin{function}[added = 2022-03-09]{\keys_precompile:nnN}
+%   \begin{syntax}
+%     \cs{keys_precompile:nnN} \Arg{module} \Arg{keyval list} \meta{tl}
+%   \end{syntax}
+%   Parses the \meta{keyval list} as for \cs{keys_set:nn}, placing the
+%   resulting code for those which set variables or functions into the
+%   \meta{tl}. Thus this function \enquote{precompiles} the keyval list into
+%   a set of results which can be applied rapidly.
 % \end{function}
 %
 % \section{Utility functions for keys}
@@ -1650,6 +1673,14 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_precompile_bool, \l_@@_precompile_tl}
+%   For digesting keys.
+%    \begin{macrocode}
+\bool_new:N \l_@@_precompile_bool
+\tl_new:N \l_@@_precompile_tl
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\l_keys_usage_load_prop, \l_keys_usage_preamble_prop}
 %   Global data for document-level information.
 %    \begin{macrocode}
@@ -1680,6 +1711,19 @@
 %   Branching quark conditional.
 %    \begin{macrocode}
 \__kernel_quark_new_conditional:Nn \@@_quark_if_no_value:N { TF }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_precompile:n}
+%   An auxiliary to allow cleaner showing of code.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_precompile:n #1
+  {
+    \bool_if:NTF \l_@@_precompile_bool
+      { \tl_put_right:Nn \l_@@_precompile_tl }
+      { \use:n }
+        {#1}
+  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1855,7 +1899,7 @@
       { \exp_not:c { bool_ #2 set_ #3 :N } \exp_not:N #1 }
     \@@_cmd_set:nx { \l_keys_path_str / false }
       { \exp_not:c { bool_ #2 set_ #4 :N } \exp_not:N #1 }
-    \@@_cmd_set:nn { \l_keys_path_str / unknown }
+    \@@_cmd_set_direct:nn { \l_keys_path_str / unknown }
       {
         \msg_error:nnx { keys } { boolean-values-only }
           \l_keys_key_str
@@ -1898,8 +1942,8 @@
   {
     \cs_set_nopar:cpn { \c_@@_type_root_str \l_keys_path_str }
       { choice }
-    \@@_cmd_set:nn \l_keys_path_str { #1 {##1} }
-    \@@_cmd_set:nn { \l_keys_path_str / unknown }
+    \@@_cmd_set_direct:nn \l_keys_path_str { #1 {##1} }
+    \@@_cmd_set_direct:nn { \l_keys_path_str / unknown }
       {
         \msg_error:nnxx { keys } { choice-unknown }
           \l_keys_path_str {##1}
@@ -1941,13 +1985,18 @@
 % \end{macro}
 %
 % \begin{macro}
-%   {\@@_cmd_set:nn, \@@_cmd_set:nx, \@@_cmd_set:Vn, \@@_cmd_set:Vo}
+%   {
+%     \@@_cmd_set:nn, \@@_cmd_set:nx, \@@_cmd_set:Vn, \@@_cmd_set:Vo,
+%     \@@_cmd_set_direct:nn
+%   }
 %   Setting the code for a key first logs if appropriate that we are
 %   defining a new key, then saves the code.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_cmd_set:nn #1#2
-  { \cs_set_protected:cpn { \c_@@_code_root_str #1 } ##1 {#2} }
+  {  \@@_cmd_set_direct:nn {#1} { \@@_precompile:n {#2} } }
 \cs_generate_variant:Nn \@@_cmd_set:nn { nx , Vn , Vo }
+\cs_new_protected:Npn \@@_cmd_set_direct:nn #1#2
+  { \cs_set_protected:cpn { \c_@@_code_root_str #1 } ##1 {#2} }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1959,7 +2008,10 @@
 \cs_new_protected:Npn \@@_cs_set:NNpn #1#2#3#
   {
     \cs_set_protected:cpx { \c_@@_code_root_str \l_keys_path_str } ##1
-      { #1 \exp_not:N #2 \exp_not:n {#3} {##1} }
+      {
+        \@@_precompile:n
+          { #1 \exp_not:N #2 \exp_not:n {#3} {##1} }
+      }
     \use_none:n
   }
 \cs_generate_variant:Nn \@@_cs_set:NNpn { Nc }
@@ -2078,13 +2130,17 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_meta_make:n #1
   {
-    \@@_cmd_set:Vo \l_keys_path_str
+    \exp_args:NVo \@@_cmd_set_direct:nn \l_keys_path_str
       {
-        \exp_after:wN \keys_set:nn \exp_after:wN { \l_@@_module_str } {#1}
+        \exp_after:wN \keys_set:nn \exp_after:wN 
+          { \l_@@_module_str } {#1}
       }
   }
 \cs_new_protected:Npn \@@_meta_make:nn #1#2
-  { \@@_cmd_set:Vn \l_keys_path_str { \keys_set:nn {#1} {#2} } }
+  {
+    \exp_args:NV \@@_cmd_set_direct:nn
+      \l_keys_path_str { \keys_set:nn {#1} {#2} }
+  }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
@@ -2884,6 +2940,20 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\keys_precompile:nnN}
+%   A simple wrapper.
+%    \begin{macrocode}
+\cs_new_protected:Npn \keys_precompile:nnN #1#2#3
+  {
+    \bool_set_true:N \l_@@_precompile_bool
+    \tl_clear:N \l_@@_precompile_tl
+    \keys_set:nn {#1} {#2}
+    \bool_set_false:N \l_@@_precompile_bool
+    \tl_set_eq:NN #3 \l_@@_precompile_tl
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 % \begin{macro}{\@@_set_keyval:n, \@@_set_keyval:nn}
 % \begin{macro}{\@@_set_keyval:nnn, \@@_set_keyval:onn}
 % \begin{macro}{\@@_find_key_module:wNN}
@@ -3368,7 +3438,11 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\keys_show:nn, \keys_log:nn, \@@_show:Nnn}
+% \begin{macro}{\keys_show:nn, \keys_log:nn}
+% \begin{macro}{\@@_show:Nnn}
+% \begin{macro}{\@@_show:n}
+% \begin{macro}{\@@_show:w}
+% \begin{macro}{\@@_show:Nw}
 %   To show a key, show its code using a message.
 %    \begin{macrocode}
 \cs_new_protected:Npn \keys_show:nn
@@ -3384,17 +3458,51 @@
           {
             \exp_args:Nnf \msg_show_item_unbraced:nn { code }
               {
-                \exp_args:Nc \cs_replacement_spec:N
+                \exp_args:Ne \@@_show:n
                   {
-                    \c_@@_code_root_str
-                    \@@_trim_spaces:n { #2 / #3 }
+                    \exp_args:Nc \cs_replacement_spec:N
+                    {
+                      \c_@@_code_root_str
+                      \@@_trim_spaces:n { #2 / #3 }
+                    }
                   }
               }
           }
       }
       { } { }
   }
+\cs_new:Npx \@@_show:n #1
+  {
+    \exp_not:N \@@_show:w
+      #1
+      \tl_to_str:n { \@@_precompile:n }
+      #1
+      \tl_to_str:n { \@@_precompile:n }
+      \exp_not:N \s_@@_stop
+  }
+\use:x
+  {
+    \cs_new:Npn \exp_not:N \@@_show:w
+      ##1 \tl_to_str:n { \@@_precompile:n }
+      ##2 \tl_to_str:n { \@@_precompile:n }
+      ##3 \exp_not:N \s_@@_stop
+  }
+  {
+    \tl_if_blank:nTF {#2}
+      {#1}
+      { \@@_show:Nw #2 \s_@@_stop }
+  }
+\use:x
+  {
+    \cs_new:Npn \exp_not:N \@@_show:Nw ##1##2
+      \c_right_brace_str \exp_not:N \s_@@_stop
+  }
+  {#2}
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 % \subsection{Messages}

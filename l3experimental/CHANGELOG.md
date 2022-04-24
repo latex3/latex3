@@ -7,7 +7,22 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-## [2022-01-05]
+## [2022-04-20]
+
+### Fixed
+- Finding graphics files with multiple extensions
+
+## [2022-04-10]
+
+### Added
+- `\graphics_get_pagecount:nN(TF)`
+
+### Changed
+- Return an empty `seq` when `\sys_shell_split_ls:nN` is applied with a
+  glob which matched no entries
+- Heavily revise `l3graphics` to provide only necessary public interfaces
+
+## [2022-02-05]
 
 ### Changed
 - Documentation for horizontal coffin poles (see issue #1041)
@@ -236,8 +251,10 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-01-05...HEAD
-[2022-01-05]: https://github.com/latex3/latex3/compare/2021-11-12...2022-01-05
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-04-20...HEAD
+[2022-04-20]: https://github.com/latex3/latex3/compare/2022-04-10...2022-04-20
+[2022-04-10]: https://github.com/latex3/latex3/compare/2022-02-05...2022-04-10
+[2022-02-05]: https://github.com/latex3/latex3/compare/2021-11-12...2022-02-05
 [2021-11-12]: https://github.com/latex3/latex3/compare/2021-08-27...2021-11-12
 [2021-08-27]: https://github.com/latex3/latex3/compare/2021-08-04...2021-08-27
 [2021-08-04]: https://github.com/latex3/latex3/compare/2021-07-12...2021-08-04
