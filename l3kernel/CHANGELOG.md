@@ -8,6 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
+- Rename case-changing variant `de-alt` to `de-xeszett` to align with
+  `luaotfload`
 - Allow for `\lccode`/`\uccode` changes in `\char_...case:n` functions
 
 ## [2022-04-20]
