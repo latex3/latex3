@@ -12,6 +12,9 @@ this project uses date-based 'snapshot' version identifiers.
   `luaotfload`
 - Allow for `\lccode`/`\uccode` changes in `\char_...case:n` functions
 
+### Fixed
+- Support for ypogegrammeni in case changing Greek (see issue \#1088)
+
 ## [2022-04-20]
 
 ### Changed
