@@ -782,6 +782,8 @@
 % \begin{macro}[EXP]{\@@_change_case_upper_el:nnn}
 % \begin{macro}[EXP]{\@@_change_case_upper_el:nnNw}
 % \begin{macro}[EXP]{\@@_change_case_upper_el:NnnN}
+% \begin{macro}[EXP]{\@@_change_case_upper_el_ypogegrammeni:Nnnnnw}
+% \begin{macro}[EXP]{\@@_change_case_upper_el_ypogegrammeni:NnnnnN}
 % \begin{macro}[EXP]{\@@_change_case_upper_el_dialytika:nnN}
 % \begin{macro}[EXP]{\@@_change_case_upper_el_dialytika:N}
 % \begin{macro}[EXP]{\@@_change_case_upper_el_hiatus:nnNw}
@@ -793,6 +795,7 @@
 % \begin{macro}[EXP,pTF]{\@@_change_case_if_greek_accent:n}
 % \begin{macro}[EXP,pTF]{\@@_change_case_if_greek_diacritic:n}
 % \begin{macro}[EXP,TF]{\@@_change_case_if_takes_dialytika:n}
+% \begin{macro}[EXP,TF]{\@@_change_case_if_takes_ypogegrammeni:n}
 %   For Greek uppercasing, we need to know if characters \emph{in the Greek
 %   range} have accents. That means doing a \textsc{nfd} conversion first, then
 %   starting a search. As described by the Unicode \textsc{cldr}, Greek accents
@@ -800,7 +803,9 @@
 %   groups to allow for the canonical ordering. The implementation here follows
 %   the data and examples from \textsc{icu}
 %   (\url{https://icu.unicode.org/design/case/greek-upper}),
-%   although necessarily the implementation is somewhat different.
+%   although necessarily the implementation is somewhat different. The
+%   \emph{ypogegrammeni} is filtered out here as it is not actually in the
+%   Greek range, so gets lost if we leave until later.
 %    \begin{macrocode}
 \bool_lazy_or:nnT
   { \sys_if_engine_luatex_p: }
@@ -813,7 +818,11 @@
             \exp_args:Ne \@@_change_case_upper_el:nnn
               { \char_to_nfd:N #4 } {#2} {#3}
           }
-          { \@@_change_case_char:nnnN {#1} {#2} {#3} #4 }
+          {
+            \int_compare:nNnTF { `#4 } = { "0345 }
+              { \@@_change_case_loop:nnw {#2} {#3} }
+              { \@@_change_case_char:nnnN {#1} {#2} {#3} #4 }
+          }
       }
     \cs_new:Npn \@@_change_case_upper_el:nnn #1#2#3
       { \@@_change_case_upper_el:nnNw {#2} {#3} #1 }
@@ -835,7 +844,10 @@
 %    \end{macrocode}
 %   Now, we check the detail of the next codepoint: again we filter out the
 %   not-a-char cases, before checking if it's an dialytika, accent or diacritic.
-%   (The latter do not have the same hiatus behavior as accents.)
+%   (The latter do not have the same hiatus behavior as accents.) There is
+%   additional work if the codepoint can take a ypogegrammeni: there, we need
+%   to move any ypogegrammeni to after accents (in case the input is not
+%   normalised). The ypogegrammeni itself is handled separately.
 %    \begin{macrocode}
     \cs_new:Npn \@@_change_case_upper_el:NnnN #1#2#3#4
       {
@@ -845,21 +857,65 @@
             \@@_change_case_loop:nnw {#2} {#3} #4
           }
           {
-            \int_compare:nNnTF { `#4 } = { "0308 }
-              { \@@_change_case_upper_el_dialytika:nnN {#2} {#3} #1 }
+            \@@_change_case_if_takes_ypogegrammeni:nTF { `#1 }
               {
-                 \@@_change_case_if_greek_accent:nTF { `#4 }
-                  { \@@_change_case_upper_el_hiatus:nnNw {#2} {#3} #1 }
+                \@@_change_case_upper_el_ypogegrammeni:Nnnnnw
+                  #1 {#2} {#3} { } { } #4
+              }
+              { \@@_change_case_upper_el_aux:NnnN #1 {#2} {#3} #4 }
+          }
+      }
+    \cs_new:Npn \@@_change_case_upper_el_ypogegrammeni:Nnnnnw
+      #1#2#3#4#5#6 \q_@@_recursion_stop
+      {
+        \tl_if_head_is_N_type:nTF {#6}
+          {
+            \@@_change_case_upper_el_ypogegrammeni:NnnnnN
+              #1 {#2} {#3} {#4} {#5}
+          }
+          { \@@_change_case_upper_el_aux:NnnN #1 {#2} {#3} #4#5 }
+            #6 \q_@@_recursion_stop
+      }
+    \cs_new:Npn \@@_change_case_upper_el_ypogegrammeni:NnnnnN #1#2#3#4#5#6
+      {
+        \token_if_cs:NTF #6
+          { \@@_change_case_upper_el_aux:NnnN #1 {#2} {#3} #4#5 #6 }
+          {
+            \int_compare:nNnTF { `#6 } = { "0345 }
+              {
+                \@@_change_case_upper_el_ypogegrammeni:Nnnnnw
+                  #1 {#2} {#3} {#4} {#6}
+              }
+              {
+                \bool_lazy_or:nnTF
+                  { \@@_change_case_if_greek_accent_p:n { `#6 } }
+                  { \@@_change_case_if_greek_diacritic_p:n { `#6 } }
                   {
-                    \@@_change_case_if_greek_diacritic:nTF { `#4 }
-                      {
-                        \@@_change_case_store:e { \char_uppercase:N #1 }
-                        \@@_change_case_loop:nnw {#2} {#3}
-                      }
-                      {
-                        \@@_change_case_store:e { \char_uppercase:N #1 }
-                        \@@_change_case_loop:nnw {#2} {#3} #4
-                      }
+                    \@@_change_case_upper_el_ypogegrammeni:Nnnnnw
+                      #1 {#2} {#3} {#4#6} {#5}
+                  }
+                  { \@@_change_case_upper_el_aux:NnnN #1 {#2} {#3} #4#5 #6 }
+            }
+          }
+      }
+    \cs_new:Npn \@@_change_case_upper_el_aux:NnnN #1#2#3#4
+      {
+        \int_compare:nNnTF { `#4 } = { "0308 }
+          { \@@_change_case_upper_el_dialytika:nnN {#2} {#3} #1 }
+          {
+            \@@_change_case_if_greek_accent:nTF { `#4 }
+              { \@@_change_case_upper_el_hiatus:nnNw {#2} {#3} #1 }
+              {
+                \@@_change_case_if_greek_diacritic:nTF { `#4 }
+                  {
+                    \@@_change_case_store:e { \char_uppercase:N #1 }
+                    \@@_change_case_loop:nnw {#2} {#3}
+                  }
+                  {
+                    \int_compare:nNnTF { `#4 } = { "0345 }
+                      { \@@_change_case_store:e { [XXX] } }
+                      { \@@_change_case_store:e { \char_uppercase:N #1 } }
+                    \@@_change_case_loop:nnw {#2} {#3} #4
                   }
               }
           }
@@ -1040,8 +1096,27 @@
         \fi:
       \fi:
     \fi:
-   }
+  }
+\prg_new_conditional:Npnn \@@_change_case_if_takes_ypogegrammeni:n #1 { TF }
+  {
+    \if_int_compare:w #1 = "03B1 \exp_stop_f:
+      \prg_return_true:
+    \else:
+      \if_int_compare:w #1 = "03B7 \exp_stop_f:
+        \prg_return_true:
+      \else:
+        \if_int_compare:w #1 = "03C9 \exp_stop_f:
+          \prg_return_true:
+        \else:
+          \prg_return_false:
+        \fi:
+      \fi:
+    \fi:
+  }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
