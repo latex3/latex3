@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Language setting `el-xiota` for retention of ypogegrammeni when uppercasing
+  Greek
+
 ### Changed
 - Rename case-changing variant `de-alt` to `de-xeszett` to align with
   `luaotfload`
