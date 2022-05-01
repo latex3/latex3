@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Correct `el-xiota` and `de-xeszett` to `el-x-iota` and `de-x-eszett`
+
 ## [2022-04-29]
 
 ### Added
