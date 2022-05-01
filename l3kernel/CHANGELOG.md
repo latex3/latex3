@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Language setting "hy-x-yiwn" for handling of ech-yiwm ligature
+  uppercasing
+
 ### Fixed
 - Correct `el-xiota` and `de-xeszett` to `el-x-iota` and `de-x-eszett`
 
