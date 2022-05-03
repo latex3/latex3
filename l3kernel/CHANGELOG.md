@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
-- Language setting "hy-x-yiwn" for handling of ech-yiwm ligature
+- Language settings `hy` and `hy-x-yiwn` for handling of ech-yiwm ligature
   uppercasing
 
 ### Fixed
