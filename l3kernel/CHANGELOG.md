@@ -11,6 +11,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Language settings `hy` and `hy-x-yiwn` for handling of ech-yiwm ligature
   uppercasing
 
+## Changed
+- Support BCP 47 properly in case changer language argument
+
 ### Fixed
 - Correct `el-xiota` and `de-xeszett` to `el-x-iota` and `de-x-eszett`
 
