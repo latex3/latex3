@@ -7,10 +7,13 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Typo in implemenation of titlecase `hy-x-yiwn`
+
 ## [2022-05-04]
 
 ### Added
-- Language settings `hy` and `hy-x-yiwn` for handling of ech-yiwm ligature
+- Language settings `hy` and `hy-x-yiwn` for handling of ech-yiwn ligature
   uppercasing
 
 ## Changed
