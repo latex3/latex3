@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Add `\lua_load_module:n`
+
 ### Fixed
 - Typo in implemenation of titlecase `hy-x-yiwn`
 - Definition order issue with `\str_case:Nn(TF)`
