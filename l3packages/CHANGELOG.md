@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Allow for _ad hoc_ adjustment of template values
+
 ## [2022-01-12]
 
 ### Changed
