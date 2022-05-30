@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Allow for _ad hoc_ adjustment of template values
+- Make `\AssignTemplateKeys` optional
 
 ### Removed
 - `\EvaluateNow` command
