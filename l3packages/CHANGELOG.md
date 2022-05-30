@@ -7,8 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## Added
+- `\SetTemplateKeys` for _ad hoc_ adjustment of template values
+
 ### Changed
-- Allow for _ad hoc_ adjustment of template values
 - Make `\AssignTemplateKeys` optional
 
 ### Removed
