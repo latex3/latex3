@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Space stripping from `xtemplate` key types
+
 ## [2022-05-30]
 
 ## Added
