@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Space stripping from `xtemplate` key types
+- Fix `log-declarations=true` (gh/1095)
 
 ## [2022-05-30]
 
