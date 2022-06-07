@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-06-07]
+
 ### Fixed
 - Space stripping from `xtemplate` key types
 - Fix `log-declarations=true` (gh/1095)
@@ -185,7 +187,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-05-30...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-06-07...HEAD
+[2022-06-07]: https://github.com/latex3/latex3/compare/2022-05-30...2022-06-07
 [2022-05-30]: https://github.com/latex3/latex3/compare/2022-01-12...2022-05-30
 [2022-01-12]: https://github.com/latex3/latex3/compare/2021-11-12...2022-01-12
 [2021-11-12]: https://github.com/latex3/latex3/compare/2021-08-27...2021-11-12
