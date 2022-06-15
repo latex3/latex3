@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Made `\peek_analysis_map_inline:n` alignment-safe (gh/1090)
+
 ## [2022-06-02]
 
 ### Changed
