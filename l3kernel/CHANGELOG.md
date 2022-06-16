@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-06-16]
+
 ### Fixed
 - Made `\peek_analysis_map_inline:n` alignment-safe (gh/1090)
 - Setting a boolean to itself no longer errors (gh/1055)
@@ -1123,7 +1125,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-06-02...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-06-16...HEAD
+[2022-06-16]: https://github.com/latex3/latex3/compare/2022-06-02...2022-06-16
 [2022-06-02]: https://github.com/latex3/latex3/compare/2022-05-30...2022-06-02
 [2022-05-30]: https://github.com/latex3/latex3/compare/2022-05-04...2022-05-30
 [2022-05-04]: https://github.com/latex3/latex3/compare/2022-04-29...2022-05-04
