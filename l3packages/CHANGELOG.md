@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Only remove key name part from `\@unusedoptionlist`
+
 ## [2022-06-07]
 
 ### Fixed
