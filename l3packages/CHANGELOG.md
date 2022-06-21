@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Revert alterations to `l3keys2e`
+
 ## [2022-06-16]
 
 ### Changed
