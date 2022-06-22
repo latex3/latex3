@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Add support for media box setting
+
 ## [2022-08-30]
 
 ### Added
