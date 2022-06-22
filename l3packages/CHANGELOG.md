@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-06-22]
+
 ### Changed
 - Revert alterations to `l3keys2e`
 
@@ -198,7 +200,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-06-16...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-06-22...HEAD
+[2022-06-22]: https://github.com/latex3/latex3/compare/2022-06-16...2022-06-22
 [2022-06-16]: https://github.com/latex3/latex3/compare/2022-06-07...2022-06-16
 [2022-06-07]: https://github.com/latex3/latex3/compare/2022-05-30...2022-06-07
 [2022-05-30]: https://github.com/latex3/latex3/compare/2022-01-12...2022-05-30
