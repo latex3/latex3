@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Correct validity check performed by `\regex_show:N` (gh/1093)
+
 ## [2022-06-16]
 
 ### Fixed
