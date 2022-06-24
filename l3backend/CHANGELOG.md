@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+#### Fixed
+- Do not include PDF file to count pages on pdfTeX
+
 ## [2022-04-20]
 
 ### Changed
