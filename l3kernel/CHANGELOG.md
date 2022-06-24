@@ -7,6 +7,12 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\cs_parameter_spec:N`
+
+### Deprecated
+- `\cs_argument_spec:N`
+
 ### Fixed
 - Correct validity check performed by `\regex_show:N` (gh/1093)
 
