@@ -29,7 +29,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Exclude only first mandatory argument of entries in
   `\l_text_case_exclude_arg_tl` from case changing
 
-`## [2022-05-30]
+## [2022-05-30]
 
 ### Added
 - Add `\lua_load_module:n`
