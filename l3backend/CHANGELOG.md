@@ -71,7 +71,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2021-07-12]
 
 ### Fixed
-- GoTo link formation for Distiller-based workflows (issue #957)
+- GoTo link formation for Distiller-based workflows (issue \#957)
 - Support transparency with Distiller
 
 ## [2021-05-07]
@@ -181,8 +181,8 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2020-06-03]
 
 ### Fixed
-- Unneeded `[nobreak]` in `dvips` driver (issue #709)
-- `\__pdf_backend_object_write_fstream:nn` with `dvips` backend (issue #710)
+- Unneeded `[nobreak]` in `dvips` driver (issue \#709)
+- `\__pdf_backend_object_write_fstream:nn` with `dvips` backend (issue \#710)
 - Array writing in `dvips` mode
 
 ## [2020-05-05]

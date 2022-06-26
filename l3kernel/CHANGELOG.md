@@ -14,14 +14,14 @@ this project uses date-based 'snapshot' version identifiers.
 - `\cs_argument_spec:N`
 
 ### Fixed
-- Correct validity check performed by `\regex_show:N` (gh/1093)
+- Correct validity check performed by `\regex_show:N` (issue \#1093)
 - Closing of file handles (issue \#1105)
 
 ## [2022-06-16]
 
 ### Fixed
-- Made `\peek_analysis_map_inline:n` alignment-safe (gh/1090)
-- Setting a boolean to itself no longer errors (gh/1055)
+- Made `\peek_analysis_map_inline:n` alignment-safe (issue \#1090)
+- Setting a boolean to itself no longer errors (issue \#1055)
 
 ## [2022-06-02]
 
