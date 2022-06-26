@@ -15,6 +15,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Correct validity check performed by `\regex_show:N` (gh/1093)
+- Closing of file handles (issue \#1105)
 
 ## [2022-06-16]
 
