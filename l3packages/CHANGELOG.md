@@ -24,7 +24,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Space stripping from `xtemplate` key types
-- Fix `log-declarations=true` (issue [\#1095](https://github.co/latex3/latex3/issues/1095))
+- Fix `log-declarations=true` (issue [\#1095](https://github.com/latex3/latex3/issues/1095))
 
 ## [2022-05-30]
 

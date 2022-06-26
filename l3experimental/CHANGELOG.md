@@ -25,7 +25,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2022-02-05]
 
 ### Changed
-- Documentation for horizontal coffin poles (see issue [\#1041](https://github.co/latex3/latex3/issues/1041))
+- Documentation for horizontal coffin poles (see issue [\#1041](https://github.com/latex3/latex3/issues/1041))
 
 ## [2021-11-12]
 
