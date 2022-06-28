@@ -13,7 +13,7 @@
 -- (but please observe conditions on bug reports sent to that address!)
 -- 
 -- 
--- Copyright (C) 2015-2021
+-- Copyright (C) 2015-2022
 -- The LaTeX Project and any individual authors listed elsewhere
 -- in this file.
 -- 
@@ -288,8 +288,8 @@ local callbacktypes = callbacktypes or {
   post_linebreak_filter  = reverselist,
   hpack_filter           = list,
   vpack_filter           = list,
-  hpack_quality          = list,
-  vpack_quality          = list,
+  hpack_quality          = exclusive,
+  vpack_quality          = exclusive,
   pre_output_filter      = list,
   process_rule           = exclusive,
   hyphenate              = simple,
@@ -352,7 +352,6 @@ end
 local function list_handler(name)
   return function(head, ...)
     local ret
-    local alltrue = true
     for _,i in ipairs(callbacklist[name]) do
       ret = i.func(head, ...)
       if ret == false then
@@ -363,20 +362,18 @@ local function list_handler(name)
         return false
       end
       if ret ~= true then
-        alltrue = false
         head = ret
       end
     end
-    return alltrue and true or head
+    return head
   end
 end
-local function list_handler_default()
-  return true
+local function list_handler_default(head)
+return head
 end
 local function reverselist_handler(name)
   return function(head, ...)
     local ret
-    local alltrue = true
     local callbacks = callbacklist[name]
     for i = #callbacks, 1, -1 do
       local cb = callbacks[i]
@@ -389,11 +386,10 @@ local function reverselist_handler(name)
         return false
       end
       if ret ~= true then
-        alltrue = false
         head = ret
       end
     end
-    return alltrue and true or head
+    return head
   end
 end
 local function simple_handler(name)
@@ -609,14 +605,10 @@ callback_register("mlist_to_hlist", function(head, display_type, need_penalties)
   if current == false then
     flush_list(head)
     return nil
-  elseif current == true then
-    current = head
   end
   current = call_callback("mlist_to_hlist", current, display_type, need_penalties)
   local post = call_callback("post_mlist_to_hlist_filter", current, display_type, need_penalties)
-  if post == true then
-    return current
-  elseif post == false then
+  if post == false then
     flush_list(current)
     return nil
   end
