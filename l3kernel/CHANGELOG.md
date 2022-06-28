@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\cs_parameter_spec:N`
 
+### Changed
+- `\text_expand:n` now acts on active chars to support legacy input encodings
+
 ### Deprecated
 - `\cs_argument_spec:N`
 
