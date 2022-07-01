@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-07-01]
+
 #### Fixed
 - Do not include PDF file to count pages on pdfTeX
 - Opacity creation with `dvipdfmx`/XeTeX  (issue [\#1106](https://github.com/latex3/latex3/issues/1106))
@@ -250,7 +252,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-04-20...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-07-01...HEAD
+[2022-07-01]: https://github.com/latex3/latex3/compare/2022-04-20...2022-07-01
 [2022-04-20]: https://github.com/latex3/latex3/compare/2022-04-14...2022-04-20
 [2022-04-14]: https://github.com/latex3/latex3/compare/2022-04-10...2022-04-14
 [2022-04-10]: https://github.com/latex3/latex3/compare/2022-02-07...2022-04-10

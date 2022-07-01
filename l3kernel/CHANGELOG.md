@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-07-01]
+
 ### Added
 - `\cs_parameter_spec:N`
 
@@ -1138,7 +1140,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-06-16...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-07-01...HEAD
+[2022-07-01]: https://github.com/latex3/latex3/compare/2022-06-16...2022-07-01
 [2022-06-16]: https://github.com/latex3/latex3/compare/2022-06-02...2022-06-16
 [2022-06-02]: https://github.com/latex3/latex3/compare/2022-05-30...2022-06-02
 [2022-05-30]: https://github.com/latex3/latex3/compare/2022-05-04...2022-05-30
