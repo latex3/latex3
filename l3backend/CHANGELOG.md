@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 #### Fixed
 - Do not include PDF file to count pages on pdfTeX
+- Opacity creation with `dvipdfmx`/XeTeX  (issue [\#1106](https://github.com/latex3/latex3/issues/1106))
 
 ## [2022-04-20]
 
