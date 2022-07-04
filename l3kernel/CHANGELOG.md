@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-07-04]
+
 ### Added
 - `\text_declare_case_equivalent:Nn`, `\text_case_switch:nnnn` and
   related mechanism to allow specialisation of case changing output
@@ -1145,7 +1147,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-07-01...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-07-04...HEAD
+[2022-07-04]: https://github.com/latex3/latex3/compare/2022-07-01...2022-07-04
 [2022-07-01]: https://github.com/latex3/latex3/compare/2022-06-16...2022-07-01
 [2022-06-16]: https://github.com/latex3/latex3/compare/2022-06-02...2022-06-16
 [2022-06-02]: https://github.com/latex3/latex3/compare/2022-05-30...2022-06-02
