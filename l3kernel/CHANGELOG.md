@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\text_declare_case_equivalent:Nn`, `\text_case_switch:nnnn` and
+  related mechanism to allow specialisation of case changing output
+  for selected commands
+
 ## [2022-07-01]
 
 ### Added
