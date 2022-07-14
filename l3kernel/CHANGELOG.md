@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Improved approach to `\text_case_switch:nnnn` expansion
+
 ## [2022-07-04]
 
 ### Added
