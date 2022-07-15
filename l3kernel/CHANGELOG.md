@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Correct argument order in `\text_case_switch:nnnn`
+
 ## [2022-07-14]
 
 ### Changed
