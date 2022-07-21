@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-07-21]
+
+### Changed
+- Fixed `\iow_open:N` in ConTeXt MkII
+
 ## [2022-07-14]
 
 ### Changed
