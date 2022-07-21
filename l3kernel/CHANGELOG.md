@@ -9,8 +9,13 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2022-07-21]
 
-### Changed
-- Fixed `\iow_open:N` in ConTeXt MkII
+### Fixed
+- `\iow_open:N` in ConTeXt MkII
+
+## [2022-07-15]
+
+### Fixed
+- Correct argument order in `\text_case_switch:nnnn`
 
 ## [2022-07-14]
 
@@ -1157,7 +1162,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-07-14...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-07-15...HEAD
+[2022-07-15]: https://github.com/latex3/latex3/compare/2022-07-14...2022-07-15
 [2022-07-14]: https://github.com/latex3/latex3/compare/2022-07-04...2022-07-14
 [2022-07-04]: https://github.com/latex3/latex3/compare/2022-07-01...2022-07-04
 [2022-07-01]: https://github.com/latex3/latex3/compare/2022-06-16...2022-07-01
