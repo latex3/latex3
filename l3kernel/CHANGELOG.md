@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for case changing Croatian diagraph with 8-bit engines
+
 ## [2022-07-21]
 
 ### Fixed
