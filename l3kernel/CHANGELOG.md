@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Support for case changing Croatian diagraph with 8-bit engines
+- Support accent removal when uppercasing Greek with 8-bit engines
 - Function `\sys_ensure_backend:`
 
 ## [2022-07-21]
