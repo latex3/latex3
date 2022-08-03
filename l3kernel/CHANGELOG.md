@@ -12,6 +12,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Support accent removal when uppercasing Greek with 8-bit engines
 - Function `\sys_ensure_backend:`
 
+### Fixed
+- Behavior of `\color_math:nn` in alignments
+
 ## [2022-07-21]
 
 ### Fixed
