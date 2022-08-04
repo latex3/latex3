@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Add no-op backend functions for annotations with `dvisvgm`
+
 ## [2022-07-01]
 
 #### Fixed
