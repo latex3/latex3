@@ -14,6 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Behavior of `\color_math:nn` in alignments
+- Expansion of text containing unterminated `\romannumeral` primitives
 
 ## [2022-07-21]
 
