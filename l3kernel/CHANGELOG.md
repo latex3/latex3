@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-08-05]
+
 ### Added
 - Support for case changing Croatian diagraph with 8-bit engines
 - Support accent removal when uppercasing Greek with 8-bit engines
@@ -1171,7 +1173,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-07-15...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-08-05...HEAD
+[2022-08-05]: https://github.com/latex3/latex3/compare/2022-07-15...2022-08-05
 [2022-07-15]: https://github.com/latex3/latex3/compare/2022-07-14...2022-07-15
 [2022-07-14]: https://github.com/latex3/latex3/compare/2022-07-04...2022-07-14
 [2022-07-04]: https://github.com/latex3/latex3/compare/2022-07-01...2022-07-04
