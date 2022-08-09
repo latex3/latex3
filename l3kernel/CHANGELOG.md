@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for case changing Vietnamese characters with 8-bit engines
+
 ## [2022-08-05]
 
 ### Added
