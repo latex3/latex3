@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Approach to setting current color data from LaTeX2e
+
 ## [2022-08-05]
 
 ### Changed

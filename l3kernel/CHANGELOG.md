@@ -18,6 +18,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Replace `LaTeX3` in message text by `LaTeX`
 
+### Changed
+- Approach to setting current color data from LaTeX2e
 ## [2022-08-05]
 
 ### Added
