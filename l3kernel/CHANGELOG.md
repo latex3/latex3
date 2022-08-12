@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\color_if_exist:n(TF)`
 - Support for case changing Vietnamese characters with 8-bit engines
 
 ## [2022-08-05]
