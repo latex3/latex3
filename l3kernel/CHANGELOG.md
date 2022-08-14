@@ -8,6 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- shortened range of chars which are left unchanged when converted to
+  strings with `\str_convert`. 
 - `\color_if_exist:n(TF)`
 - Support for case changing Vietnamese characters with 8-bit engines
 
