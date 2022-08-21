@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
   strings with `\str_convert`. 
 - `\color_if_exist:n(TF)`
 - Support for case changing Vietnamese characters with 8-bit engines
+- Support for `cmy` color model
 
 ## [2022-08-05]
 
