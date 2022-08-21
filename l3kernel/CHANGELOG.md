@@ -14,6 +14,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Support for case changing Vietnamese characters with 8-bit engines
 - Support for `cmy` color model
 
+### Changed
+- Replace `LaTeX3` in message text by `LaTeX`
+
 ## [2022-08-05]
 
 ### Added
