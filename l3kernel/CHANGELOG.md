@@ -12,7 +12,8 @@ this project uses date-based 'snapshot' version identifiers.
   strings with `\str_(g)set_convert:Nnnn`. 
 - `\color_if_exist:n(TF)`
 - Support for case changing Vietnamese characters with 8-bit engines
-- Support for `cmy` color model
+- Parsing of `cmy` and `&spot` color models to support data exchange with
+  `xcolor`
 
 ### Changed
 - Replace `LaTeX3` in message text by `LaTeX`
