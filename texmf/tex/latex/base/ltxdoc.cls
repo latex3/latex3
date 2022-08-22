@@ -13,7 +13,7 @@
 %% (but please observe conditions on bug reports sent to that address!)
 %% 
 %% 
-%% Copyright (C) 1993-2021
+%% Copyright (C) 1993-2022
 %% The LaTeX Project and any individual authors listed elsewhere
 %% in this file.
 %% 
@@ -43,19 +43,29 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{ltxdoc}
-         [2020/12/05 v2.1b Standard LaTeX documentation class]
+         [2022/06/22 v2.1h Standard LaTeX documentation class]
 \DeclareOption{a5paper}{\@latexerr{Option not supported}%
    {}}
+\newif\ifltxdoc@load@cfg@ \ltxdoc@load@cfg@true
+\DeclareOption{nocfg}{\ltxdoc@load@cfg@false}
+\let\ltxdoc@doc@version\@empty  % use current version by default
+\DeclareOption{doc2}{\def\ltxdoc@doc@version{=v2}}
 \DeclareOption*{%
     \PassOptionsToClass  {\CurrentOption}{article}}
+\ProcessOptions
+\ifltxdoc@load@cfg@
 \InputIfFileExists{ltxdoc.cfg}
            {\typeout{*************************************^^J%
                      * Local config file ltxdoc.cfg used^^J%
                      *************************************}}
            {}
-\ProcessOptions
+\else
+   \typeout{*************************************^^J%
+            * Local config file ignored^^J%
+            *************************************}
+\fi
 \LoadClass{article}
-\RequirePackage{doc}
+\RequirePackage{doc}[\ltxdoc@doc@version]
 \AtBeginDocument{\MakeShortVerb{\|}}
 \DeclareFontShape{OT1}{cmtt}{bx}{n}{<-> ssub * cmtt/m/n}{}
 \DeclareFontFamily{OMS}{cmtt}{\skewchar\font 48}  % '60
@@ -69,9 +79,8 @@
 \addtolength\oddsidemargin{20pt}
 \addtolength\evensidemargin{20pt}
 \setcounter{StandardModuleDepth}{1}
-\def\cmd#1{\cs{\expandafter\cmd@to@cs\string#1}}
+\def\cmd#1{\texttt{\char`\\\expandafter\cmd@to@cs\string#1}}
 \def\cmd@to@cs#1#2{\char\number`#2\relax}
-\DeclareRobustCommand\cs[1]{\texttt{\char`\\#1}}
 \providecommand\marg[1]{%
   {\ttfamily\char`\{}\meta{#1}{\ttfamily\char`\}}}
 \providecommand\oarg[1]{%
@@ -253,8 +262,16 @@ Bug reports can be opened (category \texttt{#1}) at\\%
   \end{center}%
   \par
   \vskip 1.5em}
-\providecommand\url{\texttt}
 \def\task#1#2{}
+\DeclareRobustCommand\cs[1]{\texttt{\bslash\detokenize{#1}}}%
+\AtBeginDocument{%
+  \renewcommand\PrintMacroName[1]{\MacroFont\detokenize{#1}}%
+  \providecommand\LuaTeX{Lua\TeX}
+  \providecommand\cls{\textsf}
+  \providecommand\pkg{\textsf}
+  \providecommand\enquote[1]{``#1''}
+  \providecommand\url{\texttt}
+}
 \endinput
 %%
 %% End of file `ltxdoc.cls'.

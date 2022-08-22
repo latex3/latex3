@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2022-04-20}
+% \date{Released 2022-08-05}
 %
 % \maketitle
 %
@@ -112,6 +112,24 @@
 %     \cs{lua_escape:e} is a macro wrapper around \tn{luaescapestring}:
 %     when \LuaTeX{} is in use two expansions are required to yield the
 %     result of the \Lua{} code.
+%   \end{texnote}
+% \end{function}
+%
+% \begin{function}[added = 2022-05-14]{\lua_load_module:n}
+%   \begin{syntax}
+%     \cs{lua_load_module:n} \Arg{Lua module name}
+%   \end{syntax}
+%   Loads a Lua module into the Lua interpreter.
+%
+%   \cs{lua_now:n} passes its \Arg{token list} argument to the Lua interpreter
+%   as a single line, with characters interpreted under the current catcode
+%   regime. These two facts mean that \cs{lua_now:n} rarely behaves as expected
+%   for larger pieces of code. Therefore, package authors should \textbf{not}
+%   write significant amounts of Lua code in the arguments to \cs{lua_now:n}.
+%   Instead, it is strongly recommended that they write the majorty of their Lua
+%   code in a separate file, and then load it using \cs{lua_load_module:n}.
+%   \begin{texnote}
+%     This is a wrapper around the Lua call |require '|\meta{module}|'|.
 %   \end{texnote}
 % \end{function}
 %
@@ -208,9 +226,7 @@
 % \begin{macro}[EXP]{\lua_now:n, \lua_now:e}
 % \begin{macro}{\lua_shipout_e:n, \lua_shipout:n}
 % \begin{macro}[EXP]{\lua_escape:n, \lua_escape:e}
-%   Wrappers around the primitives. As with engines other than \LuaTeX{}
-%   these have to be macros, we give them the same status in all cases.
-%   When \LuaTeX{} is not in use, simply give an error message/
+%   Wrappers around the primitives.
 %    \begin{macrocode}
 \cs_new:Npn \lua_now:e #1 { \@@_now:n {#1} }
 \cs_new:Npn \lua_now:n #1 { \lua_now:e { \exp_not:n {#1} } }
@@ -219,6 +235,31 @@
   { \lua_shipout_e:n { \exp_not:n {#1} } }
 \cs_new:Npn \lua_escape:e #1 { \@@_escape:n {#1} }
 \cs_new:Npn \lua_escape:n #1 { \lua_escape:e { \exp_not:n {#1} } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\lua_load_module:n}
+%   Wrapper around |require'|\meta{module}|'|.
+%    \begin{macrocode}
+\str_new:N \l_@@_err_msg_str
+\cs_generate_variant:Nn \msg_error:nnnn { nnnV }
+\cs_new_protected:Npn \lua_load_module:n #1
+  {
+    \bool_if:nF { \@@_load_module_p:n { #1 } }
+      {
+        \msg_error:nnnV
+          { luatex } { module-not-found } { #1 } { \l_@@_err_msg_str }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%   As with engines other than \LuaTeX{}
+%   these have to be macros, we give them the same status in all cases.
+%   When \LuaTeX{} is not in use, simply give an error message/
+%    \begin{macrocode}
 \sys_if_engine_luatex:F
   {
     \clist_map_inline:nn
@@ -234,7 +275,7 @@
           }
       }
     \clist_map_inline:nn
-      { \lua_shipout_e:n , \lua_shipout:n }
+      { \lua_shipout_e:n , \lua_shipout:n, \lua_load_module:n }
       {
         \cs_set_protected:Npn #1 ##1
           {
@@ -244,10 +285,6 @@
       }
   }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
 % \subsection{Messages}
 %
 %    \begin{macrocode}
@@ -257,6 +294,19 @@
     The~feature~you~are~using~is~only~available~
     with~the~LuaTeX~engine.~LaTeX3~ignored~'#1'.
   }
+
+\msg_new:nnnn { luatex } { module-not-found }
+  { Lua~module~`#1'~not~found. }
+  {
+    The~file~`#1.lua'~could~not~be~found.~Please~ensure~
+    that~the~file~was~properly~installed~and~that~the~
+    filename~database~is~current. \\ \\
+    The~Lua~loader~provided~this~additional~information: \\
+    #2
+  }
+
+\prop_gput:Nnn \g_msg_module_name_prop { luatex } { LaTeX }
+\prop_gput:Nnn \g_msg_module_type_prop { luatex } { }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
@@ -311,6 +361,9 @@ local cprint     = tex.cprint
 local write      = tex.write
 local write_nl   = texio.write_nl
 local utf8_char  = utf8.char
+local package_loaded    = package.loaded
+local package_searchers = package.searchers
+local table_concat      = table.concat
 
 local scan_int     = token.scan_int or token.scan_integer
 local scan_string  = token.scan_string
@@ -318,6 +371,7 @@ local scan_keyword = token.scan_keyword
 local put_next     = token.put_next
 local token_create = token.create
 local token_new    = token.new
+local set_macro    = token.set_macro
 %    \end{macrocode}
 %
 %   Since token.create only returns useful values after the tokens
@@ -554,6 +608,57 @@ end
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{macro}[int]{try_require}
+%   Loads a Lua module. This function loads the module similarly to the standard
+%   Lua global function |require|, with a few differences. On success,
+%   |try_require| returns |true, module|. If the module cannot be found, it
+%   returns |false, err_msg|. If the module is found, but something goes wrong
+%   when loading it, the function throws an error.
+%    \begin{macrocode}
+local function try_require(name)
+  if package_loaded[name] then
+    return true, package_loaded[name]
+  end
+
+  local failure_details = {}
+  for _, searcher in ipairs(package_searchers) do
+    local loader, data = searcher(name)
+    if type(loader) == 'function' then
+      package_loaded[name] = loader(name, data) or true
+      return true, package_loaded[name]
+    elseif type(loader) == 'string' then
+      failure_details[#failure_details + 1] = loader
+    end
+  end
+
+  return false, table_concat(failure_details, '\n')
+end
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_load_module_p:n}
+%   Check to see if we can load a module using |require|. If we
+%   can load the module, then we load it immediately. Otherwise, we save the
+%   error message in |\l_@@_err_msg_str|.
+%    \begin{macrocode}
+local char_given   = command_id'char_given'
+local c_true_bool  = token_create(1, char_given)
+local c_false_bool = token_create(0, char_given)
+local c_str_cctab  = token_create('c_str_cctab').mode
+
+luacmd('@@_load_module_p:n', function()
+  local success, result = try_require(scan_string())
+  if success then
+    set_macro(c_str_cctab, 'l_@@_err_msg_str', '')
+    put_next(c_true_bool)
+  else
+    set_macro(c_str_cctab, 'l_@@_err_msg_str', result)
+    put_next(c_false_bool)
+  end
+end)
+%    \end{macrocode}
+% \end{macro}
+%
 % \subsection{Preserving iniTeX Lua data for runs}
 %
 %    \begin{macrocode}
@@ -595,7 +700,7 @@ if luatexbase then
     end
 %    \end{macrocode}
 % \end{macro}
-% 
+%
 % The actual work is done in \texttt{pre_dump}. The \texttt{luadata_order} is used
 % to ensure that the order is consistent over multiple runs.
 %    \begin{macrocode}

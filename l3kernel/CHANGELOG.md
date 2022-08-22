@@ -7,8 +7,113 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Shortened range of chars which are left unchanged when converted to
+  strings with `\str_(g)set_convert:Nnnn`. 
+- `\color_if_exist:n(TF)`
+- Support for case changing Vietnamese characters with 8-bit engines
+- Parsing of `cmy` and `&spot` color models to support data exchange with
+  `xcolor`
+
 ### Changed
+- Replace `LaTeX3` in message text by `LaTeX`
+
+### Changed
+- Approach to setting current color data from LaTeX2e
+## [2022-08-05]
+
+### Added
+- Support for case changing Croatian diagraph with 8-bit engines
+- Support accent removal when uppercasing Greek with 8-bit engines
+- Function `\sys_ensure_backend:`
+
+### Fixed
+- Behavior of `\color_math:nn` in alignments
+- Expansion of text containing unterminated `\romannumeral` primitives
+
+## [2022-07-21]
+
+### Fixed
+- `\iow_open:N` in ConTeXt MkII
+
+## [2022-07-15]
+
+### Fixed
+- Correct argument order in `\text_case_switch:nnnn`
+
+## [2022-07-14]
+
+### Changed
+- Improved approach to `\text_case_switch:nnnn` expansion
+
+## [2022-07-04]
+
+### Added
+- `\text_declare_case_equivalent:Nn`, `\text_case_switch:nnnn` and
+  related mechanism to allow specialisation of case changing output
+  for selected commands
+
+## [2022-07-01]
+
+### Added
+- `\cs_parameter_spec:N`
+
+### Changed
+- `\text_expand:n` now acts on active chars to support legacy input encodings
+
+### Deprecated
+- `\cs_argument_spec:N`
+
+### Fixed
+- Correct validity check performed by `\regex_show:N` (issue [\#1093](https://github.com/latex3/latex3/issues/1093))
+- Closing of file handles (issue [\#1105](https://github.com/latex3/latex3/issues/1105))
+
+## [2022-06-16]
+
+### Fixed
+- Made `\peek_analysis_map_inline:n` alignment-safe (issue [\#1090](https://github.com/latex3/latex3/issues/1090))
+- Setting a boolean to itself no longer errors (issue [\#1055](https://github.com/latex3/latex3/issues/1055))
+
+## [2022-06-02]
+
+### Changed
+- Exclude only first mandatory argument of entries in
+  `\l_text_case_exclude_arg_tl` from case changing
+
+## [2022-05-30]
+
+### Added
+- Add `\lua_load_module:n`
+
+### Fixed
+- Typo in implementation of titlecase `hy-x-yiwn`
+- Definition order issue with `\str_case:Nn(TF)`
+
+## [2022-05-04]
+
+### Added
+- Language settings `hy` and `hy-x-yiwn` for handling of ech-yiwn ligature
+  uppercasing
+
+## Changed
+- Support BCP 47 properly in case changer language argument
+
+### Fixed
+- Correct `el-xiota` and `de-xeszett` to `el-x-iota` and `de-x-eszett`
+
+## [2022-04-29]
+
+### Added
+- Language setting `el-xiota` for retention of ypogegrammeni when uppercasing
+  Greek
+
+### Changed
+- Rename case-changing variant `de-alt` to `de-xeszett` to align with
+  `luaotfload`
 - Allow for `\lccode`/`\uccode` changes in `\char_...case:n` functions
+
+### Fixed
+- Support for ypogegrammeni in case changing Greek (see issue [\#1088](https://github.com/latex3/latex3/issues/1088))
 
 ## [2022-04-20]
 
@@ -20,8 +125,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\keys_precompile:nnN` for conversion of keyvals to fast-to-apply token
   lists
-- Missing `\str_if_empty:n(TF)` (see issue \#1071)
-- Missing `\str_case:Nn(TF)` (see issue \#1071)
+- Missing `\str_if_empty:n(TF)` (see issue [\#1071](https://github.com/latex3/latex3/issues/1071))
+- Missing `\str_case:Nn(TF)` (see issue [\#1071](https://github.com/latex3/latex3/issues/1071))
 - `\tex_...:D` names for primitives added in TeX Live 2022
 
 ### Changed
@@ -53,7 +158,7 @@ this project uses date-based 'snapshot' version identifiers.
   command in LaTeX2e
 
 ### Changed
-- Documentation for horizontal coffin poles (see issue \#1041)
+- Documentation for horizontal coffin poles (see issue [\#1041](https://github.com/latex3/latex3/issues/1041))
 - Update primitive requirements to enable loading with Prote/HINT
 
 ## [2022-01-21]
@@ -106,8 +211,8 @@ this project uses date-based 'snapshot' version identifiers.
 - DeviceN colorspace conversions with alternative model RGB
 
 ### Added
-- `.str_set:N`, etc., key properties (issue \#1007)
-- `\bool_to_str:n` (issue \#1010)
+- `.str_set:N`, etc., key properties (issue [\#1007](https://github.com/latex3/latex3/issues/1007))
+- `\bool_to_str:n` (issue [\#1010](https://github.com/latex3/latex3/issues/1010))
 
 ### Changed
 - `\prop_..._from_keyval:Nn` functions now support active comma or
@@ -134,13 +239,13 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2021-08-27]
 
 ### Changed
-- Formatting of expandable errors (issue \#931)
+- Formatting of expandable errors (issue [\#931](https://github.com/latex3/latex3/issues/931))
 - Internal code for kernel messages
 
 ## [2021-07-12]
 
 ### Fixed
-- Handling of multiple color models (issue \#962)
+- Handling of multiple color models (issue [\#962](https://github.com/latex3/latex3/issues/962))
 
 ### Removed
 - Functions marked for removal end-2020
@@ -149,8 +254,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Local assignment to `\g__sys_backend_tl`
-- Incorrect internal function name (issue \#939)
-- Case-changing exceptions for (u)pTeX (issue \#939)
+- Incorrect internal function name (issue [\#939](https://github.com/latex3/latex3/issues/939))
+- Case-changing exceptions for (u)pTeX (issue [\#939](https://github.com/latex3/latex3/issues/939))
 - Low-level error if accent commands are not followed by
   letter when case changing (see \#946)
 
@@ -167,24 +272,24 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2021-05-25]
 
 ### Added
-- `\msg_note:nnnnnn` (issue \#911)
-- `\str_compare:nNnTF` (issue \#927)
+- `\msg_note:nnnnnn` (issue [\#911](https://github.com/latex3/latex3/issues/911))
+- `\str_compare:nNnTF` (issue [\#927](https://github.com/latex3/latex3/issues/927))
 - `\sys_timer:`
-- `\prop_concat:NNN`, `\prop_put_from_keyval:Nn` (issue \#924)
-- Functions to show and log various datatypes (issue \#241):
+- `\prop_concat:NNN`, `\prop_put_from_keyval:Nn` (issue [\#924](https://github.com/latex3/latex3/issues/924))
+- Functions to show and log various datatypes (issue [\#241](https://github.com/latex3/latex3/issues/241)):
   `\coffin_show:Nnn`, `\coffin_show:N`, `\coffin_log:Nnn`, `\coffin_log:N`,
   `\color_log:n`, `\group_show_list:`, `\group_log_list:`,
   `\ior_show:N`, `\ior_log:N`, `\iow_show:N`, `\iow_log:N`,
   `\tl_log_analysis:N`, `\tl_log_analysis:n`
 - `\legacy_if_set_true:n`, `\legacy_if_set_false:n`, `\legacy_if_set:nn`
-- Matching multiple regex at the same time (issue \#433):
+- Matching multiple regex at the same time (issue [\#433](https://github.com/latex3/latex3/issues/433)):
   `\regex_case_match:nn(TF)`,
   `\regex_case_replace_once:nN(TF)`,
   `\regex_case_replace_all:nN(TF)`
 
 ### Fixed
-- Checking brace balance in all regex functions (issue \#377)
-- Removing duplicates in clists when items contain commas (issue \#917)
+- Checking brace balance in all regex functions (issue [\#377](https://github.com/latex3/latex3/issues/377))
+- Removing duplicates in clists when items contain commas (issue [\#917](https://github.com/latex3/latex3/issues/917))
 
 ### Changed
 - Slight speed up in some elementary int/dim/skip/muskip operations and
@@ -194,13 +299,13 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2021-05-11]
 
 ### Added
-- `\cctab_item:Nn` (issue \#880)
-- `\clist_use:nnnn` and `\clist_use:nn` (issue \#561)
+- `\cctab_item:Nn` (issue [\#880](https://github.com/latex3/latex3/issues/880))
+- `\clist_use:nnnn` and `\clist_use:nn` (issue [\#561](https://github.com/latex3/latex3/issues/561))
 
 ### Fixed
-- Loading of backend in generic DVI mode (issue \#905)
-- Make `\keyval_parse:nnn` alignment-safe (issue \#896)
-- Control sequences and category codes in regex replacements (issue \#909)
+- Loading of backend in generic DVI mode (issue [\#905](https://github.com/latex3/latex3/issues/905))
+- Make `\keyval_parse:nnn` alignment-safe (issue [\#896](https://github.com/latex3/latex3/issues/896))
+- Control sequences and category codes in regex replacements (issue [\#909](https://github.com/latex3/latex3/issues/909))
 
 ### Changed
 - Speed up `\group_align_safe_begin:` (pull \#906)
@@ -212,30 +317,30 @@ this project uses date-based 'snapshot' version identifiers.
 - `\ur{...}` escape in `l3regex` to compose regexes
 - `\seq_set_split_keep_spaces:Nnn` (see \#784)
 - `\seq_set_item:Nnn(TF)` and `\seq_pop_item:NnN(TF)`
-- `\box_ht_plus_dp:N` (issue \#899)
+- `\box_ht_plus_dp:N` (issue [\#899](https://github.com/latex3/latex3/issues/899))
 - `\clist_map_tokens:nn`, `\clist_map_tokens:Nn`,
   `\str_map_tokens:nn`, `\str_map_tokens:Nn`
 
 ### Changed
-- Use prevailing catcodes instead of string in regex replacement (issue \#621)
+- Use prevailing catcodes instead of string in regex replacement (issue [\#621](https://github.com/latex3/latex3/issues/621))
   (*Breaking change*)
 - `\__kernel_file_name_sanitize:n` now uses a faster `\csname`-based
   approach to expand the file name
 - Improved performance for basic conditionals
 - `\pdf_version_gset:n` support for `dvips`
-- Improve handling of `\exp_not:n` in `\text_expand:n` (issue \#875)
+- Improve handling of `\exp_not:n` in `\text_expand:n` (issue [\#875](https://github.com/latex3/latex3/issues/875))
 - `\file_full_name:n` now avoids calling `\pdffilesize` primitive multiple times
   on the same file
 - Show printable characters explicitly in `\regex_show:n`
 - Regex replacement now errors when using a submatch (`\1` etc) for which
   the regex has too few groups
-- Showing complex datatypes now validates their internal structure (issue \#884)
+- Showing complex datatypes now validates their internal structure (issue [\#884](https://github.com/latex3/latex3/issues/884))
 - Indexing in l3doc: all page references before codeline references,
   improve target placement, solve pdfTeX and makeindex warnings
 
 ### Fixed
-- Evalutate integer constants only once (issue \#861)
-- Detect `\ior_map_inline:Nn` calls on undefined streams (issue \#194)
+- Evalutate integer constants only once (issue [\#861](https://github.com/latex3/latex3/issues/861))
+- Detect `\ior_map_inline:Nn` calls on undefined streams (issue [\#194](https://github.com/latex3/latex3/issues/194))
 
 ### Deprecated
 - `l3docstrip` converted to a stub which simply loads DocStrip: use
@@ -304,7 +409,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Avoid relying on braced `\input` primitive syntax
 - Correct expansion of environments in `\text_purify:n`
-- Some aspects of `cctab` setup with 8-bit engines(issue \#814)
+- Some aspects of `cctab` setup with 8-bit engines(issue [\#814](https://github.com/latex3/latex3/issues/814))
 
 ### Changed
 - Improved performance for `tl` functions
@@ -315,7 +420,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Correctly detect LaTeX when pre-loading expl3 and setting up
   case changer
-- Lua emulation of \strcmp (issue \#813)
+- Lua emulation of \strcmp (issue [\#813](https://github.com/latex3/latex3/issues/813))
 
 ## [2020-09-24]
 
@@ -326,7 +431,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2020-09-06]
 
 ### Fixed
-- Loading in generic mode (issue \#800)
+- Loading in generic mode (issue [\#800](https://github.com/latex3/latex3/issues/800))
 
 ## [2020-09-03]
 
@@ -346,7 +451,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Backend setting `pdfmode`
 
 ### Fixed
-- `\file_compare_timestamp:nNn(TF)` in LuaTeX (issue \#792)
+- `\file_compare_timestamp:nNn(TF)` in LuaTeX (issue [\#792](https://github.com/latex3/latex3/issues/792))
 - Text case changing and expansion where an excluded command is equivalent
   to `\use:n`
 
@@ -357,7 +462,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Performance enhancements for `\keys_set:nn`
 
 ### Fixed
-- Loading generically on ConTeXt (issue \#783)
+- Loading generically on ConTeXt (issue [\#783](https://github.com/latex3/latex3/issues/783))
 
 ## [2020-07-17]
 
@@ -429,7 +534,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Control for start-of-titlecasing: see `\l_text_titlecase_check_letter_bool`
 
 ### Fixed
-- Nesting of `\seq_shuffle:N` in another sequence mapping (issue \#687)
+- Nesting of `\seq_shuffle:N` in another sequence mapping (issue [\#687](https://github.com/latex3/latex3/issues/687))
 - `\ior_shell_open:Nn` in engines other than LuaTeX - shell commands didn't
   execute, plus the command call would be left in the input stream.
 
@@ -465,7 +570,7 @@ this project uses date-based 'snapshot' version identifiers.
   `l3backend`)
 
 ### Changed
-- Allow `dvisvgm` driver with XeTeX (issue \#677)
+- Allow `dvisvgm` driver with XeTeX (issue [\#677](https://github.com/latex3/latex3/issues/677))
 
 ### Fixed
 - `undo-recent-deprecations` would not reload the deprecation code
@@ -490,7 +595,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Support `\@uclclist` entries when case-changing
 
 ### Fixed
-- Allow for full range of encodings when expanding text (issue \#671)
+- Allow for full range of encodings when expanding text (issue [\#671](https://github.com/latex3/latex3/issues/671))
 - Support `\begin`/`\end` in text expansion
 
 ## [2020-02-08]
@@ -556,7 +661,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-11-07]
 
 ### Fixed
-- Handling of repeated loading of a backend (issue \#646)
+- Handling of repeated loading of a backend (issue [\#646](https://github.com/latex3/latex3/issues/646))
 - Handling of repeated loading of deprecated functions
 
 ## [2019-10-28]
@@ -1081,7 +1186,17 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-04-20...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-08-05...HEAD
+[2022-08-05]: https://github.com/latex3/latex3/compare/2022-07-15...2022-08-05
+[2022-07-15]: https://github.com/latex3/latex3/compare/2022-07-14...2022-07-15
+[2022-07-14]: https://github.com/latex3/latex3/compare/2022-07-04...2022-07-14
+[2022-07-04]: https://github.com/latex3/latex3/compare/2022-07-01...2022-07-04
+[2022-07-01]: https://github.com/latex3/latex3/compare/2022-06-16...2022-07-01
+[2022-06-16]: https://github.com/latex3/latex3/compare/2022-06-02...2022-06-16
+[2022-06-02]: https://github.com/latex3/latex3/compare/2022-05-30...2022-06-02
+[2022-05-30]: https://github.com/latex3/latex3/compare/2022-05-04...2022-05-30
+[2022-05-04]: https://github.com/latex3/latex3/compare/2022-04-29...2022-05-04
+[2022-04-29]: https://github.com/latex3/latex3/compare/2022-04-20...2022-04-29
 [2022-04-20]: https://github.com/latex3/latex3/compare/2022-04-10...2022-04-20
 [2022-04-10]: https://github.com/latex3/latex3/compare/2022-02-24...2022-04-10
 [2022-02-24]: https://github.com/latex3/latex3/compare/2022-02-21...2022-02-24

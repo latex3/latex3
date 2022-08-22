@@ -63,7 +63,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2022-01-12}
+% \date{Released 2022-06-22}
 %
 % \maketitle
 %
@@ -358,22 +358,12 @@
 %     \cs{AssignTemplateKeys}
 %   \end{syntax}
 %   In the final argument of \cs{DeclareTemplateCode} the assignment of
-%   keys defined by the template is carried out by using the function
-%   \cs{AssignTemplateKeys}. Thus no keys are assigned if this is missing
-%   from the \meta{code} used.
-% \end{function}
-%
-% \begin{function}{\EvaluateNow}
-%   \begin{syntax}
-%     \cs{EvaluateNow} \Arg{expression}
-%   \end{syntax}
-%   The standard method when creating an instance from a template is to
-%   evaluate the \meta{expression} when the instance is used. However, it may
-%   be desirable to calculate the value when declared, which can be
-%   forced using \cs{EvaluateNow}. Currently, this functionality is
-%   regarded as experimental: the team have not found an example where it
-%   is actually needed, and so it may be dropped \emph{if} no good
-%   examples are suggested!
+%   keys defined by the template may be delayed by including the command
+%   \cs{AssignTemplateKeys}. If this is \emph{not} present, keys are assigned
+%   immediately before the template code. If \cs{AssignTemplateKeys} is
+%   present, assignment is delayed until this point. Note that the
+%   command must be \emph{directly} present in the code, not placed
+%   within a nested command/macro.
 % \end{function}
 %
 % \section{Multiple choices}
@@ -587,6 +577,40 @@
 %   be changed when creating an instance.
 % \end{function}
 %
+% \section{\emph{Ad hoc} adjustment of templates}
+%
+% \begin{function}{\SetTemplateKeys}
+%   \begin{syntax}
+%    \cs{SetTemplateKeys} \Arg{object type} \Arg{template} \Arg{keyvals}
+%   \end{syntax}
+%   At point of use it may be useful to apply changed to individual instances.
+%   This is supported as each template key is made available for adjustment
+%   using \cs{SetTemplateKeys}.
+% \end{function}
+%
+% For example, after
+% \begin{verbatim}
+%   \DeclareObjectType{MyObj}{0}
+%   \DeclareTemplateInterface{MyObj}{TemplateA}{0}
+%     {
+%       akey: tokenlist  ,
+%       bkey: function{2}
+%     }
+%   \DeclareTemplateCode{MyObj}{TemplateA}{0}
+%     {
+%       akey = SomeTokens ,
+%       bkey = \func:nn ,
+%     }
+% \end{verbatim}
+% the template keys could be adjusted in an \emph{ad hoc} fashion using
+% \begin{verbatim}
+%   \SetTemplateKeys{MyObj}{TemplateA}
+%     {
+%       akey = OtherTokens ,
+%       bkey = \AltFunc:nn
+%     }
+% \end{verbatim}
+%
 % \section{Getting information about templates and instances}
 %
 % \begin{function}{\ShowInstanceValues}
@@ -682,8 +706,13 @@
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-\ProvidesExplPackage{xtemplate}{2022-01-12}{}
+\ProvidesExplPackage{xtemplate}{2022-06-22}{}
   {L3 Experimental prototype document functions}
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\cs_generate_variant:Nn \keys_define:nn { nx }
+\cs_generate_variant:Nn \tl_trim_spaces:n { e }
 %    \end{macrocode}
 %
 % \subsection{Variables and constants}
@@ -979,8 +1008,7 @@
 % \end{macro}
 %
 % \begin{macro}[TF]{\@@_if_key_value:n, \@@_if_key_value:o}
-%   Tests for the first token in a string being \cs{KeyValue}, where
-%   \cs{EvaluateNow} is not important.
+%   Tests for the first token in a string being \cs{KeyValue}.
 %    \begin{macrocode}
 \prg_new_conditional:Npnn \@@_if_key_value:n #1 { T , F , TF }
   {
@@ -991,18 +1019,6 @@
 \cs_generate_variant:Nn \@@_if_key_value:nT  { o }
 \cs_generate_variant:Nn \@@_if_key_value:nF  { o }
 \cs_generate_variant:Nn \@@_if_key_value:nTF { o }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}{\@@_if_eval_now:nTF}
-%   Tests for the first token in a string being \cs{EvaluateNow}.
-%    \begin{macrocode}
-\prg_new_conditional:Npnn \@@_if_eval_now:n #1 { TF }
-  {
-    \str_if_eq:noTF { \EvaluateNow } { \tl_head:w #1 \q_nil \q_stop }
-      { \prg_return_true: }
-      { \prg_return_false: }
-  }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1305,8 +1321,8 @@
 % \begin{macro}{\@@_split_keytype:n}
 % \begin{macro}{\@@_split_keytype_aux:w}
 %   The keytype and key name should be separated by |:|. As the
-%   definition might be given inside or outside of a code block, spaces
-%   are removed and the category code of colons is standardised. After
+%   definition might be given inside or outside of a code block,
+%   the category code of colons is standardised. After
 %   that, the standard delimited argument method is used to separate the
 %   two parts.
 %    \begin{macrocode}
@@ -1314,7 +1330,6 @@
   {
     \exp_not:N \bool_set_false:N \exp_not:N \l_@@_error_bool
     \tl_set:Nn \exp_not:N \l_@@_tmp_tl {#1}
-    \tl_remove_all:Nn \exp_not:N \l_@@_tmp_tl { ~ }
     \tl_replace_all:Nnn \exp_not:N \l_@@_tmp_tl { : } { \token_to_str:N : }
     \tl_if_in:onTF \exp_not:N \l_@@_tmp_tl { \token_to_str:N : }
       {
@@ -1336,7 +1351,10 @@
       ##1 \token_to_str:N : ##2 \s_@@_stop
       {
         \tl_put_right:Nx \exp_not:N \l_@@_key_name_tl
-          { \exp_not:N \tl_to_str:n {##1} }
+          {
+            \exp_not:N \tl_trim_spaces:e
+              { \exp_not:N \tl_to_str:n {##1} }
+          }
         \tl_if_in:nnTF {##2} { \token_to_str:N : }
           {
             \tl_put_right:Nn \exp_not:N \l_@@_key_name_tl
@@ -1372,7 +1390,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_split_keytype_arg:n #1
   {
-    \tl_set:Nn \l_@@_keytype_tl {#1}
+    \tl_set:Nx \l_@@_keytype_tl { \tl_trim_spaces:n {#1} }
     \tl_clear:N \l_@@_keytype_arg_tl
     \cs_set_protected:Npn \@@_split_keytype_arg_aux:n ##1
       {
@@ -1381,10 +1399,15 @@
             \cs_set:Npn \@@_split_keytype_arg_aux:w
               ####1 ##1 ####2 \s_@@_stop
               {
-                \tl_if_empty:nT {####1}
+                \tl_if_blank:nT {####1}
                   {
-                    \tl_set:Nn \l_@@_keytype_tl {##1}
-                    \tl_set:Nn \l_@@_keytype_arg_tl {####2}
+                    \tl_set:Nx \l_@@_keytype_tl
+                      { \tl_trim_spaces:n {##1} }
+                    \tl_if_blank:nF {####2}
+                      {
+                        \tl_set:Nx \l_@@_keytype_arg_tl
+                          { \use:n ####2 }
+                      }
                     \seq_map_break:
                   }
               }
@@ -1419,30 +1442,9 @@
 % value to be processed and potentially stored.
 %
 % \begin{macro}{\@@_store_value_boolean:n}
-%   Storing Boolean values requires a test for delayed evaluation, but
-%   is different to the various numerical variable types as there are
-%   only two possible values to store. So the code here tests the default
-%   switch and then records the meaning (either \texttt{true} or
-%   \texttt{false}).
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_store_value_boolean:n #1
-  {
-    \@@_if_eval_now:nTF {#1}
-      {
-        \bool_if:cTF { c_ #1 _bool }
-          {
-            \prop_put:Non \l_@@_values_prop \l_@@_key_name_tl
-              { true }
-          }
-          {
-            \prop_put:Non \l_@@_values_prop \l_@@_key_name_tl
-              { false }
-          }
-      }
-      {
-        \prop_put:Non \l_@@_values_prop \l_@@_key_name_tl {#1}
-      }
-  }
+  { \prop_put:Non \l_@@_values_prop \l_@@_key_name_tl {#1} }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -1464,17 +1466,9 @@
 %   \@@_store_value_real:n, \@@_store_value_skip:n,
 %   \@@_store_value_tokenlist:n, \@@_store_value_commalist:n}
 %   Storing values in \cs{l_@@_values_prop} is in most cases the same.
-%   If evaluation is taking place now, one \texttt{x}-expands an
-%   evaluation function and the result is then stored. On the other
-%   hand, if evaluation is delayed the current data is simply stored
-%   \enquote{as is}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_store_value_aux:Nn #1#2
-  {
-    \@@_if_eval_now:nTF {#2}
-      { \prop_put:NVx \l_@@_values_prop \l_@@_key_name_tl { #1 {#2} } }
-      { \prop_put:Non \l_@@_values_prop \l_@@_key_name_tl {#2} }
-  }
+  { \prop_put:Non \l_@@_values_prop \l_@@_key_name_tl {#2} }
 \cs_new_protected:Npn \@@_store_value_integer:n
   { \@@_store_value_aux:Nn \int_eval:n }
 \cs_new_protected:Npn \@@_store_value_length:n
@@ -1494,6 +1488,7 @@
 % \subsection{Implementation part of template declaration}
 %
 % \begin{macro}{\@@_declare_template_code:nnnnn}
+% \begin{macro}{\@@_declare_template_code:nnn}
 %   The main function for implementing a template starts with a couple of
 %   simple checks to make sure that there are no obvious mistakes: the
 %   number of arguments must agree and the template keys must have been
@@ -1508,14 +1503,24 @@
           \@@_if_keys_exist:nnT {#1} {#2}
             {
               \@@_store_key_implementation:nnn {#1} {#2} {#4}
-              \cs_generate_from_arg_count:cNnn
-                { \c_@@_code_root_tl #1 / #2 }
-                \cs_gset_protected:Npn {#3} {#5}
+              \regex_match:nnTF { \c { AssignTemplateKeys } } {#5}
+                { \@@_declare_template_code:nnn { #1 / #2 } {#3} {#5} }
+                {
+                  \@@_declare_template_code:nnn
+                    { #1 / #2 } {#3} { \AssignTemplateKeys #5 }
+                }
             }
          }
       }
   }
+\cs_new_protected:Npn \@@_declare_template_code:nnn #1#2#3
+  {
+    \cs_generate_from_arg_count:cNnn
+      { \c_@@_code_root_tl #1 }
+      \cs_gset_protected:Npn {#2} {#3}
+  }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\@@_store_key_implementation:nnn}
@@ -1532,8 +1537,8 @@
     \@@_recover_restrictions:n { #1 / #2 }
     \@@_recover_keytypes:n { #1 / #2 }
     \prop_clear:N \l_@@_vars_prop
-    \keyval_parse:NNn
-      \@@_parse_vars_elt:n \@@_parse_vars_elt:nn {#3}
+    \keyval_parse:nnn
+      { \@@_parse_vars_elt:n } { \@@_parse_vars_elt:nnn { #1 / #2 } } {#3}
     \@@_store_vars:n { #1 / #2 }
     \@@_store_restrictions:n { #1 / #2 }
     \prop_map_inline:Nn \l_@@_keytypes_prop
@@ -1554,125 +1559,162 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_parse_vars_elt:nn}
+% \begin{macro}{\@@_parse_vars_elt:nnn}
 %   The actual storage part here is very simple: the storage bin name
 %   is placed into the property list. At the same time, a comparison is
 %   made with the keytypes defined earlier: if there is a mismatch then
 %   an error is raised.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_parse_vars_elt:nn #1#2
+\cs_new_protected:Npn \@@_parse_vars_elt:nnn #1#2#3
  {
-    \tl_set:Nx \l_@@_key_name_tl { \tl_to_str:n {#1} }
-    \tl_remove_all:Nn \l_@@_key_name_tl { ~ }
+    \tl_set:Nx \l_@@_key_name_tl
+      { \tl_trim_spaces:e { \tl_to_str:n {#2} } }
     \prop_get:NoNTF
       \l_@@_keytypes_prop
       \l_@@_key_name_tl
       \l_@@_keytype_tl
       {
         \@@_split_keytype_arg:o \l_@@_keytype_tl
-        \@@_parse_vars_elt_aux:n {#2}
+        \@@_parse_vars_elt_aux:nn {#1} {#3}
         \prop_remove:NV \l_@@_keytypes_prop \l_@@_key_name_tl
       }
-      { \msg_error:nnx { xtemplate } { unknown-key } {#1} }
+      { \msg_error:nnx { xtemplate } { unknown-key } {#2} }
   }
 %    \end{macrocode}
 % \end{macro}
-% \begin{macro}{\@@_parse_vars_elt_aux:n}
-% \begin{macro}{\@@_parse_vars_elt_aux:w}
-%   There now needs to be some sanity checking on the variable name
-%   given. This does not apply for \texttt{choice} or
-%   \texttt{code} \enquote{variables}, but in all other cases the variable
-%   needs to exist. Also, the only prefix acceptable is \texttt{global}. So
-%   there are a few related checks to make.
+% \begin{macro}{\@@_parse_vars_elt_aux:nn}
+% \begin{macro}{\@@_parse_vars_elt_aux:nw}
+% \begin{macro}{\@@_parse_vars_elt_aux:nnn}
+% \begin{macro}{\@@_parse_vars_elt_key:nn}
+%   Split off any leading \texttt{global} and they look for the way to
+%   implement.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_parse_vars_elt_aux:n #1
+\cs_new_protected:Npn \@@_parse_vars_elt_aux:nn #1#2
   {
-    \str_if_eq:onTF \l_@@_keytype_tl { choice }
-      { \@@_implement_choices:n {#1} }
+    \@@_parse_vars_elt_aux:nw {#1} #2 global global \s_@@_stop
+  }
+\cs_new_protected:Npn \@@_parse_vars_elt_aux:nw
+  #1#2 global #3 global #4 \s_@@_stop
+  {
+    \tl_if_blank:nTF {#4}
+      { \@@_parse_vars_elt_aux:nnn {#1} { } {#2} }
       {
-        \str_if_eq:onTF \l_@@_keytype_tl { code }
+        \tl_if_blank:nTF {#2}
           {
-            \prop_put:Non \l_@@_vars_prop
-              \l_@@_key_name_tl {#1}
+            \exp_args:Nnnx \@@_parse_vars_elt_aux:nnn
+              {#1} { global } { \tl_trim_spaces:n {#3} }
           }
+          { \msg_error:nnn { xtemplate } { bad-variable } { #2 global #3 } }
+      }
+  }
+\cs_new_protected:Npn \@@_parse_vars_elt_aux:nnn #1#2#3
+  {
+    \str_case:VnF \l_@@_keytype_tl
+      {
+        { choice } { \@@_implement_choices:nn {#1} {#3} }
+        { code }
           {
-            \tl_if_single:nTF {#1}
+            \@@_parse_vars_elt_key:nn {#1}
               {
-                \cs_if_exist:NF #1
-                  { \@@_create_variable:N #1 }
-                \prop_put:Non \l_@@_vars_prop
-                  \l_@@_key_name_tl {#1}
+                .cs_ \str_if_eq:nnT {#1} { global } { g }
+                   set_protected:Np = \exp_not:N #3
               }
+            \prop_put:Non \l_@@_vars_prop
+              \l_@@_key_name_tl {#2#3}
+          }
+        { function }
+          {
+            \cs_if_exist:NF #3
+              { \cs_new:Npn #3 { } }
+            \@@_parse_vars_elt_key:nn {#1}
               {
-                \tl_if_in:nnTF {#1} { global }
-                  { \@@_parse_vars_elt_aux:w #1 \s_@@_stop }
+                .code:n =
                   {
-                    \msg_error:nnx { xtemplate } { bad-variable }
-                      { \tl_to_str:n {#1} }
+                    \exp_not:c
+                      { cs_ \str_if_eq:nnT {#1} { global } { g } seq_eq:NN }
+                      \exp_not:N #3 ####1
                   }
               }
-          }
-      }
-  }
-\cs_new_protected:Npn \@@_parse_vars_elt_aux:w #1 global #2 \s_@@_stop
-  {
-    \tl_if_empty:nTF {#1}
-      {
-        \tl_if_single:nTF {#2}
-          {
-            \cs_if_exist:NF #2
-              { \@@_create_variable:N #2 }
             \prop_put:Non \l_@@_vars_prop
-              \l_@@_key_name_tl { #1 global #2 }
+              \l_@@_key_name_tl {#2#3}
           }
+        { instance }
           {
-            \msg_error:nnx { xtemplate } { bad-variable }
-              { \tl_to_str:n { #1 global #2 } }
+            \@@_parse_vars_elt_key:nn {#1}
+              {
+                .code:n =
+                  {
+                    \exp_not:c
+                      { cs_ \str_if_eq:nnT {#1} { global } { g } set:Npn }
+                      \exp_not:N #3 { \UseInstance {####1} }
+                  }
+              }
+            \prop_put:Non \l_@@_vars_prop
+              \l_@@_key_name_tl {#2#3}
           }
       }
       {
-          \msg_error:nnx { xtemplate } { bad-variable }
-            { \tl_to_str:n { #1 global #2 } }
+        \tl_if_single:nTF {#3}
+          {
+            \cs_if_exist:NF #3
+              { \use:c { \@@_map_var_type: _new:N } #3 }
+            \@@_parse_vars_elt_key:nn {#1}
+              {
+                . \@@_map_var_type:
+                  _ \str_if_eq:nnT {#1} { global } { g } set:N
+                    = \exp_not:N #3
+              }
+            \prop_put:Non \l_@@_vars_prop
+              \l_@@_key_name_tl {#2#3}
+          }
+          { \msg_error:nnx { xtemplate } { bad-variable } { #2#3 } }
       }
   }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-% \begin{macro}{\@@_create_variable:N}
-%   A shortcut to create non-declared variables. Some types need a name
-%   mapping, others can be used directly.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_create_variable:N #1
+\cs_new_protected:Npn \@@_parse_vars_elt_key:nn #1#2
   {
-    \str_case:onF \l_@@_keytype_tl
+    \keys_define:nx { template / #1 }
+      { \l_@@_key_name_tl #2 }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_map_var_type:}
+%   Turn a \enquote{friendly} variable type into an \texttt{expl3} one.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_var_type:
+  {
+    \str_case:on \l_@@_keytype_tl
       {
-        { boolean }   { \bool_new:N #1 }
-        { commalist } { \clist_new:N #1 }
-        { function }  { \cs_new:Npn #1 { } }
-        { instance }  { \cs_new_protected:Npn #1 { } }
-        { integer }   { \int_new:N #1 }
-        { length }    { \dim_new:N #1 }
-        { real }      { \fp_new:N #1 }
-        { tokenlist } { \tl_new:N #1 }
+        { boolean }   { bool }
+        { commalist } { clist }
+        { integer }   { int }
+        { length }    { dim }
+        { muskip }    { muskip }
+        { real }      { fp }
+        { skip }      { skip }
+        { tokenlist } { tl }
       }
-      { \use:c { \l_@@_keytype_tl _ new:N } #1 }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_implement_choices:n}
+% \begin{macro}{\@@_implement_choices:nn}
 % \begin{macro}{\@@_implement_choices_default:}
 %   Implementing choices requires a second key--value loop. So after a
 %   little set-up, the standard parser is called.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_implement_choices:n #1
+\cs_new_protected:Npn \@@_implement_choices:nn #1#2
   {
     \clist_set:No \l_@@_tmp_clist { \l_@@_keytype_arg_tl }
     \prop_put:Non \l_@@_vars_prop \l_@@_key_name_tl { }
-    \keyval_parse:NNn
-      \@@_implement_choice_elt:n \@@_implement_choice_elt:nn
-      {#1}
+    \keys_define:nx { template / #1 } { \l_@@_key_name_tl .choice: }
+    \keyval_parse:nnn
+      { \@@_implement_choice_elt:n }
+      { \@@_implement_choice_elt:nnn {#1} }
+      {#2}
     \prop_get:NoNT \l_@@_values_prop \l_@@_key_name_tl
       \l_@@_tmp_tl
       { \@@_implement_choices_default: }
@@ -1714,47 +1756,57 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}{\@@_implement_choice_elt:nnn, \@@_implement_choice_elt_aux:nnn}
 % \begin{macro}{\@@_implement_choice_elt:n}
-% \begin{macro}{\@@_implement_choice_elt:nn}
 %   The actual storage of the implementation of a choice is mainly about
 %   error checking. The code here ensures that all choices have to have
 %   been declared, apart from the special \texttt{unknown} choice, which
 %   must come last. The code for each choice is stored along with the
 %   key name in the variables property list.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_implement_choice_elt:n #1
+\cs_new_protected:Npn \@@_implement_choice_elt:nnn #1#2#3
   {
     \clist_if_empty:NTF \l_@@_tmp_clist
       {
-        \str_if_eq:nnF {#1} { unknown }
+        \str_if_eq:nnTF {#2} { unknown }
+          { \@@_implement_choice_elt_aux:nnn {#1} {#2} {#3} }
           {
             \prop_get:NoN \l_@@_keytypes_prop \l_@@_key_name_tl
               \l_@@_tmp_tl
             \@@_split_keytype_arg:o \l_@@_tmp_tl
             \msg_error:nnxxx { xtemplate } { unknown-choice }
-              { \l_@@_key_name_tl } {#1}
+              { \l_@@_key_name_tl } {#2}
               { \l_@@_keytype_arg_tl }
           }
       }
       {
-        \clist_if_in:NnTF \l_@@_tmp_clist {#1}
-          { \clist_remove_all:Nn \l_@@_tmp_clist {#1} }
+        \clist_if_in:NnTF \l_@@_tmp_clist {#2}
+          {
+            \clist_remove_all:Nn \l_@@_tmp_clist {#2}
+            \@@_implement_choice_elt_aux:nnn {#1} {#2} {#3}
+          }
           {
             \prop_get:NoN \l_@@_keytypes_prop \l_@@_key_name_tl
               \l_@@_tmp_tl
             \@@_split_keytype_arg:o \l_@@_tmp_tl
             \msg_error:nnxxx { xtemplate } { unknown-choice }
-              { \l_@@_key_name_tl } {#1}
+              { \l_@@_key_name_tl } {#2}
               { \l_@@_keytype_arg_tl }
           }
       }
   }
-\cs_new_protected:Npn \@@_implement_choice_elt:nn #1#2
+\cs_new_protected:Npn \@@_implement_choice_elt_aux:nnn #1#2#3
   {
-    \@@_implement_choice_elt:n {#1}
+    \keys_define:nx { template / #1 }
+      { \l_@@_key_name_tl / #2 .code:n = { \exp_not:n {#3} } }
     \tl_set:Nx \l_@@_tmp_tl
-      { \l_@@_key_name_tl \c_space_tl #1 }
-    \prop_put:Non \l_@@_vars_prop \l_@@_tmp_tl {#2}
+      { \l_@@_key_name_tl \c_space_tl #2 }
+    \prop_put:Non \l_@@_vars_prop \l_@@_tmp_tl {#3}
+  }
+\cs_new_protected:Npn \@@_implement_choice_elt:n #1
+  {
+    \msg_error:nnxxx { xtemplate } { choice-requires-code }
+      { \l_@@_key_name_tl } {#1}
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1849,8 +1901,8 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_parse_values_elt:nn #1#2
   {
-    \tl_set:Nx \l_@@_key_name_tl { \tl_to_str:n {#1} }
-    \tl_remove_all:Nn \l_@@_key_name_tl { ~ }
+    \tl_set:Nx \l_@@_key_name_tl
+      { \tl_trim_spaces:e { \tl_to_str:n {#1} } }
     \prop_get:NoNTF \l_@@_keytypes_prop \l_@@_key_name_tl
       \l_@@_tmp_tl
       {
@@ -2351,8 +2403,7 @@
   { \exp_after:wN \@@_key_to_value_auxi:w \l_@@_value_tl }
 \cs_new_protected:Npn \@@_key_to_value_auxi:w \KeyValue #1
   {
-    \tl_set:Nx \l_@@_tmp_tl { \tl_to_str:n {#1} }
-    \tl_remove_all:Nn \l_@@_key_name_tl { ~ }
+    \tl_set:Nx \l_@@_tmp_tl { \tl_trim_spaces:e { \tl_to_str:n {#1} } }
     \prop_get:NoNTF
       \l_@@_vars_prop
       \l_@@_tmp_tl
@@ -2590,6 +2641,13 @@
     When~creating~template~code~using~\DeclareTemplateCode,~
     each~choice~name~must~have~an~associated~implementation.\\
     This~should~be~given~after~a~'='~sign:~LaTeX~did~not~find~one.
+  }
+\msg_new:nnnn { xtemplate } { choice-requires-code }
+  { The~choice~'#2'~for~key~'#1'~requires~an~implementation. }
+  {
+    You~should~have~put:\\
+    \ \ #1~:~choice~{~#2 = <code> ~} \\
+    but~LaTeX~did~not~find~any~<code>.
   }
 \msg_new:nnnn { xtemplate } { duplicate-key-interface }
   { Key~'#1'~appears~twice~in~interface~definition~\msg_line_context:. }
@@ -2842,15 +2900,11 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\EvaluateNow}
 % \begin{macro}{\KeyValue}
-%   These are both do nothing functions. Both simply dump their arguments
-%   when executed: this should not happen with \cs{KeyValue}.
+%   Simply dump the argument when executed: this should not happen.
 %    \begin{macrocode}
-\cs_new_protected:Npn \EvaluateNow #1 {#1}
 \cs_new_protected:Npn \KeyValue #1 {#1}
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\AssignTemplateKeys}
@@ -2858,6 +2912,14 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \AssignTemplateKeys
   { \@@_assignments_pop: }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\SetTemplateKeys}
+%   A friendly wrapper
+%    \begin{macrocode}
+\cs_new_protected:Npn \SetTemplateKeys #1#2#3
+  { \keys_set:nn { template / #1 / #2 } {#3} }
 %    \end{macrocode}
 % \end{macro}
 %

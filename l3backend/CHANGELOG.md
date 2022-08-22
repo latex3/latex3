@@ -6,6 +6,21 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Approach to setting current color data from LaTeX2e
+
+## [2022-08-05]
+
+### Changed
+- Add no-op backend functions for annotations with `dvisvgm`
+
+## [2022-07-01]
+
+#### Fixed
+- Do not include PDF file to count pages on pdfTeX
+- Opacity creation with `dvipdfmx`/XeTeX  (issue [\#1106](https://github.com/latex3/latex3/issues/1106))
+- Reset opacity when no stack is available at the backend (issue [\#1107](https://github.com/latex3/latex3/issues/1107))
+
 ## [2022-04-20]
 
 ### Changed
@@ -19,7 +34,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Support for SVG graphic inclusion by `dvisvgm`
 
 ### Fixed
-- `\color_ensure_current:` backend with DVI-based routes (issue \#1085)
+- `\color_ensure_current:` backend with DVI-based routes (issue [\#1085](https://github.com/latex3/latex3/issues/1085))
 
 ## [2022-04-10]
 
@@ -68,7 +83,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2021-07-12]
 
 ### Fixed
-- GoTo link formation for Distiller-based workflows (issue #957)
+- GoTo link formation for Distiller-based workflows (issue [\#957](https://github.com/latex3/latex3/issues/957))
 - Support transparency with Distiller
 
 ## [2021-05-07]
@@ -178,8 +193,8 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2020-06-03]
 
 ### Fixed
-- Unneeded `[nobreak]` in `dvips` driver (issue #709)
-- `\__pdf_backend_object_write_fstream:nn` with `dvips` backend (issue #710)
+- Unneeded `[nobreak]` in `dvips` driver (issue [\#709](https://github.com/latex3/latex3/issues/709))
+- `\__pdf_backend_object_write_fstream:nn` with `dvips` backend (issue [\#710](https://github.com/latex3/latex3/issues/710))
 - Array writing in `dvips` mode
 
 ## [2020-05-05]
@@ -245,7 +260,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-04-20...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-08-05...HEAD
+[2022-08-05]: https://github.com/latex3/latex3/compare/2022-07-01...2022-08-05
+[2022-07-01]: https://github.com/latex3/latex3/compare/2022-04-20...2022-07-01
 [2022-04-20]: https://github.com/latex3/latex3/compare/2022-04-14...2022-04-20
 [2022-04-14]: https://github.com/latex3/latex3/compare/2022-04-10...2022-04-14
 [2022-04-10]: https://github.com/latex3/latex3/compare/2022-02-07...2022-04-10

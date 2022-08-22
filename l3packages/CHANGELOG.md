@@ -7,6 +7,36 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-06-22]
+
+### Changed
+- Revert alterations to `l3keys2e`
+
+### Deprecated
+- Package `l3keys2e`
+
+## [2022-06-16]
+
+### Changed
+- Only remove key name part from `\@unusedoptionlist`
+
+## [2022-06-07]
+
+### Fixed
+- Space stripping from `xtemplate` key types
+- Fix `log-declarations=true` (issue [\#1095](https://github.com/latex3/latex3/issues/1095))
+
+## [2022-05-30]
+
+## Added
+- `\SetTemplateKeys` for _ad hoc_ adjustment of template values
+
+### Changed
+- Make `\AssignTemplateKeys` optional
+
+### Removed
+- `\EvaluateNow` command
+
 ## [2022-01-12]
 
 ### Changed
@@ -170,7 +200,11 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-01-12...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-06-22...HEAD
+[2022-06-22]: https://github.com/latex3/latex3/compare/2022-06-16...2022-06-22
+[2022-06-16]: https://github.com/latex3/latex3/compare/2022-06-07...2022-06-16
+[2022-06-07]: https://github.com/latex3/latex3/compare/2022-05-30...2022-06-07
+[2022-05-30]: https://github.com/latex3/latex3/compare/2022-01-12...2022-05-30
 [2022-01-12]: https://github.com/latex3/latex3/compare/2021-11-12...2022-01-12
 [2021-11-12]: https://github.com/latex3/latex3/compare/2021-08-27...2021-11-12
 [2021-08-27]: https://github.com/latex3/latex3/compare/2021-08-04...2021-08-27

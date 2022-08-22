@@ -13,7 +13,7 @@
 %% (but please observe conditions on bug reports sent to that address!)
 %% 
 %% 
-%% Copyright (C) 1993-2021
+%% Copyright (C) 1993-2022
 %% The LaTeX Project and any individual authors listed elsewhere
 %% in this file.
 %% 
@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}[1996/06/01]
 \ProvidesClass{letter}
-              [2021/03/05 v1.3c
+              [2021/12/07 v1.3c
                Standard LaTeX document class]
 \newcommand\@ptsize{}
 \DeclareOption{a4paper}
