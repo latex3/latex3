@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for new approach to writing PDF objects
+
 ## [2022-08-23]
 
 ### Changed

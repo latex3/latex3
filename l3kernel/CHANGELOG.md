@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\pdf_object_new:n` and `\pdf_object_write:nnn` - support assignment of object
+  type at point-of-writing (issue
+  [\#1123](https://github.com/latex3/latex3/issues/1123))
+
 ## [2022-08-23]
 
 ### Added
