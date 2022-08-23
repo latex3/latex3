@@ -1,7 +1,7 @@
 LaTeX3 Backend Drivers
 ======================
 
-Release 2022-08-05
+Release 2022-08-23
 
 This package forms parts of `expl3`, and contains the code used to interface
 with backends (drivers) across the `expl3` codebase. The functions here are

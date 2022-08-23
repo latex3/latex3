@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-08-23]
+
 ### Added
 - Shortened range of chars which are left unchanged when converted to
   strings with `\str_(g)set_convert:Nnnn`. 
@@ -1186,7 +1188,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-08-05...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-08-23...HEAD
+[2022-08-23]: https://github.com/latex3/latex3/compare/2022-08-05...2022-08-23
 [2022-08-05]: https://github.com/latex3/latex3/compare/2022-07-15...2022-08-05
 [2022-07-15]: https://github.com/latex3/latex3/compare/2022-07-14...2022-07-15
 [2022-07-14]: https://github.com/latex3/latex3/compare/2022-07-04...2022-07-14

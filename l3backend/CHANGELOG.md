@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-08-23]
+
 ### Changed
 - Approach to setting current color data from LaTeX2e
 
@@ -260,7 +262,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-08-05...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-08-23...HEAD
+[2022-08-23]: https://github.com/latex3/latex3/compare/2022-08-05...2022-08-23
 [2022-08-05]: https://github.com/latex3/latex3/compare/2022-07-01...2022-08-05
 [2022-07-01]: https://github.com/latex3/latex3/compare/2022-04-20...2022-07-01
 [2022-04-20]: https://github.com/latex3/latex3/compare/2022-04-14...2022-04-20
