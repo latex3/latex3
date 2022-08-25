@@ -77,30 +77,67 @@
 % all engines. For performance reasons, some of the code here is very
 % low-level: the material is read during loading \pkg{expl3} in package
 % mode.
+%
+% Parsing the data files can be the same way for all engines, but the detail
+% of data storage varies depending on whether they are Unicode or $8$-bit
+% internally.Parsing is therefore done by common functions, with the data
+% storage usign engine-specific auxiliaries.
+%
+% Conversion of a codepoint to a character (Unicode engines) or to one
+% or more bytes ($8$-bit engines) is required. We might need those to be
+% detokenized: if not, for Unicode engines they have the current category
+% code.
 %    \begin{macrocode}
 \ior_new:N \g_@@_data_ior
-\bool_lazy_or:nnTF { \sys_if_engine_luatex_p: } { \sys_if_engine_xetex_p: }
-  {
-    \group_begin:
-%    \end{macrocode}
-%   Access the primitive but suppress further expansion: active chars are
-%   otherwise an issue.
-%    \begin{macrocode}
-      \cs_set:Npn \@@_generate_char:n #1
-        { \tex_detokenize:D \tex_expandafter:D { \tex_Uchar:D " #1 } }
-%    \end{macrocode}
-%   A fast local implementation for generating characters; the chars may
-%   be active, so we prevent further expansion.
-%    \begin{macrocode}
+\group_begin:
+  \bool_lazy_or:nnTF
+    { \sys_if_engine_luatex_p: }
+    { \sys_if_engine_xetex_p: }
+    {
+      \cs_set:Npn \@@_generate_other:n #1
+        { \tex_detokenize:D \tex_expandafter:D { \tex_Uchar:D #1 } }
       \cs_set:Npn \@@_generate:n #1
         {
           \tex_unexpanded:D \exp_after:wN
-            {
-              \tex_Ucharcat:D
-                #1 ~
-                \tex_catcode:D #1 ~
-            }
+            { \tex_Ucharcat:D #1 ~ \tex_catcode:D #1 ~ }
         } 
+    }
+    {
+      \cs_set:Npn \@@_generate_other:n #1
+        {
+          \tex_detokenize:D \tex_expandafter:D
+            { \tex_expanded:D { \@@_generate:n {#1} } }
+        }
+      \cs_set:Npn \@@_generate:n #1
+        {
+          \use:e
+            {
+              \exp_not:N \@@_generate:nnnn
+                \char_to_utfviii_bytes:n {#1}
+            }
+        }
+      \cs_set:Npn \@@_generate:nnnn #1#2#3#4
+        {
+          \tex_unexpanded:D \exp_after:wN \exp_after:wN \exp_after:wN
+            { \char_generate:nn {#1} { 13 } }
+          \tl_if_blank:nF {#2}
+            {
+              \tex_unexpanded:D \exp_after:wN \exp_after:wN \exp_after:wN
+                { \char_generate:nn {#2} { 13 } }
+              \tl_if_blank:nF {#3}
+                {
+                  \tex_unexpanded:D \exp_after:wN \exp_after:wN \exp_after:wN
+                    { \char_generate:nn {#3} { 13 } }
+                  \tl_if_blank:nF {#4}
+                    {
+                      \tex_unexpanded:D
+                        \exp_after:wN \exp_after:wN \exp_after:wN
+                          { \char_generate:nn {#4} { 13 } }
+                    }
+                }
+            }
+        }
+    }
 %    \end{macrocode}
 % Parse the main Unicode data file for two things. First, we want the titlecase
 % exceptions: the one-to-one lower- and uppercase mappings it contains are all
@@ -108,51 +145,50 @@
 % just the canonical \textsc{nfd} mappings. Those all yield either one or two
 % codepoints, so the split is relatively easy.
 %    \begin{macrocode}
-      \ior_open:Nn \g_@@_data_ior { UnicodeData.txt }
-      \cs_set_protected:Npn \@@_data_auxi:w
-        #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 ; #9 ;
+  \cs_set_protected:Npn \@@_data_auxi:w
+    #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 ; #9 ;
+    {
+      \tl_if_blank:nF {#6}
         {
-          \tl_if_blank:nF {#6}
-            {
-              \tl_if_head_eq_charcode:nNF {#6}  < % >
-                { \@@_data_auxii:w #1 ; #6 ~ \q_stop }
-            }
-          \@@_data_auxiii:w #1 ;
+          \tl_if_head_eq_charcode:nNF {#6}  < % >
+            { \@@_data_auxii:w #1 ; #6 ~ \q_stop }
         }
-      \cs_set_protected:Npn \@@_data_auxii:w #1 ; #2 ~ #3 \q_stop
+      \@@_data_auxiii:w #1 ;
+    }
+  \cs_set_protected:Npn \@@_data_auxii:w #1 ; #2 ~ #3 \q_stop
+    {
+      \tl_const:cx
+        { c_@@_nfd_ \@@_generate_other:n { "#1 } _tl }
         {
+          \@@_generate:n { "#2 }
+          \tl_if_blank:nF {#3}
+            { \@@_generate:n { "#3 } }
+        }
+    }
+  \cs_set_protected:Npn \@@_data_auxiii:w
+    #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ~ \q_stop
+    {
+      \cs_set_nopar:Npn \l_@@_tmpa_tl {#7}
+      \reverse_if:N \if_meaning:w \l_@@_tmpa_tl \c_empty_tl
+        \cs_set_nopar:Npn \l_@@_tmpb_tl {#5}
+        \reverse_if:N \if_meaning:w \l_@@_tmpa_tl \l_@@_tmpb_tl
           \tl_const:cx
-            { c_@@_nfd_ \@@_generate_char:n {#1} _tl }
-            {
-              \@@_generate:n { "#2 }
-              \tl_if_blank:nF {#3}
-                { \@@_generate:n { "#3 } }
-            }
-        }
-      \cs_set_protected:Npn \@@_data_auxiii:w
-        #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ~ \q_stop
-        {
-          \cs_set_nopar:Npn \l_@@_tmpa_tl {#7}
-          \reverse_if:N \if_meaning:w \l_@@_tmpa_tl \c_empty_tl
-            \cs_set_nopar:Npn \l_@@_tmpb_tl {#5}
-            \reverse_if:N \if_meaning:w \l_@@_tmpa_tl \l_@@_tmpb_tl
-              \tl_const:cx
-                { c_@@_titlecase_ \@@_generate_char:n {#1} _tl }
-                { \@@_generate:n { "#7 } }
-            \fi:
-          \fi:
-        }
-      \group_begin:
-        \char_set_catcode_space:n { `\  }%
-        \ior_map_variable:NNn \g_@@_data_ior \l_@@_tmpa_tl
-          {%
-            \if_meaning:w \l_@@_tmpa_tl \c_space_tl
-              \exp_after:wN \ior_map_break:
-            \fi:
-            \exp_after:wN \@@_data_auxi:w \l_@@_tmpa_tl \q_stop
-          }%
-      \group_end:
-      \ior_close:N \g_@@_data_ior
+            { c_@@_titlecase_ \@@_generate_other:n { "#1 } _tl }
+            { \@@_generate:n { "#7 } }
+        \fi:
+      \fi:
+    }
+  \ior_open:Nn \g_@@_data_ior { UnicodeData.txt }
+  \group_begin:
+    \char_set_catcode_space:n { `\  }%
+    \ior_map_variable:NNn \g_@@_data_ior \l_@@_tmpa_tl
+      {%
+        \if_meaning:w \l_@@_tmpa_tl \c_space_tl
+          \exp_after:wN \ior_map_break:
+        \fi:
+        \exp_after:wN \@@_data_auxi:w \l_@@_tmpa_tl \q_stop
+      }%
+  \group_end:
 %    \end{macrocode}
 % The other data files all use C-style comments so we have to worry about
 % |#| tokens (and reading as strings). The set up for case folding is in two
@@ -161,93 +197,92 @@
 % always store the result, splitting up the two or three code points in the input
 % as required.
 %    \begin{macrocode}
-      \ior_open:Nn \g_@@_data_ior { CaseFolding.txt }
+  \ior_open:Nn \g_@@_data_ior { CaseFolding.txt }
+  \cs_set_protected:Npn \@@_data_auxi:w #1 ;~ #2 ;~ #3 ; #4 \q_stop
+    {
+      \if:w \tl_head:n { #2 ? } C
+        \reverse_if:N \if_int_compare:w
+          \char_value_lccode:n {"#1} = "#3 ~
+          \tl_const:cx
+            { c_@@_foldcase_ \@@_generate_other:n { "#1 } _tl }
+            { \@@_generate:n { "#3 } }
+        \fi:
+      \else:
+        \if:w \tl_head:n { #2 ? } F
+          \@@_data_auxii:w #1 ~ #3 ~ \q_stop
+        \fi:
+      \fi:
+    }
+  \bool_lazy_or:nnF
+    { \sys_if_engine_luatex_p: }
+    { \sys_if_engine_xetex_p: }
+    {
       \cs_set_protected:Npn \@@_data_auxi:w #1 ;~ #2 ;~ #3 ; #4 \q_stop
         {
-          \if:w \tl_head:n { #2 ? } C
-            \reverse_if:N \if_int_compare:w
-              \char_value_lccode:n {"#1} = "#3 ~
-              \tl_const:cx
-                { c_@@_foldcase_ \@@_generate_char:n {#1} _tl }
-                { \@@_generate:n { "#3 } }
-            \fi:
-          \else:
-            \if:w \tl_head:n { #2 ? } F
-              \@@_data_auxii:w #1 ~ #3 ~ \q_stop
-            \fi:
+          \if:w \tl_head:n { #2 ? } F
+            \@@_data_auxii:w #1 ~ #3 ~ \q_stop
           \fi:
         }
-      \cs_set_protected:Npn \@@_data_auxii:w #1 ~ #2 ~ #3 ~ #4 \q_stop
+    }
+  \cs_set_protected:Npn \@@_data_auxii:w #1 ~ #2 ~ #3 ~ #4 \q_stop
+    {
+      \tl_const:cx { c_@@_foldcase_ \@@_generate_other:n { "#1 } _tl }
         {
-          \tl_const:cx { c_@@_foldcase_ \@@_generate_char:n {#1} _tl }
-            {
-              \@@_generate:n { "#2 }
-              \@@_generate:n { "#3 }
-              \tl_if_blank:nF {#4}
-                { \@@_generate:n { \int_value:w "#4 } }
-            }
+          \@@_generate:n { "#2 }
+          \@@_generate:n { "#3 }
+          \tl_if_blank:nF {#4}
+            { \@@_generate:n { \int_value:w "#4 } }
         }
-      \ior_str_map_inline:Nn \g_@@_data_ior
-        {
-          \reverse_if:N \if:w \c_hash_str \tl_head:w #1 \c_hash_str \q_stop
-            \@@_data_auxi:w #1 \q_stop
-          \fi:
-        }
-      \ior_close:N \g_@@_data_ior
+    }
+  \ior_str_map_inline:Nn \g_@@_data_ior
+    {
+      \reverse_if:N \if:w \c_hash_str \tl_head:w #1 \c_hash_str \q_stop
+        \@@_data_auxi:w #1 \q_stop
+      \fi:
+    }
+  \ior_close:N \g_@@_data_ior
 %    \end{macrocode}
 % For upper- and lowercasing special situations, there is a bit more to
 % do as we also have title casing to consider, plus we need to stop part-way
 % through the file.
 %    \begin{macrocode}
-      \ior_open:Nn \g_@@_data_ior { SpecialCasing.txt }
-      \cs_set_protected:Npn \@@_data_auxi:w
-        #1 ;~ #2 ;~ #3 ;~ #4 ; #5 \q_stop
+  \ior_open:Nn \g_@@_data_ior { SpecialCasing.txt }
+  \cs_set_protected:Npn \@@_data_auxi:w
+    #1 ;~ #2 ;~ #3 ;~ #4 ; #5 \q_stop
+    {
+      \use:n { \@@_data_auxii:w #1 ~ lower ~ #2 ~ } ~ \q_stop
+      \use:n { \@@_data_auxii:w #1 ~ upper ~ #4 ~ } ~ \q_stop
+      \str_if_eq:nnF {#3} {#4}
+        { \use:n { \@@_data_auxii:w #1 ~ title ~ #3 ~ } ~ \q_stop }
+    }
+  \cs_set_protected:Npn \@@_data_auxii:w
+    #1 ~ #2 ~ #3 ~ #4 ~ #5 \q_stop
+    {
+      \tl_if_empty:nF {#4}
         {
-          \use:n { \@@_data_auxii:w #1 ~ lower ~ #2 ~ } ~ \q_stop
-          \use:n { \@@_data_auxii:w #1 ~ upper ~ #4 ~ } ~ \q_stop
-          \str_if_eq:nnF {#3} {#4}
-            { \use:n { \@@_data_auxii:w #1 ~ title ~ #3 ~ } ~ \q_stop }
-        }
-      \cs_set_protected:Npn \@@_data_auxii:w
-        #1 ~ #2 ~ #3 ~ #4 ~ #5 \q_stop
-        {
-          \tl_if_empty:nF {#4}
+          \tl_const:cx { c_@@_ #2 case_ \@@_generate_other:n { "#1 } _tl }
             {
-              \tl_const:cx { c_@@_ #2 case_ \@@_generate_char:n {#1} _tl }
-                {
-                  \@@_generate:n { "#3 }
-                  \@@_generate:n { "#4 }
-                  \tl_if_blank:nF {#5}
-                    { \@@_generate:n { "#5 } }
-                }
+              \@@_generate:n { "#3 }
+              \@@_generate:n { "#4 }
+              \tl_if_blank:nF {#5}
+                { \@@_generate:n { "#5 } }
             }
         }
-      \ior_str_map_inline:Nn \g_@@_data_ior
+    }
+  \ior_str_map_inline:Nn \g_@@_data_ior
+    {
+      \str_if_eq:eeTF { \tl_head:w #1 \c_hash_str \q_stop } { \c_hash_str }
         {
-          \str_if_eq:eeTF
-            { \tl_head:w #1 \c_hash_str \q_stop }
-            { \c_hash_str }
-            {
-              \str_if_eq:eeT
-                {#1}
-                { \c_hash_str \c_space_tl Conditional~Mappings }
-                { \ior_map_break: }
-            }
-            { \@@_data_auxi:w #1 \q_stop }
+          \str_if_eq:eeT
+            {#1}
+            { \c_hash_str \c_space_tl Conditional~Mappings }
+            { \ior_map_break: }
         }
-      \ior_close:N \g_@@_data_ior
-    \group_end:
-  }
-%    \end{macrocode}
-% For the $8$-bit engines, open the stream and close again: this keeps
-% file records the same.
-%    \begin{macrocode}
-  {
-    \group_begin:
-      \ior_open:Nn \g_@@_data_ior { UnicodeData.txt }
-      \ior_close:N \g_@@_data_ior
-    \group_end:
-  }
+        { \@@_data_auxi:w #1 \q_stop }
+    }
+  \ior_close:N \g_@@_data_ior
+\group_end:
+
 %    \end{macrocode}
 %
 %    \begin{macrocode}
