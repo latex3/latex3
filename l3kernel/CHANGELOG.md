@@ -11,6 +11,8 @@ this project uses date-based 'snapshot' version identifiers.
 - `\pdf_object_new:n` and `\pdf_object_write:nnn` - support assignment of object
   type at point-of-writing (issue
   [\#1123](https://github.com/latex3/latex3/issues/1123))
+- `\text_map_function:nN` and `\text_map_inline:nn` for mapping to
+  graphemes in textual input
 
 ## [2022-08-23]
 
@@ -33,8 +35,6 @@ this project uses date-based 'snapshot' version identifiers.
 - Support for case changing Croatian diagraph with 8-bit engines
 - Support accent removal when uppercasing Greek with 8-bit engines
 - Function `\sys_ensure_backend:`
-- `\text_map_function:nN` and `\text_map_inline:nn` for mapping to
-  graphemes in textual input
 
 ### Fixed
 - Behavior of `\color_math:nn` in alignments
