@@ -83,4 +83,4 @@ This code is developed by [The LaTeX Project](https://latex-project.org).
 
 ## Copyright
 
-This README file is copyright 2021 The LaTeX Project.
+This README file is copyright 2021,2022 The LaTeX Project.
