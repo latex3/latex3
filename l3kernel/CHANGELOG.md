@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Set media box for test phase documents
+
 ## [2022-08-30]
 
 ### Added
