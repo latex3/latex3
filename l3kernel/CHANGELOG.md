@@ -10,6 +10,10 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Set media box for test phase documents
 
+### Fixed
+- Text case switching in `\text_titlecase_first:n` (issue
+  [\#1130](https://github.com/latex3/latex3/issues/1130))
+
 ## [2022-08-30]
 
 ### Added
