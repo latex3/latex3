@@ -8,8 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
-- In `\peek_analysis_map_inline:n`, omit unnecessary `\exp_not:n` when the token
-  seen is a character that is neither active nor a macro parameter character
+- Usage of `\exp_not:n`/`\exp_not:N` in `\peek_analysis_map_inline:n` output
 
 ### Fixed
 - `\peek_analysis_map_inline:n` support for macro parameter characters (issue
