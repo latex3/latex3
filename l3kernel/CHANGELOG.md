@@ -7,6 +7,15 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- In `\peek_analysis_map_inline:n`, omit unnecessary `\exp_not:n` when the token
+  seen is a character that is neither active nor a macro parameter character
+
+### Fixed
+- `\peek_analysis_map_inline:n` support for macro parameter characters (issue
+  [\#1109](https://github.com/latex3/latex3/issues/1109)) and for many
+  expandable tokens (issue [\#1110](https://github.com/latex3/latex3/issues/1110))
+
 ## [2022-09-28]
 
 ### Added
