@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+- Avoid setting media box is `\mag` is non-standard
+
 ## [2022-09-28]
 
 ### Changed
