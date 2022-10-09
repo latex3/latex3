@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\codepoint_to_bytes:n`
+- `\codepoint_to_nfd:n`
 - `\codepoint_str_generate:n`
 
 ### Changed
@@ -21,6 +22,7 @@ this project uses date-based 'snapshot' version identifiers.
   esoteric case (issue [\#1113](https://github.com/latex3/latex3/issues/1113))
 
 ### Deprecated
+- `\char_to_nfd:N`, `\char_to_nfd:n`
 - `\char_to_utfviii_bytes:n`
 
 ## [2022-09-28]
