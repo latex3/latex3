@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\codepoint_str_generate:n`
+
 ### Changed
 - Usage of `\exp_not:n`/`\exp_not:N` in `\peek_analysis_map_inline:n` output
 

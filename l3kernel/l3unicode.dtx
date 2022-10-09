@@ -50,8 +50,54 @@
 % \begin{documentation}
 %
 % This module provides Unicode-specific functions along with loading data
-% from a range of Unicode Consortium files. At present, it provides no
-% public functions.
+% from a range of Unicode Consortium files. Most of the code here is
+% internal, but there are a small set of public functions. These work with
+% Unicode \meta{codepoints} and are designed to give useable results with
+% both Unicode-aware and $8$-bit engines.
+%
+% \begin{function}[EXP, added = 2022-10-09]
+%   {\codepoint_generate:nn}
+%   \begin{syntax}
+%      \cs{codepoint_generate:nn} \Arg{codepoint} \Arg{catcode}
+%   \end{syntax}
+%   Generates one or more character tokens representing the \meta{codepoint}.
+%   With Unicode engines, exactly one character token will be generated, and
+%   this will have the \meta{catcode} specified as the second argument:
+%   \begin{itemize}
+%     \item $1$ (begin group)
+%     \item $2$ (end group)
+%     \item $3$ (math toggle)
+%     \item $4$ (alignment)
+%     \item $6$ (parameter)
+%     \item $7$ (math superscript)
+%     \item $8$ (math subscript)
+%     \item $10$ (space)
+%     \item $11$ (letter)
+%     \item $12$ (other)
+%     \item $13$ (active)
+%   \end{itemize}
+%   For $8$-bit engines, between one and four character tokens will be
+%   produced: these will be the bytes of the UTF-8 representation of the
+%   \meta{codepoint}. For all codepoints outside of the classical ASCII
+%   range, the generated character tokens will be active (category code
+%   $13$); the \meta{catcode} argument is only used for codepoints in the
+%   ASCII range. To allow the result of this function to be used inside a
+%   expansion context, the result is protected by \cs{exp_not:n}.
+% \end{function}
+%
+% \begin{function}[EXP, added = 2022-10-09]
+%   {\codepoint_str_generate:n}
+%   \begin{syntax}
+%      \cs{codepoint_str_generate:n} \Arg{codepoint}
+%   \end{syntax}
+%   Generates one or more character tokens representing the \meta{codepoint}.
+%   With Unicode engines, exactly one character token will be generated.
+%   For $8$-bit engines, between one and four character tokens will be
+%   produced: these will be the bytes of the UTF-8 representation of the
+%   \meta{codepoint}. All of the generated character tokens will be of
+%   category code $12$, except any spaces (codepoint $32$), which will be
+%   category code $10$.
+% \end{function}
 %
 % \end{documentation}
 %
@@ -101,8 +147,11 @@
 % they are Unicode or $8$-bit internally. Parsing is therefore done by common
 % functions, with some data storage using engine-specific auxiliaries.
 %
-% \begin{macro}[EXP]{\@@_generate_str:n}
-% \begin{macro}[EXP]{\@@_generate_str:nnnn}
+% \begin{macro}[EXP]{\codepoint_str_generate:n}
+% \begin{macro}[EXP]{\@@_str_generate:nnnn}
+% \begin{macro}[EXP]{\codepoint_generate:nn}
+% \begin{macro}[EXP]{\@@_generate:nnnn}
+% \begin{macro}[EXP]{\@@_generate:n}
 %   Conversion of a codepoint to a character (Unicode engines) or to one
 %   or more bytes ($8$-bit engines) is required. For loading the data,
 %   all that is needed is the form which creates strings: these are outside
@@ -115,23 +164,36 @@
   { \sys_if_engine_luatex_p: }
   { \sys_if_engine_xetex_p: }
   {
-    \cs_new:Npn \@@_generate_str:n #1
+    \cs_new:Npn \codepoint_str_generate:n #1
       {
         \int_compare:nNnTF {#1} = { `\  }
           { ~ }
           { \char_generate:nn {#1} { 12 } }
       }
-  }
-  {
-    \cs_new:Npn \@@_generate_str:n #1
+   \cs_new:Npn \codepoint_generate:nn #1#2
       {
-        \use:e
+        \int_compare:nNnTF {#1} = { `\  }
+          { ~ }
           {
-            \exp_not:N \@@_generate_str:nnnn
-              \char_to_utfviii_bytes:n {#1}
+            \__kernel_exp_not:w \exp_after:wN \exp_after:wN \exp_after:wN
+              { \char_generate:nn {#1} {#2} }
           }
       }
-    \cs_new:Npn \@@_generate_str:nnnn #1#2#3#4
+  }
+  {
+    \cs_new:Npn \codepoint_str_generate:n #1
+      {
+        \int_compare:nNnTF {#1} = { `\  }
+          { ~ }
+          {
+            \use:e
+              {
+                \exp_not:N \@@_str_generate:nnnn
+                  \char_to_utfviii_bytes:n {#1}
+              }
+          }
+      }
+    \cs_new:Npn \@@_str_generate:nnnn #1#2#3#4
       {
         \char_generate:nn {#1} { 12 }
         \tl_if_blank:nF {#2}
@@ -145,8 +207,52 @@
               }
           }
       }
+    \cs_new:Npn \codepoint_generate:nn #1#2
+      {
+        \int_compare:nNnTF {#1} = { `\  }
+          { ~ }
+          {
+            \int_compare:nNnTF {#1} < { "80 }
+              {
+                \__kernel_exp_not:w \exp_after:wN \exp_after:wN \exp_after:wN
+                  { \char_generate:nn {#1} {#2} }
+              }
+              {
+                \use:e
+                  {
+                    \exp_not:N \@@_generate:nnnn
+                      \char_to_utfviii_bytes:n {#1}
+                  }
+              }
+          }
+      }
+    \cs_new:Npn \@@_generate:nnnn #1#2#3#4
+      {
+        \__kernel_exp_not:w \exp_after:wN
+          {
+            \tex_expanded:D
+              {
+                \@@_generate:n {#1}
+                \@@_generate:n {#2}
+                \tl_if_blank:nF {#3}
+                  {
+                    \@@_generate:n {#3}
+                    \tl_if_blank:nF {#4}
+                      { \@@_generate:n {#4} }
+                  }
+              }
+          }
+      }
+     \cs_new:Npn \@@_generate:n #1
+       {
+         \__kernel_exp_not:w \exp_after:wN \exp_after:wN \exp_after:wN
+           { \char_generate:nn {#1} { 13 } }
+       }
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -218,7 +324,7 @@
   \cs_set_protected:Npn \@@_data_auxii:w #1 ; #2 ~ #3 \q_stop
     {
       \tl_const:cx
-        { c_@@_nfd_ \@@_generate_str:n {"#1} _tl }
+        { c_@@_nfd_ \codepoint_str_generate:n {"#1} _tl }
         {
           {"#2}
           { \tl_if_blank:nF {#3} {"#3} }
@@ -270,7 +376,7 @@
       \int_compare:nNnF {#3} = { \@@_data_offset:nn {#1} {#5} }
         {
           \tl_const:cx
-            { c_@@_titlecase_ \@@_generate_str:n {"#1} _tl }
+            { c_@@_titlecase_ \codepoint_str_generate:n {"#1} _tl }
             { {"#5} { } { } }
         }
       \tl_set:Nx \l_@@_next_codepoint_fint_tl
@@ -504,7 +610,7 @@
           \int_eval:n { \__kernel_codepoint_data:nn { lowercase } {"#1} + "#1 }
             = "#3 ~
           \tl_const:cx
-            { c_@@_casefold_ \@@_generate_str:n {"#1} _tl }
+            { c_@@_casefold_ \codepoint_str_generate:n {"#1} _tl }
             { {"#3} { } { } }
         \fi:
       \else:
@@ -519,7 +625,7 @@
 %    \begin{macrocode}
   \cs_set_protected:Npn \@@_data_auxii:w #1 ~ #2 ~ #3 ~ #4 \q_stop
     {
-      \tl_const:cx { c_@@_casefold_ \@@_generate_str:n {"#1} _tl }
+      \tl_const:cx { c_@@_casefold_ \codepoint_str_generate:n {"#1} _tl }
         {
           {"#2}
           {"#3}
@@ -552,7 +658,7 @@
     {
       \tl_if_empty:nF {#4}
         {
-          \tl_const:cx { c_@@_ #2 case_ \@@_generate_str:n {"#1} _tl }
+          \tl_const:cx { c_@@_ #2 case_ \codepoint_str_generate:n {"#1} _tl }
             {
               {"#3}
               {"#4}
@@ -588,7 +694,7 @@
 \cs_new:Npn \__kernel_codepoint_case:nn #1#2
   {
     \exp_args:Ne \@@_case:nnn
-      { \@@_generate_str:n {#2} } {#1} {#2}
+      { \codepoint_str_generate:n {#2} } {#1} {#2}
   }
 \cs_new:Npn \@@_case:nnn #1#2#3
   {
@@ -621,7 +727,7 @@
 %   A simple interface.
 %    \begin{macrocode}
 \cs_new:Npn \__kernel_codepoint_nfd:n #1
-  { \exp_args:Ne \@@_nfd:nn { \@@_generate_str:n {#1} } {#1} }
+  { \exp_args:Ne \@@_nfd:nn { \codepoint_str_generate:n {#1} } {#1} }
 \cs_new:Npn \@@_nfd:nn #1#2
   {
     \tl_if_exist:cTF { c_@@_nfd_ #1 _tl }
