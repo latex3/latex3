@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\codepoint_to_bytes:n`
 - `\codepoint_str_generate:n`
 
 ### Changed
@@ -18,6 +19,9 @@ this project uses date-based 'snapshot' version identifiers.
   [\#1109](https://github.com/latex3/latex3/issues/1109)), for many expandable
   tokens (issue [\#1110](https://github.com/latex3/latex3/issues/1110)), and an
   esoteric case (issue [\#1113](https://github.com/latex3/latex3/issues/1113))
+
+### Deprecated
+- `\char_to_utfviii_bytes:n`
 
 ## [2022-09-28]
 
