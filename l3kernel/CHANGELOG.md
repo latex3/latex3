@@ -15,6 +15,8 @@ this project uses date-based 'snapshot' version identifiers.
   [\#1109](https://github.com/latex3/latex3/issues/1109)), for many expandable
   tokens (issue [\#1110](https://github.com/latex3/latex3/issues/1110)), and an
   esoteric case (issue [\#1113](https://github.com/latex3/latex3/issues/1113))
+-  Creation of a message with some engines (issue
+  [\#1139](https://github.com/latex3/latex3/issues/1139))
 
 ## [2022-09-28]
 
