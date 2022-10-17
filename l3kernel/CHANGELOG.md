@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\codepoint_to_bytes:n`
 - `\codepoint_to_nfd:n`
 - `\codepoint_str_generate:n`
+- `\str_casefold:n`
 
 ### Changed
 - Usage of `\exp_not:n`/`\exp_not:N` in `\peek_analysis_map_inline:n` output
@@ -24,6 +25,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Deprecated
 - `\char_to_nfd:N`, `\char_to_nfd:n`
 - `\char_to_utfviii_bytes:n`
+- `\str_foldcase:n`
 
 ## [2022-09-28]
 
