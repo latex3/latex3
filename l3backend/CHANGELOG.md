@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-10-26]
+
 - Avoid setting media box is `\mag` is non-standard
 
 ## [2022-09-28]
@@ -274,7 +276,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-09-28...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-10-26...HEAD
+[2022-10-26]: https://github.com/latex3/latex3/compare/2022-09-28...2022-10-26
 [2022-09-28]: https://github.com/latex3/latex3/compare/2022-08-30...2022-09-28
 [2022-08-30]: https://github.com/latex3/latex3/compare/2022-08-23...2022-08-30
 [2022-08-23]: https://github.com/latex3/latex3/compare/2022-08-05...2022-08-23

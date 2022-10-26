@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-10-26]
+
 ### Changed
 - Usage of `\exp_not:n`/`\exp_not:N` in `\peek_analysis_map_inline:n` output
 
@@ -1219,7 +1221,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-09-28...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-10-26...HEAD
+[2022-10-26]: https://github.com/latex3/latex3/compare/2022-09-28...2022-10-26
 [2022-09-28]: https://github.com/latex3/latex3/compare/2022-08-30...2022-09-28
 [2022-08-30]: https://github.com/latex3/latex3/compare/2022-08-23...2022-08-30
 [2022-08-23]: https://github.com/latex3/latex3/compare/2022-08-05...2022-08-23
