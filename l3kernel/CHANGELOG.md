@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Loading of `expl3` with ConTeXt MkIV (issue
+  [\#1142](https://github.com/latex3/latex3/issues/1142))
+
 ## [2022-10-26]
 
 ### Changed
