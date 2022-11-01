@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\prg_gset_conditional:N(p)nn` and 
+  `\prg_gset_protected_conditional:N(p)nn`
+
 ### Fixed
 - Loading of `expl3` with ConTeXt MkIV (issue
   [\#1142](https://github.com/latex3/latex3/issues/1142))
