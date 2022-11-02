@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2022-11-02]
+
 ### Added
 - `\prg_gset_conditional:N(p)nn` and 
   `\prg_gset_protected_conditional:N(p)nn`
@@ -1229,7 +1231,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-10-26...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2022-11-02...HEAD
+[2022-11-02]: https://github.com/latex3/latex3/compare/2022-10-26...2022-11-02
 [2022-10-26]: https://github.com/latex3/latex3/compare/2022-09-28...2022-10-26
 [2022-09-28]: https://github.com/latex3/latex3/compare/2022-08-30...2022-09-28
 [2022-08-30]: https://github.com/latex3/latex3/compare/2022-08-23...2022-08-30
