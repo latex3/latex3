@@ -89,7 +89,7 @@
 %
 % \section{Case changing}
 %
-% \begin{function}[EXP, added = 2019-11-20, updated = 2020-02-24]
+% \begin{function}[EXP, added = 2019-11-20, updated = 2022-10-13]
 %   {
 %     \text_lowercase:n,  \text_uppercase:n,  \text_titlecase:n,
 %       \text_titlecase_first:n,
@@ -103,8 +103,9 @@
 %   Takes user input \meta{text} first applies \cs{text_expand}, then
 %   transforms the case of character tokens as specified by the
 %   function name. The category code of letters are not changed by this
-%   process (at least where they can be represented by the engine as a single
-%   token: $8$-bit engines may require active characters).
+%   process when Unicode engines are used; in $8$-bit engines, case changed
+%   charters in the ASCII range will have the current prevailing category code,
+%   while those outside of it will be represented by active characters.
 % \end{function}
 %
 %   Upper- and lowercase have the obvious meanings. Titlecasing may be regarded
@@ -118,7 +119,7 @@
 %   Importantly, notice that these functions are intended for working with
 %   user \emph{text for typesetting}. For case changing programmatic data see
 %   the \pkg{l3str} module and discussion there of \cs{str_lowercase:n},
-%   \cs{str_uppercase:n} and \cs{str_foldcase:n}.
+%   \cs{str_uppercase:n} and \cs{str_casefold:n}.
 %
 %   Case changing does not take place within math mode material so for example
 %   \begin{verbatim}
@@ -134,17 +135,10 @@
 %   is excluded from case changing; the latter are entirely non-textual
 %   content (such as labels).
 %
-%   As is generally true for \pkg{expl3}, these functions are designed to
-%   work with Unicode input only. As such, UTF-8 input is assumed for
-%   \emph{all} engines. When used with \XeTeX{} or \LuaTeX{} a full range of
-%   Unicode transformations are enabled. Specifically, the standard mappings
+%   The standard mappings
 %   here follow those defined by the \href{http://www.unicode.org}^^A
 %   {Unicode Consortium} in \texttt{UnicodeData.txt} and
-%   \texttt{SpecialCasing.txt}. In the case of $8$-bit engines, mappings
-%   are provided for characters which can be represented in output typeset
-%   using the |T1|, |T2| and |LGR| font encodings.
-%   Thus for example \texttt{ä} can be
-%   case-changed using \pdfTeX{}.  For \pTeX{} only the ASCII range is
+%   \texttt{SpecialCasing.txt}. For \pTeX{}, only the ASCII range is
 %   covered as the engine treats input outside of this range as east Asian.
 %
 %   Language-sensitive conversions are enabled using the \meta{language}
@@ -173,9 +167,7 @@
 %       leaves accents in place. A variant \texttt{el-x-iota} is available
 %       which retains the \textit{ypogegrammeni} (subscript muted iota)
 %       when uppercasing: the standard version converts these to a following
-%       capital iota. For $8$-bit engines a simplified approach is taken
-%       which will remove accents when uppercasing but without full
-%       context analysis.
+%       capital iota.
 %     \item Lithuanian (\texttt{lt}).
 %       The lowercase letters i and j should retain a dot above when the
 %       accents grave, acute or tilde are present. This is implemented for
@@ -677,10 +669,26 @@
       }
     \cs_new:Npn \@@_codepoint_process:nNN #1#2#3
       { #1 {#2#3} }
-    \cs_new:Npn \@@_codepoint_process:nNNN #1#2#3#4
-      { #1 {#2#3#4} }
-    \cs_new:Npn \@@_codepoint_process:nNNNN #1#2#3#4#5
-      { #1 {#2#3#4#5} }
+    \sys_if_engine_ptex:TF
+      {
+        \cs_gset:Npn \@@_codepoint_process:nN #1#2
+          {
+            \int_compare:nNnTF { `#2 } > { "80 }
+              {
+                \int_compare:nNnTF { `#2 } < { "E0 }
+                  { \@@_codepoint_process:nNN }
+                  { \use:n }
+              }
+          { \use:n }
+            {#1} #2
+        }
+      }
+      {
+        \cs_new:Npn \@@_codepoint_process:nNNN #1#2#3#4
+          { #1 {#2#3#4} }
+        \cs_new:Npn \@@_codepoint_process:nNNNN #1#2#3#4#5
+          { #1 {#2#3#4#5} }
+      }
   }
 %    \end{macrocode}
 % \end{macro}
@@ -689,10 +697,11 @@
 % \end{macro}
 %
 % \begin{macro}[EXP, pTF]{\@@_codepoint_compare:nNn}
-% \begin{macro}[EXP]{\@@_codepoint_compare:N, \@@_codepoint_compare_aux:N}
-% \begin{macro}[EXP]{\@@_codepoint_compare:NN}
-% \begin{macro}[EXP]{\@@_codepoint_compare:NNN}
-% \begin{macro}[EXP]{\@@_codepoint_compare:NNNN}
+% \begin{macro}[EXP]{\@@_codepoint_from_chars:Nw}
+% \begin{macro}[EXP]{\@@_codepoint_from_chars:N}
+% \begin{macro}[EXP]{\@@_codepoint_from_chars:NN}
+% \begin{macro}[EXP]{\@@_codepoint_from_chars:NNN}
+% \begin{macro}[EXP]{\@@_codepoint_from_chars:NNNN}
 %   Allows comparison for all engines using a first \enquote{character} followed
 %   by a codepoint.
 %    \begin{macrocode}
@@ -703,54 +712,79 @@
     \prg_new_conditional:Npnn
       \@@_codepoint_compare:nNn #1#2#3 { TF , p }
       {
-        \int_compare:nNnTF { `#1 } #2 {#3}
+        \int_compare:nNnTF {`#1} #2 {#3}
           \prg_return_true: \prg_return_false:
       }
+    \cs_new:Npn \@@_codepoint_from_chars:Nw #1 {`#1}
   }
   {
     \prg_new_conditional:Npnn
       \@@_codepoint_compare:nNn #1#2#3 { TF , p }
       {
-        \int_compare:nNnTF { \@@_codepoint_compare:N #1 }
+        \int_compare:nNnTF { \@@_codepoint_from_chars:Nw #1 }
             #2 {#3}
           \prg_return_true: \prg_return_false:
       }
-    \cs_new:Npn \@@_codepoint_compare:N #1
+    \cs_new:Npn \@@_codepoint_from_chars:Nw #1
       {
         \if_int_compare:w `#1 > "80 \exp_stop_f:
           \if_int_compare:w `#1 < "E0 \exp_stop_f:
             \exp_after:wN \exp_after:wN \exp_after:wN
-              \@@_codepoint_compare:NN
+              \@@_codepoint_from_chars:NN
           \else:
             \if_int_compare:w `#1 < "F0 \exp_stop_f:
               \exp_after:wN \exp_after:wN \exp_after:wN
               \exp_after:wN \exp_after:wN \exp_after:wN
-              \exp_after:wN \@@_codepoint_compare:NNN
+              \exp_after:wN \@@_codepoint_from_chars:NNN
             \else:
               \exp_after:wN \exp_after:wN \exp_after:wN
               \exp_after:wN \exp_after:wN \exp_after:wN
-              \exp_after:wN \@@_codepoint_compare:NNNN
+              \exp_after:wN \@@_codepoint_from_chars:NNNN
             \fi:
           \fi:
         \else:
-          \exp_after:wN \@@_codepoint_compare_aux:N
+          \exp_after:wN \@@_codepoint_from_chars:N
         \fi:
           #1
       }
-    \cs_new:Npn \@@_codepoint_compare_aux:N #1 { `#1 }
-    \cs_new:Npn \@@_codepoint_compare:NN #1#2
+    \cs_new:Npn \@@_codepoint_from_chars:N #1 { `#1 }
+    \cs_new:Npn \@@_codepoint_from_chars:NN #1#2
       { (`#1 - "C0) * "40 + `#2 - "80 }
-    \cs_new:Npn \@@_codepoint_compare:NNN #1#2#3
-      { (`#1 - "E0) * "1000 + (`#2 - "80) * "40 + `#3 - "80 }
-    \cs_new:Npn \@@_codepoint_compare:NNNN #1#2#3#4
+    %    \end{macrocode}
+    %   Avoid high chars with p\TeX{}.
+    %    \begin{macrocode}
+    \sys_if_engine_ptex:TF
       {
-          (`#1 - "F0) * "40000 
-        + (`#2 - "80) * "1000
-        + (`#3 - "80) * "40
-        + `#4 - "80
+        \cs_gset:Npn \@@_codepoint_from_chars:Nw #1
+          {
+            \if_int_compare:w `#1 > "80 \exp_stop_f:
+              \if_int_compare:w `#1 < "E0 \exp_stop_f:
+                \exp_after:wN \exp_after:wN \exp_after:wN
+                  \@@_codepoint_from_chars:NN
+              \else:
+                \exp_after:wN \exp_after:wN \exp_after:wN
+                  \@@_codepoint_from_chars:N
+              \fi:
+            \else:
+              \exp_after:wN \@@_codepoint_from_chars:N
+            \fi:
+              #1
+          }
+      }
+      {
+        \cs_new:Npn \@@_codepoint_from_chars:NNN #1#2#3
+          { (`#1 - "E0) * "1000 + (`#2 - "80) * "40 + `#3 - "80 }
+        \cs_new:Npn \@@_codepoint_from_chars:NNNN #1#2#3#4
+          {
+              (`#1 - "F0) * "40000 
+            + (`#2 - "80) * "1000
+            + (`#3 - "80) * "40
+            + `#4 - "80
+          }
       }
   }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}

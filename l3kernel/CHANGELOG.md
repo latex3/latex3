@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\codepoint_to_nfd:n`
+- `\codepoint_generate:n` and `\codepoint_str_generate:n`
+- `\str_casefold:n`
+
 ## [2022-11-02]
 
 ### Added
@@ -29,6 +34,13 @@ this project uses date-based 'snapshot' version identifiers.
   esoteric case (issue [\#1113](https://github.com/latex3/latex3/issues/1113))
 -  Creation of a message with some engines (issue
   [\#1139](https://github.com/latex3/latex3/issues/1139))
+
+### Deprecated
+- `\char_to_nfd:N`, `\char_to_nfd:n`
+- `\char_foldcase:N`, `\char_lowercase:N`, `\char_uppercase:N`
+   and `str` variants
+- `\char_to_utfviii_bytes:n`
+- `\str_foldcase:n`
 
 ## [2022-09-28]
 
