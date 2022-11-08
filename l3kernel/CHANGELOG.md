@@ -8,8 +8,9 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\codepoint_to_bytes:n`
 - `\codepoint_to_nfd:n`
-- `\codepoint_generate:n` and `\codepoint_str_generate:n`
+- `\codepoint_str_generate:n`
 - `\str_casefold:n`
 
 ### Changed
