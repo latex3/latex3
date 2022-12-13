@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Template editing following restricted template setting
+  (issue [\#1155](https://github.com/latex3/latex3/issues/1155))
+
 ## [2022-06-22]
 
 ### Changed
