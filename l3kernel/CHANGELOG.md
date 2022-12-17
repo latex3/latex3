@@ -12,6 +12,9 @@ this project uses date-based 'snapshot' version identifiers.
 - `\codepoint_generate:n` and `\codepoint_str_generate:n`
 - `\str_casefold:n`
 
+### Changed
+- Protect `babel` shorthands from expansion
+
 ### Fixed
 - Appearance of `\DescribeOption` (issue
   [\#1111](https://github.com/latex3/latex3/issues/1111))
