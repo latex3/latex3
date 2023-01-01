@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Enable `\char_generate:nn` to create active tokens which are `\outer`
+  or equal to `\fi`
+
 ## [2022-12-17]
 
 ### Added
