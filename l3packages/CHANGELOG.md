@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Ad hoc adjustment of template `function` keys
 
+### Removed
+- Template key type `code`
+
 ## [2022-12-17]
 
 ### Fixed
