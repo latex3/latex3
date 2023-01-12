@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Ad hoc adjustment of template `function` keys
+
 ## [2022-12-17]
 
 ### Fixed
