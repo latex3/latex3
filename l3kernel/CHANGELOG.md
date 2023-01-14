@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\pdf_pagesize_gset:nn`
+
 ### Fixed
 - Enable `\char_generate:nn` to create active tokens which are `\outer`
   or equal to `\fi`
