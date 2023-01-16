@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Adjust internal scope of a PDF function
+
 ## [2022-10-26]
 
 ### Changed
