@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-01-16]
+
 ### Fixed
 - Ad hoc adjustment of template `function` keys
 
@@ -212,7 +214,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-12-17...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-01-16...HEAD
+[2023-01-16]: https://github.com/latex3/latex3/compare/2022-12-17...2023-01-16
 [2022-12-17]: https://github.com/latex3/latex3/compare/2022-06-22...2022-12-17
 [2022-06-22]: https://github.com/latex3/latex3/compare/2022-06-16...2022-06-22
 [2022-06-16]: https://github.com/latex3/latex3/compare/2022-06-07...2022-06-16
