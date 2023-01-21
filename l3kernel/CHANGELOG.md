@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Leave catcode of `&` unchanged in code environment
+
 ## [2023-01-16]
 
 ### Added
