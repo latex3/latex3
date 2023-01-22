@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Allow for multi-part BCP47 strings in case changing
+
 ### Changed
 - Leave catcode of `&` unchanged in code environment
 
