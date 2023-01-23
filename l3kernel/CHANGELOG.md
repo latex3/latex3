@@ -12,6 +12,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Allow for multi-part BCP47 strings in case changing
+- Loading with plain TeX due to `\outer` status of `^^L`
+  issue [\#1161](https://github.com/latex3/latex3/issues/1161))
 
 ### Changed
 - Leave catcode of `&` unchanged in code environment
