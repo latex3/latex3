@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\CopyInstance`
+
 ### Changes
 - Set only known keys in `\SetTemplateKeys`
 
