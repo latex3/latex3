@@ -7,9 +7,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-### Fixed
-- Allow for expressions within color `RGB`/`HSB` input
-
 ## [2023-01-24]
 
 ### Changed
