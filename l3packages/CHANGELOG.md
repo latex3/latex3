@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Re-order arguments of `\DeclareInstanceCopy`
+
 ## [2023-02-01]
 
 ### Added
