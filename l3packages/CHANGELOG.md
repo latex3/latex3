@@ -7,6 +7,12 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\DeclareInstanceCopy`
+
+### Changes
+- Set only known keys in `\SetTemplateKeys`
+
 ## [2023-01-16]
 
 ### Fixed
