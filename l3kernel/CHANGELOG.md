@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Handling of multiple accents when uppercasing Greek
+  (see https://github.com/latex3/latex2e/issues/987)
+
 ## [2023-02-01]
 
 ### Fixed
