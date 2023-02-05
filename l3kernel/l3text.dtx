@@ -73,6 +73,8 @@
 %   Any commands listed in \cs{l_text_expand_exclude_tl} are excluded from
 %   expansion. Letter-like commands, e.g.~\cs{ae}, and accent commands creating
 %   pre-composed UTF-8 codepoints are converted to the UTF-8 equivalents.
+%   For Unicode engines, all accents are converted to the appropriate combining
+%   characters.
 % \end{function}
 %
 % \begin{function}[added = 2020-01-22, updated = 2023-02-05]
@@ -1432,15 +1434,16 @@
 %
 % \subsection{Accent and letter-like data for expandsion}
 %
-% \begin{macro}[rEXP]{\@@_expand_accent:NN}
+% \begin{macro}[rEXP]{\@@_expand_accent:Nn, \@@_expand_accent_aux:Nn}
 %   Accent \textsc{licr} handling is a little more complex. Accents may exist
 %   as pre-composed codepoints or as independent glyphs. At the expansion
 %   stage, only pre-composed glyphs can be processed: for \emph{ad hoc} accents,
-%   we have to retain the command version for $8$-bit typesetting. So at this
-%   stage we do not remove everything (see the purification code for the
-%   action once we are definitely past typesetting).
+%   we have to retain the command version for $8$-bit typesetting. On the
+%   other hand, some text processing will not work properly with such
+%   command-based accents, so we convert to combining characters if there is
+%   engine support.
 %    \begin{macrocode}
-\cs_new:Npn \@@_expand_accent:NN #1#2
+\cs_new:Npn \@@_expand_accent:Nn #1#2
   {
     \cs_if_exist:cTF
       { c_@@_expand_ \token_to_str:N #1 _ \token_to_str:N #2 _tl }
@@ -1448,10 +1451,52 @@
         \exp_not:v
           { c_@@_expand_ \token_to_str:N #1 _ \token_to_str:N #2 _tl }
       }
+      { \@@_expand_accent_aux:Nn #1 {#2} }
+  }
+\bool_lazy_or:nnTF
+  { \sys_if_engine_luatex_p: }
+  { \sys_if_engine_xetex_p: }
+  {
+    \cs_new:Npn \@@_expand_accent_aux:Nn #1#2
+      {
+        #2
+        \use:c { c_@@_expand_ \token_to_str:N #1 _tl }
+      }
+    \group_begin:
+      \cs_set_protected:Npn \@@_loop:Nn #1#2
+        {
+          \quark_if_recursion_tail_stop:N #1
+          \tl_const:cx { c_@@_expand_ \token_to_str:N #1 _tl }
+            { \codepoint_generate:nn {"#2} { \char_value_catcode:n { "#2 } } }
+          \@@_loop:Nn
+        }
+      \@@_loop:Nn
+        \` { 0300 }
+        \' { 0301 }
+        \^ { 0302 }
+        \~ { 0303 }
+        \= { 0304 }
+        \u { 0306 }
+        \. { 0307 }
+        \" { 0308 }
+        \r { 030A }
+        \H { 030B }
+        \v { 030C }
+        \d { 0323 }
+        \c { 0327 }
+        \k { 0328 }
+        \b { 0331 }
+        \t { 0361 }
+        \q_recursion_tail { }
+        \q_recursion_stop
+    \group_end:
+  }
+  {
+    \cs_new:Npn \@@_expand_accent_aux:Nn #1#2
       { \exp_not:n {#1} {#2} }
   }
 \tl_map_inline:nn { \` \' \^ \~ \= \u \. \" \r \H \v \d \c \k \b \t }
-  { \text_declare_expand_equivalent:Nn #1 { \@@_expand_accent:NN #1 } }
+  { \text_declare_expand_equivalent:Nn #1 { \@@_expand_accent:Nn #1 } }
 %    \end{macrocode}
 %   The list of pre-composed accent characters here is taken from
 %   \texttt{puenc.def}. All of the pre-composed cases take a single letter
