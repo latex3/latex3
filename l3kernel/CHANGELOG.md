@@ -8,8 +8,15 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
+- `\text_expand:n` now converts letter-like commands,
+  e.g. `\ae`, to the UTF-8 equivalent: breaking change
+  also removes `\l_text_letterlike_tl` (unused outside of
+  the `expl3` kernel in TeX Live)
 - Swap meaning of `el` and `el-x-iota` when case changing
   Greek: match traditional LaTeX approach
+
+### Removed
+- `\l_text_letterlike_tl` (breaking change)
 
 ## [2023-02-02]
 
