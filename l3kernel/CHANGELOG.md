@@ -11,6 +11,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Swap meaning of `el` and `el-x-iota` when case changing
   Greek: match traditional LaTeX approach
 
+### Deprecated
+- `\l_text_accents_tl` and `\l_text_letterlike_tl`
+
 ## [2023-02-02]
 
 ### Fixed
