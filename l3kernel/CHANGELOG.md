@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-02-07]
+
 ### Changed
 - Swap meaning of `el` and `el-x-iota` when case changing
   Greek: match traditional LaTeX approach
@@ -1292,7 +1294,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-02-02...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-02-07...HEAD
+[2023-02-07]: https://github.com/latex3/latex3/compare/2023-02-02...2023-02-07
 [2023-02-02]: https://github.com/latex3/latex3/compare/2023-02-01...2023-02-02
 [2023-02-01]: https://github.com/latex3/latex3/compare/2023-01-24...2023-02-01
 [2023-01-24]: https://github.com/latex3/latex3/compare/2023-01-16...2023-01-24
