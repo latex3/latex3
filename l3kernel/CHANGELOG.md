@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- CJK character handling for (u)pTeX (issue
+  [\#1171](https://github.com/latex3/latex3/issues/1171))
+
 ## [2023-02-07]
 
 ### Changed
