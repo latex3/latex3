@@ -24,7 +24,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Handling of multiple accents when uppercasing Greek
-  (see https://github.com/latex3/latex2e/issues/987)
+  (see LaTeX2e issue
+  [\#987](https://github.com/latex3/latex2e/issues/987))
 
 ## [2023-02-01]
 
