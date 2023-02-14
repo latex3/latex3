@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- More defensive approach in `\codepoint_to_nfd:n`
+
 ### Fixed
 - CJK character handling for (u)pTeX (issue
   [\#1171](https://github.com/latex3/latex3/issues/1171))
