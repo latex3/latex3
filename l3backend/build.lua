@@ -9,7 +9,7 @@ bundle = ""
 -- Location of main directory: use Unix-style path separators
 maindir = ".."
 
-installfiles = {"*.def", "*.pro"}
+installfiles = {"*.def", "*.pro", "*.lua"}
 sourcefiles  = {"*.dtx", "*.ins"}
 tagfiles     = {"*.dtx", "CHANGELOG.md", "README.md", "*.ins"}
 typesetfiles = {"l3backend-code.tex"}
