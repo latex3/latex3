@@ -14,7 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2022-10-26]
 
 ### Changed
-- Avoid setting media box is `\mag` is non-standard
+- Avoid setting media box if `\mag` is non-standard
 
 ## [2022-09-28]
 
