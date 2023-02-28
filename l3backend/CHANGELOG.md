@@ -6,6 +6,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Integrate l3color and l3opacity with luaotfload to ensure that
+  opacity specifications don't conflict.
+
 ## [2023-01-16]
 
 ### Changed
