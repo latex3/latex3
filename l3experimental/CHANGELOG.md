@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- 'Fallback' value used for benchmarking single op
+  (see \#1182)
+
 ## [2023-01-24]
 
 ### Changed
