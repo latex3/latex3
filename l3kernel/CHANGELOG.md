@@ -10,6 +10,10 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\tex_endlocalcontrol:D` as expl3 name for the LuaTeX primitive
 
+### Changed
+- Allow non-integer values in color expressions
+- Restrict color expressions values to the range [0, 100]
+
 ## [2023-02-22]
 
 ### Changed
