@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Allow non-integer values in color expressions
 - Restrict color expressions values to the range [0, 100]
+- Leave Greek spacing diacritics unchanged in uppercasing
 
 ## [2023-02-22]
 
