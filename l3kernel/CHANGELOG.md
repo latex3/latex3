@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-03-09]
+
 ### Added
 - `\tex_endlocalcontrol:D` as expl3 name for the LuaTeX primitive
 
@@ -1312,7 +1314,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-02-22...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-03-09...HEAD
+[2023-03-09]: https://github.com/latex3/latex3/compare/2023-02-22...2023-03-09
 [2023-02-22]: https://github.com/latex3/latex3/compare/2023-02-07...2023-02-22
 [2023-02-07]: https://github.com/latex3/latex3/compare/2023-02-02...2023-02-07
 [2023-02-02]: https://github.com/latex3/latex3/compare/2023-02-01...2023-02-02
