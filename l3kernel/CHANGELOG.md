@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Fix minor version in `\c_sys_engine_version_str` for pdfTeX and LuaTeX
+  (issue [\#1186](https://github.com/latex3/latex3/issues/1186))
+
 ## [2023-03-09]
 
 ### Added
