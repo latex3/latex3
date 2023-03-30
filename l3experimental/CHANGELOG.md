@@ -7,8 +7,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-## [2023-03-09]
-
 ### Fixed
 - 'Fallback' value used for benchmarking single op
   (see \#1182)
@@ -262,8 +260,7 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-03-09...HEAD
-[2023-03-09]: https://github.com/latex3/latex3/compare/2023-01-24...2023-03-09
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-01-24...HEAD
 [2023-01-24]: https://github.com/latex3/latex3/compare/2022-04-20...2023-01-24
 [2022-04-20]: https://github.com/latex3/latex3/compare/2022-04-10...2022-04-20
 [2022-04-10]: https://github.com/latex3/latex3/compare/2022-02-05...2022-04-10
