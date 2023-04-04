@@ -9,7 +9,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2023-03-30]
 
-
 ### Added
 - `\tex_endlocalcontrol:D` as expl3 name for the LuaTeX primitive
 
