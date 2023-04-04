@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Incorrect internal name in `\pdf_pagesize_gset:nn`
+
 ## [2023-03-30]
 
 ### Added
