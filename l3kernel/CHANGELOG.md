@@ -9,6 +9,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\box_set_clipped:N` and variants (renamed from `\box_clip:N`)
+- `\text_declare_lowercase_mapping:nn(n)`,
+   `\text_declare_titlecase_mapping:nn(n)`
+   and `\text_declare_uppercase_mapping:nn(n)` to allow customization of
+   case changing outcomes
 
 ### Changed
 - `\box_set_trim:Nnnnn` and `\box_set_viewport:Nnnnn` moved to
