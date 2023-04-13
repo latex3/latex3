@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Grouping in `\draw_path_arc_axes:nnnn` (see \#1195)
+
 ## [2023-03-30]
 
 ### Fixed
