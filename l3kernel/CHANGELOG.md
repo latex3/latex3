@@ -7,8 +7,14 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\box_set_clipped:N` and variants
+
 ### Fixed
 - Incorrect internal name in `\pdf_pagesize_gset:nn`
+
+### Removed
+- Experimental `\box_clip:N` and variants
 
 ## [2023-03-30]
 
