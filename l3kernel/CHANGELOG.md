@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
-- `\box_set_clipped:N` and variants
+- `\box_set_clipped:N` and variants (renamed from `\box_clip:N`)
 
 ### Changed
 - `\box_set_trim:Nnnnn` and `\box_set_viewport:Nnnnn` moved to
@@ -18,7 +18,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Incorrect internal name in `\pdf_pagesize_gset:nn`
 
 ### Removed
-- Experimental `\box_clip:N` and variants
+- Experimental `\box_clip:N` and variants (renamed to 
+  `\box_set_clipped:N`)
 
 ## [2023-03-30]
 
