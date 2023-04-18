@@ -7,7 +7,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
-- Pass additional attributes when loading PDF graphics
+- Pass additional attributes when loading graphics in PDF mode
 
 ### Fixed
 - Remove a stray `>` from graphics inclusion code for `dvipdfmx`
