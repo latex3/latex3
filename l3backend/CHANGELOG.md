@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Remove a stray `>` from graphics inclusion code for `dvipdfmx`
+
 ## [2023-03-30]
 
 ### Changed
