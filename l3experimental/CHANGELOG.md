@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-04-19]
+
 ### Added
 - Key `pdf-attr` to `l3graphics` for additional attribute setting
 
@@ -268,7 +270,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-03-30...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-04-19...HEAD
+[2023-04-19]: https://github.com/latex3/latex3/compare/2023-03-30...2023-04-19
 [2023-03-30]: https://github.com/latex3/latex3/compare/2023-01-24...2023-03-30
 [2023-01-24]: https://github.com/latex3/latex3/compare/2022-04-20...2023-01-24
 [2022-04-20]: https://github.com/latex3/latex3/compare/2022-04-10...2022-04-20
