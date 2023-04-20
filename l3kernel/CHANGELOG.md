@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Re-order arguments of `\text_declare_lowercase_mapping:nnn`,
+  `\text_declare_titlecase_mapping:nnn` and
+  `\text_declare_uppercase_mapping:nnn`
+
 ## [2023-04-19]
 
 ### Added
