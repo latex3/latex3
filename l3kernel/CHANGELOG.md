@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-04-20]
+
 ### Changed
 - Re-order arguments of `\text_declare_lowercase_mapping:nnn`,
   `\text_declare_titlecase_mapping:nnn` and
@@ -1343,7 +1345,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-04-19...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-04-20...HEAD
+[2023-04-20]: https://github.com/latex3/latex3/compare/2023-04-19...2023-04-20
 [2023-04-19]: https://github.com/latex3/latex3/compare/2023-03-30...2023-04-19
 [2023-03-30]: https://github.com/latex3/latex3/compare/2023-02-22...2023-03-30
 [2023-02-22]: https://github.com/latex3/latex3/compare/2023-02-07...2023-02-22
