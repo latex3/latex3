@@ -7,6 +7,27 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\flag_ensure_raised:n` (renamed from `\flag_raise_if_clear:n`)
+- `\iow_wrap_allow_break:` (renamed from `\iow_allow_break:`)
+
+### Changed
+- Moved to stable status:
+  - `\bool_(g)set_inverse:N`
+  - `\exp_args_generate:n`
+  - `\fp_if_nan:n(TF)`
+  - `\ior_get_term:nN` and `\ior_str_get_term:nN`
+  - `\ior_shell_open:Nn`
+
+### Removed
+- Experimental functions from `l3candidates`:
+  - `\intarray_gset_rand:Nn(n)`
+  - `\intarray_to_clist:N`
+  - `\prop_rand_key_value:N`
+- Experimental functions now renamed
+  - `\flag_raise_if_clear:n` (now `\flag_raise_if_clear:n`)
+  - `\iow_allow_break:` (now `\iow_wrap_allow_break:`)
+
 ## [2023-04-20]
 
 ### Changed
