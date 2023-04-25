@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Moved to stable status:
   - `\bool_(g)set_inverse:N`
+  - `\exp_args_generate:n`
 
 ### Removed
 - Experimental functions from `l3candidates`:
