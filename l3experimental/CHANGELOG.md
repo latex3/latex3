@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Removed
 - Experimental functions from `l3candidates`:
   - `\intarray_gset_rand:Nn(n)`
+  - `\intarray_to_clist:N`
 
 ## [2023-04-19]
 
