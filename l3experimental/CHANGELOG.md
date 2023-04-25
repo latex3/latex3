@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\bool_(g)set_inverse:N`
   - `\exp_args_generate:n`
   - `\fp_if_nan:n(TF)`
+  - `\ior_get_term:nN` and `\ior_str_get_term:nN`
 
 ### Removed
 - Experimental functions from `l3candidates`:
