@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\flag_ensure_raised:n` (renamed from `\flag_raise_if_clear:n`)
+- `\iow_wrap_allow_break:` (renamed from `\iow_allow_break:`)
 
 ### Changed
 - Moved to stable status:
@@ -25,6 +26,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\prop_rand_key_value:N`
 - Experimental functions now renamed
   - `\flag_raise_if_clear:n` (now `\flag_raise_if_clear:n`)
+  - `\iow_allow_break:` (now `\iow_wrap_allow_break:`)
 
 ## [2023-04-19]
 
