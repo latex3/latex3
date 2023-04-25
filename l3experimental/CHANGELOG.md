@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\exp_args_generate:n`
   - `\fp_if_nan:n(TF)`
   - `\ior_get_term:nN` and `\ior_str_get_term:nN`
+  - `\ior_shell_open:Nn`
 
 ### Removed
 - Experimental functions from `l3candidates`:
