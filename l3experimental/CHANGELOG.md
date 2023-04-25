@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Experimental functions from `l3candidates`:
   - `\intarray_gset_rand:Nn(n)`
   - `\intarray_to_clist:N`
+  - `\prop_rand_key_value:N`
 
 ## [2023-04-19]
 
