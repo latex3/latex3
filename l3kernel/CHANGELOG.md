@@ -27,6 +27,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Experimental functions now renamed
   - `\flag_raise_if_clear:n` (now `\flag_raise_if_clear:n`)
   - `\iow_allow_break:` (now `\iow_wrap_allow_break:`)
+- Experimental functions moved to kernel-internal:
+  - `\msg_log_eval:Nn` and `\msg_show_eval:Nn`
 
 ## [2023-04-20]
 
