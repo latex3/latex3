@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Moved to stable status:
+  - `\bool_(g)set_inverse:N`
+
 ### Removed
 - Experimental functions from `l3candidates`:
   - `\intarray_gset_rand:Nn(n)`
