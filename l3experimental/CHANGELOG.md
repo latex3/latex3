@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\flag_ensure_raised:n` (renamed from `\flag_raise_if_clear:n`)
+
 ### Changed
 - Moved to stable status:
   - `\bool_(g)set_inverse:N`
@@ -20,6 +23,8 @@ this project uses date-based 'snapshot' version identifiers.
   - `\intarray_gset_rand:Nn(n)`
   - `\intarray_to_clist:N`
   - `\prop_rand_key_value:N`
+- Experimental functions now renamed
+  - `\flag_raise_if_clear:n` (now `\flag_raise_if_clear:n`)
 
 ## [2023-04-19]
 
