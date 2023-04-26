@@ -18,6 +18,8 @@ this project uses date-based 'snapshot' version identifiers.
   - `\fp_if_nan:n(TF)`
   - `\ior_get_term:nN` and `\ior_str_get_term:nN`
   - `\ior_shell_open:Nn`
+  - `\msg_show_item:n`, `\msg_show_item_unbraced:n`,
+    `\msg_show_item:nn`, `\msg_show_item_unbraced:nn`
 
 ### Removed
 - Experimental functions from `l3candidates`:
