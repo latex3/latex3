@@ -14,6 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Moved to stable status:
   - `\bool_(g)set_inverse:N`
+  - `\c_sys_engine_version_str`
   - `\exp_args_generate:n`
   - `\fp_if_nan:n(TF)`
   - `\ior_get_term:nN` and `\ior_str_get_term:nN`
