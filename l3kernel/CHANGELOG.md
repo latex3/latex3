@@ -20,6 +20,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\ior_shell_open:Nn`
   - `\msg_show_item:n`, `\msg_show_item_unbraced:n`,
     `\msg_show_item:nn`, `\msg_show_item_unbraced:nn`
+- Require random number support from engine
 
 ### Removed
 - Experimental functions from `l3candidates`:
@@ -28,6 +29,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\peek_catcode_collect_inline:Nn`, `\peek_charcode_collect_inline:Nn` and
     `\peek_meaning_collect_inline:Nn`
   - `\prop_rand_key_value:N`
+  - `\sys_if_rand_exist:(TF)`
   - `\tl_range_braced:Nnn` and `\tl_range_unbraced:Nnn`
 - Experimental functions now renamed
   - `\flag_raise_if_clear:n` (now `\flag_raise_if_clear:n`)
