@@ -26,6 +26,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\intarray_gset_rand:Nn(n)`
   - `\intarray_to_clist:N`
   - `\prop_rand_key_value:N`
+  - `\tl_range_braced:Nnn` and `\tl_range_unbraced:Nnn`
 - Experimental functions now renamed
   - `\flag_raise_if_clear:n` (now `\flag_raise_if_clear:n`)
   - `\iow_allow_break:` (now `\iow_wrap_allow_break:`)
