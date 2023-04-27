@@ -25,6 +25,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Experimental functions from `l3candidates`:
   - `\intarray_gset_rand:Nn(n)`
   - `\intarray_to_clist:N`
+  - `\peek_catcode_collect_inline:Nn`, `\peek_charcode_collect_inline:Nn` and
+    `\peek_meaning_collect_inline:Nn`
   - `\prop_rand_key_value:N`
   - `\tl_range_braced:Nnn` and `\tl_range_unbraced:Nnn`
 - Experimental functions now renamed
