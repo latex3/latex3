@@ -26,6 +26,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Removed
 - Experimental functions from `l3candidates`:
+  - `\bool_case_false:n(TF)`
   - `\intarray_gset_rand:Nn(n)`
   - `\intarray_to_clist:N`
   - `\peek_catcode_collect_inline:Nn`, `\peek_charcode_collect_inline:Nn` and
