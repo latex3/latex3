@@ -34,7 +34,7 @@ and class options with LaTeX2e. This is tied to the method the existing kernel
 uses for processing options, and so it is likely that a stand-alone LaTeX3
 kernel will use a very different approach.
 
-`xfp`
+`xfp` (deprecated)
 -----
 
 The `xfp` package provides a document-level interface for the LaTeX3
@@ -73,20 +73,6 @@ functions using a key=val syntax. This is designed to be
 "self-documenting", with the key definitions providing information
 on how they are to be used.
 
-Discussion
-----------
-
-Discussion concerning the approach, suggestions for improvements,
-changes, additions, _etc._ should be addressed to the list
-[LaTeX-L](https://listserv.uni-heidelberg.de/cgi-bin/wa?A0=LATEX-L).
-
-You can subscribe to this list by sending mail to
-
-    listserv@urz.uni-heidelberg.de
-
-with the body containing
-
-    subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
 
 Issues
 ------
@@ -94,8 +80,6 @@ Issues
 The issue tracker for LaTeX3 is currently located
 [on GitHub](https://github.com/latex3/latex3/issues).
 
-Please report specific issues with LaTeX3 code there; more general
-discussion should be directed to the [LaTeX-L list](#Discussion).
 
 The LaTeX Project
 ------------------
