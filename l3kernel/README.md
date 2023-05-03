@@ -21,9 +21,6 @@ team as stable. There may still be changes to some functions, but these will be
 very minor when compared to the scope of `l3kernel`. In particular, no functions
 will be removed, although some may be deprecated.
 
-Programmers making use of `l3kernel` are *strongly* encouraged to subscribe to
-the LaTeX-L mailing list (see below): announcements concerning the deprecation
-or modification of functions are made on the list.
 
 Requirements
 ------------
@@ -77,29 +74,11 @@ LuaTeX manual
 The existence of the primitive `\Umathcode` is used as the marker for Unicode
 support.
 
-Discussion
-----------
-
-Discussion concerning the approach, suggestions for improvements,
-changes, additions, _etc._ should be addressed to the list
-[LaTeX-L](https://listserv.uni-heidelberg.de/cgi-bin/wa?A0=LATEX-L).
-
-You can subscribe to this list by sending mail to
-
-    listserv@urz.uni-heidelberg.de
-
-with the body containing
-
-    subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
-
 Issues
 ------
 
 The issue tracker for LaTeX3 is currently located
 [on GitHub](https://github.com/latex3/latex3/issues).
-
-Please report specific issues with LaTeX3 code there; more general
-discussion should be directed to the [LaTeX-L list](#Discussion).
 
 The LaTeX Project
 ------------------
@@ -108,8 +87,7 @@ Development of LaTeX3 is carried out by
 [The LaTeX Project](https://www.latex-project.org/latex3/).
 
 The development team can be contacted
-by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
-the [LaTeX-L list](#Discussion) should be used.
+by e-mail: <latex-team@latex-project.org>.
 
 -----
 
