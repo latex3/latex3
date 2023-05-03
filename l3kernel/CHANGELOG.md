@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\bool_case:n(TF)` (renamed from  `\bool_case_true:n(TF)`)
 - `\flag_ensure_raised:n` (renamed from `\flag_raise_if_clear:n`)
 - `\iow_wrap_allow_break:` (renamed from `\iow_allow_break:`)
 
@@ -35,6 +36,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\sys_if_rand_exist:(TF)`
   - `\tl_range_braced:Nnn` and `\tl_range_unbraced:Nnn`
 - Experimental functions now renamed
+  - `\bool_case_true:n(TF)` (now `\bool_case:n(TF)`)
   - `\flag_raise_if_clear:n` (now `\flag_raise_if_clear:n`)
   - `\iow_allow_break:` (now `\iow_wrap_allow_break:`)
 - Experimental functions moved to kernel-internal:
