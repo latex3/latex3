@@ -33,6 +33,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\peek_catcode_collect_inline:Nn`, `\peek_charcode_collect_inline:Nn` and
     `\peek_meaning_collect_inline:Nn`
   - `\prop_rand_key_value:N`
+  - `\seq_set_from_function:Nnn` and `\seq_set_from_inline_x:Nnn`
   - `\sys_if_rand_exist:(TF)`
   - `\tl_range_braced:Nnn` and `\tl_range_unbraced:Nnn`
 - Experimental functions now renamed
