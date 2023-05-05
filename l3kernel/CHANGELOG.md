@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-05-05]
+
 ### Added
 - `\bool_case:n(TF)` (renamed from  `\bool_case_true:n(TF)`)
 - `\flag_ensure_raised:n` (renamed from `\flag_raise_if_clear:n`)
@@ -1381,7 +1383,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-04-20...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-05-05...HEAD
+[2023-05-05]: https://github.com/latex3/latex3/compare/2023-04-20...2023-05-05
 [2023-04-20]: https://github.com/latex3/latex3/compare/2023-04-19...2023-04-20
 [2023-04-19]: https://github.com/latex3/latex3/compare/2023-03-30...2023-04-19
 [2023-03-30]: https://github.com/latex3/latex3/compare/2023-02-22...2023-03-30
