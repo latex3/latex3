@@ -40,7 +40,7 @@ this project uses date-based 'snapshot' version identifiers.
   - `\tl_range_braced:Nnn` and `\tl_range_unbraced:Nnn`
 - Experimental functions now renamed
   - `\bool_case_true:n(TF)` (now `\bool_case:n(TF)`)
-  - `\flag_raise_if_clear:n` (now `\flag_raise_if_clear:n`)
+  - `\flag_raise_if_clear:n` (now `\flag_ensure_raised:n`)
   - `\iow_allow_break:` (now `\iow_wrap_allow_break:`)
 - Experimental functions moved to kernel-internal:
   - `\msg_log_eval:Nn` and `\msg_show_eval:Nn`
