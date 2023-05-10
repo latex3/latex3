@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Removed
+- Experimental function `\seq_pop_item:NnN` from `l3candidates`
+
+
 ## [2023-05-05]
 
 ### Added
