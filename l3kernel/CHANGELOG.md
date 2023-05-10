@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Moved `\seq_set_item:Nnn` to stable status
+  
 ### Removed
 - Experimental function `\seq_pop_item:NnN` from `l3candidates`
 
