@@ -7,12 +7,16 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\seq_map_pairwise_function:NNN` (renamed from  `\seq_mapthread_function:NNN`)
+
 ### Changed
 - Moved `\seq_set_item:Nnn` to stable status
   
 ### Removed
 - Experimental function `\seq_pop_item:NnN` from `l3candidates`
-
+- Experimental function `\seq_mapthread_function:NNN` now renamed
+  `\seq_map_pairwise_function:NNN`
 
 ## [2023-05-05]
 
