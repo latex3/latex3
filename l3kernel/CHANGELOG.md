@@ -12,7 +12,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Moved `\seq_set_item:Nnn` to stable status
-  
+- Track seen filenames to improve performance of
+  `\file_full_name:n` and dependent file operations
+
 ### Removed
 - Experimental function `\seq_pop_item:NnN` from `l3candidates`
 - Experimental function `\seq_mapthread_function:NNN` now renamed
