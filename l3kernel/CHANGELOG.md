@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Rounded out the `\use_i:nn...` functions to cover all cases taking
+  one argument from up to nine arguments
+
 ## [2023-05-15]
 
 ### Changed
