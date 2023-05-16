@@ -7,13 +7,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-### Changed
-- Require `\expanded` and 'pdfTeX extension' primitives,
-  and thus TeX distributions from mid-2019 onward
-
-### Fixed
-- Treatment of trailing `/` in `\input@path`
-
 ## [2023-05-11]
 
 ### Changed
