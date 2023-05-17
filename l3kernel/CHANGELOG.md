@@ -12,6 +12,9 @@ this project uses date-based 'snapshot' version identifiers.
   one argument from up to nine arguments
 - `\int_if_zero:n(TF)`
 
+### Fixed
+- Omit `0123456789` from URL escaping (issue \#838)
+
 ## [2023-05-15]
 
 ### Changed
