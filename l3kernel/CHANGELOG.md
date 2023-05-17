@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Rounded out the `\use_i:nn...` functions to cover all cases taking
   one argument from up to nine arguments
+- `\coffin_(g)reset_poles:N`
 - `\int_if_zero:n(TF)`
 
 ### Fixed
