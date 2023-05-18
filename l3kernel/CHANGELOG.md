@@ -15,6 +15,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Omit `0123456789` from URL escaping (issue \#838)
 Leave implicit chars unchanged in `\text_expand:n` (fixes \#874)
+- Handlign of implicit chars in `\text_purify:n` (fixes \#1208)
 
 ## [2023-05-15]
 
