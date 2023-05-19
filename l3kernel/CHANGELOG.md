@@ -20,6 +20,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Omit `0123456789` from URL escaping (issue \#838)
 - Leave implicit chars unchanged in `\text_expand:n` (issue \#874)
+- Filtering/grouping applied to meta keys (issue \#940)
 - Handling of implicit chars in `\text_purify:n` (issue \#1208)
 
 ## [2023-05-15]
