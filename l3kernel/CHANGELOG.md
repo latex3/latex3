@@ -36,6 +36,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Moved `\seq_set_item:Nnn` to stable status
 - Track seen filenames to improve performance of
   `\file_full_name:n` and dependent file operations
+- Remove `\noexpand` inside math mode in `\text_expand:n`
 
 ### Removed
 - Experimental function `\seq_pop_item:NnN` from `l3candidates`
