@@ -2,7 +2,7 @@
 %
 %% File: l3backend-color.dtx
 %
-% Copyright (C) 2019-2022 The LaTeX Project
+% Copyright (C) 2019-2023 The LaTeX Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2022-08-30}
+% \date{Released 2023-04-19}
 %
 % \maketitle
 %
@@ -53,7 +53,7 @@
 %
 % \begin{implementation}
 %
-% \section{\pkg{l3backend-color} Implementation}
+% \section{\pkg{l3backend-color} implementation}
 %
 %    \begin{macrocode}
 %<*package>
@@ -67,85 +67,6 @@
 % convenient to use the same approach in multiple backends, the fact that
 % \texttt{dvipdfmx}/\XeTeX{} is PDF-based means it (largely) sticks closer to
 % direct PDF output.
-%
-% \subsection{Collecting information from \LaTeXe{}}
-%
-% \subsubsection{\texttt{dvips}-style}
-%
-%    \begin{macrocode}
-%<*dvisvgm|dvipdfmx|dvips|xetex>
-%    \end{macrocode}
-%
-% \begin{macro}{\@@_backend_pickup:N}
-% \begin{macro}{\@@_backend_pickup:w}
-%   Allow for \LaTeXe{} color. Here, the possible input values are limited:
-%   \texttt{dvips}-style colors can be taken as-is. The \texttt{x}-type expansion
-%   is there to cover the case where \pkg{xcolor} is in use.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_pickup:N #1
-  {
-    \exp_args:NV \tl_if_head_is_space:nTF \current@color
-      {
-        \tl_set:Nn #1 { { gray } { 0 } }
-        \msg_warning:nnx { color } { unhandled }
-          { \current@color }
-      }
-      {
-        \exp_last_unbraced:Nx \@@_backend_pickup:w
-          { \current@color } \s_@@_stop #1
-      }
-  }
-\cs_new_protected:Npn \@@_backend_pickup:w #1 ~ #2 \s_@@_stop #3
-  { \tl_set:Nn #3 { {#1} {#2} } }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-%    \begin{macrocode}
-%</dvisvgm|dvipdfmx|dvips|xetex>
-%    \end{macrocode}
-%
-% \subsubsection{\LuaTeX{} and \pdfTeX{}}
-%
-%    \begin{macrocode}
-%<*luatex|pdftex>
-%    \end{macrocode}
-%
-% \begin{macro}{\@@_backend_pickup:N}
-% \begin{macro}{\@@_backend_pickup:w}
-%  Same ideas, but with a different backend-dependent format.
-%    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_pickup:N #1
-  {
-    \exp_last_unbraced:Nx \@@_backend_pickup:w
-      { \current@color } ~ 0 ~ 0 ~ 0 \s_@@_stop #1
-  }
-\cs_new_protected:Npn \@@_backend_pickup:w
-  #1 ~ #2 ~ #3 ~ #4 ~ #5 ~ #6 \s_@@_stop #7
-  {
-    \str_if_eq:nnTF {#2} { g }
-      { \tl_set:Nn #7 { { gray } {#1} } }
-      {
-        \str_if_eq:nnTF {#4} { rg }
-          { \tl_set:Nn #7 { { rgb } { #1 ~ #2 ~ #3 } } }
-          {
-            \str_if_eq:nnTF {#5} { k }
-              { \tl_set:Nn #7 { { cmyk } { #1 ~ #2 ~ #3 ~ #4 } } }
-              {
-                \tl_set:Nn #1 { { gray } { 0 } }
-                \msg_warning:nnx { color } { unhandled }
-                  { \current@color }
-              }
-          }
-      }
-  }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-%
-%    \begin{macrocode}
-%</luatex|pdftex>
-%    \end{macrocode}
 %
 % \subsection{The color stack}
 %
@@ -289,6 +210,8 @@
 %    \begin{macrocode}
 \tl_new:N \l_@@_backend_fill_tl
 \tl_new:N \l_@@_backend_stroke_tl
+\tl_set:Nn \l_@@_backend_fill_tl { 0 ~ g }
+\tl_set:Nn \l_@@_backend_stroke_tl { 0 ~ G }
 %    \end{macrocode}
 % \end{variable}
 %
@@ -1339,6 +1262,85 @@
 %
 %    \begin{macrocode}
 %</package>
+%    \end{macrocode}
+%
+% \subsection{Font handling integration}
+%
+% In \LuaTeX{} these colors should also be usable to color fonts, so
+% \texttt{luaotfload} color handling is extended to include these.
+%
+%    \begin{macrocode}
+%<*lua>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+local l = lpeg
+local spaces = l.P' '^0
+local digit16 = l.R('09', 'af', 'AF')
+
+local octet = digit16 * digit16 / function(s)
+  return string.format('%.3g ', tonumber(s, 16) / 255)
+end
+
+if luaotfload and luaotfload.set_transparent_colorstack then
+  local htmlcolor = l.Cs(octet * octet * octet * -1 * l.Cc'rg')
+  local color_export = {
+    token.create'tex_endlocalcontrol:D',
+    token.create'tex_hpack:D',
+    token.new(0, 1),
+    token.create'color_export:nnN',
+    token.new(0, 1),
+    '',
+    token.new(0, 2),
+    token.new(0, 1),
+    'backend',
+    token.new(0, 2),
+    token.create'l_tmpa_tl',
+    token.create'exp_after:wN',
+    token.create'__color_select:nn',
+    token.create'l_tmpa_tl',
+    token.new(0, 2),
+  }
+  local group_end = token.create'group_end:'
+  local value = (1 - l.P'}')^0
+  luatexbase.add_to_callback('luaotfload.parse_color', function (value)
+% Also allow HTML colors to preserve compatibility
+    local html = htmlcolor:match(value)
+    if html then return html end
+
+    tex.runtoks(function()
+      token.get_next()
+      color_export[6] = value
+      tex.sprint(-2, color_export)
+    end)
+    local list = token.scan_list()
+    if not list.head or list.head.next
+        or list.head.subtype ~= node.subtype'pdf_colorstack' then
+      error'Unexpected backend behavior'
+    end
+    local cmd = list.head.data
+    node.free(list)
+    return cmd
+  end, 'l3color')
+end
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</lua>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*luatex>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*package>
+\lua_load_module:n {l3backend-luatex}
+%</package>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</luatex>
 %    \end{macrocode}
 %
 % \end{implementation}

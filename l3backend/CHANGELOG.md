@@ -6,6 +6,35 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-04-19]
+
+### Changed
+- Pass additional attributes when loading graphics in PDF mode
+
+### Fixed
+- Remove a stray `>` from graphics inclusion code for `dvipdfmx`
+
+## [2023-03-30]
+
+### Changed
+- Integrate `l3color` and `l3opacity` with `luaotfload` to ensure that
+  opacity specifications don't conflict
+
+## [2023-01-16]
+
+### Changed
+- Adjust internal scope of a PDF function
+
+## [2022-10-26]
+
+### Changed
+- Avoid setting media box if `\mag` is non-standard
+
+## [2022-09-28]
+
+### Changed
+- Add support for media box setting
+
 ## [2022-08-30]
 
 ### Added
@@ -267,7 +296,12 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-08-30...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-04-19...HEAD
+[2023-04-19]: https://github.com/latex3/latex3/compare/2023-03-30...2023-04-19
+[2023-03-30]: https://github.com/latex3/latex3/compare/2023-01-16...2023-03-30
+[2023-01-16]: https://github.com/latex3/latex3/compare/2022-10-26...2023-01-16
+[2022-10-26]: https://github.com/latex3/latex3/compare/2022-09-28...2022-10-26
+[2022-09-28]: https://github.com/latex3/latex3/compare/2022-08-30...2022-09-28
 [2022-08-30]: https://github.com/latex3/latex3/compare/2022-08-23...2022-08-30
 [2022-08-23]: https://github.com/latex3/latex3/compare/2022-08-05...2022-08-23
 [2022-08-05]: https://github.com/latex3/latex3/compare/2022-07-01...2022-08-05

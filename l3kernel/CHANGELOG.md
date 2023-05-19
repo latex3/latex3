@@ -7,6 +7,229 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Rounded out the `\use_i:nn...` functions to cover all cases taking
+  one argument from up to nine arguments
+- `\coffin_(g)reset_poles:N`
+- `\int_if_zero:n(TF)`
+- `\str_mdfive_hash:n`
+
+### Changed
+- Remove `\noexpand` inside math mode in `\text_expand:n`
+
+### Fixed
+- Omit `0123456789` from URL escaping (issue \#838)
+- Leave implicit chars unchanged in `\text_expand:n` (issue \#874)
+- Handling of implicit chars in `\text_purify:n` (issue \#1208)
+
+## [2023-05-15]
+
+### Changed
+- Require `\expanded` and 'pdfTeX extension' primitives,
+  and thus TeX distributions from mid-2019 onward
+
+### Fixed
+- Treatment of trailing `/` in `\input@path`
+
+## [2023-05-11]
+
+### Added
+- `\seq_map_pairwise_function:NNN` (renamed from  `\seq_mapthread_function:NNN`)
+
+### Changed
+- Moved `\seq_set_item:Nnn` to stable status
+- Track seen filenames to improve performance of
+  `\file_full_name:n` and dependent file operations
+
+### Removed
+- Experimental function `\seq_pop_item:NnN` from `l3candidates`
+- Experimental function `\seq_mapthread_function:NNN` now renamed
+  `\seq_map_pairwise_function:NNN`
+
+## [2023-05-05]
+
+### Added
+- `\bool_case:n(TF)` (renamed from  `\bool_case_true:n(TF)`)
+- `\flag_ensure_raised:n` (renamed from `\flag_raise_if_clear:n`)
+- `\iow_wrap_allow_break:` (renamed from `\iow_allow_break:`)
+
+### Changed
+- Moved to stable status:
+  - `\bool_(g)set_inverse:N`
+  - `\c_catcode_active_space_tl`
+  - `\c_sys_engine_version_str`
+  - `\exp_args_generate:n`
+  - `\fp_if_nan:n(TF)`
+  - `\ior_get_term:nN` and `\ior_str_get_term:nN`
+  - `\ior_shell_open:Nn`
+  - `\msg_show_item:n`, `\msg_show_item_unbraced:n`,
+    `\msg_show_item:nn`, `\msg_show_item_unbraced:nn`
+- Require random number support from engine
+
+### Removed
+- Experimental functions from `l3candidates`:
+  - `\bool_case_false:n(TF)`
+  - `\intarray_gset_rand:Nn(n)`
+  - `\intarray_to_clist:N`
+  - `\peek_catcode_collect_inline:Nn`, `\peek_charcode_collect_inline:Nn` and
+    `\peek_meaning_collect_inline:Nn`
+  - `\prop_rand_key_value:N`
+  - `\seq_set_from_function:Nnn` and `\seq_set_from_inline_x:Nnn`
+  - `\sys_if_rand_exist:(TF)`
+  - `\tl_range_braced:Nnn` and `\tl_range_unbraced:Nnn`
+- Experimental functions now renamed
+  - `\bool_case_true:n(TF)` (now `\bool_case:n(TF)`)
+  - `\flag_raise_if_clear:n` (now `\flag_ensure_raised:n`)
+  - `\iow_allow_break:` (now `\iow_wrap_allow_break:`)
+- Experimental functions moved to kernel-internal:
+  - `\msg_log_eval:Nn` and `\msg_show_eval:Nn`
+
+## [2023-04-20]
+
+### Changed
+- Re-order arguments of `\text_declare_lowercase_mapping:nnn`,
+  `\text_declare_titlecase_mapping:nnn` and
+  `\text_declare_uppercase_mapping:nnn`
+
+## [2023-04-19]
+
+### Added
+- `\box_set_clipped:N` and variants (renamed from `\box_clip:N`)
+- `\text_declare_lowercase_mapping:nn(n)`,
+   `\text_declare_titlecase_mapping:nn(n)`
+   and `\text_declare_uppercase_mapping:nn(n)` to allow customization of
+   case changing outcomes
+
+### Changed
+- `\box_set_trim:Nnnnn` and `\box_set_viewport:Nnnnn` moved to
+  stable kernel
+
+### Fixed
+- Incorrect internal name in `\pdf_pagesize_gset:nn`
+
+### Removed
+- Experimental `\box_clip:N` and variants (renamed to 
+  `\box_set_clipped:N`)
+
+## [2023-03-30]
+
+### Added
+- `\tex_endlocalcontrol:D` as expl3 name for the LuaTeX primitive
+
+### Changed
+- Allow non-integer values in color expressions
+- Restrict color expressions values to the range [0, 100]
+- Leave Greek spacing diacritics unchanged in uppercasing
+
+### Fixed
+- Fix minor version in `\c_sys_engine_version_str` for pdfTeX and LuaTeX
+  (issue [\#1186](https://github.com/latex3/latex3/issues/1186))
+
+## [2023-02-22]
+
+### Changed
+- More defensive approach in `\codepoint_to_nfd:n`
+
+### Fixed
+- CJK character handling for (u)pTeX (issue
+  [\#1171](https://github.com/latex3/latex3/issues/1171))
+
+## [2023-02-07]
+
+### Changed
+- Swap meaning of `el` and `el-x-iota` when case changing
+  Greek: match traditional LaTeX approach
+
+### Deprecated
+- `\l_text_accents_tl` and `\l_text_letterlike_tl`
+
+## [2023-02-02]
+
+### Fixed
+- Handling of multiple accents when uppercasing Greek
+  (see LaTeX2e issue
+  [\#987](https://github.com/latex3/latex2e/issues/987))
+
+## [2023-02-01]
+
+### Fixed
+- Allow for expressions within color `RGB`/`HSB` input
+
+## [2023-01-24]
+
+### Added
+- Complete list of pdfTeX primitives
+
+### Fixed
+- Allow for multi-part BCP47 strings in case changing
+- Loading with plain TeX due to `\outer` status of `^^L`
+  issue ([\#1161](https://github.com/latex3/latex3/issues/1161))
+
+### Changed
+- Leave catcode of `&` unchanged in code environment
+
+## [2023-01-16]
+
+### Added
+- `\pdf_pagesize_gset:nn`
+
+### Fixed
+- Enable `\char_generate:nn` to create active tokens which are `\outer`
+  or equal to `\fi`
+
+## [2022-12-17]
+
+### Added
+- `\codepoint_to_nfd:n`
+- `\codepoint_generate:n` and `\codepoint_str_generate:n`
+- `\str_casefold:n`
+
+### Changed
+- Protect `babel` shorthands from expansion
+
+### Fixed
+- Appearance of `\DescribeOption` (issue
+  [\#1111](https://github.com/latex3/latex3/issues/1111))
+
+## [2022-11-02]
+
+### Added
+- `\prg_gset_conditional:N(p)nn` and 
+  `\prg_gset_protected_conditional:N(p)nn`
+
+### Fixed
+- Loading of `expl3` with ConTeXt MkIV (issue
+  [\#1142](https://github.com/latex3/latex3/issues/1142))
+
+## [2022-10-26]
+
+### Changed
+- Usage of `\exp_not:n`/`\exp_not:N` in `\peek_analysis_map_inline:n` output
+
+### Fixed
+- `\peek_analysis_map_inline:n` support for macro parameter characters (issue
+  [\#1109](https://github.com/latex3/latex3/issues/1109)), for many expandable
+  tokens (issue [\#1110](https://github.com/latex3/latex3/issues/1110)), and an
+  esoteric case (issue [\#1113](https://github.com/latex3/latex3/issues/1113))
+-  Creation of a message with some engines (issue
+  [\#1139](https://github.com/latex3/latex3/issues/1139))
+
+### Deprecated
+- `\char_to_nfd:N`, `\char_to_nfd:n`
+- `\char_foldcase:N`, `\char_lowercase:N`, `\char_uppercase:N`
+   and `str` variants
+- `\char_to_utfviii_bytes:n`
+- `\str_foldcase:n`
+
+## [2022-09-28]
+
+### Added
+- Set media box for test phase documents
+
+### Fixed
+- Text case switching in `\text_titlecase_first:n` (issue
+  [\#1130](https://github.com/latex3/latex3/issues/1130))
+
 ## [2022-08-30]
 
 ### Added
@@ -680,7 +903,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-10-28]
 
 ### Fixed
-- File searching when `\(pdf)filesize` is not available (fixes \#644)
+- File searching when `\(pdf)filesize` is not available (issue \#644)
 
 ## [2019-10-27]
 
@@ -780,7 +1003,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-09-08]
 
 ### Fixed
-- Missing internal variant (fixes \#624)
+- Missing internal variant (issue \#624)
 
 ## [2019-09-05]
 
@@ -1058,7 +1281,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2018-10-19]
 
 ### Fixed
-- Wrapping of text in messages, etc., for some line lengths (fixes \#491)
+- Wrapping of text in messages, etc., for some line lengths (issue \#491)
 
 ## [2018-10-17]
 
@@ -1073,7 +1296,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\msg_interrupt:nn`, `\msg_log:n` and `\msg_term:n`
 
 ### Fixed
-- Handling of inheritance for choice keys (fixes \#483)
+- Handling of inheritance for choice keys (issue \#483)
 
 ## [2018-09-24]
 
@@ -1083,7 +1306,7 @@ this project uses date-based 'snapshot' version identifiers.
   `\peek_meaning_collect_inline:Nn`
 
 ### Fixed
-- Handling of unknown keys when inheritance is active (fixes \#481)
+- Handling of unknown keys when inheritance is active (issue \#481)
 
 ## [2018-08-23]
 
@@ -1105,7 +1328,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2018-06-01]
 
 ### Added
-- `CHANGELOG.md` (fixes \#460)
+- `CHANGELOG.md` (issue \#460)
 
 ### Fixed
 - Loading `expl3` with LuaTeX/XeTeX and certain letter tokens set
@@ -1143,7 +1366,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Several internal optimisations
 
 ### Fixed
-- Expand boolean expression before calling `\chardef` (fixes \#461)
+- Expand boolean expression before calling `\chardef` (issue \#461)
 
 ### Removed
 - Remove undocumented `\fp_function:Nw` and `\fp_new_function:Npn`
@@ -1172,15 +1395,15 @@ this project uses date-based 'snapshot' version identifiers.
   the RNG
 - Make prg break functions public
 - Make scan marks mechanism public
-- Make `\prg_do_nothing:` long rather than nopar (fixes \#455)
+- Make `\prg_do_nothing:` long rather than nopar (issue \#455)
 - Several performance improvements
 - Documentation improvements
 
 ### Fixed
 - Only index TF, T, F functions together if they are `expl3`
-  functions (fixes \#453)
+  functions (issue \#453)
 - Make `\infty` and `\pi` into errors in fp expressions
-  (fixes \#357)
+  (issue \#357)
 
 ### Removed
 - Deprecated functions expiring at end of 2017
@@ -1199,7 +1422,23 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-08-30...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-05-15...HEAD
+[2023-05-15]: https://github.com/latex3/latex3/compare/2023-05-11...2023-05-15
+[2023-05-11]: https://github.com/latex3/latex3/compare/2023-05-05...2023-05-11
+[2023-05-05]: https://github.com/latex3/latex3/compare/2023-04-20...2023-05-05
+[2023-04-20]: https://github.com/latex3/latex3/compare/2023-04-19...2023-04-20
+[2023-04-19]: https://github.com/latex3/latex3/compare/2023-03-30...2023-04-19
+[2023-03-30]: https://github.com/latex3/latex3/compare/2023-02-22...2023-03-30
+[2023-02-22]: https://github.com/latex3/latex3/compare/2023-02-07...2023-02-22
+[2023-02-07]: https://github.com/latex3/latex3/compare/2023-02-02...2023-02-07
+[2023-02-02]: https://github.com/latex3/latex3/compare/2023-02-01...2023-02-02
+[2023-02-01]: https://github.com/latex3/latex3/compare/2023-01-24...2023-02-01
+[2023-01-24]: https://github.com/latex3/latex3/compare/2023-01-16...2023-01-24
+[2023-01-16]: https://github.com/latex3/latex3/compare/2022-12-17...2023-01-16
+[2022-12-17]: https://github.com/latex3/latex3/compare/2022-11-02...2022-12-17
+[2022-11-02]: https://github.com/latex3/latex3/compare/2022-10-26...2022-11-02
+[2022-10-26]: https://github.com/latex3/latex3/compare/2022-09-28...2022-10-26
+[2022-09-28]: https://github.com/latex3/latex3/compare/2022-08-30...2022-09-28
 [2022-08-30]: https://github.com/latex3/latex3/compare/2022-08-23...2022-08-30
 [2022-08-23]: https://github.com/latex3/latex3/compare/2022-08-05...2022-08-23
 [2022-08-05]: https://github.com/latex3/latex3/compare/2022-07-15...2022-08-05

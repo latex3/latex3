@@ -46,27 +46,10 @@ The repository also contains the directory `xpackages`. This contain code which
 is being moved (broadly) `l3experimental`. Over time, `xpackages` is expected to
 be removed from the repository.
 
-## Discussion
-
-Discussion concerning the approach, suggestions for improvements,
-changes, additions, _etc._ should be addressed to the list
-[LaTeX-L](https://listserv.uni-heidelberg.de/cgi-bin/wa?A0=LATEX-L).
-
-You can subscribe to this list by sending mail to
-
-    listserv@urz.uni-heidelberg.de
-
-with the body containing
-
-    subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
-
 ## Issues
 
 The issue tracker for `expl3` is currently located
 [on GitHub](https://github.com/latex3/latex3/issues).
-
-Please report specific issues with `expl3` code there; more general
-discussion should be directed to the [LaTeX-L list](#Discussion).
 
 ## Build status
 
@@ -83,4 +66,4 @@ This code is developed by [The LaTeX Project](https://latex-project.org).
 
 ## Copyright
 
-This README file is copyright 2021 The LaTeX Project.
+This README file is copyright 2021-2023 The LaTeX Project.

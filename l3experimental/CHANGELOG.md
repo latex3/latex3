@@ -7,6 +7,30 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-05-11]
+
+### Changed
+- Track `expl3` core changes
+
+## [2023-04-19]
+
+### Added
+- Key `pdf-attr` to `l3graphics` for additional attribute setting
+
+### Fixed
+- Grouping in `\draw_path_arc_axes:nnnn` (see \#1195)
+
+## [2023-03-30]
+
+### Fixed
+- 'Fallback' value used for benchmarking single op
+  (see \#1182)
+
+## [2023-01-24]
+
+### Changed
+- Track `expl3` core changes
+
 ## [2022-04-20]
 
 ### Fixed
@@ -251,7 +275,11 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-04-20...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-05-11...HEAD
+[2023-05-11]: https://github.com/latex3/latex3/compare/2023-04-19...2023-05-11
+[2023-04-19]: https://github.com/latex3/latex3/compare/2023-03-30...2023-04-19
+[2023-03-30]: https://github.com/latex3/latex3/compare/2023-01-24...2023-03-30
+[2023-01-24]: https://github.com/latex3/latex3/compare/2022-04-20...2023-01-24
 [2022-04-20]: https://github.com/latex3/latex3/compare/2022-04-10...2022-04-20
 [2022-04-10]: https://github.com/latex3/latex3/compare/2022-02-05...2022-04-10
 [2022-02-05]: https://github.com/latex3/latex3/compare/2021-11-12...2022-02-05

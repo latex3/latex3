@@ -2,7 +2,7 @@
 %
 %% File: l3backend-opacity.dtx
 %
-% Copyright (C) 2021,2022 The LaTeX Project
+% Copyright (C) 2021-2023 The LaTeX Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2022-08-30}
+% \date{Released 2023-04-19}
 %
 % \maketitle
 %
@@ -53,7 +53,7 @@
 %
 % \begin{implementation}
 %
-% \section{\pkg{l3backend-opacity} Implementation}
+% \section{\pkg{l3backend-opacity} implementation}
 %
 %    \begin{macrocode}
 %<*package>
@@ -286,6 +286,69 @@
 %    \begin{macrocode}
 %</package>
 %    \end{macrocode}
+%
+% \subsection{Font handling integration}
+%
+% In \LuaTeX{} we want to use these functions also for transparent fonts
+% to avoid interference between both uses of transparency.
+%
+%    \begin{macrocode}
+%<*lua>
+%    \end{macrocode}
+%
+% First we need to check if pdfmanagement is active from Lua.
+%    \begin{macrocode}
+local pdfmanagement_active do
+  local pdfmanagement_if_active_p = token.create'pdfmanagement_if_active_p:'
+  local cmd = pdfmanagement_if_active_p.cmdname
+  if cmd == 'undefined_cs' then
+    pdfmanagement_active = false
+  else
+    token.put_next(pdfmanagement_if_active_p)
+    pdfmanagement_active = token.scan_int() ~= 0
+  end
+end
+
+if pdfmanagement_active and luaotfload and luaotfload.set_transparent_colorstack then
+  luaotfload.set_transparent_colorstack(token.create'c__opacity_backend_stack_int'.index)
+
+  local transparent_register = {
+    token.create'pdfmanagement_add:nnn',
+    token.new(0, 1),
+      'Page/Resources/ExtGState',
+    token.new(0, 2),
+    token.new(0, 1),
+      '',
+    token.new(0, 2),
+    token.new(0, 1),
+      '<</ca ',
+      '',
+      '/CA ',
+      '',
+      '>>',
+    token.new(0, 2),
+  }
+  luatexbase.add_to_callback('luaotfload.parse_transparent', function(value)
+    value = (octet * -1):match(value)
+    if not value then
+      tex.error'Invalid transparency value'
+      return
+    end
+    value = value:sub(1, -2)
+    local result = 'opacity' .. value
+    tex.runtoks(function()
+      transparent_register[6], transparent_register[10], transparent_register[12] = result, value, value
+      tex.sprint(-2, transparent_register)
+    end)
+    return '/' .. result .. ' gs'
+  end, 'l3opacity')
+end
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%</lua>
+%    \end{macrocode}
+%
 %
 % \end{implementation}
 %

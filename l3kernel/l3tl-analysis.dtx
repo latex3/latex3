@@ -2,7 +2,7 @@
 %
 %% File: l3tl-analysis.dtx
 %
-% Copyright (C) 2011-2022 The LaTeX Project
+% Copyright (C) 2011-2023 The LaTeX Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -44,7 +44,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2022-08-30}
+% \date{Released 2023-05-15}
 %
 % \maketitle
 %
@@ -169,6 +169,13 @@
 %     \cs{exp_not:n} \Arg{character} \cs{s_@@} \meta{hex catcode}
 %     \meta{char code} \cs{s_@@}.
 % \end{itemize}
+% In contrast, for \cs{peek_analysis_map_inline:n} we must allow for an
+% input stream containing \tn{outer} macros, so that wrapping all
+% control sequences in \cs{exp_not:n} is unsafe.  Instead, we write the
+% more elaborate \cs{__kernel_exp_not:w} \cs{exp_after:wN} |{|
+% \cs{exp_not:N} |\cs| |}|.  (On the other hand we make a better effort
+% by avoiding \cs{exp_not:n} for characters other than active and macro
+% parameters.)
 %
 % ^^A todo: ask LuaTeX list for an \ifx\undefined <active char>
 % ^^A which does not add the <active char> in memory.
@@ -219,9 +226,10 @@
 %   A token list containing the character number~$32$ (space) with all
 %   possible category codes except $1$ and $2$ (begin-group and
 %   end-group).  Why $32$?  Because some \LuaTeX{} versions only allow
-%   creation of catcode~$10$ (space) tokens with this character code,
-%   and because even in other engines it is much easier to produce since
-%   \cs{char_generate:nn} refuses to produce spaces.
+%   creation of catcode~$10$ (space) tokens with this character code, so
+%   that we decided to make \cs{char_generate:nn} refuse to create such
+%   weird spaces as well.  We do not include the macro parameter case
+%   (catcode~$6$) because it cannot be used as a macro delimiter.
 %    \begin{macrocode}
 \group_begin:
 \char_set_active_eq:NN \  \scan_stop:
@@ -229,7 +237,6 @@
   {
     \char_generate:nn { 32 } { 3 }   3
     \char_generate:nn { 32 } { 4 }   4
-    # \char_generate:nn { 32 } { 6 } 6
     \char_generate:nn { 32 } { 7 }   7
     \char_generate:nn { 32 } { 8 }   8
     \c_space_tl                     \token_to_str:N A
@@ -809,7 +816,8 @@
         \scan_stop:
         \exp_after:wN \use_none:n \token_to_str:N #3 \prg_do_nothing:
         \scan_stop:
-      \exp_after:wN \@@_analysis_b_char:Nww
+      \exp_after:wN \@@_analysis_b_char:Nn
+      \exp_after:wN \@@_analysis_b_char_aux:nww
     \else:
       \exp_after:wN \@@_analysis_b_cs:Nww
     \fi:
@@ -819,35 +827,43 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\@@_analysis_b_char:Nww}
+% \begin{macro}[EXP]{\@@_analysis_b_char:Nn, \@@_analysis_b_char_aux:nww}
+%   This function is called here with arguments
+%   \cs{@@_analysis_b_char_aux:nww} and a normal character, while in the
+%   peek analysis code it is called with \cs{use_none:n} and possibly a
+%   space character, which is why the function has signature |Nn|.
 %   If the normal token we grab is a character, leave
 %   \meta{catcode} \meta{charcode} followed by \cs{s_@@}
 %   in the input stream, and call \cs{@@_analysis_b_normals:ww}
 %   with its first argument decremented.
 %    \begin{macrocode}
-\cs_new:Npx \@@_analysis_b_char:Nww #1
+\cs_new:Npx \@@_analysis_b_char:Nn #1#2
   {
-    \exp_not:N \if_meaning:w #1 \exp_not:N \tex_undefined:D
+    \exp_not:N \if_meaning:w #2 \exp_not:N \tex_undefined:D
       \token_to_str:N D \exp_not:N \else:
-    \exp_not:N \if_catcode:w #1 \c_catcode_other_token
+    \exp_not:N \if_catcode:w #2 \c_catcode_other_token
       \token_to_str:N C \exp_not:N \else:
-    \exp_not:N \if_catcode:w #1 \c_catcode_letter_token
+    \exp_not:N \if_catcode:w #2 \c_catcode_letter_token
       \token_to_str:N B \exp_not:N \else:
-    \exp_not:N \if_catcode:w #1 \c_math_toggle_token      3
+    \exp_not:N \if_catcode:w #2 \c_math_toggle_token      3
       \exp_not:N \else:
-    \exp_not:N \if_catcode:w #1 \c_alignment_token        4
+    \exp_not:N \if_catcode:w #2 \c_alignment_token        4
       \exp_not:N \else:
-    \exp_not:N \if_catcode:w #1 \c_math_superscript_token 7
+    \exp_not:N \if_catcode:w #2 \c_math_superscript_token 7
       \exp_not:N \else:
-    \exp_not:N \if_catcode:w #1 \c_math_subscript_token   8
+    \exp_not:N \if_catcode:w #2 \c_math_subscript_token   8
       \exp_not:N \else:
-    \exp_not:N \if_catcode:w #1 \c_space_token
+    \exp_not:N \if_catcode:w #2 \c_space_token
       \token_to_str:N A \exp_not:N \else:
       6
     \exp_not:n { \fi: \fi: \fi: \fi: \fi: \fi: \fi: \fi: }
-    \exp_not:N \int_value:w `#1 \s_@@
-   \exp_not:N \exp_after:wN \exp_not:N \@@_analysis_b_normals:ww
-     \exp_not:N \int_value:w \exp_not:N \int_eval:w - 1 +
+    #1 {#2}
+  }
+\cs_new:Npn \@@_analysis_b_char_aux:nww #1
+  {
+    \int_value:w `#1 \s_@@
+    \exp_after:wN \@@_analysis_b_normals:ww
+      \int_value:w \int_eval:w - 1 +
   }
 %    \end{macrocode}
 % \end{macro}
@@ -1170,10 +1186,12 @@
 %   {
 %     \peek_analysis_map_inline:n,
 %     \@@_peek_analysis_loop:NNn, \@@_peek_analysis_test:,
-%     \@@_peek_analysis_normal:N, \@@_peek_analysis_cs:,
-%     \@@_peek_analysis_char:N, \@@_peek_analysis_char:nN,
+%     \@@_peek_analysis_exp:N, \@@_peek_analysis_exp_active:N,
+%     \@@_peek_analysis_nonexp:N, \@@_peek_analysis_cs:N,
+%     \@@_peek_analysis_char:N, \@@_peek_analysis_char:w,
 %     \@@_peek_analysis_special:, \@@_peek_analysis_retest:,
-%     \@@_peek_analysis_next:, \@@_peek_analysis_str:,
+%     \@@_peek_analysis_next:, \@@_peek_analysis_nextii:,
+%     \@@_peek_analysis_str:,
 %     \@@_peek_analysis_str:w, \@@_peek_analysis_str:n,
 %     \@@_peek_analysis_active_str:n, \@@_peek_analysis_explicit:n,
 %     \@@_peek_analysis_escape:, \@@_peek_analysis_collect:w,
@@ -1184,7 +1202,8 @@
 %   nested maps.  We may wish to pass to this function an \tn{outer}
 %   control sequence or active character; for this we will undefine
 %   potentially-\tn{outer} tokens within a group, closed after the
-%   function receives its arguments.  This user's code function also
+%   function reads its arguments (for an \tn{outer} active character
+%   there is no good alternative).  This user's code function also
 %   calls the loop auxiliary, and includes the trailing
 %   \cs{prg_break_point:Nn} for when the user wants to stop the loop.
 %   The loop auxiliary must remove that break point because it must look
@@ -1209,7 +1228,8 @@
 %    \end{macrocode}
 %   The loop starts a group (closed by the user-code function defined
 %   above) with a normalized escape character, and checks if the next
-%   token is special or \texttt{N}-type.
+%   token is special or \texttt{N}-type (distinguishing expandable from
+%   non-expandable tokens).
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_peek_analysis_loop:NNn #1#2#3
   {
@@ -1224,60 +1244,159 @@
   }
 \cs_new_protected:Npn \@@_peek_analysis_test:
   {
-    \if_int_odd:w
-      \if_catcode:w \exp_not:N \l_peek_token {   \c_zero_int \fi:
-      \if_catcode:w \exp_not:N \l_peek_token }   \c_zero_int \fi:
-      \if_meaning:w \l_peek_token \c_space_token \c_zero_int \fi:
-      \c_one_int
+    \if_case:w
+      \if_catcode:w \exp_not:N \l_peek_token {   \c_max_int \fi:
+      \if_catcode:w \exp_not:N \l_peek_token }   \c_max_int \fi:
+      \if_meaning:w \l_peek_token \c_space_token \c_max_int \fi:
+      \exp_after:wN \if_meaning:w \exp_not:N \l_peek_token \l_peek_token
+        \c_one_int
+      \fi:
+      \c_zero_int
       \exp_after:wN \exp_after:wN
-      \exp_after:wN \@@_peek_analysis_normal:N
+      \exp_after:wN \@@_peek_analysis_exp:N
       \exp_after:wN \exp_not:N
+    \or:
+      \exp_after:wN \@@_peek_analysis_nonexp:N
     \else:
       \exp_after:wN \@@_peek_analysis_special:
     \fi:
   }
 %    \end{macrocode}
-%   Normal tokens are not too hard, but can be \tn{outer}, hence the
-%   \cs{exp_not:N} in the code above.  If the token is expandable then
-%   it might be an \tn{outer} or a \TeX{} conditional, so to be safe we
-%   set it to \cs{scan_stop:} (the assignment is local and stopped by
-%   the \cs{group_end:} upon calling the user's code).  Then distinguish
-%   characters (including active ones and macro parameter characters)
-%   from control sequences (whose string representation is more than one
-%   character because the escape character is printable).  For a control
-%   sequence call the user code with suitable arguments.
+%   Expandable tokens (which are automatically |N|-type) can be
+%   \tn{outer} macros, hence the need for \cs{exp_after:wN} and
+%   \cs{exp_not:N} in the code above, which allows the next function to
+%   safely grab the token as an argument.  We run some code that is
+%   expanded using the primitive \cs{cs_set_nopar:Npx} rather than
+%   \cs{tl_set:Nx} to avoid grabbing it as an argument as |#1| may be
+%   \tn{outer}.  To allow~|#1| as an argument of the user's function
+%   (stored in \cs{l_@@_peek_code_tl}), we set it equal to
+%   \cs{scan_stop:}, but we do it at the last minute because |#1|
+%   may be some pretty important function such as \cs{exp_after:wN}.
+%   Then we put the user's function and the elaborate first argument
+%   \cs{__kernel_exp_not:w} \cs{exp_after:wN} |{| \cs{exp_not:N} |#1| |}|:
+%   indeed we cannot use \cs{exp_not:n} |{#1}| as this breaks for an
+%   \tn{outer} macro and we cannot use \cs{exp_not:N} |#1|, as
+%   \texttt{o}-expanding this yields a \enquote{notexpanded} token equal
+%   to (a weird) \tn{relax}, which would have the wrong value for
+%   primitive \TeX{} conditionals such as \cs{if_meaning:w}.
+%
+%   Then we must add |{-1}0| if the token is a
+%   control sequence and \Arg{charcode}|D| otherwise.  Distinguishing
+%   the two cases is easy: since we have made the escape character
+%   printable, \cs{token_to_str:N} gives at least two characters for a
+%   control sequence versus a single one for an active character
+%   (possibly being a space).  Producing the right outcome is trickier,
+%   as |#1| cannot appear in either branch of the conditional (it could
+%   be \tn{outer}, or simply a \TeX{} conditional), and can only be
+%   safely discarded by \cs{use_none:n} if it is first hit with
+%   \cs{exp_not:N}.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_peek_analysis_normal:N #1
+\cs_new_protected:Npn \@@_peek_analysis_exp:N #1
   {
-    \exp_after:wN \reverse_if:N \exp_after:wN \if_meaning:w
-        \exp_not:N #1 #1
-      \tex_let:D #1 \scan_stop:
-      \tl_put_right:Nn \l_@@_peek_code_tl { { \exp_not:N #1 } }
-    \else:
-      \tl_put_right:Nn \l_@@_peek_code_tl { { \exp_not:n {#1} } }
-    \fi:
+    \cs_set_nopar:Npx \l_@@_peek_code_tl
+      {
+        \tex_let:D \exp_not:N #1 \scan_stop:
+        \exp_not:o \l_@@_peek_code_tl
+        {
+          \exp_not:n { \__kernel_exp_not:w \exp_after:wN }
+            { \exp_not:N \exp_not:N \exp_not:N #1 }
+        }
+        \if:w \scan_stop:
+              \exp_after:wN \use_none:n \token_to_str:N #1 \prg_do_nothing:
+              \scan_stop:
+          \exp_after:wN \exp_after:wN
+          \exp_after:wN \@@_peek_analysis_exp_active:N
+        \else:
+          { -1 } 0
+          \exp_after:wN \exp_after:wN
+          \exp_after:wN \use_none:n
+        \fi:
+        \exp_not:N #1
+      }
+    \l_@@_peek_code_tl
+  }
+\cs_new:Npx \@@_peek_analysis_exp_active:N #1
+  { { \exp_not:N \int_value:w `#1 } \token_to_str:N D }
+%    \end{macrocode}
+%   For normal non-expandable tokens we must distinguish characters
+%   (including active ones and macro parameter characters) from control
+%   sequences (whose string representation is more than one character
+%   because we made the escape character printable).  For a control
+%   sequence call the user code with suitable arguments, wrapping |#1|
+%   within \cs{exp_not:n} just in case it happens to be equal to a macro
+%   parameter character.  We do not skip \cs{exp_not:n} when
+%   unnecessary, because there might be situations where the argument
+%   could be used by the user after further redefinitions of the token,
+%   and it seems more convenient to know that \cs{exp_not:n} is always
+%   used.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_peek_analysis_nonexp:N #1
+  {
     \if_charcode:w
         \scan_stop:
         \exp_after:wN \use_none:n \token_to_str:N #1 \prg_do_nothing:
         \scan_stop:
       \exp_after:wN \@@_peek_analysis_char:N
-      \exp_after:wN #1
     \else:
-      \exp_after:wN \@@_peek_analysis_cs:
+      \exp_after:wN \@@_peek_analysis_cs:N
     \fi:
+    #1
   }
-\cs_new_protected:Npn \@@_peek_analysis_cs:
-  { \l_@@_peek_code_tl { -1 } 0 }
-\cs_new_protected:Npn \@@_peek_analysis_char:N #1
+\cs_new_protected:Npn \@@_peek_analysis_cs:N #1
+  { \l_@@_peek_code_tl { \exp_not:n {#1} } { -1 } 0 }
+%    \end{macrocode}
+%   For normal characters we must determine their catcode.  The main
+%   difficulty is that the character may be an active character
+%   masquerading as (i.e., set equal to) itself with a different
+%   catcode.  Two approaches based on \tn{lowercase} can detect this.
+%   One could make an active character with the same catcode as~|#1| and
+%   change its definition before testing the catcode of~|#1|, but in
+%   some Unicode engine this fills up the hash table uselessly.
+%   Instead, we lowercase~|#1| itself, changing its character code
+%   to~$32$, namely space (because \LuaTeX{} cannot turn catcode~$10$
+%   characters to anything else than character code~$32$), then we apply
+%   \cs{@@_analysis_b_char:Nn}, which detects active characters by
+%   comparing them to \cs{tex_undefined:D}, and we must have undefined
+%   the active space for this test to work ---we use an |x|-expanding
+%   assignment to get the active space in the right place.  Finally
+%   \cs{@@_peek_analysis_char:w} puts the arguments in the correct
+%   order, including \cs{exp_not:n} for macro parameter characters and
+%   active characters (the latter could be macro parameter characters,
+%   and it seems more uniform to always put \cs{exp_not:n}).
+%    \begin{macrocode}
+\group_begin:
+\char_set_active_eq:NN \ \scan_stop:
+\cs_new_protected:Npx \@@_peek_analysis_char:N #1
   {
-    \char_set_lccode:nn { `#1 } { 32 }
-    \tex_lowercase:D { \@@_peek_analysis_char:nN {#1} } #1
+    \cs_set_eq:NN
+      \char_generate:nn { 32 } { 13 }
+      \exp_not:N \tex_undefined:D
+    \tex_lccode:D `#1 = 32 \exp_stop_f:
+    \tex_lowercase:D
+      {
+        \tl_put_right:Nx \exp_not:N \l_@@_peek_code_tl
+          { \exp_not:n { \@@_analysis_b_char:Nn \use_none:n } {#1} }
+      }
+    \exp_not:n
+      {
+        \exp_after:wN \@@_peek_analysis_char:w
+        \int_value:w
+      }
+      `#1
+    \exp_not:n { \exp_after:wN \s_@@ \l_@@_peek_code_tl }
+    #1
   }
-\cs_new_protected:Npn \@@_peek_analysis_char:nN #1#2
+\group_end:
+\cs_new_protected:Npn \@@_peek_analysis_char:w #1 \s_@@ #2#3#4
   {
-    \cs_set_protected:Npn \@@_tmp:w ##1 #1 ##2 ##3 \scan_stop:
-      { \exp_args:No \l_@@_peek_code_tl { \int_value:w `#2 } ##2 }
-    \exp_after:wN \@@_tmp:w \c_@@_peek_catcodes_tl \scan_stop:
+    \if_charcode:w 6 #3
+    \else:
+      \if_charcode:w D #3
+      \else:
+        \exp_args:NNNo
+      \fi:
+    \fi:
+    #2 { \exp_not:n {#4} } {#1} #3
   }
 %    \end{macrocode}
 %   For special characters the idea is to eventually act with
@@ -1319,6 +1438,8 @@
 %   active character with the same character code as its meaning or as
 %   the escape character).  Now look at the \meta{next token} following
 %   it using a combination of \tn{afterassignment} and \tn{futurelet}.
+%   (In fact look twice to reset an internal \TeX{} flag in case the
+%   \meta{next token} had been hit with \cs{exp_not:N}.)
 %   The syntax of this primitive is \tn{futurelet} \meta{peek token}
 %   \meta{first token} \meta{next token}, and it sets \meta{peek token}
 %   equal to \meta{next token}.  Traditionally, one takes \meta{first
@@ -1335,6 +1456,11 @@
   {
     \tl_if_empty:oT { \tex_the:D \tex_everyeof:D }
       { \tex_everyeof:D { \scan_stop: } }
+    \tex_afterassignment:D \@@_peek_analysis_nextii:
+    \tex_futurelet:D \l_@@_analysis_next_token
+  }
+\cs_new_protected:Npn \@@_peek_analysis_nextii:
+  {
     \tex_afterassignment:D \@@_peek_analysis_str:
     \tex_futurelet:D \l_@@_analysis_next_token
   }
