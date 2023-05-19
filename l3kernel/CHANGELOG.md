@@ -19,8 +19,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Omit `0123456789` from URL escaping (issue \#838)
-- Leave implicit chars unchanged in `\text_expand:n` (fixes \#874)
-- Handling of implicit chars in `\text_purify:n` (fixes \#1208)
+- Leave implicit chars unchanged in `\text_expand:n` (issue \#874)
+- Handling of implicit chars in `\text_purify:n` (issue \#1208)
 
 ## [2023-05-15]
 
@@ -903,7 +903,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-10-28]
 
 ### Fixed
-- File searching when `\(pdf)filesize` is not available (fixes \#644)
+- File searching when `\(pdf)filesize` is not available (issue \#644)
 
 ## [2019-10-27]
 
@@ -1003,7 +1003,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-09-08]
 
 ### Fixed
-- Missing internal variant (fixes \#624)
+- Missing internal variant (issue \#624)
 
 ## [2019-09-05]
 
@@ -1281,7 +1281,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2018-10-19]
 
 ### Fixed
-- Wrapping of text in messages, etc., for some line lengths (fixes \#491)
+- Wrapping of text in messages, etc., for some line lengths (issue \#491)
 
 ## [2018-10-17]
 
@@ -1296,7 +1296,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\msg_interrupt:nn`, `\msg_log:n` and `\msg_term:n`
 
 ### Fixed
-- Handling of inheritance for choice keys (fixes \#483)
+- Handling of inheritance for choice keys (issue \#483)
 
 ## [2018-09-24]
 
@@ -1306,7 +1306,7 @@ this project uses date-based 'snapshot' version identifiers.
   `\peek_meaning_collect_inline:Nn`
 
 ### Fixed
-- Handling of unknown keys when inheritance is active (fixes \#481)
+- Handling of unknown keys when inheritance is active (issue \#481)
 
 ## [2018-08-23]
 
@@ -1328,7 +1328,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2018-06-01]
 
 ### Added
-- `CHANGELOG.md` (fixes \#460)
+- `CHANGELOG.md` (issue \#460)
 
 ### Fixed
 - Loading `expl3` with LuaTeX/XeTeX and certain letter tokens set
@@ -1366,7 +1366,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Several internal optimisations
 
 ### Fixed
-- Expand boolean expression before calling `\chardef` (fixes \#461)
+- Expand boolean expression before calling `\chardef` (issue \#461)
 
 ### Removed
 - Remove undocumented `\fp_function:Nw` and `\fp_new_function:Npn`
@@ -1395,15 +1395,15 @@ this project uses date-based 'snapshot' version identifiers.
   the RNG
 - Make prg break functions public
 - Make scan marks mechanism public
-- Make `\prg_do_nothing:` long rather than nopar (fixes \#455)
+- Make `\prg_do_nothing:` long rather than nopar (issue \#455)
 - Several performance improvements
 - Documentation improvements
 
 ### Fixed
 - Only index TF, T, F functions together if they are `expl3`
-  functions (fixes \#453)
+  functions (issue \#453)
 - Make `\infty` and `\pi` into errors in fp expressions
-  (fixes \#357)
+  (issue \#357)
 
 ### Removed
 - Deprecated functions expiring at end of 2017
