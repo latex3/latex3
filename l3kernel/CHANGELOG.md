@@ -13,6 +13,9 @@ this project uses date-based 'snapshot' version identifiers.
 - `\coffin_(g)reset_poles:N`
 - `\int_if_zero:n(TF)`
 
+### Changed
+- Remove `\noexpand` inside math mode in `\text_expand:n`
+
 ### Fixed
 - Omit `0123456789` from URL escaping (issue \#838)
 - Leave implicit chars unchanged in `\text_expand:n` (fixes \#874)
@@ -36,7 +39,6 @@ this project uses date-based 'snapshot' version identifiers.
 - Moved `\seq_set_item:Nnn` to stable status
 - Track seen filenames to improve performance of
   `\file_full_name:n` and dependent file operations
-- Remove `\noexpand` inside math mode in `\text_expand:n`
 
 ### Removed
 - Experimental function `\seq_pop_item:NnN` from `l3candidates`
