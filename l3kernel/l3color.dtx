@@ -2,7 +2,7 @@
 %
 %% File: l3color.dtx
 %
-% Copyright (C) 2017-2022 The LaTeX Project
+% Copyright (C) 2017-2023 The LaTeX Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2022-08-05}
+% \date{Released 2023-05-15}
 %
 % \maketitle
 %
@@ -125,6 +125,10 @@
 % \begin{itemize}
 %   \item \texttt{cmy} Cyan-magenta-yellow color with three axes, one for
 %     each of the components; converted to |cmyk|
+%   \item \texttt{tHsb} \enquote{Tuned} hue-saturation-brightness color with three
+%     axes, integer in the range $[0,360]$ for hue, real values in the range
+%     $[0,1]$ for saturation and brightness; converted to |rgb| using the
+%     standard tuning map defined by \pkg{xcolor}
 %   \item \texttt{\&spot} Spot color tint with one value; treated as a gray
 %     tint as spot color data is not available for extraction
 % \end{itemize}
@@ -151,13 +155,13 @@
 % In addition to allowing specification of color by model and values,
 % \pkg{l3color} also supports color expressions. These are created
 % by combining one or more color names, with the amount of each specified
-% as a percentage. The latter is given between |!| symbols in the expression.
-% Thus for example
+% as a value in the range $0$--$100$. The value should be given between
+% |!| symbols in the expression. Thus for example
 % \begin{verbatim}
 %   red!50!green
 % \end{verbatim}
-% is a mixture of $50\,\%$ red and $50\,\%$ green. A trailing percentage is
-% interpreted as implicitly followed by |white|, and so
+% is a mixture of $50\,\%$ red and $50\,\%$ green. A trailing value is
+% interpreted as implicitly followed by |!white|, and so
 % \begin{verbatim}
 %   red!25
 % \end{verbatim}
@@ -248,8 +252,8 @@
 %
 % \begin{function}[EXP, pTF, added = 2022-08-12]{\color_if_exist:n}
 %   \begin{syntax}
-%     \cs{color_if_exist:n} \Arg{name}
-%     \cs{color_if_exist:n} \Arg{name} \Arg{true code} \Arg{false code}
+%     \cs{color_if_exist_p:n} \Arg{name}
+%     \cs{color_if_exist:nTF} \Arg{name} \Arg{true code} \Arg{false code}
 %   \end{syntax}
 %   Tests whether \meta{name} is currently defined to provide a color
 %   specification.
@@ -508,7 +512,7 @@
 %
 % \begin{implementation}
 %
-% \section{\pkg{l3color} Implementation}
+% \section{\pkg{l3color} implementation}
 %
 %    \begin{macrocode}
 %<*package>
@@ -602,7 +606,6 @@
 \tl_set:Nn \l_@@_current_tl { { gray } { 0 } }
 %    \end{macrocode}
 % \end{variable}
-
 %
 % \subsection{Predefined color names}
 %
@@ -637,6 +640,14 @@
 %   Internal scan marks. \cs{s_@@_stop} is already defined in \pkg{l3color-base}.
 %    \begin{macrocode}
 \scan_new:N \s_@@_mark
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_ignore_error_bool}
+%   Used to avoid issuing multiple errors if there is a change-of-model with
+%   input container an error.
+%    \begin{macrocode}
+\bool_new:N \l_@@_ignore_error_bool
 %    \end{macrocode}
 % \end{variable}
 %
@@ -822,6 +833,7 @@
 % \begin{macro}{\@@_parse:Nw}
 % \begin{macro}{\@@_parse_loop_init:Nnn}
 % \begin{macro}{\@@_parse_loop:w}
+% \begin{macro}{\@@_parse_loop_check:nn}
 % \begin{macro}{\@@_parse_loop:nn}
 % \begin{macro}{\@@_parse_gray:n, \@@_parse_std:n}
 % \begin{macro}{\@@_parse_break:w}
@@ -933,17 +945,11 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_parse_loop:w #1 ! #2 ! #3 ! #4 ! #5 \s_@@_stop
   {
-    \bool_lazy_or:nnF
-      { \tl_if_blank_p:n {#1} }
-      { \int_compare_p:nNn {#1} = { 100 } }
+    \tl_if_blank:nF {#1}
       {
-        \int_compare:nNnTF {#1} = { 0 }
-          {
-            \tl_if_blank:nTF {#2}
-              { \@@_extract:nNN { white } }
-              { \@@_extract:nNN {#2} }
-                \l_@@_model_tl \l_@@_value_tl
-          }
+        \bool_lazy_and:nnTF
+          { \fp_compare_p:nNn {#1} > { 0 } }
+          { \fp_compare_p:nNn {#1} < { 100 } }
           {
             \use:x
               {
@@ -951,10 +957,33 @@
                   { \tl_if_blank:nTF {#2} { white } {#2} }
               }
           }
+          { \@@_parse_loop_check:nn {#1} {#2} }
       }
     \tl_if_blank:nF {#3}
       { \@@_parse_loop:w #3 ! #4 ! #5 \s_@@_stop }
     \@@_parse_end:
+  }
+%    \end{macrocode}
+%   As these are unusual cases, we accept slower performance here for clearer
+%   code: check for the error conditions, handle the boundary cases after
+%   that.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_parse_loop_check:nn #1#2
+  {
+    \bool_if:NF \l_@@_ignore_error_bool
+      {
+        \bool_lazy_or:nnT
+          { \fp_compare_p:nNn {#1} < { 0 } }
+          { \fp_compare_p:nNn {#1} > { 100 } }
+          { \msg_error:nnnnn { color } { out-of-range } {#1} { 0 } { 100 } }
+      }
+    \fp_compare:nNnF {#1} > \c_zero_fp
+      {
+        \tl_if_blank:nTF {#2}
+          { \@@_extract:nNN { white } }
+          { \@@_extract:nNN {#2} }
+            \l_@@_model_tl \l_@@_value_tl
+      }
   }
 %    \end{macrocode}
 %   The \enquote{payload} of calculation in the loop first. If the model for
@@ -1062,6 +1091,7 @@
 % \end{macro}
 % \end{macro}
 % \end{macro}
+% \end{macro}
 %
 % \begin{macro}[EXP]
 %   {
@@ -1146,7 +1176,7 @@
     { rgb }
     {
       \exp_args:Ne \@@_parse_model_hsb_aux:nnn
-        { \fp_eval:n { 6 * #1 } } {#2} {#3}
+        { \fp_eval:n { 6 * (#1) } } {#2} {#3}
     }
   }
 \cs_new:Npn \@@_parse_model_hsb_aux:nnn #1#2#3
@@ -1179,9 +1209,9 @@
 \cs_new:Npn \@@_parse_model_HSB:w #1 , #2 , #3 , #4 \s_@@_stop
   {
     \exp_args:Neee \@@_parse_model_hsb:nnn
-      { \fp_eval:n {#1 / 240} }
-      { \fp_eval:n {#2 / 240} }
-      { \fp_eval:n {#3 / 240} }
+      { \fp_eval:n { round((#1) / 240,5) } }
+      { \fp_eval:n { round((#2) / 240,5) } }
+      { \fp_eval:n { round((#3) / 240,5) } }
   }
 \cs_new:Npn \@@_parse_model_HTML:w #1 , #2 \s_@@_stop
   { \@@_parse_model_HTML_aux:w #1 0 0 0 0 0 0 \s_@@_stop }
@@ -1198,9 +1228,9 @@
   {
     { rgb }
     {
-      \fp_eval:n { round(#1 / 255,5) } ~
-      \fp_eval:n { round(#2 / 255,5) } ~
-      \fp_eval:n { round(#3 / 255,5) }
+      \fp_eval:n { round((#1) / 255,5) } ~
+      \fp_eval:n { round((#2) / 255,5) } ~
+      \fp_eval:n { round((#3) / 255,5) }
     }
   }
 %    \end{macrocode}
@@ -1292,6 +1322,50 @@
     { \@@_convert_rgb_cmyk:nnn {#1} {#2} {#3} }
   }
 %    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_parse_model_tHsb:w}
+% \begin{macro}{\@@_parse_model_tHsb:n}
+% \begin{macro}{\@@_parse_model_tHsb:nw}
+%   There are three stages to the process here: bring the |tH| argument into
+%   the normal range, divide through to get to |hsb| and finally convert that
+%   to |rgb|. The final stage can be delegated to the parsing function for
+%   |hsb|, and the conversion from |Hsb| to |hsb| is trivial, so the main focus
+%   here is the first stage. We use a simple expandable loop to do the work,
+%   and we implement the equation given in the \pkg{xcolor} manual
+%   (number~85 there) as a simple expression.
+%    \begin{macrocode}
+\cs_new:Npn \@@_parse_model_tHsb:w #1 , #2 , #3 , #4 \s_@@_stop
+  {
+    \exp_args:Ne \@@_parse_model_hsb:nnn
+      { \@@_parse_model_tHsb:n {#1} } {#2} {#3}
+  }
+\cs_new:Npn \@@_parse_model_tHsb:n #1
+  {
+    \@@_parse_model_tHsb:nw {#1}
+        0 ,   0 ; 
+       60 ,  30 ;
+      120 ,  60 ;
+      180 , 120 ;
+      210 , 180 ;
+      240 , 240 ;
+      360 , 360 ;
+      \q_recursion_tail , ;
+      \q_recursion_stop
+  }
+\cs_new:Npn \@@_parse_model_tHsb:nw #1 #2 , #3 ; #4 , #5 ;
+  {
+    \quark_if_recursion_tail_stop_do:nn {#4} { 0 }
+    \fp_compare:nNnTF {#1} > {#4}
+      { \@@_parse_model_tHsb:nw {#1} #4 , #5 ; }
+      {
+        \use_i_delimit_by_q_recursion_stop:nw
+          { \fp_eval:n { ((#1 - #2) / (#4 - #2) * (#5 - #3) + #3) / 360 } }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}{\@@_parse_model_&spot:w}
@@ -1732,6 +1806,7 @@
             \prop_if_in:cnF { l_@@_named_ #1 _prop } {##1}
               {
                 \group_begin:
+                  \bool_set_true:N \l_@@_ignore_error_bool
                   \tl_set:cn { l_@@_named_ #3 _tl } {##1}
                   \@@_parse:nN {#2} \l_@@_internal_tl
                 \exp_args:NNNV \group_end:
@@ -2098,7 +2173,7 @@
   {
     \exp_args:Nee \@@_model_new:nnn
       { \tl_to_str:n {#1} }
-      { \str_foldcase:n {#2} } {#3}
+      { \str_casefold:n {#2} } {#3}
   }
 \cs_new_protected:Npn \@@_model_new:nnn #1#2#3
   {
@@ -2120,31 +2195,31 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_model_init:nnnn, \@@_model_init:nnnx}
+% \begin{macro}{\@@_model_init:nnn, \@@_model_init:nnx}
 %   A shared auxiliary to do the basics of setting up a new model: reserve a
 %   number, create a white-equivalent, set up links to the backend.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_model_init:nnnn #1#2#3#4
+\cs_new_protected:Npn \@@_model_init:nnn #1#2#3
   {
     \int_gincr:N \g_@@_model_int
     \clist_map_inline:nn { fill , stroke , select }
       {
         \cs_new_protected:cpx { @@_backend_ ##1 _ #1 :n } ####1
           {
-            \exp_not:c { @@_backend_ ##1 _ #3 :nn }
+            \exp_not:c { @@_backend_ ##1 _ #2 :nn }
               { color \int_use:N \g_@@_model_int } {####1}
           }
       }
     \cs_new_protected:cpx { @@_model_ #1 _white: }
       {
         \prop_put:Nnn \exp_not:N \l_@@_named_white_prop {#1}
-        { \exp_not:n {#4} }
+          { \exp_not:n {#3} }
         \exp_not:N \int_compare:nNnF { \tex_currentgrouplevel:D } = 0
           { \group_insert_after:N \exp_not:c { @@_model_ #1 _ white: } }
       }
     \use:c { @@_model_ #1 _white: }
   }
-\cs_generate_variant:Nn \@@_model_init:nnnn { nnnx }
+\cs_generate_variant:Nn \@@_model_init:nnn { nnx }
 %    \end{macrocode}
 % \end{macro}
 %
@@ -2227,7 +2302,7 @@
 \cs_new_protected:Npn \@@_model_separation:w
   #1 , #2 , #3 , #4 , #5 \s_@@_stop #6#7#8
   {
-    \@@_model_init:nnnn {#6} { 1 } { separation } { 0 }
+    \@@_model_init:nnn {#6} { separation } { 0 }
     \cs_new_eq:cN { @@_parse_mix_ #6 :nw } \@@_parse_mix_gray:nw
     \cs_new:cpn { @@_parse_model_ #6 :w } ##1 , ##2 \s_@@_stop
       { {#6} { \@@_parse_number:n {##1} } }
@@ -2456,7 +2531,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_model_devicen:nnnn #1#2#3#4
   {
-    \@@_model_init:nnnx {#4} {#1} { devicen }
+    \@@_model_init:nnx {#4} { devicen }
       {
         0 \prg_replicate:nn { #1 - 1 } { ~ 0 }
       }
@@ -2906,7 +2981,7 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_model_iccbased_aux:nnnnnn #1#2#3#4#5#6
   {
-    \@@_model_init:nnnn {#5} {#1} { iccbased } {#3}
+    \@@_model_init:nnn {#5} { iccbased } {#3}
     \tl_const:cn { c_@@_fallback_ #5 _tl } { gray }
     \cs_new:cpn { @@_convert_ #5 _gray:w } ##1 \s_@@_stop { 0 }
     \cs_new:cpn { @@_convert_gray_ #5 :w } ##1 \s_@@_stop { #2 }
@@ -3068,6 +3143,13 @@
   {
     LaTeX~was~asked~to~define~a~new~color~model~called~'#1',~but~
     this~color~model~already~exists.
+  }
+\msg_new:nnnn { color } { out-of-range }
+  { Input~value~#1~out~of~range~[#2,~#3]. }
+  {
+    LaTeX~was~expecting~a~value~in~the~range~[#2,~#3]~as~part~of~a~color,~
+    but~you~gave~#1.~LaTeX~will~assume~you~meant~the~limit~of~the~range~
+    and~continue.
   }
 \msg_new:nnnn { color } { separation-alternative-model }
   { Separation~color~space~'#1'~require~an~alternative~model. }

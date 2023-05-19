@@ -2,7 +2,7 @@
 %
 %% File: l3backend-pdf.dtx
 %
-% Copyright (C) 2019-2022 The LaTeX Project
+% Copyright (C) 2019-2023 The LaTeX Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2022-08-05}
+% \date{Released 2023-04-19}
 %
 % \maketitle
 %
@@ -53,7 +53,7 @@
 %
 % \begin{implementation}
 %
-% \section{\pkg{l3backend-pdf} Implementation}
+% \section{\pkg{l3backend-pdf} implementation}
 %
 %    \begin{macrocode}
 %<*package>
@@ -69,13 +69,21 @@
 % \subsection{Shared code}
 %
 % A very small number of items that belong at the backend level but which
-% are common to all backends.
+% are common to most backends.
+%
+%    \begin{macrocode}
+%<*!dvisvgm>
+%    \end{macrocode}
 %
 % \begin{variable}{\l_@@_internal_box}
 %    \begin{macrocode}
 \box_new:N \l_@@_internal_box
 %    \end{macrocode}
 % \end{variable}
+%
+%    \begin{macrocode}
+%</!dvisvgm>
+%    \end{macrocode}
 %
 % \subsection{\texttt{dvips} backend}
 %
@@ -105,33 +113,34 @@
 %
 % \subsubsection{Objects}
 %
-% \begin{variable}{\g_@@_backend_object_int, \g_@@_backend_object_prop}
-%   For tracking objects to allow finalisation.
+% \begin{variable}{\g_@@_backend_object_int}
+%   For tracking objects.
 %    \begin{macrocode}
 \int_new:N \g_@@_backend_object_int
-\prop_new:N \g_@@_backend_object_prop
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\@@_backend_object_new:nn}
+% \begin{macro}{\@@_backend_object_new:n}
 % \begin{macro}[EXP]{\@@_backend_object_ref:n}
-%   Tracking objects is similar to \texttt{dvipdfmx}.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_object_new:nn #1#2
+\cs_new_protected:Npn \@@_backend_object_new:n #1
   {
     \int_gincr:N \g_@@_backend_object_int
     \int_const:cn
-      { c_@@_backend_object_ \tl_to_str:n {#1} _int }
+      { c_@@_object_ \tl_to_str:n {#1} _int }
       { \g_@@_backend_object_int }
-    \prop_gput:Nnn \g_@@_backend_object_prop {#1} {#2}
   }
 \cs_new:Npn \@@_backend_object_ref:n #1
-  { { pdf.obj \int_use:c { c_@@_backend_object_ \tl_to_str:n {#1} _int } } }
+  { { pdf.obj \int_use:c { c_@@_object_ \tl_to_str:n {#1} _int } } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\@@_backend_object_write:nn, \@@_backend_object_write:nx}
+% \begin{macro}
+%   {
+%     \@@_backend_object_write:nnn, \@@_backend_object_write:nnx,
+%     \@@_backend_object_write_aux:nnn
+%   }
 % \begin{macro}
 %   {
 %     \@@_backend_object_write_array:nn   ,
@@ -141,16 +150,23 @@
 %   }
 % \begin{macro}{\@@_backend_object_write_stream:nnn}
 %   This is where we choose the actual type: some work to get things
-%   right.
+%   right. To allow code sharing with the anonymous version, we use an
+%   auxiliary.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_object_write:nn #1#2
+\cs_new_protected:Npn \@@_backend_object_write:nnn #1#2#3
+  {
+    \@@_backend_object_write_aux:nnn
+      { \@@_backend_object_ref:n {#1} }
+      {#2} {#3}
+  }
+\cs_generate_variant:Nn \@@_backend_object_write:nnn { nnx }
+\cs_new_protected:Npn \@@_backend_object_write_aux:nnn #1#2#3
   {
     \@@_backend_pdfmark:x
       {
-        /_objdef ~ \@@_backend_object_ref:n {#1}
+        /_objdef ~ #1
         /type
-        \str_case_e:nn
-          { \prop_item:Nn \g_@@_backend_object_prop {#1} }
+        \str_case:nn {#2}
           {
             { array }   { /array }
             { dict }    { /dict }
@@ -159,11 +175,8 @@
           }
         /OBJ
       }
-    \use:c
-      { @@_backend_object_write_ \prop_item:Nn \g_@@_backend_object_prop {#1} :nn }
-      { \@@_backend_object_ref:n {#1} } {#2}
+    \use:c { @@_backend_object_write_ #2 :nn } {#1} {#3}
   }
-\cs_generate_variant:Nn \@@_backend_object_write:nn { nx }
 \cs_new_protected:Npn \@@_backend_object_write_array:nn #1#2
   {
     \@@_backend_pdfmark:x
@@ -213,22 +226,9 @@
 \cs_new_protected:Npn \@@_backend_object_now:nn #1#2
   {
     \int_gincr:N \g_@@_backend_object_int
-    \@@_backend_pdfmark:x
-      {
-        /_objdef ~ { pdf.obj \int_use:N \g_@@_backend_object_int }
-        /type
-        \str_case:nn
-          {#1}
-          {
-            { array }   { /array }
-            { dict }    { /dict }
-            { fstream } { /stream }
-            { stream }  { /stream }
-          }
-        /OBJ
-      }
-    \exp_args:Nnx \use:c { @@_backend_object_write_ #1 :nn }
-      { { pdf.obj \int_use:N \g_@@_backend_object_int } } {#2}
+    \@@_backend_object_write_aux:nnn
+      { { pdf.obj \int_use:N \g_@@_backend_object_int } }
+      {#1} {#2}
   }
 \cs_generate_variant:Nn \@@_backend_object_now:nn { nx }
 %    \end{macrocode}
@@ -971,12 +971,12 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\@@_backend_object_new:nn}
+% \begin{macro}{\@@_backend_object_new:n}
 % \begin{macro}[EXP]{\@@_backend_object_ref:n}
 %   Declaring objects means reserving at the PDF level plus starting
 %   tracking.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_object_new:nn #1#2
+\cs_new_protected:Npn \@@_backend_object_new:n #1
   {
 %<*luatex>
     \tex_pdfextension:D obj ~
@@ -986,27 +986,27 @@
 %</pdftex>
       reserveobjnum ~
       \int_const:cn
-        { c_@@_backend_object_ \tl_to_str:n {#1} _int }
+        { c_@@_object_ \tl_to_str:n {#1} _int }
 %<*luatex>
         { \tex_pdffeedback:D lastobj }
 %</luatex>
 %<*pdftex>
         { \tex_pdflastobj:D }
 %</pdftex>
-    \prop_gput:Nnn \g_@@_backend_object_prop {#1} {#2}
   }
 \cs_new:Npn \@@_backend_object_ref:n #1
-  { \int_use:c { c_@@_backend_object_ \tl_to_str:n {#1} _int } ~ 0 ~ R }
+  { \int_use:c { c_@@_object_ \tl_to_str:n {#1} _int } ~ 0 ~ R }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\@@_backend_object_write:nn,\@@_backend_object_write:nx}
+% \begin{macro}{\@@_backend_object_write:nnn, \@@_backend_object_write:nnx}
+% \begin{macro}[EXP]{\@@_backend_object_write:nn}
 % \begin{macro}[EXP]{\@@_exp_not_i:nn, \@@_exp_not_ii:nn}
 %   Writing the data needs a little information about the structure of the
 %   object.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_object_write:nn #1#2
+\cs_new_protected:Npn \@@_backend_object_write:nnn #1#2#3
   {
 %<*luatex>
     \tex_immediate:D \tex_pdfextension:D obj ~
@@ -1016,9 +1016,12 @@
 %</pdftex>
       useobjnum ~
       \int_use:c
-        { c_@@_backend_object_ \tl_to_str:n {#1} _int }
-      \str_case_e:nn
-        { \prop_item:Nn \g_@@_backend_object_prop {#1} }
+        { c_@@_object_ \tl_to_str:n {#1} _int }
+      \@@_backend_object_write:nn {#2} {#3}
+  }
+\cs_new:Npn \@@_backend_object_write:nn #1#2
+  {
+      \str_case:nn {#1}
         {
           { array } { { [ ~ \exp_not:n {#2} ~ ] } }
           { dict }  { { << ~ \exp_not:n {#2} ~ >> } }
@@ -1034,10 +1037,11 @@
             }
         }
   }
-\cs_generate_variant:Nn \@@_backend_object_write:nn { nx }
+\cs_generate_variant:Nn \@@_backend_object_write:nnn { nnx }
 \cs_new:Npn \@@_exp_not_i:nn #1#2 { \exp_not:n {#1} }
 \cs_new:Npn \@@_exp_not_ii:nn #1#2 { \exp_not:n {#2} }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
@@ -1052,22 +1056,7 @@
 %<*pdftex>
     \tex_immediate:D \tex_pdfobj:D
 %</pdftex>
-      \str_case:nn
-        {#1}
-        {
-          { array } { { [ ~ \exp_not:n {#2} ~ ] } }
-          { dict }  { { << ~ \exp_not:n {#2} ~ >> } }
-          { fstream }
-            {
-              stream ~ attr ~ { \@@_exp_not_i:nn #2 } ~
-                file ~ { \@@_exp_not_ii:nn #2 }
-            }
-          { stream }
-            {
-              stream ~ attr ~ { \@@_exp_not_i:nn #2 } ~
-                { \@@_exp_not_ii:nn #2 }
-            }
-        }
+      \@@_backend_object_write:nn {#1} {#2}
   }
 \cs_generate_variant:Nn \@@_backend_object_now:nn { nx }
 %    \end{macrocode}
@@ -1267,27 +1256,25 @@
 %    \end{macrocode}
 % \end{variable}
 %
-% \begin{macro}{\@@_backend_object_new:nn}
+% \begin{macro}{\@@_backend_object_new:n}
 % \begin{macro}[EXP]{\@@_backend_object_ref:n}
 %   Objects are tracked at the macro level, but we don't have to do anything
 %   at this stage.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_object_new:nn #1#2
+\cs_new_protected:Npn \@@_backend_object_new:n #1
   {
     \int_gincr:N \g_@@_backend_object_int
     \int_const:cn
-      { c_@@_backend_object_ \tl_to_str:n {#1} _int }
+      { c_@@_object_ \tl_to_str:n {#1} _int }
       { \g_@@_backend_object_int }
-    \prop_gput:Nnn \g_@@_backend_object_prop {#1} {#2}
   }
 \cs_new:Npn \@@_backend_object_ref:n #1
-  { @pdf.obj \int_use:c { c_@@_backend_object_ \tl_to_str:n {#1} _int } }
+  { @pdf.obj \int_use:c { c_@@_object_ \tl_to_str:n {#1} _int } }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\@@_backend_object_write:nn, \@@_backend_object_write:nx}
-% \begin{macro}{\@@_backend_object_write:nnn}
+% \begin{macro}{\@@_backend_object_write:nnn, \@@_backend_object_write:nnx}
 % \begin{macro}
 %   {
 %     \@@_backend_object_write_array:nn   ,
@@ -1298,17 +1285,12 @@
 % \begin{macro}{\@@_backend_object_write_stream:nnnn}
 %   This is where we choose the actual type.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_object_write:nn #1#2
-  {
-    \exp_args:Nx \@@_backend_object_write:nnn
-      { \prop_item:Nn \g_@@_backend_object_prop {#1} } {#1} {#2}
-  }
-\cs_generate_variant:Nn \@@_backend_object_write:nn { nx }
 \cs_new_protected:Npn \@@_backend_object_write:nnn #1#2#3
   {
-    \use:c { @@_backend_object_write_ #1 :nn }
-      { \@@_backend_object_ref:n {#2} } {#3}
+    \use:c { @@_backend_object_write_ #2 :nn }
+      { \@@_backend_object_ref:n {#1} } {#3}
   }
+\cs_generate_variant:Nn \@@_backend_object_write:nnn { nnx }
 \cs_new_protected:Npn \@@_backend_object_write_array:nn #1#2
   {
     \@@_backend:x
@@ -1332,7 +1314,6 @@
       }
   }
 %    \end{macrocode}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -1659,18 +1640,18 @@
 %
 % \subsubsection{Objects}
 %
-% \begin{macro}{\@@_backend_object_new:nn}
+% \begin{macro}{\@@_backend_object_new:n}
 % \begin{macro}[EXP]{\@@_backend_object_ref:n}
-% \begin{macro}{\@@_backend_object_write:nn, , \@@_backend_object_write:nx}
+% \begin{macro}{\@@_backend_object_write:nnn, \@@_backend_object_write:nx}
 % \begin{macro}{\@@_backend_object_now:nn, , \@@_backend_object_now:nx}
 % \begin{macro}{\@@_backend_object_last:}
 % \begin{macro}[EXP]{\@@_backend_pageobject_ref:n}
 %   All no-ops here.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_object_new:nn #1#2 { }
+\cs_new_protected:Npn \@@_backend_object_new:nn #1 { }
 \cs_new:Npn \@@_backend_object_ref:n #1 { }
-\cs_new_protected:Npn \@@_backend_object_write:nn #1#2 { }
-\cs_new_protected:Npn \@@_backend_object_write:nx #1#2 { }
+\cs_new_protected:Npn \@@_backend_object_write:nnn #1#2#3 { }
+\cs_new_protected:Npn \@@_backend_object_write:nnx #1#2#3 { }
 \cs_new_protected:Npn \@@_backend_object_now:nn #1#2 { }
 \cs_new_protected:Npn \@@_backend_object_now:nx #1#2 { }
 \cs_new:Npn \@@_backend_object_last: { }
@@ -1720,6 +1701,78 @@
 \cs_new_protected:Npn \@@_backend_emc: { }
 %    \end{macrocode}
 % \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvisvgm>
+%    \end{macrocode}
+%
+% \subsection{PDF Page size (media box)}
+%
+% For setting the media box, the split between backends is somewhat different
+% to other areas, thus we approach this separately. The code here assumes a
+% recent \LaTeXe{}: that is ensured at the level above.
+%
+%    \begin{macrocode}
+%<*dvipdfmx|dvips>
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_backend_pagesize_gset:nn}
+%   This is done as a backend literal, so we deal with it using the shipout
+%   hook.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_pagesize_gset:nn #1#2
+  {
+    \__kernel_backend_first_shipout:n
+      {
+        \__kernel_backend_literal:e
+          {
+%<*dvipdfmx>
+            pdf:pagesize ~
+              width  ~ \dim_eval:n {#1} ~
+              height ~ \dim_eval:n {#2}
+%</dvipdfmx>
+%<*dvips>
+            papersize = \dim_eval:n {#1} , \dim_eval:n {#2}
+%</dvips>
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</dvipdfmx|dvips>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*luatex|pdftex|xetex>
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_backend_pagesize_gset:nn}
+%   Pass to the primitives.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_pagesize_gset:nn #1#2
+  {
+    \dim_gset:Nn \tex_pagewidth:D  {#1}
+    \dim_gset:Nn \tex_pageheight:D {#2}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+%    \begin{macrocode}
+%</luatex|pdftex|xetex>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+%<*dvisvgm>
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_backend_pagesize_gset:nn}
+%   A no-op.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_pagesize_gset:nn #1#2 { }
+%    \end{macrocode}
 % \end{macro}
 %
 %    \begin{macrocode}

@@ -11,7 +11,7 @@ maindir = ".."
 docfiledir = "./doc"
 
 -- Non-standard settings
-checkconfigs = {"build", "config-backend", "config-l3doc"}
+checkconfigs = {"build", "config-backend", "config-l3doc", "config-plain"}
 checkfiles   = {"l3names.def"}
 cleanfiles   = {"*.fmt", "*.log", "*.pdf", "*.zip"}
 docfiles     = {"source3body.tex", "l3prefixes.csv"}
