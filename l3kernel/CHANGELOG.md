@@ -11,11 +11,15 @@ this project uses date-based 'snapshot' version identifiers.
 - Rounded out the `\use_i:nn...` functions to cover all cases taking
   one argument from up to nine arguments
 - `\coffin_(g)reset_poles:N`
+-  `\dim_to_decimal_in_<unit>:n`, for `<unit>` types
+    `cc`, `cm`, `dd`, `in`, `mm`, `nd`, `nc` and `pc`
 - `\int_if_zero:n(TF)`
 - `\str_mdfive_hash:n`
 
 ### Changed
 - Remove `\noexpand` inside math mode in `\text_expand:n`
+- Re-implement `\dim_to_decimal_in_bp:n` and 
+  `\dim_to_decimal_in_unit:nn` to be re-entrant (issue \#954)
 
 ### Fixed
 - Omit `0123456789` from URL escaping (issue \#838)

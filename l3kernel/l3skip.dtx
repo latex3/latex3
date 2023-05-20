@@ -503,7 +503,8 @@
 %   one \enquote{big point} when converted to (\TeX{}) points.
 % \end{function}
 %
-% \begin{function}[added = 2014-07-15, EXP]{\dim_to_decimal_in_bp:n}
+% \begin{function}[added = 2014-07-15, updated = 2023-05-20, EXP]
+%   {\dim_to_decimal_in_bp:n}
 %   \begin{syntax}
 %     \cs{dim_to_decimal_in_bp:n} \Arg{dim expr}
 %   \end{syntax}
@@ -519,6 +520,41 @@
 %   \end{verbatim}
 %   leaves |0.99628| in the input stream, \emph{i.e.}~the magnitude of
 %   one (\TeX{}) point when converted to big points.
+%   \begin{texnote}
+%      The implementation of this functions is re-entrant: the result of
+%      \begin{verbatim}
+%        \dim_to_decimal_in_bp:n { <n>bp }
+%      \end{verbatim}
+%      will be the value \meta{n}.
+%   \end{texnote}
+% \end{function}
+%
+% \begin{function}[added = 2023-05-20, EXP]
+%   {
+%     \dim_to_decimal_in_cc:n ,
+%     \dim_to_decimal_in_cm:n ,
+%     \dim_to_decimal_in_dd:n ,
+%     \dim_to_decimal_in_in:n ,
+%     \dim_to_decimal_in_mm:n ,
+%     \dim_to_decimal_in_nd:n ,
+%     \dim_to_decimal_in_nc:n ,
+%     \dim_to_decimal_in_pc:n
+%   }
+%   \begin{syntax}
+%     \cs{dim_to_decimal_in_cm:n} \Arg{dim expr}
+%   \end{syntax}
+%   Evaluates the \meta{dim expr}, and leaves the result,
+%   expressed with the appropriate scaling in the input stream, with
+%   \emph{no units}.  The result is rounded by \TeX{} to four or five decimal
+%   places.  If the decimal part of the result is zero, it is omitted,
+%   together with the decimal marker.
+%   \begin{texnote}
+%      The implementation of this functions is re-entrant: the result of
+%      \begin{verbatim}
+%        \dim_to_decimal_in_<unit>:n { <n><unit> }
+%      \end{verbatim}
+%      will be the value \meta{n}.
+%   \end{texnote}
 % \end{function}
 %
 % \begin{function}[added = 2015-05-18, EXP]{\dim_to_decimal_in_sp:n}
@@ -1683,44 +1719,339 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\dim_to_decimal_in_bp:n}
-%   Conversion to big points is done using a scaling inside \cs{@@_eval:w}
-%   as \eTeX{} does that using $64$-bit precision. Here, $800/803$ is the
-%   integer fraction for $72/72.27$. This is a common case so is hand-coded
-%   for accuracy (and speed).
-%    \begin{macrocode}
-\cs_new:Npn \dim_to_decimal_in_bp:n #1
-  { \dim_to_decimal:n { ( #1 ) * 800 / 803 } }
-%    \end{macrocode}
+% \begin{macro}[EXP]{\dim_to_fp:n}
+%   Defined in \pkg{l3fp-convert}, documented here.
 % \end{macro}
 %
+% \subsection{Conversion of \texttt{dim} to other units}
+%
+% The conversion from \texttt{pt} or \texttt{sp} to other units is complicated
+% by the fact that \TeX{}'s conversion to \texttt{sp} involves rounding and
+% hard-coded ratios. In order to give re-entrant outcomes, we therefore need
+% to do quite a bit of work: see
+% \url{https://github.com/latex3/latex3/issues/954} for detailed discussion.
+% After dealing with the trivial case, we therefore have some work to do.
+% The code to do this is contributed by Ruixi Zhang.
+%
 % \begin{macro}[EXP]{\dim_to_decimal_in_sp:n}
-%   Another hard-coded conversion: this one is necessary to avoid things going
-%   off-scale.
+%   The one eeasy case: the only requirement here is that we avoid an
+%   overflow.
 %    \begin{macrocode}
 \cs_new:Npn \dim_to_decimal_in_sp:n #1
   { \int_value:w \@@_eval:w #1 \@@_eval_end: }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\dim_to_decimal_in_unit:nn}
-%   An analogue of \cs{dim_ratio:nn} that produces a decimal number as its
-%   result, rather than a rational fraction for use within dimension
-%   expressions.
+% \begin{macro}[EXP]
+%   {
+%     \dim_to_decimal_in_bp:n ,
+%     \dim_to_decimal_in_cc:n ,
+%     \dim_to_decimal_in_cm:n ,
+%     \dim_to_decimal_in_dd:n ,
+%     \dim_to_decimal_in_in:n ,
+%     \dim_to_decimal_in_mm:n ,
+%     \dim_to_decimal_in_nd:n ,
+%     \dim_to_decimal_in_nc:n ,
+%     \dim_to_decimal_in_pc:n
+%   }
+% \begin{macro}[EXP]{\@@_to_decimal_aux:w}
+%   We first set up a helper macro \cs[no-index]{@@_tmp:w} which takes two
+%   arguments. The first argument is one of the following engine-defined
+%   units: |in|,~|pc|, |cm|, |mm|, |bp|, |dd|, |cc|, |nd|, and~|nc|.
+%   The second argument is $\frac{1}{2}\delta^{-1}$ in reduced fraction,
+%   where $\delta>1$~is the engine-defined conversion factor for each unit.
+%   Note that $\delta$~must be strictly larger than~$1$ for the following
+%   algorithm to work.
+%
+%   Here is how the algorithm works: Suppose that a user inputs a
+%   non-negative dimension in a unit that has conversion factor~$\delta>1$.
+%   Then this dimension is internally represented as $X$\,sp, where
+%   $X=\lfloor N\delta\rfloor$ for some integer $N\ge0$. We then seek a
+%   formula to express this $N$ using~$X$.
+%   The \cs[no-index]{dim_to_decimal_in_<unit>:n} functions shall return
+%   the number $N/2^{16}$ in decimal. This way, we guarantee the returned
+%   decimal followed by the original unit will parse to exactly~$X$\,sp.
+%
+%   So how do we get $N$ from~$X$? Well, since $X=\lfloor N\delta\rfloor$,
+%   we have $X\le N\delta<X+1$ and $X\delta^{-1}\le N<(X+1)\delta^{-1}$.
+%   Let's focus on the midpoint of this bounding interval for~$N$. The
+%   midpoint is $(X+\frac{1}{2})\delta^{-1}$. The fact $\delta>1$ implies
+%   that the bounding interval is shorter than~$1$ in length. Thus,
+%   (1)~$\hbox{midpoint}+\frac{1}{2}>N$ and
+%   (2)~$\hbox{midpoint}+\frac{1}{2}<N+1$. In other words,
+%   $N=\lfloor\hbox{midpoint}+\frac{1}{2}\rfloor$. As long as we can
+%   rewrite the midpoint as the result of a ``scaling operation'' of \eTeX,
+%   the $\lfloor\ldots+\frac{1}{2}\rfloor$ part will follow naturally.
+%   Indeed we can: $\hbox{midpoint}=(2X+1)\times(\frac{1}{2}\delta^{-1})$.
+%
+%   Addendum: If $\delta\ge2$, then the bounding interval for~$N$ is at
+%   most~$\frac{1}{2}$ wide in length. In this case, the leftpoint
+%   $X\delta^{-1}$ suffices as $N=\lfloor X\delta^{-1}+\frac{1}{2}\rfloor$.
+%   Six out of the nine units listed above can be handled in this way,
+%   which is much simpler than using midpoint. But three remaining units
+%   have $1<\delta<2$; they are |bp|~($\delta=7227/7200$),
+%   |nd|~($\delta=685/642$), and |dd|~($\delta=1238/1157$),
+%   and these three must be handled using midpoint.
+%   For consistency, we shall use the midpoint approach for all nine units.
 %    \begin{macrocode}
-\cs_new:Npn \dim_to_decimal_in_unit:nn #1#2
+\group_begin:
+  \cs_set_protected:Npn \@@_tmp:w #1#2
+    {
+      \cs_new:cpn { dim_to_decimal_in_ #1 :n } ##1
+        {
+          \exp_after:wN \@@_to_decimal_aux:w
+            \int_value:w \@@_eval:w ##1 \@@_eval_end: ; #2 ;
+        }
+    }
+%    \end{macrocode}
+%   Conversions to other units are now coded.
+%   Consult the pdf\/\TeX{} source for each conversion factor~$\delta$.
+%   Each factor $\frac{1}{2}\delta^{-1}$ is hand-coded
+%   for accuracy (and speed).
+%    \begin{macrocode}
+  \@@_tmp:w { in } {   50 /  7227 } % delta = 7227/100
+  \@@_tmp:w { pc } {    1 /    24 } % delta = 12/1
+  \@@_tmp:w { cm } {  127 /  7227 } % delta = 7227/254
+  \@@_tmp:w { mm } { 1270 /  7227 } % delta = 7227/2540
+  \@@_tmp:w { bp } {  400 /   803 } % delta = 7227/7200
+  \@@_tmp:w { dd } { 1157 /  2476 } % delta = 1238/1157
+  \@@_tmp:w { cc } { 1157 / 29712 } % delta = 14856/1157
+  \@@_tmp:w { nd } {  321 /   685 } % delta = 685/642
+  \@@_tmp:w { nc } {  107 /  2740 } % delta = 1370/107
+\group_end:
+%   The tokens after \cs{@@_to_decimal_aux:w} shall have the following form:
+%   |<number>;<half of delta inverse>;|, where |<number>| represents the
+%   input dimension in |sp| unit.
+%   If |<number>| is positive, then |#1| is its leading digit and |#2|
+%   (possibly empty) is all the remaining digits;
+%   If |<number>| is zero, then |#1| is~|0|$_{12}$ and |#2| is empty;
+%   If |<number>| is negative, then |#1| is its sign~|-|$_{12}$ and |#2|
+%   is all its digits.
+%   In all three cases, |#1#2| is the original |<number>|. We can use |#1|
+%   to decide whether to use the |-1| formula or the |+1| formula.
+%    \begin{macrocode}
+\cs_new:Npn \@@_to_decimal_aux:w #1#2 ; #3 ;
   {
     \dim_to_decimal:n
       {
-        1pt *
-        \dim_ratio:nn {#1} {#2}
+%    \end{macrocode}
+%   We need different formulae depending on whether the user input dimension
+%   is negative or not.
+%   For negative dimension (internally represented as $X$\,sp), the formula
+%   is $(2X-1)\times(\frac{1}{2}\delta^{-1})$.
+%   For non-negative dimension, the formula
+%   is $(2X+1)\times(\frac{1}{2}\delta^{-1})$.
+%   The intermediate step doubles the dimension~$X$.
+%   To avoid overflow, we must invoke \cs[no-index]{\int_eval:n}.
+%    \begin{macrocode}
+        \int_eval:n
+          { ( 2 * #1#2 \if:w #1 - - \else: + \fi: 1 ) * #3 }
+%    \end{macrocode}
+%   Now we append~|sp| to finish the dimension specification.
+%    \begin{macrocode}
+        sp
+      }
+  }
+%    \end{macrocode}
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\dim_to_decimal_in_unit:nn}
+%    \begin{macrocode}
+\cs_new:Npn \dim_to_decimal_in_unit:nn #1#2
+  {
+    \exp_after:wN \@@_chk_unit:w
+      \int_value:w \@@_eval:w #2 \@@_eval_end: ; {#1}
+  }
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}[EXP]{\@@_chk_unit:w}
+%   The tokens after \cs{@@_chk_unit:w} shall have the following form:
+%   |<number2>;{<dimexpr1>}|, where |<number2>| represents |<dimexpr2>| in
+%   |sp| unit.
+%   If |#1| is~|0|$_{12}$, the \enquote{unit} |<dimexpr2>| must also be zero.
+%   So we throw out a ``division by zero'' error message at this point.
+%   Otherwise, if |#1| is~|-|$_{12}$, we shall negate both |<dimexpr1>| and
+%   |<dimexpr2>| for later procedures.
+%    \begin{macrocode}
+\cs_new:Npn \@@_chk_unit:w #1#2;#3
+  {
+    \token_if_eq_charcode:NNTF #1 0
+      { \msg_expandable_error:nn { dim } { zero-unit } }
+      {
+        \exp_after:wN \@@_branch_unit:w
+          \int_value:w \if:w #1 - - \fi: \@@_eval:w #3 \exp_after:wN ;
+          \int_value:w \if:w #1 - - \fi: #1#2 ;
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}[EXP]{\@@_branch_unit:w}
+%   The tokens after \cs{@@_branch_unit:w} shall have the following form:
+%   |<number1>;<number2>;|, where |<number1>| represents |<dimexpr1>| in
+%   |sp| unit (whose sign is taken care of) and |<number2>| represents the
+%   absolute value of |<dimexpr2>| in |sp| unit (which is strictly positive).
+%
+%   As explained, the formulae $(2X\pm1)\times(\frac{1}{2}\delta^{-1})$ work
+%   if and only if $\delta=|<number2>|/65536>1$. This corresponds to
+%   |<dimexpr2>| strictly larger than 1\,pt in absolute value.
+%   In this case, we simply call \cs{@@_to_decimal_aux:w} and supply
+%   $\frac{1}{2}\delta^{-1}=32768/|<number2>|$ as |<half of delta inverse>|.
+%
+%   Otherwise if $|<number2>|=65536$, then |<dimexpr2>| is 1\,pt in absolute
+%   value and we call \cs{dim_to_decimal:n} directly.
+%
+%   Otherwise $0<|<number2>|<65536$ and we shall proceed differently.
+%
+%   For unit less than 1\,pt, write $n=|<number2>|$, then $\delta=n/65536<1$.
+%   The midpoint formulae are not optimal. Let's go back to the inequalities
+%   $X\delta^{-1}\le N<(X+1)\delta^{-1}$. Since now $\delta<1$, the bounding
+%   interval is wider than~$1$ in length. Consider the ceiling integer
+%   $M=\lceil X\delta^{-1}\rceil$, then $X\delta^{-1}\le M<(X+1)\delta^{-1}$,
+%   or equivalently $X\le M\delta<X+1$, and thus $\lfloor M\delta\rfloor=X$.
+%   The key point here is that we \emph{don't} need to solve for~$N$;
+%   in fact, any integer that can reproduce~$X$ (such as~$M$) is good enough.
+%   So the algorithm goes like this: (1)~Compute rounding of $X\delta^{-1}$,
+%   i.e., $M'=\lfloor X\delta^{-1}+\frac{1}{2}\rfloor$; this $M'$ could be
+%   either $M$ or $M-1$. (2)~Check if $\lfloor M'\delta\rfloor=X$, i.e.,
+%   whether our candidate $M'$ can reproduce~$X$. If so, then this $M'$ is
+%   good enough; if not, then we add one to~$M'$.
+%
+%   But when $0<n<65536$, we cannot delay the problem of overflow any more.
+%   For $X\delta^{-1}=X\times65536/n$, where $X$ can go up to $2^{30}-1$ and
+%   $n$ can be as small as~$1$, the result is well over $2^{31}-1$ (largest
+%   integer allowed within |\numexpr|).
+%   For example, |\dim_to_decimal_in_unit:nn { \maxdimen } { 1sp }|.
+%   Here, all inputs are legal, so we should be able to output |1073741823|
+%   \emph{without} causing arithmetic overflow.
+%
+%   As a workaround, let's write $X=qn+r$ with some $q\ge0$ and $0\le r<n$.
+%   Then $X\delta^{-1}=65536q+65536r/n$, and so
+%   $M'=65536q+\lfloor65536r/n+\frac{1}{2}\rfloor=65536q+R'$.
+%   Computing $R'$ will never overflow. If this $R'$ can reproduce~$r$, then
+%   it is good enough; otherwise we add one to~$R'$. In the end, we shall
+%   output $q+R'/65536$ in decimal.
+%
+%   Note: $q=\lfloor X/n\rfloor=\lfloor\frac{2X-n}{2n}+\frac{1}{2}\rfloor$
+%   represents the ``integer'' part, while $0\le R'\le65536$ represents the
+%   ``fractional'' part. (Can $R'=65536$ really happen? Didn't investigate.)
+%    \begin{macrocode}
+\cs_new:Npn \@@_branch_unit:w #1;#2;
+  {
+    \int_compare:nNnTF {#2} > { 65536 }
+      { \@@_to_decimal_aux:w #1 ; 32768 / #2 ; }
+      {
+        \int_compare:nNnTF {#2} = { 65536 }
+          { \dim_to_decimal:n { #1sp } }
+          { \@@_get_quotient:w #1 ; #2 ; }
       }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[EXP]{\dim_to_fp:n}
-%   Defined in \pkg{l3fp-convert}, documented here.
+% \begin{macro}[EXP]{\@@_get_quotient:w}
+%   We wish to get the quotient $q$ via rounding of $\frac{2X-n}{2n}$.
+%   When $0\le X<n/2$, we have $\frac{2X-n}{2n}<0$. So, strictly speaking,
+%   |\numexpr| performs its rounding as
+%   $\lceil\frac{2X-n}{2n}-\frac{1}{2}\rceil$, not exactly what we want.
+%   However, lucky for us, only $X=0$ makes
+%   $\lceil\frac{2X-n}{2n}-\frac{1}{2}\rceil=-1\neq0$ (we want~$0$);
+%   all other $0<X<n/2$ make $\lceil\frac{2X-n}{2n}-\frac{1}{2}\rceil=0=q$.
+%   Thus, let's filter out $X=0$ early.
+%   If $X\neq0$, we extract its sign and leave the sign to the back.
+%   The sign does not participate in any calculations (also the code works
+%   with positive integers only). The sign is used at the last stages when
+%   we parse the decimal output.
+%
+%   After \cs{@@_get_quotient:w} has done its job, either we have the
+%   decimal~|0|, or we have \cs{@@_get_remainder:w} followed by
+%   $q$|;|$\lvert X\rvert$|;|$n$|;<sign of X>;|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_get_quotient:w #1#2;#3;
+  {
+    \token_if_eq_charcode:NNTF #1 0
+      { 0 }
+      {
+        \token_if_eq_charcode:NNTF #1 -
+          {
+            \exp_after:wN \@@_get_remainder:w
+              \int_use:N \__int_eval:w ( 2 * #2 - #3 ) / ( 2 * #3 ) ;
+              #2 ; #3 ; - ;
+          }
+          {
+            \exp_after:wN \@@_get_remainder:w
+              \int_use:N \__int_eval:w ( 2 * #1#2 - #3 ) / ( 2 * #3 ) ;
+              #1#2 ; #3 ; ;
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}[EXP]{\@@_get_remainder:w}
+%   \cs{@@_get_remainder:w} does not need to read the sign.
+%   After finding the remainder~$r$, the number~$\lvert X\rvert$ is no longer
+%   needed. We should then have \cs{@@_convert_remainder:w} followed by
+%   $r$|;|$n$|;|$q$|;<sign of X>;|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_get_remainder:w #1;#2;#3;
+  {
+    \exp_after:wN \@@_convert_remainder:w
+      \int_use:N \__int_eval:w #2 - #1 * #3 ;
+      #3 ; #1 ;
+  }
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}[EXP]{\@@_convert_remainder:w}
+%   This is trivial. We compute $R'=\lfloor65536r/n+\frac{1}{2}\rfloor$,
+%   then leave \cs{@@_test_candidate:w} followed by
+%   $R'$|;|$r$|;|$n$|;|$q$|;<sign of X>;|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_convert_remainder:w #1;#2;
+  {
+    \exp_after:wN \@@_test_candidate:w
+      \int_use:N \__int_eval:w #1 * 65536 / #2 ;
+      #1 ; #2 ;
+  }
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}[EXP]{\@@_test_candidate:w}
+%   Now the fun part: We take $R'$, $r$ and~$n$ to test whether
+%   $r=\lfloor R'\delta\rfloor$. This is done as a dimension comparison.
+%   The left-hand side, $r$, is simply |r sp|. The right-hand side,
+%   $\lfloor R'\delta\rfloor$, is exactly |<R' as decimal><dimen = n sp>|.
+%   If the result is true, then we've found~$R'$;
+%   otherwise we add one to~$R'$.
+%   After this step, $r$ and~$n$ are no longer needed. We should then have
+%   \cs{@@_parse_decimal:w} followed by $R'$|;|$q$|;<sign of X>;|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_test_candidate:w #1;#2;#3;
+  {
+    \dim_compare:nNnTF { #2sp } =
+      { \dim_to_decimal:n { #1sp } \@@_eval:w #3sp \@@_eval_end: }
+      { \@@_parse_decimal:w #1 ; }
+      {
+        \exp_after:wN \@@_parse_decimal:w
+          \int_eval:w #1 + 1 ;
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \begin{macro}[EXP]{\@@_parse_decimal:w, \@@_parse_decimal_aux:w}
+%   The Grand Finale: We sum $q$ and $R'/65536$ together, and negate the
+%   result if necessary. These are all done expandably.
+%   If $0<R'/65536<1$, the integer summation is naturally terminated at the
+%   decimal point. If $R'/65536=0$ (or~$1$?), the summation is terminated
+%   at the semicolon. The auxiliary function \cs{@@_parse_decimal_aux:w}
+%   takes care of both cases.
+%    \begin{macrocode}
+\cs_new:Npn \@@_parse_decimal:w #1;#2;#3;
+  {
+    \exp_after:wN \@@_parse_decimal_aux:w
+      \int_value:w #3 \int_eval:w #2 + \dim_to_decimal:n { #1sp } ;
+  }
+\cs_new:Npn \@@_parse_decimal_aux:w #1 ; {#1}
+%    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Viewing \texttt{dim} variables}
