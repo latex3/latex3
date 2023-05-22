@@ -12,7 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
   one argument from up to nine arguments
 - `\coffin_(g)reset_poles:N`
 -  `\dim_to_decimal_in_<unit>:n`, for `<unit>` types
-    `cc`, `cm`, `dd`, `in`, `mm`, `nd`, `nc` and `pc`
+    `cc`, `cm`, `dd`, `in`, `mm` and `pc`
 - `\int_if_zero:n(TF)`
 - `\str_mdfive_hash:n`
 
