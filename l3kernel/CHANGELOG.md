@@ -27,6 +27,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Filtering/grouping applied to meta keys (issue \#940)
 - Issue correct error message if `bool` key is set
   incorrectly using `.initial:n` (issue \#1013)
+- Set `\l_keys_key_str` in `.initial:n` (issue \#1013)
 - Handling of implicit chars in `\text_purify:n` (issue \#1208)
 
 ## [2023-05-15]
