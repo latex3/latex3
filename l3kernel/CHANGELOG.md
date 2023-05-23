@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## Deprecated
+- `\tl_case:Nn(TF)`
+
 ### Fixed
 
 - Set `\l_keys_value_tl` in `.initial:n` (issue \#1013)
