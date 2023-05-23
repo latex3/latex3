@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Set `\l_keys_value_tl` in `.initial:n` (issue \#1013)
+
 ## [2023-05-22]
 
 ### Added
