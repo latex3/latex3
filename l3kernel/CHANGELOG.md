@@ -11,7 +11,6 @@ this project uses date-based 'snapshot' version identifiers.
 - `\tl_case:Nn(TF)`
 
 ### Fixed
-
 - Set `\l_keys_value_tl` in `.initial:n` (issue \#1013)
 
 ## [2023-05-22]
