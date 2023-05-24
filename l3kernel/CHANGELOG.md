@@ -13,6 +13,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Set `\l_keys_value_tl` in `.initial:n` (issue \#1013)
+- Support for boolean values in `expl3` package options
+  `check-declarations` and `log-functions` (issue \#978)
 
 ## [2023-05-22]
 
