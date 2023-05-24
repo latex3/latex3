@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## Deprecated
 - `\tl_case:Nn(TF)`
+- `expl3` package option `enable-debug` (no longer required)
 
 ### Fixed
 - Set `\l_keys_value_tl` in `.initial:n` (issue \#1013)
