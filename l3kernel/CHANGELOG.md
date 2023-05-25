@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\iow_shell_open:Nn` (issue \#1122)
+
 ## Deprecated
 - `\tl_case:Nn(TF)`
 - `expl3` package option `enable-debug` (no longer required)
