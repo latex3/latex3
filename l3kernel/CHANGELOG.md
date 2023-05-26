@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
-- `\cctab_gsave_current:N` (issue \#1089)
+- `\cctab_gsave_current:N`, `\g_tmpa_cctab` and `\g_tmpb_cctab` (issue \#1089)
 - `\prg_gset_eq_conditional:NNn` (issue \#1212)
 - `\iow_shell_open:Nn` (issue \#1122)
 
