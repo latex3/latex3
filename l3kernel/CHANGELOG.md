@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\prg_gset_eq_conditional:NNn` (issue \#1212)
 - `\iow_shell_open:Nn` (issue \#1122)
 
 ## Deprecated
