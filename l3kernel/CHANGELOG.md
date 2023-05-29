@@ -20,6 +20,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Set `\l_keys_value_tl` in `.initial:n` (issue \#1013)
 - Support for boolean values in `expl3` package options
   `check-declarations` and `log-functions` (issue \#978)
+- Allow for optional `/` at end of `\input@path` entries
+  (see latex3/latex2e\#1076)
 
 ## [2023-05-22]
 
