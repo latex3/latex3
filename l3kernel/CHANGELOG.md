@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\cctab_gsave_current:N`, `\g_tmpa_cctab` and `\g_tmpb_cctab` (issue \#1089)
+- `\prg_gset_eq_conditional:NNn` (issue \#1212)
+- `\iow_shell_open:Nn` (issue \#1122)
+
 ## Deprecated
 - `\tl_case:Nn(TF)`
 - `expl3` package option `enable-debug` (no longer required)
@@ -15,6 +20,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Set `\l_keys_value_tl` in `.initial:n` (issue \#1013)
 - Support for boolean values in `expl3` package options
   `check-declarations` and `log-functions` (issue \#978)
+- Allow for optional `/` at end of `\input@path` entries
+  (see latex3/latex2e\#1076)
 
 ## [2023-05-22]
 
@@ -24,6 +31,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\coffin_(g)reset_poles:N`
 -  `\dim_to_decimal_in_<unit>:n`, for `<unit>` types
     `cc`, `cm`, `dd`, `in`, `mm` and `pc`
+- `\file_input_raw:n`
 - `\int_if_zero:n(TF)`
 - `\str_mdfive_hash:n`
 
