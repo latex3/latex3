@@ -7,7 +7,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-## [2022-06-05]
+## [2023-06-05]
 
 ### Added
 - `\cctab_gsave_current:N`, `\g_tmpa_cctab` and `\g_tmpb_cctab` (issue \#1089)
@@ -1451,8 +1451,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2022-06-05...HEAD
-[2022-06-05]: https://github.com/latex3/latex3/compare/2023-05-22...2022-06-05
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-06-05...HEAD
+[2023-06-05]: https://github.com/latex3/latex3/compare/2023-05-22...2023-06-05
 [2023-05-22]: https://github.com/latex3/latex3/compare/2023-05-15...2023-05-22
 [2023-05-15]: https://github.com/latex3/latex3/compare/2023-05-11...2023-05-15
 [2023-05-11]: https://github.com/latex3/latex3/compare/2023-05-05...2023-05-11
