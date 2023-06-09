@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Exclude entries in `\l_text_case_exclude_arg_tl` from expansion in `\text_expand:n`
+  (latex3/latex23\#904)
+
 ## [2023-06-05]
 
 ### Added
