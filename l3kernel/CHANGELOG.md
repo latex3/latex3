@@ -10,8 +10,6 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Exclude entries in `\l_text_case_exclude_arg_tl` from expansion in `\text_expand:n`
   (latex3/latex2e\#904)
-- Retain breathing marks on first letter in a word when uppercasing Greek
-  (issue \#1228)
 
 ## [2023-06-05]
 
