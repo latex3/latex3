@@ -12,7 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
   (latex3/latex2e\#904)
 - Generate _dialytika_ if appropriate when uppercasing Greek words starting with a
   vowel taking a breathing mark (issue \#1228)
-
+- Retain stress diacritics when uppercasing Greek (issue \#1230)
 ## [2023-06-05]
 
 ### Added
