@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-06-15]
+
 ### Changed
 - Exclude entries in `\l_text_case_exclude_arg_tl` from expansion in `\text_expand:n`
   (latex3/latex2e\#904)
@@ -1461,7 +1463,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-06-05...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-06-15...HEAD
+[2023-06-15]: https://github.com/latex3/latex3/compare/2023-06-05...2023-06-15
 [2023-06-05]: https://github.com/latex3/latex3/compare/2023-05-22...2023-06-05
 [2023-05-22]: https://github.com/latex3/latex3/compare/2023-05-15...2023-05-22
 [2023-05-15]: https://github.com/latex3/latex3/compare/2023-05-11...2023-05-15
