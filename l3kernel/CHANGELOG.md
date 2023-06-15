@@ -13,6 +13,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Generate _dialytika_ if appropriate when uppercasing Greek words starting with a
   vowel taking a breathing mark (issue \#1228)
 - Retain stress diacritics when uppercasing Greek (issue \#1230)
+- Expand (partial) paths in `\l_file_search_path_seq` and `\input@path`
+  (see latex3/latex2e\#1086)
+
+
 ## [2023-06-05]
 
 ### Added
