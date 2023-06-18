@@ -461,7 +461,7 @@
 %    \begin{macrocode}
 \group_begin:
   \clist_map_inline:nn
-    { uppercase , lowercase }
+    { category , uppercase , lowercase }
     {
       \cs_set_nopar:cpn { l_@@_ #1 _block_clist } { }
       \cs_set_nopar:cpn { l_@@_ #1 _block_tl } { 1 }
@@ -477,6 +477,29 @@
   \cs_set_nopar:Npn \l_@@_next_codepoint_fint_tl { 0 }
   \cs_set_nopar:Npn \l_@@_matched_block_tl { 0 }
 %    \end{macrocode}
+% For Unicode general category, there needs to be numerical representation of
+% each possible value. As we need to go from string to number here, but the
+% other way elsewhere, we set up fast mappings both ways, but one set local
+% and the other as constants.
+%    \begin{macrocode}
+  \cs_set_protected:Npn \@@_data_auxi:w #1#2
+    {
+      \quark_if_recursion_tail_stop:n {#2}
+      \cs_set_nopar:cpn { l_@@_category_ #2 _tl } {#1}
+      \str_const:cn { c_@@_category_ \tex_romannumeral:D #1 _str } {#2}
+      \exp_args:Ne \@@_data_auxi:w { \int_eval:n { #1 + 1 } }
+    }
+  \@@_data_auxi:w { 1 }
+    { Lu } { Ll } { Lt } { Lm } { Lo }
+    { Mn } { Me } { Mc }
+    { Nd } { Nl } { No }
+    { Zs } { Zl } { Zp }
+    { Cc } { Cf } { Co } { Cs } { Cn }
+    { Pd } { Ps } { Pe } { Pc } { Po } { Pi } { Pf }
+    { Sm } { Sc } { Sk } { So }
+    \q_recursion_tail
+    \q_recursion_stop
+%    \end{macrocode}
 % Parse the main Unicode data file and pull out the NFD and case changing
 % data. The NFD data is stored on using the hash table approach and can yield
 % a predictable number of codepoints: one or two. We also need the case data,
@@ -491,7 +514,7 @@
           \tl_if_head_eq_charcode:nNF {#6}  < % >
             { \@@_data_auxii:w #1 ; #6 ~ \q_stop }
         }
-      \@@_data_auxiii:w #1 ; #2 ;
+      \@@_data_auxiii:w #1 ; #2 ; #3 ;
     }
   \cs_set_protected:Npn \@@_data_auxii:w #1 ; #2 ~ #3 \q_stop
     {
@@ -503,22 +526,27 @@
         }
     }
 %    \end{macrocode}
+% The category data needs to be converted from a string to the numerical
+% equivalent: a simple operation.
 % The case data is going to be stored as an offset from the parent character,
 % rather than an absolute value. We therefore deal with that plus the situation
-% where a codepoint has no mapping data in oen shot.
+% where a codepoint has no mapping data in one shot.
 %    \begin{macrocode}
   \cs_set_protected:Npn \@@_data_auxiii:w
-    #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 ~ \q_stop
+    #1 ; #2 ; #3 ; #4 ; #5 ; #6 ; #7 ; #8 ; #9 ~ \q_stop
     {
       \use:e
         {
           \@@_data_auxiv:w
             #1 ; #2 ;
-            \@@_data_offset:nn {#1} {#6} ;
+            \@@_data_category:n {#3} ;
             \@@_data_offset:nn {#1} {#7} ;
-            #8;
+            \@@_data_offset:nn {#1} {#8} ;
+            #9;
         }
     }
+  \cs_set:Npn \@@_data_category:n #1
+    { \use:c { l_@@_category_ #1 _tl } }
   \cs_set:Npn \@@_data_offset:nn #1#2
     {
       \tl_if_blank:nTF {#2}
@@ -536,20 +564,21 @@
 % case exceptions are all stored as codepoints, with a fixed number of
 % balanced text as we know that there are never more than three.
 %    \begin{macrocode}
-  \cs_set_protected:Npn \@@_data_auxiv:w #1 ; #2 ; #3 ; #4 ; #5 ;
+  \cs_set_protected:Npn \@@_data_auxiv:w #1 ; #2 ; #3 ; #4 ; #5 ; #6 ;
     {
       \int_compare:nNnT {"#1} > \l_@@_next_codepoint_fint_tl
         {
-          \@@_data_auxvi:nnnw {#1} {#3} {#4}
+          \@@_data_auxv:nnnnw {#1} {#3} {#4} {#5}
             #2 Last> \q_stop
         }
-      \@@_add:nn { uppercase } {#3}
-      \@@_add:nn { lowercase } {#4}
-      \int_compare:nNnF {#3} = { \@@_data_offset:nn {#1} {#5} }
+      \@@_add:nn { category } {#3}
+      \@@_add:nn { uppercase } {#4}
+      \@@_add:nn { lowercase } {#5}
+      \int_compare:nNnF {#4} = { \@@_data_offset:nn {#1} {#6} }
         {
           \tl_const:cx
             { c_@@_titlecase_ \codepoint_str_generate:n {"#1} _tl }
-            { {"#5} { } { } }
+            { {"#6} { } { } }
         }
       \tl_set:Nx \l_@@_next_codepoint_fint_tl
         { \int_eval:n { "#1 + 1 } }
@@ -564,16 +593,18 @@
 %    \end{macrocode}
 %  Distinguish between a range and a gap, and pass on the appropriate value(s).
 %    \begin{macrocode}
-  \cs_set_protected:Npn \@@_data_auxvi:nnnw #1#2#3#4 Last> #5 \q_stop
+  \cs_set_protected:Npn \@@_data_auxv:nnnnw #1#2#3#4#5 Last> #6 \q_stop
     {
-       \tl_if_blank:nTF {#5}
+       \tl_if_blank:nTF {#6}
          {
+           \@@_range:nnn {#1} { category } { 0 }
            \@@_range:nnn {#1} { uppercase } { 0 }
            \@@_range:nnn {#1} { lowercase } { 0 }
          }
          {
-           \@@_range:nnn {#1} { uppercase } {#2}
-           \@@_range:nnn {#1} { lowercase } {#3}
+           \@@_range:nnn {#1} { category } {#2}
+           \@@_range:nnn {#1} { uppercase } {#3}
+           \@@_range:nnn {#1} { lowercase } {#4}
          }      
     }
 %    \end{macrocode}
@@ -672,7 +703,7 @@
 %    \begin{macrocode}
   \cs_set_protected:Npn \@@_finalise_blocks:
     {
-      \clist_map_inline:nn { uppercase , lowercase }
+      \clist_map_inline:nn { category , uppercase , lowercase }
         {
           \@@_range:nnn { 110000 } {##1} { 0 }
           \@@_finalise_blocks:n {##1}
