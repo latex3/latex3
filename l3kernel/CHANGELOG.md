@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Drop notes about slow `\expanded` emulation. `\expanded` is required since
+  release 2023-05-15
+
 ## [2023-06-16]
 
 ### Changed
