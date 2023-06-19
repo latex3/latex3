@@ -10,6 +10,10 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\codepoint_to_category:n`
 
+### Changed
+- Drop notes about slow `\expanded` emulation. `\expanded` is required since
+  release 2023-05-15
+
 ## [2023-06-16]
 
 ### Changed
