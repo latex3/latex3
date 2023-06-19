@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
-- `\codepoint_category:n`
+- `\codepoint_to_category:n`
 ## [2023-06-16]
 
 ### Changed
