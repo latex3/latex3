@@ -18,7 +18,6 @@ this project uses date-based 'snapshot' version identifiers.
 - Expand (partial) paths in `\l_file_search_path_seq` and `\input@path`
   (see latex3/latex2e\#1086)
 
-
 ## [2023-06-05]
 
 ### Added
