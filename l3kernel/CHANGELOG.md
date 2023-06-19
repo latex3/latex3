@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\codepoint_to_category:n`
+
 ## [2023-06-16]
 
 ### Changed
