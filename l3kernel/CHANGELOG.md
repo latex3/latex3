@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Drop notes about slow `\expanded` emulation. `\expanded` is required since
   release 2023-05-15
+- Sync engine/primitive requirements in `expl3.dtx` with code and README
 
 ### Fixed
 - Case changing of Greek characters with complex NFD representation (issue \#1236)
