@@ -59,12 +59,11 @@ XeTeX from the 2019 TeX Live release, and has always been available in LuaTeX
 (some by Lua emulation). The Japanese pTeX and upTeX gained all of the above
 (except `\ifincsname`) for TeX Live 2019 `\ifincsname` for TeX Live 2020.
 
-At present, the `\expanded` primitive is emulated if unavailable. This code is
-slow and imposes some coding restrictions. As such, it will be *removed* for TeX
-Live 2022.
+Starting from release 2023-05-15, the `\expanded` primitive is *required*.
+Its slow emulation has been removed.
 
 In addition to the above, engines which are fully Unicode-compatible
-must provde the functionality of the following primitives, documented in the
+must provide the functionality of the following primitives, documented in the
 LuaTeX manual
 
 - `\Uchar`
