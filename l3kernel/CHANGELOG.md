@@ -14,6 +14,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Drop notes about slow `\expanded` emulation. `\expanded` is required since
   release 2023-05-15
 
+### Fixed
+- Case changing of Greek characters with complex NFD representation (issue \#1236)
+
 ## [2023-06-16]
 
 ### Changed
