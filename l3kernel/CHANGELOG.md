@@ -11,6 +11,8 @@ this project uses date-based 'snapshot' version identifiers.
 - `\codepoint_to_category:n`
 
 ### Changed
+- Apply titlecase to each word in input for `\text_titlecase:n(n)`
+  (issue \#1232)
 - Drop notes about slow `\expanded` emulation. `\expanded` is required since
   release 2023-05-15
 - Sync engine/primitive requirements in `expl3.dtx` with code and README
