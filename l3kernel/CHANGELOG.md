@@ -17,6 +17,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Case changing of Greek characters with complex NFD representation (issue \#1236)
+- Error recovery when wrongly applying abs to a tuple (issue \#1238)
 
 ## [2023-06-16]
 
