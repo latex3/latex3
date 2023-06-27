@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\codepoint_to_category:n`
+- `\text_sentencecase:n(n)`
 
 ### Changed
 - Apply titlecase to each word in input for `\text_titlecase:n(n)`
