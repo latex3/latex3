@@ -1,7 +1,7 @@
 LaTeX3 Programming Conventions
 ==============================
 
-Release 2023-06-16
+Release 2023-06-30
 
 Overview
 --------
