@@ -10,6 +10,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\text_titlecase_all:n(n)`
 - `\token_to_catcode:N`
+- Support for symbolic variables in fp input:
+  `\fp_new_variable:n`, `\fp_set_variable:nn` and `\fp_clear_variable:n`
 
 ### Changed
 - Refine action of `\text_titlecase_first:n(n)` to be focussed strictly on
