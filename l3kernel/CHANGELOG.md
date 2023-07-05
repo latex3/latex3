@@ -9,7 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\codepoint_to_category:n`
-- `\text_sentencecase:n(n)`
+- `\text_sentencecase:n(n)` and `\text_sentencecase_first:n(n)`
 - `\text_declare_titlecase_exclusion:n(n)`
 
 ### Changed
