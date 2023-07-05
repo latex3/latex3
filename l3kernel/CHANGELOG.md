@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\text_titlecase_all:n(n)`
+- `\use:ee`, `\use:eee`, etc. up to `\use:eeeeeeeee`
 
 ### Changed
 - Clarify action of `\text_titlecase_first:n(n)`
