@@ -8,7 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
-- `\tex_XeTeXhyphenatablelength:D`, `\tex_XeTeXhyphenatablelength:D`, `\tex_XeTeXhyphenatablelength:D`
+- `\tex_XeTeXhyphenatablelength:D`, `\tex_XeTeXinterwordspaceshaping:D`,
+  `\tex_XeTeXselectorcode:D`
 
 ### Changed
 - `\tex_protrudechars:D` now defined for xetex (to `\XeTeXprotrudechars`)
