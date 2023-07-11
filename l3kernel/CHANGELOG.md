@@ -7,6 +7,15 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\text_titlecase_all:n(n)`
+
+### Changed
+- Clarify action of `\text_titlecase_first:n(n)`
+
+### Deprecated
+- `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
+
 ## [2023-10-10]
 
 ### Added
