@@ -12,7 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
   `\tex_XeTeXselectorcode:D`
 
 ### Changed
-- `\tex_protrudechars:D` now defined for xetex (to `\XeTeXprotrudechars`)
+- `\tex_protrudechars:D` now defined for XeTeX (to `\XeTeXprotrudechars`)
 
 ## [2023-06-30]
 
