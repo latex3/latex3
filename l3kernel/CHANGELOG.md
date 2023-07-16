@@ -302,6 +302,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Support for medieval Latin case changing
 - `\char_to_nfd:n` to extend NFD support to 8-bit engines
 
+### Deprecated
+- `\pdf_object_new:nn` and `\pdf_object_write:nn`, in favor of
+  `\pdf_object_new:n` and `\pdf_object_write:nnn`, respectively
+
 ## [2022-08-23]
 
 ### Added
