@@ -299,7 +299,7 @@ this project uses date-based 'snapshot' version identifiers.
   [\#1123](https://github.com/latex3/latex3/issues/1123))
 - `\text_map_function:nN` and `\text_map_inline:nn` for mapping to
   graphemes in textual input
-- Support for medevial Latin case changing
+- Support for medieval Latin case changing
 - `\char_to_nfd:n` to extend NFD support to 8-bit engines
 
 ## [2022-08-23]
