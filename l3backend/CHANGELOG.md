@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Enable link breaking in `dvips`
+
 ## [2023-04-19]
 
 ### Changed
