@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Revert 'Allow for implicit chars when case changing' (issue \#1260)
+
 ## [2023-08-03]
 
 ### Added
