@@ -165,3 +165,9 @@ end
 function docinit_hook()
   return fmt({typesetexe},typesetdir)
 end
+
+-- Some temp stuff until l3build is updated
+specialformats = specialformats or { }
+specialformats.latex = specialformats.latex or { }
+specialformats.latex.ptex = specialformats.latex.ptex or
+   {binary = "euptex", options = "-kanji-internal=euc"}
