@@ -88,7 +88,7 @@ local function fmt(engines,dest)
   local function mkfmt(engine)
     local cmd = engine
     if specialformats.latex[engine] then
-      cmd = specialformats.latex[engine].binary
+      cmd = specialformats.latex[engine].binary or engine
     end
     -- Use .ini files if available
     local src = "latex.ltx"
