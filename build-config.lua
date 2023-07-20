@@ -4,7 +4,7 @@ checkdeps   = checkdeps   or {maindir .. "/l3backend", maindir .. "/l3kernel"}
 typesetdeps = typesetdeps or checkdeps
 
 checkengines    = checkengines
-  or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
+  or {"pdftex", "xetex", "luatex", "uptex"}
 checksuppfiles  = checksuppfiles  or
   {
     "regression-test.cfg",
@@ -170,4 +170,4 @@ end
 specialformats = specialformats or { }
 specialformats.latex = specialformats.latex or { }
 specialformats.latex.ptex = specialformats.latex.ptex or
-   {binary = "euptex", options = "-kanji-internal=euc"}
+  {binary = "euptex", options = "-kanji-internal=euc"}
