@@ -10,7 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\tex_XeTeXhyphenatablelength:D`, `\tex_XeTeXinterwordspaceshaping:D`,
   `\tex_XeTeXselectorcode:D`
-- Several missing `\tex_<name>:D` primitives from luatex and ptex
+- Several missing `\tex_<name>:D` primitives from LuaTeX and (up)TeX
 
 ### Changed
 - `\tex_protrudechars:D` now defined for XeTeX (to `\XeTeXprotrudechars`)
