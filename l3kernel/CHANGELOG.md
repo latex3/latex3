@@ -14,6 +14,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - `\tex_protrudechars:D` now defined for XeTeX (to `\XeTeXprotrudechars`)
+- Allow for optional `v` in version string argument to
+  `\ProvidesExpl...`
 
 ### Fixed
 - Allow for implicit chars when case changing
