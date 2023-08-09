@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - `\tex_protrudechars:D` now defined for xetex (to `\XeTeXprotrudechars`)
+-  Wrap long lists of variants in `l3doc` display of functions (issue \#/1258)
 
 ## [2023-06-30]
 
