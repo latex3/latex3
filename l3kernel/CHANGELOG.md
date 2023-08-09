@@ -7,12 +7,23 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-08-03]
+
 ### Added
-- `\tex_XeTeXhyphenatablelength:D`, `\tex_XeTeXhyphenatablelength:D`, `\tex_XeTeXhyphenatablelength:D`
+- `\tex_XeTeXhyphenatablelength:D`, `\tex_XeTeXinterwordspaceshaping:D`,
+  `\tex_XeTeXselectorcode:D`
+- Several missing `\tex_<name>:D` primitives from LuaTeX and (up)TeX
 
 ### Changed
-- `\tex_protrudechars:D` now defined for xetex (to `\XeTeXprotrudechars`)
+
+- `\tex_protrudechars:D` now defined for XeTeX (to `\XeTeXprotrudechars`)
+- Allow for optional `v` in version string argument to
+  `\ProvidesExpl...`
 -  Wrap long lists of variants in `l3doc` display of functions (issue \#/1258)
+
+
+### Fixed
+- Allow for implicit chars when case changing
 
 ## [2023-06-30]
 
@@ -299,8 +310,12 @@ this project uses date-based 'snapshot' version identifiers.
   [\#1123](https://github.com/latex3/latex3/issues/1123))
 - `\text_map_function:nN` and `\text_map_inline:nn` for mapping to
   graphemes in textual input
-- Support for medevial Latin case changing
+- Support for medieval Latin case changing
 - `\char_to_nfd:n` to extend NFD support to 8-bit engines
+
+### Deprecated
+- `\pdf_object_new:nn` and `\pdf_object_write:nn`, in favor of
+  `\pdf_object_new:n` and `\pdf_object_write:nnn`, respectively
 
 ## [2022-08-23]
 
@@ -1483,7 +1498,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-06-30...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-08-03...HEAD
+[2023-08-03]: https://github.com/latex3/latex3/compare/2023-06-30...2023-08-03
 [2023-06-30]: https://github.com/latex3/latex3/compare/2023-06-16...2023-06-30
 [2023-06-16]: https://github.com/latex3/latex3/compare/2023-06-05...2023-06-16
 [2023-06-05]: https://github.com/latex3/latex3/compare/2023-05-22...2023-06-05

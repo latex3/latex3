@@ -26,7 +26,7 @@ specialformats.latex =
       }
   }
 checkengines =
-  {"pdftex", "luatex", "xetex", "etex-dvips", "etex-dvisvgm", "ptex", "uptex"}
+  {"pdftex", "luatex", "xetex", "etex-dvips", "etex-dvisvgm", "uptex"}
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")

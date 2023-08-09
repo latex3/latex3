@@ -4,7 +4,7 @@ checkdeps   = checkdeps   or {maindir .. "/l3backend", maindir .. "/l3kernel"}
 typesetdeps = typesetdeps or checkdeps
 
 checkengines    = checkengines
-  or {"pdftex", "xetex", "luatex", "ptex", "uptex"}
+  or {"pdftex", "xetex", "luatex", "uptex"}
 checksuppfiles  = checksuppfiles  or
   {
     "regression-test.cfg",
@@ -87,8 +87,10 @@ end
 local function fmt(engines,dest)
   local function mkfmt(engine)
     local cmd = engine
+    local opts
     if specialformats.latex[engine] then
-      cmd = specialformats.latex[engine].binary
+      cmd = specialformats.latex[engine].binary or engine
+      opts = specialformats.latex[engine].options
     end
     -- Use .ini files if available
     local src = "latex.ltx"
@@ -104,6 +106,7 @@ local function fmt(engines,dest)
       os_setenv .. " LUAINPUTS=" .. unpackdir .. os_pathsep .. localdir
       .. os_pathsep .. texmfdir .. "//"
       .. os_concat .. cmd .. " -etex -ini -output-directory=" .. unpackdir
+      .. (opts and (" " .. opts) or "")
       .. " " .. src .. " > " .. os_null)
     if errorlevel ~= 0 then
       -- Remove file extension: https://stackoverflow.com/a/34326069/6015190
@@ -162,3 +165,9 @@ end
 function docinit_hook()
   return fmt({typesetexe},typesetdir)
 end
+
+-- Some temp stuff until l3build is updated
+specialformats = specialformats or { }
+specialformats.latex = specialformats.latex or { }
+specialformats.latex.ptex = specialformats.latex.ptex or
+  {binary = "euptex", options = "-kanji-internal=euc"}
