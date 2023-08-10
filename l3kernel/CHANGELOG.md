@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+-  Wrap long lists of variants in `l3doc` display of functions (issue \#1258)
+
 ### Fixed
 - Revert 'Allow for implicit chars when case changing' (issue \#1260)
 
@@ -22,8 +25,6 @@ this project uses date-based 'snapshot' version identifiers.
 - `\tex_protrudechars:D` now defined for XeTeX (to `\XeTeXprotrudechars`)
 - Allow for optional `v` in version string argument to
   `\ProvidesExpl...`
--  Wrap long lists of variants in `l3doc` display of functions (issue \#1258)
-
 
 ### Fixed
 - Allow for implicit chars when case changing
