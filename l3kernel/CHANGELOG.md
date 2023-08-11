@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-08-11]
+
 ### Changed
 -  Wrap long lists of variants in `l3doc` display of functions (issue \#1258)
 
@@ -1502,7 +1504,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-08-03...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-08-11...HEAD
+[2023-08-11]: https://github.com/latex3/latex3/compare/2023-08-03...2023-08-11
 [2023-08-03]: https://github.com/latex3/latex3/compare/2023-06-30...2023-08-03
 [2023-06-30]: https://github.com/latex3/latex3/compare/2023-06-16...2023-06-30
 [2023-06-16]: https://github.com/latex3/latex3/compare/2023-06-05...2023-06-16
