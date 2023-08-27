@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Renamed `\tex_pdfcreationdate:D` to `\tex_creationdate:D`
+`
 ## [2023-08-11]
 
 ### Changed
