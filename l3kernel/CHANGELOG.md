@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\c_sys_timestamp_str`
+
 ### Changed
 - Rename `\tex_pdfcreationdate:D` to `\tex_creationdate:D`
 
