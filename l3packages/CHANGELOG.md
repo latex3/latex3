@@ -9,6 +9,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2023-08-29]
 
+### Added
+
 - Re-add `\GetDocumentCommandArgSpec`, etc., to `xparse` stub
 
 ## [2023-02-02]
