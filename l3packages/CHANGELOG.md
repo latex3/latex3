@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-08-29]
+
 - Re-add `\GetDocumentCommandArgSpec`, etc., to `xparse` stub
 
 ## [2023-02-02]
@@ -229,7 +231,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-02-02...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-08-29...HEAD
+[2023-08-29]: https://github.com/latex3/latex3/compare/2023-02-02...2023-08-29
 [2023-02-02]: https://github.com/latex3/latex3/compare/2023-02-01...2023-02-02
 [2023-02-01]: https://github.com/latex3/latex3/compare/2023-01-16...2023-02-01
 [2023-01-16]: https://github.com/latex3/latex3/compare/2022-12-17...2023-01-16
