@@ -20,13 +20,13 @@ updated at the same time.
 
 Currently included in the CTAN release of `l3packages` are the following
 bundles:
-* `l3keys2e`
+* `l3keys2e` (deprecated in favor of LaTeX kernel methods)
 * `xfp`     (from 2022-06-01 part of the LaTeX format)
-* `xfrac`
-* `xparse`
+* `xfrac`   
+* `xparse`  (deprecated in favor of elements move to the LaTeX kernel)
 * `xtemplate`
 
-`l3keys2e`
+`l3keys2e` (deprecated)
 ----------
 
 The `l3keys2e` package allows keys defined using `l3keys` to be used as package
