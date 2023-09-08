@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Standardise variants for `\prop_(g)put:Nnn`
+- Standardise variants for `\prop_(g)put_if_new:Nnn`
 - Standardise variants for `\prop_(g)remove:Nn`
 
 ## [2023-08-29]
