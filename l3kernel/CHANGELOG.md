@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Standardise variants for `\prop_(g)put:Nnn`
+
 ## [2023-08-29]
 
 ### Added
