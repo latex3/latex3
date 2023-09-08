@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
+- Standardise variants for `\prop_(g)pop:NnN(TF)`
 - Standardise variants for `\prop_(g)put:Nnn`
 - Standardise variants for `\prop_(g)put_if_new:Nnn`
 - Standardise variants for `\prop_(g)remove:Nn`
