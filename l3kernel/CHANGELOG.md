@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Documentation for `\sys_if_timer_exist_p:` and `\sys_if_timer_exist:(TF)`.
   They were supported since l3kernel 2021-05-25, along with `\sys_timer:`.
+- l3doc.dtx: Support for footnotes in the function and variable environment  
 
 ### Changed
 - Standardise variants for `\prop_(g)pop:NnN(TF)`
