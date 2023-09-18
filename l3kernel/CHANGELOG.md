@@ -13,6 +13,8 @@ this project uses date-based 'snapshot' version identifiers.
 - l3doc.dtx: Support for footnotes in the function and variable environment  
 
 ### Changed
+- Convert `\file_if_exist:n(TF)` to expandable status,
+  adding predicate version
 - Standardise variants for `\prop_(g)pop:NnN(TF)`
 - Standardise variants for `\prop_(g)put:Nnn`
 - Standardise variants for `\prop_(g)put_if_new:Nnn`
