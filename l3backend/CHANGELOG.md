@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Track `expl3` changes
+
 ## [2023-04-19]
 
 ### Changed

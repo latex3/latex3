@@ -16,6 +16,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Key properties `.str_(g)set_e:N` and `.tl_(g)set_e:N`
 
 ### Changed
+- Switch generally from `x`- to `e`-type variants
 - Convert `\file_if_exist:n(TF)` to expandable status,
   adding predicate version
 - Standardise variants for `\prop_(g)pop:NnN(TF)`
