@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
   They were supported since l3kernel 2021-05-25, along with `\sys_timer:`.
 - l3doc.dtx: Support for footnotes in the function and variable environment  
 - Variants `\tl_if_single:c(TF)` and `\tl_if_single_p:c` (issue \#1272)
+- Key properties `.str_(g)set_e:N` and `.tl_(g)set_e:N`
 
 ### Changed
 - Convert `\file_if_exist:n(TF)` to expandable status,
@@ -24,6 +25,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Deprecated
 - `\iow_shipout_x:Nn` in favor of `e`-type naming
+- Key properties `.str_(g)set_x:N` and `.tl_(g)set_x:N`
 
 ### Fixed
 - Rare rounding error in divisions (issue \#1264)
