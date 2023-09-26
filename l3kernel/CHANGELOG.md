@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\iow_shipout_e:Nn`
 - Documentation for `\sys_if_timer_exist_p:` and `\sys_if_timer_exist:(TF)`.
   They were supported since l3kernel 2021-05-25, along with `\sys_timer:`.
 - l3doc.dtx: Support for footnotes in the function and variable environment  
@@ -20,6 +21,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Standardise variants for `\prop_(g)put:Nnn`
 - Standardise variants for `\prop_(g)put_if_new:Nnn`
 - Standardise variants for `\prop_(g)remove:Nn`
+
+### Deprecated
+- `\iow_shipout_x:Nn` in favor of `e`-type naming
 
 ### Fixed
 - Rare rounding error in divisions (issue \#1264)
