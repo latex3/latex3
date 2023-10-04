@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Slowdown a l3benchmark slow branch code slightly to gain test suite
+  robustness (issue \#1274)
+
 ## [2023-05-11]
 
 ### Changed
