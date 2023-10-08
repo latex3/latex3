@@ -116,7 +116,7 @@ the LaTeX3 conventions can be used with regular LaTeX2e packages.
 function cmdcheck()
   mkdir(localdir)
   cleandir(testdir)
-  depinstall(checkdeps)
+  dep_install(checkdeps)
   for _,filetype in pairs(
       {bibfiles, docfiles, typesetfiles, typesetdemofiles}
     ) do
