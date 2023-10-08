@@ -21,6 +21,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Standardise variants for `\prop_(g)put_if_new:Nnn`
 - Standardise variants for `\prop_(g)remove:Nn`
 
+### Fixed
+- Rare rounding error in divisions (issue \#1264)
+
 ## [2023-08-29]
 
 ### Added
