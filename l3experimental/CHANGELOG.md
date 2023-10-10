@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-10-10]
+
 ### Changed
 - Slowdown a l3benchmark slow branch code slightly to gain test suite
   robustness (issue \#1274)
@@ -279,7 +281,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-05-11...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-10-10...HEAD
+[2023-10-10]: https://github.com/latex3/latex3/compare/2023-05-11...2023-10-10
 [2023-05-11]: https://github.com/latex3/latex3/compare/2023-04-19...2023-05-11
 [2023-04-19]: https://github.com/latex3/latex3/compare/2023-03-30...2023-04-19
 [2023-03-30]: https://github.com/latex3/latex3/compare/2023-01-24...2023-03-30
