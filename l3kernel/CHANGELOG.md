@@ -17,6 +17,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Deprecated
 - `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
 
+### Fixed
+- Support arbitrary BCP-47 locales for case-changing overrides (issue \#1239)
+
 ## [2023-10-10]
 
 ### Added
