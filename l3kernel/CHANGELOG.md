@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Clarify action of `\text_titlecase_first:n(n)`
+- Detect letters for titlecasing based on Unicode general category
 
 ### Deprecated
 - `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
