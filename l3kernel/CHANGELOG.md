@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\text_titlecase_all:n(n)`
+- `\token_to_catcode:N`
 - `\use:ee`, `\use:eee`, etc. up to `\use:eeeeeeeee`
 
 ### Changed
@@ -132,8 +133,6 @@ this project uses date-based 'snapshot' version identifiers.
 - `\file_input_raw:n`
 - `\int_if_zero:n(TF)`
 - `\str_mdfive_hash:n`
-- `\token_to_catcode:N`
-
 ### Changed
 - Remove `\noexpand` inside math mode in `\text_expand:n`
 - Re-implement `\dim_to_decimal_in_bp:n` and 
