@@ -20,6 +20,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Support arbitrary BCP-47 locales for case-changing overrides (issue \#1239)
+- Retain braces when ending titlecasing with some input structures
 
 ## [2023-10-10]
 
