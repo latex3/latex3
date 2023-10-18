@@ -12,7 +12,8 @@ this project uses date-based 'snapshot' version identifiers.
 - `\token_to_catcode:N`
 
 ### Changed
-- Clarify action of `\text_titlecase_first:n(n)`
+- Refine action of `\text_titlecase_first:n(n)` to be focussed strictly on
+  first (relevant) codepoint in the input
 
 ### Deprecated
 - `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
