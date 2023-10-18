@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\text_titlecase_all:n(n)`
 - `\token_to_catcode:N`
+- `\tl_reverse_use:n` (was `\tl_reverse:n`)
 - `\tl_sort_use:nN` (was `\tl_sort:nN`)
 - Support for symbolic variables in fp input:
   `\fp_new_variable:n`, `\fp_set_variable:nn` and `\fp_clear_variable:n`
@@ -22,6 +23,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Deprecated
 - `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
+- `\tl_reverse:n`, replaced by `\tl_reverse_use:n`
 - `\tl_sort:nN`, replaced by `\tl_sort_use:nN` (issue \#914)
 
 ### Fixed
