@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Update minimal `expl3` version required
+
 ## [2023-10-10]
 
 ### Changed
