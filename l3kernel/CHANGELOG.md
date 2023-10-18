@@ -14,6 +14,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Refine action of `\text_titlecase_first:n(n)` to be focussed strictly on
   first (relevant) codepoint in the input
+- Move `\tl_build_(g)begin:N`, `\tl_build_(g)end:N`, `\tl_build_(g)put_left:Nn`
+  and `\tl_build_(g)right:Nn` to stable status
 
 ### Deprecated
 - `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
