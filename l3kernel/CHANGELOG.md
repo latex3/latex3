@@ -12,8 +12,6 @@ this project uses date-based 'snapshot' version identifiers.
 - `\token_to_catcode:N`
 - Support for symbolic variables in fp input:
   `\fp_new_variable:n`, `\fp_set_variable:nn` and `\fp_clear_variable:n`
-- Support for user-defined functions in fp expressions:
-  `\fp_new_function:n`, `\fp_set_function:nnn` and `\fp_clear_function:n`
 
 ### Changed
 - Refine action of `\text_titlecase_first:n(n)` to be focussed strictly on
