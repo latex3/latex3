@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\text_titlecase_all:n(n)`
 - `\token_to_catcode:N`
+- `\tl_sort_use:nN` (was `\tl_sort:nN`)
 - Support for symbolic variables in fp input:
   `\fp_new_variable:n`, `\fp_set_variable:nn` and `\fp_clear_variable:n`
 - Support for user-defined functions in fp expressions:
@@ -21,6 +22,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Deprecated
 - `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
+- `\tl_sort:nN`, replaced by `\tl_sort_use:nN` (issue \#914)
 
 ### Fixed
 - Support arbitrary BCP-47 locales for case-changing overrides (issue \#1239)
@@ -138,6 +140,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\file_input_raw:n`
 - `\int_if_zero:n(TF)`
 - `\str_mdfive_hash:n`
+
 ### Changed
 - Remove `\noexpand` inside math mode in `\text_expand:n`
 - Re-implement `\dim_to_decimal_in_bp:n` and 
