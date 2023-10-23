@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-10-23]
+
 ### Added
 - `\text_titlecase_all:n(n)`
 - `\token_to_catcode:N`
@@ -1556,7 +1558,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-10-10...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-10-23...HEAD
+[2023-10-23]: https://github.com/latex3/latex3/compare/2023-10-10...2023-10-23
 [2023-10-10]: https://github.com/latex3/latex3/compare/2023-08-29...2023-10-10
 [2023-08-29]: https://github.com/latex3/latex3/compare/2023-08-11...2023-08-29
 [2023-08-11]: https://github.com/latex3/latex3/compare/2023-08-03...2023-08-11
