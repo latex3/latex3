@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Documentation for `\ExplLoaderFileDate` in `expl3.pdf`
 
+### Changed
+- Documentation improvements
+
 ## [2023-10-23]
 
 ### Added
