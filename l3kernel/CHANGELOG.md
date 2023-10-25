@@ -16,7 +16,7 @@ this project uses date-based 'snapshot' version identifiers.
   first (relevant) codepoint in the input
 
 ### Fixed
-- Support fp vars setting intermixed with fp function creation (issue \#1298) 
+- `\fp_clear_variable:n` should act locally (issue \#1298)
 
 ## [2023-10-23]
 
