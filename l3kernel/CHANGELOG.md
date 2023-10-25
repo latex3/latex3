@@ -12,6 +12,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Documentation improvements
+- Refine action of `\text_titlecase_first:n(n)` to be focussed strictly on
+  first (relevant) codepoint in the input
 
 ## [2023-10-23]
 
@@ -24,8 +26,8 @@ this project uses date-based 'snapshot' version identifiers.
   `\fp_new_function:n`, `\fp_set_function:nnn` and `\fp_clear_function:n`
 
 ### Changed
-- Refine action of `\text_titlecase_first:n(n)` to be focussed strictly on
-  first (relevant) codepoint in the input
+- Clarify action of `\text_titlecase_first:n(n)`
+- Detect letters for titlecasing based on Unicode general category
 
 ### Deprecated
 - `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
