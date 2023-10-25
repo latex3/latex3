@@ -6,6 +6,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-10-23]
+
+### Changed
+- Update minimal `expl3` version required
+
 ## [2023-10-10]
 
 ### Changed
@@ -301,7 +306,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-10-10...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-10-23...HEAD
+[2023-10-23]: https://github.com/latex3/latex3/compare/2023-10-10...2023-10-23
 [2023-10-10]: https://github.com/latex3/latex3/compare/2023-04-19...2023-10-10
 [2023-04-19]: https://github.com/latex3/latex3/compare/2023-03-30...2023-04-19
 [2023-03-30]: https://github.com/latex3/latex3/compare/2023-01-16...2023-03-30

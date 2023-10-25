@@ -8,8 +8,22 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- Documentation for `\ExplLoaderFileDate` in `expl3.pdf`
+
+### Changed
+- Documentation improvements
+- Refine action of `\text_titlecase_first:n(n)` to be focussed strictly on
+  first (relevant) codepoint in the input
+
+## [2023-10-23]
+
+### Added
 - `\text_titlecase_all:n(n)`
-- `\use:ee`, `\use:eee`, etc. up to `\use:eeeeeeeee`
+- `\token_to_catcode:N`
+- Support for symbolic variables in fp input:
+  `\fp_new_variable:n`, `\fp_set_variable:nn` and `\fp_clear_variable:n`
+- Support for user-defined functions in fp expressions:
+  `\fp_new_function:n`, `\fp_set_function:nnn` and `\fp_clear_function:n`
 
 ### Changed
 - Clarify action of `\text_titlecase_first:n(n)`
@@ -20,6 +34,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Support arbitrary BCP-47 locales for case-changing overrides (issue \#1239)
+- Retain braces when ending titlecasing with some input structures
 
 ## [2023-10-10]
 
@@ -133,7 +148,6 @@ this project uses date-based 'snapshot' version identifiers.
 - `\file_input_raw:n`
 - `\int_if_zero:n(TF)`
 - `\str_mdfive_hash:n`
-
 ### Changed
 - Remove `\noexpand` inside math mode in `\text_expand:n`
 - Re-implement `\dim_to_decimal_in_bp:n` and 
@@ -1552,7 +1566,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-10-10...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-10-23...HEAD
+[2023-10-23]: https://github.com/latex3/latex3/compare/2023-10-10...2023-10-23
 [2023-10-10]: https://github.com/latex3/latex3/compare/2023-08-29...2023-10-10
 [2023-08-29]: https://github.com/latex3/latex3/compare/2023-08-11...2023-08-29
 [2023-08-11]: https://github.com/latex3/latex3/compare/2023-08-03...2023-08-11

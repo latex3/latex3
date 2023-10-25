@@ -1,7 +1,7 @@
 LaTeX3 Programming Conventions
 ==============================
 
-Release 2023-10-10
+Release 2023-10-23
 
 Overview
 --------
@@ -57,7 +57,7 @@ since the release of version 1.40.0 in 2007; `\expanded` was added for TeX Live
 2019. Similarly, the full set of these utility primitives has been available in
 XeTeX from the 2019 TeX Live release, and has always been available in LuaTeX
 (some by Lua emulation). The Japanese pTeX and upTeX gained all of the above
-(except `\ifincsname`) for TeX Live 2019 `\ifincsname` for TeX Live 2020.
+(except `\ifincsname`) for TeX Live 2019 and `\ifincsname` for TeX Live 2020.
 
 Starting from release 2023-05-15, the `\expanded` primitive is *required*.
 Its slow emulation has been removed.
