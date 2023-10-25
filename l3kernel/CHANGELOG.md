@@ -15,6 +15,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Refine action of `\text_titlecase_first:n(n)` to be focussed strictly on
   first (relevant) codepoint in the input
 
+### Fixed
+- Support fp vars setting intermixed with fp function creation (issue \#1298) 
+
 ## [2023-10-23]
 
 ### Added
