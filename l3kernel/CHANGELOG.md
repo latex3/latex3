@@ -21,6 +21,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Deprecated
 - `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
 - `\tl_build_(g)clear:N` in favour of `\tl_build_(g)begin:N`
+- `\tl_build_get:NN` in favor of `\tl_build_(g)suspend:N`/`\tl_build_(g)resume:N`
 
 ### Fixed
 - Support arbitrary BCP-47 locales for case-changing overrides (issue \#1239)
