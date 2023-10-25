@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\text_titlecase_all:n(n)`
 - `\token_to_catcode:N`
+- `\tl_build_(g)suspend:N` and `\tl_build_(g)resume:N`
 
 ### Changed
 - Refine action of `\text_titlecase_first:n(n)` to be focussed strictly on
