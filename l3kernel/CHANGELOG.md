@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
-- `\seq_set_map_e:NNn`
+- `\seq_(g)set_map_e:NNn`
 - Documentation for `\ExplLoaderFileDate` in `expl3.pdf`
 
 ### Changed
