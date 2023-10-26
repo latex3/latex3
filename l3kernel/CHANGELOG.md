@@ -8,12 +8,16 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\seq_set_map_e:NNn`
 - Documentation for `\ExplLoaderFileDate` in `expl3.pdf`
 
 ### Changed
 - Documentation improvements
 - Refine action of `\text_titlecase_first:n(n)` to be focussed strictly on
   first (relevant) codepoint in the input
+
+### Deprecated
+- `\seq_(g)set_map_x:NNn` in favor of `e`-type naming
 
 ### Fixed
 - `\fp_clear_variable:n` should act locally (issue \#1298)
