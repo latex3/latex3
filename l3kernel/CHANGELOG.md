@@ -15,6 +15,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Documentation improvements
 - Refine action of `\text_titlecase_first:n(n)` to be focussed strictly on
   first (relevant) codepoint in the input
+- Standardize "This is the (e)TeX primitive ..." in `texnote` in documentation
 
 ### Deprecated
 - `\seq_(g)set_map_x:NNn` in favor of `e`-type naming
