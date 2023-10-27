@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-10-27]
+
 ### Added
 - `\seq_(g)set_map_e:NNn`
 - Documentation for `\ExplLoaderFileDate` in `expl3.pdf`
@@ -1578,7 +1580,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-10-23...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-10-27...HEAD
+[2023-10-27]: https://github.com/latex3/latex3/compare/2023-10-23...2023-10-27
 [2023-10-23]: https://github.com/latex3/latex3/compare/2023-10-10...2023-10-23
 [2023-10-10]: https://github.com/latex3/latex3/compare/2023-08-29...2023-10-10
 [2023-08-29]: https://github.com/latex3/latex3/compare/2023-08-11...2023-08-29
