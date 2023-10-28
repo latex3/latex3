@@ -26,6 +26,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\fp_clear_variable:n` should act locally (issue \#1298)
 - `\fp_clear_function:n` should act locally and correctly
 - Support for `\fp_show:N` showing symbolic expressions (issue \#1301)
+- Undefined `\str_case:en(TF)` (excluding `\str_case:en`)
 
 ## [2023-10-23]
 
