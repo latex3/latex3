@@ -25,6 +25,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - `\fp_clear_variable:n` should act locally (issue \#1298)
 - `\fp_clear_function:n` should act locally and correctly
+- Support for `\fp_show:N` showing symbolic expressions (issue \#1301)
 
 ## [2023-10-23]
 
