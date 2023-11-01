@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Normalisation of `.inherit:n` key data (issue \#1314)
+
 ## [2023-11-01]
 
 ### Added
