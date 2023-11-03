@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
+- Fixed interaction with luaotfload in LuaTeX regarding transparency colorstacks
+  by delaying initialization until after the colorstack has been initialized by l3opacity.
 
 ## [2023-10-23]
 
