@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Documentation for `\c_nan_fp`
+- `\str_case_e:en(TF)`
 
 ### Fixed
 - Normalisation of `.inherit:n` key data (issue \#1314)
