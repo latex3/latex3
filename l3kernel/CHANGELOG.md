@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Documentation for `\c_nan_fp`
+
 ### Fixed
 - Normalisation of `.inherit:n` key data (issue \#1314)
 
