@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Changed `luaotfload` integration to allow coexistance with (x)color.
+
 ## [2023-11-04]
 
 ### Fixed
