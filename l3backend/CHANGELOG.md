@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-11-09]
+
 ### Changed
 - Changed `luaotfload` integration to allow coexistance with (x)color.
 
@@ -314,7 +316,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-11-04...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-11-09...HEAD
+[2023-11-09]: https://github.com/latex3/latex3/compare/2023-11-04...2023-11-09
 [2023-11-04]: https://github.com/latex3/latex3/compare/2023-10-23...2023-11-04
 [2023-10-23]: https://github.com/latex3/latex3/compare/2023-10-10...2023-10-23
 [2023-10-10]: https://github.com/latex3/latex3/compare/2023-04-19...2023-10-10
