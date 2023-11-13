@@ -10,5 +10,16 @@ module = "xtemplate"
 -- Location of main directory: use Unix-style path separators
 maindir = "../.."
 
+installfiles = {
+  "xtemplate.sty",
+  "xtemplate-????-??-??.sty"
+}
+
+sourcefiles = {
+  "*.dtx",
+  "*.ins",
+  "*-????-??-??.sty"
+}
+
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
