@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Preparation for move of `xtemplate` concepts to the kernel
+
 ### Removed
 - Collection `plainmath` from `xfrac`
 
