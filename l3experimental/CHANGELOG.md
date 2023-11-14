@@ -226,7 +226,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2019-05-03]
 
-## Fixed
+### Fixed
 
 - Clipping of paths by `l3draw`
 

@@ -65,7 +65,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2022-05-30]
 
-## Added
+### Added
 - `\SetTemplateKeys` for _ad hoc_ adjustment of template values
 
 ### Changed

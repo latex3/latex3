@@ -133,7 +133,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2021-08-04]
 
-## Changed
+### Changed
 - Only use `pdfmanagement` module if active
 
 ## [2021-07-12]
