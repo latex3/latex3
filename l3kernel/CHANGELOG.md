@@ -384,8 +384,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Deprecated
 - `\char_to_nfd:N`, `\char_to_nfd:n`
-- `\char_foldcase:N`, `\char_lowercase:N`, `\char_uppercase:N`
-   and `str` variants
+- `\char_foldcase:N`, `\char_lowercase:N`, `\char_titlecase:N`,
+   `\char_uppercase:N` and `str` variants
 - `\char_to_utfviii_bytes:n`
 - `\str_foldcase:n`
 
