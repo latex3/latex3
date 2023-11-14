@@ -1115,7 +1115,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Standard backend for (u)pTeX is now `dvips`
 - Minimum LuaTeX version now v0.95
-- Moved `\debug_on:`, `\debug_off:`, `\debug_suspend:` and `\debug_resume:`
+- Moved `\debug_on:n`, `\debug_off:n`, `\debug_suspend:` and `\debug_resume:`
   to stable
 - Accept 'traditional' class options for backend (`dvipdfmx`, `dvips`, etc.)
 - Performance enhancements when loading `expl3`
