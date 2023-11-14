@@ -99,19 +99,16 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2021-06-18]
 
 ### Fixed
-
 - Correct internal changes to message naming
 
 ## [2021-06-01]
 
 ### Fixed
-
 - Restore one parameter in `xfrac`
 
 ## [2021-05-27]
 
 ### Changed
-
 - Internal changes to message naming
 
 ## [2021-05-07]

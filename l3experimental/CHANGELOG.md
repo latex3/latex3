@@ -151,7 +151,6 @@ this project uses date-based 'snapshot' version identifiers.
 - Support for multiple color models (see #739)
 
 ### Removed
-
 - `l3cctab`: moved to `l3kernel`
 
 ## [2020-06-18]
@@ -227,7 +226,6 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2019-05-03]
 
 ### Fixed
-
 - Clipping of paths by `l3draw`
 
 ## [2019-03-05]
