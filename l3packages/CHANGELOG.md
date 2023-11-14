@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Removed
+- Collection `plainmath` from `xfrac`
+
 ## [2023-10-10]
 
 ### Changed
