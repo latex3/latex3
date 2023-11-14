@@ -101,7 +101,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2023-08-11]
 
 ### Changed
--  Wrap long lists of variants in `l3doc` display of functions (issue \#1258)
+- Wrap long lists of variants in `l3doc` display of functions (issue \#1258)
 
 ### Fixed
 - Revert 'Allow for implicit chars when case changing' (issue \#1260)
@@ -171,8 +171,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Rounded out the `\use_i:nn...` functions to cover all cases taking
   one argument from up to nine arguments
 - `\coffin_(g)reset_poles:N`
--  `\dim_to_decimal_in_<unit>:n`, for `<unit>` types
-    `cc`, `cm`, `dd`, `in`, `mm` and `pc`
+- `\dim_to_decimal_in_<unit>:n`, for `<unit>` types
+  `cc`, `cm`, `dd`, `in`, `mm` and `pc`
 - `\file_input_raw:n`
 - `\int_if_zero:n(TF)`
 - `\str_mdfive_hash:n`
@@ -379,7 +379,7 @@ this project uses date-based 'snapshot' version identifiers.
   [\#1109](https://github.com/latex3/latex3/issues/1109)), for many expandable
   tokens (issue [\#1110](https://github.com/latex3/latex3/issues/1110)), and an
   esoteric case (issue [\#1113](https://github.com/latex3/latex3/issues/1113))
--  Creation of a message with some engines (issue
+- Creation of a message with some engines (issue
   [\#1139](https://github.com/latex3/latex3/issues/1139))
 
 ### Deprecated
@@ -812,7 +812,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2020-10-27]
 
 ### Added
--  `\token_if_font_selection:N(TF)` (see \#806)
+- `\token_if_font_selection:N(TF)` (see \#806)
 
 ### Fixed
 - Avoid relying on braced `\input` primitive syntax
