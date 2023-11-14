@@ -154,7 +154,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\prg_gset_eq_conditional:NNn` (issue \#1212)
 - `\iow_shell_open:Nn` (issue \#1122)
 
-## Deprecated
+### Deprecated
 - `\tl_case:Nn(TF)`
 - `expl3` package option `enable-debug` (no longer required)
 
@@ -503,7 +503,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Language settings `hy` and `hy-x-yiwn` for handling of ech-yiwn ligature
   uppercasing
 
-## Changed
+### Changed
 - Support BCP 47 properly in case changer language argument
 
 ### Fixed
@@ -1530,7 +1530,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Implement `\intarray_gset_rand:Nnn`
 - Implement candidate `l3fparray` module
 
-## Changed
+### Changed
 - Update minimal required versions of XeTeX and LuaTeX
 - Deprecate named integer constants `\c_zero`. etc.
 - Move all primitives to `\tex_...:D namespace`,
