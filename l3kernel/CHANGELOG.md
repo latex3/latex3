@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\c_empty_str` (issue \#1361)
+- `l3bitset`: moved from `l3experimental`
 
 ### Fixed
 - Return `str` (not `tl`) in `\bool_to_str:N` and `\bool_to_str:n` (issue \#1331)

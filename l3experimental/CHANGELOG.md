@@ -11,6 +11,9 @@ this project uses date-based 'snapshot' version identifiers.
 - `\draw_box_use:Nn` and `\draw_coffin_use:Nnnn` to allow
   placement of boxed material at an offset (issue \#1357)
 
+### Removed
+- `l3bitset`: moved to `l3kernel`
+
 ## [2023-11-01]
 
 ### Changed

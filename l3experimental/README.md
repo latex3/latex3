@@ -22,7 +22,6 @@ is updated at the same time.
 Currently included in the CTAN release of l3experimental are the following
 bundles:
 * `l3benchmark`
-* `l3bitset`
 * `l3draw`
 * `l3graphics`
 * `l3opacity`
@@ -35,14 +34,6 @@ bundles:
 -------------
 
 This module provides support for benchmarking the performance of code.
-
-`l3bitset`
--------------
-
-This module provides a `bitset` data type, a vector of bits, which can be set
-and unset using their individual index in the vector, or using names assigned to
-each position in the vector.  The bitset can be returned as a string of bits or
-as a decimal integer.
 
 `l3draw`
 --------
