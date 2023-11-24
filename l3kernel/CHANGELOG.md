@@ -18,6 +18,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Documentation for `\c_nan_fp`
 - `\str_case_e:en(TF)`
 
+### Changes
+- Speed up `\str_(g)set:Nn`, `\str_const:Nn`, `\str_(g)put_left:Nn`,
+  and `\str_(g)put_right:Nn`
+
 ### Fixed
 - Normalisation of `.inherit:n` key data (issue \#1314)
 
