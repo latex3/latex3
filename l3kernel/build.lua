@@ -71,6 +71,10 @@ function update_tag(file,content,tagname,tagdate)
     content = string.gsub(content,
       "\n\\def\\ExplFileDate{" .. iso .. "}%%\n",
       "\n\\def\\ExplFileDate{" .. tagname .. "}%%\n")
+  elseif string.match(file,"l3debug%.dtx$") then
+    content = string.gsub(content,
+      "\n\\ProvidesExplFile{l3debug%.def}{" .. iso .. "}",
+      "\n\\ProvidesExplFile{l3debug.def}{" .. tagname .. "}")
   end
   if string.match(file,"%.dtx$") or string.match(file,"%.tex$") then
     return string.gsub(content,
