@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Catcode of space from `\str_set_convert:Nnnn` (issue \#1344)
+- Tidy up various documentation issues (issue \#1345)
 - Return truly string in `\bool_to_str:N` and `\bool_to_str:n` (issue \#1331)
 
 ## [2023-11-09]
