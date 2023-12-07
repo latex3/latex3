@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\c_empty_str` (issue \#1361)
+
 ### Fixed
 - Return `str` (not `tl`) in `\bool_to_str:N` and `\bool_to_str:n` (issue \#1331)
 - Catcode of space from `\str_set_convert:Nnnn` (issue \#1344)
