@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\draw_box_use:Nn` and `\draw_coffin_use:Nnnn` to allow
+  placement of boxed material at an offset (issue \#1357)
+
 ## [2023-11-01]
 
 ### Changed
