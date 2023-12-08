@@ -121,6 +121,7 @@ function cmdcheck()
   mkdir(localdir)
   cleandir(testdir)
   dep_install(checkdeps)
+  unpack()
   cmdcheck_hook()
   for _,filetype in pairs(
       {bibfiles, docfiles, typesetfiles, typesetdemofiles}
