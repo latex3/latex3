@@ -121,6 +121,7 @@ function cmdcheck()
   mkdir(localdir)
   cleandir(testdir)
   dep_install(checkdeps)
+  cmdcheck_hook()
   for _,filetype in pairs(
       {bibfiles, docfiles, typesetfiles, typesetdemofiles}
     ) do
@@ -140,7 +141,8 @@ function cmdcheck()
     os_setenv .. " TEXINPUTS=." .. os_pathsep .. abspath(localdir)
       .. os_pathsep ..
     os_concat ..
-    string.gsub(stdengine, "tex$", "latex") .. " --interaction=batchmode" ..
+    stdengine .. " --fmt=" .. string.gsub(stdengine, "tex$", "latex") .. 
+      " --interaction=batchmode" ..
       " \"\\PassOptionsToClass{check}{l3doc} \\input source3.tex \""
       .. " > " .. os_null
   )

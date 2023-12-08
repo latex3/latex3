@@ -162,6 +162,10 @@ function checkinit_hook()
   return fmt(engines,testdir)
 end
 
+function cmdcheck_hook()
+  return fmt({stdengine},testdir)
+end
+
 function docinit_hook()
   return fmt({typesetexe},typesetdir)
 end
