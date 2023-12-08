@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-12-08]
+
 ### Added
 - `\draw_box_use:Nn` and `\draw_coffin_use:Nnnn` to allow
   placement of boxed material at an offset (issue \#1357)
@@ -291,7 +293,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-11-01...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-12-08...HEAD
+[2023-12-08]: https://github.com/latex3/latex3/compare/2023-11-01...2023-12-08
 [2023-11-01]: https://github.com/latex3/latex3/compare/2023-10-10...2023-11-01
 [2023-10-10]: https://github.com/latex3/latex3/compare/2023-05-11...2023-10-10
 [2023-05-11]: https://github.com/latex3/latex3/compare/2023-04-19...2023-05-11

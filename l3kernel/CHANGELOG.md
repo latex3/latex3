@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-12-08]
+
 ### Added
 - `\c_empty_str` (issue \#1361)
 - `l3bitset`: moved from `l3experimental`
@@ -1604,7 +1606,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-11-09...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-12-08...HEAD
+[2023-12-08]: https://github.com/latex3/latex3/compare/2023-11-09...2023-12-08
 [2023-11-09]: https://github.com/latex3/latex3/compare/2023-11-01...2023-11-09
 [2023-11-01]: https://github.com/latex3/latex3/compare/2023-10-23...2023-11-01
 [2023-10-23]: https://github.com/latex3/latex3/compare/2023-10-10...2023-10-23
