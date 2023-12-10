@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Use keyval handler for `l3doc` class otions
+
 ## [2023-12-08]
 
 ### Added
