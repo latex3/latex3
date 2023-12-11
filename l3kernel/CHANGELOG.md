@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Support for deprecated `pdf` module functions (issue \#1373)
+- Generate stub `l3bitset` for transitional support
 
 ### Changed
 - Use keyval handler for `l3doc` class options
