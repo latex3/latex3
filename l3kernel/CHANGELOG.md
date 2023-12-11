@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Support for deprecated `pdf` module functions (issue \#1373)
+
 ### Changed
 - Use keyval handler for `l3doc` class options
 
