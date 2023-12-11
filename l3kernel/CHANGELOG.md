@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Documentation for `\bitset_show_named_index:N`
+
 ### Changed
 - Improved method to suppress `l3bitset` where required
 
