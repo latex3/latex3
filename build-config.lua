@@ -44,6 +44,7 @@ end
 function update_tag(file,content,tagname,tagdate)
   local iso = "%d%d%d%d%-%d%d%-%d%d"
   local url = "https://github.com/latex3/latex3/compare/"
+  content =  update_tag_extra(file,content,tagname,tagdate)
   if string.match(content,"%(C%)%s*[%d%-,]+ The LaTeX Project") then
     local year = os.date("%Y")
     content = string.gsub(content,
@@ -81,6 +82,10 @@ function update_tag(file,content,tagname,tagdate)
       "\nRelease " .. tagname .. "\n")
   end
   return content
+end
+
+function update_tag_extra(file,content,tagname,tagdate)
+  return(content)
 end
 
 -- Need to build format files
