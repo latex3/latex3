@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Improved method to suppress `l3bitset` where required
+
 ## [2023-12-11]
 
 ### Fixed
