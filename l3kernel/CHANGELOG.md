@@ -9,8 +9,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2023-12-11]
 
-## [2023-12-12]
-
 ### Fixed
 - Support for deprecated `pdf` module functions (issue \#1373)
 - Generate stub `l3bitset` for transitional support
@@ -1618,8 +1616,7 @@ this project uses date-based 'snapshot' version identifiers.
   e.g. `\dim_step_inline:nnnn`
 
 [Unreleased]: https://github.com/latex3/latex3/compare/2023-12-11...HEAD
-[2023-12-11]: https://github.com/latex3/latex3/compare/2023-12-12...2023-12-11
-[2023-12-12]: https://github.com/latex3/latex3/compare/2023-12-08...2023-12-12
+[2023-12-11]: https://github.com/latex3/latex3/compare/2023-12-08...2023-12-11
 [2023-12-08]: https://github.com/latex3/latex3/compare/2023-11-09...2023-12-08
 [2023-11-09]: https://github.com/latex3/latex3/compare/2023-11-01...2023-11-09
 [2023-11-01]: https://github.com/latex3/latex3/compare/2023-10-23...2023-11-01
