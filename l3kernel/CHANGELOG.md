@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
-- Documentation for `\bitset_show_named_index:N`
+- Documentation for `\bitset_show_named_index:N` (issue \#1372)
 - `\bitset_log_named_index:N`
 
 ### Changed
