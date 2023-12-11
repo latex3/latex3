@@ -30,6 +30,7 @@ The `l3kernel` bundle requires the e-TeX extensions and a number of additional
 particular, the functionality equivalent to the following pdfTeX primitives must
 be available
 
+- `\ifincsname`
 - `\ifpdfprimitive`
 - `\pdfcreationdate`
 - `\pdfelapsedtime`
