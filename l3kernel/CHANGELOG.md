@@ -14,6 +14,10 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Improved method to suppress `l3bitset` where required
 
+### Fixed
+- Handling of `documented-as` variants in `l3doc` indexing
+  (see issue \#1345)
+
 ## [2023-12-11]
 
 ### Fixed
