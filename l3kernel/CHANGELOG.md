@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Documentation for `\bitset_show_named_index:N` (issue \#1372)
 - `\bitset_log_named_index:N`
+- `\tl_build_get_intermediate:NN`
 
 ### Changed
 - Improved method to suppress `l3bitset` where required
@@ -91,6 +92,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Deprecated
 - `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
 - `\tl_build_(g)clear:N` in favour of `\tl_build_(g)begin:N`
+- `\tl_build_get:NN` in favor of `\tl_build_get_intermediate:NN`
 
 ### Fixed
 - Support arbitrary BCP-47 locales for case-changing overrides (issue \#1239)
