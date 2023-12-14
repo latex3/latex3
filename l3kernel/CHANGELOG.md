@@ -24,12 +24,12 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2023-12-11]
 
+### Changed
+- Use keyval handler for `l3doc` class options
+
 ### Fixed
 - Support for deprecated `pdf` module functions (issue \#1373)
 - Generate stub `l3bitset` for transitional support
-
-### Changed
-- Use keyval handler for `l3doc` class options
 
 ## [2023-12-08]
 
@@ -48,7 +48,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Documentation for `\c_nan_fp`
 - `\str_case_e:en(TF)`
 
-### Changes
+### Changed
 - Speed up `\str_(g)set:Nn`, `\str_const:Nn`, `\str_(g)put_left:Nn`,
   and `\str_(g)put_right:Nn`
 
