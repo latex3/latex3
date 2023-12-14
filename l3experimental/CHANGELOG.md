@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Remove a stray scaling in `\draw_path_rectangle:nn` (issue \#1386)
+
 ## [2023-12-08]
 
 ### Added
