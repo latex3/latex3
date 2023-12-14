@@ -50,13 +50,13 @@ function update_tag(file,content,tagname,tagdate)
     content = string.gsub(content,
       "%(C%)%s*([%d%-,]+) The LaTeX Project",
       "(C) %1," .. year .. " The LaTeX Project")
-   content = string.gsub(content,year .. "," .. year,year)
-   content = string.gsub(content,
-     "%-" .. math.tointeger(year - 1) .. "," .. year,
-     "-" .. year)
-   content = string.gsub(content,
-     math.tointeger(year - 2) .. "," .. math.tointeger(year - 1) .. "," .. year,
-     math.tointeger(year - 2) .. "-" .. year)
+    content = string.gsub(content,year .. "," .. year,year)
+    content = string.gsub(content,
+      "%-" .. math.tointeger(year - 1) .. "," .. year,
+      "-" .. year)
+    content = string.gsub(content,
+      math.tointeger(year - 2) .. "," .. math.tointeger(year - 1) .. "," .. year,
+      math.tointeger(year - 2) .. "-" .. year)
   end
   if string.match(file,"%.dtx$") then
     content = string.gsub(content,

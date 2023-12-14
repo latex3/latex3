@@ -12,9 +12,12 @@ maindir = "../.."
 
 -- Non-standard settings
 checksearch  = true
-checkdeps   = {maindir .. "/l3kernel", maindir .. "/l3backend",
-               maindir .. "/l3packages/xtemplate", maindir .. "/l3packages/l3keys2e"}
-typesetdeps = checkdeps
+checkdeps    = {
+  maindir .. "/l3kernel", maindir .. "/l3backend",
+  maindir .. "/l3packages/xtemplate",
+  maindir .. "/l3packages/l3keys2e"
+}
+typesetdeps  = checkdeps
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
