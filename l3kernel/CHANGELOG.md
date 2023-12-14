@@ -15,6 +15,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Improved method to suppress `l3bitset` where required
 
+### Deprecated
+- `\tl_build_get:NN` in favor of `\tl_build_get_intermediate:NN`
+
 ### Fixed
 - Handling of `documented-as` variants in `l3doc` indexing
   (see issue \#1345)
@@ -92,7 +95,6 @@ this project uses date-based 'snapshot' version identifiers.
 ### Deprecated
 - `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
 - `\tl_build_(g)clear:N` in favour of `\tl_build_(g)begin:N`
-- `\tl_build_get:NN` in favor of `\tl_build_get_intermediate:NN`
 
 ### Fixed
 - Support arbitrary BCP-47 locales for case-changing overrides (issue \#1239)
