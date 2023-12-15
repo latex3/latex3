@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Apply transformation matrix to drawing shifts
+
 ### Fixed
 - Remove a stray scaling in `\draw_path_rectangle:nn` (issue \#1386)
 
