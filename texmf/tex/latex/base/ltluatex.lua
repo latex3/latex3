@@ -91,11 +91,11 @@ local function msg_format(mod, msg_type, text)
   end
   return first_head .. " "
     .. string_gsub(
-         text
- .. "on input line "
-         .. tex.inputlineno, "\n", "\n" .. cont .. " "
-      )
-   .. "\n"
+         text .. "on input line " .. tex.inputlineno,
+         "\n",
+         "\n" .. cont .. " "
+       )
+    .. "\n"
 end
 local function module_info(mod, text)
   texio_write_nl("log", msg_format(mod, "Info", text))
