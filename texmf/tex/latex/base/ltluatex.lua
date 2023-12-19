@@ -91,11 +91,11 @@ local function msg_format(mod, msg_type, text)
   end
   return first_head .. " "
     .. string_gsub(
-         text
- .. "on input line "
-         .. tex.inputlineno, "\n", "\n" .. cont .. " "
-      )
-   .. "\n"
+         text .. "on input line " .. tex.inputlineno,
+         "\n",
+         "\n" .. cont .. " "
+       )
+    .. "\n"
 end
 local function module_info(mod, text)
   texio_write_nl("log", msg_format(mod, "Info", text))
@@ -163,12 +163,13 @@ else
   end
 end
 luatexbase.registernumber = registernumber
-local attributes=setmetatable(
-{},
-{
-__index = function(t,key)
-return registernumber(key) or nil
-end}
+local attributes = setmetatable(
+  {},
+  {
+    __index = function(t,key)
+      return registernumber(key) or nil
+    end
+  }
 )
 luatexbase.attributes = attributes
 local attribute_count_name =
@@ -463,7 +464,7 @@ local function list_handler(name)
         luatexbase_warning(
           "Function `" .. i.description .. "' returned false\n"
             .. "in callback `" .. name .."'"
-         )
+        )
         return false
       end
       if ret ~= true then
@@ -487,7 +488,7 @@ local function reverselist_handler(name)
         luatexbase_warning(
           "Function `" .. cb.description .. "' returned false\n"
             .. "in callback `" .. name .."'"
-         )
+        )
         return false
       end
       if ret ~= true then
@@ -554,7 +555,7 @@ local function call_callback(name,...)
   if user_callbacks_defaults[name] == nil then
     luatexbase_error("Unable to call callback `" .. name
                      .. "':\nunknown or empty")
-   end
+  end
   local l = callbacklist[name]
   local f
   if not l then

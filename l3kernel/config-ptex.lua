@@ -1,5 +1,5 @@
 checkengines = {"ptex"}
- -- Make sure that any .tlg files are engine-specific
+-- Make sure that any .tlg files are engine-specific
 stdengine = "pdftex"
 includetests =
   {
