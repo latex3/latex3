@@ -23,6 +23,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Handling of `documented-as` variants in `l3doc` indexing
   (see issue \#1345)
+- Missing trailing `TF` in single variant of conditional functions (issue \#1398)
 
 ## [2023-12-11]
 
