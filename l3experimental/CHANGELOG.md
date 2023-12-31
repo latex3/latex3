@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Remove a stray scaling in `\draw_path_rectangle:nn` (issue \#1386)
+- Correct baseline calculations in some `l3draw` cases (issue \#1400)
 
 ## [2023-12-08]
 
