@@ -14,6 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Improved method to suppress `l3bitset` where required
+- Clarify behavior of `\tl_of_novalue:n(TF)` (see issue \#1402)
 
 ### Deprecated
 - `\tl_build_get:NN` in favor of `\tl_build_get_intermediate:NN`
