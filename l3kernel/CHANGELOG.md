@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Documentation for `\bitset_show_named_index:N` (issue \#1372)
 - `\bitset_log_named_index:N`
 - `\tl_build_get_intermediate:NN`
+- Support for `.default:n` values for the `unknown` handler (see issue \#67)
 
 ### Changed
 - Improved method to suppress `l3bitset` where required
