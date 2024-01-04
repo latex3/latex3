@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-01-04]
+
 ### Added
 - Documentation for `\bitset_show_named_index:N` (issue \#1372)
 - `\bitset_log_named_index:N`
@@ -1633,7 +1635,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-12-11...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-01-04...HEAD
+[2024-01-04]: https://github.com/latex3/latex3/compare/2023-12-11...2024-01-04
 [2023-12-11]: https://github.com/latex3/latex3/compare/2023-12-08...2023-12-11
 [2023-12-08]: https://github.com/latex3/latex3/compare/2023-11-09...2023-12-08
 [2023-11-09]: https://github.com/latex3/latex3/compare/2023-11-01...2023-11-09
