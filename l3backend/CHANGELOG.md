@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Documentation tweaks
+
 ## [2023-11-09]
 
 ### Changed
