@@ -91,6 +91,6 @@ by e-mail: <latex-team@latex-project.org>.
 
 -----
 
-<p>Copyright (C) 1998-2012,2015-2023 The LaTeX Project <br />
+<p>Copyright (C) 1998-2012,2015-2024 The LaTeX Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>
