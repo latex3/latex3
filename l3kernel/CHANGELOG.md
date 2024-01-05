@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Set `l3doc` option `kernel` off as-standard (issue \#1403)
+
 ## [2024-01-04]
 
 ### Added
