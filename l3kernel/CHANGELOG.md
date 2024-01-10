@@ -7,9 +7,15 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\keys_set_exclude_groups:nnn(nN)` to replace `\keys_set_filter:nnn(nN)`
+
 ### Changed
 - Set `l3doc` option `kernel` off as-standard (issue \#1403)
 - Moved `\seq_set_filter:NNn` to stable
+
+### Deprecated
+- `\keys_set_filter:nnn(nN)` in favor of  `\keys_set_exclude_groups:nnn(nN)`
 
 ## [2024-01-04]
 
