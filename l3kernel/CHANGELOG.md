@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Set `l3doc` option `kernel` off as-standard (issue \#1403)
+- Moved `\seq_set_filter:NNn` to stable
 
 ## [2024-01-04]
 
