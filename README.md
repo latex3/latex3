@@ -9,8 +9,8 @@ on top of LaTeX2e.
 
 The following directories are present in the repository:
 
-* `l3kernel`: code forms the `expl3` kernel and with the exception of the
-  contents of `l3candidates`, all stable code. With a modern LaTeX2e kernel,
+* `l3kernel`: code forms the `expl3` kernel and all stable code.
+  With a modern LaTeX2e kernel,
   this code is loaded during format creation; when using an older LaTeX2e
   kernel, this material is accessible using the `expl3` package.
 * `l3backend`: code for backend (driver) level interfaces across

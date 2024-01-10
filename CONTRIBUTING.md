@@ -29,7 +29,7 @@ There are a few things you may need to bear in mind
 
 - `l3kernel` is 'broadly' stable so any changes there are best raised
   first by mailing the team
-- New functions normally get added _via_ `l3candidates` or (for new
+- New functions normally get added _via_ pull requests or (for new
   modules) `l3trial`
 
 If you are submitting a pull request, notice that
