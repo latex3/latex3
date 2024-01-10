@@ -8,12 +8,26 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\keys_set_exclude_groups:nnn(nN)` to replace `\keys_set_filter:nnn(nN)`
+
+### Changed
+- Set `l3doc` option `kernel` off as-standard (issue \#1403)
+- Moved `\seq_set_filter:NNn` to stable
+
+### Deprecated
+- `\keys_set_filter:nnn(nN)` in favor of  `\keys_set_exclude_groups:nnn(nN)`
+
+## [2024-01-04]
+
+### Added
 - Documentation for `\bitset_show_named_index:N` (issue \#1372)
 - `\bitset_log_named_index:N`
 - `\tl_build_get_intermediate:NN`
+- Support for `.default:n` values for the `unknown` handler (see issue \#67)
 
 ### Changed
 - Improved method to suppress `l3bitset` where required
+- Clarify behavior of `\tl_if_novalue:n(TF)` (see issue \#1402)
 
 ### Deprecated
 - `\tl_build_get:NN` in favor of `\tl_build_get_intermediate:NN`
@@ -21,6 +35,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Handling of `documented-as` variants in `l3doc` indexing
   (see issue \#1345)
+- Missing trailing `TF` in single variant of conditional functions (issue \#1398)
 
 ## [2023-12-11]
 
@@ -1630,7 +1645,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2023-12-11...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-01-04...HEAD
+[2024-01-04]: https://github.com/latex3/latex3/compare/2023-12-11...2024-01-04
 [2023-12-11]: https://github.com/latex3/latex3/compare/2023-12-08...2023-12-11
 [2023-12-08]: https://github.com/latex3/latex3/compare/2023-11-09...2023-12-08
 [2023-11-09]: https://github.com/latex3/latex3/compare/2023-11-01...2023-11-09
