@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\keys_set_exclude_groups:nnn(nN)` to replace `\keys_set_filter:nnn(nN)`
+- Flags with N-type names, like other variable types
 
 ### Changed
 - Set `l3doc` option `kernel` off as-standard (issue \#1403)
