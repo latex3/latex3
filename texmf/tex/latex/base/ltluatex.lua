@@ -13,7 +13,7 @@
 -- (but please observe conditions on bug reports sent to that address!)
 -- 
 -- 
--- Copyright (C) 2015-2023
+-- Copyright (C) 2015-2024
 -- The LaTeX Project and any individual authors listed elsewhere
 -- in this file.
 -- 
@@ -91,11 +91,11 @@ local function msg_format(mod, msg_type, text)
   end
   return first_head .. " "
     .. string_gsub(
-         text .. "on input line " .. tex.inputlineno,
-         "\n",
-         "\n" .. cont .. " "
-       )
-    .. "\n"
+         text
+ .. "on input line "
+         .. tex.inputlineno, "\n", "\n" .. cont .. " "
+      )
+   .. "\n"
 end
 local function module_info(mod, text)
   texio_write_nl("log", msg_format(mod, "Info", text))
@@ -163,13 +163,12 @@ else
   end
 end
 luatexbase.registernumber = registernumber
-local attributes = setmetatable(
-  {},
-  {
-    __index = function(t,key)
-      return registernumber(key) or nil
-    end
-  }
+local attributes=setmetatable(
+{},
+{
+__index = function(t,key)
+return registernumber(key) or nil
+end}
 )
 luatexbase.attributes = attributes
 local attribute_count_name =
@@ -231,7 +230,11 @@ local luafunction_count_name =
                          luafunction_count_name or "e@alloc@luafunction@count"
 local function new_luafunction(name)
   tex_setcount("global", luafunction_count_name,
-                         tex_count[luafunction_count_name] + 1)
+                         math.max(
+                           #(lua.get_functions_table()),
+                           tex_count[luafunction_count_name])
+                          + 1)
+  lua.get_functions_table()[tex_count[luafunction_count_name]] = false
   if tex_count[luafunction_count_name] > 65534 then
     luatexbase_error("No room for a new luafunction register")
   end
@@ -464,7 +467,7 @@ local function list_handler(name)
         luatexbase_warning(
           "Function `" .. i.description .. "' returned false\n"
             .. "in callback `" .. name .."'"
-        )
+         )
         return false
       end
       if ret ~= true then
@@ -488,7 +491,7 @@ local function reverselist_handler(name)
         luatexbase_warning(
           "Function `" .. cb.description .. "' returned false\n"
             .. "in callback `" .. name .."'"
-        )
+         )
         return false
       end
       if ret ~= true then
@@ -555,7 +558,7 @@ local function call_callback(name,...)
   if user_callbacks_defaults[name] == nil then
     luatexbase_error("Unable to call callback `" .. name
                      .. "':\nunknown or empty")
-  end
+   end
   local l = callbacklist[name]
   local f
   if not l then
@@ -759,7 +762,7 @@ end
 luatexbase.uninstall = uninstall
 create_callback('pre_mlist_to_hlist_filter', 'list')
 create_callback('mlist_to_hlist', 'exclusive', node.mlist_to_hlist)
-create_callback('post_mlist_to_hlist_filter', 'list')
+create_callback('post_mlist_to_hlist_filter', 'reverselist')
 function shared_callbacks.mlist_to_hlist.handler(head, display_type, need_penalties)
   local current = call_callback("pre_mlist_to_hlist_filter", head, display_type, need_penalties)
   if current == false then
