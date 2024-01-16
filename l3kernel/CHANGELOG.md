@@ -28,6 +28,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Set `l3doc` option `kernel` off as-standard (issue \#1403)
 - Moved `\seq_set_filter:NNn` to stable
+- Improved the performance of `\cs_if_exist:NTF`, `\cs_if_free:NTF`,
+    `\cs_if_exist_use:NTF`, and most notably their `c`-type variants.
 
 ### Deprecated
 - `\keys_set_filter:nnn(nN)` in favor of  `\keys_set_exclude_groups:nnn(nN)`
