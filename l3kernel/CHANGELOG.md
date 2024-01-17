@@ -31,6 +31,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Deprecated
 - `\keys_set_filter:nnn(nN)` in favor of  `\keys_set_exclude_groups:nnn(nN)`
+- `\msg_gset:nnn(n)`
 
 ## [2024-01-04]
 
