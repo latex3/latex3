@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-01-22]
+
 ### Added
 - `\keys_set_exclude_groups:nnn(nN)` to replace `\keys_set_filter:nnn(nN)`
 - Flags with N-type names, like other variable types
@@ -1646,7 +1648,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-01-04...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-01-22...HEAD
+[2024-01-22]: https://github.com/latex3/latex3/compare/2024-01-04...2024-01-22
 [2024-01-04]: https://github.com/latex3/latex3/compare/2023-12-11...2024-01-04
 [2023-12-11]: https://github.com/latex3/latex3/compare/2023-12-08...2023-12-11
 [2023-12-08]: https://github.com/latex3/latex3/compare/2023-11-09...2023-12-08
