@@ -9,7 +9,7 @@ system on GitHub. Handy information that you _might_
 include, depending on the nature of the issue, includes
 
 - Your version of `expl3` (from your `.log`)
-- Your TeX system details (for example 'TeX Live 2017')
+- Your TeX system details (for example 'TeX Live 2023')
 - Which engine(s) you are using (_e.g._ pdfTeX)
 - Any additional packages that are needed to see the issue
   (noting that of course we can only help with bugs in _our own code_)
@@ -27,8 +27,8 @@ making a pull request, drop a line to
 
 There are a few things you may need to bear in mind
 
-- `l3kernel` is 'broadly' stable so any changes there are best raised
-  first by mailing the team
+- `l3kernel` is stable so any changes will need careful review and any
+  deprecated functions need to remain available in `l3deprecation.dtx`
 - New functions normally get added _via_ pull requests or (for new
   modules) `l3trial`
 
@@ -36,8 +36,11 @@ If you are submitting a pull request, notice that
 
 - The first line of commit messages should be a short summary (up to about
   50 chars); leave a blank line then give more detail if required
-- We use Travis-CI for (light) testing so add `[ci skip]` to documentation-only
-  commit messages
-- We favour a single linear history so will rebase accepted pull requests
+- We use  GitHub Actions  for (light) testing: you can check locally that
+  things pass using `l3build`
+- We favour a single linear history so will (likely) rebase accepted pull
+  requests
 - Where a commit fixes or closes an issue, please include this information
-  in the first line of the commit message [`(fixes #X)` or similar]
+  in the first line of the commit message [`(fixes #X)` or similar] as this
+  helps keep a track
+- Most non-trivial changes should go into the relevant `CHANGELOG.md` file
