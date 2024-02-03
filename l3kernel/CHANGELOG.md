@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Inconsistent local/global assignments in `\vcoffin_gset:Nnn` and
+  `\vcoffin_gset:Nnw`
+
 ## [2024-01-22]
 
 ### Added
