@@ -10,6 +10,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Inconsistent local/global assignments in `\vcoffin_gset:Nnn` and
   `\vcoffin_gset:Nnw`
+- Tokenization by `\peek_analysis_map_inline:n` of one additional
+  character after any space or brace
 
 ## [2024-01-22]
 
