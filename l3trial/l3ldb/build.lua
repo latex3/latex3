@@ -19,7 +19,6 @@ checkdeps   =
 checksuppfiles  =
   {
     "regression-test.cfg",
-    "regression-test.tex",
   }
 
 -- Load the common build code
