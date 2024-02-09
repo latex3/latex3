@@ -144,9 +144,14 @@ local function fmt(engines,dest)
     return 0
   end
 
-  for _,engine in pairs(engines) do
-    local errorlevel = mkfmt(engine)
+  if options["stdengine"] then
+    local errorlevel = mkfmt(stdengine)
     if errorlevel ~= 0 then return errorlevel end
+  else
+    for _,engine in pairs(engines) do
+      local errorlevel = mkfmt(engine)
+      if errorlevel ~= 0 then return errorlevel end
+    end
   end
   return 0
 end
