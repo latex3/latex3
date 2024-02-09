@@ -63,32 +63,37 @@
 % \label{sec:l3expan:defining-variants}
 %
 % The definition of variant forms for base functions may be necessary
-% when writing new functions or when applying a kernel function in a
-% situation that we haven't thought of before.
+% when writing new functions or when applying a function in a
+% new situation.
 %
-% Internally preprocessing of arguments is done with functions of the form
-% \cs[no-index]{exp_\ldots{}}.  They all look alike, an example would be
+% Internally preprocessing of arguments is done with functions
+% \cs[no-index]{exp_args:N}\ldots. They all look alike, an example would be
 % \cs{exp_args:NNo}. This function has three arguments, the first and the
 % second are a single tokens, while the third argument should be given
-% in braces. Applying \cs{exp_args:NNo} expands the content of third
-% argument once before any expansion of the first and second arguments.
-% If \cs{seq_gpush:No} was not defined it could be coded in the following way:
-% \begin{verbatim}
-%   \exp_args:NNo \seq_gpush:Nn
-%      \g_file_name_stack
-%      { \l_tmpa_tl }
-% \end{verbatim}
+% in braces. Applying \cs{exp_args:NNo} expands one level the content of
+% the third argument, leaving unchanged the other arguments
+% ( nevertheless they may also get expanded at a later stage).
+% If \cs{seq_gpush:No} was not defined it could be emulated in the following way.
+% \begin{quote}\ttfamily
+%   |\exp_args:NNo \seq_gpush:Nn|\\
+%   |   \g_file_name_seq|\\
+%   |   { \l_name_tl .tex }|
+% \end{quote}
+% where the global variable |\g_file_name_seq| contains a sequence of file names,
+% and the local token list variable |\l_name_tl| contains a name.
 % In other words, the first argument to \cs{exp_args:NNo} is the base
 % function and the other arguments are preprocessed and then passed to
 % this base function. In the example the first argument to the base
-% function should be a single token which is left unchanged while the
-% second argument is expanded once. From this example we can also see
-% how the variants are defined. They just expand into the appropriate
-% |\exp_| function followed by the desired base function, \emph{e.g.}
+% function is the single token |\g_file_name_seq| which is left unchanged.
+% The second argument is expanded once as a file name.
+% From this example we can also see
+% how the variants are generally defined:~they just expand into the appropriate
+% \cs[no-index]{exp_args:N}\ldots\ function followed by the desired base function\footnote{Some variants, such as
+% \cs[no-index]{str_if_eq:eeTF}, are defined directly without expanding to the base function.}, \emph{e.g.}
 % \begin{quote}
 %   |\cs_generate_variant:Nn \seq_gpush:Nn { No } |
 % \end{quote}
-% results in the definition of |\seq_gpush:No|
+% results in the definition of |\seq_gpush:No| by
 % \begin{quote}
 %   |\cs_new:Npn \seq_gpush:No { \exp_args:NNo \seq_gpush:Nn }|
 % \end{quote}
@@ -98,8 +103,8 @@
 % such definition to later releases of the kernel will not make such
 % style files obsolete.
 %
-% The steps above may be automated by using the function
-% \cs{cs_generate_variant:Nn}, described next.
+% The function \cs{cs_generate_variant:Nn} described next allows to
+% automate the steps above.
 %
 % \section{Methods for defining variants}
 % \label{sec:l3expan:variants-method}
@@ -107,7 +112,7 @@
 % We recall the set of available argument specifiers.
 % \begin{itemize}
 % \item |N|~is used for single-token arguments while |c|~constructs a
-%   control sequence from its name and passes it to a parent function as
+%   control sequence from its name and passes it to a function as
 %   an |N|-type argument.
 % \item Many argument types extract or expand some tokens and provide it
 %   as an |n|-type argument, namely a braced multiple-token argument:
@@ -125,63 +130,66 @@
 % \begin{function}[updated = 2017-11-28]
 %   {\cs_generate_variant:Nn, \cs_generate_variant:cn}
 %   \begin{syntax}
-%     \cs{cs_generate_variant:Nn} \meta{parent control sequence} \Arg{variant argument specifiers}
+%     \cs{cs_generate_variant:Nn} \cs[no-index]{\meta{name}:\meta{base arg-spec}} \{\meta{arg-spec_1},\meta{arg-spec_2},...\}
 %   \end{syntax}
-%   This function is used to define argument-specifier variants of the
-%   \meta{parent control sequence} for \LaTeX3 code-level macros. The
-%   \meta{parent control sequence} is first separated into the
-%   \meta{base name} and \meta{original argument specifier}. The
-%   comma-separated list of \meta{variant argument specifiers} is
-%   then used to define variants of the
-%   \meta{original argument specifier} if these are not already
-%   defined; entries which correspond to existing functions are silently
-%   ingored. For each \meta{variant} given, a function is created
-%   that expands its arguments as detailed and passes them
-%   to the \meta{parent control sequence}. So for example
-%   \begin{verbatim}
-%     \cs_set:Npn \foo:Nn #1#2 { code here }
-%     \cs_generate_variant:Nn \foo:Nn { c }
-%   \end{verbatim}
-%   creates a new function |\foo:cn| which expands its first
-%   argument into a control sequence name and passes the result to
-%   |\foo:Nn|. Similarly
-%   \begin{verbatim}
-%     \cs_generate_variant:Nn \foo:Nn { NV , cV }
-%   \end{verbatim}
-%   generates the functions |\foo:NV| and |\foo:cV| in the same
-%   way. The \cs{cs_generate_variant:Nn} function should only be applied if
-%   the \meta{parent control sequence} is already defined. (This is only
-%   enforced if debugging support \texttt{check-declarations} is enabled.)
-%   If the \meta{parent
-%   control sequence} is protected or if the \meta{variant} involves any
-%   |x|~argument, then the \meta{variant control sequence} is also
-%   protected.  The \meta{variant} is created globally, as is any
-%   \cs[no-index]{exp_args:N\meta{variant}} function needed to carry out the
-%   expansion. There is no need to re-apply \cs{cs_generate_variant:Nn} after
-%   changing the definition of the parent function: the variant will always
-%   use the current definition of the parent. Providing variants repeatedly is
-%   safe as \cs{cs_generate_variant:Nn} will only create new definitions if
-%   there is not already one available.
-%
-%   Only |n|~and |N| arguments can be changed to other types.  The only
-%   allowed changes are
+%   This function is used to define argument specifier variants of the
+%   base function \cs[no-index]{\meta{name}:\meta{base arg-spec}}.
+%   Each argument specifier \meta{arg-spec_i} is used to build a
+%   \meta{variant arg-spec_i} from \meta{base arg-spec},
+%   by mapping its heading letters to
+%   the letters of \meta{arg-spec_i}, one after the other.
+%   The only possible mappings are
 %   \begin{itemize}
-%   \item |c|~variant of an |N|~parent;
-%   \item |o|, |V|, |v|, |f|, |e|, or~|x| variant of an |n|~parent;
-%   \item |N|, |n|, |T|, |F|, or |p| argument unchanged.
+%   \item |N| to |N| or |c|;
+%   \item |n| to |n|, |o|, |V|, |v|, |f|, |e|, or |x|;
+%   \item |p| to |p|;
 %   \end{itemize}
-%   This means the \meta{parent} of a \meta{variant} form is always
-%   unambiguous, even in cases where both an |n|-type parent and an
-%   |N|-type parent exist, such as for \cs{tl_count:n} and
-%   \cs{tl_count:N}.
+%   with the restriction that |p| arguments may be followed
+%   \emph{in fine} by a braced group.
 %
-%   When creating variants for conditional functions,
-%   \cs{prg_generate_conditional_variant:Nnn} provides a convenient way
-%   of handling the related function set.
+%   If it does not exist, each variant function
+%   \cs[no-index]{\meta{name}|:|\meta{variant arg-spec_i}} is created globally,
+%   as is the function \cs[no-index]{exp_args:N\meta{variant arg-spec_i}}
+%   needed to expand the arguments as necessary before they
+%   are passed to the base function.
+%   So for example
+%   \begin{quote}\ttfamily
+%     |\cs_set:Npn \foo:Nn #1#2 {|\meta{code here}|}|\\
+%     |\cs_generate_variant:Nn \foo:Nn { c }|
+%   \end{quote}
+%   creates a new function |\foo:cn| which expands its first
+%   argument into a control sequence further passed as first argument to
+%   |\foo:Nn|. It does not create \cs[no-index]{exp_args:Nc}
+%   because it already exists. Similarly
+%   \begin{quote}
+%     |\cs_generate_variant:Nn \foo:Nn { NV , cV }|
+%   \end{quote}
+%   generates the variants |\foo:NV| and |\foo:cV| in the same
+%   way. Notice that
+%   \begin{quote}
+%     |\cs_generate_variant:Nn \foo:cn { cV }|
+%   \end{quote}
+%   is an error to generate |\foo:cV| because |cn| is not a
+%   \meta{base arg-spec}. On the contrary
+%   \begin{quote}
+%     |\cs_generate_variant:Nn \foo:nc { Vc }|
+%   \end{quote}
+%   is allowed because |c| is not part of the \meta{base arg-spec} head.
+%
+%   The \cs{cs_generate_variant:Nn} function should only be applied to
+%   already defined base functions\footnotemark{}.
+%   If the base function is protected or if the \meta{arg-spec_i} contains
+%   |x|, then the generated variant is
+%   protected. There is no need to re-apply \cs{cs_generate_variant:Nn} after
+%   changing the definition of the base function: the variant will always
+%   use the current definition of the base.
+%   As \cs{cs_generate_variant:Nn} does nothing when the variant
+%   is already available, generating the same variants repeatedly is 
+%   safe.
 %
 %   For backward compatibility it is currently possible to make |n|,
 %   |o|, |V|, |v|, |f|, |e|, or |x|-type variants of an |N|-type argument or
-%   |N| or |c|-type variants of an |n|-type argument.  Both are
+%   |N|-type or |c|-type variants of an |n|-type argument.  Both are
 %   deprecated.  The first because passing more than one token to an
 %   |N|-type argument will typically break the parent function's code.
 %   The second because programmers who use that most often want to
@@ -190,26 +198,29 @@
 %   using the lower-level \cs{exp_args:No} or \cs{exp_args:Nc}
 %   functions explicitly is preferred to defining confusing variants.
 % \end{function}
+% \footnotetext{This is only
+%   enforced if debugging support \texttt{check-declarations} is enabled.}
 %
 % \begin{function}[added = 2018-04-04, updated = 2019-02-08]
 %   {\exp_args_generate:n}
 %   \begin{syntax}
-%     \cs{exp_args_generate:n} \Arg{variant argument specifiers}
+%     \cs{exp_args_generate:n} \{\meta{arg-spec_1},\meta{arg-spec_2},...\}
 %   \end{syntax}
-%   Defines \cs[no-index]{exp_args:N\meta{variant}} functions for each
-%   \meta{variant} given in the comma list \Arg{variant argument
-%   specifiers}.  Each \meta{variant} should consist of the letters |N|,
-%   |c|, |n|, |V|, |v|, |o|, |f|, |e|, |x|, |p| and the resulting function is
-%   protected if the letter |x| appears in the \meta{variant}.  This is
-%   only useful for cases where \cs{cs_generate_variant:Nn} is not
+%   Defines function \cs[no-index]{exp_args:N\meta{arg-spec_i}} for each
+%   given argument specifier \meta{arg-spec_i}.
+%   Each argument specifier should consist of the letters |N|,
+%   |c|, |n|, |V|, |v|, |o|, |f|, |e|, |x|, |p| and if it contains the letter |x|,
+%   the resulting function is protected.
+%   This is
+%   only useful when the function \cs{cs_generate_variant:Nn} is not
 %   applicable.
 % \end{function}
 %
-% \section{Introducing the variants}
+% \section{The variant letter types}
 %
-% The |V| type returns the value of a register, which can be one of
+% The |V|-type returns the value of a register, which can be one of
 % |tl|, |clist|, |int|, |skip|, |dim|, |muskip|, or built-in \TeX{}
-% registers. The |v| type is the same except it first creates a
+% registers. The |v|-type is the same except it first creates a
 % control sequence out of its argument before returning the
 % value.
 %
@@ -220,19 +231,19 @@
 % specific expansion steps are needed, such as when using delimited
 % arguments, should the lower-level functions with |o| specifiers be employed.
 %
-% The |e| type expands all tokens fully, starting from the first.  More
+% The |e|-type expands all tokens fully, starting from the first.  More
 % precisely the expansion is identical to that of \TeX{}'s \tn{message}
 % (in particular |#| needs not be doubled).  It relies on the
 % primitive \tn{expanded} hence is fast.
 %
-% The |x| type expands all tokens fully, starting from the first.  In
+% The |x|-type expands all tokens fully, starting from the first.  In
 % contrast to |e|, all macro parameter characters |#| must be doubled,
 % and omitting this leads to low-level errors.  In addition this type of
 % expansion is not expandable, namely functions that have |x| in their
-% signature do not themselves expand when appearing inside |e| or |x|
-% expansion.
+% signature do not themselves expand when appearing inside |e|-type
+% or |x|-type expansion.
 %
-% The |f| type is so special that it deserves an example.  It is
+% The |f|-type is so special that it deserves an example.  It is
 % typically used in contexts where only expandable commands are allowed.
 % Then |x|-expansion cannot be used, and |f|-expansion provides an
 % alternative that expands the front of the token list
@@ -265,27 +276,27 @@
 %   |\example:n { 3 , 7 }|
 % \end{quote}
 % at the cost of being protected for |x|-type.
-% If you use |f| type expansion in conditional processing then
-% you should stick to using |TF|  type functions only as the expansion
+% If you use |f|-type expansion in conditional processing then
+% you should stick to using |TF|-type functions only as the expansion
 % does not finish any |\if... \fi:| itself!
 %
-% It is important to note that both \texttt{f}- and \texttt{o}-type
+% It is important to note that both \texttt{f} and |o|-type
 % expansion are concerned with the expansion of tokens from left to
-% right in their arguments. In particular, \texttt{o}-type expansion
-% applies to the first \emph{token} in the argument it receives: it
+% right in their arguments. In particular, |o|-type expansion
+% only applies to the first \emph{token} in the argument it receives: it
 % is conceptually similar to
-% \begin{verbatim}
-%   \exp_after:wN <base function> \exp_after:wN { <argument> }
-% \end{verbatim}
-% At the same time, \texttt{f}-type expansion stops at the \emph{first}
+% \begin{quote}\ttfamily
+%   |\exp_after:wN |\meta{base function}| \exp_after:wN { |\meta{argument}| }|
+% \end{quote}
+% At the same time, |f|-type expansion stops at the \emph{first}
 % non-expandable token. This means for example that both
-% \begin{verbatim}
-%    \tl_set:No \l_tmpa_tl { { \g_tmpb_tl } }
-% \end{verbatim}
+% \begin{quote}\ttfamily
+%    |\tl_set:No \l_tmpa_tl { { \g_tmpb_tl } }|
+% \end{quote}
 % and
-% \begin{verbatim}
-%    \tl_set:Nf \l_tmpa_tl { { \g_tmpb_tl } }
-% \end{verbatim}
+% \begin{quote}\ttfamily
+%    |\tl_set:Nf \l_tmpa_tl { { \g_tmpb_tl } }|
+% \end{quote}
 % leave |\g_tmpb_tl| unchanged: |{| is the first token in the
 % argument and is non-expandable.
 %
@@ -297,15 +308,16 @@
 %     being passed to the |n|-type base function) are never expandable
 %     even when the base function is.  Such variants cannot work
 %     correctly in arguments that are themselves subject to expansion.
-%     Consider using |f| or |e| expansion.
+%     Consider using |f|-type or |e|-type expansion.
 %   \item
 %     In contrast, |e|~expansion (full expansion, almost like~|x| except
 %     for the treatment of~|#|) does not prevent variants from being
 %     expandable (if the base function is).
 %   \item
-%     Finally |f|~expansion only expands the front of the token list,
-%     stopping at the first non-expandable token.  This may fail to
-%     fully expand the argument.
+%     Finally |f|~expansion only expands the front of the token list
+%     fully,
+%     stopping at the first non-expandable token. This may fail to
+%     fully expand the whole argument.
 % \end{itemize}
 %
 % When speed is essential (for functions that do very little work and
@@ -316,9 +328,9 @@
 % \begin{itemize}
 %   \item for fastest processing any |c|-type arguments should come first
 %     followed by all other modified arguments;
-%   \item unchanged |N|-type args that appear before modified ones have
+%   \item unchanged |N|-type arguments that appear before modified ones have
 %     a small performance hit;
-%  \item unchanged |n|-type args that appear before modified ones have
+%  \item unchanged |n|-type arguments that appear before modified ones have
 %    a relative larger performance hit.
 % \end{itemize}
 %
@@ -594,7 +606,7 @@
 %     of those functions before expansion. This can cause problems
 %     if the argument is empty: for instance,
 %     \cs{exp_last_unbraced:Nf} |\foo_bar:w| |{ }| \cs{q_stop}
-%     leads to an infinite loop, as the quark is \texttt{f}-expanded.
+%     leads to an infinite loop, as the quark is |f|-type expanded.
 %   \end{texnote}
 % \end{function}
 %
@@ -741,14 +753,14 @@
 %
 % \begin{function}[updated = 2011-06-03, EXP]{\exp_stop_f:}
 %   \begin{syntax}
-%     |\foo_bar:f| \{ \meta{tokens} \cs{exp_stop_f:} \meta{more tokens} \}
+%     |\foo_bar:f| \{\meta{tokens} \cs{exp_stop_f:} \meta{more tokens}\}
 %   \end{syntax}
-%   This function terminates an \texttt{f}-type expansion. Thus if
-%   a function |\foo_bar:f| starts an \texttt{f}-type expansion
+%   This function terminates an |f|-type expansion. Thus if
+%   a function |\foo_bar:f| starts an |f|-type expansion
 %   and all of \meta{tokens} are expandable \cs{exp_stop_f:}
 %   terminates the expansion of tokens even if \meta{more tokens}
 %   are also expandable. The function itself is an implicit space
-%   token. Inside an \texttt{e}-type or \texttt{x}-type expansion, it retains its
+%   token. Inside an |e|-type or |x|-type expansion, it retains its
 %   form, but when typeset it produces the underlying space (\verb*| |).
 % \end{function}
 %
@@ -823,10 +835,10 @@
 %     \cs{exp:w} \meta{expandable-tokens} \cs{exp_end_continue_f:w} \meta{further-tokens}
 %   \end{syntax}
 %   Expands \meta{expandable-tokens} until reaching \cs{exp_end_continue_f:w} at
-%   which point expansion continues as an \texttt{f}-type expansion expanding
+%   which point expansion continues as an |f|-type expansion expanding
 %   \meta{further-tokens} until an unexpandable token is encountered (or
-%   the \texttt{f}-type expansion is explicitly terminated by
-%   \cs{exp_stop_f:}). As with all \texttt{f}-type expansions a space ending
+%   the |f|-type expansion is explicitly terminated by
+%   \cs{exp_stop_f:}). As with all |f|-type expansions a space ending
 %   the expansion gets removed.
 %
 %   The full expansion of \meta{expandable-tokens} has to be empty.
@@ -841,7 +853,7 @@
 %\begin{verbatim}
 %    \exp_after:wN { \exp:w \exp_end_continue_f:w #2 }
 %\end{verbatim}
-%   where the \cs{exp_after:wN} triggers an \texttt{f}-expansion of the tokens
+%   where the \cs{exp_after:wN} triggers an |f|-type expansion of the tokens
 %   in |#2|. For technical reasons this has to happen using two tokens
 %   (if they would be hidden inside another command \cs{exp_after:wN}
 %   would only expand the command but not trigger any additional
@@ -852,7 +864,7 @@
 %   \begin{quote}
 %     \cs{exp:w} \meta{expandable-tokens} \cs{exp_end:}
 %   \end{quote}
-%   can be alternatively achieved through an \texttt{f}-type expansion by using
+%   can be alternatively achieved through an |f|-type expansion by using
 %   \cs{exp_stop_f:}, i.e.
 %   \begin{quote}
 %     \cs{exp:w} \cs{exp_end_continue_f:w} \meta{expandable-tokens} \cs{exp_stop_f:}
@@ -879,7 +891,7 @@
 %   \meta{further-tokens} starts with space tokens then these space
 %   tokens are removed while searching for the argument.  If it starts
 %   with a brace group then the braces are removed. Thus such spaces or
-%   braces will not terminate the \texttt{f}-type expansion.
+%   braces will not terminate the |f|-type expansion.
 % \end{function}
 %
 % \section{Internal functions}
@@ -888,8 +900,8 @@
 %   \begin{syntax}
 %     |\cs_new:Npn \exp_args:Ncof { \::c \::o \::f \::: }|
 %   \end{syntax}
-%   Internal forms for the base expansion types. These names do \emph{not}
-%   conform to the general \LaTeX3 approach as this makes them more readily
+%   Internal forms for the base expansion types. These names \emph{do not
+%   conform} to the general \LaTeX3 naming scheme as this makes them more readily
 %   visible in the log and so forth.  They should not be used outside this module.
 % \end{function}
 %
@@ -899,8 +911,8 @@
 %     |\cs_new:Npn \exp_last_unbraced:Nno { \::n \::o_unbraced \::: }|
 %   \end{syntax}
 %   Internal forms for the expansion types which leave the terminal argument
-%   unbraced. These names do \emph{not}
-%   conform to the general \LaTeX3 approach as this makes them more readily
+%   unbraced. These names \emph{do not
+%   conform} to the general \LaTeX3 naming scheme as this makes them more readily
 %   visible in the log and so forth.  They should not be used outside this module.
 % \end{function}
 %
@@ -919,7 +931,7 @@
 %    \end{macrocode}
 %
 % \begin{variable}{\l_@@_internal_tl}
-%   The |\exp_| module has its private variable to temporarily store the
+%   The \pkg{l3expan} module has its private variable to temporarily store the
 %   result of |x|-type argument expansion. This is done to avoid interference
 %   with other functions using temporary variables.
 % \end{variable}
@@ -928,7 +940,7 @@
 % \begin{macro}{\exp_not:N}
 % \begin{macro}{\exp_not:n}
 %   These are defined in \pkg{l3basics}, as they are needed
-%   \enquote{early}.  This is just a reminder of that fact!
+%   earlier. Here is just a reminder of that fact.
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -950,7 +962,7 @@
 %   This scratch token list variable is defined in \pkg{l3basics}.
 % \end{variable}
 %
-% This code uses internal functions with names that start with |\::| to
+% This code uses internal functions with names that start with |::| to
 % perform the expansions. All macros are |long| since the tokens
 % undergoing expansion may be arbitrary user input.
 %
@@ -1125,7 +1137,7 @@
     \exp_after:wN \if_meaning:w \exp_not:N #1 #1
 %    \end{macrocode}
 %   If the token was not a macro it may be a malformed variable from a
-%   |c| expansion in which case it is equal to the primitive
+%   |c|-type expansion in which case it is equal to the primitive
 %   \cs{scan_stop:}. In that case we throw an error. We could let \TeX{}
 %   do it for us but that would result in the rather obscure
 %   \begin{quote}
@@ -1515,10 +1527,10 @@
 % \begin{macro}[EXP]{\exp_last_two_unbraced:Noo}
 % \begin{macro}[EXP]{\@@_last_two_unbraced:noN}
 %   If |#2| is a single token then this can be implemented as
-%   \begin{verbatim}
-%     \cs_new:Npn \exp_last_two_unbraced:Noo #1 #2 #3
-%      { \exp_after:wN \exp_after:wN \exp_after:wN #1 \exp_after:wN #2 #3 }
-%   \end{verbatim}
+%   \begin{quote}\ttfamily
+%     |\cs_new:Npn \exp_last_two_unbraced:Noo #1 #2 #3|\\
+%     |{ \exp_after:wN \exp_after:wN \exp_after:wN #1 \exp_after:wN #2 #3 }|\\
+%   \end{quote}
 %   However, for robustness this is not suitable. Instead, a bit of a
 %   shuffle is used to ensure that |#2| can be multiple tokens.
 %    \begin{macrocode}
@@ -1606,7 +1618,7 @@
 %   a mistake.)
 %
 %   If on the other hand we want to stop the initial expansion sequence
-%   but continue with an \texttt{f}-type expansion we provide the
+%   but continue with an |f|-type expansion we provide the
 %   alphabetic constant |`^^@| that also represents |0| but this time
 %   \TeX's syntax for a \meta{number} continues searching for an
 %   optional space (and it continues expansion doing that) --- see
@@ -1682,7 +1694,7 @@
 %   protected or not and define \cs{@@_tmp:w} as either
 %   \cs{cs_new:Npe} or \cs{cs_new_protected:Npe}, which is
 %   then used to define all the variants (except those involving
-%   \texttt{x}-expansion, always protected).  Split up the original base
+%   |x|-type expansion, always protected).  Split up the original base
 %   function only once, to grab its name and signature.  Then we wish to
 %   iterate through the comma list of variant argument specifiers, which
 %   we first convert to a string: the reason is explained later.
@@ -1803,7 +1815,7 @@
 %       variant signature.
 %     \item In \cs{cs_generate_variant:Nn} |\foo:on| |{ox}|, the
 %       function |\foo:ox| must be defined using |\exp_args:Nnx|, not
-%       |\exp_args:Nox|, to avoid double |o| expansion.
+%       |\exp_args:Nox|, to avoid double |o|-type expansion.
 %     \item Lastly, \cs{cs_generate_variant:Nn} |\foo:on| |{xn}| must
 %       trigger an error, because we do not have a means to replace
 %       |o|-expansion by |x|-expansion.
