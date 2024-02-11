@@ -1235,69 +1235,52 @@
 % \end{variable}
 % \end{variable}
 %
-% \begin{variable}{\l_@@_internal_prop}
-%   Used in functions that require adding items one by one and checking
-%   duplicates, like \cs{prop_concat:NNN} or \cs{prop_set_from_keyval:Nn}.  To
-%   efficiently search for items, this is a linked prop.  Because
-%   \cs{prop_clear:N} is not so immediate even on an empty linked prop, we make
-%   sure to empty it after every time it is used.  Other reasons are to save
-%   some memory and to avoid that each use would affect the timing of the next
-%   use in confusing ways.
-%    \begin{macrocode}
-\prop_new_linked:N \l_@@_internal_prop
-%    \end{macrocode}
-% \end{variable}
-%
 % \begin{macro}
 %   {
 %     \prop_concat:NNN, \prop_concat:ccc,
-%     \prop_gconcat:NNN, \prop_gconcat:ccc, \@@_concat:NNNNNN
+%     \prop_gconcat:NNN, \prop_gconcat:ccc,
+%     \@@_concat:NNNNN, \@@_concat:nNNN
 %   }
-%   Combine two property lists.  We must beware of duplicate keys
-%   between the two property lists.  The basic idea of
-%   \cs{@@_concat:NNNNNN} is to copy the first prop |#5| into the target
-%   |#4| (converting as needed between flat and linked props), and then
-%   loop through the second prop |#6| (with \cs{@@_concat:NNN}), calling
-%   \cs[index=prop_put:Nnn]{prop_(g)put:Nnn}.  We work directly with the
-%   target prop |#4| as a scratch space, because copying over from a
-%   temporary \cs{l_@@_internal_prop} to |#4| would be slow in the
-%   linked case.  If |#6| is |#4| itself we have to be careful not to
-%   lose the data.  We could expand |#6| in advance, but instead we
-%   optimize by treating this case separately, avoiding an unnecessary
-%   copy; we use \cs[index=prop_put_if_new:Nnn]{prop_(g)put_if_new:Nnn}
-%   to keep the correct version of duplicate keys.  There is no need to
-%   check for the case where |#4| is equal to~|#5| because in that case
-%   the line |#1| |#4| |#5|, namely
-%   \cs[index=prop_set_eq:NN]{prop_(g)set_eq:NN} |#4| |#5| is correctly
-%   set up to do no needless work.
+%   The basic strategy is to copy the first variable into the target,
+%   then loop through the second variable, calling
+%   \cs[index=prop_put:Nnn]{prop_(g)put:Nnn} on each item.  To avoid
+%   running the \pkg{l3debug} scope checks on each of these steps, we
+%   use the auxiliaries that underly \cs{prop_set_eq:NN} and
+%   \cs{prop_put:Nnn}, whose syntax is a bit unwieldy.
+%   We work directly with the target prop |#3| as a scratch space,
+%   because copying over from a temporary variable to |#3| would be slow
+%   in the linked case.  If |#5| is |#3| itself we have to be careful
+%   not to lose the data, and we even take the opportunity to skip the
+%   copying step completely.  To keep the correct version of the
+%   duplicate keys we use the code underlying \cs{prop_put_if_new:Nnn},
+%   which involves passing \cs{use_none:nnn} to the auxiliary instead of
+%   nothing.
+%   There is no need to check for the case where |#3| is equal to~|#4|
+%   because in that case \cs[index=prop_set_eq:NN]{prop_(g)set_eq:NN}
+%   |#3| |#4| (or rather the underlying auxiliary) is correctly set up
+%   to do no needless work.
 %    \begin{macrocode}
 \cs_new_protected:Npn \prop_concat:NNN
-  {
-    \@@_concat:NNNNNN
-      \prop_set_eq:NN \prop_put:Nnn \prop_put_if_new:Nnn
-  }
+  { \@@_concat:NNNNN \cs_set_eq:NN \cs_set_nopar:Npe }
 \cs_generate_variant:Nn \prop_concat:NNN { ccc }
 \cs_new_protected:Npn \prop_gconcat:NNN
-  {
-    \@@_concat:NNNNNN
-      \prop_gset_eq:NN \prop_gput:Nnn \prop_gput_if_new:Nnn
-  }
+  { \@@_concat:NNNNN \cs_gset_eq:NN \cs_gset_nopar:Npe }
 \cs_generate_variant:Nn \prop_gconcat:NNN { ccc }
-\cs_new_protected:Npn \@@_concat:NNNNNN #1#2#3#4#5#6
+\cs_new_protected:Npn \@@_concat:NNNNN #1#2#3#4#5
   {
-    \cs_if_eq:NNTF #4 #6
-      { \@@_concat:NNN #3 #4 #5 }
+    \cs_if_eq:NNTF #3 #5
+      { \@@_concat:nNNN \use_none:nnn #2 #3 #4 }
       {
-        #1 #4 #5
-        \@@_concat:NNN #2 #4 #6
+        \@@_set_eq:NNNN #1 #2 #3 #4
+        \@@_concat:nNNN { } #2 #3 #5
       }
   }
-\cs_new_protected:Npn \@@_concat:NNN #1#2#3
+\cs_new_protected:Npn \@@_concat:nNNN #1#2#3#4
   {
     \cs_gset_eq:NN \@@_tmp:w \@@_pair:wn
     \cs_gset_protected:Npn \@@_pair:wn ##1 \s_@@
-      { #1 #2 {##1} }
-    \exp_last_unbraced:Nf \use_none:nn #3
+      { \@@_put:nNNnn {#1} #2 #3 {##1} }
+    \exp_last_unbraced:Nf \use_none:nn #4
     \cs_gset_eq:NN \@@_pair:wn \@@_tmp:w
   }
 %    \end{macrocode}
@@ -1307,57 +1290,36 @@
 %   {
 %     \prop_put_from_keyval:Nn, \prop_put_from_keyval:cn,
 %     \prop_gput_from_keyval:Nn, \prop_gput_from_keyval:cn,
-%     \@@_from_keyval:NNNn, \@@_from_keyval:nnn, \@@_from_keyval:Nnnn,
+%     \@@_from_keyval:nn, \@@_from_keyval:Nnn,
 %     \@@_missing_eq:n
 %   }
 %   The core is a call to \cs{keyval_parse:nnn}, with an error message
-%   \cs{@@_missing_eq:n} for entries without~|=|, and a call to
+%   \cs{@@_missing_eq:n} for entries without~|=|, and a call to (essentially)
 %   \cs[index=prop_put:Nnn]{prop_(g)put:Nnn} for valid key--value pairs.
+%   To avoid repeated scope checks (and errors) when \pkg{l3debug} is
+%   active, we instead use the auxiliary underlying \cs{prop_put:Nnn}.
 %   Because blank keys are valid here, in contrast to \pkg{l3keys}, we set and
-%   restore \cs{l__kernel_keyval_allow_blank_keys_bool}.  The trailing |#2| in
-%   the definition of \cs{@@_from_keyval:Nnnn} (first argument of
-%   \cs{@@_from_keyval:nnn}) is some code to place the result of all of these
-%   \cs[index=prop_put:Nnn]{prop_(g)put:Nnn} in the correct variable.
-%
-%   There are two cases.  If the target prop is a linked prop then we do all of
-%   the additions directly there, and the aforementioned |#2| is empty.  If the
-%   target prop is a flat prop then we do the work in \cs{l_@@_internal_prop}
-%   (after copying the original variable into it), and then the clean-up
-%   code~|#2| consists of copying the result back into the original variable and
-%   emptying \cs{l_@@_internal_prop}.
+%   restore \cs{l__kernel_keyval_allow_blank_keys_bool}.
+%   The key--value argument may be quite large so we avoid reading it until it
+%   is really necessary.
 %    \begin{macrocode}
-\cs_new_protected:Npn \prop_put_from_keyval:Nn
-  { \@@_from_keyval:NNNn \prop_set_eq:NN \prop_put:Nnn }
+\cs_new_protected:Npn \prop_put_from_keyval:Nn #1
+  { \@@_from_keyval:nn { \@@_put:nNNnn { } \cs_set_nopar:Npe #1 } }
 \cs_generate_variant:Nn \prop_put_from_keyval:Nn { c }
-\cs_new_protected:Npn \prop_gput_from_keyval:Nn
-  { \@@_from_keyval:NNNn \prop_gset_eq:NN \prop_gput:Nnn }
+\cs_new_protected:Npn \prop_gput_from_keyval:Nn #1
+  { \@@_from_keyval:nn { \@@_put:nNNnn { } \cs_gset_nopar:Npe #1 } }
 \cs_generate_variant:Nn \prop_gput_from_keyval:Nn { c }
-\cs_new_protected:Npn \@@_from_keyval:NNNn #1#2#3
-  {
-    \@@_if_flat:NTF #3
-      {
-        \prop_set_eq:NN \l_@@_internal_prop #3
-        \@@_from_keyval:nnn
-          {
-            #1 #3 \l_@@_internal_prop
-            \prop_clear:N \l_@@_internal_prop
-          }
-          { \prop_put:Nnn \l_@@_internal_prop }
-      }
-      { \@@_from_keyval:nnn { } { #2 #3 } }
-  }
-\cs_new_protected:Npn \@@_from_keyval:nnn
+\cs_new_protected:Npn \@@_from_keyval:nn
   {
     \bool_if:NTF \l__kernel_keyval_allow_blank_keys_bool
-      { \@@_from_keyval:Nnnn \c_true_bool }
-      { \@@_from_keyval:Nnnn \c_false_bool }
+      { \@@_from_keyval:Nnn \c_true_bool }
+      { \@@_from_keyval:Nnn \c_false_bool }
   }
-\cs_new_protected:Npn \@@_from_keyval:Nnnn #1#2#3#4
+\cs_new_protected:Npn \@@_from_keyval:Nnn #1#2#3
   {
     \bool_set_eq:NN \l__kernel_keyval_allow_blank_keys_bool \c_true_bool
-    \keyval_parse:nnn \@@_missing_eq:n {#3} {#4}
+    \keyval_parse:nnn \@@_missing_eq:n {#2} {#3}
     \bool_set_eq:NN \l__kernel_keyval_allow_blank_keys_bool #1
-    #2
   }
 \cs_new_protected:Npn \@@_missing_eq:n
   { \msg_error:nnn { prop } { prop-keyval } }
@@ -1369,58 +1331,48 @@
 %     \prop_set_from_keyval:Nn, \prop_set_from_keyval:cn,
 %     \prop_gset_from_keyval:Nn, \prop_gset_from_keyval:cn,
 %   }
-%   Just empty the prop and push key--value entries using
+%   Just empty the prop (with the auxiliary underlying
+%   \cs{prop_clear:N} to avoid \pkg{l3debug} problems) and push
+%   key--value entries using
 %   \cs[index=prop_put_from_keyval:Nn]{prop_(g)put_from_keyval:Nn}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \prop_set_from_keyval:Nn #1
   {
-    \prop_clear:N #1
+    \@@_clear:NNN \cs_set_eq:NN \cs_set_nopar:Npe #1
     \prop_put_from_keyval:Nn #1
   }
 \cs_generate_variant:Nn \prop_set_from_keyval:Nn { c }
 \cs_new_protected:Npn \prop_gset_from_keyval:Nn #1
   {
-    \prop_gclear:N #1
+    \@@_clear:NNN \cs_gset_eq:NN \cs_gset_nopar:Npe #1
     \prop_gput_from_keyval:Nn #1
   }
 \cs_generate_variant:Nn \prop_gset_from_keyval:Nn { c }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\prop_const_from_keyval:Nn, \prop_const_from_keyval:cn}
-%   We recall \cs{l_@@_internal_prop} is always correctly emptied.  Here we add
-%   key--value entries to it, then make a constant using \cs{tl_const:Ne}.
-%   It would also be possible to replace the first line by
-%   \cs{prop_set_from_keyval:Nn} \cs{l_@@_internal_prop} |{#2}| but that seems
-%   more likely to break if we change other code, since \cs{l_@@_internal_prop}
-%   is used in \cs{prop_set_from_keyval:Nn} itself.
+% \begin{macro}
+%   {
+%     \prop_const_from_keyval:Nn, \prop_const_from_keyval:cn,
+%     \prop_const_linked_from_keyval:Nn, \prop_const_linked_from_keyval:cn
+%   }
+%   For both flat and linked constant props, we create |#1| then use the
+%   same auxiliary as for \cs{prop_gput_from_keyval:Nn}.  It is most
+%   natural to use the already packaged \cs{prop_gput:Nnn}, but that
+%   would mean doing an assignment on a supposedly constant property
+%   list.  To avoid errors when \pkg{l3debug} is activated, we use the
+%   auxiliary underlying \cs{prop_gput:Nnn}.
 %    \begin{macrocode}
-\cs_new_protected:Npn \prop_const_from_keyval:Nn #1#2
+\cs_new_protected:Npn \prop_const_from_keyval:Nn #1
   {
-    \@@_from_keyval:nnn { } { \prop_put:Nnn \l_@@_internal_prop } {#2}
-    \tl_const:Ne #1 { \@@_flatten:N \l_@@_internal_prop }
-    \prop_clear:N \l_@@_internal_prop
+    \prop_new:N #1
+    \@@_from_keyval:nn { \@@_put:nNNnn { } \cs_gset_nopar:Npe #1 }
   }
 \cs_generate_variant:Nn \prop_const_from_keyval:Nn { c }
-%    \end{macrocode}
-% \end{macro}
-%
-% \begin{macro}
-%   {\prop_const_linked_from_keyval:Nn, \prop_const_linked_from_keyval:cn}
-%   To avoid needing a slow \cs{prop_gset_eq:NN} for a linked prop we add items
-%   directly into~|#1| itself.  It is most convenient to use the already
-%   packaged \cs{prop_gput:Nnn}, but that means doing an assignment on a
-%   supposedly constant property list.  To avoid errors when \pkg{l3debug} is
-%   activated, we surround the problematic assignment with \cs{debug_suspend:}
-%   and \cs{debug_resume:}.  The latter is correctly placed at the end by
-%   \cs{@@_from_keyval:nnn}, which allows us to avoid needlessly grabbing the
-%   key--value argument, which may be a very large argument.
-%    \begin{macrocode}
 \cs_new_protected:Npn \prop_const_linked_from_keyval:Nn #1
   {
     \prop_new_linked:N #1
-    \debug_suspend:
-    \@@_from_keyval:nnn { \debug_resume: } { \prop_gput:Nnn #1 }
+    \@@_from_keyval:nn { \@@_put:nNNnn { } \cs_gset_nopar:Npe #1 }
   }
 \cs_generate_variant:Nn \prop_const_linked_from_keyval:Nn { c }
 %    \end{macrocode}
@@ -1631,7 +1583,7 @@
 %
 % \begin{macro}
 %   {
-%     \@@_pop:NnNNNnTF,
+%     \@@_pop:NnNNnTF,
 %     \@@_pop_linked:wnNNnTF, \@@_pop_linked:NNNn,
 %     \@@_pop_linked:w,
 %     \@@_pop_linked_prev:w, \@@_pop_linked_next:w
@@ -1653,18 +1605,18 @@
 %   three arguments \Arg{code} \Arg{true code} \Arg{false code} depending on
 %   whether the key--value is found, in the same way as for flat props.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_pop:NnNNNnTF #1#2#3#4#5#6#7#8
+\cs_new_protected:Npn \@@_pop:NnNNnTF #1#2#3#4#5#6#7
   {
     \@@_split:NnTFn #1 {#2}
       {
-        #3 #1 { \s_@@ \@@_chk:w ##2 ##4 }
-        #6 {##3}
-        #7
+        #4 #1 { \exp_not:n { \s_@@ \@@_chk:w ##2 ##4 } }
+        #5 {##3}
+        #6
       }
-      {#8}
+      {#7}
       {
         \exp_after:wN \@@_pop_linked:wnNNnTF #1 {#2}
-          #4 #5 {#6} {#7} {#8}
+          #3 #4 {#5} {#6} {#7}
       }
   }
 %    \end{macrocode}
@@ -1729,7 +1681,7 @@
 %     \prop_gremove:Nn, \prop_gremove:NV, \prop_gremove:Ne,
 %     \prop_gremove:cn, \prop_gremove:cV, \prop_gremove:ce
 %   }
-%   Deleting from a property relies on \cs{@@_pop:NnNNNnTF}.  The three
+%   Deleting from a property relies on \cs{@@_pop:NnNNnTF}.  The three
 %   assignment functions are suitably local or global.  The last three arguments
 %   are \cs{use_none:n} and two empty brace groups: if the key is found we get
 %   \cs{use_none:n} \Arg{key} \meta{empty}, which expands to nothing, and
@@ -1738,14 +1690,14 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \prop_remove:Nn #1#2
   {
-    \@@_pop:NnNNNnTF #1 {#2}
-      \tl_set:Nn \cs_set_eq:NN \cs_set_nopar:Npe
+    \@@_pop:NnNNnTF #1 {#2}
+      \cs_set_eq:NN \cs_set_nopar:Npe
       \use_none:n { } { }
   }
 \cs_new_protected:Npn \prop_gremove:Nn #1#2
   {
-    \@@_pop:NnNNNnTF #1 {#2}
-      \tl_gset:Nn \cs_gset_eq:NN \cs_gset_nopar:Npe
+    \@@_pop:NnNNnTF #1 {#2}
+      \cs_gset_eq:NN \cs_gset_nopar:Npe
       \use_none:n { } { }
   }
 \cs_generate_variant:Nn \prop_remove:Nn  { NV , Ne , c , cV , ce }
@@ -1775,14 +1727,14 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \prop_pop:NnN #1#2#3
   {
-    \@@_pop:NnNNNnTF #1 {#2}
-      \tl_set:Nn \cs_set_eq:NN \cs_set_nopar:Npe
+    \@@_pop:NnNNnTF #1 {#2}
+      \cs_set_eq:NN \cs_set_nopar:Npe
       { \tl_set:Nn #3 } { } { \tl_set:Nn #3 { \q_no_value } }
   }
 \cs_new_protected:Npn \prop_gpop:NnN #1#2#3
   {
-    \@@_pop:NnNNNnTF #1 {#2}
-      \tl_gset:Nn \cs_gset_eq:NN \cs_gset_nopar:Npe
+    \@@_pop:NnNNnTF #1 {#2}
+      \cs_gset_eq:NN \cs_gset_nopar:Npe
       { \tl_set:Nn #3 } { } { \tl_set:Nn #3 { \q_no_value } }
   }
 \cs_generate_variant:Nn \prop_pop:NnN  {     NV , No }
@@ -1791,14 +1743,14 @@
 \cs_generate_variant:Nn \prop_gpop:NnN { c , cV , co }
 \prg_new_protected_conditional:Npnn \prop_pop:NnN #1#2#3 { T , F , TF }
   {
-    \@@_pop:NnNNNnTF #1 {#2}
-      \tl_set:Nn \cs_set_eq:NN \cs_set_nopar:Npe
+    \@@_pop:NnNNnTF #1 {#2}
+      \cs_set_eq:NN \cs_set_nopar:Npe
       { \tl_set:Nn #3 } \prg_return_true: \prg_return_false:
   }
 \prg_new_protected_conditional:Npnn \prop_gpop:NnN #1#2#3 { T , F , TF }
   {
-    \@@_pop:NnNNNnTF #1 {#2}
-      \tl_gset:Nn \cs_gset_eq:NN \cs_gset_nopar:Npe
+    \@@_pop:NnNNnTF #1 {#2}
+      \cs_gset_eq:NN \cs_gset_nopar:Npe
       { \tl_set:Nn #3 } \prg_return_true: \prg_return_false:
   }
 \prg_generate_conditional_variant:Nnn \prop_pop:NnN
@@ -1855,26 +1807,31 @@
 %     \@@_put_linked_new:w
 %   }
 %   All of the \cs[no-index]{prop_(g)put(_if_new):Nnn} functions are
-%   based on the same auxiliary, which receives \meta{code} and two
-%   \enquote{assignments}, followed by \meta{prop} \Arg{key} \Arg{new
-%   value}.  The first assignment
-%   \cs[index=__kernel_tl_set:Nx]{__kernel_tl_(g)set:Nx} is used for
-%   flat props, and it is subject to the debug options, while the second
+%   based on the same auxiliary, which receives \meta{code} and an
+%   \enquote{assignment}, followed by \meta{prop} \Arg{key} \Arg{new
+%   value}.  The
 %   assignment \cs[index=cs_set_nopar:Npe]{cs_(g)set_nopar:Npe} is the
-%   primitive assignment without any checking: it is applied to individual
+%   primitive assignment without any checking: in the case of linked
+%   props it is applied to individual
 %   pieces of the linked prop, which are typically not yet defined.
+%   Debugging the scope of the variable is done at a higher level by
+%   letting \pkg{l3debug} change \cs{prop_put:Nnn} and friends.  This
+%   allows other \pkg{l3prop} commands to directly call the underlying
+%   auxiliary to skip this checking step and avoid getting multiple
+%   error messages for the same error.
 %   The \meta{code} (empty for |put| and \cs{use_none:nnn} for
 %   |put_if_new|) is placed before the assignment in cases where the key
-%   is already present.
+%   is already present, in order to suppress the assignment in the
+%   |put_if_new| case.
 %    \begin{macrocode}
 \cs_new_protected:Npn \prop_put:Nnn
-  { \@@_put:nNNNnn { } \__kernel_tl_set:Nx \cs_set_nopar:Npe }
+  { \@@_put:nNNnn { } \cs_set_nopar:Npe }
 \cs_new_protected:Npn \prop_gput:Nnn
-  { \@@_put:nNNNnn { } \__kernel_tl_gset:Nx \cs_gset_nopar:Npe }
+  { \@@_put:nNNnn { } \cs_gset_nopar:Npe }
 \cs_new_protected:Npn \prop_put_if_new:Nnn
-  { \@@_put:nNNNnn \use_none:nnn \__kernel_tl_set:Nx \cs_set_nopar:Npe }
+  { \@@_put:nNNnn \use_none:nnn \cs_set_nopar:Npe }
 \cs_new_protected:Npn \prop_gput_if_new:Nnn
-  { \@@_put:nNNNnn \use_none:nnn \__kernel_tl_gset:Nx \cs_gset_nopar:Npe }
+  { \@@_put:nNNnn \use_none:nnn \cs_gset_nopar:Npe }
 \cs_generate_variant:Nn \prop_put:Nnn
   {
          NnV , Nnv , Nne , NV , NVV , NVv , NVe ,
@@ -1926,23 +1883,23 @@
 %   \cs{@@_put_linked_new:w}, otherwise it was already there and we use
 %   \cs{@@_put_linked_old:w}.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_put:nNNNnn #1#2#3#4#5#6
+\cs_new_protected:Npn \@@_put:nNNnn #1#2#3#4#5
   {
     \tl_set:Nn \l_@@_internal_tl
       {
-        \exp_not:N \@@_pair:wn \tl_to_str:n {#5}
-        \s_@@ { \exp_not:n {#6} }
+        \exp_not:N \@@_pair:wn \tl_to_str:n {#4}
+        \s_@@ { \exp_not:n {#5} }
       }
-    \@@_split:NnTFn #4 {#5}
+    \@@_split:NnTFn #3 {#4}
       {
-        #1 #2 #4
+        #1 #2 #3
           {
             \s_@@ \@@_chk:w \exp_not:n {##2}
             \l_@@_internal_tl \exp_not:n {##4}
           }
       }
-      { #2 #4 { \exp_not:o {#4} \l_@@_internal_tl } }
-      { \exp_after:wN \@@_put_linked:wnnN #4 {#5} {#1} #3 }
+      { #2 #3 { \exp_not:o {#3} \l_@@_internal_tl } }
+      { \exp_after:wN \@@_put_linked:wnnN #3 {#4} {#1} #2 }
   }
 \cs_new_protected:Npn \@@_put_linked:wnnN
     \@@_flatten:w #1 \s_@@ #2#3#4
