@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Checking missing `\endgroup` at the end of `\DocInclude`
 
+### Changed
+- `\meta` now typesets in `\texttt`, along with `\Arg`
+
 ### Fixed
 - Inconsistent local/global assignments in `\vcoffin_gset:Nnn` and
   `\vcoffin_gset:Nnw`
