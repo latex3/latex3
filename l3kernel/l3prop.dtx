@@ -71,9 +71,10 @@
 % Internally, property lists can use two distinct implementations with different
 % data storage, which are decided when declaring the property list variable
 % using \cs{prop_new:N} (\enquote{flat} storage) or \cs{prop_new_linked:N}
-% (\enquote{linked} storage). Once a property list is declared with
+% (\enquote{linked} storage). After a property list is declared with
 % \cs{prop_new:N} or \cs{prop_new_linked:N}, the type of internal data storage
-% can no longer be changed. All other \pkg{l3prop} functions transparently
+% can be changed by \cs{prop_make_flat:N} or \cs{prop_make_linked:N}, but only
+% at the outermost group level. All other \pkg{l3prop} functions transparently
 % manipulate either storage method and convert as needed.
 % \begin{itemize}
 %   \item
@@ -237,6 +238,28 @@
 %   keys appear only the last of the values is kept.
 %   This function correctly detects the |=| and |,| signs provided they
 %   have the standard category code~$12$ or they are active.
+% \end{function}
+%
+% \begin{function}[added = 2024-01-15]{\prop_make_flat:N, \prop_make_flat:c}
+%   \begin{syntax}
+%     \cs{prop_make_flat:N} \meta{property list}
+%   \end{syntax}
+%   Changes the internal storage type of the \meta{property list} to be
+%   the same \enquote{flat} storage as \cs{prop_new:N}.  The key--value
+%   pairs of the \meta{property list} are preserved by the change.  If
+%   the property list was already flat then nothing is done.  This
+%   function can only be used at the outermost group level.
+% \end{function}
+%
+% \begin{function}[added = 2024-01-15]{\prop_make_linked:N, \prop_make_linked:c}
+%   \begin{syntax}
+%     \cs{prop_make_linked:N} \meta{property list}
+%   \end{syntax}
+%   Changes the internal storage type of the \meta{property list} to be
+%   the same \enquote{linked} storage as \cs{prop_new_linked:N}.  The
+%   key--value pairs of the \meta{property list} are preserved by the
+%   change.  If the property list was already linked then nothing is
+%   done.  This function can only be used at the outermost group level.
 % \end{function}
 %
 % \section{Adding and updating property list entries}
@@ -1025,6 +1048,8 @@
 % \end{macro}
 %
 % \begin{macro}[tested = m3prop001]{\prop_new_linked:N, \prop_new_linked:c}
+% \begin{macro}{\@@_new_linked:N}
+%   The auxiliary is used in \cs{prop_make_linked:N}.
 %   For linked property lists, get a new prefix in \cs{l_@@_internal_tl}, then
 %   use it to set up the internal structure: the last token in~|#1| is usually a
 %   pointer to the first key, which is here the end-pointer.  That end-pointer
@@ -1034,6 +1059,10 @@
 \cs_new_protected:Npn \prop_new_linked:N #1
   {
     \__kernel_chk_if_free_cs:N #1
+    \@@_new_linked:N #1
+  }
+\cs_new_protected:Npn \@@_new_linked:N #1
+  {
     \@@_next_prefix:
     \cs_gset_nopar:Npe #1
       {
@@ -1050,6 +1079,7 @@
   }
 \cs_generate_variant:Nn \prop_new_linked:N { c }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[tested = m3prop001]{\prop_clear:N, \prop_clear:c}
@@ -1231,6 +1261,70 @@
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\prop_make_flat:N, \prop_make_flat:c \@@_make_flat:Nn}
+%   The only interesting case is when given a linked prop.  Clear the
+%   linked property list using \cs{@@_clear:wNNN} with local assignments
+%   (it does not matter since we are at the outermost group level, and
+%   \cs{cs_set_eq:NN} is very slightly faster than its global version.
+%   Then store the contents (expanded preventively by \cs{exp_args:NNf})
+%   with an assignment \cs{cs_set_nopar:Npe} that does not perform
+%   \pkg{l3debug} checks.
+%    \begin{macrocode}
+\cs_new_protected:Npn \prop_make_flat:N #1
+  {
+    \int_compare:nNnTF { \tex_currentgrouplevel:D } = 0
+      {
+        \@@_if_flat:NTF #1 { }
+          { \exp_args:NNf \@@_make_flat:Nn #1 {#1} }
+      }
+      {
+        \msg_error:nnee { prop } { inner-make }
+          { \token_to_str:N \prop_make_flat:N } { \token_to_str:N #1 }
+      }
+  }
+\cs_generate_variant:Nn \prop_make_flat:N { c }
+\cs_new_protected:Npn \@@_make_flat:Nn #1#2
+  {
+    \exp_after:wN \@@_clear:wNNN #1 \cs_set_eq:NN \cs_set_nopar:Npe #1
+    \cs_set_nopar:Npe #1 { \exp_not:n {#2} }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\prop_make_linked:N, \prop_make_linked:c, \@@_make_linked:Nn}
+%   The only interesting case is when given a flat prop.  We expand the
+%   contents for later use.  Then \cs{@@_new_linked:N} disregards that
+%   previous value of~|#1| and initializes the linked prop.  We can then
+%   use an auxiliary \cs{@@_set_eq:wNNNN} underlying
+%   \cs{prop_set_eq:NN}, with the prop contents saved as
+%   \cs{l_@@_internal_tl}.  That step is a bit unsafe, as
+%   \cs{l_@@_internal_tl} (really, a flat prop here) is used within
+%   \cs{@@_set_eq:wNNNN} itself, but it is in fact expanded early enough
+%   to be ok.
+%    \begin{macrocode}
+\cs_new_protected:Npn \prop_make_linked:N #1
+  {
+    \int_compare:nNnTF { \tex_currentgrouplevel:D } = 0
+      {
+        \@@_if_flat:NTF #1
+          { \exp_args:NNo \@@_make_linked:Nn #1 {#1} } { }
+      }
+      {
+        \msg_error:nnee { prop } { inner-make }
+          { \token_to_str:N \prop_make_linked:N } { \token_to_str:N #1 }
+      }
+  }
+\cs_generate_variant:Nn \prop_make_linked:N { c }
+\cs_new_protected:Npn \@@_make_linked:Nn #1#2
+  {
+    \@@_new_linked:N #1
+    \tl_set:Nn \l_@@_internal_tl {#2}
+    \exp_after:wN \@@_set_eq:wNNNN #1
+      \cs_set_eq:NN \cs_set_nopar:Npe #1 \l_@@_internal_tl
+  }
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{variable}[tested = m3prop004]{\l_tmpa_prop, \l_tmpb_prop}
