@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Checking missing `\endgroup` at the end of `\DocInclude`
+- Linked storage type for large property lists (issue \#1040, pull \#1059)
 
 ### Changed
 - `\meta` now typesets in `\texttt`, along with `\Arg`
