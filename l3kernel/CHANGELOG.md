@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Checking missing `\endgroup` at the end of `\DocInclude`
+
 ### Fixed
 - Inconsistent local/global assignments in `\vcoffin_gset:Nnn` and
   `\vcoffin_gset:Nnw`
@@ -18,7 +21,6 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\keys_set_exclude_groups:nnn(nN)` to replace `\keys_set_filter:nnn(nN)`
 - Flags with N-type names, like other variable types
-- Checking missing `\endgroup` at the end of `\DocInclude`
 
 ### Changed
 - Set `l3doc` option `kernel` off as-standard (issue \#1403)
