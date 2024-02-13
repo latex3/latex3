@@ -22,7 +22,6 @@ Currently included in the CTAN release of `l3packages` are the following
 bundles:
 * `l3keys2e` (deprecated in favor of updated LaTeX kernel methods)
 * `xfp`     (from 2022-06-01 part of the LaTeX format)
-* `xfrac`   
 * `xparse`  (deprecated in favor of elements move to the LaTeX kernel)
 * `xtemplate`
 
@@ -45,14 +44,6 @@ where TeX requires a number.
 
 From 2022-06-01 release of LaTeX this will be included in the format
 so that the package  doesn't need loading any longer.
-
-`xfrac`
--------
-
-The `xfrac` package uses the interface defined by `xtemplate` to provide
-flexible split-level fractions _via_ the `\sfrac` macro. This is both a
-demonstration of the power of the template concept and also a useful addition
-to the available functionality in LaTeX2e.
 
 `xparse` (deprecated)
 -------

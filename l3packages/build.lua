@@ -36,8 +36,6 @@ Packages provided:
   LaTeX2e packages
 - [`xtemplate`](https://ctan.org/pkg/xtemplate), which provides a means of
   defining generic functions using a key-value syntax
-- [`xfrac`](https://ctan.org/pkg/xfrax), which provides flexible split-level
-  fractions
   ]]
 }
 

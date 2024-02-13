@@ -11,8 +11,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Preparation for move of `xtemplate` concepts to the kernel
 
 ### Removed
-- Collection `plainmath` from `xfrac`
 - `\IfInstanceExist(TF)`
+- `xfrac`: moved to https://github.com/latex3/xfrac
 
 ## [2023-10-10]
 
