@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Removed
 - Collection `plainmath` from `xfrac`
+- `\IfInstanceExist(TF)`
 
 ## [2023-10-10]
 
