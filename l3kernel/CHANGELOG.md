@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2023-02-13]
+
 ### Added
 - Checking missing `\endgroup` at the end of `\DocInclude`
 - Linked storage type for large property lists (issue \#1040, pull \#1059)
@@ -1666,7 +1668,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-01-22...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2023-02-13...HEAD
+[2023-02-13]: https://github.com/latex3/latex3/compare/2024-01-22...2023-02-13
 [2024-01-22]: https://github.com/latex3/latex3/compare/2024-01-04...2024-01-22
 [2024-01-04]: https://github.com/latex3/latex3/compare/2023-12-11...2024-01-04
 [2023-12-11]: https://github.com/latex3/latex3/compare/2023-12-08...2023-12-11
