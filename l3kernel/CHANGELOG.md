@@ -12,12 +12,17 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - `\meta` now typesets in `\texttt`, along with `\Arg`
+- Improved the performance of `\cs_if_exist:NTF`, `\cs_if_free:NTF`,
+    `\cs_if_exist_use:NTF`, and most notably their `c`-type variants.
 
 ### Fixed
 - Inconsistent local/global assignments in `\vcoffin_gset:Nnn` and
   `\vcoffin_gset:Nnw`
 - Tokenization by `\peek_analysis_map_inline:n` of one additional
   character after any space or brace
+
+### Deprecated
+- `\msg_gset:nnn(n)`
 
 ## [2024-01-22]
 
@@ -28,12 +33,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Set `l3doc` option `kernel` off as-standard (issue \#1403)
 - Moved `\seq_set_filter:NNn` to stable
-- Improved the performance of `\cs_if_exist:NTF`, `\cs_if_free:NTF`,
-    `\cs_if_exist_use:NTF`, and most notably their `c`-type variants.
 
 ### Deprecated
 - `\keys_set_filter:nnn(nN)` in favor of  `\keys_set_exclude_groups:nnn(nN)`
-- `\msg_gset:nnn(n)`
 
 ## [2024-01-04]
 
