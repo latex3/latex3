@@ -16,9 +16,9 @@ The following directories are present in the repository:
 * `l3backend`: code for backend (driver) level interfaces across
   the `expl3` codebase; none of this code has public interfaces, and so
   no distinction is made between stable and experimental code.
-* `l3packages`: code which is written to be used on top of
-  LaTeX2e to explore interfaces; these higher-level packages are 'stable'.
-  It is unlikely that any new packages will be added to this area.
+* `l3packages`: code which is written to be used on top of LaTeX2e to explore
+  interfaces; this bundle is now made up of historical material, and the
+  concepts have been migrated to the LaTeX2e kernel
 * `l3experimental`: code which is written to be used on top of
   LaTeX2e to experiment with code and interface concepts. The interfaces
   for these packages are still under active discussion. Parts of this code may
@@ -66,4 +66,4 @@ This code is developed by [The LaTeX Project](https://latex-project.org).
 
 ## Copyright
 
-This README file is copyright 2021-2023 The LaTeX Project.
+This README file is copyright 2021-2024 The LaTeX Project.
