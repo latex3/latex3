@@ -57,6 +57,10 @@ function update_tag_extra(file,content,tagname,tagdate)
     content = string.gsub(content,
       "\n\\def\\ExplFileDate{" .. iso .. "}%%\n",
       "\n\\def\\ExplFileDate{" .. tagname .. "}%%\n")
+  elseif string.match(file,"%.tex$") then
+    content = string.gsub(content,
+      "\n\\date{Released " .. iso .. "}\n",
+      "\n\\date{Released " .. tagname .. "}\n")
   end
   return(content)
 end
