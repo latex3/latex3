@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Extend debug checking to cover `\prop_(g)set_from_keyval:Nn`
+
 ## [2024-02-13]
 
 ### Added
