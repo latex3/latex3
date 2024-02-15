@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Re-added `\IfInstanceExist(TF)` to docs - is required
+
 ## [2024-02-13]
 
 ### Changed
