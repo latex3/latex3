@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Work-around to enable `\prop_set_from_keyval:Nn`, etc., to avoid an error if
+  `prop` is not already defined
+
 ### Fixed
 - Extend debug checking to cover `\prop_(g)set_from_keyval:Nn`
 
