@@ -1230,9 +1230,11 @@
 %   Save the user's code in a control sequence that is suitable for
 %   nested maps.  We may wish to pass to this function an \tn{outer}
 %   control sequence or active character; for this we will undefine
-%   potentially-\tn{outer} tokens within a group, closed after the
-%   function reads its arguments (for an \tn{outer} active character
-%   there is no good alternative).  This user's code function also
+%   any expandable token (testing if it is \tn{outer} is much slower)
+%   within a group, closed immediately after the function reads its
+%   arguments to avoid affecting the user's code or even our peek code
+%   (there is no risk of undefining \cs{group_end:} itself since that is
+%   not expandable).  This user's code function also
 %   calls the loop auxiliary, and includes the trailing
 %   \cs{prg_break_point:Nn} for when the user wants to stop the loop.
 %   The loop auxiliary must remove that break point because it must look
@@ -1261,7 +1263,11 @@
 %   The loop starts a group (closed by the user-code function defined
 %   above) with a normalized escape character, and checks if the next
 %   token is special or \texttt{N}-type (distinguishing expandable from
-%   non-expandable tokens).
+%   non-expandable tokens).  The test for nonexpandable tokens in
+%   \cs{@@_peek_analysis_test:} must be done after the tests for
+%   begin-group, end-group, and space tokens, in case \cs{l_peek_token}
+%   is either \tn{outer} or is a primitive \TeX{} conditional, as such
+%   tokens cannot be skipped over correctly by conditional code.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_peek_analysis_loop:NNn #1#2#3
   {
@@ -1357,10 +1363,9 @@
 %   sequence call the user code with suitable arguments, wrapping |#1|
 %   within \cs{exp_not:n} just in case it happens to be equal to a macro
 %   parameter character.  We do not skip \cs{exp_not:n} when
-%   unnecessary, because there might be situations where the argument
-%   could be used by the user after further redefinitions of the token,
-%   and it seems more convenient to know that \cs{exp_not:n} is always
-%   used.
+%   unnecessary, because this auxiliary is also called in
+%   \cs{@@_peek_analysis_retest:} where we have changed some control
+%   sequences or active characters to \cs{scan_stop:} temporarily.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_peek_analysis_nonexp:N #1
   {
@@ -1389,12 +1394,17 @@
 %   characters to anything else than character code~$32$), then we apply
 %   \cs{@@_analysis_b_char:Nn}, which detects active characters by
 %   comparing them to \cs{tex_undefined:D}, and we must have undefined
-%   the active space for this test to work ---we use an |e|-expanding
-%   assignment to get the active space in the right place.  Finally
-%   \cs{@@_peek_analysis_char:w} puts the arguments in the correct
-%   order, including \cs{exp_not:n} for macro parameter characters and
-%   active characters (the latter could be macro parameter characters,
-%   and it seems more uniform to always put \cs{exp_not:n}).
+%   the active space (locally) for this test to work.
+%   To define \cs{@@_peek_analysis_char:N} itself we use an
+%   |e|-expanding assignment to get the active space in the right place
+%   after making it (just for this definition) unexpandable.
+%   Finally \cs{@@_peek_analysis_char:w} receives the \meta{charcode},
+%   \meta{user function}, \meta{catcode}, and \meta{token}, and places
+%   the arguments in the correct order.  It keeps \cs{exp_not:n} for
+%   macro parameter characters and active characters (the latter could
+%   be macro parameter characters, and it seems more uniform to always
+%   put \cs{exp_not:n}), and otherwise eliminates it by expanding once
+%   with \cs{exp_args:NNNo}.
 %    \begin{macrocode}
 \group_begin:
 \char_set_active_eq:NN \ \scan_stop:
@@ -1607,8 +1617,8 @@
       \@@_peek_analysis_collect:w
   }
 %    \end{macrocode}
-%   End by calling the user code with suitable arguments (here |#1|,
-%   |#2| are \cs{fi:}), which closes the group begun early on.
+%   As in all other cases, end by calling the user code with suitable
+%   arguments (here |#1| is \cs{fi:}).
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_peek_analysis_collect_end:NNNN #1#2#3#4
   {
