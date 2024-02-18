@@ -1,6 +1,6 @@
 # `l3packages`: Higher-level LaTeX3 Concepts (Deprecated) 
 
-Release 2024-02-13
+Release 2024-02-18
 
 ## Overview
 

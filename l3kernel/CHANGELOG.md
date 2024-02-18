@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-02-18]
+
 ### Changed
 - Work-around to enable `\prop_set_from_keyval:Nn`, etc., to avoid an error if
   `prop` is not already defined
@@ -1675,7 +1677,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-02-13...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-02-18...HEAD
+[2024-02-18]: https://github.com/latex3/latex3/compare/2024-02-13...2024-02-18
 [2024-02-13]: https://github.com/latex3/latex3/compare/2024-01-22...2024-02-13
 [2024-01-22]: https://github.com/latex3/latex3/compare/2024-01-04...2024-01-22
 [2024-01-04]: https://github.com/latex3/latex3/compare/2023-12-11...2024-01-04
