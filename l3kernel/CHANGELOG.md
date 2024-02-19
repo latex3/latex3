@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Improve error recovery when an invalid `prop` is used (PR \#1464) 
+
 ### Fixed
 - Restore `\__kernel_msg_...:nnx(xx)` for older `xparse` support
 - Prevent an infinite loop in `\debug_(on|off):n` (issue \#1442)
