@@ -1504,63 +1504,102 @@
 % consecutive entries \cs{@@_pair:wn} \meta{key_i} \cs{s_@@}
 % \Arg{value_i}.  If the \meta{key} is present in the \meta{property
 % list} then the \meta{true code} is left in the input stream, with
-% |#2|, |#3|, and |#4| replaced by the \meta{entries before},
+% |#1|, |#2|, and |#3| replaced by the \meta{entries before},
 % \meta{value}, and \meta{entries after}.  If the \meta{key} is not
 % present in the \meta{property list} then the \meta{false code} is left
 % in the input stream.  Only the \meta{true code} is used in the
 % replacement text of a macro defined internally, which requires
 % |##|~doubling.
 %
-% \begin{macro}{\@@_split:NnTFn}
-% \begin{macro}{\@@_split_aux:NnTFn}
-% \begin{macro}{\@@_split_aux:w}
-%   The aim is to split the \meta{property list} at the given \meta{key}
-%   into the \meta{extract_1} before the key--value pair, the
-%   \meta{value} associated with the \meta{key} and the \meta{extract_2}
-%   after the key--value pair.  This is done using a delimited function,
-%   whose definition is as follows, where the \meta{key} is turned into
-%   a string.
+% \begin{macro}
+%   {
+%     \@@_split:NnTFn, \@@_split_aux:nNTFn, \@@_split_test:wn,
+%     \@@_split_flat:w, \@@_split_linked:w, \@@_split_wrong:Nw
+%   }
+%   The aim is to distinguish four cases: a flat prop that contains the
+%   given \meta{key}, a flat prop that does not contain it, a linked
+%   prop, and an invalid prop.  The last case includes those that are
+%   set to \tn{relax} by \texttt{c}-expansion, as well as unrelated
+%   token list variables since these unfortunately used to
+%   \enquote{work} in earlier implementations.
+%   In the first three cases we run the \texttt{T}, \texttt{F}, and
+%   \texttt{n} arguments, and in the last case we raise an error, set
+%   the variable to a known state (empty prop), and run the \texttt{F}
+%   code (some conditionals such as \cs{prop_pop:NnNTF} otherwise blow
+%   up pretty badly).
+%
+%   The first distinction between these cases is done by
+%   \cs{@@_split_test:wn}, which looks for the argument after \cs{s_@@}.
+%   For a flat prop it will be \cs{@@_chk:w}, which leads to running
+%   \cs{@@_split_flat:w}, explained below.  For a linked prop it is the
+%   prefix, consisting of characters, so we end up running
+%   \cs{@@_split_linked:w}, which cleans up and selects the
+%   aforementioned \texttt{n} argument.  For invalid props, or rather,
+%   variables that do not contain \cs{s_@@}, the argument includes
+%   \cs{fi:}, and we end up calling \cs{@@_split_wrong:Nw}, which calls
+%   \cs{prop_show:N} to raise a detailed error stating how the variable
+%   is wrong.
+%
+%   Let us return to \cs{@@_split_flat:w}.  This function is defined
+%   dynamically as
 %   \begin{quote}
-%     \cs{cs_set:Npn} \cs{@@_split_aux:w} |#1| \cs{@@_chk:w} |#2| \\
-%     \quad \cs{@@_pair:wn} \meta{key} \cs{s_@@} |#3| \\
-%     \quad |#4| \cs{s_@@_mark} |#5| |#6| \cs{s_@@_stop} \\
-%     \quad |{| |#5| \Arg{true code} |}|
+%     \cs{cs_set:Npn} \cs{@@_split_flat:w} \cs{@@_split_linked:w} |#1| \\
+%     \quad \cs{@@_pair:wn} \meta{key} \cs{s_@@} |#2| \\
+%     \quad |#3| \cs{s_@@_mark} |#4| |#5| \cs{s_@@_stop} \\
+%     \quad |{| |#4| \Arg{true code} |}|
 %   \end{quote}
+%   Its job is to seek the \meta{key} in the property list (known to be
+%   flat at this stage) by using an argument |#1| delimited essentially
+%   by that key.  If indeed the variable contained the \meta{key}, then
+%   |#1|~is the \meta{extract_1} before the key--value pair, |#2|~is the
+%   \meta{value} associated with the \meta{key}, |#3|~is the
+%   \meta{extract_2} after the key--value pair, |#4|~is \cs{use_i:nnn},
+%   and we run \cs{use_i:nnn} \Arg{true code} \Arg{false code} \Arg{link
+%   code}, selecting the \meta{true code}.  Otherwise, the whole
+%   property list together with \cs{s_@@_mark} \cs{use_i:nnn} is taken
+%   in as |#1|, then |#2| is some tokens |?| \cs{fi:}
+%   \cs{@@_split_wrong:Nw} \meta{variable} that were only useful in the
+%   case of invalid props, |#3|~is empty, and most importantly |#4| is
+%   \cs{use_ii:nnn}.  This command selects the \meta{false code}.
 %
-%   If the \meta{key} is present in the property list,
-%   \cs{@@_split_aux:w}'s |#2| is the part before the \meta{key}, |#3|
-%   is the \meta{value}, |#4| is the part after the \meta{key}, |#5| is
-%   \cs{use_i:nnn}, and |#6| is additional tokens that we do not care
-%   about.  The \meta{true code} is left in the input stream, and can
-%   use the parameters |#2|, |#3|, |#4| for the three parts of the
-%   property list as desired.  Namely, the original property list is in
-%   this case \cs{s_@@} \cs{@@_chk:w} |#2| \cs{@@_pair:wn} \meta{key}
-%   \cs{s_@@} |{#3}| |#4|.
-%
-%   If the \meta{key} is not there, then the \meta{function} is
-%   \cs{use_ii:nnn}, which keeps the \meta{false code}.  If the property
-%   list uses the doubly-linked list storage, then the argument
-%   delimited by \cs{@@_chk:w} includes the whole property list, |#2|,
-%   |#3|, |#4| are empty, and |#5| is \cs{use_iii:nnn}.  In all three
-%   cases, the appopriate code among \meta{true code}, \meta{false
-%   code}, and \meta{linked code} is run.
+%   Note that we define \cs{@@_split_flat:w} in all cases even though it
+%   is only used in the flat case.  Indeed, to avoid taking in the whole
+%   property list (which may be large) as an argument more than strictly
+%   necessary, we would have to keep the \meta{true code} positioned
+%   before the expansion of the prop variable in order to use it in the
+%   definition.  The only way to do that is to store it using an
+%   assignment so we might as well just perform the assignment that we
+%   can actually use in the flat case.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_split:NnTFn #1#2
-  { \exp_args:NNo \@@_split_aux:NnTFn #1 { \tl_to_str:n {#2} } }
-\cs_new_protected:Npn \@@_split_aux:NnTFn #1#2#3
   {
-    \cs_set:Npn \@@_split_aux:w ##1 \@@_chk:w ##2
-      \@@_pair:wn #2 \s_@@ ##3 ##4 \s_@@_mark ##5 ##6 \s_@@_stop
-      { ##5 {#3} }
-    \exp_after:wN \@@_split_aux:w #1 \s_@@_mark \use_i:nnn
-      \@@_pair:wn #2 \s_@@ { } \s_@@_mark \use_ii:nnn
-      \@@_chk:w
-      \@@_pair:wn #2 \s_@@ { } \s_@@_mark \use_iii:nnn
+    \exp_after:wN \@@_split_aux:nNTFn
+    \exp_after:wN { \tl_to_str:n {#2} } #1
+  }
+\cs_new_protected:Npn \@@_split_aux:nNTFn #1#2#3
+  {
+    \cs_set:Npn \@@_split_flat:w \@@_split_linked:w ##1
+      \@@_pair:wn #1 \s_@@ ##2 ##3 \s_@@_mark ##4 ##5 \s_@@_stop
+      { ##4 {#3} }
+    \exp_after:wN \@@_split_test:wn #2 \s_@@_mark \use_i:nnn
+      \@@_pair:wn #1 \s_@@ { ? \fi: \@@_split_wrong:Nw #2 }
+      \s_@@_mark \use_ii:nnn
       \s_@@_stop
   }
+\cs_new:Npn \@@_split_flat:w { }
+\cs_new_protected:Npn \@@_split_test:wn #1 \s_@@ #2
+  {
+    \if_meaning:w \@@_chk:w #2 \exp_after:wN \@@_split_flat:w \fi:
+    \@@_split_linked:w
+  }
+\cs_new_protected:Npn \@@_split_linked:w #1 \s_@@_stop #2#3 {#3}
+\cs_new_protected:Npn \@@_split_wrong:Nw #1#2 \s_@@_stop #3#4
+  {
+    \prop_show:N #1
+    \cs_gset_eq:NN #1 \c_empty_prop
+    #3
+  }
 %    \end{macrocode}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 %
 % \begin{macro}[tested = m3prop002]
@@ -1611,7 +1650,7 @@
 \cs_new_protected:Npn \@@_get:NnnTF #1#2#3#4#5
   {
     \@@_split:NnTFn #1 {#2}
-      { #3 {##3} #4 }
+      { #3 {##2} #4 }
       {#5}
       { \exp_after:wN \@@_get_linked:w #1 {#2} {#3} {#4} {#5} }
   }
@@ -1715,8 +1754,8 @@
   {
     \@@_split:NnTFn #1 {#2}
       {
-        #4 #1 { \exp_not:n { \s_@@ \@@_chk:w ##2 ##4 } }
-        #5 {##3}
+        #4 #1 { \exp_not:n { \s_@@ \@@_chk:w ##1 ##3 } }
+        #5 {##2}
         #6
       }
       {#7}
@@ -2000,8 +2039,8 @@
       {
         #1 #2 #3
           {
-            \s_@@ \@@_chk:w \exp_not:n {##2}
-            \l_@@_internal_tl \exp_not:n {##4}
+            \s_@@ \@@_chk:w \exp_not:n {##1}
+            \l_@@_internal_tl \exp_not:n {##3}
           }
       }
       { #2 #3 { \exp_not:o {#3} \l_@@_internal_tl } }
