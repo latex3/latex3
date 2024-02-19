@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Naming of a variable in the `draw` code
+
 ## [2024-01-04]
 
 ### Changed
