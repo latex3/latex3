@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Restore `\__kernel_msg_...:nnx(xx)` for older `xparse` support
 - Prevent an infinite loop in `\debug_(on|off):` (issue \#1442)
+- Require `\sys_ensure_backend:` is used in the preamble (issue \#1442)
 
 ## [2024-02-18]
 
