@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Restore `\__kernel_msg_...:nnx(xx)` for older `xparse` support
+
 ## [2024-02-18]
 
 ### Changed
