@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Normalize `/` in `\sys_shell_split_ls:nN` on Windows
+
 ## [2024-01-04]
 
 ### Changed
