@@ -10,6 +10,10 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\draw_path_replace_bb:`
 
+### Changed
+- Skip declaration of `\l_graphics_search_ext_seq` if `l3graphics` is loaded
+  in formats other than LaTeX
+
 ## [2024-02-20]
 
 ### Fixed

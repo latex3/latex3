@@ -6,6 +6,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fix
+- Setting `\l_graphics_search_ext_seq` before declaration if loaded in
+  formats other than LaTeX
+
 ## [2024-02-20]
 
 ### Fixed
