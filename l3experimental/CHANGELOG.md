@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-02-20]
+
 ### Fixed
 - Normalize `/` in `\sys_shell_split_ls:nN` on Windows: globs may use
   ``\``, return values always contain `/`
@@ -307,7 +309,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-01-04...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-02-20...HEAD
+[2024-02-20]: https://github.com/latex3/latex3/compare/2024-01-04...2024-02-20
 [2024-01-04]: https://github.com/latex3/latex3/compare/2023-12-08...2024-01-04
 [2023-12-08]: https://github.com/latex3/latex3/compare/2023-11-01...2023-12-08
 [2023-11-01]: https://github.com/latex3/latex3/compare/2023-10-10...2023-11-01

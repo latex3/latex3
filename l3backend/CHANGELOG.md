@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-02-20]
+
 ### Fixed
 - Naming of a variable in the `draw` code
 
@@ -324,7 +326,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-01-04...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-02-20...HEAD
+[2024-02-20]: https://github.com/latex3/latex3/compare/2024-01-04...2024-02-20
 [2024-01-04]: https://github.com/latex3/latex3/compare/2023-11-09...2024-01-04
 [2023-11-09]: https://github.com/latex3/latex3/compare/2023-11-04...2023-11-09
 [2023-11-04]: https://github.com/latex3/latex3/compare/2023-10-23...2023-11-04
