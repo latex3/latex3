@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Normalize `/` in `\sys_shell_split_ls:nN` on Windows
+- Return paths relative to working directory in `\sys_shell_split_ls:nN` on Windows
 
 ## [2024-01-04]
 
