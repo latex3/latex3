@@ -8,7 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Fixed
-- Normalize `/` in `\sys_shell_split_ls:nN` on Windows
+- Normalize `/` in `\sys_shell_split_ls:nN` on Windows: globs may use
+  ``\``, return values always contain `/`
 - Return paths relative to working directory in `\sys_shell_split_ls:nN` on Windows
 
 ## [2024-01-04]
