@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Some functions and variables were defined locally
+
 ## [2024-02-20]
 
 ### Changed
