@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
-- Add a new intro to `xparse.dtx` pointing to new kernel methods
+- Add a new intro to `xparse.dtx` pointing to kernel methods
 
 ## [2024-02-18]
 
