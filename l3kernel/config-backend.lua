@@ -12,7 +12,7 @@ specialformats.latex =
       {
         binary = "etex",
         format = "latex",
-        tokens = "\\PassOptionsToPackage{backend=dvisvgm}{expl3}"
+        tokens = "\\ExplSyntaxOn\\sys_load_backend:n{dvisvgm}\\ExplSyntaxOff"
       }
   }
 checkengines =
