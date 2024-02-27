@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Some functions and variables were defined locally
+- Typeset `TF` of internal conditionals in current color (issue \#730)
 
 ## [2024-02-20]
 

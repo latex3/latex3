@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\draw_path_replace_bb:`
+
 ## [2024-02-20]
 
 ### Fixed
