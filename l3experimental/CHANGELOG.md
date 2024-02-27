@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\draw_path_replace_bb:`
 
+### Removed
+- `l3graphics` package: integrated into `l3kernel`
+
 ## [2024-02-20]
 
 ### Fixed

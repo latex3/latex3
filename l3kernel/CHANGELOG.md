@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Module `l3graphics`, moved from `l3experimental` to stable status
+
 ### Fixed
 - Typeset `TF` of internal conditionals in current color (issue \#730)
 - Some functions and variables were defined locally
