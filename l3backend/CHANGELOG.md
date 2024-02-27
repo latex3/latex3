@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Initiation of opacity data (see \#1472)
+
 ## [2024-02-20]
 
 ### Fixed
