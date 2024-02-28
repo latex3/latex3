@@ -9,6 +9,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Initiation of opacity data (see \#1472)
 - ExtGState setup for stroking opacity (issue \#1472)
+- Inconsistent behavior of opacity functions w/o `pdfmanagement`
+  (issue \#1473)
 
 ## [2024-02-20]
 
