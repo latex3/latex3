@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Require that `expl3` is loaded at top level in generic mode
+
 ### Fixed
 - Typeset `TF` of internal conditionals in current color (issue \#730)
 - Some functions and variables were defined locally
