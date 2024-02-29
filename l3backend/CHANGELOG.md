@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - ExtGState setup for stroking opacity (issue \#1472)
 - Inconsistent behavior of opacity functions w/o `pdfmanagement`
   (issue \#1473)
+- Redundant braces in opacity backend for dvisvgm
 
 ## [2024-02-20]
 
