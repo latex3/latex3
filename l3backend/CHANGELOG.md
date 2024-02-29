@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Removed
+- Range guard for opacity
+
 ### Fixed
 - Initiation of opacity data (see \#1472)
 - ExtGState setup for stroking opacity (issue \#1472)
