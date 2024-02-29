@@ -28,5 +28,8 @@ specialformats.latex =
 checkengines =
   {"pdftex", "luatex", "xetex", "etex-dvips", "etex-dvisvgm", "uptex"}
 
+-- Enable loading pdfmanagement support files from system texmf
+checksearch = true
+
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
