@@ -10,6 +10,19 @@ checksuppfiles  = checksuppfiles  or
     "regression-test.cfg",
     "sRGB_v4_ICC_preference.icc"
   }
+
+specialformats = specialformats or {}
+specialformats.latex =
+  {
+    ["etex-dvips"] = {binary = "etex", format = "latex"},
+    ["etex-dvisvgm"] =
+      {
+        binary = "etex",
+        format = "latex",
+        tokens = "\\ExplSyntaxOn\\sys_load_backend:n{dvisvgm}\\ExplSyntaxOff"
+      }
+  }
+
 tagfiles = tagfiles or {"*.dtx", "README.md", "CHANGELOG.md", "*.ins"}
 unpacksuppfiles = unpacksuppfiles or
   {
