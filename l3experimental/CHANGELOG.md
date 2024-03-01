@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\draw_path_replace_bb:`
 
+### Fixed
+- Interaction between drawing rotation and shift (issue \#1483)
+
 ## [2024-02-20]
 
 ### Fixed
