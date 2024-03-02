@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Interaction between drawing rotation and shift (issue \#1483)
+- Shifting not applied to `\draw_path_rectangle:n` (issue \#1486)
 
 ## [2024-02-20]
 
