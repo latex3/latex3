@@ -16,6 +16,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Interaction between drawing rotation and shift (issue \#1483)
 - Shifting not applied to `\draw_path_rectangle:n` (issue \#1486)
+- Out of boundary lines drawn by `\draw_path_grid:nnn` (issue \#1489)
 
 ## [2024-02-20]
 
