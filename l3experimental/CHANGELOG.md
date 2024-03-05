@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - `l3opacity` is sped up a bit
+- Support fp expr in `\draw_path_corner_arc:nn`
 
 ### Fixed
 - Interaction between drawing rotation and shift (issue \#1483)
