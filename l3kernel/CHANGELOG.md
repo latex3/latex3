@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Macro interface for `l3sys-query`
+
 ### Changed
 - Require that `expl3` is loaded at top level in generic mode
 
