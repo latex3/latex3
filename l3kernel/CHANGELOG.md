@@ -9,6 +9,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Require that `expl3` is loaded at top level in generic mode
+- Ensure that the dimension arguments to `\box_autosize_to_...:Nnn`
+  are properly formed (issue \#1502)
 
 ### Fixed
 - Typeset `TF` of internal conditionals in current color (issue \#730)
