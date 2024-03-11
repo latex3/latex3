@@ -15,6 +15,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Inconsistent behavior of opacity functions w/o `pdfmanagement`
   (issue \#1473)
 - Redundant braces in opacity backend for dvisvgm
+- Interaction of scope with box insertion with `dvips` (see \#1504)
 
 ## [2024-02-20]
 

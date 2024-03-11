@@ -81,14 +81,14 @@
 %   but where we can't split material between separate calls. The
 %   |@beginspecial|/|@endspecial| pair are from |special.pro| and correct the
 %   scale and $y$-axis direction.
-%   In contrast to \pkg{pgf}, we don't save the current point:
-%   discussion with Tom Rokici suggested a better way to handle the necessary
-%   translations (see \cs{@@_backend_box_use:Nnnnn}). (Note that
+%   As for \pkg{pgf}, we need to save the current point as this is
+%   required for box placement. (Note that
 %   |@beginspecial|/|@endspecial| forms a backend scope.)
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_backend_begin:
   {
     \@@_backend_literal:n { [begin] }
+    \@@_backend_literal:n { /draw.x~currentpoint~/draw.y~exch~def~def }
     \@@_backend_literal:n { @beginspecial }
   }
 \cs_new_protected:Npn \@@_backend_end:
@@ -347,7 +347,14 @@
 %   Inside a picture |@beginspecial|/|@endspecial| are active, which is
 %   normally a good thing but means that the position and scaling would be off
 %   if the box was inserted directly. To deal with that, there are a number of
-%   possible approaches. The implementation here was suggested by Tom Rokici
+%   possible approaches. A previous implementation suggested by Tom Rokici
+%   used |@endspecial|/|@beginspecial|. This avoids needing internals of
+%   \texttt{dvips}, but fails if there the box is used inside a scope
+%   (see \url{https://github.com/latex3/latex3/issues/1504}). Instead,
+%   we use the same method as \pkg{pgf}, which means tracking the position
+%   at the PostScript level.
+%   
+%   The implementation here was suggested by Tom Rokici
 %   (author of \texttt{dvips}). We end the current special placement, then
 %   set the current point with a literal |[begin]|. As for general
 %   literals, we then use the stack to store the current point and move to
@@ -355,13 +362,14 @@
 %   once before and once after it. Then we get back to the \TeX{} reference
 %   point to insert our content. The clean up has to happen in the right
 %   places, hence the |[begin]|/|[end]| pair around |restore|. Finally,
-%   we can return to \enquote{normal} drawing mode. Notice that the set up
-%   here is very similar to that in \cs{@@_align_currentpoint_\ldots}, but
-%   the ordering of saving and restoring is different (intermixed).
+%   we can return to \enquote{normal} drawing mode.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_backend_box_use:Nnnnn #1#2#3#4#5
   {
-    \@@_backend_literal:n { @endspecial }
+    \@@_backend_literal:n { save }
+    \@@_backend_literal:n { 72~Resolution~div~72~VResolution~div~neg~scale }
+    \@@_backend_literal:n { magscale { 1~DVImag~div~dup~scale } if }
+    \@@_backend_literal:n { draw.x~neg~draw.y~neg~translate }
     \@@_backend_literal:n { [end] }
     \@@_backend_literal:n { [begin] }
     \@@_backend_literal:n { save }
@@ -375,9 +383,6 @@
     \hbox_overlap_right:n { \box_use:N #1 }
     \@@_backend_literal:n { [begin] }
     \@@_backend_literal:n { restore }
-    \@@_backend_literal:n { [end] }
-    \@@_backend_literal:n { [begin] }
-    \@@_backend_literal:n { @beginspecial }
   }
 %    \end{macrocode}
 % \end{macro}
