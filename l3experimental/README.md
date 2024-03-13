@@ -26,7 +26,6 @@ bundles:
 * `l3graphics`
 * `l3opacity`
 * `l3str`
-* `l3sys-shell`
 * `xcoffins`
 * `xgalley`
 
@@ -60,12 +59,6 @@ A 'string' in TeX terms is a token list in which all of the tokens have
 category code 12 ('other'), with the exception of spaces which have the
 category code 10 ('space'). The `l3str-format` module provides methods
 for formatting such strings.
-
-`l3sys-shell`
--------------
-
-This module provides abstractions for common shell functions, e.g. file
-deletion and copying.
 
 `xcoffins`
 ----------
