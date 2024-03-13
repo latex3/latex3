@@ -20,6 +20,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Out of boundary lines drawn by `\draw_path_grid:nnn` (issue \#1489)
 - Two softpath markers with the same meaning in l3draw (issue \#1492)
 
+### Removed
+- `l3sys-shell` in favor of `l3sys-query` methods added to `l3kernel`
+
 ## [2024-02-20]
 
 ### Fixed
