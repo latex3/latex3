@@ -1,4 +1,5 @@
 testfiledir  = "testfiles-l3doc"
+checkdeps    = {maindir .. "/l3backend", maindir .. "/l3packages"}
 checkengines = { "pdftex" }
 checksearch  = true
 checkruns    = 3
