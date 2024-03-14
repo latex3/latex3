@@ -1,7 +1,7 @@
 -- Common settings for LaTeX3 development repo, used by l3build script
 
 checkdeps   = checkdeps   or {maindir .. "/l3backend", maindir .. "/l3kernel"}
-typesetdeps = typesetdeps or checkdeps
+typesetdeps = typesetdeps or {maindir .. "/l3packages/xparse"}
 
 checkengines    = checkengines
   or {"pdftex", "xetex", "luatex", "uptex"}
