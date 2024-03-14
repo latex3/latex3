@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-03-14]
+
 ### Added
 - Macro interface for `l3sys-query`
 
@@ -1698,7 +1700,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-02-20...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-03-14...HEAD
+[2024-03-14]: https://github.com/latex3/latex3/compare/2024-02-20...2024-03-14
 [2024-02-20]: https://github.com/latex3/latex3/compare/2024-02-18...2024-02-20
 [2024-02-18]: https://github.com/latex3/latex3/compare/2024-02-13...2024-02-18
 [2024-02-13]: https://github.com/latex3/latex3/compare/2024-01-22...2024-02-13

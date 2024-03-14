@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-03-14]
+
 ### Changed
 - Add a new intro to `xparse.dtx` pointing to kernel methods
 
@@ -251,7 +253,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-02-18...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-03-14...HEAD
+[2024-03-14]: https://github.com/latex3/latex3/compare/2024-02-18...2024-03-14
 [2024-02-18]: https://github.com/latex3/latex3/compare/2024-02-13...2024-02-18
 [2024-02-13]: https://github.com/latex3/latex3/compare/2023-10-10...2024-02-13
 [2023-10-10]: https://github.com/latex3/latex3/compare/2023-08-29...2023-10-10
