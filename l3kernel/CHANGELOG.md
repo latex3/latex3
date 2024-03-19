@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Global assignment to constant in `\cctab_const:Nn` (issue \#1508)
+
 ## [2024-03-14]
 
 ### Added
