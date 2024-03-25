@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Global assignment to constant in `\cctab_const:Nn` (issue \#1508)
+- Naming of register functions in LuaMetaTeX 2.11+ (issue \#1518)
 
 ## [2024-03-14]
 
