@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Expand object names in `\pdf_object_...` functions (issue \#1521)
+
 ### Fixed
 - Global assignment to constant in `\cctab_const:Nn` (issue \#1508)
 - Undefined `\__kernel_iwo_open:Nn` used in `\iow_shell_open:Nn`
