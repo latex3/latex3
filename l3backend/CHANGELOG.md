@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Expand object names in `\pdf_object_...` functions (issue \#1521)
+
 ## [2024-03-14]
 
 ### Removed
