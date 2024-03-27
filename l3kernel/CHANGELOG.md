@@ -9,6 +9,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Expand object names in `\pdf_object_...` functions (issue \#1521)
+- Adapt `l3doc` for `ltcmd` change to handling of newlines
+  (see latex3/latex2e\#1304)
 
 ### Fixed
 - Global assignment to constant in `\cctab_const:Nn` (issue \#1508)
