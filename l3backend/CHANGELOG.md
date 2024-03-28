@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Update PDF object management code
+
 ## [2024-03-14]
 
 ### Removed
