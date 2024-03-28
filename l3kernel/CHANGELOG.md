@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for 'indexed' PDF objects
+
 ### Changed
 - Expand object names in `\pdf_object_...` functions (issue \#1521)
 - Adapt `l3doc` for `ltcmd` change to handling of newlines
