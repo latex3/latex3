@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\prop_(g)put_if_not_in:Nnn` (renamed from `\prop_(g)put_if_new:Nnn`)
 - `\intarray_if_exist:N(TF)`
 - `\fparray_if_exist:N(TF)`
+- Support for 'indexed' PDF objects
 
 ### Changed
 - Expand object names in `\pdf_object_...` functions (issue \#1521)
