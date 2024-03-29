@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\prop_(g)put_if_not_in:Nnn` (renamed from `\prop_(g)put_if_new:Nnn`)
+
 ### Changed
 - Expand object names in `\pdf_object_...` functions (issue \#1521)
 - Adapt `l3doc` for `ltcmd` change to handling of newlines
@@ -17,6 +20,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Undefined `\__kernel_iwo_open:Nn` used in `\iow_shell_open:Nn`
   (issue \#1515)
 - Naming of register functions in LuaMetaTeX 2.11+ (issue \#1518)
+
+### Deprecated
+- `\prop_(g)put_if_new:Nnn` (renamed to `\prop_(g)put_if_not_in:Nnn`)
 
 ## [2024-03-14]
 
@@ -31,6 +37,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 - Typeset `TF` of internal conditionals in current color (issue \#730)
 - Some functions and variables were defined locally
+
 ## [2024-02-20]
 
 ### Changed
