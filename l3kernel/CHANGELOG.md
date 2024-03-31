@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\prop_(g)put_if_not_in:Nnn` (renamed from `\prop_(g)put_if_new:Nnn`)
+- `\intarray_if_exist:N(TF)`
 
 ### Changed
 - Expand object names in `\pdf_object_...` functions (issue \#1521)
