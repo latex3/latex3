@@ -373,8 +373,11 @@
 % \begin{macro}{\pdf_object_new:n}
 % \begin{macro}
 %   {\pdf_object_write:nnn, \pdf_object_write:nne, \pdf_object_write:nnx}
-% \begin{macro}{\pdf_object_ref:n,}
+% \begin{macro}{\pdf_object_ref:n}
 % \begin{macro}{\__kernel_pdf_object_id:n}
+% \begin{macro}{ltx.pdf.object_id}
+% \begin{macro}{\@@_object_record:nn, \@@_object_record:nV}
+% \begin{macro}{\@@_object_retrieve:n}
 % \begin{macro}[pTF]{\pdf_object_if_exist:n}
 %   Simple to do: all objects create a constant |int| so it is not a
 %   backend-specific name.
@@ -382,34 +385,89 @@
 \cs_new_protected:Npn \pdf_object_new:n #1
   {
     \@@_backend_object_new:
-    \int_const:cn
-      { c_@@_object_ #1 _int }
-      { \g_@@_backend_object_int }
+    \@@_object_record:nV {#1} \g_@@_backend_object_int
   }
 \cs_new_protected:Npn \pdf_object_write:nnn #1#2#3
   {
-    \exp_args:Nv \@@_backend_object_write:nnn
-      { c_@@_object_ #1 _int } {#2} {#3}
+    \exp_args:Ne \@@_backend_object_write:nnn
+      { \@@_object_read:n {#1} } {#2} {#3}
     \bool_gset_true:N \g_@@_init_bool
   }
 \cs_generate_variant:Nn \pdf_object_write:nnn { nne , nnx }
 \cs_new:Npn \pdf_object_ref:n #1
   {
-    \exp_args:Nv \@@_backend_object_ref:n
-      { c_@@_object_ #1 _int }
+    \exp_args:Ne \@@_backend_object_ref:n
+      { \@@_object_retrieve:n {#1} }
   }
 \cs_new:Npn \__kernel_pdf_object_id:n #1
   {
-    \exp_args:Nv \@@_backend_object_id:n
-      { c_@@_object_ #1 _int }
+    \exp_args:Ne \@@_backend_object_id:n
+      { \@@_object_retrieve:n {#1} }
   }
+%</tex>
+%    \end{macrocode}
+%   Object mappings are tracked in Lua for \LuaTeX{} as this makes retrieving
+%   them much easier; as a result, there is a split in approaches. In Lua we
+%   store values in a table indexed by name.
+%    \begin{macrocode}
+%<*lua>
+
+local scan_int = token.scan_int
+local scan_string = token.scan_string
+
+local @@_objects = {}
+
+luacmd('@@_object_record:nn', function()
+  local name = scan_string()
+  local n = scan_int()
+  @@_objects[name] = n
+end, 'global')
+
+local function object_id(name)
+  return @@_objects[name] or 0
+end
+
+luacmd('@@_object_retrieve:n', function()
+  local name = scan_string()
+  return object_id(name)
+end, 'global')
+
+ltx.pdf = ltx.pdf or {}
+ltx.pdf.object_id = object_id
+
+%</lua>
+%    \end{macrocode}
+%  Whereas in \TeX{} we use integer constants.
+%    \begin{macrocode}
+%<*tex>
+\sys_if_engine_luatex:F
+  {
+    \cs_new_protected:Npn \@@_object_record:nn #1#2
+      {
+        \int_const:cn
+          { c_@@_object_ #1 _int }
+          { \g_@@_backend_object_int }
+      }
+    \cs_new_protected:Npn \@@_object_retrieve:n #1
+      {
+        \int_if_exist:cTF { c_@@_object_ #1 _int }
+          {
+            \int_use:c
+              { c_@@_object_ #1 _int }
+          }
+          { 0 }
+      }
+  }
+\cs_generate_variant:Nn \@@_object_record:nn { nV }
 \prg_new_conditional:Npnn \pdf_object_if_exist:n #1 { p , T , F , TF }
   {
-    \int_if_exist:cTF { c_@@_object_ #1 _int }
-      \prg_return_true:
+    \int_compare:nNnTF { \@@_object_retrieve:n {#1} } = 0
       \prg_return_false:
+      \prg_return_true:
   }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
