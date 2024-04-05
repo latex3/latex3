@@ -379,10 +379,6 @@
 %   {\pdf_object_write:nnn, \pdf_object_write:nne, \pdf_object_write:nnx}
 % \begin{macro}{\pdf_object_ref:n}
 % \begin{macro}{\__kernel_pdf_object_id:n}
-% \begin{macro}{ltx.pdf.object_id}
-% \begin{macro}{\@@_object_record:nN}
-% \begin{macro}[EXP]{\@@_object_retrieve:n}
-% \begin{macro}[pTF,EXP]{\pdf_object_if_exist:n}
 %   Simple to do: all objects create a constant |int| so it is not a
 %   backend-specific name.
 %    \begin{macrocode}
@@ -410,9 +406,17 @@
   }
 %</tex>
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \begin{macro}{\@@_object_record:nN}
+% \begin{macro}[EXP]{\@@_object_retrieve:n}
+% \begin{macro}{ltx.pdf.object_id}
 %   Object mappings are tracked in Lua for \LuaTeX{} as this makes retrieving
 %   them much easier; as a result, there is a split in approaches. In Lua we
-%   store values in a table indexed by name.
+%   store values in a table indexed by name. The Lua function here is set up
+%   to deal with both named and indexed objects: fits the Lua idiom well.
 %    \begin{macrocode}
 %<*lua>
 
@@ -420,16 +424,21 @@ local scan_int = token.scan_int
 local scan_string = token.scan_string
 local cprint = tex.cprint
 
-local @@_objects = {}
+local @@_objects_named = {}
+local @@_objects_indexed = {}
 
 luacmd('@@_object_record:nN', function()
   local name = scan_string()
   local n = scan_int()
-  @@_objects[name] = n
+  @@_objects_named[name] = n
 end,'protected','global')
 
-local function object_id(name)
-  return @@_objects[name] or 0
+local function object_id(name,index)
+  if index then
+    return @@_objects_indexed[name][index] or 0
+  else
+    return @@_objects_named[name] or 0
+  end
 end
 
 luacmd('@@_object_retrieve:n', function()
@@ -462,6 +471,12 @@ ltx.pdf.object_id = object_id
           { 0 }
       }
   }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \begin{macro}[pTF,EXP]{\pdf_object_if_exist:n}
+%    \begin{macrocode}
 \prg_new_conditional:Npnn \pdf_object_if_exist:n #1 { p , T , F , TF }
   {
     \int_compare:nNnTF { \@@_object_retrieve:n {#1} } = 0
@@ -470,120 +485,142 @@ ltx.pdf.object_id = object_id
   }
 %    \end{macrocode}
 % \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-%
-% \begin{variable}{\c_@@_object_block_size_int}
-%   Sets the block size used for managing indexed objects.
-%     \begin{macrocode}
-\int_const:Nn \c_@@_object_block_size_int { 10000 }
-%    \end{macrocode}
-% \end{variable}
 %
 % \begin{macro}{\pdf_object_new_indexed:nn}
-% \begin{macro}{\@@_object_new_indexed:Nn}
 % \begin{macro}{\pdf_object_write_indexed:nnnn, \pdf_object_write_indexed:nnne}
-% \begin{macro}{\@@_object_write_indexed:Nnnn}
 % \begin{macro}[EXP]{\pdf_object_ref_indexed:nn}
 % \begin{macro}[EXP]{\__kernel_pdf_object_id_indexed:nn}
-% \begin{macro}[EXP]{\@@_object_ref_indexed:Nn, \@@_object_id_indexed:Nn}
-% \begin{macro}[EXP]{\@@_object_indexed_split:nnN}
-%   Using indexed values is much the same, except we have to split up the
-%   value. As that's repetitive, we use a single auxiliary.
+%   Again we split between the common code and the macro- or Lua-based
+%   implementation. To make life easier for the Lua route, all of the
+%   potential expressions are expanded to braced numbers.
 %    \begin{macrocode}
 \cs_new_protected:Npn \pdf_object_new_indexed:nn #1#2
   {
-    \@@_object_indexed_split:nnN {#1} {#2}
-      \@@_object_new_indexed:Nn
-  }
-\cs_new_protected:Npn \@@_object_new_indexed:Nn #1#2
-  {
     \@@_backend_object_new:
-    \intarray_if_exist:NF #1
-      {
-        \intarray_new:Nn #1
-          \c_@@_object_block_size_int
-      }
-    \intarray_gset:Nnn #1 {#2} \g_@@_backend_object_int
+    \@@_object_record:neN {#1}
+      { \int_eval:n {#2} } \g_@@_backend_object_int
   }
-\cs_new_protected:Npn \pdf_object_write_indexed:nnnn #1#2#3#4
-  {
-    \@@_object_indexed_split:nnN {#1} {#2}
-      \@@_object_write_indexed:Nnnn
-        {#3} {#4}
-  }
-\cs_generate_variant:Nn \pdf_object_write_indexed:nnnn { nnne }
-\cs_new_protected:Npn \@@_object_write_indexed:Nnnn #1#2#3#4
+\cs_new_protected:Npn \pdf_object_write_indexed:nnn #1#2#3#4
   {
     \exp_args:Ne \@@_backend_object_write:nnn
-      { \intarray_item:Nn #1 {#2} }
-      {#3} {#4}
+      { \@@_object_retrieve:ne {#1} { \int_eval:n {#2} } } {#3} {#4}
     \bool_gset_true:N \g_@@_init_bool
   }
-\cs_new:Npn \pdf_object_ref_indexed:nn #1#2
-  {
-    \@@_object_indexed_split:nnN {#1} {#2}
-      \@@_object_ref_indexed:Nn
-  }
-\cs_new:Npn \@@_object_ref_indexed:Nn #1#2
+\cs_generate_variant:Nn \pdf_object_write_indexed:nnnn { nnne }
+\cs_new:Npn \pdf_object_ref_indexed:n #1#2
   {
     \exp_args:Ne \@@_backend_object_ref:n
-      {
-        \intarray_if_exist:NTF #1
-          { \intarray_item:Nn #1 {#2} }
-          { 0 }
-      }
+      { \@@_object_retrieve:ne {#1} { \int_eval:n {#2} } }
   }
 \cs_new:Npn \__kernel_pdf_object_id_indexed:nn #1#2
   {
-    \@@_object_indexed_split:nnN {#1} {#2}
-      \@@_object_id_indexed:Nn
-  }
-\cs_new:Npn \@@_object_id_indexed:Nn #1#2
-  {
     \exp_args:Ne \@@_backend_object_id:n
-      { \intarray_item:Nn #1 {#2} }
+      { \@@_object_retrieve:ne {#1} { \int_eval:n {#2} } }
   }
+%</tex>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \begin{macro}{\@@_object_record:nnN, \@@_object_record:neN}
+% \begin{macro}[EXP]{\@@_object_retrieve:nn}
+% \begin{macro}{\@@_object_record:NnN}
+% \begin{macro}[EXP]{\@@_object_retrieve:Nn}
+%   Again we split for Lua: the same idea as above but with nested tables.
+%   As we've arranged above that the \TeX{} code passes a braced number,
+%   we can use |tonumber(scan_string())| rather than |scan_int()|
+%   for the index.
+%    \begin{macrocode}
+%<*lua>
+
+luacmd('@@_object_record:nnN', function()
+  local name = scan_string()
+  local index = tonumber(scan_string())
+  local n = scan_int()
+  @@_objects_indexed[name] = @@_objects_indexed[name] or {}
+  @@_objects_indexed[name][index] = n
+end,'protected','global')
+
+luacmd('@@_object_retrieve:nn', function()
+  local name = scan_string()
+  local index = tonumber(scan_string())
+  return cprint(12,tostring(object_id(name,index)))
+end,'global')
+
+%</lua>
+%    \end{macrocode}
+% The non-Lua approach is to divide the range into blocks, and store in integer
+% arrays that can simulate dynamic assignment.
+%    \begin{macrocode}
+%<*tex>
+\sys_if_engine_luatex:F
+  {
+    \cs_new_protected:Npn \@@_object_record:nnN #1#2#3
+      {
+        \use:e
+          {
+            \@@_object_record:NnN
+               \@@_object_index_split:nn {#1} {#2}
+               \exp_not:N #3
+          }
+      }
+    \cs_new_protected:Npn \@@_object_record:NnN #1#2#3
+      {
+        \intarray_if_exist:NF #1
+          { \intarray_new:Nn #1 \c_@@_object_block_size_int }
+        \intarray_gset:Nnn #1 {#2} #3
+      }
+    \cs_new:Npn \@@_object_retrieve:nn #1#2
+      {
+        \use:e
+          {
+            \exp_not:N \@@_object_retrieve:Nn
+              \@@_object_index_split:nn {#1} {#2}
+          }
+      }
+    \cs_new:Npn \@@_object_retrieve:Nn #1#2
+      { \intarray_item:Nn #1 {#2} }
 %    \end{macrocode}
 %   As we want blocks to start from one, and within the block for the top value
 %   to be \enquote{in} the block, we do a little bit of manipulation. By shifting
 %   down by one, we keep the values \enquote{in} the block, then we adjust the
 %   block/index number to get back on track.
 %    \begin{macrocode}
-\cs_new:Npn \@@_object_indexed_split:nnN #1#2#3
-  {
-    \use:e
+    \cs_new:Npn \@@_object_index_split:nn #1#2
       {
-        \exp_not:N #3
-          \exp_not:c
-            {
-              g_@@_object_ #1 _
-              \int_eval:n
-                {
-                  \int_div_truncate:nn { #2 - 1 }
-                    \c_@@_object_block_size_int + 1
-                }
-              _intarray
-            }
+        \exp_not:c
+          {
+            g_@@_object_ #1 _
+            \int_eval:n
+              {
+                \int_div_truncate:nn { #2 - 1 }
+                  \c_@@_object_block_size_int + 1
+              }
+            _intarray
+          }
           {
             \int_eval:n
               { \int_mod:nn { #2 - 1 } \c_@@_object_block_size_int + 1 }
           }
       }
-  }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
+% \begin{variable}{\c_@@_object_block_size_int}
+%   Sets the block size used for managing indexed objects.
+%    \begin{macrocode}
+    \int_const:Nn \c_@@_object_block_size_int { 10000 }
+  }
+%    \end{macrocode}
+% \end{variable}
+% \begin{macro}[EXP]{\@@_object_retrieve:ne}
+%   A common variant.
+%    \begin{macrocode}
+\cs_generate_variant:Nn \@@_object_record:nnN { ne }
+%    \end{macrocode}
 % \end{macro}
 %
 % \begin{macro}
