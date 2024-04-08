@@ -16,6 +16,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Expand object names in `\pdf_object_...` functions (issue \#1521)
 - Adapt `l3doc` for `ltcmd` change to handling of newlines
   (see latex3/latex2e\#1304)
+- Return active spaces from `\sys_get_query:n(nn)N` (issue \#1529)
 
 ### Fixed
 - False `debug` error raised by `\cctab_const:Nn` (issue \#1508)
