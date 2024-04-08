@@ -23,6 +23,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Undefined `\__kernel_iwo_open:Nn` used in `\iow_shell_open:Nn`
   (issue \#1515)
 - Naming of register functions in LuaMetaTeX 2.11+ (issue \#1518)
+- Catcode applied to letters by `\sys_get_query:n(nn)N`
 
 ### Deprecated
 - `\prop_(g)put_if_new:Nnn` (renamed to `\prop_(g)put_if_not_in:Nnn`)
