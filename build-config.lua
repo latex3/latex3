@@ -191,3 +191,31 @@ end
 function docinit_hook()
   return fmt({typesetexe},typesetdir)
 end
+
+-- Allow for 'dev' release
+--
+-- See https://docs.github.com/en/actions/learn-github-actions/environment-variables
+-- for the meaning of the environment variables, but tl;dr: GITHUB_REF_TYPE says
+-- if we have a tag or a branch, GITHUB_REF_NAME has the corresponding name.
+-- If either one of them isn't set, we look at the current git HEAD.
+do
+  local gh_type = os.getenv("GITHUB_REF_TYPE")
+  local name = os.getenv("GITHUB_REF_NAME")
+  if gh_type == "tag" and name then
+    main_branch = not string.match(name,"-dev$")
+  else
+    if gh_type ~= "branch" or not name then
+      local f = io.popen("git rev-parse --abbrev-ref HEAD")
+      name = f:read("*a"):sub(1,-2)
+      assert(f:close())
+    end
+    main_branch = string.match(name,"^main")
+  end
+  if not main_branch then
+    tdsroot = "latex-dev"
+    print("Creating/installing dev-version in " .. tdsroot)
+    ctanpkg = ctanpkg or ""
+    ctanpkg = ctanpkg .. "-dev"
+    ctanzip = ctanpkg
+  end
+end
