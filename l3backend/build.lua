@@ -19,7 +19,9 @@ unpackfiles  = {"l3backend.ins"}
 typesetdeps = {maindir .. "/l3kernel"}
 
 -- Get the .pro files in the right place
-tdslocations = {"dvips/l3backend/*.pro"}
+if main_branch then
+  tdslocations = {"dvips/l3backend/*.pro"}
+end
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
