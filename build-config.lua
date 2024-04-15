@@ -214,7 +214,11 @@ do
   if not main_branch then
     tdsroot = "latex-dev"
     print("Creating/installing dev-version in " .. tdsroot)
-    ctanpkg = ctanpkg or ""
+    if bundle == "" then
+      ctanpkg = module
+    else
+      ctanpkg = bundle
+    end
     ctanpkg = ctanpkg .. "-dev"
     ctanzip = ctanpkg
   end
