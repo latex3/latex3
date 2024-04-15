@@ -40,7 +40,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2023-11-09]
 
 ### Changed
-- Changed `luaotfload` integration to allow coexistance with (x)color.
+- Changed `luaotfload` integration to allow coexistence with (x)color.
 
 ## [2023-11-04]
 
@@ -225,7 +225,7 @@ this project uses date-based 'snapshot' version identifiers.
   backend)
 
 ### Changed
-- Implementation of color wtih (x)dvipdfmx (requires an up-to-date
+- Implementation of color with (x)dvipdfmx (requires an up-to-date
   backend)
 
 ## [2020-09-24]
