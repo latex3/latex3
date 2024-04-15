@@ -878,7 +878,7 @@ this project uses date-based 'snapshot' version identifiers.
   improve target placement, solve pdfTeX and makeindex warnings
 
 ### Fixed
-- Evalutate integer constants only once (issue [\#861](https://github.com/latex3/latex3/issues/861))
+- Evaluate integer constants only once (issue [\#861](https://github.com/latex3/latex3/issues/861))
 - Detect `\ior_map_inline:Nn` calls on undefined streams (issue [\#194](https://github.com/latex3/latex3/issues/194))
 
 ### Deprecated

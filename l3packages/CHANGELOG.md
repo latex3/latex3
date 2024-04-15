@@ -137,7 +137,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2021-05-07]
 
 ### Fixed
-- Implmentation of `\DeclareRestrictedTemplate`
+- Implementation of `\DeclareRestrictedTemplate`
 - Incorrect use of restricted template in `xfrac`
 
 ## [2021-03-12]
