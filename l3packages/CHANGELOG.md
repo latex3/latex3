@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Prepare for kernel adjustments to templates:
+  `\IfInstanceExist(TF)` as alias for `\IfInstanceExists(TF)`
+
 ## [2024-03-14]
 
 ### Changed
