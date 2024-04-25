@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- CMYK output from `dvisvgm`
+
 ## [2024-04-11]
 
 ### Added
