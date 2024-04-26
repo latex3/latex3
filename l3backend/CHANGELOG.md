@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Use built-in conversion for CMYK colors with `dvisvgm` (see \#1538)
+
 ### Fixed
 - CMYK output from `dvisvgm`
 
