@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-04-11]
+
 ### Added
 - Support for 'raw' PDF object IDs
 
@@ -345,7 +347,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-03-14...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-04-11...HEAD
+[2024-04-11]: https://github.com/latex3/latex3/compare/2024-03-14...2024-04-11
 [2024-03-14]: https://github.com/latex3/latex3/compare/2024-02-20...2024-03-14
 [2024-02-20]: https://github.com/latex3/latex3/compare/2024-01-04...2024-02-20
 [2024-01-04]: https://github.com/latex3/latex3/compare/2023-11-09...2024-01-04
