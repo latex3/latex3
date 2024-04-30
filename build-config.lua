@@ -43,8 +43,6 @@ typesetcmds = typesetcmds or "\\AtBeginDocument{\\csname DisableImplementation\\
 typesetexe = "pdftex"
 typesetopts = "--fmt=pdflatex -interaction=nonstopmode"
 
-maxprintline = 9999
-
 if checksearch == nil then
   checksearch = false
 end
