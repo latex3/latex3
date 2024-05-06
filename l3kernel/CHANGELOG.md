@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Implementation of deprecated `\pdf_object_write:nn`
+
 ## [2024-04-11]
 
 ### Added
