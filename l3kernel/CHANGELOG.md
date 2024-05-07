@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Full set of variants for `\prop_(g)put_if_not_in:Nnn`
+
 ### Fixed
 - Implementation of deprecated `\pdf_object_write:nn`
 
