@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-05-08]
+
 ### Changed
 - Use built-in conversion for CMYK colors with `dvisvgm` (see \#1538)
 
@@ -353,7 +355,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-04-11...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-05-08...HEAD
+[2024-05-08]: https://github.com/latex3/latex3/compare/2024-04-11...2024-05-08
 [2024-04-11]: https://github.com/latex3/latex3/compare/2024-03-14...2024-04-11
 [2024-03-14]: https://github.com/latex3/latex3/compare/2024-02-20...2024-03-14
 [2024-02-20]: https://github.com/latex3/latex3/compare/2024-01-04...2024-02-20

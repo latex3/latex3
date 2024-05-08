@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-05-08]
+
 ### Added
 - Full set of variants for `\prop_(g)put_if_not_in:Nnn`
 - `keys_set_groups:nnn(n)N` to match `keys_set_exclude_groups:nnn(n)N`
@@ -1732,7 +1734,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-04-11...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-05-08...HEAD
+[2024-05-08]: https://github.com/latex3/latex3/compare/2024-04-11...2024-05-08
 [2024-04-11]: https://github.com/latex3/latex3/compare/2024-03-14...2024-04-11
 [2024-03-14]: https://github.com/latex3/latex3/compare/2024-02-20...2024-03-14
 [2024-02-20]: https://github.com/latex3/latex3/compare/2024-02-18...2024-02-20
