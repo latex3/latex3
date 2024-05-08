@@ -11,7 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Full set of variants for `\prop_(g)put_if_not_in:Nnn`
-- `keys_set_groups:nnn(n)N` to match `keys_set_exclude_groups:nnn(n)N`
+- `\keys_set_groups:nnn(n)N` to match `\keys_set_exclude_groups:nnn(n)N`
 
 ### Fixed
 - Implementation of deprecated `\pdf_object_write:nn`
