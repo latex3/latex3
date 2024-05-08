@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Syntax entries of `\keys_set_groups:nnn(n)N`
+
 ## [2024-05-08]
 
 ### Added
