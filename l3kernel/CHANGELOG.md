@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Syntax entries of `\keys_set_groups:nnn(n)N`
 
+### Fixed
+- `\peek_analysis_map_inline:n` with active spaces (issue \#1539)
+
 ## [2024-05-08]
 
 ### Added
