@@ -18,13 +18,13 @@ unpackfiles  = {"l3backend.ins"}
 -- Avoid a circular ref.
 typesetdeps = {maindir .. "/l3kernel"}
 
+-- Load the common build code
+dofile(maindir .. "/build-config.lua")
+
 -- Get the .pro files in the right place
 if main_branch then
   tdslocations = {"dvips/l3backend/*.pro"}
 end
-
--- Load the common build code
-dofile(maindir .. "/build-config.lua")
 
 -- Detail how to set the version automatically
 function update_tag(file,content,tagname,tagdate)
