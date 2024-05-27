@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-05-27]
+
 ### Added
 - Syntax entries of `\keys_set_groups:nnn(n)N`
 
@@ -1740,7 +1742,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-05-08...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-05-27...HEAD
+[2024-05-27]: https://github.com/latex3/latex3/compare/2024-05-08...2024-05-27
 [2024-05-08]: https://github.com/latex3/latex3/compare/2024-04-11...2024-05-08
 [2024-04-11]: https://github.com/latex3/latex3/compare/2024-03-14...2024-04-11
 [2024-03-14]: https://github.com/latex3/latex3/compare/2024-02-20...2024-03-14
