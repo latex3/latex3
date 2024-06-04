@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{ltxdoc}
-         [2023/03/28 v2.1j Standard LaTeX documentation class]
+         [2024/02/08 v2.1j Standard LaTeX documentation class]
 \DeclareOption{a5paper}{\@latexerr{Option not supported}%
    {}}
 \newif\ifltxdoc@load@cfg@ \ltxdoc@load@cfg@true

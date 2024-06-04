@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}[1995/12/01]
 \ProvidesClass{report}
-              [2023/05/17 v1.4n
+              [2024/02/08 v1.4n
  Standard LaTeX document class]
 \newcommand\@ptsize{}
 \newif\if@restonecol
