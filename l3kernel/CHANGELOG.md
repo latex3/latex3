@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-06-19]
+
 ### Fixed
 - Avoid a low-level error when LaTeX2e key properties are given without a value
 
@@ -1745,7 +1747,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-05-27...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-06-19...HEAD
+[2024-06-19]: https://github.com/latex3/latex3/compare/2024-05-27...2024-06-19
 [2024-05-27]: https://github.com/latex3/latex3/compare/2024-05-08...2024-05-27
 [2024-05-08]: https://github.com/latex3/latex3/compare/2024-04-11...2024-05-08
 [2024-04-11]: https://github.com/latex3/latex3/compare/2024-03-14...2024-04-11
