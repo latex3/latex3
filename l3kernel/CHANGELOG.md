@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Avoid a low-level error when LaTeX2e key properties are given without a value
+
 ## [2024-05-27]
 
 ### Added
