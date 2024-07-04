@@ -379,7 +379,7 @@ define_macro {
     name       = "gconcat",
     arguments  = { "csname", "csname", "csname", },
     visibility = "public",
-    func = function(first, second, out)
+    func = function(out, first, second)
         prop_storage[out] = merge_hash(prop_storage[first], prop_storage[second])
     end,
 }
