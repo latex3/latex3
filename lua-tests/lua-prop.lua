@@ -370,7 +370,7 @@ define_macro {
             toks[len + 0] = end_group_tok
         end
 
-        sprint(toks)
+        sprint(-2, toks)
     end,
 }
 
