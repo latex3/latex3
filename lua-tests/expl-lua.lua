@@ -174,28 +174,29 @@ end)
 -------------------------------
 
 -- Module-local storage
-local prop_storage = {}
+local local_prop_storage = {}
+local global_prop_storage = {}
 local MIN_PROP_ID = 127
 local max_prop_id = MIN_PROP_ID
 
 -- Utility functions
-local function new_prop(name)
+local function local_prop_new(name)
     max_prop_id = max_prop_id + 1
 
     local id = max_prop_id
     local current_level = 0 -- tex_get("currentgrouplevel")
 
-    prop_storage[id] = {}
-    prop_storage[id][current_level] = {}
+    local_prop_storage[id] = {}
+    local_prop_storage[id][current_level] = {}
 
-    local packed = (id << 16) | current_level
+    local packed = (id << 8) | current_level
 
     token_set_char(name, packed, "global")
 end
 
-local function prop_meta_pairs(level)
+local function local_prop_pairs(level)
     local meta = getmetatable(level)
-    local entry = prop_storage[meta.id]
+    local entry = local_prop_storage[meta.id]
 
     local current_level = tex_get("currentgrouplevel")
     local all_levels = {}
@@ -207,12 +208,12 @@ local function prop_meta_pairs(level)
     return next, merged
 end
 
-local function new_prop_level(token, value)
+local function local_prop_get_mutable(token, value)
     local packed = token_get_mode(token)
-    local id = packed >> 16
-    local tex_level = packed & 0xFFFF
+    local id = packed >> 8
+    local tex_level = packed & 0xFF
 
-    local entry = prop_storage[id]
+    local entry = local_prop_storage[id]
     local current_level = tex_get("currentgrouplevel")
 
     if tex_level == current_level then
@@ -220,11 +221,11 @@ local function new_prop_level(token, value)
     else
         local new_level = setmetatable(value or {}, {
             __index = entry[tex_level],
-            __pairs = prop_meta_pairs,
+            __pairs = local_prop_pairs,
             id      = id,
         })
         local csname = token_get_csname(token)
-        local new_packed = (id << 16) | current_level
+        local new_packed = (id << 8) | current_level
 
         token_set_char(csname, new_packed)
         entry[current_level] = new_level
@@ -233,23 +234,19 @@ local function new_prop_level(token, value)
     end
 end
 
-local function get_prop_level(token, forced_level, new_value)
+local function local_prop_get_const(token)
     local packed = token_get_mode(token)
-    local id = packed >> 16
-    local tex_level = forced_level or (packed & 0xFFFF)
+    local id = packed >> 8
+    local tex_level = packed & 0xFF
 
     if id < MIN_PROP_ID then
         return {}
     end
 
-    if new_value then
-        prop_storage[id][tex_level] = new_value
-    else
-        for i = tex_level, 0, -1 do
-            local level = prop_storage[id][i]
-            if level then
-                return level
-            end
+    for i = tex_level, 0, -1 do
+        local level = local_prop_storage[id][i]
+        if level then
+            return level
         end
     end
 end
@@ -260,7 +257,14 @@ define_macro {
     name        = "new",
     arguments   = { "csname", },
     visibility  = "private",
-    func = new_prop,
+    func = function(name)
+        if name:match("^g") or name:match("^c") then
+            global_prop_storage[name] = {}
+            token_set_char(name, 0, "global")
+        elseif name:match("^l") then
+            local_prop_new(name)
+        end
+    end,
 }
 
 define_macro {
@@ -274,7 +278,7 @@ define_macro {
         local key   = scan_string()
         local value = scan_toks()
 
-        local level = new_prop_level(prop)
+        local level = local_prop_get_mutable(prop)
         level[key] = value
     end,
 }
@@ -282,16 +286,11 @@ define_macro {
 define_macro {
     module     = "lprop",
     name       = "gput",
-    arguments  = { "token", "string", "toks", },
+    arguments  = { "csname", "string", "toks", },
     visibility = "public",
     no_scan    = true,
     func = function()
-        local prop  = scan_token()
-        local key   = scan_string()
-        local value = scan_toks()
-
-        local level = get_prop_level(prop, 0)
-        level[key] = value
+        global_prop_storage[scan_csname()][scan_string()] = scan_toks()
     end,
 }
 
@@ -304,9 +303,17 @@ define_macro {
     func = function()
         local prop = scan_token()
         local key  = scan_string()
+        local value
 
-        local level = get_prop_level(prop)
-        local value = level[key]
+        local csname = token_get_csname(prop)
+        local global_items = global_prop_storage[csname]
+
+        if global_items then
+            value = global_items[key]
+        else
+            local level = local_prop_get_const(prop)
+            value = level[key]
+        end
 
         if value then
             write_token(value)
@@ -322,7 +329,7 @@ define_macro {
     no_scan    = true,
     func = function()
         local prop = scan_token()
-        local level = new_prop_level(prop)
+        local level = local_prop_get_mutable(prop)
 
         for key in pairs(level) do
             level[key] = false
@@ -333,12 +340,22 @@ define_macro {
 define_macro {
     module     = "lprop",
     name       = "gclear",
-    arguments  = { "token", },
+    arguments  = { "csname", },
     visibility = "public",
     no_scan    = true,
     func = function()
-        local prop = scan_token()
-        get_prop_level(prop, 0, {})
+        global_prop_storage[scan_csname()] = {}
+    end,
+}
+
+define_macro {
+    module     = "lprop",
+    name       = "gset_eq",
+    arguments  = { "csname", "csname", },
+    visibility = "public",
+    no_scan    = true,
+    func = function()
+        global_prop_storage[scan_csname()] = global_prop_storage[scan_csname()]
     end,
 }
 
@@ -439,7 +456,7 @@ define_macro {
     no_scan    = true,
     func = function()
         local prop  = scan_token()
-        local level = new_prop_level(prop)
+        local level = local_prop_get_mutable(prop)
 
         parse_keyval(level)
     end,
@@ -448,13 +465,12 @@ define_macro {
 define_macro {
     module     = "lprop",
     name       = "gput_from_keyval",
-    arguments  = { "token", "toks", },
+    arguments  = { "csname", "toks", },
     visibility = "public",
     no_scan    = true,
     func = function()
-        local prop = scan_token()
-        local level = get_prop_level(prop, 0)
-
+        local csname = scan_csname()
+        local level = global_prop_storage[csname]
         parse_keyval(level)
     end,
 }
@@ -469,9 +485,10 @@ define_macro {
     visibility = "public",
     no_scan    = true,
     func = function()
-        local prop  = scan_token()
-        local level = get_prop_level(prop)
-        local func  = scan_token()
+        local prop   = scan_token()
+        local csname = token_get_csname(prop)
+        local level  = global_prop_storage[csname] or local_prop_get_const(prop)
+        local func   = scan_token()
 
         local toks, len = {}, 0
         for key, value in pairs(level) do
@@ -497,23 +514,24 @@ define_macro {
     arguments  = { "token", "token", "token", },
     visibility = "public",
     func = function(out, first, second)
-        local first_level = get_prop_level(first)
-        local second_level = get_prop_level(second)
-        new_prop_level(out, merge_hash(first_level, second_level))
+        local first_level = local_prop_get_const(first)
+        local second_level = local_prop_get_const(second)
+        local_prop_get_mutable(out, merge_hash(first_level, second_level))
     end,
 }
 
 define_macro {
     module     = "lprop",
     name       = "gconcat",
-    arguments  = { "token", "token", "token", },
+    arguments  = { "csname", "csname", "csname", },
     visibility = "public",
     func = function(out, first, second)
-        local first_level = get_prop_level(first, 0)
-        local second_level = get_prop_level(second, 0)
-        get_prop_level(out, 0, merge_hash(first_level, second_level))
+        global_prop_storage[out] = merge_hash(
+            global_prop_storage[first], global_prop_storage[second]
+        )
     end,
 }
+
 
 define_macro {
     module     = "lprop",
@@ -522,8 +540,9 @@ define_macro {
     visibility = "public",
     no_scan    = true,
     func = function()
-        local prop  = scan_token()
-        local level = get_prop_level(prop)
+        local prop   = scan_token()
+        local csname = token_get_csname(prop)
+        local level = global_prop_storage[csname] or local_prop_get_const(prop)
 
         local count = 0
         for _ in pairs(level) do
@@ -542,7 +561,7 @@ define_macro {
     func = function()
         local prop  = scan_token()
         local key   = scan_string()
-        local level = new_prop_level(prop)
+        local level = local_prop_get_mutable(prop)
 
         level[key] = false
     end,
@@ -551,14 +570,10 @@ define_macro {
 define_macro {
     module     = "lprop",
     name       = "gremove",
-    arguments  = { "token", "string", },
+    arguments  = { "csname", "string", },
     visibility = "public",
     no_scan    = true,
     func = function()
-        local prop  = scan_token()
-        local key   = scan_string()
-        local level = get_prop_level(prop, 0)
-
-        level[key] = nil
+        global_prop_storage[scan_csname()][scan_string()] = nil
     end,
 }
