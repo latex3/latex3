@@ -216,7 +216,7 @@ local function local_prop_get_mutable(token, value)
     local entry = local_prop_storage[id]
     local current_level = tex_get("currentgrouplevel")
 
-    if tex_level == current_level then
+    if (not value) and (tex_level == current_level) then
         return entry[tex_level]
     else
         local new_level = setmetatable(value or {}, {
