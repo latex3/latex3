@@ -216,7 +216,7 @@ local function local_prop_pairs(level)
     end
 
     local merged = merge_hash(unpack(all_levels))
-    return next, merged
+    return sorted_pairs(merged)
 end
 
 local function local_prop_get_mutable(token, value)
