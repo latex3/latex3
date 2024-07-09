@@ -168,16 +168,24 @@ local to_chardef = memoized(function(int)
     return new_token(int, CHAR_GIVEN)
 end)
 
+local weak_metatable = { __mode = "kv" }
+
 
 -------------------------------
 --- Property List Functions ---
 -------------------------------
 
 -- Module-local storage
-local local_prop_storage = {}
-local global_prop_storage = {}
-local MIN_PROP_ID = 127
-local max_prop_id = MIN_PROP_ID
+local local_prop_storage   = {}
+local global_prop_storage  = {}
+local MIN_PROP_ID          = 127
+local max_prop_id          = MIN_PROP_ID
+local MAX_GROUP_LEVEL      = 255
+
+local local_props_by_level = {}
+for i = 0, MAX_GROUP_LEVEL do
+    local_props_by_level[i] = {}
+end
 
 -- Utility functions
 local function local_prop_new(name)
@@ -186,8 +194,11 @@ local function local_prop_new(name)
     local id = max_prop_id
     local current_level = 0 -- tex_get("currentgrouplevel")
 
-    local_prop_storage[id] = {}
-    local_prop_storage[id][current_level] = {}
+    local_prop_storage[id] = setmetatable({}, weak_metatable)
+
+    local new_level = {}
+    local_props_by_level[current_level][id] = new_level
+    local_prop_storage[id][current_level]   = new_level
 
     local packed = (id << 8) | current_level
 
@@ -224,11 +235,12 @@ local function local_prop_get_mutable(token, value)
             __pairs = local_prop_pairs,
             id      = id,
         })
+        local_props_by_level[current_level][id] = new_level
+        entry[current_level]                    = new_level
+
         local csname = token_get_csname(token)
         local new_packed = (id << 8) | current_level
-
         token_set_char(csname, new_packed)
-        entry[current_level] = new_level
 
         return new_level
     end
@@ -577,3 +589,17 @@ define_macro {
         global_prop_storage[scan_csname()][scan_string()] = nil
     end,
 }
+
+do
+    local every_gc = { __gc = function (t)
+        local current_level = tex_get("currentgrouplevel")
+        for i = current_level + 1, MAX_GROUP_LEVEL do
+            if #local_props_by_level[i] ~= 0 then
+                local_props_by_level[i] = {}
+            end
+        end
+
+        setmetatable({}, getmetatable(t))
+    end, }
+    setmetatable({}, every_gc)
+end
