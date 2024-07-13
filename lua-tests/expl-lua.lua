@@ -26,6 +26,7 @@ local scan_toks           = token.scan_toks
 local setmetatable        = setmetatable
 local sorted_pairs        = table.sortedpairs
 local sprint              = tex.sprint
+local string_gmatch       = string.gmatch
 local tex_get             = tex.get
 local token               = token
 local token_get_csname    = token.get_csname
@@ -33,6 +34,7 @@ local token_get_mode      = token.get_mode
 local token_set_char      = token.set_char
 local token_set_lua       = token.set_lua
 local unpack              = table.unpack
+local utf_codepoints      = utf8.codes
 local write_token         = token.put_next
 
 
@@ -170,6 +172,21 @@ end)
 
 local weak_metatable = { __mode = "kv" }
 
+local OTHER_CHAR = command_id["other_char"]
+local char_to_user_token = memoized(function(codepoint)
+    return new_token(codepoint, OTHER_CHAR)
+end)
+char_to_user_token[char_to_codepoint[" "]] = new_token(
+    char_to_codepoint[" "], command_id["spacer"]
+)
+
+local string_to_user_token_list = memoized(function(str)
+    local tokens = {}
+    for i, codepoint in utf_codepoints(str) do
+        tokens[i] = char_to_user_token[codepoint]
+    end
+    return tokens
+end)
 
 -------------------------------
 --- Property List Functions ---
@@ -487,8 +504,8 @@ define_macro {
     end,
 }
 
-local begin_group_tok  = new_token(char_to_codepoint["{"], BEGIN_GROUP)
-local end_group_tok = new_token(char_to_codepoint["}"], END_GROUP)
+local begin_group_tok = new_token(char_to_codepoint["{"], BEGIN_GROUP)
+local end_group_tok   = new_token(char_to_codepoint["}"], END_GROUP)
 
 define_macro {
     module     = "lprop",
@@ -502,21 +519,32 @@ define_macro {
         local level  = global_prop_storage[csname] or local_prop_get_const(prop)
         local func   = scan_token()
 
-        local toks, len = {}, 0
+        local toks, len = {}, -1
         for key, value in pairs(level) do
             if value then
-                toks[len + 1] = func
+                toks[len + 2] = func
+                toks[len + 3] = begin_group_tok
+
+                len = len + 3
+                local key_toks = string_to_user_token_list[key]
+                for i = 1, #key_toks do
+                    len = len + 1
+                    toks[len] = key_toks[i]
+                end
+                toks[len + 1] = end_group_tok
                 toks[len + 2] = begin_group_tok
-                toks[len + 3] = key
-                toks[len + 4] = end_group_tok
-                toks[len + 5] = begin_group_tok
-                append(toks, value)
-                len = #toks + 1
-                toks[len + 0] = end_group_tok
+
+                len = len + 2
+                for i = 1, #value do
+                    len = len + 1
+                    toks[len] = value[i]
+                end
+
+                toks[len + 1] = end_group_tok
             end
         end
 
-        sprint(-2, toks)
+        write_token(toks)
     end,
 }
 
