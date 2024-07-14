@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Implementation of deprecated `\tl_mixed_case:n(n)`
+- Redo the fix for LaTeX2e key properties (issue latex3/latex2e\#1415)
 
 ## [2024-06-19]
 
