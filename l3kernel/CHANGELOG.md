@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Redo the fix for LaTeX2e key properties (issue latex3/latex2e\#1415)
+
 ## [2024-06-19]
 
 ### Fixed
