@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Unmatched `macrocode` environment in `xtemplate`
+
 ## [2024-05-08]
 
 ### Changed

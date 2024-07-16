@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Module `l3graphics`, moved from `l3experimental` to stable status
+
 ## [2024-05-27]
 
 ### Added
