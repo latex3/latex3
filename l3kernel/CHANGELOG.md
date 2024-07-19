@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Implementation of deprecated `\tl_mixed_case:n(n)`
+
 ## [2024-06-19]
 
 ### Fixed
