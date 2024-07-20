@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-07-20-dev]
+
 ### Fixed
 - Implementation of deprecated `\tl_mixed_case:n(n)`
 - Redo the fix for LaTeX2e key properties (issue latex3/latex2e\#1415)
@@ -1751,7 +1753,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-06-19...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-07-20-dev...HEAD
+[2024-07-20-dev]: https://github.com/latex3/latex3/compare/2024-06-19...2024-07-20-dev
 [2024-06-19]: https://github.com/latex3/latex3/compare/2024-05-27...2024-06-19
 [2024-05-27]: https://github.com/latex3/latex3/compare/2024-05-08...2024-05-27
 [2024-05-08]: https://github.com/latex3/latex3/compare/2024-04-11...2024-05-08
