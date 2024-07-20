@@ -8,6 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Fixed
+- Support for optimised commands using `\GetDocumentCommandArgSpec` (issue
+  [\#1550](https://github.com/latex3/latex3/issues/1550))
 - Unmatched `macrocode` environment in `xtemplate`
 
 ## [2024-05-08]
