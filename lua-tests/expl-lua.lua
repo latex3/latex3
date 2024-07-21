@@ -5,9 +5,11 @@
 -- Save some locals for a slight speed boost.
 local allocate_table      = lua.newtable
 local append              = table.append
+local collectgarbage      = collectgarbage
 local concatenate         = table.concat
 local copy_table          = table.fastcopy
 local create_token        = token.create
+local direct_set_field    = node.direct.setfield
 local getmetatable        = getmetatable
 local insert              = table.insert
 local ipairs              = ipairs
@@ -489,63 +491,68 @@ define_macro {
     arguments  = { "token", "token", },
     visibility = "public",
     func = function()
-        local prop_token = scan_token()
-        local func       = scan_token()
-        local out_toks   = {}
+        collectgarbage("stop")
+        do
+            local prop_token = scan_token()
+            local func       = scan_token()
 
-        local packed    = token_get_mode(prop_token)
-        local id        = packed >> 8
-        local top_level = packed & 0xFF
-        local entry     = prop_storage[id]
+            local packed    = token_get_mode(prop_token)
+            local id        = packed >> 8
+            local top_level = packed & 0xFF
+            local entry     = prop_storage[id]
 
-        local all_levels = {}
-        local keys       = {}
-        local keys_len   = 0
+            local all_levels = allocate_table(0, 100)
+            local keys       = allocate_table(100, 0)
+            local keys_len   = 0
 
-        for i = top_level, 0, -1 do
-            local level = entry[i]
-            if level then
-                for key, value in next, level do
-                    if all_levels[key] == nil then
-                        keys_len = keys_len + 1
-                        all_levels[key] = value
-                        keys[keys_len] = key
+            for i = top_level, 0, -1 do
+                local level = entry[i]
+                if level then
+                    for key, value in next, level do
+                        if all_levels[key] == nil then
+                            keys_len = keys_len + 1
+                            all_levels[key] = value
+                            keys[keys_len] = key
+                        end
                     end
                 end
             end
-        end
 
-        -- table_sort(keys)
+            -- table_sort(keys)
+            local out_toks = allocate_table(20 * keys_len, 0)
+            local len      = -1
 
-        local len = -1
-        for i = 1, keys_len do
-            local key = keys[i]
-            local value = all_levels[key]
-            if value then
-                out_toks[len + 2] = func
-                out_toks[len + 3] = begin_group_tok
+            for i = 1, keys_len do
+                local key = keys[i]
+                local value = all_levels[key]
+                if value then
+                    out_toks[len + 2] = func
+                    out_toks[len + 3] = begin_group_tok
 
-                len = len + 3
-                local key_toks = string_to_user_token_list[key]
-                for i = 1, #key_toks do
-                    len = len + 1
-                    out_toks[len] = key_toks[i]
+                    len = len + 3
+                    local key_toks = string_to_user_token_list[key]
+                    for i = 1, #key_toks do
+                        len = len + 1
+                        out_toks[len] = key_toks[i]
+                    end
+                    out_toks[len + 1] = end_group_tok
+                    out_toks[len + 2] = begin_group_tok
+
+                    len = len + 2
+                    for i = 1, #value do
+                        len = len + 1
+                        out_toks[len] = value[i]
+                    end
+
+                    out_toks[len + 1] = end_group_tok
                 end
-                out_toks[len + 1] = end_group_tok
-                out_toks[len + 2] = begin_group_tok
-
-                len = len + 2
-                for i = 1, #value do
-                    len = len + 1
-                    out_toks[len] = value[i]
-                end
-
-                out_toks[len + 1] = end_group_tok
             end
-        end
 
-        -- Output
-        write_token(out_toks)
+            -- Output
+            write_token(out_toks)
+        end
+        collectgarbage("restart")
+        collectgarbage("step", 0)
     end,
 }
 
