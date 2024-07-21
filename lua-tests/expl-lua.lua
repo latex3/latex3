@@ -3,6 +3,7 @@
 ----------------------
 
 -- Save some locals for a slight speed boost.
+local allocate_table      = lua.newtable
 local append              = table.append
 local concatenate         = table.concat
 local copy_table          = table.fastcopy
@@ -28,6 +29,7 @@ local setmetatable        = setmetatable
 local sorted_pairs        = table.sortedpairs
 local sprint              = tex.sprint
 local string_gmatch       = string.gmatch
+local table_sort          = table.sort
 local tex_get             = tex.get
 local token               = token
 local token_get_csname    = token.get_csname
@@ -279,7 +281,10 @@ define_macro {
     arguments   = { "csname", },
     visibility  = "private",
     func = function()
-        local name          = scan_csname()
+        local name = scan_csname()
+        if not name then
+            error("Invalid name.")
+        end
 
         max_prop_id         = max_prop_id + 1
         local id            = max_prop_id
@@ -484,36 +489,63 @@ define_macro {
     arguments  = { "token", "token", },
     visibility = "public",
     func = function()
-        local prop   = scan_token()
-        local values = prop_get_const(prop)
-        local func   = scan_token()
+        local prop_token = scan_token()
+        local func       = scan_token()
+        local out_toks   = {}
 
-        local toks, len = {}, -1
-        for key, value in pairs(values) do
+        local packed    = token_get_mode(prop_token)
+        local id        = packed >> 8
+        local top_level = packed & 0xFF
+        local entry     = prop_storage[id]
+
+        local all_levels = {}
+        local keys       = {}
+        local keys_len   = 0
+
+        for i = top_level, 0, -1 do
+            local level = entry[i]
+            if level then
+                for key, value in next, level do
+                    if all_levels[key] == nil then
+                        keys_len = keys_len + 1
+                        all_levels[key] = value
+                        keys[keys_len] = key
+                    end
+                end
+            end
+        end
+
+        -- table_sort(keys)
+
+        local len = -1
+        for i = 1, keys_len do
+            local key = keys[i]
+            local value = all_levels[key]
             if value then
-                toks[len + 2] = func
-                toks[len + 3] = begin_group_tok
+                out_toks[len + 2] = func
+                out_toks[len + 3] = begin_group_tok
 
                 len = len + 3
                 local key_toks = string_to_user_token_list[key]
                 for i = 1, #key_toks do
                     len = len + 1
-                    toks[len] = key_toks[i]
+                    out_toks[len] = key_toks[i]
                 end
-                toks[len + 1] = end_group_tok
-                toks[len + 2] = begin_group_tok
+                out_toks[len + 1] = end_group_tok
+                out_toks[len + 2] = begin_group_tok
 
                 len = len + 2
                 for i = 1, #value do
                     len = len + 1
-                    toks[len] = value[i]
+                    out_toks[len] = value[i]
                 end
 
-                toks[len + 1] = end_group_tok
+                out_toks[len + 1] = end_group_tok
             end
         end
 
-        write_token(toks)
+        -- Output
+        write_token(out_toks)
     end,
 }
 
