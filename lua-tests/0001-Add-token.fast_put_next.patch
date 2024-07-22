@@ -1,0 +1,98 @@
+From 55340a75f4ae7c0bc78f62a71abb92b407d13d65 Mon Sep 17 00:00:00 2001
+From: Max Chernoff <49086429+gucci-on-fleek@users.noreply.github.com>
+Date: Sun, 21 Jul 2024 21:07:35 -0600
+Subject: [PATCH] Add `token.fast_put_next`
+
+---
+ manual/luatex-tex.tex                         |  8 +++-
+ .../texk/web2c/luatexdir/lua/lnewtokenlib.c   | 41 +++++++++++++++++++
+ 2 files changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/manual/luatex-tex.tex b/manual/luatex-tex.tex
+index 11f61ee16..8f2d4d15e 100644
+--- a/manual/luatex-tex.tex
++++ b/manual/luatex-tex.tex
+@@ -2429,6 +2429,7 @@ to \lpr {luadef}.
+ 
+ \libindex{get_next}
+ \libindex{put_next}
++\libindex{fast_put_next}
+ 
+ There is a (for now) experimental putter:
+ 
+@@ -2444,7 +2445,12 @@ token.put_next ( t3, t4 )
+ \stoptyping
+ 
+ When we scan \type {wxyz!} we get \type {yzwx!} back. The argument is either a table
+-with tokens or a list of tokens. The \type {token.expand} function will trigger
++with tokens or a list of tokens. We also have \type {token.fast_put_next}, which
++behaves like \type {token.put_next} but is considerably faster. This function 
++only takes a table as a single argument, and you {\em must} make sure that all
++entries in the table are valid tokens since no error checking is done.
++
++The \type {token.expand} function will trigger
+ expansion but what happens really depends on what you're doing where.
+ 
+ \stopsubsection
+diff --git a/source/texk/web2c/luatexdir/lua/lnewtokenlib.c b/source/texk/web2c/luatexdir/lua/lnewtokenlib.c
+index 7c81e462e..5d7c2db8a 100644
+--- a/source/texk/web2c/luatexdir/lua/lnewtokenlib.c
++++ b/source/texk/web2c/luatexdir/lua/lnewtokenlib.c
+@@ -336,6 +336,46 @@ inline static int run_put_next(lua_State * L)
+     return 0;
+ }
+ 
++inline static int fast_put_next(lua_State * L)
++{
++    int n = lua_gettop(L);
++    int i = 1;
++    halfword h = null;
++    halfword t = null;
++    halfword x = null;
++    lua_token *p ;
++    switch (n) {
++        case 0:
++            return 0;
++        case 1:
++            break;
++        default:
++            normal_error("token lib","only one table permitted in put_next");
++            return 0;
++    }
++    if (lua_type(L,1) == LUA_TTABLE) {
++        for (i = 1;; i++) {
++            lua_rawgeti(L, 1, i);
++            p = lua_touserdata(L, -1);
++            if (p == NULL) {
++                break;
++            }
++            fast_get_avail(x);
++            token_info(x) = token_info(p->token);
++            if (h == null) {
++                h = x;
++            } else {
++                token_link(t) = x;
++            }
++            t = x;
++            lua_pop(L, 1);
++        }
++    } 
++    begin_token_list(h,0);
++    lua_settop(L,n);
++    return 0;
++}
++
+ static int run_scan_keyword(lua_State * L)
+ {
+     saved_tex_scanner texstate;
+@@ -1409,6 +1449,7 @@ static const struct luaL_Reg tokenlib[] = {
+     { "scan_list", run_scan_list },
+     /* writers */
+     { "put_next", run_put_next },
++    { "fast_put_next", fast_put_next },
+     { "expand", run_expand },
+     /* getters */
+     { "get_command", lua_tokenlib_get_command },
+-- 
+2.45.2
+

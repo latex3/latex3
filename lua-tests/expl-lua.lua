@@ -40,7 +40,7 @@ local token_set_char      = token.set_char
 local token_set_lua       = token.set_lua
 local unpack              = table.unpack
 local utf_codepoints      = utf8.codes
-local write_token         = token.put_next
+local write_tokens        = token.fast_put_next or token.put_next
 
 
 ------------------------
@@ -331,7 +331,7 @@ define_macro {
         local value = prop_get_const(prop)[key]
 
         if value then
-            write_token(value)
+            write_tokens(value)
         end
     end,
 }
@@ -549,7 +549,7 @@ define_macro {
             end
 
             -- Output
-            write_token(out_toks)
+            write_tokens(out_toks)
         end
         collectgarbage("restart")
         collectgarbage("step", 0)
@@ -592,7 +592,7 @@ define_macro {
             end
         end
 
-        write_token(to_chardef[count])
+        write_tokens { to_chardef[count] }
     end,
 }
 
