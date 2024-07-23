@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Add quark (`\q_`) and scan mark (`\s_`) prefixes to naming scheme
+  (issue \#1565)
+
 ## [2024-07-20]
 
 ### Fixed
