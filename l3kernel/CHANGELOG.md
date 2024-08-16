@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-08-16]
+
 ### Added
 - Add quark (`\q_`) and scan mark (`\s_`) prefixes to naming scheme
   (issue \#1565)
@@ -1757,7 +1759,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-07-20...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-08-16...HEAD
+[2024-08-16]: https://github.com/latex3/latex3/compare/2024-07-20...2024-08-16
 [2024-07-20]: https://github.com/latex3/latex3/compare/2024-06-19...2024-07-20
 [2024-06-19]: https://github.com/latex3/latex3/compare/2024-05-27...2024-06-19
 [2024-05-27]: https://github.com/latex3/latex3/compare/2024-05-08...2024-05-27
