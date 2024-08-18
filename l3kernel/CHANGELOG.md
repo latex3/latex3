@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Reduce memory usage when building Unicode data storage
+
 ## [2024-08-16]
 
 ### Added
