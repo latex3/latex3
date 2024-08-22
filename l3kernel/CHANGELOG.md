@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Reduce memory usage when building Unicode data storage
+- Avoid recursive doc for `\file_if_exist:n(TF)` (issue \#1573)
 
 ## [2024-08-16]
 
