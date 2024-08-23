@@ -11,6 +11,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Reduce memory usage when building Unicode data storage
 - Avoid recursive doc for `\file_if_exist:n(TF)` (issue \#1573)
 
+### Fixed
+- Handling of `ltcmd` newlines (`\obeyedline`) in `l3doc` (issue \#1577)
+
 ## [2024-08-16]
 
 ### Added
