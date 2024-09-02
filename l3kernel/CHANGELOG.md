@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Increase outdent of long function names in `l3doc` (issue \#1585)
+
 ## [2024-08-30]
 
 ### Changed
