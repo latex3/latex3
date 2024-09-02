@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- `\seq_map_pairwise_function:NNN` not work with `\seq_map_break:(n)` (issue \#1587)
+
 ### Changed
 - Increase outdent of long function names in `l3doc` (issue \#1585)
 
