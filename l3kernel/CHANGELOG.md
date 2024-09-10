@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-09-10]
+
 ### Fixed
 - `\seq_map_pairwise_function:NNN` not work with `\seq_map_break:(n)` (issue \#1587)
 
@@ -1774,7 +1776,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-08-30...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-09-10...HEAD
+[2024-09-10]: https://github.com/latex3/latex3/compare/2024-08-30...2024-09-10
 [2024-08-30]: https://github.com/latex3/latex3/compare/2024-08-16...2024-08-30
 [2024-08-16]: https://github.com/latex3/latex3/compare/2024-07-20...2024-08-16
 [2024-07-20]: https://github.com/latex3/latex3/compare/2024-06-19...2024-07-20
