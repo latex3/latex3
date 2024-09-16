@@ -10,6 +10,11 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2024-09-10]
 
 ### Fixed
+- Use TU-encoding with lualatex and xelatex
+- global booleans are set locally in l3doc
+
+
+### Fixed
 - `\seq_map_pairwise_function:NNN` not work with `\seq_map_break:(n)` (issue \#1587)
 
 ### Changed
