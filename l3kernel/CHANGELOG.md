@@ -10,8 +10,8 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2024-09-10]
 
 ### Fixed
-- Use TU-encoding with lualatex and xelatex
-- global booleans are set locally in l3doc
+- Use TU-encoding with lualatex and xelatex in `l3doc`
+- Global booleans were set locally in `l3doc`
 
 
 ### Fixed
