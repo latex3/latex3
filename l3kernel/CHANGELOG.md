@@ -12,7 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Use TU-encoding with lualatex and xelatex in `l3doc`
-- Global booleans were set locally in `l3doc`
+- Inconsistent local/global assignments in `l3doc` (see \#1593)
 
 ## [2024-09-10]
 
