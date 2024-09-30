@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Document variants of `\cs_if_eq:NNTF`
+- Document `\str_item:cn`
 
 ## [2024-09-10]
 
