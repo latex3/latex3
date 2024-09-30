@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Document variants of `\cs_if_eq:NNTF`
+
 ## [2024-09-10]
 
 ### Fixed
