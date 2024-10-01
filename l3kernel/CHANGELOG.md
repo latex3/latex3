@@ -9,8 +9,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\coffin_ht_plus_dp:(N|c)`
-- Document variants of `\cs_if_eq:NNTF`
-- Document `\str_item:cn`
 
 ### Fixed
 - Use TU-encoding with lualatex and xelatex in `l3doc`
