@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\coffin_ht_plus_dp:(N|c)`
 - Document variants of `\cs_if_eq:NNTF`
 - Document `\str_item:cn`
 
