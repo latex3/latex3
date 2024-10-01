@@ -11,12 +11,11 @@ this project uses date-based 'snapshot' version identifiers.
 - Document variants of `\cs_if_eq:NNTF`
 - Document `\str_item:cn`
 
-## [2024-09-10]
-
 ### Fixed
 - Use TU-encoding with lualatex and xelatex in `l3doc`
 - Global booleans were set locally in `l3doc`
 
+## [2024-09-10]
 
 ### Fixed
 - `\seq_map_pairwise_function:NNN` not work with `\seq_map_break:(n)` (issue \#1587)
