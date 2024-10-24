@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\keyval_map_inline:nnn`, `\keyval_map_break:`, and `\keyval_map_break:n`
+
 ## [2024-10-09]
 
 ### Added
