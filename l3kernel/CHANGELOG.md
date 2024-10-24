@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Error detection in coffin code (see \#1580)
+
 ## [2024-10-09]
 
 ### Added
