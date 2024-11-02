@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `V`-type variant for all `\<var>_set:Nn` functions
+
 ### Fixed
 - Error detection in coffin code (see \#1580)
 
