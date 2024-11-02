@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2024-11-02]
+
 ### Added
 - `V`-type variant for all `\<var>_set:Nn` functions
 
@@ -1791,7 +1793,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-10-09...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2024-11-02...HEAD
+[2024-11-02]: https://github.com/latex3/latex3/compare/2024-10-09...2024-11-02
 [2024-10-09]: https://github.com/latex3/latex3/compare/2024-09-10...2024-10-09
 [2024-09-10]: https://github.com/latex3/latex3/compare/2024-08-30...2024-09-10
 [2024-08-30]: https://github.com/latex3/latex3/compare/2024-08-16...2024-08-30
