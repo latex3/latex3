@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\sys_if_engine_opentype:(TF)`
+
 ## [2024-11-02]
 
 ### Added
