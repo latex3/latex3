@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\sys_if_engine_opentype:(TF)`
 
+### Removed
+- `\c_catcode_active_tl`: was missing a `_`, always intended to be internal
+
 ## [2024-11-02]
 
 ### Added
