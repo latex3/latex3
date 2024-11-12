@@ -1,0 +1,106 @@
+%
+% Copyright (C) The LaTeX Project
+%
+
+\documentclass{minimal}
+\input{regression-test}
+
+\RequirePackage{l3benchmark}
+\ExplSyntaxOn
+\debug_on:n { check-declarations , deprecation , log-functions }
+\ExplSyntaxOff
+
+\START
+\ExplSyntaxOn
+
+\sys_if_timer_exist:F
+  {
+    \benchmark_once:n \ERROR \TRUE
+    \benchmark:n \ERROR \TRUE
+    \benchmark_tic: \TRUE
+    \benchmark_toc: \TRUE
+    \END
+  }
+
+\fp_gset:Nn \g_benchmark_duration_target_fp { 0.01 }
+
+\OMIT
+\exp_args:NNe \seq_set_from_clist:Nn \l_tmpa_seq
+  { \prg_replicate:nn { 123 } { a , } }
+\cs_new_protected:Npn \test_slow_code:
+  { \seq_reverse:N \l_tmpa_seq }
+\cs_new_protected:Npn \test_disable_iow:n #1
+  {
+    \OMIT
+    \group_begin:
+      \cs_set_eq:NN \iow_term:e \use_none:n
+      #1
+    \group_end:
+    \TIMO
+  }
+\TIMO
+
+%% get non-deterministic results, see https://github.com/latex3/latex3/issues/1289
+% \TEST { benchmark_once }
+%   {
+%     \int_gzero:N \g_tmpa_int
+%     \test_disable_iow:n { \benchmark_once:n { \int_gincr:N \g_tmpa_int } }
+%     \int_log:N \g_tmpa_int    % Check the code was done only once
+%     \fp_compare:nTF { \g_benchmark_time_fp < 5e-5 }  % Check it took 0 to 3 scaled seconds
+%       { \TRUE }
+%       { \ERROR \fp_show:N \g_benchmark_time_fp }
+%   }
+
+\TEST { benchmark }
+  {
+    \clist_clear:N \l_tmpa_clist
+    \clist_clear:N \l_tmpb_clist
+    \prg_replicate:nn { 3 }
+      {
+        \test_disable_iow:n { \benchmark:n { \test_slow_code: } }
+        \clist_put_right:Ne \l_tmpa_clist { \fp_to_tl:N \g_benchmark_time_fp }
+        \test_disable_iow:n { \benchmark:n { \test_slow_code: \test_slow_code: } }
+        \clist_put_right:Ne \l_tmpb_clist { \fp_to_tl:N \g_benchmark_time_fp }
+      }
+    \fp_compare:nTF % Check that doing code twice takes between 1.5 and 2.5 times as much
+      {
+        (1.5 * min ( \l_tmpa_clist ) <= max ( \l_tmpb_clist ))
+        && (2.5 * max ( \l_tmpa_clist ) >= min ( \l_tmpb_clist ))
+      }
+      { \TRUE }
+      {
+        \ERROR
+        \TYPE { 1:\l_tmpa_clist }
+        \TYPE { 2:\l_tmpb_clist }
+      }
+  }
+
+\OMIT
+\cs_new_protected:Npn \test_reset_time_at_iow:n #1
+  {
+    \group_begin:
+      \cs_set_eq:NN \test_iow_term:e \iow_term:e
+      \cs_set_protected:Npn \iow_term:e
+        {
+          \fp_gset:Nn \g_benchmark_time_fp { 1.2 }
+          \test_iow_term:e
+        }
+      #1
+    \group_end:
+  }
+\TIMO
+
+\TEST { tic/toc }
+  {
+    \benchmark_toc:
+    \benchmark_toc:
+    \int_gzero:N \g_tmpa_int
+    \group_begin:
+      \prg_replicate:nn { 3 } { \benchmark_tic: }
+      \int_gincr:N \g_tmpa_int
+    \group_end:
+    \test_reset_time_at_iow:n { \prg_replicate:nn { 3 } { \benchmark_toc: } }
+    \int_compare:nNnF \g_tmpa_int = 1 { \ERROR } % Check the code was done only once
+  }
+
+\END
