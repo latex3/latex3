@@ -11,7 +11,7 @@ module = ""
 maindir = ".."
 
 uploadconfig = {
-  author      = "The LaTeX Team",
+  author      = "The LaTeX project team",
   license     = "lppl1.3c",
   summary     = "Experimental LaTeX3 concepts",
   topic       = {"macro-supp","latex3","expl3"},

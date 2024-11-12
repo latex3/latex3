@@ -66,7 +66,7 @@ function update_tag_extra(file,content,tagname,tagdate)
 end
 
 uploadconfig = {
-  author      = "The LaTeX Team",
+  author      = "The LaTeX Project team",
   license     = "lppl1.3c",
   summary     = "LaTeX3 programming conventions",
   topic       = {"macro-supp","latex3","expl3"},
