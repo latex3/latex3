@@ -12,6 +12,11 @@ this project uses date-based 'snapshot' version identifiers.
   can be used with `V`-type expansion
 - `\sys_if_engine_opentype:(TF)`
 
+### Changed
+- Create all possible forms automatically in
+  `\prg_new_(protected)_conditional:Npnn`, etc.,: `T`, `F`, `TF` and where
+  appropriate `p`
+
 ### Removed
 - `\c_catcode_active_tl`: was missing a `_`, always intended to be internal
 
