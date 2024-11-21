@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\bitset_use:N` and `\clist_use:N`: this clarifies that bitsets and clists
   can be used with `V`-type expansion
+- `\prg_generate_conditional_variant:Nn`
 - `\prg_(new|set|gset)_eq_conditional:NN`
 - `\sys_if_engine_opentype:(TF)`
 
