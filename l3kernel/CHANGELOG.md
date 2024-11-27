@@ -10,7 +10,15 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\bitset_use:N` and `\clist_use:N`: this clarifies that bitsets and clists
   can be used with `V`-type expansion
+- `\prg_(new|set|gset)_(protected)_conditional:N(p)n`
+- `\prg_generate_conditional_variant:Nn`
+- `\prg_(new|set|gset)_eq_conditional:NN`
 - `\sys_if_engine_opentype:(TF)`
+
+### Changed
+- Create all possible forms automatically in
+  `\prg_new_(protected)_conditional:Npnn`, etc.,: `T`, `F`, `TF` and where
+  appropriate `p`
 
 ### Removed
 - `\c_catcode_active_tl`: was missing a `_`, always intended to be internal
