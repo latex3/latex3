@@ -12,6 +12,10 @@ this project uses date-based 'snapshot' version identifiers.
   can be used with `V`-type expansion
 - `\sys_if_engine_opentype:(TF)`
 
+### Fixed
+- `\prop_item:Nn` result not returned in `\exp_not:n` for linked properties
+  (#1630)
+
 ### Removed
 - `\c_catcode_active_tl`: was missing a `_`, always intended to be internal
 
