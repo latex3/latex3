@@ -11,6 +11,14 @@ this project uses date-based 'snapshot' version identifiers.
 - `\bitset_use:N` and `\clist_use:N`: this clarifies that bitsets and clists
   can be used with `V`-type expansion
 - `\sys_if_engine_opentype:(TF)`
+- Add equivalent interfaces for regex functions:
+  - `\int_(g)set_regex_count:Nnn`, `\int_(g)set_regex_count:NNn`
+  - `\seq_(g)set_regex_extract_once:Nnn`, `\seq_(g)set_regex_extract_once:NNn`
+  - `\seq_(g)set_regex_extract_all:Nnn`, `\seq_(g)set_regex_extract_all:NNn`
+  - `\seq_(g)set_regex_split:Nnn`, `\seq_(g)set_regex_split:NNn`
+  - `\tl_if_regex_match:nn(TF)`, `\tl_if_regex_match:nN(TF)`
+  - `\tl_regex_(g)replace_once:Nnn`, `\tl_regex_(g)replace_once:NNn`
+  - `\tl_regex_(g)replace_all:Nnn`, `\tl_regex_(g)replace_all:NNn`
 
 ### Fixed
 - `\prop_item:Nn` result not returned in `\exp_not:n` for linked properties
