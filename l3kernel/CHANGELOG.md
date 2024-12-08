@@ -13,7 +13,8 @@ this project uses date-based 'snapshot' version identifiers.
 - `\sys_if_engine_opentype:(TF)`
 - Add equivalent interfaces for regex functions:
   - `\int_(g)set_regex_count:Nnn`, `\int_(g)set_regex_count:NNn`
-  - `\seq_(g)set_regex_extract:Nnn`, `\seq_(g)set_regex_extract:NNn`
+  - `\seq_(g)set_regex_extract_once:Nnn`, `\seq_(g)set_regex_extract_once:NNn`
+  - `\seq_(g)set_regex_extract_all:Nnn`, `\seq_(g)set_regex_extract_all:NNn`
   - `\seq_(g)set_regex_split:Nnn`, `\seq_(g)set_regex_split:NNn`
   - `\tl_if_regex_match:nn(TF)`, `\tl_if_regex_match:nN(TF)`
   - `\tl_regex_(g)replace_once:Nnn`, `\tl_regex_(g)replace_once:NNn`
