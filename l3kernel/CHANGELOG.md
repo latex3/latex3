@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\file_forget:n`
+
 ## [2024-12-09]
 
 ### Added
