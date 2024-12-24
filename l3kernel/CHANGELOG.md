@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Expand 'values' arg. to `\color_select:nn` (see #1640)
+
 ### Added
 - `\file_forget:n`
 
