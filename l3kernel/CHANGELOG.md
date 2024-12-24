@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed
-- Expand 'values' arg. to `\color_select:nn`, `\color_set:nnn`, etc. (see
+- Expand 'value(s)' arg. to `\color_select:nn`, `\color_set:nnn`, etc. (see
   #1640)
 
 ### Added
