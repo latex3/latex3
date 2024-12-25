@@ -11,6 +11,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Expand 'value(s)' arg. to `\color_select:nn`, `\color_set:nnn`, etc. (see
   #1640)
 
+### Fixed
+- Initialize color `.` properly (see \#1642)
+
 ### Added
 - `\file_forget:n`
 
