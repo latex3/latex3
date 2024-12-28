@@ -11,7 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Expand 'value(s)' arg. to `\color_select:nn`, `\color_set:nnn`, etc. (see
-  #1640)
+  \#1640)
 
 ### Fixed
 - Initialize color `.` properly (see \#1642)
@@ -36,7 +36,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - `\prop_item:Nn` result not returned in `\exp_not:n` for linked properties
-  (#1630)
+  (see \#1630)
 
 ### Removed
 - `\c_catcode_active_tl`: was missing a `_`, always intended to be internal
@@ -1197,7 +1197,7 @@ this project uses date-based 'snapshot' version identifiers.
   also *expandable*
 
 ### Fixed
-- Make `expl3` reload-safe for `latexrelease` (see latex3/latex2e#295)
+- Make `expl3` reload-safe for `latexrelease` (see latex3/latex2e\#295)
 
 ## [2020-02-25]
 
