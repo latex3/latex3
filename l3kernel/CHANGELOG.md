@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Check conditionals are defined when creating variants (see \#1189)
+
 ## [2024-12-25]
 
 ### Changed
