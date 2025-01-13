@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
+### Added
+- `\int_step_tokens:nn`, `\int_step_tokens:nnn`, and `\int_step_tokens:nnnn`
 
 ### Fixed
 - Check conditionals are defined when creating variants (see \#1189)
