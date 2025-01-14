@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Missing trailing period in `\tl_analysis_log:(N|n)` output (see \#1663)
+
 ## [2025-01-14]
 
 ### Added
