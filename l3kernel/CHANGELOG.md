@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ## [2025-01-14]
+
 ### Added
 - `\int_step_tokens:nn`, `\int_step_tokens:nnn`, and `\int_step_tokens:nnnn`
 
@@ -16,15 +17,15 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2024-12-25]
 
+### Added
+- `\file_forget:n`
+
 ### Changed
 - Expand 'value(s)' arg. to `\color_select:nn`, `\color_set:nnn`, etc. (see
   \#1640)
 
 ### Fixed
 - Initialize color `.` properly (see \#1642)
-
-### Added
-- `\file_forget:n`
 
 ## [2024-12-09]
 
@@ -67,11 +68,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2024-09-10]
 
-### Fixed
-- `\seq_map_pairwise_function:NNN` not work with `\seq_map_break:(n)` (issue \#1587)
-
 ### Changed
 - Increase outdent of long function names in `l3doc` (issue \#1585)
+
+### Fixed
+- `\seq_map_pairwise_function:NNN` not work with `\seq_map_break:(n)` (issue \#1587)
 
 ## [2024-08-30]
 
@@ -416,6 +417,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\file_input_raw:n`
 - `\int_if_zero:n(TF)`
 - `\str_mdfive_hash:n`
+
 ### Changed
 - Remove `\noexpand` inside math mode in `\text_expand:n`
 - Re-implement `\dim_to_decimal_in_bp:n` and 
@@ -568,13 +570,13 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Complete list of pdfTeX primitives
 
+### Changed
+- Leave catcode of `&` unchanged in code environment
+
 ### Fixed
 - Allow for multi-part BCP47 strings in case changing
 - Loading with plain TeX due to `\outer` status of `^^L`
   issue ([\#1161](https://github.com/latex3/latex3/issues/1161))
-
-### Changed
-- Leave catcode of `&` unchanged in code environment
 
 ## [2023-01-16]
 
@@ -665,9 +667,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Replace `LaTeX3` in message text by `LaTeX`
-
-### Changed
 - Approach to setting current color data from LaTeX2e
+
 ## [2022-08-05]
 
 ### Added
