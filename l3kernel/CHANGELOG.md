@@ -9,6 +9,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Missing trailing period in `\tl_analysis_log:(N|n)` output (see \#1663)
+- Some state variables weren't correctly reset by `\keys_define:nn` and
+    `\keys_set:nn` breaking some nested usages in edge cases
 
 ## [2025-01-14]
 
