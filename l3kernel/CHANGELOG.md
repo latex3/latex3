@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Use a dedicated internal marker for `fp` and `int` expressions, allowing use
+  with LuaMetaTeX (see \#1518)
+
 ### Fixed
 - Missing trailing period in `\tl_analysis_log:(N|n)` output (see \#1663)
 - Some state variables weren't correctly reset by `\keys_define:nn` and
