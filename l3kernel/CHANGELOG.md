@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-01-18]
+
 ### Changed
 - Use a dedicated internal marker for `fp` and `int` expressions, allowing use
   with LuaMetaTeX (see \#1518)
@@ -1844,7 +1846,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-01-14...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-01-18...HEAD
+[2025-01-18]: https://github.com/latex3/latex3/compare/2025-01-14...2025-01-18
 [2025-01-14]: https://github.com/latex3/latex3/compare/2024-12-25...2025-01-14
 [2024-12-25]: https://github.com/latex3/latex3/compare/2024-12-09...2024-12-25
 [2024-12-09]: https://github.com/latex3/latex3/compare/2024-11-02...2024-12-09
