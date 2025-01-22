@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Variants `\tl_head:e` and `\tl_tail:e`
+
 ## [2025-01-18]
 
 ### Changed
