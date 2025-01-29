@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Variants `\tl_head:e` and `\tl_tail:e`
 
+### Fixed
+- Avoid low-level error if keys are given without a module (issue \#1254)
+
 ## [2025-01-18]
 
 ### Changed
