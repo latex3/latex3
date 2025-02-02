@@ -9,6 +9,12 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - Variants `\tl_head:e` and `\tl_tail:e`
+- l3tl functions (and variants) which trim spaces from only one side
+  (issue \#1673):
+  - `\tl_trim_left_spaces:n`, `\tl_trim_left_spaces_apply:nN`,
+    `\tl_(g)trim_left_spaces:N`
+  - `\tl_trim_right_spaces:n`, `\tl_trim_right_spaces_apply:nN`,
+    `\tl_(g)trim_right_spaces:N`
 
 ### Fixed
 - Avoid low-level error if keys are given without a module (issue \#1254)
