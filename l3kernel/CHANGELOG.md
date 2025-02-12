@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\text_words_map_function:nN`
 - Variants `\tl_head:e` and `\tl_tail:e`
 - l3tl functions (and variants) which trim spaces from only one side
   (issue \#1673):
