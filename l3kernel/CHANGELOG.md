@@ -342,10 +342,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch generally from `x`- to `e`-type variants
 - Convert `\file_if_exist:n(TF)` to expandable status,
   adding predicate version
-- Standardise variants for `\prop_(g)pop:NnN(TF)`
-- Standardise variants for `\prop_(g)put:Nnn`
-- Standardise variants for `\prop_(g)put_if_new:Nnn`
-- Standardise variants for `\prop_(g)remove:Nn`
+- Standardize variants for `\prop_(g)pop:NnN(TF)`
+- Standardize variants for `\prop_(g)put:Nnn`
+- Standardize variants for `\prop_(g)put_if_new:Nnn`
+- Standardize variants for `\prop_(g)remove:Nn`
 
 ### Deprecated
 - `\iow_shipout_x:Nn` in favor of `e`-type naming
