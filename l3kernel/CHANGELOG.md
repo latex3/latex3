@@ -10,7 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\text_words_map_function:nN`
 - Variants `\tl_head:e` and `\tl_tail:e`
-- l3tl functions (and variants) which trim spaces from only one side
+- `l3tl` functions (and variants) which trim spaces from only one side
   (issue \#1673):
   - `\tl_trim_left_spaces:n`, `\tl_trim_left_spaces_apply:nN`,
     `\tl_(g)trim_left_spaces:N`
