@@ -65,40 +65,313 @@
 %
 % \subsection{Mapping to text}
 %
-% \begin{macro}[EXP]{\text_map_function:nN}
-% \begin{macro}[EXP]{\@@_map_function:nN}
-% \begin{macro}[EXP]{\@@_map_loop:Nnw}
-% \begin{macro}[EXP]{\@@_map_group:Nnn}
-% \begin{macro}[EXP]{\@@_map_space:Nnw}
-% \begin{macro}[EXP]{\@@_map_N_type:NnN}
-% \begin{macro}[EXP]{\@@_map_codepoint:Nnn}
-% \begin{macro}[EXP]{\@@_map_CR:Nnw}
-% \begin{macro}[EXP]{\@@_map_CR:NnN}
-% \begin{macro}[EXP]{\@@_map_class:Nnn}
+% \subsubsection{Common code}
+%
+% \begin{macro}[EXP]{\@@_map_function:nnN, \@@_map_function:enN}
+% \begin{macro}[EXP]{\@@_map_loop:Nnnw}
+% \begin{macro}[EXP]{\@@_map_group:Nnnn}
+% \begin{macro}[EXP]{\@@_map_space:Nnnw}
+% \begin{macro}[EXP]{\@@_map_N_type:NnnN}
+% \begin{macro}[EXP]{\@@_map_codepoint:Nnnn}
+% \begin{macro}[EXP]{\@@_map_CR:Nnnw}
+% \begin{macro}[EXP]{\@@_map_CR:NnnN}
+% \begin{macro}[EXP]{\@@_map_class:Nnnn}
+% \begin{macro}[EXP]{\@@_map_class:Nnnnn}
+% \begin{macro}[EXP]{\@@_map_lookahead:Nnnnnw}
+% \begin{macro}[EXP]{\@@_map_lookahead:NnnnnN}
+% \begin{macro}[TF,EXP]{\@@_map_if_ignorable:n}
+% \begin{macro}[EXP]{\@@_map_output:Nn}
+% \begin{macro}[EXP]{\text_map_break:}
+% \begin{macro}[EXP]{\text_map_break:n}
+%   Mapping to text all works the same way: using standard \enquote{action}
+%   loop on expanded text. There are different ways to determine the boundary
+%   conditions for breaking: to avoid duplication, the common ideas are covered
+%   here with the specifics split out. In all cases, anything which is not a
+%   character token is treated as a boundary.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_function:nnN #1#2#3
+  {
+    \@@_map_loop:Nnnw #3 {#2} { } #1
+      \q_@@_recursion_tail \q_@@_recursion_stop
+    \prg_break_point:Nn \text_map_break: { }
+  }
+\cs_generate_variant:Nn \@@_map_function:nnN { e }
+\cs_new:Npn \@@_map_loop:Nnnw #1#2#3#4 \q_@@_recursion_stop
+  {
+    \tl_if_head_is_N_type:nTF {#4}
+      { \@@_map_N_type:NnnN }
+      {
+        \tl_if_head_is_group:nTF {#4}
+          { \@@_map_group:Nnnn }
+          { \@@_map_space:Nnnw }
+      }
+    #1 {#2} {#3} #4 \q_@@_recursion_stop
+  }
+\cs_new:Npn \@@_map_group:Nnnn #1#2#3#4
+  {
+    \@@_map_output:Nn #1 {#3}
+    {
+      \@@_map_loop:Nnnw #1 {#2} { } #4
+        \q_@@_recursion_tail \q_@@_recursion_stop
+      \prg_break_point:Nn \text_map_break: { }
+    }
+    \@@_map_loop:Nnnw #1 {#2} { }
+  }
+\use:e
+  { \cs_new:Npn \exp_not:N \@@_map_space:Nnnw #1#2#3 \c_space_tl }
+  {
+    \@@_map_output:Nn #1 {#3}
+    #1 { ~ }
+    \@@_map_loop:Nnnw #1 {#2} { }
+  }
+\cs_new:Npn \@@_map_N_type:NnnN #1#2#3#4
+  {
+    \@@_if_q_recursion_tail_stop_do:Nn #4
+      {
+        \@@_map_output:Nn #1 {#3}
+        \text_map_break:
+      }
+    \token_if_cs:NTF #4
+      {
+        \@@_map_output:Nn #1 {#3}
+        #1 {#4}
+        \@@_map_loop:Nnnw #1 {#2} { }
+      }
+      {
+        \@@_codepoint_process:nN
+          { \@@_map_codepoint:Nnnn #1 {#2} {#3} } #4
+      }
+  }
+%    \end{macrocode}
+%  We pull out a few special cases here. Carriage returns case needs a bit of
+%  context handling so has an auxiliary. Codepoint U+200D is the zero-width
+%  joiner, which has no context to concern us: just don't break. (These special
+%  cases apply to all forms of text mapping.)
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_codepoint:Nnnn #1#2#3#4
+  {
+    \@@_codepoint_compare:nNnTF {#4} = { "000D }
+      {
+        \@@_map_output:Nn #1 {#3}
+        \@@_map_CR:Nnnw #1 {#2} {#4}
+      }
+      {
+        \@@_codepoint_compare:nNnTF {#4} = { "200D }
+          { \@@_map_loop:Nnnw #1 {#2} {#3#4} }
+          { \@@_map_class:Nnnn #1 {#2} {#3} {#4} }
+      }
+  }
+%    \end{macrocode}
+%   A carriage return is a boundary unless it is immediately followed by
+%   a line feed, in which case that pair is a boundary.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_CR:Nnnw #1#2#3#4 \q_@@_recursion_stop
+  {
+    \tl_if_head_is_N_type:nTF {#4}
+      { \@@_map_CR:NnnN #1 {#2} {#3} }
+      {
+        #1 {#3}
+        \@@_map_loop:Nnnw #1 {#2} { }
+      }
+        #4 \q_@@_recursion_stop
+  }
+\cs_new:Npn \@@_map_CR:NnnN #1#2#3#4
+  {
+    \@@_if_q_recursion_tail_stop_do:Nn #4
+      {
+        #1 {#3}
+        \text_map_break:
+      }
+    \bool_lazy_and:nnTF
+      { ! \token_if_cs_p:N #4 }
+      { \int_compare_p:nNn { `#4 } = { "000A } }
+      {
+        \@@_map_output:Nn #1 {#3#4}
+        \@@_map_loop:Nnnw #1 {#2} { }
+      }
+      { \@@_map_loop:Nnnw #1 {#2} { } #3 }
+  }
+%    \end{macrocode}
+%   There are various classes of character, and we deal with them all in
+%   the same general way. We need to example the relevant list of codepoints:
+%   if we get a hit, then we do whatever the relevant action is. To keep names
+%   short and to allow code sharing, we have two ways of naming the functions:
+%   most class names are unique, so it's only where we see the same name used
+%   in both break classes that we need more control.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_class:Nnnn #1#2#3#4
+  {
+    \exp_args:Nnnne \@@_map_class:Nnnnn #1 {#2} {#3} {#4}
+      {
+        \use:c { __kernel_codepoint_to_ #2 _class:n }
+          { \@@_codepoint_from_chars:Nw #4 }
+      }
+  }
+\cs_new:Npn \@@_map_class:Nnnnn #1#2#3#4#5
+  {
+    \cs_if_exist_use:cF { @@_map_ #5 :Nnnn }
+      { \@@_map_Other:Nnnn }
+        #1 {#2} {#3} {#4}
+  }
+%    \end{macrocode}
+%   A generic loop-ahead setup: we need to handle both the previously collected
+%   tokens and any \enquote{conditional} ones. The latter occur when looking
+%   ahead for word-breaking: these \emph{may} be combined with the collected
+%   tokens, but if we hit the end-of-loop, need to be output separately.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_lookahead:Nnnnnw #1#2#3#4#5#6 \q_@@_recursion_stop
+  {
+    \tl_if_head_is_N_type:nTF {#6}
+      { \@@_map_lookahead:NnnnnN #1 {#2} {#3} {#4} {#5} }
+      { \@@_map_loop:Nnnw #1 {#2} {#3} #4 }
+    #6 \q_@@_recursion_stop
+  }
+\cs_new:Npn \@@_map_lookahead:NnnnnN #1#2#3#4#5#6
+  {
+    \@@_if_q_recursion_tail_stop_do:Nn #6
+      {
+        #1 {#3}
+        \tl_if_blank:nF {#4} { #1 {#4} }
+      }
+    \token_if_cs:NTF #6
+      {
+        #1 {#3}
+        \@@_map_loop:Nnnw #1 {#2} { } #4
+      }
+      { \@@_codepoint_process:nN { #5 #1 {#2} {#3} {#4} } }
+        #6
+  }
+%    \end{macrocode}
+%   To deal with \enquote{ignored} characters for word break mapping: needed
+%   for generic |Regional_Indicator| function, so set up here.
+%    \begin{macrocode}
+\prg_new_conditional:Npnn \@@_map_if_ignorable:n #1 { TF }
+  {
+    \str_case:nnTF {#1}
+      {
+        { Extend }       { }
+        { Format }       { }
+        { ZWJ }          { }
+      }
+      \prg_return_true:
+      \prg_return_false:
+  }
+%    \end{macrocode}
+%   For the end of the process.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_output:Nn #1#2
+  { \tl_if_blank:nF {#2} { #1 {#2} } }
+\cs_new:Npn \text_map_break:
+  { \prg_map_break:Nn \text_map_break: { } }
+\cs_new:Npn \text_map_break:n
+  { \prg_map_break:Nn \text_map_break: }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}[EXP]
 %   {
-%     \@@_map_Control:Nnn      ,
-%     \@@_map_Extend:Nnn       ,
-%     \@@_map_SpacingMark:Nnn  ,
-%     \@@_map_Prepend:Nnn      ,
-%     \@@_map_Prepend_auxi:Nnn ,
-%     \@@_map_Prepend_auxii:Nnn
+%     \@@_map_Control:Nnnn            ,
+%     \@@_map_Newline:Nnnn            ,
+%     \@@_map_Extend:Nnnn             ,
+%     \@@_map_Format:Nnnn             ,
+%     \@@_map_SpacingMark:Nnnn        ,
+%     \@@_map_Other:Nnnn              ,
+%     \@@_map_Regional_Indicator:Nnnn
 %   }
-% \begin{macro}[EXP]{\@@_map_Prepend:nNnn}
-% \begin{macro}[EXP]{\@@_map_Prepend_loop:Nnnw}
+% \begin{macro}[EXP]{\@@_map_Regional_Indicator_aux:Nnnnn}
+%   A small number of classes appear in both forms of breaking and have the
+%   same behavior. For |Control| and |Newline|, we set up here as they are the
+%   same outcome. We have the same story for |Format|, which is functionally
+%   the same as |Newline|.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_Control:Nnnn #1#2#3#4
+  {
+    \@@_map_output:Nn #1 {#3}
+    \@@_map_output:Nn #1 {#4}
+    \@@_map_loop:Nnnw #1 {#2} { }
+  }
+\cs_new_eq:NN \@@_map_Newline:Nnnn \@@_map_Control:Nnnn
+\cs_new:Npn \@@_map_Extend:Nnnn #1#2#3#4
+  { \@@_map_loop:Nnnw #1 {#2} {#3#4} }
+\cs_new_eq:NN \@@_map_Format:Nnnn \@@_map_Extend:Nnnn
+\cs_new_eq:NN \@@_map_SpacingMark:Nnnn \@@_map_Extend:Nnnn
+\cs_new:Npn \@@_map_Other:Nnnn #1#2#3#4
+  {
+    \@@_map_output:Nn #1 {#3}
+    \@@_map_loop:Nnnw #1 {#2} {#4}
+  }
+%    \end{macrocode}
+%  The Regional Indicator rule means looking ahead and dealing with the
+%  case where there are two in a row. So we use a look ahead to pick them
+%  off. As there is only one range the values are hard-coded. For
+%  word breaking, we also need to allow for the various extenders.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_Regional_Indicator:Nnnn #1#2#3#4
+  {
+    \@@_map_output:Nn #1 {#3}
+    \@@_map_lookahead:Nnnnnw #1 {#2} {#4} { }
+      \@@_map_Regional_Indicator_aux:Nnnnn
+  }
+\cs_new:Npn \@@_map_Regional_Indicator_aux:Nnnnn #1#2#3#4#5
+  {
+    \bool_lazy_or:nnTF
+      { \@@_codepoint_compare_p:nNn {#5} < { "1F1E6 } }
+      { \@@_codepoint_compare_p:nNn {#5} > { "1F1FF } }
+      {
+        \str_if_eq:nnTF {#2} { wordbreak }
+          {
+            \exp_args:Ne \@@_map_if_ignorable:nTF
+              {
+                \__kernel_codepoint_to_grapheme_class:n
+                  { \@@_codepoint_from_chars:Nw #5 }
+              }
+              {
+                \@@_map_lookahead:Nnnnnw #1 {#2} {#3#5} { }
+                  \@@_map_Regional_Indicator_aux:Nnnnn
+              }
+              { \@@_map_loop:Nnnw #1 {#2} {#3} #5 }
+          }
+          { \@@_map_loop:Nnnw #1 {#2} {#3} #5 }
+      }
+      { \@@_map_loop:Nnnw #1 {#2} {#3#5} }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Grapheme mapping}
+%
+% \begin{macro}[EXP]{\text_map_function:nN}
+% \begin{macro}[EXP]{\@@_map_Prepend:Nnnn}
+% \begin{macro}[EXP]{\@@_map_Prepend_aux:Nnnnn}
+% \begin{macro}[EXP]{\@@_map_Prepend:Nnn}
 % \begin{macro}[EXP]
 %   {
-%     \@@_map_L:Nnn   ,
-%     \@@_map_LV:Nnn  ,
-%     \@@_map_V:Nnn   ,
-%     \@@_map_LVT:Nnn ,
-%     \@@_map_T:Nnn   ,
-%     \@@_map_other:Nnn
+%     \@@_map_L:Nnnn   ,
+%     \@@_map_LV:Nnnn  ,
+%     \@@_map_V:Nnnn   ,
+%     \@@_map_LVT:Nnnn ,
+%     \@@_map_T:Nnnn
 %   }
 % \begin{macro}[EXP]{\@@_map_hangul:Nnnw}
 % \begin{macro}[EXP]{\@@_map_hangul:NnnN}
 % \begin{macro}[EXP]{\@@_map_hangul:Nnnn}
-% \begin{macro}[EXP]{\@@_map_hangul_aux:Nnnnw, \@@_map_hangul_aux:Nnnew}
+% \begin{macro}[EXP]{\@@_map_hangul_aux:Nnnnw}
 % \begin{macro}[EXP]{\@@_map_hangul:Nnnnw}
 % \begin{macro}[EXP]{\@@_map_hangul_next:Nnnnn}
 % \begin{macro}[EXP]{\@@_map_hangul_end:nw}
@@ -110,176 +383,35 @@
 %     \@@_map_hangul_LVT:Nnn ,
 %     \@@_map_hangul_T:Nnn
 %   }
-% \begin{macro}[EXP]
-%   {\@@_map_Regional_Indicator:Nnn, \@@_map_Regional_Indicator_aux:Nnn}
-% \begin{macro}[EXP]{\@@_map_lookahead:NnNw}
-% \begin{macro}[EXP]{\@@_map_lookahead:NnNN}
-% \begin{macro}[EXP]{\@@_map_output:Nn}
-% \begin{macro}[EXP]{\text_map_break:}
-% \begin{macro}[EXP]{\text_map_break:n}
 %   The standard lead-off for an action loop.
 %    \begin{macrocode}
 \cs_new:Npn \text_map_function:nN #1#2
-  { \exp_args:Ne \@@_map_function:nN { \text_expand:n {#1} } #2 }
-\cs_new:Npn \@@_map_function:nN #1#2
   {
-    \@@_map_loop:Nnw #2 { } #1
-      \q_@@_recursion_tail \q_@@_recursion_stop
-    \prg_break_point:Nn \text_map_break: { }
+    \@@_map_function:enN { \text_expand:n {#1} }
+      { grapheme } #2
   }
-%    \end{macrocode}
-%  The standard set up for an \enquote{action} loop. Groups are handled by
-%  recursion, spaces are treated similarly: both count as grapheme boundaries.
-%  For \texttt{N}-type tokens, we filter out control sequences (again
-%  a boundary), then move on to further analysis.
-%    \begin{macrocode}
-\cs_new:Npn \@@_map_loop:Nnw #1#2#3 \q_@@_recursion_stop
-  {
-    \tl_if_head_is_N_type:nTF {#3}
-      { \@@_map_N_type:NnN }
-      {
-        \tl_if_head_is_group:nTF {#3}
-          { \@@_map_group:Nnn }
-          { \@@_map_space:Nnw }
-      }
-    #1 {#2} #3 \q_@@_recursion_stop
-  }
-\cs_new:Npn \@@_map_group:Nnn #1#2#3
-  {
-    \@@_map_output:Nn #1 {#2}
-    {
-      \@@_map_loop:Nnw #1 { } #2
-        \q_@@_recursion_tail \q_@@_recursion_stop
-      \prg_break_point:Nn \text_map_break: { }
-    }
-    \@@_map_loop:Nnw #1 { }
-  }
-\use:e
-  { \cs_new:Npn \exp_not:N \@@_map_space:Nnw #1#2 \c_space_tl }
-  {
-    \@@_map_output:Nn #1 {#2}
-    #1 { ~ }
-    \@@_map_loop:Nnw #1 { }
-  }
-\cs_new:Npn \@@_map_N_type:NnN #1#2#3
-  {
-    \@@_if_q_recursion_tail_stop_do:Nn #3
-      {
-        \@@_map_output:Nn #1 {#2}
-        \text_map_break:
-      }
-    \token_if_cs:NTF #3
-      {
-        \@@_map_output:Nn #1 {#2}
-        #1 {#3}
-        \@@_map_loop:Nnw #1 { }
-      }
-      {
-        \@@_codepoint_process:nN
-          { \@@_map_codepoint:Nnn #1 {#2} } #3
-      }
-  }
-%    \end{macrocode}
-%  We pull out a few special cases here. Carriage returns case needs a bit of
-%  context handling so has an auxiliary. Codepoint U+200D is the zero-width
-%  joiner, which has no context to concern us: just don't break.
-%    \begin{macrocode}
-\cs_new:Npn \@@_map_codepoint:Nnn #1#2#3
-  {
-    \@@_codepoint_compare:nNnTF {#3} = { "0D }
-      {
-        \@@_map_output:Nn #1 {#2}
-        \@@_map_CR:Nnw #1 {#3}
-      }
-      {
-        \@@_codepoint_compare:nNnTF {#3} = { "200D }
-          { \@@_map_loop:Nnw #1 {#2#3} }
-          { \@@_map_class:Nnn #1 {#2} {#3} }
-      }
-  }
-%    \end{macrocode}
-%   A carriage return is a boundary unless it is immediately followed by
-%   a line feed, in which case that pair is a boundary.
-%    \begin{macrocode}
-\cs_new:Npn \@@_map_CR:Nnw #1#2#3 \q_@@_recursion_stop
-  {
-    \tl_if_head_is_N_type:nTF {#3}
-      { \@@_map_CR:NnN #1 {#2} }
-      {
-        #1 {#2}
-        \@@_map_loop:Nnw #1 { }
-      }
-        #3 \q_@@_recursion_stop
-  }
-\cs_new:Npn \@@_map_CR:NnN #1#2#3
-  {
-    \@@_if_q_recursion_tail_stop_do:Nn #3
-      {
-        #1 {#2}
-        \text_map_break:
-      }
-    \bool_lazy_and:nnTF
-      { ! \token_if_cs_p:N #3 }
-      { \int_compare_p:nNn { `#3 } = { "0A } }
-      {
-        \@@_map_output:Nn #1 {#2#3}
-        \@@_map_loop:Nnw #1 { }
-      }
-      { \@@_map_loop:Nnw #1 { } #3 }
-  }
-%    \end{macrocode}
-%   There are various classes of character, and we deal with them all in
-%   the same general way. We need to example the relevant list of codepoints:
-%   if we get a hit, then we do whatever the relevant action is.
-%    \begin{macrocode}
-\cs_new:Npn \@@_map_class:Nnn #1#2#3
-  {
-    \cs_if_exist_use:cF
-      {
-        @@_map_
-        \__kernel_codepoint_to_grapheme_class:n
-          { \@@_codepoint_from_chars:Nw #3 }
-        :Nnn
-      }
-      { \@@_map_Other:Nnn }
-       #1 {#2} {#3}
-  }
-%    \end{macrocode}
-%   Break before \emph{and} after.
-%    \begin{macrocode}
-\cs_new:Npn \@@_map_Control:Nnn #1#2#3
-  {
-    \@@_map_output:Nn #1 {#2}
-    \@@_map_output:Nn #1 {#3}
-    \@@_map_loop:Nnw #1 { }
-  }
-%    \end{macrocode}
-%   Keep collecting.
-%    \begin{macrocode}
-\cs_new:Npn \@@_map_Extend:Nnn #1#2#3
-  { \@@_map_loop:Nnw #1 {#2#3} }
-\cs_new_eq:NN \@@_map_SpacingMark:Nnn \@@_map_Extend:Nnn
 %    \end{macrocode}
 %   Outputting anything earlier, the combine with what follows. The only
 %   exclusions are control characters.
 %    \begin{macrocode}
-\cs_new:Npn \@@_map_Prepend:Nnn #1#2#3
+\cs_new:Npn \@@_map_Prepend:Nnnn #1#2#3#4
   {
-    \@@_map_output:Nn #1 {#2}
-    \@@_map_lookahead:NnNw #1 {#3} \@@_map_Prepend_auxi:Nnn
+    \@@_map_output:Nn #1 {#3}
+    \@@_map_lookahead:Nnnnnw #1 { grapheme } {#4} { }
+      \@@_map_Prepend_aux:Nnnnn
   }
-\cs_new:Npn \@@_map_Prepend_auxi:Nnn #1#2#3
+\cs_new:Npn \@@_map_Prepend_aux:Nnnnn #1#2#3#4#5
   {
     \bool_lazy_or:nnTF
-      { \@@_codepoint_compare_p:nNn {#3} = { "0A } }
-      { \@@_codepoint_compare_p:nNn {#3} = { "0D } }
+      { \@@_codepoint_compare_p:nNn {#5} = { "000A } }
+      { \@@_codepoint_compare_p:nNn {#5} = { "000D } }
       {
-        #1 {#2}
-        \@@_map_loop:Nnw #1 {#3}
+        #1 {#3}
+        \@@_map_loop:Nnnw #1 { grapheme } {#5}
       }
-      { \@@_map_Prepend_auxii:Nnn #1 {#2} {#3} }
+      { \@@_map_Prepend:Nnn #1 {#3} {#5} }
   }
-\cs_new:Npn \@@_map_Prepend_auxii:Nnn #1#2#3
+\cs_new:Npn \@@_map_Prepend:Nnn #1#2#3
   {
     \str_if_eq:eeTF
       { Control }
@@ -287,8 +419,8 @@
         \__kernel_codepoint_to_grapheme_class:n
           { \@@_codepoint_from_chars:Nw #3 }
       }
-      { \@@_map_loop:Nnw #1 {#2} #3 }
-      { \@@_map_loop:Nnw #1 {#2#3} }
+      { \@@_map_loop:Nnnw #1 { grapheme } {#2} #3 }
+      { \@@_map_loop:Nnnw #1 { grapheme } {#2#3} }
   }
 %    \end{macrocode}
 %   Hangul needs additional treatment. First we have to deal with
@@ -299,33 +431,33 @@
 %   Other than that, we just keep building up the Hangul codepoints
 %   using a dedicated version of the loop from above.
 %    \begin{macrocode}
-\cs_new:Npn \@@_map_L:Nnn #1#2#3
+\cs_new:Npn \@@_map_L:Nnnn #1#2#3#4
   {
-    \@@_map_output:Nn #1 {#2}
+    \@@_map_output:Nn #1 {#3}
     \@@_map_hangul:Nnnw
-      #1 {#3} { L ; V ; LV ; LVT }
+      #1 {#4} { L ; V ; LV ; LVT }
   }
-\cs_new:Npn \@@_map_LV:Nnn #1#2#3
+\cs_new:Npn \@@_map_LV:Nnnn #1#2#3#4
   {
-    \@@_map_output:Nn #1 {#2}
+    \@@_map_output:Nn #1 {#3}
     \@@_map_hangul:Nnnw
-      #1 {#3} { V ; T }
+      #1 {#4} { V ; T }
   }
-\cs_new_eq:NN \@@_map_V:Nnn \@@_map_LV:Nnn
-\cs_new:Npn \@@_map_LVT:Nnn #1#2#3
+\cs_new_eq:NN \@@_map_V:Nnnn \@@_map_LV:Nnnn
+\cs_new:Npn \@@_map_LVT:Nnnn #1#2#3#4
   {
-    \@@_map_output:Nn #1 {#2}
+    \@@_map_output:Nn #1 {#3}
     \@@_map_hangul:Nnnw
-      #1 {#3} { T }
+      #1 {#4} { T }
   }
-\cs_new_eq:NN \@@_map_T:Nnn \@@_map_LVT:Nnn
+\cs_new_eq:NN \@@_map_T:Nnnn \@@_map_LVT:Nnnn
 \cs_new:Npn \@@_map_hangul:Nnnw #1#2#3#4 \q_@@_recursion_stop
   {
     \tl_if_head_is_N_type:nTF {#4}
       { \@@_map_hangul:NnnN #1 {#2} {#3} }
       {
         #1 {#2}
-        \@@_map_loop:Nnw #1 { }
+        \@@_map_loop:Nnnw #1 { grapheme } { }
       }
     #4 \q_@@_recursion_stop
   }
@@ -339,16 +471,17 @@
     \token_if_cs:NTF #4
       {
         #1 {#2}
-        \@@_map_loop:Nnw #1 { }
+        \@@_map_loop:Nnnw #1 { grapheme } { }
       }
       {
         \@@_codepoint_process:nN
           { \@@_map_hangul:Nnnn #1 {#2} {#3} } #4
       }
   }
+\exp_args_generate:n { Nnne }
 \cs_new:Npn \@@_map_hangul:Nnnn #1#2#3#4
   {
-    \@@_map_hangul_aux:Nnnew #1 {#2} {#4}
+    \exp_args:NNnne \@@_map_hangul_aux:Nnnnw #1 {#2} {#4}
       {
         \__kernel_codepoint_to_grapheme_class:n
           { \@@_codepoint_from_chars:Nw #4 }
@@ -358,7 +491,7 @@
 \cs_new:Npn \@@_map_hangul_aux:Nnnnw #1#2#3#4#5 ;
   {
     \quark_if_recursion_tail_stop_do:nn {#5}
-      { \@@_map_loop:Nnw #1 {#2} #3 }
+      { \@@_map_loop:Nnnw #1 { grapheme } {#2} #3 }
     \@@_map_hangul:Nnnnnw #1 {#2} {#3} {#4} {#5}
   }
 \cs_generate_variant:Nn \@@_map_hangul_aux:Nnnnw { Nnne }
@@ -389,77 +522,6 @@
   }
 \cs_new_eq:NN \@@_map_hangul_T:Nnn \@@_map_hangul_LVT:Nnn
 %    \end{macrocode}
-%  The Regional Indicator rule means looking ahead and dealing with the
-%  case where there are two in a row. So we use a look ahead to pick them
-%  off. As there is only one range the values are hard-coded.
-%    \begin{macrocode}
-\cs_new:Npn \@@_map_Regional_Indicator:Nnn #1#2#3
-  {
-    \@@_map_output:Nn #1 {#2}
-    \@@_map_lookahead:NnNw #1 {#3} \@@_map_Regional_Indicator_aux:Nnn
-  }
-\cs_new:Npn \@@_map_Regional_Indicator_aux:Nnn #1#2#3
-  {
-    \bool_lazy_or:nnTF
-      { \@@_codepoint_compare_p:nNn {#3} < { "1F1E6 } }
-      { \@@_codepoint_compare_p:nNn {#3} > { "1F1FF } }
-      { \@@_map_loop:Nnw #1 {#2} #3 }
-      { \@@_map_loop:Nnw #1 {#2#3} }
-  }
-%    \end{macrocode}
-%   Dealing with end-of-class is done such that we can be flexible.
-%    \begin{macrocode}
-\cs_new:Npn \@@_map_Other:Nnn #1#2#3
-  {
-    \@@_map_output:Nn #1 {#2}
-    \@@_map_loop:Nnw #1 {#3}
-  }
-%    \end{macrocode}
-%   A generic loop-ahead setup.
-%    \begin{macrocode}
-\cs_new:Npn \@@_map_lookahead:NnNw #1#2#3#4 \q_@@_recursion_stop
-  {
-    \tl_if_head_is_N_type:nTF {#4}
-      { \@@_map_lookahead:NnNN #1 {#2} #3 }
-      { \@@_map_loop:Nnw #1 {#2} }
-    #4 \q_@@_recursion_stop
-  }
-\cs_new:Npn \@@_map_lookahead:NnNN #1#2#3#4
-  {
-    \@@_if_q_recursion_tail_stop_do:Nn #4 { #1 {#2} }
-    \token_if_cs:NTF #4
-      {
-        #1 {#2}
-        \@@_map_loop:Nnw #1 { }
-      }
-      { \@@_codepoint_process:nN { #3 #1 {#2} } }
-        #4
-  }
-%    \end{macrocode}
-%   For the end of the process.
-%    \begin{macrocode}
-\cs_new:Npn \@@_map_output:Nn #1#2
-  { \tl_if_blank:nF {#2} { #1 {#2} } }
-\cs_new:Npn \text_map_break:
-  { \prg_map_break:Nn \text_map_break: { } }
-\cs_new:Npn \text_map_break:n
-  { \prg_map_break:Nn \text_map_break: }
-%    \end{macrocode}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
-% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -474,7 +536,235 @@
 % \end{macro}
 % \end{macro}
 %
-% \begin{macro}{\text_map_inline:nn}
+% \subsection{Word break mapping}
+%
+% \begin{macro}[EXP]{\text_map_function:nN}
+% \begin{macro}[EXP]{\@@_map_collect:Nnnnn}
+% \begin{macro}[EXP]{\@@_map_collect_auxi:nnnNnnnn}
+% \begin{macro}[EXP]{\@@_map_collect_auxii:nNnnnnn}
+% \begin{macro}[EXP]{\@@_map_collect_auxiii:n}
+% \begin{macro}[EXP]{\@@_map_collect_auxiv:nnNnnnn}
+% \begin{macro}[EXP]{\@@_map_collect_auxv:nNnnnnn}
+% \begin{macro}[EXP]
+%   {
+%     \@@_map_ALetter:Nnnn       ,
+%     \@@_map_Hebrew_Letter:Nnnn ,
+%     \@@_map_Katakana:Nnnn      ,
+%     \@@_map_Numeric:Nnnn       ,
+%     \@@_map_WSegSpace:Nnnn     ,
+%     \@@_map_ExtendNumLet:Nnnn
+%   }
+% \begin{macro}[EXP]{\@@_map_ExtendNumLet_auxi::Nnnnn}
+% \begin{macro}[EXP]{\@@_map_ExtendNumLet_auxii:nNnn}
+%   The standard lead-off for an action loop.
+%    \begin{macrocode}
+\cs_new:Npn \text_words_map_function:nN #1#2
+  {
+    \@@_map_function:enN { \text_expand:n {#1} }
+      { wordbreak } #2
+  }
+%    \end{macrocode}
+%   The main rule for word breaking is that characters bind to following
+%   ones, potentially either allowing for \emph{or} totally ignoring
+%   intervening ones. For each class, we are passed a list of classes that
+%   bind and ones that we should allow in between. In all cases, the classes
+%   |Extend|, |Format| and |ZWJ| need to be entirely ignored: they are hard
+%   coded and handled separately from the in-between ones. Notice that we use
+%   \cs{str_case:nnTF} to make our boolean here: that way, all that needs to be
+%   passed internally are lists of classes.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_collect:Nnnnn #1#2#3#4#5
+  {
+    \@@_map_lookahead:Nnnnnw #1 { wordbreak } {#2} { }
+      { \@@_map_collect_auxi:nnnNnnnn {#3} {#4} {#5} }
+  }
+\cs_new:Npn \@@_map_collect_auxi:nnnNnnnn #1#2#3#4#5#6#7#8
+  {
+    \exp_args:Ne \@@_map_collect_auxii:nNnnnnn
+      {
+        \__kernel_codepoint_to_wordbreak_class:n
+          { \@@_codepoint_from_chars:Nw #8 }
+      }
+	  #4 {#6} {#1} {#2} {#3} {#8}
+  }
+%    \end{macrocode}
+%   We now need to deal with the three possible positive outcomes of examining
+%   the next character. The first is that we have found one of the binding
+%   characters that ends the current cycle: we then pass on to the appropriate
+%   function.  Second, we have the ignored characters: if we find these, we
+%   loop back around. Finally, we look at the \enquote{in-between} characters:
+%   if one is found, we need a further look ahead to reach a decision. Rather
+%   than have extra complexity in the setup, we have a hard-coded skipping of
+%   |ExtendNumLet| for |WSegSpace| (as |ExtendNumLet| only applies to
+%   |ALetter|, |Hebrew_Letter|, |Numeric| and |Katakana|).
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_collect_auxii:nNnnnnn #1#2#3#4#5#6#7
+  {
+    \str_case:neTF {#1}
+      {
+        \tl_map_function:eN
+          {
+            #4
+            \str_if_eq:nnF {#4} { { WSegSpace } } { { ExtendNumLet } }
+          }
+          \@@_map_collect_auxiii:n
+      }
+      {
+        \cs_if_exist_use:cF { @@_map_ #1 :Nnnn }
+          { \@@_map_Other:Nnnn }
+            #2 { wordbreak } { } {#3#7}
+      }
+      {
+        \@@_map_if_ignorable:nTF {#1}
+          { \@@_map_collect:Nnnnn #2 {#3#7} {#4} {#5} {#6} }
+          {
+            \str_case:neTF {#1}
+              { \tl_map_function:nN {#5} \@@_map_collect_auxiii:n }
+              {
+                \@@_map_lookahead:Nnnnnw #2 { wordbreak } {#3} {#7}
+                  { \@@_map_collect_auxiv:nnNnnnn {#5} {#6} }
+              }
+              {
+                \@@_map_output:Nn #2 {#3}
+                \@@_map_loop:Nnnw #2 { wordbreak } { } #7
+              }
+          }
+      }
+  }
+\cs_new:Npn \@@_map_collect_auxiii:n #1
+  { \exp_not:n { {#1} { } } }
+%    \end{macrocode}
+%   We are now have a character which \emph{may} bind to the previous one if
+%   the next character is of the correct class also. So we carry forward the
+%   collected material and the conditional character, then look ahead again.
+%   If successful, combine together and move on using the new class, otherwise
+%   output and restart where we were.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_collect_auxiv:nnNnnnn #1#2#3#4#5#6#7
+  {
+    \exp_args:Ne \@@_map_collect_auxv:nNnnnnn
+      {
+        \__kernel_codepoint_to_wordbreak_class:n
+          { \@@_codepoint_from_chars:Nw #7 }
+      }
+	  #3 {#5} {#6} {#1} {#2} {#7}
+  }
+\cs_new:Npn \@@_map_collect_auxv:nNnnnnn #1#2#3#4#5#6#7
+  {
+    \str_case:neTF {#1}
+      { \tl_map_function:nN {#6} \@@_map_collect_auxiii:n }
+      { \use:c { @@_map_ #1 :Nnnn } #2 { wordbreak } { } {#3#4#7} }
+      {
+        \@@_map_if_ignorable:nTF {#1}
+          {
+            \@@_map_lookahead:Nnnnnw #2 { wordbreak } {#3} {#4#7}
+              { \@@_map_collect_auxiv:nnNnnnn {#5} {#6} }
+          }
+          {
+            \@@_map_output:Nn #2 {#3}
+            \@@_map_loop:Nnnw #2 { wordbreak } { } #4#7
+          }
+      }
+  }
+%    \end{macrocode}
+%   Use the generic collector.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_ALetter:Nnnn #1#2#3#4
+  {
+    \@@_map_output:Nn #1 {#3}
+    \@@_map_collect:Nnnnn #1 {#4}
+      { { ALetter } { Hebrew_Letter } { Numeric } }
+      { { MidLetter } { MidNumLet } { Single_Quote } }
+      { { ALetter } { Hebrew_Letter } }
+  }
+\cs_new:Npn \@@_map_Hebrew_Letter:Nnnn #1#2#3#4
+  {
+    \@@_map_output:Nn #1 {#3}
+    \@@_map_collect:Nnnnn #1 {#4}
+      { { ALetter } { Hebrew_Letter } { Numeric } { Single_Quote } }
+      { { MidLetter } { MidNumLet } { Double_Quote } }
+      { { Hebrew_Letter } }
+  }
+\cs_new:Npn \@@_map_Katakana:Nnnn #1#2#3#4
+  {
+    \@@_map_output:Nn #1 {#3}
+    \@@_map_collect:Nnnnn #1 {#4} { { Katakana } } { } { }
+  }
+\cs_new:Npn \@@_map_Numeric:Nnnn #1#2#3#4
+  {
+    \@@_map_output:Nn #1 {#3}
+    \@@_map_collect:Nnnnn #1 {#4}
+      { { ALetter } { Hebrew_Letter } { Numeric } }
+      { { MidNum } { MidNumLet } { Single_Quote } }
+      { { Numeric } }
+  }
+\cs_new:Npn \@@_map_WSegSpace:Nnnn #1#2#3#4
+  {
+    \@@_map_output:Nn #1 {#3}
+    \@@_map_collect:Nnnnn #1 {#4} { { WSegSpace } } { } { }
+  }
+%    \end{macrocode}
+%   We should only get here in the case we have a \enquote{dangling} extender.
+%   If so, look ahead for characters to bind to, then for the set of three
+%   that we need to skip over.
+%    \begin{macrocode}
+\cs_new:Npn \@@_map_ExtendNumLet:Nnnn #1#2#3#4
+  {
+    \@@_map_output:Nn #1 {#3}
+    \@@_map_lookahead:Nnnnnw #1 { wordbreak } {#4} { }
+      \@@_map_ExtendNumLet_auxi:Nnnnn
+  }
+\cs_new:Npn \@@_map_ExtendNumLet_auxi:Nnnnn #1#2#3#4#5
+  {
+    \exp_args:Ne \@@_map_ExtendNumLet_auxii:nNnn
+      {
+        \__kernel_codepoint_to_wordbreak_class:n
+          { \@@_codepoint_from_chars:Nw #5 }
+      }
+      #1 {#3} {#5}
+  }
+\cs_new:Npn \@@_map_ExtendNumLet_auxii:nNnn #1#2#3#4
+  {
+    \str_case:nnTF {#1}
+      {
+        { ALetter }       { }
+        { Hebrew_Letter } { }
+        { Numeric }       { }
+        { Katakana }      { }
+        { ExtendNumLet }  { }
+      }
+      {
+        \cs_if_exist_use:cF { @@_map_ #1 :Nnnn } % TEMP?
+          { \@@_map_Other:Nnnn }
+            #2 { wordbreak } { } {#3#4}
+      }
+      {
+        \@@_map_if_ignorable:nTF {#1}
+          {
+            \@@_map_lookahead:Nnnnnw #2 { wordbreak } {#3#4} { }
+              \@@_map_ExtendNumLet_auxi:Nnnnn
+          }
+          {
+            \@@_map_output:Nn #2 {#3}
+            \@@_map_loop:Nnnw #2 { wordbreak } { } #4
+          }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \subsection{Inline mappings}
+%
+% \begin{macro}{\text_map_inline:nn, \text_words_map_inline:nn}
 %   The standard non-expandable inline version.
 %    \begin{macrocode}
 \cs_new_protected:Npn \text_map_inline:nn #1#2
@@ -483,6 +773,16 @@
     \cs_gset_protected:cpn
       { @@_map_ \int_use:N \g__kernel_prg_map_int :w } ##1 {#2}
     \exp_args:Nnc \text_map_function:nN {#1}
+      { @@_map_ \int_use:N \g__kernel_prg_map_int :w }
+    \prg_break_point:Nn \text_map_break:
+      { \int_gdecr:N \g__kernel_prg_map_int }
+  }
+\cs_new_protected:Npn \text_words_map_inline:nn #1#2
+  {
+    \int_gincr:N \g__kernel_prg_map_int
+    \cs_gset_protected:cpn
+      { @@_map_ \int_use:N \g__kernel_prg_map_int :w } ##1 {#2}
+    \exp_args:Nnc \text_words_map_function:nN {#1}
       { @@_map_ \int_use:N \g__kernel_prg_map_int :w }
     \prg_break_point:Nn \text_map_break:
       { \int_gdecr:N \g__kernel_prg_map_int }
