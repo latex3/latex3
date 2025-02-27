@@ -66,6 +66,368 @@
 %<*dvips>
 %    \end{macrocode}
 %
+% In \texttt{dvips}, annotations have to be constructed manually. As such,
+% we need the object code above for some definitions.
+%
+% \begin{variable}{\l_@@_backend_content_box}
+%   The content of an annotation.
+%    \begin{macrocode}
+\box_new:N \l_@@_backend_content_box
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_backend_model_box}
+%   For creating model sizing for links.
+%    \begin{macrocode}
+\box_new:N \l_@@_backend_model_box
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_backend_int}
+%   Needed to track annotations.
+%    \begin{macrocode}
+\int_new:N \g_@@_backend_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\@@_backend_generic:nnnn, \@@_backend_generic_aux:nnnn}
+%   Annotations are objects but they are not in the object data lists. Here, to
+%   get the coordinates of the annotation, we need to have the data collected
+%   at the PostScript level. That requires a bit of box trickery (effectively a
+%   \LaTeXe{} |picture| of zero size). Once the data is collected, use it to
+%   set up the annotation border.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_generic:nnnn #1#2#3#4
+  {
+    \exp_args:Nf \@@_backend_generic_aux:nnnn
+      { \dim_eval:n {#1} } {#2} {#3} {#4}
+  }
+\cs_new_protected:Npn \@@_backend_generic_aux:nnnn #1#2#3#4
+  {
+    \box_move_down:nn {#3}
+      { \hbox:n { \__kernel_backend_postscript:n { pdfannot.save.ll } } }
+    \box_move_up:nn {#2}
+      {
+        \hbox:n
+          {
+            \__kernel_kern:n {#1}
+            \__kernel_backend_postscript:n { pdfannot.save.ur }
+            \__kernel_kern:n { -#1 }
+          }
+      }
+    \int_gincr:N \g_@@_backend_int
+    \__kernel_backend_postscript:e
+      {
+        mark
+        /_objdef { pdfannot \int_use:N \g_@@_backend_int }
+        pdfannot.rect
+        #4 ~
+        /ANN ~
+        pdfmark
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_backend_last:}
+%   Provide the last annotation we created: could get tricky of course if
+%   other packages are loaded.
+%    \begin{macrocode}
+\cs_new:Npn \@@_backend_last:
+  { { pdfannot \int_use:N \g_@@_backend_int } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\g_@@_backend_link_int}
+%   To track annotations which are links.
+%    \begin{macrocode}
+\int_new:N \g_@@_backend_link_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_backend_link_dict_tl}
+%   To pass information to the end-of-link function.
+%    \begin{macrocode}
+\tl_new:N \g_@@_backend_link_dict_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_backend_link_sf_int}
+%   Needed to save/restore space factor, which is needed to deal with the face
+%   we need a box.
+%    \begin{macrocode}
+\int_new:N \g_@@_backend_link_sf_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_backend_link_math_bool}
+%   Needed to save/restore math mode.
+%    \begin{macrocode}
+\bool_new:N \g_@@_backend_link_math_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\g_@@_backend_link_bool}
+%   Track link formation: we cannot nest at all.
+%    \begin{macrocode}
+\bool_new:N \g_@@_backend_link_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_backend_breaklink_pdfmark_tl}
+%   Swappable content for link breaking.
+%    \begin{macrocode}
+\tl_new:N \l_@@_backend_breaklink_pdfmark_tl
+\tl_set:Nn \l_@@_backend_breaklink_pdfmark_tl { pdfmark }
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\@@_backend_breaklink_postscript:n}
+%   To allow dropping material unless link breaking is active.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_breaklink_postscript:n #1 { }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_breaklink_usebox:N}
+%   Swappable box unpacking or use.
+%    \begin{macrocode}
+\cs_new_eq:NN \@@_backend_breaklink_usebox:N \box_use:N
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {\@@_backend_link_begin_goto:nnw, \@@_backend_link_begin_user:nnw}
+% \begin{macro}{\@@_backend_link:nw, \@@_backend_link_aux:nw}
+% \begin{macro}{\@@_backend_link_end:, \@@_backend_link_end_aux:}
+% \begin{macro}{\@@_backend_link_minima:}
+% \begin{macro}{\@@_backend_link_outerbox:n}
+% \begin{macro}{\@@_backend_link_sf_save:, \@@_backend_link_sf_restore:}
+%   Links are created like annotations but with dedicated code to allow for
+%   adjusting the size of the rectangle. In contrast to \pkg{hyperref}, we
+%   grab the link content as a box which can then unbox: this allows the same
+%   interface as for \pdfTeX{}.
+%
+%   Notice that the link setup here uses |/Action| not |/A|. That is because
+%   Distiller \emph{requires} this trigger word, rather than a \enquote{raw}
+%   PDF dictionary key (Ghostscript can handle either form).
+%
+%   Taking the idea of |evenboxes| from \pkg{hypdvips}, we implement a minimum
+%   box height and depth for link placement. This means that \enquote{underlining}
+%   with a hyperlink will generally give an even appearance. However, to ensure
+%   that the full content is always above the link border, we do not allow
+%   this to be negative (contrast \pkg{hypdvips} approach). The result should
+%   be similar to \pdfTeX{} in the vast majority of foreseeable cases.
+%
+%   The object number for a link is saved separately from the rest of the
+%   dictionary as this allows us to insert it just once, at either an
+%   unbroken link or only in the first line of a broken one. That makes the
+%   code clearer but also avoids a low-level PostScript error with the code
+%   as taken from \pkg{hypdvips}.
+%
+%   Getting the outer dimensions of the text area may be better using a two-pass
+%   approach and |\tex_savepos:D|. That plus generic mode are still to re-examine.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_link_begin_goto:nnw #1#2
+  {
+    \@@_backend_link_begin:nw
+      { #1 /Subtype /Link /Action << /S /GoTo /D ( #2 ) >> }
+  }
+\cs_new_protected:Npn \@@_backend_link_begin_user:nnw #1#2
+  { \@@_backend_link_begin:nw {#1#2} }
+\cs_new_protected:Npn \@@_backend_link_begin:nw #1
+  {
+    \bool_if:NF \g_@@_backend_link_bool
+      { \@@_backend_link_begin_aux:nw {#1} }
+  }
+%    \end{macrocode}
+%   The definition of |pdfannot.link.dict| here is needed as there is code in the
+%   PostScript headers for breaking links, and that can only work with this
+%   available.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_link_begin_aux:nw #1
+  {
+    \bool_gset_true:N \g_@@_backend_link_bool
+    \__kernel_backend_postscript:n
+      { /pdfannot.link.dict ( #1 ) def }
+    \tl_gset:Nn \g_@@_backend_link_dict_tl {#1}
+    \@@_backend_link_sf_save:
+    \mode_if_math:TF
+      { \bool_gset_true:N \g_@@_backend_link_math_bool }
+      { \bool_gset_false:N \g_@@_backend_link_math_bool }
+    \hbox_set:Nw \l_@@_backend_content_box
+      \@@_backend_link_sf_restore:
+      \bool_if:NT \g_@@_backend_link_math_bool
+        { \c_math_toggle_token }
+  }
+\cs_new_protected:Npn \@@_backend_link_end:
+  {
+    \bool_if:NT \g_@@_backend_link_bool
+      { \@@_backend_link_end_aux: }
+  }
+\cs_new_protected:Npn \@@_backend_link_end_aux:
+  {
+      \bool_if:NT \g_@@_backend_link_math_bool
+        { \c_math_toggle_token }
+      \@@_backend_link_sf_save:
+    \hbox_set_end:
+    \@@_backend_link_minima:
+    \hbox_set:Nn \l_@@_backend_model_box { Gg }
+    \exp_args:Ne \@@_backend_link_outerbox:n
+      {
+        \int_if_odd:nTF { \value { page } }
+          { \oddsidemargin }
+          { \evensidemargin }
+      }
+    \box_move_down:nn { \box_dp:N \l_@@_backend_content_box }
+      { \hbox:n { \__kernel_backend_postscript:n { pdfannot.save.linkll } } }
+    \@@_backend_breaklink_postscript:n { pdfannot.bordertracking.begin }
+    \@@_backend_breaklink_usebox:N \l_@@_backend_content_box
+    \@@_backend_breaklink_postscript:n { pdfannot.bordertracking.end }
+    \box_move_up:nn { \box_ht:N \l_@@_backend_content_box }
+      {
+        \hbox:n
+          { \__kernel_backend_postscript:n { pdfannot.save.linkur } }
+      }
+    \int_gincr:N \g_@@_backend_int
+    \int_gset_eq:NN \g_@@_backend_link_int \g_@@_backend_int
+    \__kernel_backend_postscript:e
+      {
+        mark
+        /_objdef { pdfannot \int_use:N \g_@@_backend_link_int }
+        \g_@@_backend_link_dict_tl \c_space_tl
+        pdfannot.rect
+        /ANN ~ \l_@@_backend_breaklink_pdfmark_tl
+      }
+    \@@_backend_link_sf_restore:
+    \bool_gset_false:N \g_@@_backend_link_bool
+  }
+\cs_new_protected:Npn \@@_backend_link_minima:
+  {
+    \hbox_set:Nn \l_@@_backend_model_box { Gg }
+    \__kernel_backend_postscript:e
+      {
+        /pdfannot.linkdp.pad ~
+          \dim_to_decimal:n
+            {
+              \dim_max:nn
+                {
+                    \box_dp:N \l_@@_backend_model_box
+                  - \box_dp:N \l_@@_backend_content_box
+                }
+                { 0pt }
+            } ~
+              pdfannot.pt.dvi ~ def
+        /pdfannot.linkht.pad ~
+          \dim_to_decimal:n
+            {
+              \dim_max:nn
+                {
+                    \box_ht:N \l_@@_backend_model_box
+                  - \box_ht:N \l_@@_backend_content_box
+                }
+                { 0pt }
+            } ~
+              pdfannot.pt.dvi ~ def
+      }
+  }
+\cs_new_protected:Npn \@@_backend_link_outerbox:n #1
+  {
+    \__kernel_backend_postscript:e
+      {
+        /pdfannot.outerbox
+          [
+            \dim_to_decimal:n {#1} ~
+            \dim_to_decimal:n { -\box_dp:N \l_@@_backend_model_box } ~
+            \dim_to_decimal:n { #1 + \textwidth } ~
+            \dim_to_decimal:n { \box_ht:N \l_@@_backend_model_box }
+          ]
+          [ exch { pdfannot.pt.dvi } forall ] def
+        /pdfannot.baselineskip ~
+          \dim_to_decimal:n { \tex_baselineskip:D } ~ dup ~ 0 ~ gt
+            { pdfannot.pt.dvi ~ def }
+            { pop ~ pop }
+          ifelse
+      }
+  }
+\cs_new_protected:Npn \@@_backend_link_sf_save:
+  {
+    \int_gset:Nn \g_@@_backend_link_sf_int
+      {
+        \mode_if_horizontal:TF
+          { \tex_spacefactor:D }
+          { 0 }
+      }
+  }
+\cs_new_protected:Npn \@@_backend_link_sf_restore:
+  {
+    \mode_if_horizontal:T
+      {
+        \int_compare:nNnT \g_@@_backend_link_sf_int > { 0 }
+          { \int_set:Nn \tex_spacefactor:D \g_@@_backend_link_sf_int }
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% Hooks to allow link breaking: something will be needed in format mode
+% at some stage. At present this code is disabled, pending a decision to
+% activate.
+%    \begin{macrocode}
+\use_none:nnn
+\cs_if_exist:NT \hook_gput_code:nnn
+  {
+    \hook_gput_code:nnn { build/column/after } { backend }
+      {
+        \box_if_empty:NF \l_shipout_box
+          {
+            \vbox_set:Nn \l_shipout_box
+              {
+                \__kernel_backend_postscript:n
+                  {
+                    pdfannot.globaldict /pdfannot.brokenlink.rect ~ known
+                      { pdfannot.bordertracking.continue }
+                    if
+                  }
+                \vbox_unpack_drop:N \l_shipout_box
+                \__kernel_backend_postscript:n
+                  { pdfannot.bordertracking.endpage }
+              }
+          }
+      }
+    \tl_set:Nn \l_@@_backend_breaklink_pdfmark_tl { pdfannot.pdfmark }
+    \cs_set_eq:NN \@@_backend_breaklink_postscript:n
+      \__kernel_backend_postscript:n
+    \cs_set_eq:NN \@@_backend_breaklink_usebox:N \hbox_unpack:N
+  }
+%    \end{macrocode}
+%
+% \begin{macro}{\@@_backend_link_last:}
+%   The same as annotations, but with a custom integer.
+%    \begin{macrocode}
+\cs_new:Npn \@@_backend_link_last:
+  { { pdfannot.annot \int_use:N \g_@@_backend_link_int } }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_link_margin:n}
+%   Convert to big points and pass to PostScript.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_link_margin:n #1
+  {
+    \__kernel_backend_postscript:e
+      {
+        /pdfannot.linkmargin { \dim_to_decimal:n {#1} ~ pdfannot.pt.dvi } def
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
 %    \begin{macrocode}
 %</dvips>
 %    \end{macrocode}
@@ -75,6 +437,113 @@
 %    \begin{macrocode}
 %<*luatex|pdftex>
 %    \end{macrocode}
+%
+% \begin{macro}{\@@_backend_generic:nnnn}
+%   Simply pass the raw data through, just dealing with evaluation of dimensions.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_generic:nnnn #1#2#3#4
+  {
+%<*luatex>
+    \tex_pdfextension:D annot ~
+%</luatex>
+%<*pdftex>
+    \tex_pdfannot:D
+%</pdftex>
+      width  ~ \dim_eval:n {#1} ~
+      height ~ \dim_eval:n {#2} ~
+      depth  ~ \dim_eval:n {#3} ~
+      {#4}
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_backend_last:}
+%   A tiny amount of extra data gets added here; we use \texttt{e}-type
+%   expansion to get the space in the right place and form. The \enquote{extra}
+%   space in the \LuaTeX{} version is \emph{required} as it is consumed in
+%   finding the end of the keyword.
+%    \begin{macrocode}
+\cs_new:Npe \@@_backend_last:
+  {
+    \exp_not:N \int_value:w
+%<*luatex>
+      \exp_not:N \tex_pdffeedback:D lastannot ~
+%</luatex>
+%<*pdftex>
+      \exp_not:N \tex_pdflastannot:D
+%</pdftex>
+      \c_space_tl 0 ~ R
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {\@@_backend_link_begin_goto:nnw, \@@_backend_link_begin_user:nnw}
+% \begin{macro}{\@@_backend_link_begin:nnnw}
+% \begin{macro}{\@@_backend_link_end:}
+%   Links are all created using the same internals.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_link_begin_goto:nnw #1#2
+  { \@@_backend_link_begin:nnnw {#1} { goto~name } {#2} }
+\cs_new_protected:Npn \@@_backend_link_begin_user:nnw #1#2
+  { \@@_backend_link_begin:nnnw {#1} { user } {#2} }
+\cs_new_protected:Npn \@@_backend_link_begin:nnnw #1#2#3
+  {
+%<*luatex>
+    \tex_pdfextension:D startlink ~
+%</luatex>
+%<*pdftex>
+    \tex_pdfstartlink:D
+%</pdftex>
+      attr {#1}
+      #2 {#3}
+  }
+\cs_new_protected:Npn \@@_backend_link_end:
+  {
+%<*luatex>
+    \tex_pdfextension:D endlink \scan_stop:
+%</luatex>
+%<*pdftex>
+    \tex_pdfendlink:D
+%</pdftex>
+  }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_link_last:}
+%   Formatted for direct use.
+%    \begin{macrocode}
+\cs_new:Npe \@@_backend_link_last:
+  {
+    \exp_not:N \int_value:w
+%<*luatex>
+      \exp_not:N \tex_pdffeedback:D lastlink ~
+%</luatex>
+%<*pdftex>
+      \exp_not:N \tex_pdflastlink:D
+%</pdftex>
+      \c_space_tl 0 ~ R
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_link_margin:n}
+%   A simple task: pass the data to the primitive.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_link_margin:n #1
+  {
+%<*luatex>
+    \tex_pdfvariable:D linkmargin
+%</luatex>
+%<*pdftex>
+    \tex_pdflinkmargin:D
+%</pdftex>
+      \dim_eval:n {#1} \scan_stop:
+  }
+%    \end{macrocode}
+% \end{macro}
 %
 %    \begin{macrocode}
 %</luatex|pdftex>
@@ -86,6 +555,108 @@
 %<*dvipdfmx|xetex>
 %    \end{macrocode}
 %
+% \begin{macro}{\@@_backend:n, \@@_backend:e}
+%   A generic function for the backend PDF specials
+%    \begin{macrocode}
+\cs_new_protected:Npe \@@_backend:n #1
+  { \__kernel_backend_literal:n { pdf: #1 } }
+\cs_generate_variant:Nn \@@_backend:n { e }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\g_@@_backend_int}
+%   Annotations are objects: but made with a separate tracker integer.
+%    \begin{macrocode}
+\int_new:N \g_@@_backend_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\@@_backend_generic:nnnn}
+%   Simply pass the raw data through, just dealing with evaluation of dimensions.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_generic:nnnn #1#2#3#4
+  {
+    \int_gincr:N \g_@@_backend_int
+    \@@_backend:e
+      {
+        ann ~ @pdfannot \int_use:N \g_@@_backend_int \c_space_tl
+        width  ~ \dim_eval:n {#1} ~
+        height ~ \dim_eval:n {#2} ~
+        depth  ~ \dim_eval:n {#3} ~
+        << /Type /Annot #4 >>
+      }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_last:}
+%    \begin{macrocode}
+\cs_new:Npn \@@_backend_last:
+  { @pdfannot \int_use:N \g_@@_backend_int }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\g_@@_backend_link_int}
+%   To track annotations which are links.
+%    \begin{macrocode}
+\int_new:N \g_@@_backend_link_int
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}
+%   {\@@_backend_link_begin_goto:nnw, \@@_backend_link_begin_user:nnw}
+% \begin{macro}{\@@_backend_link_begin:n}
+% \begin{macro}{\@@_backend_link_end:}
+%   All created using the same internals.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_link_begin_goto:nnw #1#2
+  {
+    \@@_backend_link_begin:n
+      { #1 /Subtype /Link /A << /S /GoTo /D ( #2 ) >> }
+  }
+\cs_new_protected:Npn \@@_backend_link_begin_user:nnw #1#2
+  { \@@_backend_link_begin:n {#1#2} }
+\cs_new_protected:Npe \@@_backend_link_begin:n #1
+  {
+    \int_gincr:N \exp_not:N \g_@@_backend_int
+    \int_gset_eq:NN \exp_not:N \g_@@_backend_link_int
+      \exp_not:N \g_@@_backend_int
+    \@@_backend:e
+      {
+        bann ~
+        @pdfannot
+        \exp_not:N \int_use:N \exp_not:N \g_@@_backend_link_int
+        \c_space_tl
+        <<
+          /Type /Annot
+          #1
+        >>
+      }
+  }
+\cs_new_protected:Npn \@@_backend_link_end:
+  { \@@_backend:n { eann } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_link_last:}
+%   Available using the backend mechanism with a suitably-recent
+%   version.
+%    \begin{macrocode}
+\cs_new:Npn \@@_backend_link_last:
+  { @pdfannot \int_use:N \g_@@_backend_link_int }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_link_margin:n}
+%   Pass to \texttt{dvipdfmx}.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_link_margin:n #1
+  { \__kernel_backend_literal:e { dvipdfmx:config~g~ \dim_eval:n {#1} } }
+%    \end{macrocode}
+% \end{macro}
+%
 %    \begin{macrocode}
 %</dvipdfmx|xetex>
 %    \end{macrocode}
@@ -96,8 +667,71 @@
 %<*dvisvgm>
 %    \end{macrocode}
 %
+% \begin{macro}{\@@_backend_generic:nnnn}
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_generic:nnnn #1#2#3#4 { }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}[EXP]{\@@_backend_last:}
+%    \begin{macrocode}
+\cs_new:Npn \@@_backend_last: { }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}
+%   {\@@_backend_link_begin_goto:nnw, \@@_backend_link_begin_user:nnw}
+% \begin{macro}{\@@_backend_link_begin:nnnw}
+% \begin{macro}{\@@_backend_link_end:}
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_link_begin_goto:nnw #1#2 { }
+\cs_new_protected:Npn \@@_backend_link_begin_user:nnw #1#2 { }
+\cs_new_protected:Npn \@@_backend_link_begin:nnnw #1#2#3 { }
+\cs_new_protected:Npn \@@_backend_link_end: { }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_link_last:}
+%    \begin{macrocode}
+\cs_new:Npe \@@_backend_link_last: { }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_backend_link_margin:n}
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_backend_link_margin:n #1 { }
+%    \end{macrocode}
+% \end{macro}
+%
 %    \begin{macrocode}
 %</dvisvgm>
+%    \end{macrocode}
+%
+% \subsection{Transitional code}
+%
+% This block is temporary: we have moved the backend functions here to a
+% dedicated prefix. To facilitate that, we turn off DocStrip substitution
+% and handle things manually.
+%
+%    \begin{macrocode}
+%<@@=>
+%    \end{macrocode}
+%
+%    \begin{macrocode}
+\cs_new_eq:NN \__pdf_backend_annotation:nnnn \__pdfannot_backend_generic:nnnn
+\cs_new_eq:NN \__pdf_backend_annotation_last: \__pdfannot_backend_last:
+\clist_map_inline:nn
+  {
+    begin_goto:nnw ,
+    begin_user:nnw ,
+    begin:nnnw     ,
+    end:           ,
+    last:          ,
+    margin:n
+  }
+  { \cs_new_eq:cc { __pdf_backend_link_ #1 } { __pdfannot_backend_link_ #1 } }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
