@@ -26,49 +26,15 @@ if main_branch then
   tdslocations = {"dvips/l3backend/*.pro"}
 end
 
--- Detail how to set the version automatically
-function update_tag(file,content,tagname,tagdate)
+-- Extra operations in setting the version 
+function update_tag_extra(file,content,tagname,tagdate)
   local iso = "%d%d%d%d%-%d%d%-%d%d"
-  local url = "https://github.com/latex3/latex3/compare/"
-  if string.match(content,"%(C%)%s*[%d%-,]+ The LaTeX Project") then
-    local year = os.date("%Y")
-    content = string.gsub(content,
-      "%(C%)%s*([%d%-,]+) The LaTeX Project",
-      "(C) %1," .. year .. " The LaTeX Project")
-    content = string.gsub(content,year .. "," .. year,year)
-    content = string.gsub(content,
-      "%-" .. math.tointeger(year - 1) .. "," .. year,
-      "-" .. year)
-    content = string.gsub(content,
-      math.tointeger(year - 2) .. "," .. math.tointeger(year - 1) .. "," .. year,
-      math.tointeger(year - 2).. "-" .. year)
-  end
   if string.match(file,"l3backend%-basics%.dtx$") then
     content = string.gsub(content,
       "\n  ({l3backend%-%w+%.def}){" .. iso .. "}",
       "\n  %1{" .. tagname .. "}")
   end
-  if string.match(file,"%.dtx$") or string.match(file,"%.tex$") then
-    return string.gsub(content,
-      "\n(%%*%s*)\\date{Released " .. iso .. "}\n",
-      "\n%1\\date{Released " .. tagname .. "}\n")
-  elseif string.match(file, "%.md$") then
-    if string.match(file,"CHANGELOG.md") then
-      local previous = string.match(content,"compare/(" .. iso .. ")%.%.%.HEAD")
-      if tagname == previous then return content end
-      content = string.gsub(content,
-        "## %[Unreleased%]",
-        "## [Unreleased]\n\n## [" .. tagname .."]")
-      return string.gsub(content,
-        iso .. "%.%.%.HEAD",
-        tagname .. "...HEAD\n[" .. tagname .. "]: " .. url .. previous
-          .. "..." .. tagname)
-    end
-    return string.gsub(content,
-      "\nRelease " .. iso .. "\n",
-      "\nRelease " .. tagname .. "\n")
-  end
-  return content
+  return(content)
 end
 
 uploadconfig = {
