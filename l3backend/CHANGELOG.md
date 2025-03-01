@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Move PDF annotation functions to `pdfannot` module
+
 ## [2024-05-08]
 
 ### Changed
