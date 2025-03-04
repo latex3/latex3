@@ -17,6 +17,10 @@ this project uses date-based 'snapshot' version identifiers.
   - `\tl_trim_right_spaces:n`, `\tl_trim_right_spaces_apply:nN`,
     `\tl_(g)trim_right_spaces:N`
 
+### Changed
+- `\fp_set_function:nnn` and `\fp_set_variable:nn` now raise errors on
+  undefined (fp) identifiers (issue \#1700)
+
 ### Fixed
 - Avoid low-level error if keys are given without a module (issue \#1254)
 
