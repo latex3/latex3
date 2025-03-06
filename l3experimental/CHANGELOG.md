@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Adjust `l3galley` version of `\clearpage` based on new insight into
+  need for some lines in LaTeX2e version (see issue \#431)
+
 ## [2024-03-14]
 
 ### Added
