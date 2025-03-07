@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\draw_hidden_(begin|end):`
+
 ### Changed
 - Adjust `l3galley` version of `\clearpage` based on new insight into
   need for some lines in LaTeX2e version (see issue \#431)
