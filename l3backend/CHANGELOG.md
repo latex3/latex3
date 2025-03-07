@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- support for canvas shifts
+
 ### Changed
 - Move PDF annotation functions to `pdfannot` module
 
