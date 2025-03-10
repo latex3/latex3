@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-03-10]
+
 ### Added
 - `\draw_hidden_(begin|end):`
 
@@ -334,7 +336,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-03-14...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-03-10...HEAD
+[2025-03-10]: https://github.com/latex3/latex3/compare/2024-03-14...2025-03-10
 [2024-03-14]: https://github.com/latex3/latex3/compare/2024-02-20...2024-03-14
 [2024-02-20]: https://github.com/latex3/latex3/compare/2024-01-04...2024-02-20
 [2024-01-04]: https://github.com/latex3/latex3/compare/2023-12-08...2024-01-04
