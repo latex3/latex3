@@ -81,39 +81,17 @@ there are ways to control or change its behaviour. The xgalley module
 provides a mechanism for filling galleys and controlling the spacing,
 hyphenation and justification within them.
 
-Discussion
-----------
-
-Discussion concerning the approach, suggestions for improvements,
-changes, additions, _etc._ should be addressed to the list
-[LaTeX-L](https://listserv.uni-heidelberg.de/cgi-bin/wa?A0=LATEX-L).
-
-You can subscribe to this list by sending mail to
-
-    listserv@urz.uni-heidelberg.de
-
-with the body containing
-
-    subscribe LATEX-L  <Your-First-Name> <Your-Second-Name>
-
 Issues
 ------
 
 The issue tracker for LaTeX3 is currently located
 [on GitHub](https://github.com/latex3/latex3/issues).
 
-Please report specific issues with LaTeX3 code there; more general
-discussion should be directed to the [LaTeX-L list](#Discussion).
-
 The LaTeX Project
 ------------------
 
 Development of LaTeX3 is carried out by
 [The LaTeX Project](https://www.latex-project.org/latex3/).
-
-The development team can be contacted
-by e-mail: <latex-team@latex-project.org>; for general LaTeX3 discussion
-the [LaTeX-L list](#Discussion) should be used.
 
 -----
 
