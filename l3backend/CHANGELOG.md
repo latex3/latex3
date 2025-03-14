@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Correct naming of PostScript functions in PDF area
+
 ## [2025-03-10]
 
 ### Added
