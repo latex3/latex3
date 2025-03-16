@@ -23,7 +23,6 @@ Currently included in the CTAN release of l3experimental are the following
 bundles:
 * `l3benchmark`
 * `l3draw`
-* `l3opacity`
 * `l3str`
 * `xcoffins`
 * `xgalley`
@@ -39,11 +38,6 @@ This module provides support for benchmarking the performance of code.
 This module provides a code-level interface for constructing drawings. The
 interfaces are heavily inspired by the `pgf` layer of the widely-used
 TikZ system.
-
-`l3opacity`
--------
-
-This module provides support for opacity in PDF output.
 
 `l3str`
 -------
