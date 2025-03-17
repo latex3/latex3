@@ -21,16 +21,10 @@ is updated at the same time.
 
 Currently included in the CTAN release of l3experimental are the following
 bundles:
-* `l3benchmark`
 * `l3draw`
 * `l3str`
 * `xcoffins`
 * `xgalley`
-
-`l3benchmark`
--------------
-
-This module provides support for benchmarking the performance of code.
 
 `l3draw`
 --------

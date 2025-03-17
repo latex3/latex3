@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Removed
+- `l3benchmark` package: integrated into `l3kernel`
 - `l3opacity` package: integrated into `l3kernel`
 
 ## [2025-03-26]
