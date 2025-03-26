@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-03-26]
+
 ### Added
 - Module `l3graphics`, moved from `l3experimental` to stable status
 
@@ -1871,7 +1873,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-03-10...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-03-26...HEAD
+[2025-03-26]: https://github.com/latex3/latex3/compare/2025-03-10...2025-03-26
 [2025-03-10]: https://github.com/latex3/latex3/compare/2025-01-18...2025-03-10
 [2025-01-18]: https://github.com/latex3/latex3/compare/2025-01-14...2025-01-18
 [2025-01-14]: https://github.com/latex3/latex3/compare/2024-12-25...2025-01-14
