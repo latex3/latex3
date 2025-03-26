@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Module `l3graphics`, moved from `l3experimental` to stable status
+
 ### Fixed
 - Correct scope for `\prg_gset_conditional:Nnn`
 
@@ -21,7 +24,6 @@ this project uses date-based 'snapshot' version identifiers.
     `\tl_(g)trim_left_spaces:N`
   - `\tl_trim_right_spaces:n`, `\tl_trim_right_spaces_apply:nN`,
     `\tl_(g)trim_right_spaces:N`
-- Module `l3graphics`, moved from `l3experimental` to stable status
 
 ### Changed
 - `\fp_set_function:nnn` and `\fp_set_variable:nn` now raise errors on
