@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\g_draw_bb_xmin_dim`, `\g_draw_bb_ymin_dim`, `\g_draw_bb_xmax_dim`,
   `\g_draw_bb_ymax_dim`
+- `\g_draw_id_int`
 
 ### Removed
 - `l3graphics` package: integrated into `l3kernel`
