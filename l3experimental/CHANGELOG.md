@@ -9,6 +9,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [2025-03-26]
 
+### Added
+- `\g_draw_bb_xmin_dim`, `\g_draw_bb_ymin_dim`, `\g_draw_bb_xmax_dim`,
+  `\g_draw_bb_ymax_dim`
+
 ### Removed
 - `l3graphics` package: integrated into `l3kernel`
 
