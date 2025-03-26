@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Correct scope for `\prg_gset_conditional:Nnn`
+
 ## [2025-03-10]
 
 ### Added
