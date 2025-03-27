@@ -54,6 +54,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\int_step_tokens:nn`, `\int_step_tokens:nnn`, and `\int_step_tokens:nnnn`
 
+### Deprecated
+- `\sys_if_timer_exist:(TF)`
+
 ### Fixed
 - Check conditionals are defined when creating variants (see \#1189)
 
