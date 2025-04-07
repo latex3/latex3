@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\v(box|top)_(g)set_to_wd:Nnn`
 - Module `l3benchmark`, moved from `l3experimental` to stable status
 - Module `l3opacity`, moved from `l3experimental` to stable status
 
