@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Filter out `\bgroup`/`\egroup` in `\text_purify:n`
+- Inherit keys recursively (issue \#1720)
 
 ## [2025-03-26]
 
