@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- End-of-opacity behavior with `dvips`
+
 ## [2025-03-14]
 
 ### Fixed
