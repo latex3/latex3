@@ -6,6 +6,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-04-14]
+
 ### Fixed
 - End-of-opacity behavior with `dvips`
 
@@ -371,7 +373,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-03-14...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-04-14...HEAD
+[2025-04-14]: https://github.com/latex3/latex3/compare/2025-03-14...2025-04-14
 [2025-03-14]: https://github.com/latex3/latex3/compare/2025-03-10...2025-03-14
 [2025-03-10]: https://github.com/latex3/latex3/compare/2024-05-08...2025-03-10
 [2024-05-08]: https://github.com/latex3/latex3/compare/2024-04-11...2024-05-08
