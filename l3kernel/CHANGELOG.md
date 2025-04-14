@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-04-14]
+
 ### Added
 - Module `l3benchmark`, moved from `l3experimental` to stable status
 - Module `l3opacity`, moved from `l3experimental` to stable status
@@ -1884,7 +1886,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-03-26...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-04-14...HEAD
+[2025-04-14]: https://github.com/latex3/latex3/compare/2025-03-26...2025-04-14
 [2025-03-26]: https://github.com/latex3/latex3/compare/2025-03-10...2025-03-26
 [2025-03-10]: https://github.com/latex3/latex3/compare/2025-01-18...2025-03-10
 [2025-01-18]: https://github.com/latex3/latex3/compare/2025-01-14...2025-01-18
