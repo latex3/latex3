@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Support for LuaMetaTeX in generic mode (issue \#1702)
+
 ## [2025-04-14]
 
 ### Added

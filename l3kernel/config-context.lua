@@ -1,5 +1,5 @@
-stdengine = "luatex"
-checkengines = {"luatex"}
+stdengine = "luametatex"
+checkengines = {"luametatex", "luatex"}
 checkformat = "context"
 testfiledir = "testfiles-context"
 function checkinit_hook()
