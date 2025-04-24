@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- User-defined fp functions now check the number of arguments they
+  receive (issue \#1639)
+
 ### Fixed
 - Support for LuaMetaTeX in generic mode (issue \#1702)
 
