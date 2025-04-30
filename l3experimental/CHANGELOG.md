@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Removed
+- `\draw_hidden_(begin|end):`
+
 ## [2025-04-14]
 
 ### Removed
