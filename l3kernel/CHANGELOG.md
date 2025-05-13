@@ -7,11 +7,13 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Preserve `intarray` variables across multiple dumps (issue \#1597)
+
 ## [2025-04-29]
 
 ### Fixed
 - Support for LuaMetaTeX in generic mode (issue \#1702)
-- Correctly keep `intarray` variables across multiple dumps (issue \#1597)
 
 ## [2025-04-14]
 
