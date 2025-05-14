@@ -12,6 +12,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 - Interaction of `.initial:n` and `.inherit:n` key properties (issue \#1738)
+- Multi-level key inheritance with explicit keys at intermediate levels
+  (issue \#1739)
 
 ## [2025-04-29]
 
