@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Preserve `intarray` variables across multiple dumps (issue \#1597)
 
+### Fixed
+- Interaction of `.initial:n` and `.inherit:n` key properties (issue \#1738)
+
 ## [2025-04-29]
 
 ### Fixed
