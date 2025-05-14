@@ -9,13 +9,14 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\token_if_control_symbol:N(TF)` and `\token_if_control_word:N(TF)`
-- `\regex_if_match:(N|n)n` to replace `\regex_match:(N|n)n`
+- `\regex_if_match:(N|n)n(TF)` to replace `\regex_match:(N|n)n(TF)`
+
 ### Changed
 - Preserve `intarray` variables across multiple dumps (issue \#1597)
 - Adjust`\tl_(g)set_rescan:Nnn` to support LuaMetaTeX
 
 ### Deprecated
-- `\regex_match:(N|n)n`
+- `\regex_match:(N|n)n(TF)`
 
 ### Fixed
 - Interaction of `.initial:n` and `.inherit:n` key properties (issue \#1738)
