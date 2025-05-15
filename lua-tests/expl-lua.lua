@@ -40,7 +40,7 @@ local token_set_char      = token.set_char
 local token_set_lua       = token.set_lua
 local unpack              = table.unpack
 local utf_codepoints      = utf8.codes
-local write_tokens        = token.fast_put_next or token.put_next
+local write_tokens        = token.unchecked_put_next or token.put_next
 
 
 ------------------------
