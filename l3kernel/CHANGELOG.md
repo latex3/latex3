@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Preserve `intarray` variables across multiple dumps (issue \#1597)
+- Adjust`\tl_(g)set_rescan:Nnn` to support LuaMetaTeX
 
 ### Fixed
 - Interaction of `.initial:n` and `.inherit:n` key properties (issue \#1738)
