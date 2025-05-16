@@ -9,7 +9,6 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Preserve `intarray` variables across multiple dumps (issue \#1597)
-- Allow for replacement of `\scantokens` by `\scantextokens` in LuaMetaTeX
 
 ### Fixed
 - Interaction of `.initial:n` and `.inherit:n` key properties (issue \#1738)
