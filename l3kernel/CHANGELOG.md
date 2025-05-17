@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\token_if_control_symbol:N(TF)` and `\token_if_control_word:N(TF)`
+
 ### Changed
 - Preserve `intarray` variables across multiple dumps (issue \#1597)
 - Adjust`\tl_(g)set_rescan:Nnn` to support LuaMetaTeX
