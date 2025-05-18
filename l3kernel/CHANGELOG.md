@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- Support for the Oklab and Oklch color models
 - `\token_if_control_symbol:N(TF)` and `\token_if_control_word:N(TF)`
 - `\regex_if_match:(N|n)n(TF)` to replace `\regex_match:(N|n)n(TF)`
 
