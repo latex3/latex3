@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Print `added`/`updated` info only after 2020-02-02
+
 ## [2025-05-19]
 
 ### Added
