@@ -275,7 +275,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Default precision in `\fp_format:nn` when no style is specified
 
 ### Fixed
-- Corrected behaviour of catcode tables (see #610)
+- Corrected behavior of catcode tables (see #610)
 
 ## [2019-07-01]
 

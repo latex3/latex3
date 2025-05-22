@@ -58,7 +58,7 @@ text and other material filling it from top. The vertically extend of
 a galley is normally not restricted: instead certain chunks are taken
 off the top of an already partially filled galley to form columns or
 similar areas on a page. This process is typically asynchronous but
-there are ways to control or change its behaviour. The xgalley module
+there are ways to control or change its behavior. The xgalley module
 provides a mechanism for filling galleys and controlling the spacing,
 hyphenation and justification within them.
 
