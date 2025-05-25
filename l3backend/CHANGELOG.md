@@ -218,7 +218,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Define `\main@pdfcolorstack` for `(x)dvipdfmx` if it does not exist
 
 ### Fixed
-- Initialisation of color stacks for `(x)dvipdfmx`
+- Initialization of color stacks for `(x)dvipdfmx`
 
 ## [2021-02-18]
 
