@@ -110,7 +110,7 @@ local function fmt(engines,dest)
     -- Use .ini files if available
     local src = "latex.ltx"
     local ini = string.gsub(engine,"tex","") .. "latex.ini"
-    if fileexists(supportdir .. "/" .. ini) then
+    if fileexists(texmfdir .. "/tex/latex/tex-ini-files/" .. ini) then
       src = ini
     end
     print("Building format for " .. engine)
