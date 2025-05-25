@@ -7,6 +7,12 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- `\sys_finalize:`
+
+### Deprecated
+- `\sys_finalise:` in favor of `\sys_finalize:`
+
 ### Changed
 - Print `added`/`updated` info only after 2020-02-02
 
