@@ -1104,7 +1104,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\keyval_parse:NNn` is set equal to `\keyval_parse:nnn`
 
 ### Fixed
-- Handling of encoding-specfic commands in `\text_purify:n`
+- Handling of encoding-specific commands in `\text_purify:n`
 
 ## [2020-12-07]
 
