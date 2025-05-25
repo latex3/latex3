@@ -213,7 +213,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2020-08-07]
 
 ### Changed
-- Move drawing color functions to `l3color`, generalising the approach
+- Move drawing color functions to `l3color`, generalizing the approach
   with better `dvips` support (viz. `\draw_color:n` becomes `\color_select:n`,
   `\draw_color_[fill|stroke]:n` become `\color_[fill|stroke]:n`)
 
