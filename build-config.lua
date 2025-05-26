@@ -26,12 +26,8 @@ specialformats.latex =
 tagfiles = tagfiles or {"*.dtx", "README.md", "CHANGELOG.md", "*.ins"}
 unpacksuppfiles = unpacksuppfiles or
   {
-    "*.ini",
     "docstrip.tex",
     "hyphen.cfg",
-    "lualatexquotejobname.lua",
-    "luatexconfig.tex",
-    "pdftexconfig.tex",
     "texsys.cfg",
     "UShyphen.tex"
   }
