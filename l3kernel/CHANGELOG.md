@@ -7,14 +7,19 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-05-26]
+
 ### Added
 - `\sys_finalize:`
+
+### Changed
+- Print `added`/`updated` info only after 2020-02-02
 
 ### Deprecated
 - `\sys_finalise:` in favor of `\sys_finalize:`
 
-### Changed
-- Print `added`/`updated` info only after 2020-02-02
+### Fixed
+- Expansion of `\file_input_raw:n` with engines other than LuaTeX
 
 ## [2025-05-19]
 
@@ -343,7 +348,7 @@ this project uses date-based 'snapshot' version identifiers.
   and `\str_(g)put_right:Nn`
 
 ### Fixed
-- Normalisation of `.inherit:n` key data (issue \#1314)
+- Normalization of `.inherit:n` key data (issue \#1314)
 
 ## [2023-11-01]
 
@@ -384,7 +389,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Deprecated
 - `\text_titlecase:n(n)` as ambiguous: replaced by `\text_titlecase_all:n(n)`
-- `\tl_build_(g)clear:N` in favour of `\tl_build_(g)begin:N`
+- `\tl_build_(g)clear:N` in favor of `\tl_build_(g)begin:N`
 
 ### Fixed
 - Support arbitrary BCP-47 locales for case-changing overrides (issue \#1239)
@@ -784,7 +789,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 - `\text_declare_case_equivalent:Nn`, `\text_case_switch:nnnn` and
-  related mechanism to allow specialisation of case changing output
+  related mechanism to allow specialization of case changing output
   for selected commands
 
 ## [2022-07-01]
@@ -1861,7 +1866,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Deprecate named integer constants `\c_zero`. etc.
 - Move all primitives to `\tex_...:D namespace`,
   deprecating older engine-dependent prefixes
-- Several internal optimisations
+- Several internal optimizations
 
 ### Fixed
 - Expand boolean expression before calling `\chardef` (issue \#461)
@@ -1920,7 +1925,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-05-19...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-05-26...HEAD
+[2025-05-26]: https://github.com/latex3/latex3/compare/2025-05-19...2025-05-26
 [2025-05-19]: https://github.com/latex3/latex3/compare/2025-04-29...2025-05-19
 [2025-04-29]: https://github.com/latex3/latex3/compare/2025-04-14...2025-04-29
 [2025-04-14]: https://github.com/latex3/latex3/compare/2025-03-26...2025-04-14
