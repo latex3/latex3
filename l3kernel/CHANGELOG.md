@@ -7,11 +7,14 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-## [2025-05-26]
-
 ### Added
 - `\keys`, `\keysarg` typeset the keys list and emphasize the default key
 - `\bTF`, `\bTFarg` typesets the Boolean options and emphasize the default option
+
+## [2025-05-26]
+
+### Added
+- `\sys_finalize:`
 
 ### Changed
 - Print `added`/`updated` info only after 2020-02-02
