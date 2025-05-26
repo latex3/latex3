@@ -16,6 +16,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Print `added`/`updated` info only after 2020-02-02
 
+### Fixed
+- Expansion of `\file_input_raw:n` with engines other than LuaTeX
+
 ## [2025-05-19]
 
 ### Added
