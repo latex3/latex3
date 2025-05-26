@@ -10,11 +10,11 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - `\sys_finalize:`
 
-### Deprecated
-- `\sys_finalise:` in favor of `\sys_finalize:`
-
 ### Changed
 - Print `added`/`updated` info only after 2020-02-02
+
+### Deprecated
+- `\sys_finalise:` in favor of `\sys_finalize:`
 
 ### Fixed
 - Expansion of `\file_input_raw:n` with engines other than LuaTeX
