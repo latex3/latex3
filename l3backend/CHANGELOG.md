@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Set PDF 1.7 as standard value for `(x)dvipdfmx`
+
 ## [2025-04-14]
 
 ### Fixed
