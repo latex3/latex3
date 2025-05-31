@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Update PDF minor version to 7 with `dvipdfmx`
+
 ## [2025-04-14]
 
 ### Fixed
