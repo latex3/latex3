@@ -13,7 +13,7 @@
 -- (but please observe conditions on bug reports sent to that address!)
 -- 
 -- 
--- Copyright (C) 2015-2024
+-- Copyright (C) 2015-2025
 -- The LaTeX Project and any individual authors listed elsewhere
 -- in this file.
 -- 
@@ -64,7 +64,7 @@ local function provides_module(info)
   luatexbase_log(
     "Lua module: " .. info.name
       .. spaced(info.date)
-      .. spaced(info.version)
+      .. spaced(info.version and string_gsub(info.version or "","^(%d)","v%1"))
       .. spaced(info.description)
   )
   modules[info.name] = info
@@ -301,7 +301,7 @@ local callbacklist = setmetatable({}, {
           end
           list[i] = current.value
         else
-          -- Cycle occured. TODO: Show cycle for debugging
+          -- Cycle occurred. TODO: Show cycle for debugging
           -- list[i] = ...
           local remaining = {}
           for name, entry in next, meta do
@@ -335,7 +335,7 @@ local callbacklist = setmetatable({}, {
           for i=2, length//2 do
             cycle[i], cycle[length + 1 - i] = cycle[length + 1 - i], cycle[i]
           end
-          error('Cycle occured at ' .. table.concat(cycle, ' -> ', 1, length))
+          error('Cycle occurred at ' .. table.concat(cycle, ' -> ', 1, length))
         end
       end
     end
