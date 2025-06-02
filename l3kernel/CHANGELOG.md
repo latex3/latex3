@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Implementation of `\iow_show:n`
+
 ## [2025-05-26]
 
 ### Added
