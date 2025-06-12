@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Removed
+- `l3str-format` package: integrated into `l3kernel`
+
 ## [2025-05-26]
 
 ### Removed

@@ -22,7 +22,6 @@ is updated at the same time.
 Currently included in the CTAN release of l3experimental are the following
 bundles:
 * `l3draw`
-* `l3str`
 * `xcoffins`
 * `xgalley`
 
@@ -33,13 +32,6 @@ This module provides a code-level interface for constructing drawings. The
 interfaces are heavily inspired by the `pgf` layer of the widely-used
 TikZ system.
 
-`l3str`
--------
-
-A 'string' in TeX terms is a token list in which all of the tokens have
-category code 12 ('other'), with the exception of spaces which have the
-category code 10 ('space'). The `l3str-format` module provides methods
-for formatting such strings.
 
 `xcoffins`
 ----------
