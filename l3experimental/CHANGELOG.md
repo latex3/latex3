@@ -155,7 +155,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2021-08-04]
 
 ### Added
-- `\draw_set_baseline:n`
+- `\draw_baseline:n`
 - `\draw_point:n`
 
 ## [2021-07-12]
