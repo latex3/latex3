@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Add `set` into function names for adjusting drawing state, e.g.
+  `\draw_set_linewidth:n` replacing `\draw_linewidth:n`
+
 ### Removed
 - `l3str-format` package: integrated into `l3kernel`
 
