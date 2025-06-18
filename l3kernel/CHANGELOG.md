@@ -39,7 +39,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Preserve `intarray` variables across multiple dumps (issue \#1597)
-- Adjust`\tl_(g)set_rescan:Nnn` to support LuaMetaTeX
+- Adjust `\tl_(g)set_rescan:Nnn` to support LuaMetaTeX
 
 ### Deprecated
 - `\regex_match:(N|n)n(TF)`
