@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\tl_rescan_dynamic:n`
 - Module `l3str-format`, moved from `l3experimental` to stable status
 
 ## [2025-06-09]
