@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\text_map_tokens:nn` and `\text_words_map_tokens:nn`
 - Module `l3str-format`, moved from `l3experimental` to stable status
 
 ## [2025-06-09]
