@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+- `\text_declare_(lower|title|upper)case_exclusion:n`
 - `\text_map_tokens:nn` and `\text_words_map_tokens:nn`
 - Module `l3str-format`, moved from `l3experimental` to stable status
 
