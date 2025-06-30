@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-06-30]
+
 ### Added
 - `\text_declare_(lower|title|upper)case_exclusion:n`
 - `\text_map_tokens:nn` and `\text_words_map_tokens:nn`
@@ -1935,7 +1937,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-06-09...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-06-30...HEAD
+[2025-06-30]: https://github.com/latex3/latex3/compare/2025-06-09...2025-06-30
 [2025-06-09]: https://github.com/latex3/latex3/compare/2025-05-26...2025-06-09
 [2025-05-26]: https://github.com/latex3/latex3/compare/2025-05-19...2025-05-26
 [2025-05-19]: https://github.com/latex3/latex3/compare/2025-04-29...2025-05-19
