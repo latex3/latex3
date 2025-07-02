@@ -106,7 +106,7 @@
 %     }
 % \end{verbatim}
 %
-% Key names may contain any tokens, as they are handled internally
+% Key names may contain any tokens except |:|, as they are handled internally
 % using \cs{tl_to_str:n}. As discussed in
 % section~\ref{sec:l3keys:subdivision}, it is suggested that the character
 % |/| is reserved for sub-division of keys into different subsets.
@@ -773,6 +773,23 @@
 %   empty if no value was given. This is stored in \cs{l_keys_value_tl}, and
 %   is not processed in any way by \cs{keys_set:nn}.
 % \end{variable}
+%
+% \subsection{Expanding the values of keys}
+%
+% To allow the user to apply value expansion at point-of-use, key names can be
+% followed by an expansion specifier. This is given by appending |:| and a
+% single letter specifier to the key name. The latter are the normal argument
+% specifiers for \pkg{expl3}, thus may be one of \texttt{n} (redundant but
+% supported), \texttt{o}, \texttt{V}, \texttt{v} or \texttt{e}. Thus for example
+% \begin{verbatim}
+%   \tl_set:Nn \l_mymodule_value_tl
+%   \keys_set:nn { mymodule } { key = value }
+%   \keys_set:nn { mymodule } { key : o = \l_mymodule_value_tl }
+%   \keys_set:nn { mymodule } { key : V = \l_mymodule_value_tl }
+%   \keys_set:nn { mymodule } { key : v = { l_mymodule_value_tl } }
+%   \keys_set:nn { mymodule } { key : e = \exp_not:V \l_mymodule_value_tl }
+% \end{verbatim}
+% all pass \texttt{value} to the key handler.
 %
 % \section{Handling of unknown keys}
 % \label{sec:l3keys:unknown}
@@ -1603,6 +1620,13 @@
 %    \begin{macrocode}
 \int_new:N \l_keys_choice_int
 \tl_new:N \l_keys_choice_tl
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{variable}{\l_@@_exp_str}
+%   The expansion postfix of a key name.
+%    \begin{macrocode}
+\str_new:N \l_@@_exp_str
 %    \end{macrocode}
 % \end{variable}
 %
@@ -3104,7 +3128,8 @@
 %     \@@_find_key_module_auxi:Nw   ,
 %     \@@_find_key_module_auxii:Nw  ,
 %     \@@_find_key_module_auxiii:Nn ,
-%     \@@_find_key_module_auxiv:Nw
+%     \@@_find_key_module_auxiv:NNw ,
+%     \@@_find_key_module_auxiv:NNw
 %   }
 % \begin{macro}{\@@_set_selective:}
 %   A shared system once again. First, set the current path and add a
@@ -3141,6 +3166,12 @@
     \str_clear:N \l_@@_inherit_str
     \exp_after:wN \@@_find_key_module:wNN \l_keys_path_str \s_@@_stop
       \l_@@_module_str \l_keys_key_str
+    \str_set:Ne \l_keys_path_str
+      {
+        \l_@@_module_str 
+        \str_if_empty:NF \l_@@_module_str { / }
+        \l_keys_key_str
+      }
     \tl_set_eq:NN \l_keys_key_tl \l_keys_key_str
     \@@_value_or_default:n {#3}
     \bool_if:NTF \l_@@_selective_bool
@@ -3152,9 +3183,10 @@
 %    \end{macrocode}
 %   This function uses \cs{cs_set_nopar:Npe} internally for performance reasons,
 %   the argument |#1| is already a string in every usage, so turning it into a
-%   string again seems unnecessary.
+%   string again seems unnecessary. The expansion part of a key is always stored
+%   in the same place, so that is not passed along.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_find_key_module:wNN #1 \s_@@_stop #2 #3
+\cs_new_protected:Npn \@@_find_key_module:wNN #1 \s_@@_stop #2#3
   {
     \@@_find_key_module_auxi:Nw #2 #1 \s_@@_nil \@@_find_key_module_auxii:Nw
       / \s_@@_nil \@@_find_key_module_auxiv:Nw #3
@@ -3174,11 +3206,21 @@
     \cs_set_nopar:Npe #1 { \tl_if_empty:NF #1 { #1 / } #2 }
     \@@_find_key_module_auxi:Nw #1
   }
-\cs_new_protected:Npn \@@_find_key_module_auxiv:Nw
+\cs_new_protected:Npe \@@_find_key_module_auxiv:Nw
     #1 #2 \s_@@_nil #3 \s_@@_mark
     \s_@@_nil \@@_find_key_module_auxiv:Nw #4
   {
-    \cs_set_nopar:Npn #4 { #2 }
+    \exp_not:N \@@_find_key_module_auxv:Nw #4
+    #2 \token_to_str:N : n \token_to_str:N : \s_@@_mark
+  }
+\use:e
+  {
+    \cs_new_protected:Npn \exp_not:N \@@_find_key_module_auxv:Nw
+      #1 #2 \token_to_str:N : #3 \token_to_str:N : #4 \s_@@_mark
+  }
+  {
+    \cs_set_nopar:Npn #1 {#2}
+    \cs_set_nopar:Npn \l_@@_exp_str {#3}
   }
 %    \end{macrocode}
 %  If selective setting is active, there are a number of possible sub-cases
@@ -3263,7 +3305,14 @@
               { \@@_default_inherit: }
           }
       }
-      { \tl_set:Nn \l_keys_value_tl {#1} }
+      {
+        \cs_if_exist_use:cF { tl_set:N \l_@@_exp_str }
+          {
+            \msg_error:nnV { keys } { unknown-expansion } \l_@@_exp_str
+            \use_none:nn
+          }
+          \l_keys_value_tl {#1}
+      }
   }
 \cs_new_protected:Npn \@@_default_inherit:
   {
@@ -3725,6 +3774,12 @@
   {
     The~module~'#2'~does~not~have~a~key~called~'#1'.\\
     Check~that~you~have~spelled~the~key~name~correctly.
+  }
+\msg_new:nnnn { keys } { unknown-expansion }
+  { The~value~expansion~'#1'~is~unknown. }
+  {
+    Key~values~can~only~be~expanded~using~one~of~the~pre-defined~methods:~
+    n,~o,~V,~v~or~e.
   }
 \msg_new:nnnn { keys } { nested-choice-key }
   { Attempt~to~define~'#1'~as~a~nested~choice~key. }

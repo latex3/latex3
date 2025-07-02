@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+- Support for key value expansion in `l3keys`
+
 ## [2025-06-30]
 
 ### Added
