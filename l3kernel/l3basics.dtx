@@ -3370,10 +3370,17 @@
 %
 % \subsection{Decomposing a macro definition}
 %
+%    \begin{macrocode}
+%<@@=cs>
+%    \end{macrocode}
+%
 % \begin{macro}{\cs_prefix_spec:N}
 % \begin{macro}{\cs_parameter_spec:N}
 % \begin{macro}{\cs_replacement_spec:N}
 % \begin{macro}{\@@_prefix_arg_replacement:wN}
+% \begin{macro}{\@@_macro_prefix_spec:N}
+% \begin{macro}{\@@_macro_parameter_spec:N}
+% \begin{macro}{\@@_macro_replacement_spec:N}
 %   We sometimes want to test if a control sequence can be expanded to
 %   reveal a hidden value. However, we cannot just expand the macro
 %   blindly as it may have arguments and none might be
@@ -3382,6 +3389,10 @@
 %   a macro. All of this information is returned as characters with
 %   catcode~$12$. If the token in question isn't a macro, the token
 %   \cs{scan_stop:} is returned instead.
+%
+%   Since LuaMeta\TeX{}'s version of \tn{meaning} doesn't give the same
+%   output as the classical one, we are implementing the core of these
+%   macros in Lua instead.
 %    \begin{macrocode}
 \use:e
   {
@@ -3389,34 +3400,106 @@
     \tl_to_str:n { macro : } \exp_not:n { #2 -> #3 \s_@@_stop #4 }
   }
   { #4 {#1} {#2} {#3} }
-\cs_new:Npn \cs_prefix_spec:N #1
+
+\cs_if_exist:NTF \@@_macro_prefix_spec:N
   {
-    \token_if_macro:NTF #1
+    \cs_new:Npn \cs_prefix_spec:N #1
       {
-        \exp_after:wN \@@_prefix_arg_replacement:wN
-          \token_to_meaning:N #1 \s_@@_stop \use_i:nnn
+        \token_if_macro:NTF #1
+          { \@@_macro_prefix_spec:N #1 }
+          { \scan_stop: }
       }
-      { \scan_stop: }
   }
-\cs_new:Npn \cs_parameter_spec:N #1
   {
-    \token_if_macro:NTF #1
+    \cs_new:Npn \cs_prefix_spec:N #1
       {
-        \exp_after:wN \@@_prefix_arg_replacement:wN
-          \token_to_meaning:N #1 \s_@@_stop \use_ii:nnn
+        \token_if_macro:NTF #1
+          {
+            \exp_after:wN \@@_prefix_arg_replacement:wN
+              \token_to_meaning:N #1 \s_@@_stop \use_i:nnn
+          }
+          { \scan_stop: }
       }
-      { \scan_stop: }
   }
-\cs_new:Npn \cs_replacement_spec:N #1
+  \cs_if_exist:NTF \@@_macro_parameter_spec:N
   {
-    \token_if_macro:NTF #1
+    \cs_new:Npn \cs_parameter_spec:N #1
       {
-        \exp_after:wN \@@_prefix_arg_replacement:wN
-          \token_to_meaning:N #1 \s_@@_stop \use_iii:nnn
+        \token_if_macro:NTF #1
+        { \@@_macro_parameter_spec:N #1 }
+          { \scan_stop: }
       }
-      { \scan_stop: }
   }
+  {
+    \cs_new:Npn \cs_parameter_spec:N #1
+      {
+        \token_if_macro:NTF #1
+          {
+            \exp_after:wN \@@_prefix_arg_replacement:wN
+              \token_to_meaning:N #1 \s_@@_stop \use_ii:nnn
+          }
+          { \scan_stop: }
+      }
+  }
+\cs_if_exist:NTF \@@_macro_replacement_spec:N
+  {
+    \cs_new:Npn \cs_replacement_spec:N #1
+      {
+        \token_if_macro:NTF #1
+          { \@@_macro_replacement_spec:N #1 }
+          { \scan_stop: }
+      }
+  }
+  {
+    \cs_new:Npn \cs_replacement_spec:N #1
+      {
+        \token_if_macro:NTF #1
+          {
+            \exp_after:wN \@@_prefix_arg_replacement:wN
+              \token_to_meaning:N #1 \s_@@_stop \use_iii:nnn
+          }
+          { \scan_stop: }
+      }
+  }
+%</code>
 %    \end{macrocode}
+%   This is a modified version of code suggested by Max Chernoff
+%   (\url{https://chat.stackexchange.com/transcript/message/67947633#67947633}).
+%   We aim to provide the classical \TeX{}82 appearance but covering \eTeX{}:
+%   due to changes in the engine, the only useful prefix here is |\protected|
+%   at present. (This may need to be revisited once the engine is more stable.)
+%   This does not cover tokens other than control sequences, so we only use
+%   it for the internal needed here.
+%    \begin{macrocode}
+%<*lua>
+if status.luatex_engine == 'luametatex' then
+  local function scan_full_csname()
+    local t = get_next()
+    local csname = get_csname(t)
+    return t.active and active_prefix .. csname or csname, t
+  end
+  luacmd('@@_macro_prefix_spec:N', function()
+    local token = get_next()
+    if get_protected(token) then
+      sprint(-2, "\\protected ")
+    end
+  end, 'global')
+  luacmd('@@_macro_parameter_spec:N', function()
+    local csname, token = scan_full_csname(true)
+    if token.parameters == 0 then return end
+    sprint(-2, get_macro(csname, false, true))
+  end, 'global')
+  luacmd('@@_macro_replacement_spec:N', function()
+    local csname = scan_full_csname(true)
+    sprint(-2, get_macro(csname, false, false))
+  end, 'global')
+end
+%</lua>
+%<*code>
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}

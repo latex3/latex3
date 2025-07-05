@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Track LuaMetaTeX changes in `\meaning` output
+
 ## [2025-06-30]
 
 ### Added
