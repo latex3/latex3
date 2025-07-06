@@ -15,7 +15,7 @@ checkconfigs =
   {
     "build",
     "config-ptex", "config-backend", "config-l3doc", 
-    "config-plain", -- "config-context"
+    "config-plain", "config-context"
   }
 checkfiles   = {"l3names.def"}
 cleanfiles   = {"*.fmt", "*.log", "*.pdf", "*.zip"}

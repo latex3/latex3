@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 - Support for key value expansion in `l3keys`
 
+### Changed
+- Track LuaMetaTeX changes in `\meaning` output
+
 ## [2025-06-30]
 
 ### Added
