@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
- `\tl_retokenize:n`
+- `\tl_retokenize:n`
 - Support for key value expansion in `l3keys`
 
 ## [2025-06-30]
