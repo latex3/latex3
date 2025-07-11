@@ -14,6 +14,11 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Track LuaMetaTeX changes in `\meaning` output
 
+## [2025-07-11]
+
+### Fixed
+- Exclude math mode from word/grapheme mapping (issue \#1773)
+
 ## [2025-06-30]
 
 ### Added
@@ -1944,7 +1949,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-06-30...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-07-11...HEAD
+[2025-07-11]: https://github.com/latex3/latex3/compare/2025-06-30...2025-07-11
 [2025-06-30]: https://github.com/latex3/latex3/compare/2025-06-09...2025-06-30
 [2025-06-09]: https://github.com/latex3/latex3/compare/2025-05-26...2025-06-09
 [2025-05-26]: https://github.com/latex3/latex3/compare/2025-05-19...2025-05-26
