@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-07-12]
+
 ### Added
 - `\tl_retokenize:n`
 - Support for key value expansion in `l3keys`
@@ -1949,7 +1951,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-07-11...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-07-12...HEAD
+[2025-07-12]: https://github.com/latex3/latex3/compare/2025-07-11...2025-07-12
 [2025-07-11]: https://github.com/latex3/latex3/compare/2025-06-30...2025-07-11
 [2025-06-30]: https://github.com/latex3/latex3/compare/2025-06-09...2025-06-30
 [2025-06-09]: https://github.com/latex3/latex3/compare/2025-05-26...2025-06-09
