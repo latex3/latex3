@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Exclude math mode from word/grapheme mapping (issue \#1773)
+
 ## [2025-06-30]
 
 ### Added
