@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Case changing of single Greek letters  (issue \#1775)
+
 ## [2025-07-12]
 
 ### Added
