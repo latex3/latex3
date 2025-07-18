@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Treat active chars as control sequences when breaking text into words
+
 ## [2025-07-11]
 
 ### Fixed
