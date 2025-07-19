@@ -14,6 +14,11 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Track LuaMetaTeX changes in `\meaning` output
 
+## [2025-07-19]
+
+### Fixed
+- Treat active chars as control sequences when breaking text into words
+
 ## [2025-07-11]
 
 ### Fixed
@@ -1949,7 +1954,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-07-11...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-07-19...HEAD
+[2025-07-19]: https://github.com/latex3/latex3/compare/2025-07-11...2025-07-19
 [2025-07-11]: https://github.com/latex3/latex3/compare/2025-06-30...2025-07-11
 [2025-06-30]: https://github.com/latex3/latex3/compare/2025-06-09...2025-06-30
 [2025-06-09]: https://github.com/latex3/latex3/compare/2025-05-26...2025-06-09
