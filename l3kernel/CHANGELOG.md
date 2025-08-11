@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Grapheme splitting for multibyte chars in pdfTeX (issue \#1782)
+
 ## [2025-07-20]
 
 ### Added
