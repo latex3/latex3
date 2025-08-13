@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-08-13]
+
 ### Fixed
 - Grapheme splitting for multibyte chars in pdfTeX (issue \#1782)
 
@@ -1959,7 +1961,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-07-20...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-08-13...HEAD
+[2025-08-13]: https://github.com/latex3/latex3/compare/2025-07-20...2025-08-13
 [2025-07-20]: https://github.com/latex3/latex3/compare/2025-07-19...2025-07-20
 [2025-07-19]: https://github.com/latex3/latex3/compare/2025-07-11...2025-07-19
 [2025-07-11]: https://github.com/latex3/latex3/compare/2025-06-30...2025-07-11
