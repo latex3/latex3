@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Setting for absolute shift in drawings
+
 ## [2025-06-30]
 
 ### Changed
