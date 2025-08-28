@@ -373,6 +373,8 @@ local token_new     = token.new
 local set_macro     = token.setmacro or token.set_macro
 
 local active_prefix = status.luatex_engine == 'luametatex' and status.getconstants().active_character_namespace or utf8.char(0xFFFF)
+
+local lbrace, rbrace = token_create(byte'{'), token_create(byte'}')
 %    \end{macrocode}
 %
 %   Since token.create only returns useful values after the tokens
@@ -737,6 +739,55 @@ if luatexbase then
   end
 end
 %    \end{macrocode}
+% \end{macro}
+%
+% \subsection{Parsing Unicode data files}
+%
+% \begin{macro}[int]{\__kernel_codepoint_data:wn}
+% \begin{macro}[int]{\__codepoint_nfd:w}
+% This provides a macro to access a Unicode data entry. The first argument is a
+% unbraced number, the second a string identifying the kind of data to read.
+% The supported kinds match the data tables supported by \cs\__kernel_codepoint_data:nn
+% in other engines.
+%    \begin{macrocode}
+do
+  if get_luadata then
+    local saved_unidata = get_luadata'lua-uni-data'
+    if saved_unidata then saved_unidata() end
+  end
+  if register_luadata then
+    register_luadata('lua-uni-data', function()
+      return string.format("load(%q, nil, 'b')", string.dump(require'lua-uni-data-preload'.generate_bytecode(), true))
+    end)
+  end
+
+  local uni_data = require'lua-uni-data'
+  local tables, decomposition_mapping = uni_data.tables, uni_data.misc.decomposition_mapping
+
+  luacmd('__kernel_codepoint_data:wn', function()
+    local cp = token.scan_int()
+    local table = token.scan_argument()
+    return sprint(-2, tostring(tables[table][cp]))
+  end)
+
+  luacmd('__codepoint_nfd:w', function()
+    local cp = token.scan_int()
+    local decomposed = decomposition_mapping[cp]
+    if decomposed then
+      for i=1,2 do
+        if decomposed[i] then
+          sprint(-2, lbrace, tostring(decomposed[i]), rbrace)
+        else
+          sprint(-2, lbrace, rbrace)
+        end
+      end
+    else
+      return sprint(-2, lbrace, tostring(cp), rbrace, lbrace, rbrace)
+    end
+  end)
+end
+%    \end{macrocode}
+% \end{macro}
 % \end{macro}
 %
 %    \begin{macrocode}

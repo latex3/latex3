@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Add trailing periods to `runsystem(...)` message for LuaTeX (see issue
   latex3/latex2e/\#1008)
+- Use Lua parser in lua-uni-algos to parse Unicode data files for LuaTeX.
 
 ## [2025-08-13]
 
