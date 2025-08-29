@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Add trailing periods to `runsystem(...)` message for LuaTeX (see issue
+  latex3/latex2e/\#1008)
+
 ## [2025-08-13]
 
 ### Fixed
