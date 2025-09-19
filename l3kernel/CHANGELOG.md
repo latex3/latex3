@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Set `\tex_showstream:D` to a non-negative value
+
 ## [2025-09-02]
 
 ### Changed
