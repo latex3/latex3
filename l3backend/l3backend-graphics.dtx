@@ -134,6 +134,14 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{variable}{\l_@@_transgroup_bool}
+%   Needed to indicate that a transparency group should be applied: only
+%   currently for PDF images, but could be extended.
+%    \begin{macrocode}
+\bool_new:N \l_@@_transgroup_bool
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{macro}
 %   {
 %     \@@_backend_getbb_jpg:n  ,
@@ -159,6 +167,7 @@
   {
     \int_zero:N \l_@@_page_int
     \tl_clear:N \l_@@_pagebox_tl
+    \bool_set_false:N\l_@@_transgroup_bool
     \tl_set:Ne \l_@@_attr_tl
       {
         \tl_if_empty:NF \l_@@_decodearray_str
@@ -175,6 +184,7 @@
 \cs_new_protected:Npn \@@_backend_getbb_pdf:n #1
   {
     \tl_clear:N \l_@@_decodearray_str
+    \bool_set_true:N \l_@@_transgroup_bool
     \bool_set_false:N \l_@@_interpolate_bool
     \tl_set:Ne \l_@@_attr_tl
       {
@@ -196,7 +206,8 @@
 %   use |\tex_pdfximagebbox:D|, but if doesn't work for other types.
 %   As the box always starts at $(0,0)$ there is no need to worry about
 %   the lower-left position. Quotes need to be \emph{removed} as \LuaTeX{}
-%   does not like them here.
+%   does not like them here. We always apply a transparency group attribute
+%   here as included PDFs otherwise may have non-obvious behavior.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_backend_getbb_auxii:n #1
   {
@@ -212,6 +223,7 @@
       \bool_lazy_any:nT
         {
           { \l_@@_interpolate_bool }
+          { \l_@@_transgroup_bool }
           { ! \tl_if_empty_p:N \l_@@_decodearray_str }
           { ! \str_if_empty_p:N \l_@@_pdf_str }
         }
@@ -220,6 +232,8 @@
             {
               \tl_if_empty:NF \l_@@_decodearray_str
                 { /Decode~[ \l_@@_decodearray_str ] }
+              \bool_if:NT \l_@@_transgroup_bool
+                { /Group << /S /Transparency /K ~ false /I ~ false >> }
               \bool_if:NT \l_@@_interpolate_bool
                 { /Interpolate~true }
               \l_@@_pdf_str
@@ -389,6 +403,14 @@
 %    \end{macrocode}
 % \end{macro}
 %
+% \begin{variable}{\l_@@_transgroup_bool}
+%   Needed to indicate that a transparency group should be applied: only
+%   currently for PDF images, but could be extended.
+%    \begin{macrocode}
+\bool_new:N \l_@@_transgroup_bool
+%    \end{macrocode}
+% \end{variable}
+%
 % \begin{variable}{\g_@@_track_int}
 %   Used to track the object number associated with each graphic.
 %    \begin{macrocode}
@@ -403,8 +425,9 @@
 %     \@@_backend_include_pdf:n , \@@_backend_include_png:n ,
 %     \@@_backend_include_bmp:n ,
 %   }
-%  \begin{macro}{\@@_backend_include_auxi:nn, \@@_backend_include_auxi:en}
-%  \begin{macro}{\@@_backend_include_auxii:nn}
+%  \begin{macro}{\@@_backend_include_auxi:n}
+%  \begin{macro}{\@@_backend_include_auxii:nn, \@@_backend_include_auxii:en}
+%  \begin{macro}{\@@_backend_include_auxiii:nn}
 %   The special syntax depends on the file type. There is a difference in
 %   how PDF graphics are best handled between |dvipdfmx| and \XeTeX{}: for
 %   the latter it is better to use the primitive route. The relevant code for
@@ -430,7 +453,20 @@
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_backend_include_jpg:n #1
   {
-    \@@_backend_include_auxi:en
+    \bool_set_false:N \l_@@_transgroup_bool
+    \@@_backend_include_auxi:n {#1}
+  }
+\cs_new_eq:NN \@@_backend_include_jpeg:n \@@_backend_include_jpg:n
+\cs_new_eq:NN \@@_backend_include_bmp:n \@@_backend_include_jpg:n
+\cs_new_eq:NN \@@_backend_include_png:n \@@_backend_include_jpg:n
+\cs_new_protected:Npn \@@_backend_include_pdf:n #1
+  {
+    \bool_set_true:N \l_@@_transgroup_bool
+    \@@_backend_include_auxi:n {#1}
+  }
+\cs_new_protected:Npn \@@_backend_include_auxi:n #1
+  {
+    \@@_backend_include_auxii:en
       {
         \tl_if_empty:NF \l_@@_pagebox_tl
           { : \l_@@_pagebox_tl }
@@ -443,20 +479,16 @@
       }
       {#1}
   }
-\cs_new_eq:NN \@@_backend_include_jpeg:n \@@_backend_include_jpg:n
-\cs_new_eq:NN \@@_backend_include_bmp:n \@@_backend_include_jpg:n
-\cs_new_eq:NN \@@_backend_include_pdf:n \@@_backend_include_jpg:n
-\cs_new_eq:NN \@@_backend_include_png:n \@@_backend_include_jpg:n
-\cs_new_protected:Npn \@@_backend_include_auxi:nn #1#2
+\cs_new_protected:Npn \@@_backend_include_auxii:nn #1#2
   {
     \int_if_exist:cTF { c_@@_ #2#1 _int }
       {
         \__kernel_backend_literal:e
           { pdf:usexobj~@graphic \int_use:c { c_@@_ #2#1 _int } }
       }
-      { \@@_backend_include_auxii:nn {#2} {#1} }
+      { \@@_backend_include_auxiii:nn {#2} {#1} }
   }
-\cs_generate_variant:Nn \@@_backend_include_auxi:nn { e }
+\cs_generate_variant:Nn \@@_backend_include_auxii:nn { e }
 %    \end{macrocode}
 %  Inclusion using the specials is relatively straight-forward, but there
 %  is one wrinkle. To get the |pagebox| correct for PDF graphics in all cases,
@@ -464,7 +496,7 @@
 %  odd things happen otherwise! We use the \texttt{dvipdfmx} special in all
 %  cases as it allows attributes to be added to the XObject.
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_backend_include_auxii:nn #1#2
+\cs_new_protected:Npn \@@_backend_include_auxiii:nn #1#2
   {
     \int_gincr:N \g_@@_track_int
     \int_const:cn { c_@@_ #1#2 _int } { \g_@@_track_int }
@@ -484,13 +516,18 @@
               \dim_to_decimal_in_bp:n \l_@@_ury_dim \c_space_tl
           }
         (#1)
-        \bool_lazy_or:nnT
-          { \l_@@_interpolate_bool }
-          { ! \tl_if_empty_p:N \l_@@_decodearray_str }
+        \bool_lazy_any:nT
+          {
+            { \l_@@_interpolate_bool }
+            { \l_@@_transgroup_bool }
+            { ! \tl_if_empty_p:N \l_@@_decodearray_str }
+          }
           {
             <<
               \tl_if_empty:NF \l_@@_decodearray_str
                 { /Decode~[ \l_@@_decodearray_str ] }
+              \bool_if:NT \l_@@_transgroup_bool
+                { /Group << /S /Transparency /K ~ false /I ~ false >> }
               \bool_if:NT \l_@@_interpolate_bool
                 { /Interpolate~true }
             >>
@@ -498,6 +535,7 @@
       }
   }
 %    \end{macrocode}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}

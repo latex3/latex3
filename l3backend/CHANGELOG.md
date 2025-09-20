@@ -8,6 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Revise image inclusion in XeTeX and `dvipdfmx`
+- Add transparency group to PDF images
 
 ## [2025-06-09]
 
