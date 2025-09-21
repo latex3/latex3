@@ -6,6 +6,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Revise image inclusion in XeTeX and `dvipdfmx`
+
 ## [2025-06-09]
 
 ### Changed
