@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Handling of optimized m-type commands by `\GetDocumentCommandArgSpec`
+
 ## [2024-08-16]
 
 ### Fixed
