@@ -10,6 +10,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 - Set `\tex_showstream:D` to a non-negative value
 
+### Deprecated
+- `\l_keys_choice_tl` replaced by `\l_keys_choice_str`
+
 ## [2025-09-02]
 
 ### Changed
