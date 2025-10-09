@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-10-09]
+
 ### Fixed
 - Handling of optimized m-type commands by `\GetDocumentCommandArgSpec`
 
@@ -269,7 +271,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2024-08-16...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-10-09...HEAD
+[2025-10-09]: https://github.com/latex3/latex3/compare/2024-08-16...2025-10-09
 [2024-08-16]: https://github.com/latex3/latex3/compare/2024-05-08...2024-08-16
 [2024-05-08]: https://github.com/latex3/latex3/compare/2024-03-14...2024-05-08
 [2024-03-14]: https://github.com/latex3/latex3/compare/2024-02-18...2024-03-14
