@@ -8,6 +8,18 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\NoValue`
+
+### Changed
+
+- Update definition of `\tl_if_novalue:n(TF)` following LaTeX kernel adjustments
+
+### Deprecated
+
+- `\c_novalue_tl`
+
 ## [2026-05-26]
 
 ### Added
