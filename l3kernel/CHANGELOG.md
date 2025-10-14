@@ -7,6 +7,13 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Revise definition of 'no value' to allow use of `\NoValue` as a marker at the
+  design level
+
+### Deprecated
+- `\c_novalue_tl` in favor of `\NoValue`
+
 ## [2025-10-09]
 
 ### Changed

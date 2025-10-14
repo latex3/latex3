@@ -325,20 +325,19 @@
 %   The search does \emph{not} enter brace (category code $1$/$2$) groups.
 % \end{function}
 %
-% \begin{function}[added = 2017-11-14, EXP,pTF]{\tl_if_novalue:n}
+% \begin{function}[added = 2017-11-14, updated = 2025-10-14,EXP,pTF]{\tl_if_novalue:n}
 %   \begin{syntax}
 %     \cs{tl_if_novalue_p:n} \Arg{token list}
 %     \cs{tl_if_novalue:nTF} \Arg{token list} \Arg{true code} \Arg{false code}
 %   \end{syntax}
-%   Tests if the \meta{token list} and the special \cs{c_novalue_tl} marker
-%   contain the same list of tokens, both in respect of character codes and
-%   category codes. This means that
-%   \cs{exp_args:No} \cs{tl_if_novalue:nTF} \texttt\{ \cs{c_novalue_tl} \texttt\} is 
-%   logically \texttt{true} but \cs{tl_if_novalue:nTF} \texttt\{ \cs{c_novalue_tl} \texttt\}
-%   is logically \texttt{false}.
-%   This function is intended to allow construction
-%   of flexible document interface structures in which missing optional
-%   arguments are detected.
+%   Tests if the \meta{token list} matches the special marker token
+%   \cs{NoValue}. This function is intended to allow construction of
+%   flexible document interface structures in which missing optional arguments
+%   are detected.
+%   \begin{texnote}
+%     The test will work for both the current \cs{NoValue} marker token and
+%     and the previous marker (|-NoValue-|).
+%   \end{texnote}
 % \end{function}
 %
 % \begin{function}[updated = 2011-08-13, EXP,pTF]
@@ -1444,21 +1443,6 @@
 %   Constant that is always empty.
 % \end{variable}
 %
-% \begin{variable}[added = 2017-11-14]{\c_novalue_tl}
-%   A marker for the absence of an argument. This constant |tl| can safely
-%   be typeset (\emph{cf.}~\cs{q_nil}), with the result being |-NoValue-|.
-%   It is important to note that \cs{c_novalue_tl} is constructed such that it
-%   will \emph{not} match the simple text input |-NoValue-|, i.e.
-%   that
-%   \begin{verbatim}
-%     \tl_if_eq:NnTF \c_novalue_tl { -NoValue- }
-%   \end{verbatim}
-%   is logically \texttt{false}. The \cs{c_novalue_tl} marker is intended for
-%   use in creating document-level interfaces, where it serves as an indicator
-%   that an (optional) argument was omitted. In particular, it is distinct
-%   from a simple empty |tl|.
-% \end{variable}
-%
 % \begin{variable}{\c_space_tl}
 %   An explicit space character contained in a token list (compare this with
 %   \cs{c_space_token}). For use where an explicit space is required.
@@ -1635,16 +1619,22 @@
 %    \end{macrocode}
 % \end{variable}
 %
+% \begin{macro}{\NoValue}
 % \begin{variable}{\c_novalue_tl}
 %   A special marker: as we don't have |\char_generate:nn| yet, has to be
-%   created the old-fashioned way.
+%   created the old-fashioned way. This is done in two steps as we have to
+%   deal with a change of the formulation: earlier we had \cs{c_novalue_tl}
+%   directly defined but this did not allow passing \enquote{no value} in
+%   templates.
 %    \begin{macrocode}
 \group_begin:
-\tex_catcode:D `- = 11 ~
-\tl_const:Ne \c_novalue_tl { - NoValue \token_to_str:N - }
+  \tex_catcode:D `- = 11 ~
+  \cs_new_protected:Npe \NoValue { - NoValue \token_to_str:N - }
 \group_end:
+\tl_const:Nn \c_novalue_tl { \NoValue }
 %    \end{macrocode}
 % \end{variable}
+% \end{macro}
 %
 % \begin{variable}{\c_space_tl}
 %   A space as a token list (as opposed to as a character).
@@ -2827,31 +2817,47 @@
 % \end{macro}
 %
 % \begin{macro}[pTF, EXP]{\tl_if_novalue:n}
-% \begin{macro}[EXP]{\@@_if_novalue:w}
-%   Tests whether |##1| matches |-NoValue-| exactly (with suitable
-%   catcodes): this is similar to \cs{quark_if_nil:nTF}.  The first
-%   argument of \cs{@@_if_novalue:w} is empty if and only if |##1|
-%   starts with |-NoValue-|, while the second argument is empty if |##1|
-%   is exactly |-NoValue-| or if it has a question mark just following
-%   |-NoValue-|.  In this second case, however, the material after the
-%   first |?!| remains and makes the emptiness test return
+% \begin{macro}[EXP]{\@@_if_novalue_auxi:w}
+% \begin{macro}[EXP]{\@@_if_novalue_auxii:n}
+% \begin{macro}[EXP]{\@@_if_novalue_auxiii:w}
+%   There are two similar tests here: the older and newer version of the
+%   \texttt{-NoValue-} marker. The two are done in the same way, with an
+%   auxiliary needed to avoid \TeX{} \tn{if} matching issues. In both
+%   cases, the first argument of \cs[no-index]{@@_if_novalue_aux$n$:w}
+%   is empty if and only if |#1| starts with the marker, while the second
+%   argument is empty if |#1| is exactly the marker or if it has a question
+%   mark just following the marker. In this second case, however, the material
+%   after the  first |?!| remains and makes the emptiness test return
 %   \texttt{false}.
 %    \begin{macrocode}
+\prg_new_conditional:Npnn \tl_if_novalue:n #1
+  { p , T ,  F , TF }
+  {
+    \@@_if_empty_if:o
+      { \@@_if_novalue_auxi:w { } #1 { } ? ! \NoValue ? ? ! }
+      \prg_return_true:
+    \else:
+      \@@_if_novalue_auxii:n {#1}
+    \fi:
+  }
+\cs_new:Npn \@@_if_novalue_auxi:w #1 \NoValue #2 ? #3 ? ! { #1 #2 }
 \cs_set_protected:Npn \@@_tmp:w #1
   {
-    \prg_new_conditional:Npnn \tl_if_novalue:n ##1
-      { p , T ,  F , TF }
+    \cs_new:Npn \@@_if_novalue_auxii:n ##1
       {
-        \@@_if_empty_if:o { \@@_if_novalue:w {} ##1 {} ? ! #1 ? ? ! }
+        \@@_if_empty_if:o
+          { \@@_if_novalue_auxiii:w { } ##1 { } ? ! #1 ? ? ! }
           \prg_return_true:
         \else:
           \prg_return_false:
         \fi:
       }
-    \cs_new:Npn \@@_if_novalue:w ##1 #1 ##2 ? ##3 ? ! { ##1 ##2 }
+    \cs_new:Npn \@@_if_novalue_auxiii:w ##1 #1 ##2 ? ##3 ? ! { ##1 ##2 }
   }
-\exp_args:No \@@_tmp:w { \c_novalue_tl }
+\exp_args:No \@@_tmp:w { \NoValue }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 %
