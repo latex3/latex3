@@ -9,7 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 - Revise definition of 'no value' to allow use of `\NoValue` as a marker at the
-  design level
+  design level without expansion
 
 ### Deprecated
 - `\c_novalue_tl` in favor of `\NoValue`
