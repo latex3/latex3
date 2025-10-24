@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-10-24]
+
 ### Changed
 - Adjust support for deprecated `\l_keys_choice_tl`
 
@@ -1980,7 +1982,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-10-09...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-10-24...HEAD
+[2025-10-24]: https://github.com/latex3/latex3/compare/2025-10-09...2025-10-24
 [2025-10-09]: https://github.com/latex3/latex3/compare/2025-09-02...2025-10-09
 [2025-09-02]: https://github.com/latex3/latex3/compare/2025-08-13...2025-09-02
 [2025-08-13]: https://github.com/latex3/latex3/compare/2025-07-20...2025-08-13
