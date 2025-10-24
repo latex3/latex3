@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Adjust support for deprecated `\l_keys_choice_tl`
+
 ## [2025-10-09]
 
 ### Changed
