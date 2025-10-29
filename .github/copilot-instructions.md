@@ -7,7 +7,7 @@ Key facts (big picture)
   `l3packages` (packages built on top of expl3), `l3experimental` and
   `l3trial` (work-in-progress). See `README.md` for an overview.
 - Source format: most code is authored in literate `.dtx` files (e.g.
-  `l3kernel/l3box.dtx`, `l3packages/xparse/xparse.dtx`). Generated artifacts
+  `l3kernel/l3box.dtx`, `l3packages/xparse/xparse.dtx`). Generated artefacts
   (sty/ltx) come from `.ins`/docstrip rules.
 
 Build, test and CI workflows (how to run things locally)
@@ -41,7 +41,7 @@ Integration points & external deps
   TeX Live installation for reproducible results.
 - l3build hooks: the project uses hooks (`checkinit_hook`, `docinit_hook`)
   to build formats or set runtime options (see `build-config.lua`). When
-  changing build behavior, update these hooks.
+  changing build behaviour, update these hooks.
 
 Examples to cite when making edits
 - To add or change an expl3 API function: edit the appropriate `.dtx` in
