@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Documentation fixes for `xtemplate` following move to kernel
+
 ## [2025-10-09]
 
 ### Fixed
