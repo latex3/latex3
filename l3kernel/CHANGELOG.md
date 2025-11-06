@@ -7,8 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-### Changed 
- - Update mediabox management for LaTeX 2025-11-01
+### Changed
+- Support `\exp_stop_f:` in text expansion
+- Update mediabox management for LaTeX 2025-11-01
  
 ## [2025-10-24]
 
