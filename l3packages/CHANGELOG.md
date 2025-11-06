@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-11-06]
+
 ### Changed
 - Documentation fixes for `xtemplate` following move to kernel
 
@@ -274,7 +276,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Switch to ISO date format
 - Improve cross-module use of internal functions
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-10-09...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-11-06...HEAD
+[2025-11-06]: https://github.com/latex3/latex3/compare/2025-10-09...2025-11-06
 [2025-10-09]: https://github.com/latex3/latex3/compare/2024-08-16...2025-10-09
 [2024-08-16]: https://github.com/latex3/latex3/compare/2024-05-08...2024-08-16
 [2024-05-08]: https://github.com/latex3/latex3/compare/2024-03-14...2024-05-08

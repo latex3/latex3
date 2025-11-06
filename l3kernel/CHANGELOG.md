@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-11-06]
+
 ### Changed
 - Support `\exp_stop_f:` in text expansion
 - Update mediabox management for LaTeX 2025-11-01
@@ -1986,7 +1988,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-10-24...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-11-06...HEAD
+[2025-11-06]: https://github.com/latex3/latex3/compare/2025-10-24...2025-11-06
 [2025-10-24]: https://github.com/latex3/latex3/compare/2025-10-09...2025-10-24
 [2025-10-09]: https://github.com/latex3/latex3/compare/2025-09-02...2025-10-09
 [2025-09-02]: https://github.com/latex3/latex3/compare/2025-08-13...2025-09-02
