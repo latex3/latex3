@@ -8,7 +8,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Changed 
- - l3pdf.dtx: adapt mediabox setting to LaTeX 2025-11-01
+ - Update mediabox management for LaTeX 2025-11-01
  
 ## [2025-10-24]
 
