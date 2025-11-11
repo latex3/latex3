@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Fix `\peek_regex_remove_once:nTF` and `\peek_regex_remove_once:NTF` on
+  reinserting special token `{` or `}` (issue \#1805)
+
 ## [2025-11-06]
 
 ### Changed
