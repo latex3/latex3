@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-11-14]
+
 ### Fixed
 - Fix `\peek_regex_remove_once:nTF` and `\peek_regex_remove_once:NTF` on
   reinserting special token `{` or `}` (issue \#1805)
@@ -1992,7 +1994,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-11-06...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-11-14...HEAD
+[2025-11-14]: https://github.com/latex3/latex3/compare/2025-11-06...2025-11-14
 [2025-11-06]: https://github.com/latex3/latex3/compare/2025-10-24...2025-11-06
 [2025-10-24]: https://github.com/latex3/latex3/compare/2025-10-09...2025-10-24
 [2025-10-09]: https://github.com/latex3/latex3/compare/2025-09-02...2025-10-09
