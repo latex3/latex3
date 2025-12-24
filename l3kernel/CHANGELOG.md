@@ -7,6 +7,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2025-12-24]
+
 ### Fixed
 - Rescanning of `\q_mark` in LuaTeX (issue \#1825)
 
@@ -1997,7 +1999,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-11-14...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2025-12-24...HEAD
+[2025-12-24]: https://github.com/latex3/latex3/compare/2025-11-14...2025-12-24
 [2025-11-14]: https://github.com/latex3/latex3/compare/2025-11-06...2025-11-14
 [2025-11-06]: https://github.com/latex3/latex3/compare/2025-10-24...2025-11-06
 [2025-10-24]: https://github.com/latex3/latex3/compare/2025-10-09...2025-10-24
