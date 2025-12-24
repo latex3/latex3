@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+- Rescanning of `\q_mark` in LuaTeX (issue \#1825)
+
 ## [2025-11-14]
 
 ### Fixed
