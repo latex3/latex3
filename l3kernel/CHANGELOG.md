@@ -7,6 +7,9 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+- Further improvements to rescanning in LuaTeX
+
 ## [2025-12-24]
 
 ### Fixed
