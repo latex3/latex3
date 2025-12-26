@@ -123,6 +123,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [2025-04-14]
 
 ### Added
+- `\v(box|top)_(g)set_to_wd:Nnn`
 - Module `l3benchmark`, moved from `l3experimental` to stable status
 - Module `l3opacity`, moved from `l3experimental` to stable status
 
