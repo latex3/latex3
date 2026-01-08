@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Usage of logical AND (`&&`) in `l3fp` inside alignments (issue \#1958)
+
 ## [2025-12-29]
 
 ### Changed
@@ -575,7 +579,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\iow_shipout_e:Nn`
 - Documentation for `\sys_if_timer_exist_p:` and `\sys_if_timer_exist:(TF)`.
   They were supported since l3kernel 2021-05-25, along with `\sys_timer:`.
-- l3doc.dtx: Support for footnotes in the function and variable environment  
+- l3doc.dtx: Support for footnotes in the function and variable environment
 - Variants `\tl_if_single:c(TF)` and `\tl_if_single_p:c` (issue \#1272)
 - Key properties `.str_(g)set_e:N` and `.tl_(g)set_e:N`
 
