@@ -10,7 +10,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 
-- Usage of logical AND (`&&`) in `l3fp` inside alignments (issue \#1958)
+- Usage of logical AND (`&&`) in `l3fp` inside alignments (see issue
+  latex3/latex2e/\#1958)
 
 ## [2025-12-29]
 
