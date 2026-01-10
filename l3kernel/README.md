@@ -1,7 +1,7 @@
 LaTeX3 Programming Conventions
 ==============================
 
-Release 2025-12-29
+Release 2026-01-10
 
 Overview
 --------
@@ -91,6 +91,6 @@ by e-mail: <latex-team@latex-project.org>.
 
 -----
 
-<p>Copyright (C) 1998-2012,2015-2025 The LaTeX Project <br />
+<p>Copyright (C) 1998-2012,2015-2026 The LaTeX Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>
