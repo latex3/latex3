@@ -10,7 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Fixed
 
-- Implementaton of `\tl_if_regex_match:nN(TF)` (issue \#1836)
+- Implementation of `\tl_if_regex_match:nN(TF)` (issue \#1836)
 
 ## [2026-01-10]
 
