@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\opacity_begin:n`/`\opacity_end:` and fill/stroke versions
+
 ## [2026-01-19]
 
 ### Fixed
