@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\opacity_begin:n`/`\opacity_end:` and fill/stroke versions
+
 ### Fixed
 
 - Implementation of `\tl_if_regex_match:nN(TF)` (issue \#1836)
