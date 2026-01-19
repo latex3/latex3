@@ -8,6 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2026-01-19]
+
 ### Fixed
 
 - Implementation of `\tl_if_regex_match:nN(TF)` (issue \#1836)
@@ -2386,7 +2388,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2026-01-10...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2026-01-19...HEAD
+[2026-01-19]: https://github.com/latex3/latex3/compare/2026-01-10...2026-01-19
 [2026-01-10]: https://github.com/latex3/latex3/compare/2025-12-29...2026-01-10
 [2025-12-29]: https://github.com/latex3/latex3/compare/2025-12-24...2025-12-29
 [2025-12-24]: https://github.com/latex3/latex3/compare/2025-11-14...2025-12-24
