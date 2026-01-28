@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## Changed
+
+- Opacity support to allow non-grouped versions
+
 ## [2025-10-09]
 
 ### Changed
