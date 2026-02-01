@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changes
+
+- Track `expl3` core changes
+
 ## [2025-10-09]
 
 ### Fixed

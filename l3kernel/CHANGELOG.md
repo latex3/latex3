@@ -8,11 +8,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
-## [2026-01-19]
-
 ### Added
 
 - `\dim_horizontal:(n|N|c)` and `\dim_vertical:(n|N|c)`
+
+## [2026-01-19]
 
 ### Fixed
 
