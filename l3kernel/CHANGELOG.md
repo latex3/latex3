@@ -32,6 +32,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\opacity_begin:n`/`\opacity_end:` and fill/stroke versions
 - Efficient `v`-type variants for `\dim_compare:nNn(TF)` and
   `\int_compare:nNn(TF)`
+- `\text_bcp_parse:n`
 
 ## [2026-01-19]
 
