@@ -11,7 +11,7 @@ module = ""
 maindir = ".."
 
 uploadconfig = {
-  author      = "The LaTeX Team",
+  author      = "The LaTeX Project team",
   license     = "lppl1.3c",
   summary     = "Experimental LaTeX3 concepts",
   topic       = {"macro-supp","latex3","expl3"},
@@ -29,7 +29,6 @@ top of LaTeX2e with no changes to the existing kernel.
 The present release includes:
 - `l3benchmark` for measuring the time taken by TeX to run certain code;
 - `l3draw`, a code-level interface for constructing drawings;
-- `l3graphics`, an interfaces for the inclusion of graphics files;
 - `l3str`, support for string manipulation;
 - `l3sys-shell`, which provides abstractions for common shell functions like
   file deletion and copying;

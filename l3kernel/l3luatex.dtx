@@ -2,7 +2,7 @@
 %
 %% File: l3luatex.dtx
 %
-% Copyright (C) 2010-2024 The LaTeX Project
+% Copyright (C) 2010-2026 The LaTeX Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2024-10-09}
+% \date{Released 2026-01-19}
 %
 % \maketitle
 %
@@ -84,7 +84,7 @@
 %   converting line ends to spaces in the usual \TeX{} manner and which
 %   respects currently-applicable \TeX{} category codes.  The resulting
 %   \meta{\Lua{} input} is passed to the \Lua{} interpreter when the
-%   current page is finalised (\emph{i.e.}~at shipout).  Each
+%   current page is finalized (i.e., at shipout).  Each
 %   \cs{lua_shipout:n} block is treated by \Lua{} as a separate chunk.
 %   The \Lua{} interpreter will execute the \meta{\Lua{} input} during the
 %   page-building routine: no \TeX{} expansion of the \meta{\Lua{} input}
@@ -123,7 +123,7 @@
 %
 %   \cs{lua_now:n} passes its \Arg{token list} argument to the Lua interpreter
 %   as a single line, with characters interpreted under the current catcode
-%   regime. These two facts mean that \cs{lua_now:n} rarely behaves as expected
+%   régime. These two facts mean that \cs{lua_now:n} rarely behaves as expected
 %   for larger pieces of code. Therefore, package authors should \textbf{not}
 %   write significant amounts of Lua code in the arguments to \cs{lua_now:n}.
 %   Instead, it is strongly recommended that they write the majorty of their Lua
@@ -160,7 +160,7 @@
 %   \end{syntax}
 %   Returns the MD5 sum of the file contents read as bytes; note that
 %   the result will depend on the nature of the line endings used in the file,
-%   in contrast to normal \TeX{} behaviour. If the \meta{file} is not found,
+%   in contrast to normal \TeX{} behavior. If the \meta{file} is not found,
 %   nothing is returned with \emph{no error raised}.
 % \end{function}
 %
@@ -194,17 +194,13 @@
 % \section{\pkg{l3luatex} implementation}
 %
 %    \begin{macrocode}
-%<*package>
+%<@@=lua>
 %    \end{macrocode}
 %
 % \subsection{Breaking out to \Lua{}}
 %
 %    \begin{macrocode}
-%<*tex>
-%    \end{macrocode}
-%
-%    \begin{macrocode}
-%<@@=lua>
+%<*code>
 %    \end{macrocode}
 %
 % \begin{macro}[EXP]{\@@_escape:n, \@@_now:n, \@@_shipout:n}
@@ -293,7 +289,6 @@
     The~feature~you~are~using~is~only~available~
     with~the~LuaTeX~engine.~LaTeX3~ignored~'#1'.
   }
-
 \msg_new:nnnn { luatex } { module-not-found }
   { Lua~module~`#1'~not~found. }
   {
@@ -303,13 +298,12 @@
     The~Lua~loader~provided~this~additional~information: \\
     #2
   }
-
 \prop_gput:Nnn \g_msg_module_name_prop { luatex } { LaTeX }
 \prop_gput:Nnn \g_msg_module_type_prop { luatex } { }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-%</tex>
+%</code>
 %    \end{macrocode}
 %
 % \subsection{\Lua{} functions for internal use}
@@ -342,6 +336,7 @@ local string   = string
 local tex      = tex
 local texio    = texio
 local tonumber = tonumber
+local token    = token
 %    \end{macrocode}
 %
 %   Local copies of standard functions.
@@ -364,13 +359,23 @@ local package_loaded    = package.loaded
 local package_searchers = package.searchers
 local table_concat      = table.concat
 
-local scan_int     = token.scan_int or token.scan_integer
-local scan_string  = token.scan_string
-local scan_keyword = token.scan_keyword
-local put_next     = token.put_next
-local token_create = token.create
-local token_new    = token.new
-local set_macro    = token.set_macro
+local scan_csname   = token.scancsname or token.scan_csname
+local scan_int      = token.scan_int or token.scan_integer
+local scan_string   = token.scanstring or token.scan_string
+local scan_keyword  = token.scankeyword or token.scan_keyword
+local scan_argument = token.scanargument or token.scan_argument
+local get_next      = token.scannext or token.get_next
+local put_next      = token.putnext or token.put_next
+local token_create  = token.create
+local get_macro     = token.getmacro or token.get_macro
+local get_protected = token.getprotected or token.get_protected
+local get_csname    = token.getcsname or token.get_csname
+local token_new     = token.new
+local set_macro     = token.setmacro or token.set_macro
+
+local active_prefix = status.luatex_engine == 'luametatex' and status.getconstants().active_character_namespace or utf8.char(0xFFFF)
+
+local lbrace, rbrace = token_create(byte'{'), token_create(byte'}')
 %    \end{macrocode}
 %
 %   Since token.create only returns useful values after the tokens
@@ -380,7 +385,7 @@ local set_macro    = token.set_macro
 local token_create_safe
 do
   local is_defined = token.is_defined
-  local set_char   = token.set_char
+  local set_char   = token.set_char or tex.chardef
   local runtoks    = tex.runtoks
   local let_token  = token_create'let'
 
@@ -470,7 +475,7 @@ end
 %   As Lua is byte-based there is no work needed here in terms of UTF-8
 %   (see \pkg{pdftexcmds} and how it handles strings that have passed through
 %   \LuaTeX{}). The file is read in binary mode so that no line ending
-%   normalisation occurs.
+%   normalization occurs.
 %    \begin{macrocode}
 local function filemd5sum(name)
   local file = kpse_find(name, "tex", true) if not file then return end
@@ -567,13 +572,13 @@ ltxutils.filesize = filesize
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}[int]{luadef}
+% \begin{macro}[int]{luacmd}
 % An internal function for defining control sequences form Lua which behave
 % like primitives. This acts as a wrapper around |token.set_lua| which accepts
 % a function instead of an index into the functions table.
 %    \begin{macrocode}
 local luacmd do
-  local set_lua = token.set_lua
+  local set_lua = token.setlua or token.set_lua
   local undefined_cs = command_id'undefined_cs'
 
   if not context and not luatexbase then require'ltluatex' end
@@ -597,7 +602,7 @@ local luacmd do
     function luacmd(name, func, ...)
       local tok = token_create(name)
       if tok.command == undefined_cs then
-        token.set_lua(name, register(func), ...)
+        set_lua(name, register(func), ...)
       else
         functions[tok.index or tok.mode] = func
       end
@@ -660,10 +665,6 @@ end)
 %
 % \subsection{Preserving iniTeX Lua data for runs}
 %
-%    \begin{macrocode}
-%<@@=lua>
-%    \end{macrocode}
-%
 % The Lua state is not dumped when a format is written, therefore any Lua
 % variables filled doing format building need to be restored in order to
 % be accessible during normal runs.
@@ -678,7 +679,6 @@ local register_luadata, get_luadata
 
 if luatexbase then
   local register = token_create'@expl@luadata@bytecode'.index
-  if status.ini_version then
 %    \end{macrocode}
 %
 % \begin{macro}[int]{register_luadata}
@@ -686,8 +686,11 @@ if luatexbase then
 % It accept a string which uniquely identifies the data object and has to be
 % provided to retrieve it later. Additionally it accepts a function which is
 % called in the \texttt{pre_dump} callback and which has to return a string that
-% evaluates to a valid Lua object to be preserved.
+% evaluates to a valid Lua object to be preserved. Note that format generation
+% does not necessarily mean the first run, because some packages such as
+% \pkg{mylatexformat} generates a format based on an existing format.
 %    \begin{macrocode}
+  if status.ini_version then
     local luadata, luadata_order = {}, {}
 
     function register_luadata(name, func)
@@ -713,19 +716,21 @@ if luatexbase then
         lua.bytecode[register] = assert(load(str .. "}"))
       end
     end, "ltx.luadata")
-  else
+  end
 %    \end{macrocode}
 %
 % \begin{macro}[int]{get_luadata}
 % \texttt{get_luadata} is only available if data should be restored.
 % It accept the identifier which was used when the data object was registered and
 % returns the associated object. Every object can only be retrieved once.
+% Note that it is possible for both \texttt{register_luadata} and \texttt{get_luadata}
+% to be available, for example while compiling a precompiled preamble.
+% In such a case, data must be registered again to be kept in the next run.
 %    \begin{macrocode}
-    local luadata = lua.bytecode[register]
-    if luadata then
-      lua.bytecode[register] = nil
-      luadata = luadata()
-    end
+  local luadata = lua.bytecode[register]
+  if luadata then
+    lua.bytecode[register] = nil
+    luadata = luadata()
     function get_luadata(name)
       if not luadata then return end
       local data = luadata[name]
@@ -737,12 +742,57 @@ end
 %    \end{macrocode}
 % \end{macro}
 %
+% \subsection{Parsing Unicode data files}
+%
+% \begin{macro}[int]{\__kernel_codepoint_data:wn}
+% \begin{macro}[int]{\__codepoint_nfd:w}
+% This provides a macro to access a Unicode data entry. The first argument is a
+% unbraced number, the second a string identifying the kind of data to read.
+% The supported kinds match the data tables supported by \cs\__kernel_codepoint_data:nn
+% in other engines.
 %    \begin{macrocode}
-%</lua>
+do
+  if get_luadata then
+    local saved_unidata = get_luadata'lua-uni-data'
+    if saved_unidata then saved_unidata() end
+  end
+  if register_luadata then
+    register_luadata('lua-uni-data', function()
+      return string.format("load(%q, nil, 'b')", string.dump(require'lua-uni-data-preload'.generate_bytecode(), true))
+    end)
+  end
+
+  local uni_data = require'lua-uni-data'
+  local tables, decomposition_mapping = uni_data.tables, uni_data.misc.decomposition_mapping
+
+  luacmd('__kernel_codepoint_data:wn', function()
+    local cp = scan_int()
+    local table = scan_argument()
+    return sprint(-2, tostring(tables[table][cp]))
+  end)
+
+  luacmd('__codepoint_nfd:w', function()
+    local cp = scan_int()
+    local decomposed = decomposition_mapping[cp]
+    if decomposed then
+      for i=1,2 do
+        if decomposed[i] then
+          sprint(-2, lbrace, tostring(decomposed[i]), rbrace)
+        else
+          sprint(-2, lbrace, rbrace)
+        end
+      end
+    else
+      return sprint(-2, lbrace, tostring(cp), rbrace, lbrace, rbrace)
+    end
+  end)
+end
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
 %
 %    \begin{macrocode}
-%</package>
+%</lua>
 %    \end{macrocode}
 %
 %\end{implementation}

@@ -38,7 +38,7 @@ If you are submitting a pull request, notice that
   50 chars); leave a blank line then give more detail if required
 - We use  GitHub Actions  for (light) testing: you can check locally that
   things pass using `l3build`
-- We favour a single linear history so will (likely) rebase accepted pull
+- We favor a single linear history so will (likely) rebase accepted pull
   requests
 - Where a commit fixes or closes an issue, please include this information
   in the first line of the commit message [`(fixes #X)` or similar] as this

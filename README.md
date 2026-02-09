@@ -66,4 +66,4 @@ This code is developed by [The LaTeX Project](https://latex-project.org).
 
 ## Copyright
 
-This README file is copyright 2021-2024 The LaTeX Project.
+This README file is copyright 2021-2025 The LaTeX Project.

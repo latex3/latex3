@@ -2,7 +2,7 @@
 %
 %% File: l3text-case.dtx
 %
-% Copyright (C) 2020-2024 The LaTeX Project
+% Copyright (C) 2020-2026 The LaTeX Project
 %
 % It may be distributed and/or modified under the conditions of the
 % LaTeX Project Public License (LPPL), either version 1.3c of this
@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2024-10-09}
+% \date{Released 2026-01-19}
 %
 % \maketitle
 %
@@ -56,7 +56,7 @@
 % \section{\pkg{l3text-case} implementation}
 %
 %    \begin{macrocode}
-%<*package>
+%<*code>
 %    \end{macrocode}
 %
 %    \begin{macrocode}
@@ -120,28 +120,24 @@
 %     \@@_change_case_auxi:nnnn  ,
 %     \@@_change_case_auxii:nnnn
 %   }
+% \begin{macro}[EXP]{\@@_change_case_exclude_words:nn}
+% \begin{macro}[EXP]{\@@_change_case_exclude_word:n}
+% \begin{macro}[EXP]{\@@_change_case_inner:nnnn}
 % \begin{macro}[EXP]{\@@_change_case_BCP:nnnn}
 % \begin{macro}[EXP]{\@@_change_case_BCP:nnnw}
 % \begin{macro}[EXP]{\@@_change_case_BCP:nnnnnw}
-% \begin{macro}[EXP]
-%   {
-%     \@@_change_case_store:n, \@@_change_case_store:o,
-%     \@@_change_case_store:V, \@@_change_case_store:v,
-%     \@@_change_case_store:e
-%   }
-% \begin{macro}[EXP]{\@@_change_case_store:nw}
-% \begin{macro}[EXP]{\@@_change_case_result:n} 
-% \begin{macro}[EXP]{\@@_change_case_end:w}
 % \begin{macro}[EXP]{\@@_change_case_loop:nnnw}
-% \begin{macro}[EXP]{\@@_change_case_break:w, \@@_change_case_break_aux:w}
+% \begin{macro}[EXP]{\@@_change_case_break:}
 % \begin{macro}[EXP]
 %   {
 %     \@@_change_case_group_lower:nnnn ,
 %     \@@_change_case_group_upper:nnnn ,
 %     \@@_change_case_group_title:nnnn
 %   }
-% \begin{macro}[EXP]
-%   {\@@_change_case_space:nnnw, \@@_change_case_space_break:nnnw}
+% \begin{macro}[EXP]{\@@_change_case_space:nnnw}
+% \begin{macro}[EXP]{\@@_change_case_space_break:nnn}
+% \begin{macro}[EXP]{\@@_change_case_space_break:w}
+% \begin{macro}[EXP]{\@@_change_case_space_break_aux:w}
 % \begin{macro}[EXP]
 %   {\@@_change_case_N_type:nnnN, \@@_change_case_N_type_aux:nnnN}
 % \begin{macro}[EXP]{\@@_change_case_N_type:nnnnN}
@@ -151,7 +147,8 @@
 % \begin{macro}[EXP]{\@@_change_case_math_group:nnnNn}
 % \begin{macro}[EXP]{\@@_change_case_math_space:nnnNw}
 % \begin{macro}[EXP]{\@@_change_case_cs_check:nnnN}
-% \begin{macro}[EXP]{\@@_change_case_exclude:nnnN}
+% \begin{macro}[EXP]{\@@_change_case_exclude:nnnN, \@@_change_case_exclude_aux:nnnN}
+% \begin{macro}[EXP]{\@@_change_case_exclude:nnnn}
 % \begin{macro}[EXP]{\@@_change_case_exclude:nnnnN}
 % \begin{macro}[EXP]{\@@_change_case_exclude:nnnNN}
 % \begin{macro}[EXP]{\@@_change_case_exclude:nnnNw}
@@ -221,7 +218,7 @@
 %   (so the loops here don't need to worry about awkward look-aheads and the
 %   like). Then we split into the different paths.
 %
-%   The code here needs to be \texttt{f}-type expandable to deal with the
+%   The code here needs to expand in a predictable fashion to deal with the
 %   situation where case changing is applied in running text. There, we
 %   might have case changing as a document command and the text containing
 %   other non-expandable document commands.
@@ -233,14 +230,13 @@
 %   If we use an \texttt{e}-type expansion and wrap each token in
 %   \cs{exp_not:n}, that would explode: the document command grabs
 %   \cs{exp_not:n} as an argument, and things go badly wrong. So we have to
-%   wrap the entire result in exactly one \cs{exp_not:n}, or rather in the
-%   kernel version.
+%   wrap the entire result in exactly one \cs{exp_not:n}, with a slightly
+%   strange mix of expansion control.
 %    \begin{macrocode}
 \cs_new:Npn \@@_change_case:nnnn #1#2#3#4
   {
-    \__kernel_exp_not:w \exp_after:wN
+    \exp_not:e
       {
-        \exp:w
         \exp_args:Ne \@@_change_case_auxi:nnnn
           { \text_expand:n {#4} }
           {#1} {#2} {#3}
@@ -275,27 +271,35 @@
           { \@@_change_case_auxii:nnnn {#1} {#2} {#3} {#5} }
       }
   }
+%    \end{macrocode}
+%   Dealing with excluded words is only really manageable if they are done
+%   in a separate loop. To avoid expanding twice, we use the internal. Other
+%   than that, this is basically a quick lookup.
+%    \begin{macrocode}
 \cs_new:Npn \@@_change_case_auxii:nnnn #1#2#3#4
   {
     \group_align_safe_begin:
+    \exp_args:Ne \@@_change_case_inner:nnnn
+      {
+        \@@_map_tokens:nnn {#1}
+          { wordbreak } { \@@_change_case_exclude_words:nn {#2} }
+      }
+      {#2} {#3} {#4}
+    \group_align_safe_end:
+  }
+\cs_new:Npn \@@_change_case_exclude_words:nn #1#2
+  {
+    \tl_if_exist:cTF { l_@@_ #1 case_exclude_ \tl_to_str:n {#2} _tl }
+      { \exp_not:n { \@@_change_case_exclude_word:n {#2} } }
+      { \exp_not:n {#2} }
+  }
+\cs_new:Npn \@@_change_case_exclude_word:n #1 {#1}
+\cs_new:Npn \@@_change_case_inner:nnnn #1#2#3#4
+  {
     \cs_if_exist_use:c { @@_change_case_boundary_ #2 _ #4 :Nnnnw }
     \@@_change_case_loop:nnnw {#2} {#3} {#4} #1
       \q_@@_recursion_tail \q_@@_recursion_stop
-    \@@_change_case_result:n { }
-  }
-%    \end{macrocode}
-%   As for expansion, collect up the tokens for future use.
-%    \begin{macrocode}
-\cs_new:Npn \@@_change_case_store:n #1
-  { \@@_change_case_store:nw {#1} }
-\cs_generate_variant:Nn \@@_change_case_store:n { o , e , V , v }
-\cs_new:Npn \@@_change_case_store:nw #1#2 \@@_change_case_result:n #3
-  { #2 \@@_change_case_result:n { #3 #1 } }
-\cs_new:Npn \@@_change_case_end:w #1 \@@_change_case_result:n #2
-  {
-    \group_align_safe_end:
-    \exp_end:
-    #2
+    \prg_break_point:Nn \@@_change_case_break: { }
   }
 %    \end{macrocode}
 %   The main loop is the standard \texttt{tl action} type.
@@ -311,14 +315,8 @@
       }
     {#1} {#2} {#3} #4 \q_@@_recursion_stop
   }
-\cs_new:Npn \@@_change_case_break:w
-  { \@@_change_case_break_aux:w \prg_do_nothing: }
-\cs_new:Npn \@@_change_case_break_aux:w
-  #1 \q_@@_recursion_tail \q_@@_recursion_stop
-  {
-    \@@_change_case_store:o {#1}
-    \@@_change_case_end:w
-  }
+\cs_new:Npn \@@_change_case_break:
+  { \prg_map_break:Nn \@@_change_case_break: { } }
 %    \end{macrocode}
 %   For a group, we \emph{could} worry about whether this contains a character
 %   or not. However, that would make life very complex for little gain: exactly
@@ -330,28 +328,16 @@
 %    \begin{macrocode}
 \cs_new:Npn \@@_change_case_group_lower:nnnn #1#2#3#4
   {
-    \@@_change_case_store:o
-      {
-        \exp_after:wN
-          {
-            \exp:w
-            \@@_change_case_auxii:nnnn {#4} {#1} {#2} {#3}
-          }
-      }
+    \exp_not:e
+      { { \@@_change_case_inner:nnnn {#4} {#1} {#2} {#3} } }
     \@@_change_case_loop:nnnw {#1} {#2} {#3}
   }
 \cs_new_eq:NN \@@_change_case_group_upper:nnnn
   \@@_change_case_group_lower:nnnn
 \cs_new:Npn \@@_change_case_group_title:nnnn #1#2#3#4
   {
-    \@@_change_case_store:o
-      {
-        \exp_after:wN
-          {
-            \exp:w
-            \@@_change_case_auxii:nnnn {#4} {#1} {#2} {#3}
-          }
-      }
+    \exp_not:e
+      { { \@@_change_case_inner:nnnn {#4} {#1} {#2} {#3} } }
     \@@_change_case_skip:nnw {#2} {#3}
   }
 \use:e
@@ -359,7 +345,7 @@
     \cs_new:Npn \exp_not:N \@@_change_case_space:nnnw #1#2#3 \c_space_tl
   }
   {
-    \@@_change_case_store:n { ~ }
+    \c_space_tl
     \cs_if_exist_use:cF { @@_change_case_space_ #2 :nnn }
       {
         \cs_if_exist_use:c { @@_change_case_boundary_ #1 _ #3 :Nnnnw }
@@ -368,20 +354,35 @@
         {#2} {#2} {#3}
   }
 \cs_new:Npn \@@_change_case_space_break:nnn #1#2#3
-  { \@@_change_case_break:w }
+  { \@@_change_case_space_break:w \prg_do_nothing: }
+%    \end{macrocode}
+%   Tidy up any protected words.
+%    \begin{macrocode}
+\cs_new:Npn \@@_change_case_space_break:w
+  #1 \q_@@_recursion_tail \q_@@_recursion_stop
+  {
+    \@@_change_case_space_break_aux:w #1
+      \@@_change_case_exclude_word:n \q_@@_recursion_tail \q_@@_recursion_stop
+  }
+\cs_new:Npn \@@_change_case_space_break_aux:w #1 \@@_change_case_exclude_word:n #2
+  {
+    \exp_not:o {#1}
+    \@@_if_q_recursion_tail_stop_do:nn {#2} { \@@_change_case_break: }
+    \@@_change_case_space_break_aux:w \prg_do_nothing: #2
+  }
 %    \end{macrocode}
 %   The first step of handling \texttt{N}-type tokens is to filter out the
 %   end-of-loop. That has to be done separately from the first real step
 %   as otherwise we pick up the wrong delimiter. The loop here is the same
 %   as the \texttt{expand} one, just passing the additional data long. If no
 %   close-math token is found then the final clean-up is forced
-%   (i.e.~there is no assumption of \enquote{well-behaved} input in terms of
+%   (i.e., there is no assumption of \enquote{well-behaved} input in terms of
 %   math mode).
 %    \begin{macrocode}
 \cs_new:Npn \@@_change_case_N_type:nnnN #1#2#3#4
   {
     \@@_if_q_recursion_tail_stop_do:Nn #4
-      { \@@_change_case_end:w }
+      { \@@_change_case_break: }
     \@@_change_case_N_type_aux:nnnN {#1} {#2} {#3} #4
   }
 \cs_new:Npn \@@_change_case_N_type_aux:nnnN #1#2#3#4
@@ -403,7 +404,7 @@
       {
         \@@_use_i_delimit_by_q_recursion_stop:nw
           {
-            \@@_change_case_store:n {#4}
+            \exp_not:n {#4}
             \@@_change_case_math_loop:nnnNw {#1} {#2} {#3} #6
           }
       }
@@ -423,15 +424,15 @@
 \cs_new:Npn \@@_change_case_math_N_type:nnnNN #1#2#3#4#5
   {
     \@@_if_q_recursion_tail_stop_do:Nn #5
-      { \@@_change_case_end:w }
-    \@@_change_case_store:n {#5}
+      { \@@_change_case_break: }
+    \exp_not:n {#5}
     \token_if_eq_meaning:NNTF #5 #4
       { \@@_change_case_loop:nnnw {#1} {#2} {#3} }
       { \@@_change_case_math_loop:nnnNw {#1} {#2} {#3} #4 }
   }
 \cs_new:Npn \@@_change_case_math_group:nnnNn #1#2#3#4#5
   {
-    \@@_change_case_store:n { {#5} }
+    \exp_not:n { {#5} }
     \@@_change_case_math_loop:nnnNw {#1} {#2} {#3} #4
   }
 \use:e
@@ -440,7 +441,7 @@
       \c_space_tl
   }
   {
-    \@@_change_case_store:n { ~ }
+    \c_space_tl
     \@@_change_case_math_loop:nnnNw {#1} {#2} {#3} #4
   }
 %    \end{macrocode}
@@ -466,12 +467,27 @@
 %    \begin{macrocode}
 \cs_new:Npn \@@_change_case_exclude:nnnN #1#2#3#4
   {
+    \str_if_eq:nnTF {#4} { \@@_change_case_exclude_word:n }
+      { \@@_change_case_exclude:nnnn {#1} {#2} {#3} }
+      { \@@_change_case_exclude_aux:nnnN {#1} {#2} {#3} #4 }
+  }
+\cs_new:Npn \@@_change_case_exclude_aux:nnnN #1#2#3#4
+  {
     \exp_args:Ne \@@_change_case_exclude:nnnnN
       {
         \exp_not:V \l_text_math_arg_tl
         \exp_not:V \l_text_case_exclude_arg_tl
       }
       {#1} {#2} {#3} #4
+  }
+%    \end{macrocode}
+%   The internal special case function: simply grab the argument, protect and
+%   loop.
+%    \begin{macrocode}
+\cs_new:Npn \@@_change_case_exclude:nnnn #1#2#3#4
+  {
+    \exp_not:n {#4}
+    \@@_change_case_loop:nnnw {#1} {#2} {#3}
   }
 \cs_new:Npn \@@_change_case_exclude:nnnnN #1#2#3#4#5
   {
@@ -494,12 +510,12 @@
 \cs_new:Npn \@@_change_case_exclude:nnnNnn #1#2#3#4#5#6
   {
     \tl_if_blank:nTF {#5}
-      { \@@_change_case_store:n { #4 {#6} } }
+      { \exp_not:n { #4 {#6} } }
       {
-        \@@_change_case_store:o
+        \exp_not:e
           {
-            \exp_after:wN #4
-              \exp:w \@@_change_case_auxii:nnnn {#5} {#1} {#2} {#3}
+            \exp_not:N #4
+              \@@_change_case_inner:nnnn {#5} {#1} {#2} {#3}
               {#6}
           }
       }
@@ -532,17 +548,17 @@
   }
 \cs_new:Npn \@@_change_case_switch_lower:nnnNnnnn #1#2#3#4#5#6#7#8
   {
-    \@@_change_case_store:n {#7}
+    \exp_not:n {#7}
     \@@_change_case_loop:nnnw {#1} {#2} {#3}
   }
 \cs_new:Npn \@@_change_case_switch_upper:nnnNnnnn #1#2#3#4#5#6#7#8
   {
-    \@@_change_case_store:n {#6}
+    \exp_not:n {#6}
     \@@_change_case_loop:nnnw {#1} {#2} {#3}
   }
 \cs_new:Npn \@@_change_case_switch_title:nnnNnnnn #1#2#3#4#5#6#7#8
   {
-    \@@_change_case_store:n {#8}
+    \exp_not:n {#8}
     \@@_change_case_skip:nnw {#2} {#3}
   }
 %    \end{macrocode}
@@ -562,13 +578,13 @@
 \cs_new:Npn \@@_change_case_skip_N_type:nnN #1#2#3
   {
     \@@_if_q_recursion_tail_stop_do:Nn #3
-      { \@@_change_case_end:w }
-    \@@_change_case_store:n {#3}
+      { \@@_change_case_break: }
+    \exp_not:n {#3}
     \@@_change_case_skip:nnw {#1} {#2}
   }
 \cs_new:Npn \@@_change_case_skip_group:nnn #1#2#3
   {
-    \@@_change_case_store:n { {#3} }
+    \exp_not:n { {#3} }
     \@@_change_case_skip:nnw {#1} {#2}
   }
 \cs_new:Npn \@@_change_case_skip_space:nnw #1#2
@@ -590,12 +606,12 @@
   {
     \cs_if_exist:cTF { c_@@_ #1 case_ \token_to_str:N #6 _tl }
       {
-        \@@_change_case_store:v
+        \exp_not:v
           { c_@@_ #1 case_ \token_to_str:N #6 _tl }
         \use:c { @@_change_case_next_ #2 :nnn } {#2} {#4} {#5}
       }
       {
-        \@@_change_case_store:n {#6}
+        \exp_not:n {#6}
         \cs_if_exist:cTF
           {
             c_@@_
@@ -607,7 +623,7 @@
       }
   }
 %    \end{macrocode}
-%  Check for a customised codepoint result.
+%  Check for a customized codepoint result.
 %    \begin{macrocode}
 \cs_new:Npn \@@_change_case_custom_lower:nnnn #1#2#3#4
   {
@@ -676,26 +692,22 @@
     \tl_if_head_is_N_type:nTF {#5}
       { \@@_change_case_lower_sigma:nnnnN {#4} }
       {
-        \@@_change_case_store:e
-          { \codepoint_generate:nn { "03C2 } { \@@_char_catcode:N #4 } }
+        \codepoint_generate:nn { "03C2 } { \@@_char_catcode:N #4 }
         \@@_change_case_loop:nnnw
       }
         {#1} {#2} {#3} #5 \q_@@_recursion_stop
   }
 \cs_new:Npn \@@_change_case_lower_sigma:nnnnN #1#2#3#4#5
   {
-    \@@_change_case_store:e
+    \bool_lazy_or:nnTF
+      { \token_if_letter_p:N #5 }
       {
-        \bool_lazy_or:nnTF
-          { \token_if_letter_p:N #5 }
-          {
-            \bool_lazy_and_p:nn
-              { \token_if_active_p:N #5 }
-              { \int_compare_p:nNn {`#5} > { "80 } }
-          }
-          { \codepoint_generate:nn { "03C3 } { \@@_char_catcode:N #1 } }
-          { \codepoint_generate:nn { "03C2 } { \@@_char_catcode:N #1 } }
+        \bool_lazy_and_p:nn
+          { \token_if_active_p:N #5 }
+          { \int_compare_p:nNn {`#5} > { "80 } }
       }
+      { \codepoint_generate:nn { "03C3 } { \@@_char_catcode:N #1 } }
+      { \codepoint_generate:nn { "03C2 } { \@@_char_catcode:N #1 } }
     \@@_change_case_loop:nnnw {#2} {#3} {#4} #5
   }
 %    \end{macrocode}
@@ -738,11 +750,8 @@
     \bool_lazy_and:nnTF
       { \tl_if_single_p:n {#5} }
       { \token_if_active_p:N #5 }
-      { \@@_change_case_store:n {#5} }
-      {
-        \@@_change_case_store:e
-          { \@@_change_case_codepoint:nn {#1} {#5} }
-      }
+      { \exp_not:n {#5} }
+      { \@@_change_case_codepoint:nn {#1} {#5} }
     \use:c { @@_change_case_next_ #2 :nnn } {#2} {#3} {#4}
   }
 \cs_new:Npn \@@_change_case_codepoint:nn #1#2
@@ -801,9 +810,7 @@
 %   the standard catcode. If neither are true, we set as 13 on the grounds that
 %   this will be what is used anyway!
 %    \begin{macrocode}
-\bool_lazy_or:nnTF
-  { \sys_if_engine_luatex_p: }
-  { \sys_if_engine_xetex_p: }
+\sys_if_engine_opentype:TF
   {
     \cs_new:Npn \@@_change_case_catcode:nn #1#2
       { \@@_char_catcode:N #1 }
@@ -829,6 +836,9 @@
 \cs_new:Npn \@@_change_case_next_end:nnn #1#2#3
   { \@@_change_case_skip:nnw {#2} {#3} }
 %    \end{macrocode}
+% \end{macro}
+% \end{macro}
+% \end{macro}
 % \end{macro}
 % \end{macro}
 % \end{macro}
@@ -907,7 +917,7 @@
 %   }
 % \begin{macro}
 %   {\@@_declare_case_mapping:nnnn, \@@_declare_case_mapping_aux:nnnn}
-%   Codepoint customisation.
+%   Codepoint customization.
 %    \begin{macrocode}
 \cs_new_protected:Npn \text_declare_lowercase_mapping:nn #1#2
   { \@@_declare_case_mapping:nnn { lower } {#1} {#2} }
@@ -948,6 +958,27 @@
 % \end{macro}
 % \end{macro}
 %
+% \begin{macro}
+%   {
+%     \text_declare_lowercase_exclusion:n ,
+%     \text_declare_titlecase_exclusion:n ,
+%     \text_declare_uppercase_exclusion:n
+%   }
+% \begin{macro}{\@@_declare_case_exclusion:nn}
+%  Prevent case change.
+%    \begin{macrocode}
+\cs_new_protected:Npn \text_declare_lowercase_exclusion:n #1
+  { \@@_declare_case_exclusion:nn { lower } {#1} }
+\cs_new_protected:Npn \text_declare_titlecase_exclusion:n #1
+  { \@@_declare_case_exclusion:nn { title } {#1} }
+\cs_new_protected:Npn \text_declare_uppercase_exclusion:n #1
+  { \@@_declare_case_exclusion:nn { upper } {#1} }
+\cs_new_protected:Npn \@@_declare_case_exclusion:nn #1#2
+  { \tl_clear_new:c { l_@@_ #1 case_exclude_ \tl_to_str:n {#2} _tl } }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
 % \begin{macro}{\text_case_switch:nnnn}
 % \begin{macro}{\@@_case_switch_marker:}
 %   Set up the mechanism for manual case switching.
@@ -981,11 +1012,8 @@
   {
     \@@_codepoint_compare:nNnTF {#5} = { "00DF }
       {
-        \@@_change_case_store:e
-          {
-            \codepoint_generate:nn { "1E9E }
-              { \@@_change_case_catcode:nn {#5} { "1E9E } }
-          }
+        \codepoint_generate:nn { "1E9E }
+          { \@@_change_case_catcode:nn {#5} { "1E9E } }
         \use:c { @@_change_case_next_ #2 :nnn }
           {#2} {#3} {#4}
       }
@@ -1059,7 +1087,7 @@
       {
         \@@_change_case_if_greek_spacing_diacritic:nTF {#5}
           {
-            \@@_change_case_store:n {#5}
+            \exp_not:n {#5}
             \@@_change_case_loop:nnnw
           }
           {
@@ -1074,11 +1102,8 @@
       {
         \@@_codepoint_compare:nNnTF {#5} = { "0345 }
           {
-            \@@_change_case_store:e
-              {
-                \codepoint_generate:nn { "0399 }
-                  { \char_value_catcode:n { "0399 } }
-              }
+            \codepoint_generate:nn { "0399 }
+              { \char_value_catcode:n { "0399 } }
             \@@_change_case_loop:nnnw {#2} {#3} {#4}
           }
           { \@@_change_case_codepoint:nnnnn {#1} {#2} {#3} {#4} {#5} }
@@ -1101,8 +1126,7 @@
     \tl_if_head_is_N_type:nTF {#5}
       { \@@_change_case_upper_el:nnnnN {#4} }
       {
-        \@@_change_case_store:e
-          { \@@_change_case_codepoint:nn { upper } {#4} }
+        \@@_change_case_codepoint:nn { upper } {#4}
         \@@_change_case_loop:nnnw
       }
         {#1} {#2} {#3} #5 \q_@@_recursion_stop
@@ -1113,14 +1137,13 @@
 %   (The latter do not have the same hiatus behavior as accents.) There is
 %   additional work if the codepoint can take a ypogegrammeni: there, we need
 %   to move any ypogegrammeni to after accents (in case the input is not
-%   normalised). The ypogegrammeni itself is handled separately.
+%   normalized). The ypogegrammeni itself is handled separately.
 %    \begin{macrocode}
 \cs_new:Npn \@@_change_case_upper_el:nnnnN #1#2#3#4#5
   {
     \token_if_cs:NTF #5
       {
-        \@@_change_case_store:e
-          { \@@_change_case_codepoint:nn { upper } {#1} }
+        \@@_change_case_codepoint:nn { upper } {#1}
         \@@_change_case_loop:nnnw {#2} {#3} {#4} #5
       }
       {
@@ -1192,21 +1215,17 @@
               {
                 \@@_codepoint_compare:nNnTF {#5} = { "0345 }
                   {
-                    \@@_change_case_store:e
-                      { \use:c { @@_change_case_upper_ #4 _ypogegrammeni:n } {#1} }
+                    \use:c { @@_change_case_upper_ #4 _ypogegrammeni:n } {#1}
                     \@@_change_case_loop:nnnw {#2} {#3} {#4}
                   }
                   {
                     \@@_change_case_if_greek_stress:nTF {#5}
                       {
-                        \@@_change_case_store:e
-                          { \@@_change_case_upper_el_stress:nn {#1} {#5} }
+                        \@@_change_case_upper_el_stress:nn {#1} {#5}
                         \@@_change_case_loop:nnnw {#2} {#3} {#4}
-
                       }
                       {
-                        \@@_change_case_store:e
-                          { \@@_change_case_codepoint:nn { upper } {#1} }
+                        \@@_change_case_codepoint:nn { upper } {#1}
                         \@@_change_case_loop:nnnw {#2} {#3} {#4} #5
                       }
                   }
@@ -1223,27 +1242,21 @@
   {
     \@@_change_case_if_takes_dialytika:nTF {#4}
       { \@@_change_case_upper_el_dialytika:n {#4} }
-      {
-        \@@_change_case_store:e
-          { \@@_change_case_codepoint:nn { upper } {#4} }
-      }
+      { \@@_change_case_codepoint:nn { upper } {#4} }
     \@@_change_case_upper_el_gobble:nnnw {#1} {#2} {#3}
   }
 \cs_new:Npn \@@_change_case_upper_el_dialytika:n #1
   {
-    \@@_change_case_store:e
+    \bool_lazy_or:nnTF
+      { \@@_codepoint_compare_p:nNn {#1} = { "0399 } }
+      { \@@_codepoint_compare_p:nNn {#1} = { "03B9 } }
       {
-        \bool_lazy_or:nnTF
-          { \@@_codepoint_compare_p:nNn {#1} = { "0399 } }
-          { \@@_codepoint_compare_p:nNn {#1} = { "03B9 } }
-          {
-            \codepoint_generate:nn { "03AA }
-              { \@@_change_case_catcode:nn {#1} { "03AA } }
-          }
-          {
-            \codepoint_generate:nn { "03AB }
-              { \@@_change_case_catcode:nn {#1} { "03AB } }
-          }
+        \codepoint_generate:nn { "03AA }
+          { \@@_change_case_catcode:nn {#1} { "03AA } }
+      }
+      {
+        \codepoint_generate:nn { "03AB }
+          { \@@_change_case_catcode:nn {#1} { "03AB } }
       }
   }
 %    \end{macrocode}
@@ -1256,8 +1269,7 @@
     \tl_if_head_is_N_type:nTF {#5}
       { \@@_change_case_upper_el_hiatus:nnnnN {#4} }
       {
-        \@@_change_case_store:e
-          { \@@_change_case_codepoint:nn { upper } {#4} }
+        \@@_change_case_codepoint:nn { upper } {#4}
         \@@_change_case_loop:nnnw
       }
         {#1} {#2} {#3} #5 \q_@@_recursion_stop
@@ -1266,8 +1278,7 @@
   {
     \token_if_cs:NTF #5
       {
-        \@@_change_case_store:e
-          { \@@_change_case_codepoint:nn { upper } {#1} }
+        \@@_change_case_codepoint:nn { upper } {#1}
         \@@_change_case_loop:nnnw {#2} {#3} {#4} #5 
       }
       {
@@ -1279,8 +1290,7 @@
   {
     \@@_change_case_if_takes_dialytika:nTF {#5}
       {
-        \@@_change_case_store:e
-          { \@@_change_case_codepoint:nn { upper } {#1} }
+        \@@_change_case_codepoint:nn { upper } {#1}
         \@@_change_case_upper_el_dialytika:n {#5}
         \@@_change_case_upper_el_gobble:nnnw {#2} {#3} {#4}
       }
@@ -1677,11 +1687,8 @@
     \tl_if_head_is_N_type:nTF {#5}
       { \@@_change_case_loop:nnnw {#1} {#2} {#3} #4 }
       {
-        \@@_change_case_store:e
-          {
-            \codepoint_generate:nn { "0389 }
-              { \@@_change_case_catcode:nn {#4} { "0389 } }
-          }
+        \codepoint_generate:nn { "0389 }
+          { \@@_change_case_catcode:nn {#4} { "0389 } }
         \@@_change_case_loop:nnnw {#1} {#2} {#3}
       }
         #5 \q_@@_recursion_stop
@@ -1772,8 +1779,7 @@
 \cs_new:Npn \@@_change_case_breathing_aux:nnnnw #1#2#3#4#5
   \q_@@_recursion_stop
   {
-    \@@_change_case_store:e
-      { \@@_change_case_codepoint:nn { upper } {#4} }
+    \@@_change_case_codepoint:nn { upper } {#4}
     \tl_if_head_is_N_type:nTF {#5}
       { \@@_change_case_breathing_aux:nnnN }
       { \@@_change_case_loop:nnnw }
@@ -1781,6 +1787,8 @@
   }
 \cs_new:Npn \@@_change_case_breathing_aux:nnnN #1#2#3#4
   {
+    \@@_if_q_recursion_tail_stop_do:Nn #4
+      { \@@_change_case_break: }
     \@@_codepoint_process:nN
       { \@@_change_case_breathing_dialytika:nnnn {#1} {#2} {#3} } #4
   }
@@ -1824,13 +1832,10 @@
   {
     \@@_codepoint_compare:nNnTF {#5} = { "0587 }
       {
-        \@@_change_case_store:e
-          {
-            \codepoint_generate:nn { "0535 }
-              { \@@_change_case_catcode:nn {#5} { "0535 } }
-            \codepoint_generate:nn { "054E }
-              { \@@_change_case_catcode:nn {#5} { "054E } }
-          }
+        \codepoint_generate:nn { "0535 }
+          { \@@_change_case_catcode:nn {#5} { "0535 } }
+        \codepoint_generate:nn { "054E }
+          { \@@_change_case_catcode:nn {#5} { "054E } }
         \use:c { @@_change_case_next_ #2 :nnn }
           {#2} {#3} {#4}
       }
@@ -1840,13 +1845,10 @@
   {
     \@@_codepoint_compare:nNnTF {#5} = { "0587 }
       {
-        \@@_change_case_store:e
-          {
-            \codepoint_generate:nn { "0535 }
-              { \@@_change_case_catcode:nn {#5} { "0535 } }
-            \codepoint_generate:nn { "057E }
-              { \@@_change_case_catcode:nn {#5} { "057E } }
-          }
+        \codepoint_generate:nn { "0535 }
+          { \@@_change_case_catcode:nn {#5} { "0535 } }
+        \codepoint_generate:nn { "057E }
+          { \@@_change_case_catcode:nn {#5} { "057E } }
         \use:c { @@_change_case_next_ #2 :nnn }
           {#2} {#3} {#4}
       }
@@ -1867,8 +1869,7 @@
   {
     \@@_codepoint_compare:nNnTF {#5} = { "0056 }
       {
-        \@@_change_case_store:e
-          { \char_generate:nn { "0075 } { \@@_char_catcode:N #5 } }
+        \char_generate:nn { "0075 } { \@@_char_catcode:N #5 }
         \use:c { @@_change_case_next_ #2 :nnn }
           {#2} {#3} {#4}
       }
@@ -1878,8 +1879,7 @@
   {
     \@@_codepoint_compare:nNnTF {#5} = { "0075 }
       {
-        \@@_change_case_store:e
-          { \char_generate:nn { "0056 } { \@@_char_catcode:N #5 } }
+        \char_generate:nn { "0056 } { \@@_char_catcode:N #5 }
         \use:c { @@_change_case_next_ #2 :nnn }
           {#2} {#3} {#4}
       }
@@ -1937,15 +1937,12 @@
             {#2} {#3} {#4} {#5}
       }
       {
-        \@@_change_case_store:e
-          {
-            \codepoint_generate:nn { "0069 }
-              { \@@_change_case_catcode:nn {#5} { "0069 } }
-            \codepoint_generate:nn { "0307 }
-              { \@@_change_case_catcode:nn {#5} { "0307 } }
-            \codepoint_generate:nn {#1}
-              { \@@_change_case_catcode:nn {#5} {#1} }
-          }
+        \codepoint_generate:nn { "0069 }
+          { \@@_change_case_catcode:nn {#5} { "0069 } }
+        \codepoint_generate:nn { "0307 }
+          { \@@_change_case_catcode:nn {#5} { "0307 } }
+        \codepoint_generate:nn {#1}
+          { \@@_change_case_catcode:nn {#5} {#1} }
         \@@_change_case_loop:nnnw {#2} {#3} {#4}
       }
   }
@@ -1959,11 +1956,8 @@
     \tl_if_blank:nTF {#1}
       { \@@_change_case_codepoint:nnnnn {#2} {#2} {#3} {#4} {#5} }
       {
-        \@@_change_case_store:e
-          {
-            \codepoint_generate:nn {#1}
-              { \@@_change_case_catcode:nn {#5} {#1} }
-          }
+        \codepoint_generate:nn {#1}
+          { \@@_change_case_catcode:nn {#5} {#1} }
         \@@_change_case_lower_lt:nnnw {#2} {#3} {#4}
       }
   }
@@ -1996,11 +1990,8 @@
           }
       }
       {
-        \@@_change_case_store:e
-          {
-            \codepoint_generate:nn { "0307 }
-              { \@@_change_case_catcode:nn {#4} { "0307 } }
-          }
+        \codepoint_generate:nn { "0307 }
+          { \@@_change_case_catcode:nn {#4} { "0307 } }
       }
     \@@_change_case_loop:nnnw {#1} {#2} {#3} #4
   }
@@ -2038,11 +2029,8 @@
     \tl_if_blank:nTF {#1}
       { \@@_change_case_codepoint:nnnnn { upper } {#2} {#3} {#4} {#5} }
       {
-        \@@_change_case_store:e
-          {
-            \codepoint_generate:nn {#1}
-              { \@@_change_case_catcode:nn {#5} {#1} }
-          }
+        \codepoint_generate:nn {#1}
+          { \@@_change_case_catcode:nn {#5} {#1} }
         \@@_change_case_upper_lt:nnnw {#2} {#3} {#4}
       }
   }
@@ -2097,8 +2085,7 @@
       { \int_compare_p:nNn {`#5} = { "0049 } }
       { \int_compare_p:nNn {`#5} = { "0069 } }
       {
-        \@@_change_case_store:e
-          { \char_generate:nn { "0049 } { \@@_char_catcode:N #5 } }
+        \char_generate:nn { "0049 } { \@@_char_catcode:N #5 }
         \@@_change_case_title_nl:nnnw {#2} {#3} {#4}
       }
       { \@@_change_case_codepoint:nnnnn {#1} {#2} {#3} {#4} {#5} }
@@ -2120,8 +2107,7 @@
           { \int_compare_p:nNn {`#4} = { "006A } }
       }
       {
-        \@@_change_case_store:e
-          { \char_generate:nn { "004A } { \@@_char_catcode:N #4 } }
+        \char_generate:nn { "004A } { \@@_char_catcode:N #4 }
         \use:c { @@_change_case_next_ #1 :nnn } {#1} {#2} {#3}
       }
       { \use:c { @@_change_case_next_ #1 :nnn } {#1} {#2} {#3} #4 }
@@ -2147,11 +2133,8 @@
       {
         \@@_codepoint_compare:nNnTF {#5} = { "0130 }
           {
-            \@@_change_case_store:e
-              {
-                \codepoint_generate:nn { "0069 }
-                  { \@@_change_case_catcode:nn {#5} { "0069 } }
-              }
+            \codepoint_generate:nn { "0069 }
+              { \@@_change_case_catcode:nn {#5} { "0069 } }
             \@@_change_case_loop:nnnw {#1} {#3} {#4}
           }
           { \@@_change_case_codepoint:nnnnn {#1} {#2} {#3} {#4} {#5} }
@@ -2168,11 +2151,8 @@
     \tl_if_head_is_N_type:nTF {#5}
       { \@@_change_case_lower_tr:NnnnN  #4 {#1} {#2} {#3} }
       {
-        \@@_change_case_store:e
-          {
-            \codepoint_generate:nn { "0131 }
-              { \@@_change_case_catcode:nn {#4} { "0131 } }
-          }
+        \codepoint_generate:nn { "0131 }
+          { \@@_change_case_catcode:nn {#4} { "0131 } }
         \@@_change_case_loop:nnnw {#1} {#2} {#3}
       }
         #5 \q_@@_recursion_stop
@@ -2192,19 +2172,13 @@
       }
       { ! \@@_codepoint_compare_p:nNn {#5} = { "0307 } }
       {
-        \@@_change_case_store:e 
-          {
-            \codepoint_generate:nn { "0131 }
-              { \@@_change_case_catcode:nn {#1} { "0131 } }
-          }
+        \codepoint_generate:nn { "0131 }
+          { \@@_change_case_catcode:nn {#1} { "0131 } }
         \@@_change_case_loop:nnnw {#2} {#3} {#4} #5
       }
       {
-        \@@_change_case_store:e
-          {
-            \codepoint_generate:nn { "0069 }
-              { \@@_change_case_catcode:nn {#1} { "0069 } }
-          }
+        \codepoint_generate:nn { "0069 }
+          { \@@_change_case_catcode:nn {#1} { "0069 } }
         \@@_change_case_loop:nnnw {#2} {#3} {#4}
       }
   }
@@ -2220,11 +2194,8 @@
   {
     \@@_codepoint_compare:nNnTF {#5} = { "0069 }
       {
-        \@@_change_case_store:e
-          {
-            \codepoint_generate:nn { "0130 }
-              { \@@_change_case_catcode:nn {#5} { "0130 } }
-          }
+        \codepoint_generate:nn { "0130 }
+          { \@@_change_case_catcode:nn {#5} { "0130 } }
         \use:c { @@_change_case_next_ #2 :nnn } {#2} {#3} {#4}
       }
       { \@@_change_case_codepoint:nnnnn {#1} {#2} {#3} {#4} {#5} }
@@ -2319,16 +2290,14 @@
 % A few adjustments to case mapping for combining chars: these are not needed
 % for the Unicode engines
 %    \begin{macrocode}
-\bool_lazy_or:nnF
-  { \sys_if_engine_luatex_p: }
-  { \sys_if_engine_xetex_p: }
+\sys_if_engine_opentype:F
   {
     \text_declare_uppercase_mapping:nn { "01F0 } { \v { J } }
   }
 %    \end{macrocode}
 %
 %    \begin{macrocode}
-%</package>
+%</code>
 %    \end{macrocode}
 %
 % \end{implementation}
