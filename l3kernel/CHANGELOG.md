@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - `\dim_horizontal:(n|N|c)` and `\dim_vertical:(n|N|c)`
+- `\keyval_map_inline:nnn`, `\keyval_map_break:`, and `\keyval_map_break:n`
 - `\vbox_top_to_ht:nn`
 
 ## [2026-01-19]
