@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\dim_horizontal:(n|N|c)` and `\dim_vertical:(n|N|c)`
 - `\keyval_map_inline:nnn`, `\keyval_map_break:`, and `\keyval_map_break:n`
 - `\vbox_top_to_ht:nn`
+- `\opacity_begin:n`/`\opacity_end:` and fill/stroke versions
 
 ## [2026-01-19]
 

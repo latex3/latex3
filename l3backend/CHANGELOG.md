@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changes
 
 - Track `expl3` core changes
+- Opacity support to allow non-grouped versions
 
 ## [2025-10-09]
 
