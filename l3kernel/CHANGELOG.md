@@ -16,6 +16,8 @@ this project uses date-based 'snapshot' version identifiers.
 - `\msg_expandable_error:nneee` and related `e`-type variants
 - `\vbox_top_to_ht:nn`
 - `\opacity_begin:n`/`\opacity_end:` and fill/stroke versions
+- Efficient `V` and `v`-type variants for `\dim_compare:nNn(TF)` and
+  `\int_compare:nNn(TF)`
 
 ## [2026-01-19]
 
