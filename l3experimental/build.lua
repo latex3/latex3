@@ -27,11 +27,7 @@ stand alone packages, providing new functionality, and can be used on
 top of LaTeX2e with no changes to the existing kernel.
 
 The present release includes:
-- `l3benchmark` for measuring the time taken by TeX to run certain code;
 - `l3draw`, a code-level interface for constructing drawings;
-- `l3str`, support for string manipulation;
-- `l3sys-shell`, which provides abstractions for common shell functions like
-  file deletion and copying;
 - [`xcoffins`](https://ctan.org/pkg/xcoffins), which allows the alignment of
   boxes using a series of 'handle' positions, supplementing the simple TeX
   reference point;
