@@ -11,9 +11,5 @@ module = "xcoffins"
 
 maindir = "../.."
 
--- Non-standard settings
-checkdeps   = {maindir .. "/l3packages/xtemplate"}
-typesetdeps = checkdeps
-
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
