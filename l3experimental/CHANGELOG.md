@@ -12,6 +12,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Track `expl3` core changes
 
+### Removed
+
+- `xgalley`: no longer distributed
+
 ## [2025-10-09]
 
 ### Fixed

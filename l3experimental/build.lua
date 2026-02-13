@@ -31,8 +31,6 @@ The present release includes:
 - [`xcoffins`](https://ctan.org/pkg/xcoffins), which allows the alignment of
   boxes using a series of 'handle' positions, supplementing the simple TeX
   reference point;
-- [`xgalley`](https://ctan.org/pkg/xgalley), which controls boxes receiving
-  text for typesetting.
   ]]
 }
 
