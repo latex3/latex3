@@ -1,7 +1,7 @@
 Experimental LaTeX3 Concepts
 ============================
 
-Release 2025-10-09
+Release 2026-02-18
 
 Overview
 --------
@@ -56,6 +56,6 @@ Development of LaTeX3 is carried out by
 
 -----
 
-<p>Copyright (C) 1998-2004,2008-2012,2014-2025 The LaTeX Project <br />
+<p>Copyright (C) 1998-2004,2008-2012,2014-2026 The LaTeX Project <br />
 <a href="http://latex-project.org/">http://latex-project.org/</a> <br />
 All rights reserved.</p>

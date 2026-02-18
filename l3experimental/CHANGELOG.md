@@ -8,6 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2026-02-18]
+
 ### Changes
 
 - Track `expl3` core changes
@@ -454,7 +456,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2025-10-09...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2026-02-18...HEAD
+[2026-02-18]: https://github.com/latex3/latex3/compare/2025-10-09...2026-02-18
 [2025-10-09]: https://github.com/latex3/latex3/compare/2025-06-30...2025-10-09
 [2025-06-30]: https://github.com/latex3/latex3/compare/2025-05-26...2025-06-30
 [2025-05-26]: https://github.com/latex3/latex3/compare/2025-04-14...2025-05-26
