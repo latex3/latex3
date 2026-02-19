@@ -8,6 +8,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Apply `\text_declare_purify_equivalent:Nn` to commands immediately following
+  `\protect`
+
 ## [2026-02-18]
 
 ### Added
