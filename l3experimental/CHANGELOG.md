@@ -8,9 +8,13 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Performance tweaks for `l3draw`
+
 ## [2026-02-18]
 
-### Changes
+### Changed
 
 - Track `expl3` core changes
 
