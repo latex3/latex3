@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Apply `\text_declare_purify_equivalent:Nn` to commands immediately following
   `\protect`
+- Adjust `\vbox_center:nn` to give identical dimensions to `\vcenter`
 
 ## [2026-02-18]
 
