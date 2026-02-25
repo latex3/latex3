@@ -10,7 +10,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- `\vbox:w`, `\vbox_center:w` and `:nw` versions
+- `\vbox:w`, `\vbox_top:w`, `\vbox_center:w` and their `:nw`,
+  `_to_ht:nw`, and `_to_ht:nnw` versions
 - `\vbox_(g)set_top_to_ht:Nnn`
 
 ### Changed
