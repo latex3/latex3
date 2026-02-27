@@ -8,6 +8,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\vbox:w`, `\vbox_top:w`, `\vbox_center:w` and their `:nw` and `_to_ht:nw`
+  versions
+
 ### Changed
 
 - Apply `\text_declare_purify_equivalent:Nn` to commands immediately following
