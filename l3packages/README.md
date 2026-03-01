@@ -6,7 +6,7 @@ Release 2025-11-06
 
 The `l3packages` collection dealing with higher-level ideas such as the
 Designer Interface, as part of 'LaTeX3' developments. The packages here have
-over time migrated into the LaTeX kernel: the material here is retained to
+over time migrated into the LaTeX kernel: the material here is retained only to
 support older files.
 
 The appropriate LaTeX kernel releases incorporating the ideas from the packages
