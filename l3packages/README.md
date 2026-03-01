@@ -1,6 +1,6 @@
 # `l3packages`: Higher-level LaTeX3 Concepts (Deprecated) 
 
-Release 2025-11-06
+Last updated 2026-03-01
 
 ## Overview
 
@@ -32,6 +32,6 @@ Released under the LaTeX Project Public License v1.3c or later. See https://www.
 
 -----
 
-<p>Copyright (C) 2024,2025 The LaTeX Project <br />
+<p>Copyright (C) 2024-2026 The LaTeX Project <br />
 <a href="https://latex-project.org/">https://latex-project.org/</a> <br />
 All rights reserved.</p>
