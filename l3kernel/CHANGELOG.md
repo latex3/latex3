@@ -28,7 +28,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\keyval_map_inline:nnn`, `\keyval_map_break:`, and `\keyval_map_break:n`
 - `\msg_expandable_error:nneee` and related `e`-type variants
 - `\vbox_center:n`, `\vbox_center:nn`, `\vbox:nn` and `\vbox_top:nn`
-- `\vbox_top_to_ht:nn`
+- `\vbox_top_to_ht:nn` and `\vbox_center_to_ht:nn`
 - `\opacity_begin:n`/`\opacity_end:` and fill/stroke versions
 - Efficient `v`-type variants for `\dim_compare:nNn(TF)` and
   `\int_compare:nNn(TF)`
