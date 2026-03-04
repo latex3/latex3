@@ -10,7 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- `\box_(g)frame:Nnn`, `\box_(g)underline:Nnn`, and `\box_(g)surround:Nnn`
+- `\box_(g)frame:Nnn`, `\box_(g)frame_outside:Nnn` and `\box_(g)underline:Nnn`
 - `\vbox:w`, `\vbox_top:w`, `\vbox_center:w` and their `:nw` and `_to_ht:nw`
   versions
 
