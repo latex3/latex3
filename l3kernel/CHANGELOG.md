@@ -12,6 +12,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 - `\vbox:w`, `\vbox_top:w`, `\vbox_center:w` and their `:nw` and `_to_ht:nw`
   versions
+- `\debug_on:n { check-assertions }` and `\debug_assert:nN`, `:nn`, `:nNn`, and
+  `:nnn` (issue \#1840)
 
 ### Changed
 
