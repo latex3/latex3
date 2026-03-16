@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
+- `\box_(g)frame:Nnn` and `\box_(g)underline:Nnn`
 - `\vbox:w`, `\vbox_top:w`, `\vbox_center:w` and their `:nw` and `_to_ht:nw`
   versions
 - Debugging switch `check-assertions`, `\debug_assert:nN(n)`, and `\debug_assert:nn(n)`
