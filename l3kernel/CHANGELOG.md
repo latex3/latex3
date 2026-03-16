@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+`\box_(g)surround:Nnn`
+
 ## [2026-05-26]
 
 ### Added
