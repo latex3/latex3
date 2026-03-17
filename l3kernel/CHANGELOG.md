@@ -10,7 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
-- Encoding `iso18004` (ISO-18004 alphanumeric for QR codes)
+- Encoding `iso180042` (ISO-18004 alphanumeric for QR codes)
 
 ## [2026-03-16]
 
