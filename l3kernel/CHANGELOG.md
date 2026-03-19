@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `en`-type variants of `\text_...case:nn`
+
 ## [2026-03-16]
 
 ### Added
