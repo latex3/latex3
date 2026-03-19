@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- New `l3dirs` modules
+
 ## [2026-03-20]
 
 ### Added
