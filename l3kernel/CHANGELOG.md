@@ -12,6 +12,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 - `en`-type variants of `\text_...case:nn`
 
+### Changed
+
+- Adjust internal expansion in case functions to support `biblatex`
+  (transitional measure)
+
 ## [2026-03-16]
 
 ### Added
