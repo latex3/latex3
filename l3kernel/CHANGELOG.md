@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Remove `\@setfontsize` in `\text_expand:n`
+
 ## [2026-03-20]
 
 ### Added
