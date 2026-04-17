@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 
 - Remove `\@setfontsize` in `\text_expand:n`
+- Support Japanese input for string conversion in upTeX (issue \#1880)
 
 ## [2026-03-20]
 
