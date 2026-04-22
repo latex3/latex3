@@ -11,6 +11,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 
 - Performance tweaks for `l3draw`
+- Standardize argument order for `l3draw` functions taking angle argument(s)
+  (see issue \#1843)
 
 ## [2026-02-18]
 
