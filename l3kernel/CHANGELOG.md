@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\c_max_intarray_int`
+
 ### Changed
 
 - Remove `\@setfontsize` in `\text_expand:n`
