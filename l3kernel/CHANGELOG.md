@@ -11,7 +11,6 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - `\c_max_intarray_int`
-- `variant-same-as-base` kernel message
 
 ### Changed
 
