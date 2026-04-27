@@ -11,11 +11,14 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - `\c_max_intarray_int`
+- `variant-same-as-base` kernel message
 
 ### Changed
 
 - Remove `\@setfontsize` in `\text_expand:n`
 - Support Japanese input for string conversion in upTeX (issue \#1880)
+- Update function variant generators to handle inputted variants that are
+  identical to its base form (issue \#1038) 
 
 ## [2026-03-20]
 
