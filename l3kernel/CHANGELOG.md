@@ -8,6 +8,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Update `T` and `B` pole adjustments to mitigate incorrect pole selection
+  in deeply-nested or self-joined coffins (issue \#445)
+
 ## [2026-04-28]
 
 ### Added
