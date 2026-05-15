@@ -8,6 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2026-05-15]
+
 ### Changed
 
 - Update `T` and `B` pole adjustments to mitigate incorrect pole selection
@@ -2448,7 +2450,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2026-04-28...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2026-05-15...HEAD
+[2026-05-15]: https://github.com/latex3/latex3/compare/2026-04-28...2026-05-15
 [2026-04-28]: https://github.com/latex3/latex3/compare/2026-03-20...2026-04-28
 [2026-03-20]: https://github.com/latex3/latex3/compare/2026-03-16...2026-03-20
 [2026-03-16]: https://github.com/latex3/latex3/compare/2026-02-18...2026-03-16

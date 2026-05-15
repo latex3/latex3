@@ -8,12 +8,17 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2026-05-15]
+
 ### Changed
+
+- Clear the global drawing layer box upon saving (see issue \#1894)
+
+## [2026-04-28]
 
 - Performance tweaks for `l3draw`
 - Standardize argument order for `l3draw` functions taking angle argument(s)
   (see issue \#1843)
-- Clear the global drawing layer box upon saving (see issue \#1894)
 
 ## [2026-02-18]
 
@@ -463,7 +468,9 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2026-02-18...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2026-05-15...HEAD
+[2026-05-15]: https://github.com/latex3/latex3/compare/2026-04-28...2026-05-15
+[2026-04-28]: https://github.com/latex3/latex3/compare/2026-02-18...2026-04-28
 [2026-02-18]: https://github.com/latex3/latex3/compare/2025-10-09...2026-02-18
 [2025-10-09]: https://github.com/latex3/latex3/compare/2025-06-30...2025-10-09
 [2025-06-30]: https://github.com/latex3/latex3/compare/2025-05-26...2025-06-30
