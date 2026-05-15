@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Performance tweaks for `l3draw`
 - Standardize argument order for `l3draw` functions taking angle argument(s)
   (see issue \#1843)
+- Clear the global drawing layer box upon saving (see issue \#1894)
 
 ## [2026-02-18]
 
