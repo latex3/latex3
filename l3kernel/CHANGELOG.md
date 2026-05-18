@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Anticipate ranges in catcode-in-class mode (issue \#1903)
+
 ## [2026-05-15]
 
 ### Changed
