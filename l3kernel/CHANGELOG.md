@@ -12,6 +12,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Anticipate ranges in catcode-in-class mode (issue \#1903)
 
+### Fixed
+
+- Nested inheritance of key defaults (issue \#1901)
+
 ## [2026-05-15]
 
 ### Changed
