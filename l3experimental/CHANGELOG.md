@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\draw_point_interpolate_curve:nnnn`
+
 ### Changed
 
 - Automatically manage layer creation in drawings  (see issue \#1899)
