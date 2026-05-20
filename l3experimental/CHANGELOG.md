@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\draw_point_interpolate_curve:nnnn`
+
 ### Changed
 
 - Extend docs for `\keys_if_exist:n(TF)` (see issue \#1902)
