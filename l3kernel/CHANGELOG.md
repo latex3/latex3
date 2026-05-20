@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
+- Extend docs for `\keys_if_exist:n(TF)` (see issue \#1902)
 - Anticipate ranges in catcode-in-class mode (issue \#1903)
 
 ### Fixed

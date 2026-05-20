@@ -14,12 +14,16 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Changed
 
-- Extend docs for `\keys_if_exist:n(TF)` (see issue \#1902)
+- Automatically manage layer creation in drawings  (see issue \#1899)
 
 ### Fixed
 
 - Correct signature for `\draw_point_interpolate_curve:nnnnnn`
 - Correct result for `\draw_point_interpolate_curve:nnnnnn` (issue \#1903)
+
+### Removed
+
+- `\draw_layer_new:n` (see issue \#1899)
 
 ## [2026-05-15]
 
