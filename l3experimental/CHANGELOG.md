@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Correct signature for `\draw_point_interpolate_curve:nnnnnn`
+
 ## [2026-05-15]
 
 ### Changed
