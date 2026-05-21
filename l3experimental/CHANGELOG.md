@@ -20,6 +20,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Correct signature for `\draw_point_interpolate_curve:nnnnnn`
 - Correct result for `\draw_point_interpolate_curve:nnnnnn` (issue \#1903)
+- Correct scaling for `\draw_point_arc_axes:nnnn` (issue \#1910)
 
 ### Removed
 
