@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- Symbolic support for variadic functions (issue \#1306)
+
 ### Changed
 
 - Extend docs for `\keys_if_exist:n(TF)` (see issue \#1902)
