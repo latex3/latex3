@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - `\draw_point_interpolate_curve:nnnn`
+- `\draw_path_lastx:`, `\draw_path_lasty:` (issue \#1900)
 
 ### Changed
 
