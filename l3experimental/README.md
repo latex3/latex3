@@ -1,7 +1,7 @@
 Experimental LaTeX3 Concepts
 ============================
 
-Release 2026-05-15
+Release 2026-05-26
 
 Overview
 --------

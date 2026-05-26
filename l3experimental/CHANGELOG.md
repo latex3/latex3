@@ -8,6 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2026-05-26]
+
 ### Added
 
 - `\draw_point_interpolate_curve:nnnn`
@@ -492,7 +494,8 @@ this project uses date-based 'snapshot' version identifiers.
 - New `l3color` module using `xcolor`-like expression syntax
 - New `l3draw` module, based on `pgf` layer of the TikZ system
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2026-05-15...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2026-05-26...HEAD
+[2026-05-26]: https://github.com/latex3/latex3/compare/2026-05-15...2026-05-26
 [2026-05-15]: https://github.com/latex3/latex3/compare/2026-04-28...2026-05-15
 [2026-04-28]: https://github.com/latex3/latex3/compare/2026-02-18...2026-04-28
 [2026-02-18]: https://github.com/latex3/latex3/compare/2025-10-09...2026-02-18
