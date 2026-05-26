@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## Fixed
+
+- Correct point mapping for `\draw_point_vec_polar:nn(n)`
+
 ## [2026-05-26]
 
 ### Added
