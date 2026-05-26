@@ -15,6 +15,9 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 
 - Automatically manage layer creation in drawings  (see issue \#1899)
+- Rename `\draw_point_interpolate_arcaxes:nnnnnn` to
+  `draw_point_interpolate_arc_axes:nnnnnn`
+- Document `\draw_point:n` (issue \#1488)
 
 ### Fixed
 
