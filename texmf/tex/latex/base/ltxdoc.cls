@@ -13,7 +13,7 @@
 %% (but please observe conditions on bug reports sent to that address!)
 %% 
 %% 
-%% Copyright (C) 1993-2025
+%% Copyright (C) 1993-2026
 %% The LaTeX Project and any individual authors listed elsewhere
 %% in this file.
 %% 
@@ -43,7 +43,7 @@
 %% extension .ins) which are part of the distribution.
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{ltxdoc}
-         [2024/02/08 v2.1j Standard LaTeX documentation class]
+         [2026/04/06 v2.1l Standard LaTeX documentation class]
 \DeclareOption{a5paper}{\@latexerr{Option not supported}%
    {}}
 \newif\ifltxdoc@load@cfg@ \ltxdoc@load@cfg@true
@@ -83,6 +83,9 @@
 \addtolength\evensidemargin{20pt}
 \setcounter{StandardModuleDepth}{1}
 \def\cmd#1{\texttt{\char`\\\expandafter\cmd@to@cs\string#1}}
+\providecommand\pdfstringdefPreHook{}
+\g@addto@macro\pdfstringdefPreHook{%
+  \def\cmd#1{\textbackslash\expandafter\@gobble\string#1}}%
 \def\cmd@to@cs#1#2{\char\number`#2\relax}
 \providecommand\marg[1]{%
   {\ttfamily\char`\{}\meta{#1}{\ttfamily\char`\}}}
