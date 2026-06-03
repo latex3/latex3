@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Support comma list input for `\text_declare_<case>_exclusion:n` in `l3text`
+
 ## [2026-05-26]
 
 ### Added
