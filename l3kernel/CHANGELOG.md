@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Loop with invalid input for `\text_bcp_parse:n` (see issue \#1929)
+
 ## [2026-05-26]
 
 ### Added
