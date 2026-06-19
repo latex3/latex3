@@ -8,6 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2026-06-19]
+
 ### Changed
 
 - Set `\current@color` from `\color_select:N`, etc.
@@ -2475,7 +2477,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2026-06-18...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2026-06-19...HEAD
+[2026-06-19]: https://github.com/latex3/latex3/compare/2026-06-18...2026-06-19
 [2026-06-18]: https://github.com/latex3/latex3/compare/2026-05-26...2026-06-18
 [2026-05-26]: https://github.com/latex3/latex3/compare/2026-05-15...2026-05-26
 [2026-05-15]: https://github.com/latex3/latex3/compare/2026-04-28...2026-05-15
