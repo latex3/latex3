@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Set `\current@color` from `\color_select:N`, etc.
+
 ## [2026-06-18]
 
 ### Fixed
