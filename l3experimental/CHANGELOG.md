@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Use a zero linewidth in `\draw_path_replace_bb:`
+
 ## [2026-06-18]
 
 ## Fixed
