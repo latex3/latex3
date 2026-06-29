@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Parsing of numeric region subtags in `\text_bcp_parse:n` (fixes \#1936)
+
 ## [2026-06-19]
 
 ### Changed
