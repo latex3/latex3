@@ -7,6 +7,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Setting of `\current@color` for separations in DVI-based routes (including
+  XeTeX) (see \#1938)
+
 ## [2026-06-19]
 
 ### Changed
