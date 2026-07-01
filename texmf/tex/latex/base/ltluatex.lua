@@ -13,7 +13,7 @@
 -- (but please observe conditions on bug reports sent to that address!)
 -- 
 -- 
--- Copyright (C) 2015-2025
+-- Copyright (C) 2015-2026
 -- The LaTeX Project and any individual authors listed elsewhere
 -- in this file.
 -- 

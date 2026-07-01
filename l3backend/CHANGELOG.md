@@ -7,6 +7,17 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Setting of `\current@color` for separations in DVI-based routes (including
+  XeTeX) (see \#1938)
+
+## [2026-06-19]
+
+### Changed
+
+- Set `\current@color` from `\color_select:N`, etc.
+
 ## [2026-02-18]
 
 ### Changes
@@ -468,7 +479,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2026-02-18...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2026-06-19...HEAD
+[2026-06-19]: https://github.com/latex3/latex3/compare/2026-02-18...2026-06-19
 [2026-02-18]: https://github.com/latex3/latex3/compare/2025-10-09...2026-02-18
 [2025-10-09]: https://github.com/latex3/latex3/compare/2025-06-09...2025-10-09
 [2025-06-09]: https://github.com/latex3/latex3/compare/2025-04-14...2025-06-09
