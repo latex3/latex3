@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
+- `raw` export format for `\color_export:nn(n)N` (see issue \#1934)
 - Basic HiTeX support: names for new primitives, engine and format detections
 - `\sys_if_engine_hitex:(TF)`
 - `\sys_if_engine_unicode:(TF)`
