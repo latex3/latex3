@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Support for `raw` color export mode
+
 ### Fixed
 
 - Setting of `\current@color` for separations in DVI-based routes (including

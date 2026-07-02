@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `raw` export format for `\color_export:nn(n)N` (see issue \#1934)
+
 ### Fixed
 
 - Parsing of numeric region subtags in `\text_bcp_parse:n` (fixes \#1936)
