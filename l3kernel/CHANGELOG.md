@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\sys_if_engine_unicode:(TF)`
+
 ## [2026-07-20]
 
 ### Fixed
