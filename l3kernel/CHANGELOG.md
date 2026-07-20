@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
+- `\sys_if_engine_hitex:(TF)`
 - `\sys_if_engine_unicode:(TF)`
 
 ## [2026-07-20]
