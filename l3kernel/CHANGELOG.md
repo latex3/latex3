@@ -14,6 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\sys_if_engine_hitex:(TF)`
 - `\sys_if_engine_unicode:(TF)`
 - `\sys_if_output_hnt:(TF)`
+- Support for loading `hitex` backend
 
 ## [2026-07-20]
 

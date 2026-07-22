@@ -7,6 +7,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## Added
+
+- `l3backend-hitex.def`
+
 ## [2026-07-20]
 
 ### Fixed
