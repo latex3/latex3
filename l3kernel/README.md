@@ -64,15 +64,17 @@ Starting from release 2023-05-15, the `\expanded` primitive is *required*.
 Its slow emulation has been removed.
 
 In addition to the above, engines which are fully Unicode-compatible
-must provide the functionality of the following primitives, documented in the
-LuaTeX manual
+must provide the functionality of the following primitives
 
 - `\Uchar`
 - `\Ucharcat`
-- `\Umathcode`
 
-The existence of the primitive `\Umathcode` is used as the marker for Unicode
+The existence of the primitive `\Uchar` is used as the marker for Unicode
 support.
+
+For OpenType math typesetting, the mechanisms originating in XeTeX and now also
+available in LuaTeX are required. The existence of the primitive `\Umathcode` is
+used as the marker for OpenType math support.
 
 Issues
 ------
