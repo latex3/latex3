@@ -10,6 +10,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 ### Added
 
+- Basic HiTeX support: names for new primitives, engine and format detections
 - `\sys_if_engine_hitex:(TF)`
 - `\sys_if_engine_unicode:(TF)`
 - `\sys_if_output_hnt:(TF)`
