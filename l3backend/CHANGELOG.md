@@ -11,6 +11,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - `l3backend-hitex.def`
 
+### Changed
+
+- Support for `raw` color export mode
+
 ## [2026-07-20]
 
 ### Fixed
