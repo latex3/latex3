@@ -73,7 +73,7 @@ The existence of the primitive `\Uchar` is used as the marker for Unicode
 support.
 
 For OpenType math typesetting, the mechanisms originating in XeTeX and now also
-available in LuaTeX are required. The existence of the primitive `\Umathcode` is
+available in LuaTeX are required. The existence of the primitive `\Umathcodenum` is
 used as the marker for OpenType math support.
 
 Issues
