@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Integrate `l3backend` files into `l3kernel` distribution
+
 ## [2026-08-02]
 
 ### Added

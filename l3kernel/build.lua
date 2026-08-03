@@ -22,12 +22,10 @@ cleanfiles   = {"*.fmt", "*.log", "*.pdf", "*.zip"}
 docfiles     = {"source3body.tex", "l3prefixes.csv"}
 installfiles =
   {
-    "l3dvipdfmx.def", "l3dvips.def", "l3dvisvgm.def", "l3pdfmode.def",
-    "l3xdvipdfmx.def",
-    "l3str-enc-*.def",
-    "l3debug.def", "l3sys.def",
-    "expl3.lua","expl3.ltx",
-    "*.cls", "*.sty", "*.tex"
+    "expl3.lua", "expl3.ltx",
+    "*.cls", "*.pro", "*.sty", "*.tex",
+    "l3backend-*.def", "l3debug.def", "l3str-*.def",
+    "l3backend*.lua"
   }
 sourcefiles  = {"*.dtx", "*.ins"}
 tagfiles     =
@@ -43,17 +41,24 @@ typesetfiles =
   {
     "expl3.dtx", "l3docstrip.dtx", "l3doc.dtx", "interface3.tex",
     "l3syntax-changes.tex", "l3styleguide.tex", "l3term-glossary.tex",
-    "source3.tex", "l3prefixes.tex", "l3news*.tex"
+    "source3.tex", "l3prefixes.tex", "l3backend-code.tex", "l3news*.tex"
   }
 typesetskipfiles = {"source3-body.tex"}
 typesetruns      = 3
-unpackfiles      = {"l3.ins"}
+unpackfiles      = {"l3backend.ins", "l3.ins"}
 
-checkdeps   = {maindir .. "/l3backend"}
+checkdeps   = { }
 typesetdeps = typesetdeps
 
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
+
+-- Get the .pro files in the right place
+if main_branch then
+  tdslocations = {"dvips/l3kernel/*.pro"}
+else
+  tdslocations = {"dvips/l3kernel-dev/*.pro"}
+end
 
 -- Detail how to set the version automatically
 function update_tag_extra(file,content,tagname,tagdate)
