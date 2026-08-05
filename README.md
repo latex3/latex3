@@ -40,8 +40,8 @@ Documentation is found in:
   publication in [_TUGBoat_](http://www.tug.org/tugboat) or elsewhere.
 
 The repository also contains the directory `xpackages`. This contain code which
-is being moved (broadly) `l3experimental`. Over time, `xpackages` is expected to
-be removed from the repository.
+is being used to inform developments in the LaTeX kernel, but is no longer
+directly relevant to users.
 
 ## Issues
 
