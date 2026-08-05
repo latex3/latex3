@@ -45,7 +45,7 @@ typesetfiles =
   }
 typesetskipfiles = {"source3-body.tex"}
 typesetruns      = 3
-unpackfiles      = {"l3backend.ins", "l3.ins"}
+unpackfiles      = {"l3.ins"}
 
 checkdeps   = { }
 typesetdeps = typesetdeps
