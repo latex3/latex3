@@ -71,9 +71,9 @@
 % error message describing incorrect inputs that were encountered.
 %
 % Flags should not be used without carefully considering the fact that
-% raising a flag takes a time and memory proportional to its height and
-% that the memory cannot be reclaimed even if the flag is cleared.
-% Flags should not be used unless it is unavoidable.
+% raising a flag takes a time logarithmically proportional to its height and
+% memory proportional to its height and that the memory cannot be reclaimed even
+% if the flag is cleared. Flags should not be used unless it is unavoidable.
 %
 % In earlier versions, flags were referenced by an \texttt{n}-type
 % \meta{flag name} such as \texttt{fp_overflow}, used as part of
@@ -305,24 +305,104 @@
 % \end{macro}
 %
 % \begin{macro}[EXP]{\flag_height:N, \flag_height:c}
-% \begin{macro}[EXP]{\@@_height_loop:wN, \@@_height_end:wN}
-%   Extract the value of the flag by going through all of the
-%   control sequences starting from |0|.
+% \begin{macro}[EXP]{\@@_height_fast:NN, \@@_height_loop:wnN}
+% \begin{macro}[EXP]{\@@_bin_search:w, \@@_bin_search_aux:NnTF}
+%   Extract the value of the flag using an exponential search algorithm. The
+%   first three cases are shortcut because they are trivial (and exactly what an
+%   exponential search would do simply in more expansion steps). Afterwards we
+%   search for the first undefined control sequence in powers of two,
+%   remembering the last step. Once we found that we binary search using the
+%   last found element and the current element as bounds.
 %    \begin{macrocode}
-\cs_new:Npn \flag_height:N #1 { \@@_height_loop:wN 0 \@@_sep: #1 }
-\cs_new:Npn \@@_height_loop:wN #1 \@@_sep: #2
+\cs_new:Npn \flag_height:N #1
   {
-    \if_cs_exist:w #2 #1 \cs_end: \else:
-      \exp_after:wN \@@_height_end:wN
-    \fi:
-    \exp_after:wN \@@_height_loop:wN
-    \int_value:w \int_eval:w \c_one_int + #1 \@@_sep: #2
+    \@@_height_fast:NN #1 0
+    \@@_height_fast:NN #1 1
+    \@@_height_fast:NN #1 2
+    \use_i:nn { \@@_height_loop:wnN 4 \@@_sep: 2 #1 }
+    \q_stop
   }
-\cs_new:Npn \@@_height_end:wN #1 + #2 \@@_sep: #3 {#2}
+\cs_new:Npn \@@_height_fast:NN #1#2
+  {
+    \if_cs_exist:w #1 #2 \cs_end: \use_i:nnn \fi:
+    \use_i_delimit_by_q_stop:nw #2
+  }
+\cs_new:Npn \@@_height_loop:wnN #1 \@@_sep: #2#3
+  {
+    \if_cs_exist:w #3 #1 \cs_end: \else:
+      \@@_bin_search:w #2
+    \fi:
+    \exp_after:wN \@@_height_loop:wnN
+      \int_value:w \int_eval:w 2 * #1 \@@_sep: {#1} #3
+  }
+\cs_new:Npn \@@_bin_search:w #1 \fi: #2 \@@_sep: #3#4
+  {
+    \fi:
+    \__kernel_bin_search:nnn {#1} {#3} { \@@_bin_search_aux:NnTF #4 }
+  }
+\cs_new:Npn \@@_bin_search_aux:NnTF #1#2#3#4
+  { \if_cs_exist:w #1 #2 \cs_end: #3 \else: #4 \fi: }
 \cs_generate_variant:Nn \flag_height:N { c }
 %    \end{macrocode}
 % \end{macro}
 % \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%<@@=kernel>
+%    \end{macrocode}
+%
+% \begin{macro}[EXP]{\@@_bin_search:nnn}
+% \begin{macro}[EXP]{\@@_bin_search_auxi:wnnn, \@@_bin_search_auxii:wnnn,
+%     \@@_bin_search_end:w}
+%   A generic binary search implementation. In most \TeX\ data structures it
+%   makes more sense to simply traverse a list because accessing an element
+%   takes $O(n)$ time. However for the cases where we can access an element by
+%   index in $O(1)$ we can use a binary search.
+%
+%   This implementation gets three arguments:
+%   \begin{enumerate}
+%     \item the lower bound $l$
+%     \item the upper bound $u$
+%     \item a function $f$ (can be multiple tokens) that performs a check on the
+%       current index. The current index will be provided as a following brace
+%       group. The check shall be a fully expandable |TF| test expanding to
+%       \emph{true} if the lower bound should be moved upwards and to
+%       \emph{false} otherwise.
+%   \end{enumerate}
+%   |\@@_bin_search:nnn| fully expands to a number $n$ with $l < n \leq u$, and
+%   with $n$ being the lowest number possible for which the check yields
+%   \emph{false}. So this only gives correct results if $f(l)$ is \emph{true},
+%   $f(u)$ is \emph{false} and there exists only a single index $i$ for which
+%   $f(i)$ is \emph{false} while $f(i-1)$ is \emph{true}.
+%    \begin{macrocode}
+\cs_new:Npn \@@_bin_search:nnn #1#2
+  {
+    \exp_after:wN \@@_bin_search_auxi:wnnn
+      \int_value:w \int_eval:w (#2 - #1 - 1) / 2 \@@_int_sep:
+      {#1} {#2}
+  }
+\cs_new:Npn \@@_bin_search_auxi:wnnn #1 \@@_int_sep: #2
+  {
+    \if_meaning:w 0 #1 \@@_bin_search_end:w \fi:
+    \exp_after:wN \@@_bin_search_auxii:wnnn
+      \int_value:w \int_eval:w #2 + #1 \@@_int_sep:
+      {#2}
+  }
+\cs_new:Npn \@@_bin_search_auxii:wnnn #1 \@@_int_sep: #2#3#4
+  {
+    \use:e { \exp_not:N \@@_bin_search:nnn #4 {#1} { {#1} {#3} } { {#2} {#1} } }
+    {#4}
+  }
+\cs_new:Npn \@@_bin_search_end:w \fi: #1 \@@_int_sep: #2#3#4
+  { \fi: #3 }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+%    \begin{macrocode}
+%<@@=flag>
+%    \end{macrocode}
 %
 % \begin{macro}[EXP]{\flag_raise:N, \flag_raise:c}
 %   Change the appropriate control sequence to \tn{relax} by expanding a

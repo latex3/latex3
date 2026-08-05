@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Use an exponential search for `\flag_height:N` (see issue \#1943)
+
 ## [2026-08-02]
 
 ### Added
