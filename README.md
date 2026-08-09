@@ -13,9 +13,6 @@ The following directories are present in the repository:
   With a modern LaTeX2e kernel,
   this code is loaded during format creation; when using an older LaTeX2e
   kernel, this material is accessible using the `expl3` package.
-* `l3backend`: code for backend (driver) level interfaces across
-  the `expl3` codebase; none of this code has public interfaces, and so
-  no distinction is made between stable and experimental code.
 * `l3packages`: code which is written to be used on top of LaTeX2e to explore
   interfaces; this bundle is now made up of historical material, and the
   concepts have been migrated to the LaTeX2e kernel
@@ -43,8 +40,8 @@ Documentation is found in:
   publication in [_TUGBoat_](http://www.tug.org/tugboat) or elsewhere.
 
 The repository also contains the directory `xpackages`. This contain code which
-is being moved (broadly) `l3experimental`. Over time, `xpackages` is expected to
-be removed from the repository.
+is being used to inform developments in the LaTeX kernel, but is no longer
+directly relevant to users.
 
 ## Issues
 

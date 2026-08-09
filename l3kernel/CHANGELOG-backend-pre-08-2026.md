@@ -1,11 +1,24 @@
 # Changelog
 
-All notable changes to the `l3backend` bundle will be documented in this file.
+All notable changes to the `l3backend` bundle were documented in this file;
+from 2026-08-03, this work was merged into `l3kernel`.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
+
+## [2026-08-02]
+
+### Added
+
+- `l3backend-hitex.def`
+
+### Changed
+
+- Support for `raw` color export mode
+
+## [2026-07-20]
 
 ### Fixed
 
@@ -479,7 +492,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Include `l3backend` in file names
 - Moved backend code to internal for each 'parent' module
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2026-06-19...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2026-08-02...HEAD
+[2026-08-02]: https://github.com/latex3/latex3/compare/2026-07-20...2026-08-02
+[2026-07-20]: https://github.com/latex3/latex3/compare/2026-06-19...2026-07-20
 [2026-06-19]: https://github.com/latex3/latex3/compare/2026-02-18...2026-06-19
 [2026-02-18]: https://github.com/latex3/latex3/compare/2025-10-09...2026-02-18
 [2025-10-09]: https://github.com/latex3/latex3/compare/2025-06-09...2025-10-09
