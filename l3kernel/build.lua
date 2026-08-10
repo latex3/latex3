@@ -71,6 +71,10 @@ function update_tag_extra(file,content,tagname,tagdate)
     content = string.gsub(content,
       "\n\\date{Released " .. iso .. "}\n",
       "\n\\date{Released " .. tagname .. "}\n")
+  elseif string.match(file,"l3backend%-basics%.dtx$") then
+    content = string.gsub(content,
+      "\n  ({l3backend%-%w+%.def}){" .. iso .. "}",
+      "\n  %1{" .. tagname .. "}")
   end
   return(content)
 end
