@@ -23,7 +23,7 @@ docfiles     = {"source3body.tex", "l3prefixes.csv"}
 installfiles =
   {
     "expl3.lua", "expl3.ltx",
-    "*.cls", "*.pro", "*.sty", "*.tex",
+    "*.cls", "*.sty", "*.tex",
     "l3backend-*.def", "l3debug.def", "l3str-*.def",
     "l3backend*.lua"
   }
@@ -53,11 +53,10 @@ typesetdeps = typesetdeps
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
--- Get the .pro files in the right place
+-- Get the .pro files in the right place and suppress for non-main branches
 if main_branch then
+  table.insert(installfiles, "*.pro")
   tdslocations = {"dvips/l3kernel/*.pro"}
-else
-  tdslocations = {"dvips/l3kernel-dev/*.pro"}
 end
 
 -- Detail how to set the version automatically
