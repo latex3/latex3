@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 
 - Integrate `l3backend` files into `l3kernel` distribution
+- Add `\fp_if_tuple:n(TF)`, add `count()` and `item()` to fp expressions
 
 ## [2026-08-02]
 
