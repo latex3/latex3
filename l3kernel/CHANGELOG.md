@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Apply transparency group to PDF images via an Xform object
+
 ## [2026-08-10]
 
 ### Changed
