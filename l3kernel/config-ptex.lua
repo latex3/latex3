@@ -1,6 +1,11 @@
 checkengines = {"ptex"}
 -- Make sure that any .tlg files are engine-specific
 stdengine = "pdftex"
+
+-- avoid "(guessed encoding #5: ASCII = utf8)" euptex stderr
+specialformats.latex.ptex.options =
+  specialformats.latex.ptex.options .. " -no-guess-input-enc"
+
 includetests =
   {
     "m3box001",
