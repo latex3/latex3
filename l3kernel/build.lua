@@ -126,10 +126,21 @@ function cmdcheck()
       " \"\\PassOptionsToClass{check}{l3doc} \\input source3.tex \""
       .. " > " .. os_null
   )
+  errorlevel = 0
   for line in io.lines(testdir .. "/source3.cmds") do
     if string.match(line, "^%!") then
+      if errorlevel == 0 then
+        print("Errors found in source3:")
+      end
       print("   - " .. string.match(line, "^%! (.*)"))
+      errorlevel = 1
     end
+  end
+  if errorlevel == 0 then
+    print("   - No errors found")
+    os.exit(0)
+  else
+    os.exit(1)
   end
 end
 
