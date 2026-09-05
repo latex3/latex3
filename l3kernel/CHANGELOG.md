@@ -12,6 +12,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Apply transparency group to PDF images via an Xform object
 
+### Deprecated
+
+- `\exp_after:wN` in favor of `\exp_after:w`
+
 ## [2026-08-10]
 
 ### Changed
