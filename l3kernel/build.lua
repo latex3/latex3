@@ -148,5 +148,6 @@ target_list = target_list or { }
 target_list.cmdcheck =
   {
     func = cmdcheck,
-    desc = "Run cmd cover test"
+    desc = "Run cmd cover test",
+    help = "Carries out a check of source3 to ensure that\nall commands documented are defined, and vice versa."
   }
