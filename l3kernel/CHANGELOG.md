@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\skip_mult:nn`
+
 ## [2026-09-09]
 
 ### Changed
