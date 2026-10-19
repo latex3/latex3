@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- Symbolic support for comparisons (#1306)
+
 ## [2026-09-09]
 
 ### Changed
