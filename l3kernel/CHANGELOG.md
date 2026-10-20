@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - Symbolic support for comparisons (#1306)
+- `\skip_mult:nn`
 
 ## [2026-09-09]
 
