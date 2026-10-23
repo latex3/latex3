@@ -13,6 +13,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Symbolic support for comparisons (#1306)
 - `\skip_mult:nn`
 
+### Changed
+
+- Support `+=` syntax in `\keys_set:nn`
+
 ## [2026-09-09]
 
 ### Changed
