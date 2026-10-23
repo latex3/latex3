@@ -19,6 +19,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Add grouping around `\cs:w` in linked `\prop_(g)put:Nnn` (issue \#1969)
 
+### Changed
+
+- Support `+=` syntax in `\keys_set:nn`
+
 ## [2026-09-09]
 
 ### Changed
