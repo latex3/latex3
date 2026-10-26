@@ -2683,25 +2683,63 @@
     \exp:w
     \@@_parse_operand:Nw \c_@@_prec_comp_int \@@_parse_expand:w #5
   }
+%    \end{macrocode}
+% \end{macro}
+% \end{macro}
+%
+% \begin{macro}[EXP]
+%   {
+%     \@@_parse_apply_compare:NwNNNNNwN,
+%     \@@_parse_apply_compare_aux:NNwN,
+%     \@@_parse_continue_compare:NNwNN,
+%   }
+%   Once a comparison has been read, the token stream has the form
+%   \meta{precedence} \meta{left} |@| \cs{@@_parse_apply_compare:NwNNNNNwN}
+%   \meta{accumulator} \meta{four flags} \meta{right} |@| \meta{next infix}.
+%   The \meta{accumulator} records whether all comparisons of a chain such as
+%   |1 < x < 5| have been true so far.  It starts as \cs{c_one_fp}, and is a
+%   single token (\cs{c_one_fp} or \cs{c_zero_fp}) as long as it is a plain
+%   number.  The four flags correspond to the outcomes $<$, $=$, $>$ and
+%   ``unordered''; they are set by the relation symbols that were read.  If
+%   no operand and not the accumulator is symbolic, the comparison is
+%   decided: the accumulator is kept if the outcome has a true flag and
+%   replaced by \cs{c_zero_fp} otherwise (the comparison is skipped if the
+%   accumulator is already \cs{c_zero_fp}).  If something is symbolic, the
+%   work is delegated to \cs{@@_parse_apply_compare_symbolic:nnNNNNnNN}.  In
+%   both cases the new accumulator is then given to
+%   \cs{@@_parse_apply_compare_aux:NNwN} (or its symbolic analog).  This
+%   function checks whether the next infix operator is again a comparison.  If
+%   so, the right operand becomes the left operand of the next comparison
+%   (\cs{@@_parse_continue_compare:NNwNN}); otherwise the accumulator is
+%   the result.  The right operand is expanded using
+%   \cs{@@_exp_after_any_f:nw}, because it can be symbolic.
+%    \begin{macrocode}
 \cs_new:Npn \@@_parse_apply_compare:NwNNNNNwN
     #1 #2@ #3 #4#5#6#7 #8@ #9
   {
-    \if_int_odd:w
-        \if_meaning:w \c_zero_fp #3
-          0
+    \@@_if_has_symbolic:nTF { #3 #2 #8 }
+      {
+        \@@_parse_apply_compare_symbolic:nnNNNNnNN
+          {#3} {#2} #4#5#6#7 {#8} #1 #9
+      }
+      {
+        \if_int_odd:w
+            \if_meaning:w \c_zero_fp #3
+              0
+            \else:
+              \if_case:w \@@_compare_back_any:ww #8 #2 \exp_stop_f:
+                #5 \or: #6 \or: #7 \else: #4
+              \fi:
+            \fi:
+            \exp_stop_f:
+          \exp_after:w \@@_parse_apply_compare_aux:NNwN
+          \exp_after:w \c_one_fp
         \else:
-          \if_case:w \@@_compare_back_any:ww #8 #2 \exp_stop_f:
-            #5 \or: #6 \or: #7 \else: #4
-          \fi:
+          \exp_after:w \@@_parse_apply_compare_aux:NNwN
+          \exp_after:w \c_zero_fp
         \fi:
-        \exp_stop_f:
-      \exp_after:w \@@_parse_apply_compare_aux:NNwN
-      \exp_after:w \c_one_fp
-    \else:
-      \exp_after:w \@@_parse_apply_compare_aux:NNwN
-      \exp_after:w \c_zero_fp
-    \fi:
-    #1 #8 #9
+        #1 #8 #9
+      }
   }
 \cs_new:Npn \@@_parse_apply_compare_aux:NNwN #1 #2 #3\@@_sep: #4
   {
@@ -2710,8 +2748,7 @@
       \exp_after:w #1
       \exp_after:w #2
       \exp:w \exp_end_continue_f:w
-      \@@_exp_after_o:w #3\@@_sep:
-      \exp:w \exp_end_continue_f:w
+      \@@_exp_after_any_f:nw { } #3\@@_sep:
     \else:
       \exp_after:w \@@_parse_continue:NwN
       \exp_after:w #2
@@ -2725,6 +2762,107 @@
   { #4 #2 #3@ #1 }
 %    \end{macrocode}
 % \end{macro}
+%
+% \begin{macro}[EXP]
+%   {
+%     \@@_parse_apply_compare_symbolic:nnNNNNnNN,
+%     \@@_parse_apply_compare_aux_symbolic:nNwN,
+%     \@@_parse_continue_compare_symbolic:NwwNN,
+%   }
+%   A comparison involving symbolic expressions cannot be decided, hence it
+%   is stored as a symbolic expression using
+%   \cs{@@_types_compare:NNNNww}, built by
+%   \cs{@@_symbolic_compare_o:NNNNww}.  The arguments of
+%   \cs{@@_parse_apply_compare_symbolic:nnNNNNnNN} are the accumulator, the
+%   left operand, the four flags, the right operand, the precedence and the
+%   next infix operator.  The new accumulator is determined as follows.
+%   \begin{itemize}
+%     \item If the accumulator is a plain number, it is necessarily
+%       \cs{c_zero_fp} (the chain is already false, it stays so) or
+%       \cs{c_one_fp}, in which case the new accumulator is the comparison
+%       expression itself.
+%     \item If the accumulator is symbolic and an operand is symbolic, the new
+%       accumulator is the logical |&| of both, built with
+%       \cs{@@_symbolic_compare_and_o:ww}, so that |a < b < c| is stored like
+%       |(a < b) & (b < c)|.
+%     \item If the accumulator is symbolic but both operands are plain
+%       numbers, the comparison is decided: the accumulator is kept if the
+%       comparison is true, and replaced by \cs{c_zero_fp} if it is false.
+%   \end{itemize}
+%   A plain accumulator goes to \cs{@@_parse_apply_compare_aux:NNwN}.  A
+%   symbolic accumulator spans many tokens so it is passed in braces to
+%   \cs{@@_parse_apply_compare_aux_symbolic:nNwN}, which behaves like the
+%   plain version.  The accumulator and the right operand cannot be skipped
+%   with \cs{exp_after:w}, so they are placed using
+%   \cs{@@_exp_after_any_f:nw} (this also expands the next infix operator
+%   after them), and \cs{@@_parse_continue_compare_symbolic:NwwNN} then puts
+%   the accumulator back in braces for the next comparison.
+%    \begin{macrocode}
+\cs_new:Npn \@@_parse_apply_compare_symbolic:nnNNNNnNN #1#2 #3#4#5#6 #7 #8#9
+  {
+    \@@_if_has_symbolic:nTF {#1}
+      {
+        \@@_if_has_symbolic:nTF { #2 #7 }
+          {
+            \exp_args:Nf \@@_parse_apply_compare_aux_symbolic:nNwN
+              {
+                \@@_symbolic_compare_and_o:ww
+                  #1
+                  \s_@@_symbolic \@@_symbolic_chk:w
+                  \@@_types_compare:NNNNww #3#4#5#6 , { #2 #7 } \@@_sep:
+              }
+              #8 #7 #9
+          }
+          {
+            \if_int_odd:w
+                \if_case:w \@@_compare_back_any:ww #7 #2 \exp_stop_f:
+                  #4 \or: #5 \or: #6 \else: #3
+                \fi:
+                \exp_stop_f:
+              \exp_after:w \use_i:nn
+            \else:
+              \exp_after:w \use_ii:nn
+            \fi:
+              { \@@_parse_apply_compare_aux_symbolic:nNwN {#1} #8 #7 #9 }
+              { \@@_parse_apply_compare_aux:NNwN \c_zero_fp #8 #7 #9 }
+          }
+      }
+      {
+        \if_meaning:w \c_zero_fp #1
+          \exp_after:w \use_i:nn
+        \else:
+          \exp_after:w \use_ii:nn
+        \fi:
+          { \@@_parse_apply_compare_aux:NNwN \c_zero_fp #8 #7 #9 }
+          {
+            \exp_args:Nf \@@_parse_apply_compare_aux_symbolic:nNwN
+              { \@@_symbolic_compare_o:NNNNww #3#4#5#6 #2 #7 }
+              #8 #7 #9
+          }
+      }
+  }
+\cs_new:Npn \@@_parse_apply_compare_aux_symbolic:nNwN #1 #2 #3\@@_sep: #4
+  {
+    \token_if_eq_meaning:NNTF \@@_parse_compare:NNNNNNN #4
+      {
+        \exp_after:w \@@_parse_continue_compare_symbolic:NwwNN
+        \exp_after:w #2
+        \exp:w \exp_end_continue_f:w
+        \@@_exp_after_any_f:nw
+          { \@@_exp_after_any_f:nw { #4 #2 } #3\@@_sep: }
+          #1
+      }
+      {
+        \exp_after:w \@@_parse_continue:NwN
+        \exp_after:w #2
+        \exp:w \exp_end_continue_f:w
+        \@@_exp_after_any_f:nw { #4 #2 } #1
+      }
+  }
+\cs_new:Npn \@@_parse_continue_compare_symbolic:NwwNN
+    #1 #2\@@_sep: #3\@@_sep: @ #4#5
+  { #4 #1 #3\@@_sep: @ { #2\@@_sep: } }
+%    \end{macrocode}
 % \end{macro}
 %
 % \subsection{Tools for functions}
