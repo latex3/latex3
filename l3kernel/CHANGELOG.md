@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - `\skip_mult:nn`
+- `.append_method:n` key property
 
 ### Changed
 
