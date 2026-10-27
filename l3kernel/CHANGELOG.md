@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Symbolic support for comparisons (#1306)
 - `\skip_mult:nn`
+- `.append_method:n` key property
 
 ### Changed
 
