@@ -43,11 +43,13 @@
 -- extension .ins) which are part of the distribution.
 luatexbase       = luatexbase or { }
 local luatexbase = luatexbase
+local string_format    = string.format
 local string_gsub      = string.gsub
 local tex_count        = tex.count
 local tex_setcount     = tex.setcount
 local texio_write_nl   = texio.write_nl
 local flush_list       = node.flush_list
+local token_set_lua    = token.set_lua
 local luatexbase_warning
 local luatexbase_error
 local modules = modules or { }
@@ -243,6 +245,13 @@ local function new_luafunction(name)
   return tex_count[luafunction_count_name]
 end
 luatexbase.new_luafunction = new_luafunction
+local function new_luacommand(csname, fn, ...)
+  local fntable = lua.get_functions_table()
+  local fnalloc = new_luafunction(csname)
+  fntable[fnalloc] = fn
+  token_set_lua(csname, fnalloc, ...)
+end
+luatexbase.new_luacommand = new_luacommand
 local realcallbacklist = {}
 local callbackrules = {}
 local callbacklist = setmetatable({}, {
@@ -253,7 +262,7 @@ local callbacklist = setmetatable({}, {
       local meta = {}
       for i, entry in ipairs(list) do
         local t = {value = entry, count = 0, pos = i}
-        meta[entry.description], list[i] = t, t
+        meta[entry.identifier], list[i] = t, t
       end
       local count = #list
       local pos = count
@@ -289,7 +298,7 @@ local callbacklist = setmetatable({}, {
       for i=1, count do -- The actual sort begins
         local current = list[i]
         if current then
-          meta[current.value.description] = nil
+          meta[current.value.identifier] = nil
           for j, cur in ipairs(current) do
             local count = cur.count
             if count == 1 then
@@ -315,7 +324,7 @@ local callbacklist = setmetatable({}, {
             local entry = meta[name]
             list[i + j - 1] = entry.value
             for _, post_entry in ipairs(entry) do
-              local post_name = post_entry.value.description
+              local post_name = post_entry.value.identifier
               if not remaining[post_name] then
                 remaining[post_name] = name
               end
@@ -465,7 +474,7 @@ local function list_handler(name)
       ret = i.func(head, ...)
       if ret == false then
         luatexbase_warning(
-          "Function `" .. i.description .. "' returned false\n"
+          "Function `" .. i.identifier .. "' returned false\n"
             .. "in callback `" .. name .."'"
          )
         return false
@@ -489,7 +498,7 @@ local function reverselist_handler(name)
       ret = cb.func(head, ...)
       if ret == false then
         luatexbase_warning(
-          "Function `" .. cb.description .. "' returned false\n"
+          "Function `" .. cb.identifier .. "' returned false\n"
             .. "in callback `" .. name .."'"
          )
         return false
@@ -569,20 +578,42 @@ local function call_callback(name,...)
   return f(...)
 end
 luatexbase.call_callback=call_callback
-local function add_to_callback(name, func, description)
+local function in_callback(name, identifier)
+  if not name
+    or name == ""
+    or not realcallbacklist[name]
+    or not callbacktypes[name]
+    or not identifier then
+      return false
+  end
+  for _, i in pairs(realcallbacklist[name]) do
+    if i.identifier == identifier then
+      return true
+    end
+  end
+  return false
+end
+luatexbase.in_callback = in_callback
+local function add_to_callback(name, func, identifier)
   if not name or name == "" then
     luatexbase_error("Unable to register callback:\n" ..
                      "valid callback name required")
   end
   if not callbacktypes[name] or
     type(func) ~= "function" or
-    not description or
-    description == "" then
+    not identifier or
+    identifier == "" then
     luatexbase_error(
       "Unable to register callback.\n\n"
         .. "Correct usage:\n"
-        .. "add_to_callback(<callback>, <function>, <description>)"
+        .. "add_to_callback(<callback>, <function>, <identifier>)"
     )
+  end
+  if in_callback(name, identifier) then
+  luatexbase_warning(string_format(
+      "The identifier %s is already in use in callback %s.\n\z
+      Please change the identifier of the newly registered callback \z
+      to avoid errors in the next LaTeX release", identifier, name))
   end
   local l = realcallbacklist[name]
   if l == nil then
@@ -600,7 +631,7 @@ local function add_to_callback(name, func, description)
   end
   local f = {
     func        = func,
-    description = description,
+    identifier = identifier,
   }
   if callbacktypes[name] == exclusive then
     if #l == 1 then
@@ -612,7 +643,7 @@ local function add_to_callback(name, func, description)
   table.insert(l, f)
   callbacklist[name] = nil
   luatexbase_log(
-    "Inserting `" .. description .. "' in `" .. name .. "'."
+    "Inserting `" .. identifier .. "' in `" .. name .. "'."
   )
 end
 luatexbase.add_to_callback = add_to_callback
@@ -623,7 +654,7 @@ local function declare_callback_rule(name, desc1, relation, desc2)
     luatexbase_error(
       "Unable to create ordering constraint. "
         .. "Correct usage:\n"
-        .. "declare_callback_rule(<callback>, <description_a>, <description_b>)"
+        .. "declare_callback_rule(<callback>, <identifier_a>, <identifier_b>)"
     )
   end
   if relation == 'before' then
@@ -659,18 +690,18 @@ local function declare_callback_rule(name, desc1, relation, desc2)
   end
 end
 luatexbase.declare_callback_rule = declare_callback_rule
-local function remove_from_callback(name, description)
+local function remove_from_callback(name, identifier)
   if not name or name == "" then
     luatexbase_error("Unable to remove function from callback:\n" ..
                      "valid callback name required")
   end
   if not callbacktypes[name] or
-    not description or
-    description == "" then
+    not identifier or
+    identifier == "" then
     luatexbase_error(
       "Unable to remove function from callback.\n\n"
         .. "Correct usage:\n"
-        .. "remove_from_callback(<callback>, <description>)"
+        .. "remove_from_callback(<callback>, <identifier>)"
     )
   end
   local l = realcallbacklist[name]
@@ -680,20 +711,20 @@ local function remove_from_callback(name, description)
   end
   local index = false
   for i,j in ipairs(l) do
-    if j.description == description then
+    if j.identifier == identifier then
       index = i
       break
     end
   end
   if not index then
     luatexbase_error(
-      "No callback `" .. description .. "' registered for `" ..
+      "No callback `" .. identifier .. "' registered for `" ..
       name .. "'\n")
   end
   local cb = l[index]
   table.remove(l, index)
   luatexbase_log(
-    "Removing  `" .. description .. "' from `" .. name .. "'."
+    "Removing  `" .. identifier .. "' from `" .. name .. "'."
   )
   if #l == 0 then
     realcallbacklist[name] = nil
@@ -708,25 +739,9 @@ local function remove_from_callback(name, description)
       callback_register(name, nil)
     end
   end
-  return cb.func,cb.description
+  return cb.func,cb.identifier
 end
 luatexbase.remove_from_callback = remove_from_callback
-local function in_callback(name, description)
-  if not name
-    or name == ""
-    or not realcallbacklist[name]
-    or not callbacktypes[name]
-    or not description then
-      return false
-  end
-  for _, i in pairs(realcallbacklist[name]) do
-    if i.description == description then
-      return true
-    end
-  end
-  return false
-end
-luatexbase.in_callback = in_callback
 local function disable_callback(name)
   if(realcallbacklist[name] == nil) then
     callback_register(name, false)
@@ -735,7 +750,7 @@ local function disable_callback(name)
   end
 end
 luatexbase.disable_callback = disable_callback
-local function callback_descriptions (name)
+local function callback_identifiers (name)
   local d = {}
   if not name
     or name == ""
@@ -745,12 +760,13 @@ local function callback_descriptions (name)
     return d
   else
   for k, i in pairs(callbacklist[name]) do
-    d[k]= i.description
+    d[k]= i.identifier
     end
   end
   return d
 end
-luatexbase.callback_descriptions =callback_descriptions
+luatexbase.callback_descriptions =callback_identifiers
+luatexbase.callback_identifiers = callback_identifiers
 local function uninstall()
   module_info(
     "luatexbase",
