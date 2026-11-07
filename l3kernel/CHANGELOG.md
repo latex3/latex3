@@ -13,6 +13,10 @@ this project uses date-based 'snapshot' version identifiers.
 - Symbolic support for comparisons (#1306)
 - `\skip_mult:nn`
 
+### Fixed
+
+- Add grouping around `\cs:w` in linked `\prop_(g)put:Nnn` (issue \#1969)
+
 ## [2026-09-09]
 
 ### Changed
