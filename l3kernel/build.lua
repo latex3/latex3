@@ -23,7 +23,7 @@ docfiles     = {"source3body.tex", "l3prefixes.csv"}
 installfiles =
   {
     "expl3.lua", "expl3.ltx",
-    "*.cls", "*.pro", "*.sty", "*.tex",
+    "*.cls", "*.sty", "*.tex",
     "l3backend-*.def", "l3debug.def", "l3str-*.def",
     "l3backend*.lua"
   }
@@ -53,11 +53,10 @@ typesetdeps = typesetdeps
 -- Load the common build code
 dofile(maindir .. "/build-config.lua")
 
--- Get the .pro files in the right place
+-- Get the .pro files in the right place and suppress for non-main branches
 if main_branch then
+  table.insert(installfiles, "*.pro")
   tdslocations = {"dvips/l3kernel/*.pro"}
-else
-  tdslocations = {"dvips/l3kernel-dev/*.pro"}
 end
 
 -- Detail how to set the version automatically
@@ -71,6 +70,10 @@ function update_tag_extra(file,content,tagname,tagdate)
     content = string.gsub(content,
       "\n\\date{Released " .. iso .. "}\n",
       "\n\\date{Released " .. tagname .. "}\n")
+  elseif string.match(file,"l3backend%-basics%.dtx$") then
+    content = string.gsub(content,
+      "\n  ({l3backend%-%w+%.def}){" .. iso .. "}",
+      "\n  %1{" .. tagname .. "}")
   end
   return(content)
 end
@@ -123,10 +126,21 @@ function cmdcheck()
       " \"\\PassOptionsToClass{check}{l3doc} \\input source3.tex \""
       .. " > " .. os_null
   )
+  local errorlevel = 0
   for line in io.lines(testdir .. "/source3.cmds") do
     if string.match(line, "^%!") then
+      if errorlevel == 0 then
+        print("Errors found in source3:")
+      end
       print("   - " .. string.match(line, "^%! (.*)"))
+      errorlevel = 1
     end
+  end
+  if errorlevel == 0 then
+    print("   - No errors found")
+    os.exit(0)
+  else
+    os.exit(1)
   end
 end
 
@@ -134,5 +148,6 @@ target_list = target_list or { }
 target_list.cmdcheck =
   {
     func = cmdcheck,
-    desc = "Run cmd cover test"
+    desc = "Run cmd cover test",
+    help = "Carries out a check of source3 to ensure that\nall commands documented are defined, and vice versa."
   }

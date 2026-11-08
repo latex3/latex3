@@ -8,9 +8,28 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- Symbolic support for comparisons (#1306)
+- `\skip_mult:nn`
+
+## [2026-09-09]
+
+### Changed
+
+- Apply transparency group to PDF images via an Xform object
+- Documentation improvements
+
+### Deprecated
+
+- `\exp_after:wN` in favor of `\exp_after:w`
+
+## [2026-08-10]
+
 ### Changed
 
 - Integrate `l3backend` files into `l3kernel` distribution
+- Add `\fp_if_tuple:n(TF)`, add `count()` and `item()` to fp expressions
 
 ## [2026-08-02]
 
@@ -2498,7 +2517,9 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2026-08-02...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2026-09-09...HEAD
+[2026-09-09]: https://github.com/latex3/latex3/compare/2026-08-10...2026-09-09
+[2026-08-10]: https://github.com/latex3/latex3/compare/2026-08-02...2026-08-10
 [2026-08-02]: https://github.com/latex3/latex3/compare/2026-07-20...2026-08-02
 [2026-07-20]: https://github.com/latex3/latex3/compare/2026-06-19...2026-07-20
 [2026-06-19]: https://github.com/latex3/latex3/compare/2026-06-18...2026-06-19

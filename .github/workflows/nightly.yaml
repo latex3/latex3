@@ -1,0 +1,56 @@
+name: Publish nightly
+
+on:
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  l3build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - package: l3kernel
+            directory: l3kernel
+          - package: l3packages
+            directory: l3packages
+    name: Publish nightly for ${{ matrix.package }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Install TeX Live
+        uses: zauguin/install-texlive@v4
+        with:
+          package_file: .github/tl_packages
+      - name: Create target directories
+        run: mkdir target-dev target-nightly
+      - name: Run l3build for dev
+        working-directory: ${{ matrix.directory }}
+        env:
+          TEXMFHOME: ${{ github.workspace }}/target-dev
+        run: l3build install
+      - name: Run l3build for nightly
+        working-directory: ${{ matrix.directory }}
+        env:
+          TEXMFHOME: ${{ github.workspace }}/target-nightly
+        run: LATEX_NIGHTLY=1 l3build install
+      - name: Publish nightly
+        run: |
+          ID_TOKEN=$(curl -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://nightly.typesetting.eu" | jq -r .value)
+          (
+            cd target-dev
+            zip -r - . | curl --fail --data-binary @- -XPUT -H "Authorization: Bearer $ID_TOKEN" https://nightly.typesetting.eu/upload/${{ matrix.package }}-dev
+          ) &
+          DEV_PID=$!
+          (
+            cd target-nightly
+            zip -r - . | curl --fail --data-binary @- -XPUT -H "Authorization: Bearer $ID_TOKEN" https://nightly.typesetting.eu/upload/${{ matrix.package }}-nightly
+          ) &
+          NIGHTLY_PID=$!
+          wait $DEV_PID
+          wait $NIGHTLY_PID
