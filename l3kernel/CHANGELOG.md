@@ -8,6 +8,11 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Keep `+=` when storing unknown keys relative to a root
+  in `\keys_set_known:nnnN`, etc.
+
 ## [2026-11-10]
 
 ### Added
