@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Keep `+=` when storing unknown keys relative to a root
   in `\keys_set_known:nnnN`, etc.
+- Inheritance for `+=` keys (issue \#1986)
 
 ## [2026-11-10]
 
