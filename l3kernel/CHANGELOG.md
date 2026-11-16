@@ -8,6 +8,8 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+## [2026-11-16]
+
 ### Fixed
 
 - Keep `+=` when storing unknown keys relative to a root
@@ -2536,7 +2538,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Step functions have been added for dim variables,
   e.g. `\dim_step_inline:nnnn`
 
-[Unreleased]: https://github.com/latex3/latex3/compare/2026-11-10...HEAD
+[Unreleased]: https://github.com/latex3/latex3/compare/2026-11-16...HEAD
+[2026-11-16]: https://github.com/latex3/latex3/compare/2026-11-10...2026-11-16
 [2026-11-10]: https://github.com/latex3/latex3/compare/2026-09-09...2026-11-10
 [2026-09-09]: https://github.com/latex3/latex3/compare/2026-08-10...2026-09-09
 [2026-08-10]: https://github.com/latex3/latex3/compare/2026-08-02...2026-08-10
