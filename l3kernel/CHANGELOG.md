@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Attach end-of-color reset to glyph not space
+
 ## [2026-11-16]
 
 ### Fixed
