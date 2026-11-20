@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Added
+
+- `\prop_item:Nnn`
+
 ### Fixed
 
 - Attach end-of-color reset to glyph not space
