@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Added
 
 - `\prop_item:Nnn`
+- `\token_if_exist:N(TF)`
 
 ### Fixed
 
