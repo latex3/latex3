@@ -12,6 +12,7 @@ this project uses date-based 'snapshot' version identifiers.
 
 - Symbolic support for comparisons (#1306)
 - `\skip_mult:nn`
+- Support for PDF objects with binary streams
 
 ## [2026-09-09]
 
