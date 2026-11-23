@@ -21,6 +21,8 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 
 - Attach end-of-color reset to glyph not space
+- Master counter tracking when generating chars of catcode 1 and 2 (issue
+  \#1985)
 
 ## [2026-11-16]
 
