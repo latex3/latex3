@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\prop_item:Nnn`
 - `\token_if_exist:N(TF)`
 - `\char_to_charcode:N` and `\char_generate:Nn` (issue \#1892)
+- Support for PDF objects with binary streams
 
 ### Deprecated
 
