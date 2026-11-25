@@ -24,6 +24,8 @@ this project uses date-based 'snapshot' version identifiers.
 - Attach end-of-color reset to glyph not space
 - Master counter tracking when generating chars of catcode 1 and 2 (issue
   \#1985)
+- Properly restore inheritance key string to mitigate false unknowns
+  (issue \#1999)
 
 ## [2026-11-16]
 
