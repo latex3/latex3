@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Changed
 
 - Use a zero linewidth in `\draw_path_replace_bb:`
+- `\draw_path_xmin:`, `\draw_path_ymin:`, `\draw_path_xmax:`, `\draw_path_ymax:`
 
 ## [2026-06-18]
 
