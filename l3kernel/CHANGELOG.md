@@ -14,6 +14,7 @@ this project uses date-based 'snapshot' version identifiers.
 - `\token_if_exist:N(TF)`
 - `\char_to_charcode:N` and `\char_generate:Nn` (issue \#1892)
 - Support for PDF objects with binary streams
+- Support for `.append_method:n` property for `unknown` keys (issue \#1997)
 
 ### Deprecated
 
