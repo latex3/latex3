@@ -9,6 +9,7 @@ this project uses date-based 'snapshot' version identifiers.
 ## [Unreleased]
 
 ### Added
+
 - `\draw_path_xmin:`, `\draw_path_ymin:`, `\draw_path_xmax:`, `\draw_path_ymax:`
 
 ### Changed
