@@ -29,6 +29,7 @@ this project uses date-based 'snapshot' version identifiers.
   \#1985)
 - Properly restore inheritance key string to mitigate false unknowns
   (issue \#1999)
+- Enhance peek code checks with probing mechanism (issue \#1434)
 
 ## [2026-11-16]
 

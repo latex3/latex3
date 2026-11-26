@@ -43,7 +43,7 @@
 %    }^^A
 % }
 %
-% \date{Released 2026-11-26}
+% \date{Released 2026-11-16}
 %
 % \maketitle
 %
@@ -7399,18 +7399,24 @@
 %   The |T| and |F| functions just call the corresponding |TF| function.
 %   The four |TF| functions differ along two axes: whether to remove the
 %   token or not, distinguished by using \cs{@@_peek_end:} or
-%   \cs{@@_peek_remove_end:n} (the latter case needs an argument, as we
-%   will see), and whether the regex has to be compiled or is already in
-%   an |N|-type variable, distinguished by calling \cs{@@_build_aux:Nn}
-%   or \cs{@@_build_aux:NN}.  The first argument of these functions is
-%   \cs{c_false_bool} to indicate that there should be no implicit
-%   insertion of a wildcard at the start of the pattern: otherwise the
-%   code would keep looking further into the input stream until matching
-%   the regex.
+%   \cs{@@_peek_remove_end:}, and whether the regex has to be compiled
+%   or is already in an |N|-type variable, distinguished by calling
+%   \cs{@@_build_aux:Nn} or \cs{@@_build_aux:NN}.  The first argument of
+%   these functions is \cs{c_false_bool} to indicate that there should
+%   be no implicit insertion of a wildcard at the start of the pattern:
+%   otherwise the code would keep looking further into the input stream
+%   until matching the regex.
+%
+%   The first argument of \cs{@@_peek:NnnTF} is a boolean stating
+%   whether the caller only needs to know \emph{whether} the regex
+%   matches (\cs{c_true_bool}, for \cs{peek_regex:nTF}), or also needs
+%   to know \emph{where} the match ends (\cs{c_false_bool}, when tokens
+%   are removed).  This controls how many tokens need to be read, as
+%   explained in \cs{@@_probe:}.
 %    \begin{macrocode}
 \cs_new_protected:Npn \peek_regex:nTF #1
   {
-    \@@_peek:nnTF
+    \@@_peek:NnnTF \c_true_bool
       { \@@_build_aux:Nn \c_false_bool {#1} }
       { \@@_peek_end: }
   }
@@ -7419,7 +7425,7 @@
 \cs_new_protected:Npn \peek_regex:nF #1 { \peek_regex:nTF {#1} { } }
 \cs_new_protected:Npn \peek_regex:NTF #1
   {
-    \@@_peek:nnTF
+    \@@_peek:NnnTF \c_true_bool
       { \@@_build_aux:NN \c_false_bool #1 }
       { \@@_peek_end: }
   }
@@ -7428,9 +7434,9 @@
 \cs_new_protected:Npn \peek_regex:NF #1 { \peek_regex:NTF {#1} { } }
 \cs_new_protected:Npn \peek_regex_remove_once:nTF #1
   {
-    \@@_peek:nnTF
+    \@@_peek:NnnTF \c_false_bool
       { \@@_build_aux:Nn \c_false_bool {#1} }
-      { \@@_peek_remove_end:n {##1} }
+      { \@@_peek_remove_end: }
   }
 \cs_new_protected:Npn \peek_regex_remove_once:nT #1#2
   { \peek_regex_remove_once:nTF {#1} {#2} { } }
@@ -7438,9 +7444,9 @@
   { \peek_regex_remove_once:nTF {#1} { } }
 \cs_new_protected:Npn \peek_regex_remove_once:NTF #1
   {
-    \@@_peek:nnTF
+    \@@_peek:NnnTF \c_false_bool
       { \@@_build_aux:NN \c_false_bool #1 }
-      { \@@_peek_remove_end:n {##1} }
+      { \@@_peek_remove_end: }
   }
 \cs_new_protected:Npn \peek_regex_remove_once:NT #1#2
   { \peek_regex_remove_once:NTF #1 {#2} { } }
@@ -7449,9 +7455,9 @@
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_peek:nnTF, \@@_peek_aux:nnTF}
+% \begin{macro}{\@@_peek:NnnTF, \@@_peek_aux:NnnTF}
 %   Store the user's true/false codes (plus \cs{group_end:}) into two
-%   token lists.  Then build the automaton with |#1|, without submatch
+%   token lists.  Then build the automaton with |#2|, without submatch
 %   tracking, and aiming for a single match.  Then start matching by
 %   setting up a few variables like for any regex matching like
 %   \cs{regex_if_match:nnTF}, with the addition of \cs{l_@@_input_tl}
@@ -7461,51 +7467,73 @@
 %   input stream.  Since \cs{@@_match_one_token:nnN} calls
 %   \cs{@@_maplike_break:} we need to catch that and break the
 %   \cs{peek_analysis_map_inline:n} loop instead.
+%
+%   The loop of \cs{@@_match_one_token:nnN} is lazy: the \textsc{nfa}
+%   states stored after reading a token are only explored when the
+%   \emph{next} token is read, so that the state's actions may inspect
+%   that token (for assertions such as |\b|).  This is harmless when
+%   the whole input is known, but when peeking in the input stream
+%   reading that extra token has a cost: it is tokenized (and the
+%   category codes that apply to it may not be the ones intended), and
+%   it must be put back.  To avoid reading tokens needlessly we call
+%   \cs{@@_probe:} before reading the first token, and after each token
+%   has been matched.  If this function is able to decide the outcome
+%   without the next token, it sets \cs{l_@@_probe_done_bool}, in which
+%   case we end the loop (or never enter it).
 %    \begin{macrocode}
-\cs_new_protected:Npn \@@_peek:nnTF #1
+\cs_new_protected:Npn \@@_peek:NnnTF #1#2
   {
-    \@@_peek_aux:nnTF
+    \@@_peek_aux:NnnTF #1
       {
         \@@_disable_submatches:
-        #1
+        #2
       }
   }
-\cs_new_protected:Npn \@@_peek_aux:nnTF #1#2#3#4
+\cs_new_protected:Npn \@@_peek_aux:NnnTF #1#2#3#4#5
   {
     \group_begin:
-      \tl_set:Nn \l_@@_peek_true_tl { \group_end: #3 }
-      \tl_set:Nn \l_@@_peek_false_tl { \group_end: #4 }
+      \tl_set:Nn \l_@@_peek_true_tl { \group_end: #4 }
+      \tl_set:Nn \l_@@_peek_false_tl { \group_end: #5 }
+      \bool_set_eq:NN \l_@@_probe_any_bool #1
       \@@_single_match:
-      #1
+      #2
       \@@_match_init:
       \tl_build_begin:N \l_@@_input_tl
       \@@_match_once_init:
-      \peek_analysis_map_inline:n
+      \@@_probe:
+      \bool_if:NTF \l_@@_probe_done_bool
+        {#3}
         {
-          \tl_build_put_right:Nn \l_@@_input_tl
-            { \@@_input_item:n {##1} }
-          \@@_match_one_token:nnN {##1} {##2} ##3
-          \use_none:nnn
-          \prg_break_point:Nn \@@_maplike_break:
-            { \peek_analysis_map_break:n {#2} }
+          \peek_analysis_map_inline:n
+            {
+              \tl_build_put_right:Nn \l_@@_input_tl
+                { \@@_input_item:n {##1} }
+              \@@_match_one_token:nnN {##1} {##2} ##3
+              \@@_probe:
+              \bool_if:NT \l_@@_probe_done_bool { \@@_maplike_break: }
+              \use_none:nnn
+              \prg_break_point:Nn \@@_maplike_break:
+                { \peek_analysis_map_break:n {#3} }
+            }
         }
   }
 %    \end{macrocode}
 % \end{macro}
 %
-% \begin{macro}{\@@_peek_end:, \@@_peek_remove_end:n}
+% \begin{macro}{\@@_peek_end:, \@@_peek_remove_end:}
 %   Once the regex matches (or permanently fails to match) we call
-%   \cs{@@_peek_end:}, or \cs{@@_peek_remove_end:n} with argument the
-%   last token seen.  For \cs{peek_regex:nTF} we reinsert tokens seen by
-%   calling \cs{@@_peek_reinsert:N} regardless of the result of the
-%   match.  For \cs{peek_regex_remove_once:nTF} we reinsert the tokens
-%   seen only if the match failed; otherwise we just reinsert the
-%   tokens~|#1|, with one expansion.  To be more precise, |#1| consists
-%   of tokens that \texttt{o}-expand and \texttt{e}-expand to the last
-%   token seen, for example it is \cs{exp_not:n} |\{| \meta{cs} |\}| for a
-%   non-expandable primitive.  Thanks to \cs{exp_not:n} (rather than
-%   \cs{exp_not:N}) we don't need to worry about the suppressed further
-%   expansion of \meta{cs}.
+%   \cs{@@_peek_end:} or \cs{@@_peek_remove_end:}.  For
+%   \cs{peek_regex:nTF} we reinsert tokens seen by calling
+%   \cs{@@_peek_reinsert:N} regardless of the result of the match.  For
+%   \cs{peek_regex_remove_once:nTF} we reinsert the tokens seen only if
+%   the match failed.  Otherwise we reinsert the tokens seen \emph{after
+%   the end of the match}, namely those at positions
+%   \cs{l_@@_success_pos_int} to \cs{l_@@_max_pos_int} (excluded).  It
+%   is not enough to reinsert the last token seen: the match may end
+%   several tokens before that, for instance when matching |a(bc)?| in
+%   |abd| the tokens |b| and~|d| both have to be put back.  This is
+%   exactly what \cs{@@_peek_replace_end:} below does for the part of
+%   the input following the match, and we use the same functions.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_peek_end:
   {
@@ -7513,11 +7541,168 @@
       { \@@_peek_reinsert:N \l_@@_peek_true_tl }
       { \@@_peek_reinsert:N \l_@@_peek_false_tl }
   }
-\cs_new_protected:Npn \@@_peek_remove_end:n #1
+\cs_new_protected:Npn \@@_peek_remove_end:
   {
     \bool_if:NTF \g_@@_success_bool
-      { \exp_after:w \l_@@_peek_true_tl #1 }
+      {
+        \@@_query_set_from_input_tl:
+        \cs_set_eq:NN \@@_input_item:n \@@_reinsert_item:n
+        \use:e
+          {
+            \exp_not:n { \exp_after:w \l_@@_peek_true_tl \exp:w }
+            \@@_query_range:nn \l_@@_success_pos_int \l_@@_max_pos_int
+            \exp_end:
+          }
+      }
       { \@@_peek_reinsert:N \l_@@_peek_false_tl }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{variable}{\l_@@_probe_any_bool, \l_@@_probe_done_bool, \l_@@_probe_unknown_bool}
+%   The boolean \cs{l_@@_probe_any_bool} records whether the caller
+%   only needs to know if the regex matches.  It is set by
+%   \cs{@@_peek_aux:NnnTF}.  The boolean \cs{l_@@_probe_done_bool} is
+%   set by \cs{@@_probe:} when the outcome is known.  The boolean
+%   \cs{l_@@_probe_unknown_bool} is used within \cs{@@_probe:} to record
+%   that some path of the \textsc{nfa} needs the next token.
+%    \begin{macrocode}
+\bool_new:N \l_@@_probe_any_bool
+\bool_new:N \l_@@_probe_done_bool
+\bool_new:N \l_@@_probe_unknown_bool
+%    \end{macrocode}
+% \end{variable}
+%
+% \begin{macro}{\@@_probe:, \@@_probe_need:, \@@_probe_abort:}
+%   Decide the outcome of a match without reading the next token, if
+%   that is possible.  The \textsc{nfa} states in the array of active
+%   threads have not been explored yet.  We explore them, in the order
+%   of the array (which is the order of precedence), just like
+%   \cs{@@_match_one_token:nnN} would when the next token is read,
+%   except that the next token is not known: every instruction that
+%   would look at it is replaced by one that records that the next token
+%   is needed.  These are the tests of the \texttt{item} family (which
+%   cover character, category code, ranges, properties and control
+%   sequences), the end-of-string and word boundary assertions (|\Z|,
+%   |\b| and |\B|) and \cs{@@_action_cost:n}, which consumes the next
+%   token.  The assertions |\A| and |\G| only look at the past and at
+%   positions, so they remain valid.  Free transitions, submatch
+%   instructions and the final state are untouched.
+%
+%   The three possible outcomes are as follows.  If some thread reaches
+%   the success state without ever needing the next token, then the
+%   regex matches.  The match is final when no thread of higher
+%   precedence is still undecided; since we abort at the first
+%   instruction needing the next token this is the case.  If
+%   \cs{l_@@_probe_any_bool} is true, we only care whether the regex
+%   matches, so a thread that needs the next token does not stop the
+%   exploration, and we are done as soon as any thread succeeds.  If
+%   no thread succeeds and no instruction needed the next token, then
+%   every thread is dead, and the result is that of the last match
+%   found, if any.  In all other cases the outcome is unknown and
+%   nothing has changed (see below), so we simply continue by reading
+%   the next token.
+%
+%   All of this takes place in a group: the assignments that make the
+%   exploration look like what \cs{@@_match_one_token:nnN} does at the
+%   next position, and the redefinitions of the instructions, are
+%   discarded when the outcome is unknown.  The group is ended before
+%   the success information is stored, using \texttt{e}-expansion to
+%   carry the values over.  The \texttt{step} counter is increased
+%   outside the group, so that states are never confused with those
+%   marked as active by a previous, discarded exploration.  The array of
+%   active threads is not modified since no thread can consume a token.
+%
+%   The same function is used before reading the first token, at which
+%   point the previous character is the start-of-input marker, so that
+%   regular expressions matching the empty string do not need to read
+%   any token.
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_probe:
+  {
+    \bool_set_false:N \l_@@_probe_done_bool
+    \int_add:Nn \l_@@_step_int { 2 }
+    \group_begin:
+      \@@_probe_set_instructions:
+      \bool_set_false:N \l_@@_probe_unknown_bool
+      \bool_set_false:N \l_@@_match_success_bool
+      \int_incr:N \l_@@_curr_pos_int
+      \int_set_eq:NN \l_@@_last_char_int \l_@@_curr_char_int
+      \use:e
+        {
+          \int_step_function:nnN
+            \l_@@_min_thread_int
+            { \l_@@_max_thread_int - \c_one_int }
+            \@@_match_one_active:n
+        }
+      \prg_break_point:
+      \bool_if:NTF \l_@@_match_success_bool
+        {
+          \use:e
+            {
+              \group_end:
+              \bool_gset_true:N \g_@@_success_bool
+              \bool_set_true:N \l_@@_probe_done_bool
+              \int_set:Nn \l_@@_success_pos_int
+                { \int_use:N \l_@@_success_pos_int }
+              \tl_set:Nn \exp_not:N \l_@@_success_submatches_tl
+                { \exp_not:o \l_@@_success_submatches_tl }
+            }
+        }
+        {
+          \bool_if:NTF \l_@@_probe_unknown_bool
+            { \group_end: }
+            {
+              \group_end:
+              \bool_gset_eq:NN \g_@@_success_bool \l_@@_match_success_bool
+              \bool_set_true:N \l_@@_probe_done_bool
+            }
+        }
+  }
+\cs_new_protected:Npn \@@_probe_abort:
+  {
+    \bool_set_true:N \l_@@_probe_unknown_bool
+    \prg_break:
+  }
+\cs_new_protected:Npn \@@_probe_need:
+  {
+    \bool_set_true:N \l_@@_probe_unknown_bool
+    \bool_if:NF \l_@@_probe_any_bool { \prg_break: }
+  }
+%    \end{macrocode}
+% \end{macro}
+%
+% \begin{macro}{\@@_probe_set_instructions:}
+%   Redefine (locally) all the instructions that depend on the next
+%   token.  The argument lists must match those of the functions they
+%   replace.  \emph{Every new function which looks at
+%   \cs{l_@@_curr_char_int}, \cs{l_@@_curr_catcode_int} or
+%   \cs{l_@@_curr_token_tl} in an \textsc{nfa} state must be listed
+%   here.}  The assertions for which we cannot tell whether they hold
+%   abort the exploration, even if \cs{l_@@_probe_any_bool} is true:
+%   the free transition that follows depends on them, and they cannot
+%   be skipped like a failing test (in particular, |\B| is the negation
+%   of |\b|).
+%    \begin{macrocode}
+\cs_new_protected:Npn \@@_probe_set_instructions:
+  {
+    \cs_set_protected:Npn \@@_item_caseful_equal:n ##1 { \@@_probe_need: }
+    \cs_set_protected:Npn \@@_item_caseful_range:nn ##1##2
+      { \@@_probe_need: }
+    \cs_set_protected:Npn \@@_item_caseless_equal:n ##1
+      { \@@_probe_need: }
+    \cs_set_protected:Npn \@@_item_caseless_range:nn ##1##2
+      { \@@_probe_need: }
+    \cs_set_protected:Npn \@@_item_catcode:nT ##1##2 { \@@_probe_need: }
+    \cs_set_protected:Npn \@@_item_catcode_reverse:nT ##1##2
+      { \@@_probe_need: }
+    \cs_set_protected:Npn \@@_item_exact:nn ##1##2 { \@@_probe_need: }
+    \cs_set_protected:Npn \@@_item_exact_cs:n ##1 { \@@_probe_need: }
+    \cs_set_protected:Npn \@@_item_cs:n ##1 { \@@_probe_need: }
+    \cs_set_eq:cN { @@_prop_.: } \@@_probe_need:
+    \cs_set_protected:Npn \@@_action_cost:n ##1 { \@@_probe_need: }
+    \cs_set_eq:NN \@@_b_test: \@@_probe_abort:
+    \cs_set_eq:NN \@@_Z_test: \@@_probe_abort:
   }
 %    \end{macrocode}
 % \end{macro}
@@ -7573,14 +7758,14 @@
 % \end{macro}
 %
 % \begin{macro}{\@@_peek_replace:nnTF}
-%   Same as \cs{@@_peek:nnTF} (used for \cs{peek_regex:nTF} above), but
+%   Same as \cs{@@_peek:NnnTF} (used for \cs{peek_regex:nTF} above), but
 %   without disabling submatches, and with a different end.  The
 %   replacement text |#2| is stored, to be analyzed later.
 %    \begin{macrocode}
 \cs_new_protected:Npn \@@_peek_replace:nnTF #1#2
   {
     \tl_set:Nn \l_@@_replacement_tl {#2}
-    \@@_peek_aux:nnTF {#1} { \@@_peek_replace_end: }
+    \@@_peek_aux:NnnTF \c_false_bool {#1} { \@@_peek_replace_end: }
   }
 %    \end{macrocode}
 % \end{macro}
