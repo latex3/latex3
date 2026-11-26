@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Changed
+
+- Update `xparse-generic` to remove deprecated function
+
 ## [2025-11-06]
 
 ### Changed
