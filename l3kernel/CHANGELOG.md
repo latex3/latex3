@@ -8,6 +8,10 @@ this project uses date-based 'snapshot' version identifiers.
 
 ## [Unreleased]
 
+### Fixed
+
+- Definition of `\c_max_intarray_int` (issue \#2003)
+
 ## [2026-11-26]
 
 ### Added
