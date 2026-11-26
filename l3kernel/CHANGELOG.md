@@ -11,6 +11,7 @@ this project uses date-based 'snapshot' version identifiers.
 ### Fixed
 
 - Definition of `\c_max_intarray_int` (issue \#2003)
+- Rescanning with non-std `\endlinechar` in LuaTeX (issue \#2005)
 
 ## [2026-11-26]
 
