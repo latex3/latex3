@@ -13,6 +13,7 @@ this project uses date-based 'snapshot' version identifiers.
 - Enhance peek code checks with probing mechanism (issue \#1434)
 - Definition of `\c_max_intarray_int` (issue \#2003)
 - Rescanning with non-std `\endlinechar` in LuaTeX (issue \#2005)
+- Align-safe handling of active token definition (issue \#1796)
 
 ## [2026-11-26]
 
